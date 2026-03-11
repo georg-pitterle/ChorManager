@@ -1,0 +1,164 @@
+{% extends "layout.twig" %}
+
+{% block title %}Auswertungen - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-3">
+    <div class="col-12 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+        <h1>Auswertungen / Statistiken</h1>
+        
+        <form class="d-flex mt-2 mt-md-0" method="get" action="/evaluations">
+            <select class="form-select me-2" name="project_id" onchange="this.form.submit()">
+                <option value="">-- Projekt wählen --</option>
+                {% for p in projects %}
+                    <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
+                        {{ p.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+{% if selected_project %}
+<div class="card shadow-sm mb-4 border-info">
+    <div class="card-body">
+        <h5 class="card-title text-info">Statistik für Projekt: {{ selected_project.name }}</h5>
+        <h6 class="card-subtitle mb-2 text-muted">Termine im Projekt: {{ total_events }}</h6>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0" id="evaluationsTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="sortable" data-sort="string" data-col="0" role="button" tabindex="0" title="Klicken zum Sortieren">
+                            Name <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
+                        </th>
+                        <th class="sortable" data-sort="string" data-col="1" role="button" tabindex="0" title="Klicken zum Sortieren">
+                            Stimmgruppe <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
+                        </th>
+                        <th class="sortable text-center" data-sort="number" data-col="2" role="button" tabindex="0" title="Klicken zum Sortieren">
+                            Anwesend <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
+                        </th>
+                        <th class="sortable text-center" data-sort="number" data-col="3" role="button" tabindex="0" title="Klicken zum Sortieren">
+                            Entschuldigt <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
+                        </th>
+                        <th class="sortable text-center" data-sort="number" data-col="4" role="button" tabindex="0" title="Klicken zum Sortieren">
+                            Unentschuldigt <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
+                        </th>
+                        <th class="sortable text-end" data-sort="number" data-col="5" role="button" tabindex="0" title="Klicken zum Sortieren">
+                            Quote <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in stats %}
+                    <tr data-sort-name="{{ (stat.last_name ~ ', ' ~ stat.first_name)|lower }}"
+                        data-sort-voice="{{ (stat.voice_group_name|default('-'))|lower }}"
+                        data-sort-present="{{ stat.present_count|default(0) }}"
+                        data-sort-excused="{{ stat.excused_count|default(0) }}"
+                        data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
+                        data-sort-percentage="{{ stat.percentage|default(0) }}">
+                        <td><strong>{{ stat.last_name }}, {{ stat.first_name }}</strong></td>
+                        <td>{{ stat.voice_group_name|default('-') }}</td>
+                        <td class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
+                        <td class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
+                        <td class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
+                        <td class="text-end">
+                            {% set barColor = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
+                            <div class="d-flex align-items-center justify-content-end">
+                                <span class="me-2 fw-bold {% if stat.percentage >= 75 %}text-success{% elseif stat.percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ stat.percentage }}%</span>
+                                <div class="progress" style="width: 60px; height: 8px;">
+                                    <div class="progress-bar {{ barColor }}" role="progressbar" style="width: {{ stat.percentage }}%;" aria-valuenow="{{ stat.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">Keine Statistiken für dieses Projekt verfügbar. Möglicherweise haben noch keine Termine stattgefunden oder es sind keine Mitglieder aktiv.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-info py-5 text-center shadow-sm">
+    <i class="bi bi-bar-chart-fill fs-1 d-block mb-3 text-info"></i>
+    Willkommen im Auswertungsbereich. Bitte wählen Sie oben rechts ein Projekt aus, um die entsprechenden Anwesenheitsquoten der Chormitglieder anzuzeigen.
+</div>
+{% endif %}
+
+{% if selected_project %}
+<style>
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable:hover { background-color: #3d4348 !important; color: #fff !important; }
+    .sortable .sort-icon { opacity: 0.5; }
+    .sortable.sorted-asc .sort-icon,
+    .sortable.sorted-desc .sort-icon { opacity: 1; }
+</style>
+<script>
+(function() {
+    const attrMap = ['sortName', 'sortVoice', 'sortPresent', 'sortExcused', 'sortUnexcused', 'sortPercentage'];
+    const table = document.getElementById('evaluationsTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr[data-sort-name]'));
+    if (rows.length === 0) return;
+
+    const headers = table.querySelectorAll('thead th.sortable');
+    let currentSort = { col: -1, asc: true };
+
+    function updateSortIcons() {
+        headers.forEach((th, i) => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            const icon = th.querySelector('.sort-icon');
+            if (icon) {
+                icon.classList.remove('bi-caret-up', 'bi-caret-down', 'bi-arrow-down-up');
+                if (i === currentSort.col) {
+                    th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+                    icon.classList.add(currentSort.asc ? 'bi-caret-up' : 'bi-caret-down');
+                } else {
+                    icon.classList.add('bi-arrow-down-up');
+                }
+            }
+        });
+    }
+
+    function doSort(col) {
+        const type = headers[col].dataset.sort;
+        const attr = attrMap[col];
+        if (currentSort.col === col) currentSort.asc = !currentSort.asc;
+        else { currentSort.col = col; currentSort.asc = true; }
+
+        rows.sort((a, b) => {
+            let va = a.dataset[attr] ?? '';
+            let vb = b.dataset[attr] ?? '';
+            if (type === 'number') {
+                va = parseFloat(va) || 0;
+                vb = parseFloat(vb) || 0;
+                return currentSort.asc ? va - vb : vb - va;
+            }
+            const cmp = String(va).localeCompare(String(vb), 'de');
+            return currentSort.asc ? cmp : -cmp;
+        });
+
+        rows.forEach(r => tbody.appendChild(r));
+        updateSortIcons();
+    }
+
+    headers.forEach((th, i) => {
+        th.addEventListener('click', () => doSort(i));
+        th.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); doSort(i); } });
+    });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

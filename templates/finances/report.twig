@@ -1,0 +1,294 @@
+{% extends "layout.twig" %}
+
+{% block title %}Finanzauswertung - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-3">
+    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1>Finanzauswertung</h1>
+            <p class="text-muted mb-0">Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong></p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if available_years|length >= 1 %}
+            <form method="get" action="/finances/report" class="d-flex align-items-center gap-2">
+                <label class="text-muted small mb-0">Geschäftsjahr:</label>
+                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;">
+                    {% for year, label in available_years %}
+                    <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
+            <a href="/finances" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Zurück zum Kassabuch
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-success border-4 h-100">
+            <div class="card-body py-4">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-graph-up-arrow text-success fs-3"></i>
+                    </div>
+                    <div>
+                        <h6 class="card-subtitle text-muted mb-1">Einnahmen</h6>
+                        <h3 class="card-title text-success mb-0">{{ total_income|number_format(2, ',', '.') }} €</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-danger border-4 h-100">
+            <div class="card-body py-4">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="bg-danger bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-graph-down-arrow text-danger fs-3"></i>
+                    </div>
+                    <div>
+                        <h6 class="card-subtitle text-muted mb-1">Ausgaben</h6>
+                        <h3 class="card-title text-danger mb-0">{{ total_expense|number_format(2, ',', '.') }} €</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start {{ balance >= 0 ? 'border-primary' : 'border-warning' }} border-4 h-100">
+            <div class="card-body py-4">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-cash-stack text-primary fs-3"></i>
+                    </div>
+                    <div>
+                        <h6 class="card-subtitle text-muted mb-1">Saldo</h6>
+                        <h3 class="card-title mb-0 {{ balance >= 0 ? 'text-primary' : 'text-warning' }}">
+                            {{ balance > 0 ? '+' : '' }}{{ balance|number_format(2, ',', '.') }} €
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <h5 class="text-muted fw-semibold mb-3"><i class="bi bi-funnel me-1"></i> Saldo nach Zahlungsart</h5>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-secondary bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-cash-coin text-secondary fs-4"></i>
+                    </div>
+                    <h6 class="mb-0 fw-semibold">Bar (Kassa)</h6>
+                </div>
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Einnahmen</td>
+                        <td class="text-end text-success fw-bold">+ {{ cash_income|number_format(2, ',', '.') }} &euro;</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Ausgaben</td>
+                        <td class="text-end text-danger fw-bold">&minus; {{ cash_expense|number_format(2, ',', '.') }} &euro;</td>
+                    </tr>
+                    <tr class="table-light fw-bold">
+                        <td>Saldo Bar</td>
+                        {% set cash_balance = cash_income - cash_expense %}
+                        <td class="text-end {{ cash_balance >= 0 ? 'text-success' : 'text-danger' }}">
+                            {{ cash_balance|number_format(2, ',', '.') }} &euro;
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-info bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-bank text-info fs-4"></i>
+                    </div>
+                    <h6 class="mb-0 fw-semibold">&Uuml;berweisung (Bank)</h6>
+                </div>
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Einnahmen</td>
+                        <td class="text-end text-success fw-bold">+ {{ bank_income|number_format(2, ',', '.') }} &euro;</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Ausgaben</td>
+                        <td class="text-end text-danger fw-bold">&minus; {{ bank_expense|number_format(2, ',', '.') }} &euro;</td>
+                    </tr>
+                    <tr class="table-light fw-bold">
+                        <td>Saldo Bank</td>
+                        {% set bank_balance = bank_income - bank_expense %}
+                        <td class="text-end {{ bank_balance >= 0 ? 'text-success' : 'text-danger' }}">
+                            {{ bank_balance|number_format(2, ',', '.') }} &euro;
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if has_groups %}
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 py-3">
+                <h6 class="mb-0 text-success fw-bold"><i class="bi bi-plus-circle me-1"></i> Einnahmen nach Gruppe</h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% set found_income = false %}
+                        {% for grp, totals in group_totals %}
+                            {% if totals.income > 0 %}
+                                {% set found_income = true %}
+                                <tr>
+                                    <td>{{ grp }}</td>
+                                    <td class="text-end text-success fw-bold">+ {{ totals.income|number_format(2, ',', '.') }} €</td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not found_income %}
+                            <tr><td class="text-center py-3 text-muted">Keine Einnahmen</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-danger bg-opacity-10 border-0 py-3">
+                <h6 class="mb-0 text-danger fw-bold"><i class="bi bi-dash-circle me-1"></i> Ausgaben nach Gruppe</h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% set found_expense = false %}
+                        {% for grp, totals in group_totals %}
+                            {% if totals.expense > 0 %}
+                                {% set found_expense = true %}
+                                <tr>
+                                    <td>{{ grp }}</td>
+                                    <td class="text-end text-danger fw-bold">− {{ totals.expense|number_format(2, ',', '.') }} €</td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not found_expense %}
+                            <tr><td class="text-center py-3 text-muted">Keine Ausgaben</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0"><i class="bi bi-tag me-2"></i>Saldo nach Gruppe</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Gruppe</th>
+                    <th class="text-end text-success">Einnahmen</th>
+                    <th class="text-end text-danger">Ausgaben</th>
+                    <th class="text-end">Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grp, totals in group_totals %}
+                    {% set grp_balance = totals.income - totals.expense %}
+                <tr>
+                    <td>
+                        {% if grp == '(Keine Gruppe)' %}
+                        <span class="text-muted fst-italic">{{ grp }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill bg-light text-dark border me-1">{{ grp }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-success">+ {{ totals.income|number_format(2, ',', '.') }} €</td>
+                    <td class="text-end text-danger">− {{ totals.expense|number_format(2, ',', '.') }} €</td>
+                    <td class="text-end fw-bold {{ grp_balance >= 0 ? 'text-success' : 'text-danger' }}">
+                        {{ grp_balance|number_format(2, ',', '.') }} €
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0">Verlauf des Geschäftsjahres</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Datum</th>
+                        <th>Lfd. Nr.</th>
+                        <th>Beschreibung</th>
+                        <th class="text-end">Einnahme</th>
+                        <th class="text-end">Ausgabe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set current_balance = 0 %}
+                    {% for item in finances %}
+                        {% if item.type == 'income' %}
+                            {% set current_balance = current_balance + item.amount %}
+                        {% else %}
+                            {% set current_balance = current_balance - item.amount %}
+                        {% endif %}
+                    <tr>
+                        <td>{{ item.invoice_date|date('d.m.Y') }}</td>
+                        <td class="text-muted">#{{ item.running_number }}</td>
+                        <td>{{ item.description }}</td>
+                        <td class="text-end text-success">
+                            {{ item.type == 'income' ? '+ ' ~ item.amount|number_format(2, ',', '.') ~ ' €' : '' }}
+                        </td>
+                        <td class="text-end text-danger">
+                            {{ item.type == 'expense' ? '- ' ~ item.amount|number_format(2, ',', '.') ~ ' €' : '' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">Keine Buchungen vorhanden.</td>
+                    </tr>
+                    {% endfor %}
+                    
+                    {% if finances|length > 0 %}
+                    <tr class="table-dark fw-bold">
+                        <td colspan="3" class="text-end">Gesamtsaldo:</td>
+                        <td colspan="2" class="text-end {{ current_balance >= 0 ? 'text-success' : 'text-danger' }}">
+                            {{ current_balance|number_format(2, ',', '.') }} €
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "layout.twig" %}
+
+{% block title %}Mein Profil - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-3">
+    <div class="col-12">
+        <h1>Mein Profil</h1>
+    </div>
+</div>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ success }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- User Info Card -->
+    <div class="col-md-5 mb-4 mb-md-0">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Persönliche Informationen</h5>
+            </div>
+            <div class="card-body">
+                <form action="/profile" method="post">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="first_name" class="form-label text-muted small fw-bold text-uppercase">Vorname</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="last_name" class="form-label text-muted small fw-bold text-uppercase">Nachname</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="email" class="form-label text-muted small fw-bold text-uppercase">E-Mail Adresse</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+
+                    <div class="d-grid justify-content-md-end mb-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-person-check"></i> Profil speichern
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <div class="row mt-4">
+                    <div class="col-6 mb-3">
+                        <label class="text-muted small fw-bold text-uppercase">Rolle(n)</label>
+                        <p class="fs-5 mb-0">
+                            {% for role in user.roles %}
+                                <span class="badge bg-primary">{{ role.name }}</span>
+                            {% else %}
+                                -
+                            {% endfor %}
+                        </p>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="text-muted small fw-bold text-uppercase">Stimmgruppe(n)</label>
+                        <p class="fs-5 mb-0">
+                            {% for vg in user.voice_groups %}
+                                <span class="d-inline-block border p-1 rounded mb-1 text-nowrap fs-6">
+                                    {{ vg.voice_group_name }}
+                                    {% if vg.sub_voice_name %}<small class="text-muted">({{ vg.sub_voice_name }})</small>{% endif %}
+                                </span>
+                            {% else %}
+                                -
+                            {% endfor %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Card -->
+    <div class="col-md-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-key"></i> Passwort ändern</h5>
+            </div>
+            <div class="card-body">
+                <form action="/profile/password" method="post">
+                    
+                    <div class="mb-4">
+                        <label for="old_password" class="form-label">Aktuelles Passwort</label>
+                        <input type="password" class="form-control" id="old_password" name="old_password" required>
+                    </div>
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">Neues Passwort</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6">
+                        <div class="form-text">Das Passwort muss aus mindestens 6 Zeichen bestehen.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="new_password_confirm" class="form-label">Neues Passwort bestätigen</label>
+                        <input type="password" class="form-control" id="new_password_confirm" name="new_password_confirm" required minlength="6">
+                    </div>
+
+                    <div class="d-grid justify-content-md-end">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-arrow-repeat"></i> Passwort aktualisieren
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

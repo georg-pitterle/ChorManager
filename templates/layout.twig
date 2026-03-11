@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_settings.app_name|default('Chorkuma App') }}{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { padding-top: 5rem; }
+    </style>
+    <!-- Chorkuma Custom Branding -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    {% if session.user_id %}
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="/dashboard"><img src="/logo" alt="Logo" height="36" class="me-2"> {{ app_settings.app_name|default('Chorkuma App') }}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+                <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/events">Termine</a>
+                    </li>
+                    {% if session.can_manage_users or session.role_level >= 40 %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/users">Mitgliederverwaltung</a>
+                    </li>
+                    {% endif %}
+                    {% if session.can_manage_users or session.role_level >= 40 or session.can_manage_project_members %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Auswertungen</a>
+                        <ul class="dropdown-menu">
+                            {% if session.can_manage_users or session.role_level >= 40 %}
+                            <li><a class="dropdown-item" href="/evaluations"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="/evaluations/project-members"><i class="bi bi-people"></i> Projektmitglieder</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% if session.can_manage_master_data or session.can_manage_users %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Stammdaten</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/projects"><i class="bi bi-folder"></i> Projekte</a></li>
+                            <li><a class="dropdown-item" href="/roles"><i class="bi bi-shield"></i> Rollen</a></li>
+                            <li><a class="dropdown-item" href="/voice-groups"><i class="bi bi-music-note"></i> Stimmgruppen</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/settings"><i class="bi bi-gear"></i> App-Einstellungen</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% if session.can_manage_finances %}
+                    <li class="nav-item">
+                        <a class="nav-link text-success fw-medium" href="/finances">
+                            <i class="bi bi-cash me-1"></i> Kassa
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex align-items-center text-white dropdown">
+                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle fs-5 me-2"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="/profile"><i class="bi bi-person"></i> Mein Profil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="/logout"><i class="bi bi-box-arrow-right"></i> Abmelden</a></li>
+                    </ul>
+                </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+</body>
+</html>

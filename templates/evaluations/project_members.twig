@@ -1,0 +1,85 @@
+{% extends "layout.twig" %}
+
+{% block title %}Projektmitglieder - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-3">
+    <div class="col-12 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+        <h1>Projektmitglieder</h1>
+        <div class="d-flex gap-2 mt-2 mt-md-0">
+            <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
+            <form class="d-flex" method="get" action="/evaluations/project-members">
+                <select class="form-select me-2" name="project_id" onchange="this.form.submit()" style="min-width: 200px;">
+                    <option value="">-- Projekt wählen --</option>
+                    {% for p in projects %}
+                        <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
+                            {{ p.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if selected_project %}
+<div class="card shadow-sm mb-4 border-info">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h5 class="card-title text-info mb-0">Projekt: {{ selected_project.name }}</h5>
+            <p class="card-text text-muted small mb-0">Mitglieder gruppiert nach Stimmgruppe und Teilstimme</p>
+        </div>
+        {% if session.can_manage_project_members %}
+        <a href="/projects/{{ selected_project.id }}/members" class="btn btn-primary">
+            <i class="bi bi-people"></i> Mitglieder verwalten
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if grouped_members|length > 0 %}
+    {% for voice_group, sub_voices in grouped_members %}
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-music-note-beamed"></i>
+                {% if voice_group == '_ohne_stimmgruppe' %}Ohne Stimmgruppe{% else %}{{ voice_group }}{% endif %}
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% for sub_voice, members in sub_voices %}
+            <div class="border-bottom {% if not loop.last %}border-bottom{% endif %}">
+                <div class="px-3 py-2 bg-light">
+                    <strong>
+                        {% if sub_voice == '_ohne_teilstimme' %}–{% else %}{{ sub_voice }}{% endif %}
+                    </strong>
+                    <span class="badge bg-secondary ms-2">{{ members|length }} {% if members|length == 1 %}Mitglied{% else %}Mitglieder{% endif %}</span>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for m in members %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><strong>{{ m.last_name }}, {{ m.first_name }}</strong></span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Diesem Projekt sind noch keine Mitglieder zugeordnet.
+    {% if session.can_manage_project_members %}
+        <a href="/projects/{{ selected_project.id }}/members">Mitglieder hinzufügen</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info py-5 text-center shadow-sm">
+    <i class="bi bi-people-fill fs-1 d-block mb-3 text-info"></i>
+    <p class="mb-0">Bitte wählen Sie oben ein Projekt aus, um die Projektmitglieder gruppiert nach Stimmgruppen und Teilstimmen anzuzeigen.</p>
+</div>
+{% endif %}
+{% endblock %}

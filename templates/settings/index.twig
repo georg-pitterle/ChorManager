@@ -1,0 +1,64 @@
+{% extends "layout.twig" %}
+
+{% block title %}App-Einstellungen - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <h1>App-Einstellungen verwalten</h1>
+        <p class="text-muted">Hier kannst du den Namen der Anwendung und das Logo anpassen.</p>
+    </div>
+</div>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ success }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form action="/settings" method="post" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="app_name" class="form-label fw-bold">Name der App</label>
+                        <input type="text" class="form-control" id="app_name" name="app_name" value="{{ settings.app_name|default('Chorkuma App') }}" required>
+                        <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="app_logo" class="form-label fw-bold">Logo hochladen</label>
+                        <div class="d-flex align-items-start gap-4">
+                            <div class="bg-light p-3 rounded border text-center" style="min-width: 120px;">
+                                <img src="/logo" alt="Aktuelles Logo" style="max-height: 80px; max-width: 100%;" class="mb-2 d-inline-block">
+                                <div class="small text-muted">Aktuelles Logo</div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <input class="form-control" type="file" id="app_logo" name="app_logo" accept="image/*">
+                                <div class="form-text">Empfohlen: Transparentes PNG oder SVG mit ca. 200x50 Pixeln.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Einstellungen speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

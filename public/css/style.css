@@ -1,0 +1,102 @@
+:root, [data-bs-theme="light"] {
+    /* Chorkuma Gelb – angepasst an Logo */
+    --bs-primary: #E8A817;
+    --bs-primary-rgb: 232, 168, 23;
+    
+    /* Anthrazit / Dunkelgrau für Kontraste */
+    --bs-dark: #2b2b2b;
+    --bs-dark-rgb: 43, 43, 43;
+}
+
+body {
+    background-color: #fafafa;
+}
+
+/* Navbar Styling */
+.navbar.bg-dark {
+    background-color: #2b2b2b !important;
+    border-bottom: 4px solid #E8A817;
+}
+
+.navbar-dark .navbar-brand {
+    color: #E8A817;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.navbar-dark .navbar-brand:hover,
+.navbar-dark .navbar-brand:focus {
+    color: #f0be3a;
+}
+
+.navbar-dark .nav-link:hover,
+.navbar-dark .nav-link:focus {
+    color: #E8A817;
+}
+
+.navbar-dark .nav-link {
+    font-weight: 500;
+}
+
+/* Primary Button Overrides (Dark text on yellow for readability) */
+.btn-primary {
+    --bs-btn-color: #2b2b2b;
+    --bs-btn-bg: #E8A817;
+    --bs-btn-border-color: #E8A817;
+    --bs-btn-hover-color: #2b2b2b;
+    --bs-btn-hover-bg: #d49a12;
+    --bs-btn-hover-border-color: #c48e0f;
+    --bs-btn-focus-shadow-rgb: 232, 168, 23;
+    --bs-btn-active-color: #2b2b2b;
+    --bs-btn-active-bg: #c48e0f;
+    --bs-btn-active-border-color: #b5830d;
+    font-weight: 600;
+}
+
+/* Outline Primary Button */
+.btn-outline-primary {
+    --bs-btn-color: #c48e0f;
+    --bs-btn-border-color: #E8A817;
+    --bs-btn-hover-color: #2b2b2b;
+    --bs-btn-hover-bg: #E8A817;
+    --bs-btn-hover-border-color: #E8A817;
+    --bs-btn-focus-shadow-rgb: 232, 168, 23;
+    --bs-btn-active-color: #2b2b2b;
+    --bs-btn-active-bg: #E8A817;
+    --bs-btn-active-border-color: #E8A817;
+}
+
+/* Text Primary */
+.text-primary {
+    color: #c48e0f !important;
+}
+
+/* Badges */
+.bg-primary {
+    background-color: #E8A817 !important;
+    color: #2b2b2b !important;
+}
+
+/* Cards */
+.border-primary {
+    border-color: #E8A817 !important;
+}
+
+/* Links */
+a {
+    color: #b5830d;
+}
+a:hover {
+    color: #946b08;
+}
+
+/* Login Card specific */
+.login-header {
+    background-color: #2b2b2b;
+    color: #E8A817;
+    border-bottom: 4px solid #E8A817;
+    border-top-left-radius: calc(0.375rem - 1px);
+    border-top-right-radius: calc(0.375rem - 1px);
+    padding: 1.5rem;
+    text-align: center;
+}

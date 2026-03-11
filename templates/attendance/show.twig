@@ -1,0 +1,102 @@
+{% extends "layout.twig" %}
+
+{% block title %}Anwesenheitsliste - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-3">
+    <div class="col-12 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+        <h1>Anwesenheiten eintragen</h1>
+        
+        <form class="d-flex mt-2 mt-md-0" method="get" action="/attendance" id="eventSelectForm">
+            <select class="form-select me-2" name="event_id" onchange="window.location.href='/attendance/' + this.value;">
+                <option value="">-- Termin wählen --</option>
+                {% for e in events %}
+                    <option value="{{ e.id }}" {% if current_event and current_event.id == e.id %}selected{% endif %}>
+                        {{ e.event_date|date("d.m.Y") }} - {{ e.title }} ({{ e.type }})
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ success }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if current_event %}
+<div class="card shadow-sm mb-4 border-primary">
+    <div class="card-body">
+        <h5 class="card-title text-primary">{{ current_event.title }}</h5>
+        <h6 class="card-subtitle mb-2 text-muted">{{ current_event.event_date|date("d.m.Y") }} | Typ: {{ current_event.type }}</h6>
+    </div>
+</div>
+
+<form action="/attendance/{{ current_event.id }}" method="post">
+    {% set hasMembers = false %}
+    <div class="row">
+        {% for vgName, members in voice_groups %}
+            {% set hasMembers = true %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">{{ vgName }}</h5>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for member in members %}
+                        <li class="list-group-item">
+                            <div class="fw-bold mb-1">
+                                {{ member.last_name }}, {{ member.first_name }}
+                                {% if member.sub_voice_name %}
+                                    <small class="text-muted fw-normal">({{ member.sub_voice_name }})</small>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="btn-group w-100 mb-2" role="group">
+                                <input type="radio" class="btn-check" name="attendance[{{ member.user_id }}]" id="att_{{ member.user_id }}_pres" value="present" {% if member.status == 'present' %}checked{% endif %}>
+                                <label class="btn btn-outline-success" for="att_{{ member.user_id }}_pres"><i class="bi bi-check-circle"></i> Anwesend</label>
+
+                                <input type="radio" class="btn-check" name="attendance[{{ member.user_id }}]" id="att_{{ member.user_id }}_exc" value="excused" {% if member.status == 'excused' %}checked{% endif %}>
+                                <label class="btn btn-outline-warning" for="att_{{ member.user_id }}_exc"><i class="bi bi-envelope"></i> Entschuldigt</label>
+
+                                <input type="radio" class="btn-check" name="attendance[{{ member.user_id }}]" id="att_{{ member.user_id }}_unexc" value="unexcused" {% if member.status == 'unexcused' %}checked{% endif %}>
+                                <label class="btn btn-outline-danger" for="att_{{ member.user_id }}_unexc"><i class="bi bi-x-circle"></i> Unentschuldigt</label>
+                            </div>
+                            
+                            <input type="text" class="form-control form-control-sm" name="note[{{ member.user_id }}]" placeholder="Notiz (optional)" value="{{ member.note }}">
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% if hasMembers %}
+    <div class="sticky-bottom bg-light p-3 border-top d-flex justify-content-end shadow">
+        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save"></i> Anwesenheiten speichern</button>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Keine Mitglieder gefunden, für die Sie die Anwesenheit eintragen können. Evtl. ist diesem Termin keine Gruppe zugeordnet, oder Ihre Berechtigungen schränken die Anzeige ein.
+    </div>
+    {% endif %}
+</form>
+
+{% else %}
+<div class="alert alert-info py-5 text-center">
+    <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
+    Kein Termin ausgewählt oder es existieren noch keine Termine im Projekt.
+</div>
+{% endif %}
+
+{% endblock %}

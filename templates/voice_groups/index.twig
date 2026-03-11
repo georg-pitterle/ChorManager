@@ -1,0 +1,192 @@
+{% extends "layout.twig" %}
+
+{% block title %}Stimmgruppen - Chorkuma App{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Stimmgruppen</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createGroupModal"><i class="bi bi-plus-lg"></i> Stimmgruppe hinzufügen</button>
+</div>
+
+{% if success %}
+<div class="alert alert-success mt-3">{{ success }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger mt-3">{{ error }}</div>
+{% endif %}
+
+<div class="row row-cols-1 row-cols-md-2 g-4">
+    {% for group in voice_groups %}
+    <div class="col">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">{{ group.name }}</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editGroupModal{{ group.id }}" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteGroupModal{{ group.id }}" title="Löschen"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">Unterstimmen:</p>
+                <div class="d-flex flex-column gap-2">
+                    {% for subVoice in group.subVoices %}
+                    <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded">
+                        <span>{{ subVoice.name }}</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-link text-secondary p-0 px-2" data-bs-toggle="modal" data-bs-target="#editSubVoiceModal{{ subVoice.id }}" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-link text-danger p-0 px-2" data-bs-toggle="modal" data-bs-target="#deleteSubVoiceModal{{ subVoice.id }}" title="Löschen"><i class="bi bi-x-circle"></i></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit SubVoice Modal -->
+                    <div class="modal fade" id="editSubVoiceModal{{ subVoice.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form method="post" action="/voice-groups/{{ group.id }}/sub/{{ subVoice.id }}/update">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Unterstimme bearbeiten</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Name</label>
+                                            <input type="text" name="name" class="form-control" value="{{ subVoice.name }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer pb-0 border-0">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                        <button type="submit" class="btn btn-primary">Speichern</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Delete SubVoice Modal -->
+                    <div class="modal fade" id="deleteSubVoiceModal{{ subVoice.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form method="post" action="/voice-groups/{{ group.id }}/sub/{{ subVoice.id }}/delete">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-danger text-white">
+                                        <h5 class="modal-title">Unterstimme löschen</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Möchtest du die Unterstimme <strong>{{ subVoice.name }}</strong> wirklich löschen? Dieser Vorgang entfernt die Zuweisung bei allen betroffenen Mitgliedern!
+                                    </div>
+                                    <div class="modal-footer border-0">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                        <button type="submit" class="btn btn-danger">Löschen</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <div class="text-muted small">Keine Unterstimmen vorhanden.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer bg-white border-0 text-center pb-3 pt-0">
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createSubVoiceModal{{ group.id }}"><i class="bi bi-plus"></i> Unterstimme hinzufügen</button>
+            </div>
+        </div>
+
+        <!-- Edit Group Modal -->
+        <div class="modal fade" id="editGroupModal{{ group.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form method="post" action="/voice-groups/{{ group.id }}/update">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Stimmgruppe bearbeiten</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <input type="text" name="name" class="form-control" value="{{ group.name }}" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer pb-0 border-0">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Speichern</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Delete Group Modal -->
+        <div class="modal fade" id="deleteGroupModal{{ group.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form method="post" action="/voice-groups/{{ group.id }}/delete">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Stimmgruppe löschen</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            Möchtest du die Stimmgruppe <strong>{{ group.name }}</strong> (sowie alle zugehörigen Unterstimmen) wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden!
+                        </div>
+                        <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-danger">Löschen</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Create SubVoice Modal -->
+        <div class="modal fade" id="createSubVoiceModal{{ group.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form method="post" action="/voice-groups/{{ group.id }}/sub">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Neue Unterstimme in {{ group.name }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Name der Unterstimme (z.B. Sopran 1)</label>
+                                <input type="text" name="name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer pb-0 border-0">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Anlegen</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" action="/voice-groups">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title">Neue Stimmgruppe anlegen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name der Stimmgruppe (z.B. Tenor)</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer pb-0 border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Anlegen</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

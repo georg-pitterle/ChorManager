@@ -1,0 +1,39 @@
+{% extends "layout.twig" %}
+
+{% block title %}Anmeldung - {{ app_settings.app_name|default('Chorkuma App') }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0">
+            <div class="login-header text-center">
+                <img src="/logo" alt="Logo" height="60" class="mb-2">
+                <h2 class="h4 mt-2 font-weight-bold">{{ app_settings.app_name|default('Chorkuma App') }}</h2>
+                <p class="mb-0 text-white-50">Bitte melde dich an, um fortzufahren.</p>
+            </div>
+            <div class="card-body p-4 p-md-5">
+
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endif %}
+
+                <form action="/login" method="post">
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="emailInput" name="email" placeholder="name@example.com" required autofocus>
+                        <label for="emailInput">E-Mail-Adresse</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Passwort" required>
+                        <label for="passwordInput">Passwort</label>
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <button class="btn btn-primary btn-lg" type="submit">Anmelden</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
