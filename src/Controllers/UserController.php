@@ -143,7 +143,7 @@ class UserController
             $user->first_name = $firstName;
             $user->last_name = $lastName;
             $user->email = $email;
-            $user->password_hash = password_hash($password, PASSWORD_DEFAULT);
+            $user->password = password_hash($password, PASSWORD_DEFAULT);
             $user->is_active = 1;
 
             $this->userPersistence->save($user);
@@ -233,7 +233,7 @@ class UserController
 
         try {
             if ($password) {
-                $targetUser->password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $targetUser->password = password_hash($password, PASSWORD_DEFAULT);
             }
             $targetUser->first_name = $firstName;
             $targetUser->last_name = $lastName;

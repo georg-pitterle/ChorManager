@@ -21,12 +21,12 @@ class User extends Model
 
     public function getPasswordAttribute()
     {
-        return $this->attributes['password_hash'] ?? null;
+        return $this->attributes['password'] ?? null;
     }
 
     public function setPasswordAttribute($value)
     {
-        $this->attributes['password_hash'] = $value;
+        $this->attributes['password'] = $value;
     }
 
     public function roles()
