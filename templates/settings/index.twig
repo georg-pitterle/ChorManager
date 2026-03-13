@@ -1,6 +1,6 @@
 {% extends "layout.twig" %}
 
-{% block title %}App-Einstellungen - Chorkuma App{% endblock %}
+{% block title %}App-Einstellungen - Chor Manager{% endblock %}
 
 {% block content %}
 <div class="row mt-4">
@@ -30,7 +30,7 @@
                 <form action="/settings" method="post" enctype="multipart/form-data">
                     <div class="mb-4">
                         <label for="app_name" class="form-label fw-bold">Name der App</label>
-                        <input type="text" class="form-control" id="app_name" name="app_name" value="{{ settings.app_name|default('Chorkuma App') }}" required>
+                        <input type="text" class="form-control" id="app_name" name="app_name" value="{{ settings.app_name|default('Chor Manager') }}" required>
                         <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
                     </div>
 
