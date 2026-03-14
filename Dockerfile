@@ -1,4 +1,4 @@
-FROM php:8.5-fpm-alpine
+FROM php:8.3-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -7,21 +7,13 @@ RUN apk add --no-cache \
     mysql-client
 
 # Install PHP extensions
-RUN apk add --no-cache mariadb-dev \
-    && docker-php-ext-install pdo_mysql \
-    && apk del mariadb-dev
-
-RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev \
-    && docker-php-ext-install gd \
-    && apk del libpng-dev libjpeg-turbo-dev freetype-dev
-
-RUN apk add --no-cache libzip-dev zlib-dev \
-    && docker-php-ext-install zip \
-    && apk del libzip-dev zlib-dev
-
-RUN docker-php-ext-install mbstring
-RUN docker-php-ext-install pcntl
-RUN docker-php-ext-install bcmath
+RUN apk add --no-cache \
+    php83-mbstring \
+    php83-pdo_mysql \
+    php83-gd \
+    php83-zip \
+    php83-pcntl \
+    php83-bcmath
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
