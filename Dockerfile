@@ -19,7 +19,9 @@ RUN apk add --no-cache libzip-dev zlib-dev \
     && docker-php-ext-install zip \
     && apk del libzip-dev zlib-dev
 
-RUN docker-php-ext-install mbstring exif pcntl bcmath
+RUN docker-php-ext-install mbstring
+RUN docker-php-ext-install pcntl
+RUN docker-php-ext-install bcmath
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
