@@ -4,15 +4,19 @@ FROM php:8.5-fpm-alpine
 RUN apk add --no-cache \
     git \
     curl \
-    libpng-dev \
-    libxml2-dev \
-    libzip-dev \
-    zip \
-    unzip \
     mysql-client
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+RUN apk add --no-cache --virtual .build-deps \
+    mariadb-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libxml2-dev \
+    libzip-dev \
+    zlib-dev \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && apk del .build-deps
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
