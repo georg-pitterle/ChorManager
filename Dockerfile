@@ -7,16 +7,19 @@ RUN apk add --no-cache \
     mysql-client
 
 # Install PHP extensions
-RUN apk add --no-cache --virtual .build-deps \
-    mariadb-dev \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    libxml2-dev \
-    libzip-dev \
-    zlib-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
-    && apk del .build-deps
+RUN apk add --no-cache mariadb-dev \
+    && docker-php-ext-install pdo_mysql \
+    && apk del mariadb-dev
+
+RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev \
+    && docker-php-ext-install gd \
+    && apk del libpng-dev libjpeg-turbo-dev freetype-dev
+
+RUN apk add --no-cache libzip-dev zlib-dev \
+    && docker-php-ext-install zip \
+    && apk del libzip-dev zlib-dev
+
+RUN docker-php-ext-install mbstring exif pcntl bcmath
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
