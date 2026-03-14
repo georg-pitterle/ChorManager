@@ -4,15 +4,16 @@ FROM php:8.5-fpm-alpine
 RUN apk add --no-cache \
     git \
     curl \
-    libpng-dev \
-    libxml2-dev \
-    libzip-dev \
-    zip \
-    unzip \
     mysql-client
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+RUN apk add --no-cache \
+    php85-mbstring \
+    php85-pdo_mysql \
+    php85-gd \
+    php85-zip \
+    php85-pcntl \
+    php85-bcmath
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
