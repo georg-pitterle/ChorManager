@@ -8,7 +8,7 @@ return function (ContainerBuilder $containerBuilder) {
     // Global Settings Object
     $containerBuilder->addDefinitions([
         'settings' => [
-            'displayErrorDetails' => true, // Should be set to false in production
+            'displayErrorDetails' => getenv('APP_ENV') !== 'production', // Set to false in production
             'db' => [
                 'driver' => 'mysql',
                 'host' => $_ENV['DB_HOST'] ?? 'db',
