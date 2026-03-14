@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.5-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -8,12 +8,12 @@ RUN apk add --no-cache \
 
 # Install PHP extensions
 RUN apk add --no-cache \
-    php83-mbstring \
-    php83-pdo_mysql \
-    php83-gd \
-    php83-zip \
-    php83-pcntl \
-    php83-bcmath
+    php85-mbstring \
+    php85-pdo_mysql \
+    php85-gd \
+    php85-zip \
+    php85-pcntl \
+    php85-bcmath
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
