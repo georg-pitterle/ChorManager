@@ -42,7 +42,11 @@ class AppSettingController
             if ($appName) {
                 AppSetting::updateOrCreate(
                     ['setting_key' => 'app_name'],
-                    ['setting_value' => $appName]
+                    [
+                        'setting_value' => $appName,
+                        'binary_content' => '',
+                        'mime_type' => 'text/plain'
+                    ]
                 );
             }
 
