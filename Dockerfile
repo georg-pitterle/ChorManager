@@ -18,25 +18,9 @@ RUN apk add --no-cache \
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Install system dependencies and build tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        curl \
-        default-mysql-client \
-        libzip-dev \
-        libpng-dev \
-        libjpeg-dev \
-        libfreetype6-dev \
-        libxml2-dev \
-        zlib1g-dev \
-        libonig-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo_mysql mbstring exif pcntl bcmath gd zip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Get latest Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# (Alpine image) Install additional PHP extensions if needed
+# Note: Alpine uses apk, so apt-get is not available.
+# The required extensions are installed via apk packages above.
 
 # Set working directory
 WORKDIR /var/www/html
