@@ -42,7 +42,7 @@ services:
     container_name: choir-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8050:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./public:/var/www/html/public

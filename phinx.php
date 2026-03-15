@@ -12,7 +12,7 @@ return [
             'adapter'  => 'mysql',
             'host'     => getenv('DB_HOST') ?: 'db',
             'name'     => getenv('DB_DATABASE') ?: 'db',
-            'user'     => getenv('DB_USER') ?: 'db',
+            'user'     => getenv('DB_USERNAME') ?: 'db',
             'pass'     => getenv('DB_PASSWORD') ?: 'db',
             'port'     => getenv('DB_PORT') ?: '3306',
             'charset'  => 'utf8mb4',
