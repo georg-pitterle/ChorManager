@@ -1,4 +1,22 @@
-FROM php:8.5-fpm
+FROM php:8.5-fpm-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    git \
+    curl \
+    mysql-client
+
+# Install PHP extensions
+RUN apk add --no-cache \
+    php85-mbstring \
+    php85-pdo_mysql \
+    php85-gd \
+    php85-zip \
+    php85-pcntl \
+    php85-bcmath
+
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Install system dependencies and build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
