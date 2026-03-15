@@ -1,19 +1,21 @@
-FROM php:8.5-fpm-alpine
+FROM php:8.5-fpm
 
-# Install system dependencies
-RUN apk add --no-cache \
-    git \
-    curl \
-    mysql-client
-
-# Install PHP extensions
-RUN apk add --no-cache \
-    php85-mbstring \
-    php85-pdo_mysql \
-    php85-gd \
-    php85-zip \
-    php85-pcntl \
-    php85-bcmath
+# Install system dependencies and build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        curl \
+        default-mysql-client \
+        libzip-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+        libxml2-dev \
+        zlib1g-dev \
+        libonig-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
