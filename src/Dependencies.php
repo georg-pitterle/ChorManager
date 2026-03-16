@@ -1,6 +1,6 @@
 <?php
-declare(strict_types=1)
-;
+
+declare(strict_types=1);
 
 use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
@@ -17,7 +17,7 @@ return function (ContainerBuilder $containerBuilder) {
         Capsule::class => function (ContainerInterface $c) {
             $settings = $c->get('settings')['db'];
 
-            $capsule = new Capsule;
+            $capsule = new Capsule();
             $capsule->addConnection($settings);
 
             // Make this Capsule instance available globally via static methods

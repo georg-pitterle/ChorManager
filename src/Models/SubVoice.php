@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Models;
 
@@ -18,12 +18,12 @@ class SubVoice extends Model
 
     public function voiceGroup()
     {
-        return $this->belongsTo(VoiceGroup::class , 'voice_group_id', 'id');
+        return $this->belongsTo(VoiceGroup::class, 'voice_group_id', 'id');
     }
 
     public function users()
     {
-        return $this->belongsToMany(User::class , 'user_voice_groups', 'sub_voice_id', 'user_id')
+        return $this->belongsToMany(User::class, 'user_voice_groups', 'sub_voice_id', 'user_id')
             ->withPivot('voice_group_id');
     }
 }

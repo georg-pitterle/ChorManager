@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Queries;
 
@@ -36,8 +36,8 @@ class ProjectQuery
     {
         return User::where('id', $userId)
             ->whereHas('projects', function ($query) use ($projectId) {
-            $query->where('project_id', $projectId);
-        })->exists();
+                $query->where('project_id', $projectId);
+            })->exists();
     }
 
     public function getUsersNotInProject(int $projectId): Collection
@@ -54,8 +54,9 @@ class ProjectQuery
     public function getUserProjectIds(int $userId): array
     {
         $user = User::with('projects')->find($userId);
-        if (!$user)
+        if (!$user) {
             return [];
+        }
         return $user->projects->pluck('id')->toArray();
     }
 

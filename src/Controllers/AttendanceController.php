@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -48,20 +48,18 @@ class AttendanceController
                         $users = User::whereHas('voiceGroups', function ($q) use ($userVoiceGroupIds) {
                             $q->whereIn('voice_group_id', $userVoiceGroupIds);
                         });
-                    }
-                    else {
+                    } else {
                         // Edge case: no voice group assigned but is a stimmsprecher
                         $users = User::whereRaw('1 = 0'); // show nothing
                     }
-                }
-                else {
+                } else {
                     $users = User::query();
                 }
 
                 $users = $users->where('is_active', 1)
                     ->with(['voiceGroups', 'subVoices.voiceGroup', 'attendances' => function ($q) use ($eventId) {
-                    $q->where('event_id', $eventId);
-                }])
+                        $q->where('event_id', $eventId);
+                    }])
                     ->get()
                     ->sortBy(['last_name', 'first_name']);
 
@@ -140,16 +138,14 @@ class AttendanceController
                 $note = trim($notes[$userId] ?? '');
 
                 Attendance::updateOrCreate(
-                ['event_id' => $eventId, 'user_id' => $userId],
-                ['status' => $status, 'note' => $note]
+                    ['event_id' => $eventId, 'user_id' => $userId],
+                    ['status' => $status, 'note' => $note]
                 );
             }
 
             Capsule::commit();
             $_SESSION['success'] = 'Anwesenheiten erfolgreich gespeichert.';
-
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             Capsule::rollBack();
             $_SESSION['error'] = 'Fehler beim Speichern aufgetreten: ' . $e->getMessage();
         }

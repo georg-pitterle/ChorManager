@@ -50,6 +50,55 @@
 
                     <hr class="my-4">
 
+                    <h4 class="mb-3">E-Mail (SMTP) Konfiguration</h4>
+                    <p class="text-muted small">Konfiguriere hier den E-Mail-Versand (z. B. über Gmail, Office 365, oder deinen eigenen Server). Um Gmail zu nutzen, erstelle ein <strong>App-Passwort</strong> in deinem Google-Konto, da das normale Passwort nicht funktioniert.</p>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label for="smtp_host" class="form-label fw-bold">SMTP Host</label>
+                            <input type="text" class="form-control" id="smtp_host" name="smtp_host" value="{{ settings.smtp_host|default('smtp.gmail.com') }}" required>
+                            <div class="form-text">Server-Adresse z. B. 'smtp.gmail.com'</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="smtp_port" class="form-label fw-bold">SMTP Port</label>
+                            <input type="number" class="form-control" id="smtp_port" name="smtp_port" value="{{ settings.smtp_port|default('587') }}" required>
+                            <div class="form-text">Meistens 587 oder 465</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="smtp_username" class="form-label fw-bold">Benutzername</label>
+                            <input type="text" class="form-control" id="smtp_username" name="smtp_username" value="{{ settings.smtp_username|default('') }}" placeholder="deine.email@gmail.com" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="smtp_password" class="form-label fw-bold">Passwort</label>
+                            <input type="password" class="form-control" id="smtp_password" name="smtp_password" placeholder="Passwort... (Leer lassen falls keine Änderung)">
+                            <div class="form-text">Wird nicht angezeigt. Nur ausfüllen zum Ändern.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="smtp_encryption" class="form-label fw-bold">Verschlüsselung</label>
+                            <select class="form-select" id="smtp_encryption" name="smtp_encryption">
+                                <option value="tls" {% if (settings.smtp_encryption|default('tls')) == 'tls' %}selected{% endif %}>TLS</option>
+                                <option value="ssl" {% if settings.smtp_encryption == 'ssl' %}selected{% endif %}>SSL</option>
+                                <option value="" {% if settings.smtp_encryption == '' %}selected{% endif %}>Keine</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="smtp_from_email" class="form-label fw-bold">Absender E-Mail</label>
+                            <input type="email" class="form-control" id="smtp_from_email" name="smtp_from_email" value="{{ settings.smtp_from_email|default('') }}" placeholder="noreply@chor.at" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="smtp_from_name" class="form-label fw-bold">Absender Name</label>
+                            <input type="text" class="form-control" id="smtp_from_name" name="smtp_from_name" value="{{ settings.smtp_from_name|default('Chor Manager') }}" required>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
                         <button type="submit" class="btn btn-primary">

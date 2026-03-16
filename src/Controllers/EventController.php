@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -63,8 +63,7 @@ class EventController
                 'project_id' => $projectId
             ]);
             $_SESSION['success'] = 'Event (' . $type . ') erfolgreich angelegt.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Anlegen des Events: ' . $e->getMessage();
         }
 

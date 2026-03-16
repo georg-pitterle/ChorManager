@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  app:
+    image: ghcr.io/georg-pitterle/chormanager:latest
+    container_name: choir-app-prod
+    restart: unless-stopped
+    working_dir: /var/www/html
+    environment:
+      - APP_ENV=production
+      - DB_HOST=db
+      - DB_DATABASE=${DB_DATABASE:-choir_db}
+      - DB_USERNAME=${DB_USERNAME:-choir_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT:-3306}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - choir-network
+    healthcheck:
+      test: ["CMD", "php", "-r", "echo 'OK';"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    image: mysql:8.0
+    container_name: choir-db-prod
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-choir_db}
+      MYSQL_USER: ${DB_USERNAME:-choir_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_SSL_MODE: DISABLED
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - choir-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME:-choir_user}", "-p${DB_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: choir-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ../nginx.conf:/etc/nginx/conf.d/default.conf
+      - ../public:/var/www/html/public:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - choir-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  choir-network:
+    driver: bridge

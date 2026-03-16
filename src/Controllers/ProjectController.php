@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -21,8 +21,7 @@ class ProjectController
         Twig $view,
         ProjectQuery $projectQuery,
         ProjectPersistence $projectPersistence
-        )
-    {
+    ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->projectPersistence = $projectPersistence;

@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Models;
 
@@ -20,11 +20,11 @@ class Project extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class , 'project_users', 'project_id', 'user_id');
+        return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
     }
 
     public function events()
     {
-        return $this->hasMany(Event::class , 'project_id', 'id');
+        return $this->hasMany(Event::class, 'project_id', 'id');
     }
 }
