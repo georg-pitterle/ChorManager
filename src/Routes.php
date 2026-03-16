@@ -17,6 +17,7 @@ use App\Controllers\VoiceGroupController;
 use App\Controllers\FinanceController;
 use App\Controllers\ProfileController;
 use App\Controllers\AppSettingController;
+use App\Controllers\EventTypeController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Slim\Routing\RouteCollectorProxy;
@@ -84,6 +85,10 @@ return function (App $app) {
                 '',
                 function (RouteCollectorProxy $adminGroup) {
                     $adminGroup->post('/events', [EventController::class, 'create']);
+                    $adminGroup->get('/events/{id:[0-9]+}/edit', [EventController::class, 'edit']);
+                    $adminGroup->post('/events/{id:[0-9]+}/update', [EventController::class, 'update']);
+                    $adminGroup->post('/events/{id:[0-9]+}/delete', [EventController::class, 'delete']);
+                    $adminGroup->post('/events/{id:[0-9]+}/delete-series', [EventController::class, 'deleteSeries']);
                 }
             )->add(new RoleMiddleware(true)); // Global "manage users" level
 
@@ -108,6 +113,12 @@ return function (App $app) {
                     $masterGroup->post('/voice-groups/{id:[0-9]+}/sub', [VoiceGroupController::class, 'createSubVoice']);
                     $masterGroup->post('/voice-groups/{id:[0-9]+}/sub/{sub_id:[0-9]+}/update', [VoiceGroupController::class, 'updateSubVoice']);
                     $masterGroup->post('/voice-groups/{id:[0-9]+}/sub/{sub_id:[0-9]+}/delete', [VoiceGroupController::class, 'deleteSubVoice']);
+
+                // Event Type Management
+                    $masterGroup->get('/event-types', [EventTypeController::class, 'index']);
+                    $masterGroup->post('/event-types', [EventTypeController::class, 'create']);
+                    $masterGroup->post('/event-types/{id:[0-9]+}/update', [EventTypeController::class, 'update']);
+                    $masterGroup->post('/event-types/{id:[0-9]+}/delete', [EventTypeController::class, 'delete']);
 
                 // App Settings
                     $masterGroup->get('/settings', [AppSettingController::class, 'index']);

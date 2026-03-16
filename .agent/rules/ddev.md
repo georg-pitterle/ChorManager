@@ -10,3 +10,6 @@ Always use ddev commands to start, stop or reload the webserver
 
 # PHP
 Use 'ddev exec php' for php commands
+
+# Linux commands
+do not use linux commands, but powershells

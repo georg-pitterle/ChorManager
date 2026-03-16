@@ -27,7 +27,7 @@
     <div class="col-md-8">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <form action="/settings" method="post" enctype="multipart/form-data">
+                <form action="/settings" method="post" enctype="multipart/form-data" autocomplete="off">
                     <div class="mb-4">
                         <label for="app_name" class="form-label fw-bold">Name der App</label>
                         <input type="text" class="form-control" id="app_name" name="app_name" value="{{ settings.app_name|default('Chor Manager') }}" required>

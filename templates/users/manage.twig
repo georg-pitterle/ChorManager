@@ -114,7 +114,7 @@
 <!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <form action="/users" method="post" class="modal-content">
+        <form action="/users" method="post" class="modal-content" autocomplete="off">
             <div class="modal-header">
                 <h5 class="modal-title" id="addUserModalLabel">Neues Mitglied anlegen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -191,7 +191,7 @@
 <!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-labelledby="editUserModalLabel{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <form action="/users/{{ user.id }}" method="post" class="modal-content">
+        <form action="/users/{{ user.id }}" method="post" class="modal-content" autocomplete="off">
             <div class="modal-header">
                 <h5 class="modal-title" id="editUserModalLabel{{ user.id }}">Mitglied bearbeiten</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

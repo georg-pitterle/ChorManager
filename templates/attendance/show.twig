@@ -37,7 +37,11 @@
 <div class="card shadow-sm mb-4 border-primary">
     <div class="card-body">
         <h5 class="card-title text-primary">{{ current_event.title }}</h5>
-        <h6 class="card-subtitle mb-2 text-muted">{{ current_event.event_date|date("d.m.Y") }} | Typ: {{ current_event.type }}</h6>
+        <h6 class="card-subtitle mb-2 text-muted">
+            {{ current_event.event_date|date("d.m.Y") }} 
+            {% if current_event.location %} | <i class="bi bi-geo-alt"></i> {{ current_event.location }}{% endif %}
+            | Typ: {{ current_event.type }}
+        </h6>
     </div>
 </div>
 
