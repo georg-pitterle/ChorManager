@@ -68,7 +68,7 @@
                         <td>{{ m.email }}</td>
                         <td>{{ m.voice_groups_display|default('-') }}</td>
                         <td class="text-end">
-                            <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove" method="post" class="d-inline" onsubmit="return confirm('{{ m.first_name }} {{ m.last_name }} wirklich vom Projekt entfernen?');">
+                            <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove" method="post" class="d-inline" data-confirm="{{ m.first_name }} {{ m.last_name }} wirklich vom Projekt entfernen?">
                                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i> Entfernen</button>
                             </form>
                         </td>

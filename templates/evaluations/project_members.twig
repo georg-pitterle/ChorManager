@@ -9,7 +9,7 @@
         <div class="d-flex gap-2 mt-2 mt-md-0">
             <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
             <form class="d-flex" method="get" action="/evaluations/project-members">
-                <select class="form-select me-2" name="project_id" onchange="this.form.submit()" style="min-width: 200px;">
+                <select class="form-select me-2 onchange-submit" name="project_id" style="min-width: 200px;">
                     <option value="">-- Projekt wählen --</option>
                     {% for p in projects %}
                         <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
