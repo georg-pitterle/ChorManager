@@ -28,6 +28,7 @@
     },
     "scripts": {
         "phpcs": "phpcs",
-        "phpcbf": "phpcbf"
+        "phpcbf": "phpcbf",
+        "migrate": "phinx migrate -e development"
     }
 }
