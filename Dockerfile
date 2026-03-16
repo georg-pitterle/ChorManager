@@ -4,19 +4,37 @@ FROM php:8.5-fpm-alpine
 RUN apk add --no-cache \
     git \
     curl \
-    mysql-client
+    mysql-client \
+    libzip-dev \
+    mariadb-dev \
+    oniguruma-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev
 
-# Install PHP extensions
-RUN apk add --no-cache \
-    php85-mbstring \
-    php85-pdo_mysql \
-    php85-gd \
-    php85-zip \
-    php85-pcntl \
-    php85-bcmath
+# Build and enable PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        mbstring \
+        pdo_mysql \
+        gd \
+        zip \
+        pcntl \
+        bcmath \
+    && apk del --no-cache \
+        libzip-dev \
+        mariadb-dev \
+        oniguruma-dev \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# (Alpine image) Install additional PHP extensions if needed
+# Note: Alpine uses apk, so apt-get is not available.
+# The required extensions are installed via apk packages above.
 
 # Set working directory
 WORKDIR /var/www/html

@@ -3,7 +3,7 @@
     "description": "Choir Attendance Web Application",
     "type": "project",
     "require": {
-        "php": "^8.5",
+        "php": "^8.4",
         "illuminate/database": "^10.0",
         "php-di/php-di": "^7.0",
         "phpmailer/phpmailer": "^7.0",
