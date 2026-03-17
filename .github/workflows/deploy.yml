@@ -29,25 +29,15 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set image tag
-      run: echo "IMAGE_TAG=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):latest" >> $GITHUB_ENV
+      id: set-tag
+      run: echo "tag=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):latest" >> $GITHUB_OUTPUT
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: ${{ env.IMAGE_TAG }}
+        tags: ${{ steps.set-tag.outputs.tag }}
         platforms: linux/amd64,linux/arm64
         cache-from: type=gha
         cache-to: type=gha,mode=max
-
-    # - name: Deploy to server
-    #   uses: appleboy/ssh-action@v1.0.3
-    #   with:
-    #     host: ${{ secrets.SERVER_HOST }}
-    #     username: ${{ secrets.SERVER_USER }}
-    #     key: ${{ secrets.SERVER_SSH_KEY }}
-    #     script: |
-    #       cd /path/to/your/app
-    #       docker-compose pull
-    #       docker-compose up -d

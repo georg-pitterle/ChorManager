@@ -8,10 +8,11 @@ final class AddPasswordResets extends AbstractMigration
 {
     public function change(): void
     {
-        $table = $this->table('password_resets', ['id' => false, 'primary_key' => ['email']]);
-        $table->addColumn('email', 'string', ['limit' => 255])
+        $table = $this->table('password_resets', ['id']);
+        $table->addColumn('email', 'string', ['limit' => 255, ])
               ->addColumn('token', 'string', ['limit' => 255])
               ->addColumn('created_at', 'timestamp', ['default' => 'CURRENT_TIMESTAMP'])
+              ->addIndex(['email'], ['unique' => true])
               ->create();
     }
 }
