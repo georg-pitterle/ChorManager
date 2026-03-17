@@ -6,9 +6,10 @@ return [
     ],
     'environments' => [
         'default_migration_table' => 'phinxlog',
-        'default_environment' => 'mysql',
-        // MySQL environment configuration; override credentials as needed
-        'mysql' => [
+        'default_environment' => 'development',
+        // Configuration; override credentials as needed
+        'development' => [
+
             'adapter'  => 'mysql',
             'host'     => getenv('DB_HOST') ?: 'db',
             'name'     => getenv('DB_DATABASE') ?: 'db',

@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -59,10 +59,9 @@ class EvaluationController
                     // Get all active users, eager load their attendances for this specific project's events
                     $users = User::where('is_active', 1)
                         ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
-                        $q->whereHas('event', function ($sq) use ($projectId) {
+                            $q->whereHas('event', function ($sq) use ($projectId) {
                                 $sq->where('project_id', $projectId);
-                            }
-                            );
+                            });
                         }])
                         ->orderBy('last_name')
                         ->orderBy('first_name')

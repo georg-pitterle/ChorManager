@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Models;
 
@@ -20,11 +20,11 @@ class Attendance extends Model
 
     public function event()
     {
-        return $this->belongsTo(Event::class , 'event_id', 'id');
+        return $this->belongsTo(Event::class, 'event_id', 'id');
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class , 'user_id', 'id');
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 }

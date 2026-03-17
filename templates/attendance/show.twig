@@ -8,7 +8,7 @@
         <h1>Anwesenheiten eintragen</h1>
         
         <form class="d-flex mt-2 mt-md-0" method="get" action="/attendance" id="eventSelectForm">
-            <select class="form-select me-2" name="event_id" onchange="window.location.href='/attendance/' + this.value;">
+            <select class="form-select me-2 attendance-selector" name="event_id">
                 <option value="">-- Termin wählen --</option>
                 {% for e in events %}
                     <option value="{{ e.id }}" {% if current_event and current_event.id == e.id %}selected{% endif %}>
@@ -37,7 +37,11 @@
 <div class="card shadow-sm mb-4 border-primary">
     <div class="card-body">
         <h5 class="card-title text-primary">{{ current_event.title }}</h5>
-        <h6 class="card-subtitle mb-2 text-muted">{{ current_event.event_date|date("d.m.Y") }} | Typ: {{ current_event.type }}</h6>
+        <h6 class="card-subtitle mb-2 text-muted">
+            {{ current_event.event_date|date("d.m.Y") }} 
+            {% if current_event.location %} | <i class="bi bi-geo-alt"></i> {{ current_event.location }}{% endif %}
+            | Typ: {{ current_event.type }}
+        </h6>
     </div>
 </div>
 

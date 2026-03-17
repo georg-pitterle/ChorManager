@@ -1,0 +1,30 @@
+# Choir Manager Production Docker Compose Override
+# This file can be used to override production settings for local development
+# Copy this to docker-compose.override.yml and modify as needed
+# Note: This override assumes you have the application source code available locally
+
+version: '3.8'
+
+services:
+  app:
+    # Override to use local build instead of pre-built image
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    # Mount source code for development
+    volumes:
+      - ../src:/var/www/html/src:ro
+      - ../templates:/var/www/html/templates:ro
+      - ../public:/var/www/html/public
+    environment:
+      - APP_ENV=development
+
+  nginx:
+    ports:
+      # Use different port for development
+      - "8050:80"
+
+  db:
+    ports:
+      # Expose database port for development tools
+      - "3306:3306"

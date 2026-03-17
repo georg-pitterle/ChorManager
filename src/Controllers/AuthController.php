@@ -1,6 +1,6 @@
 <?php
-declare(strict_types=1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -71,16 +71,21 @@ class AuthController
                     $canManageProjectMembers = true;
                 }
 
-                if ($role->can_manage_users)
+                if ($role->can_manage_users) {
                     $canManageUsers = true;
-                if ($role->can_edit_users)
+                }
+                if ($role->can_edit_users) {
                     $canEditUsers = true;
-                if ($role->can_manage_project_members)
+                }
+                if ($role->can_manage_project_members) {
                     $canManageProjectMembers = true;
-                if ($role->can_manage_finances)
+                }
+                if ($role->can_manage_finances) {
                     $canManageFinances = true;
-                if ($role->can_manage_master_data)
+                }
+                if ($role->can_manage_master_data) {
                     $canManageMasterData = true;
+                }
 
                 if ($role->hierarchy_level > $maxRoleLevel) {
                     $maxRoleLevel = (int) $role->hierarchy_level;

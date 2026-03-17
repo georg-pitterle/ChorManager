@@ -3,6 +3,18 @@
 {% block title %}Events (Termine) - Chor Manager{% endblock %}
 
 {% block content %}
+<style>
+    /* Fix for dropdowns in table-responsive */
+    .table-responsive {
+        overflow: visible !important;
+    }
+    @media (max-width: 767.98px) {
+        .table-responsive {
+            overflow-x: auto !important;
+            padding-bottom: 60px; /* Space for dropdown on mobile */
+        }
+    }
+</style>
 <div class="row mt-4">
     <div class="col-12 d-flex justify-content-between align-items-center mb-4">
         <h1>Termine / Events</h1>
@@ -27,34 +39,134 @@
 </div>
 {% endif %}
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-0">
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" action="/events" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="filter_project" class="form-label small">Projekt</label>
+                <select name="project_id" id="filter_project" class="form-select">
+                    <option value="">Alle Projekte</option>
+                    {% for p in projects %}
+                        <option value="{{ p.id }}" {% if filters.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="filter_type" class="form-label small">Event-Typ</label>
+                <select name="event_type_id" id="filter_type" class="form-select">
+                    <option value="">Alle Typen</option>
+                    {% for et in event_types %}
+                        <option value="{{ et.id }}" {% if filters.event_type_id == et.id %}selected{% endif %}>{{ et.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-secondary flex-grow-1">
+                    <i class="bi bi-filter"></i> Filtern
+                </button>
+                <a href="/events" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+            <input type="hidden" name="sort" value="{{ filters.sort }}">
+            <input type="hidden" name="direction" value="{{ filters.direction }}">
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0" style="overflow: visible;">
+    <div class="card-body p-0" style="overflow: visible;">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th>Datum</th>
-                        <th>Titel</th>
-                        <th>Typ</th>
-                        <th>Projekt</th>
+                        <th>
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'event_date', direction: (filters.sort == 'event_date' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                                Datum
+                                {% if filters.sort == 'event_date' %}
+                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'title', direction: (filters.sort == 'title' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                                Titel
+                                {% if filters.sort == 'title' %}
+                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>Ort</th>
+                        <th>
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'type', direction: (filters.sort == 'type' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                                Typ
+                                {% if filters.sort == 'type' %}
+                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'project_name', direction: (filters.sort == 'project_name' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                                Projekt
+                                {% if filters.sort == 'project_name' %}
+                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for event in events %}
                     <tr>
-                        <td><strong>{{ event.event_date|date("d.m.Y") }}</strong></td>
-                        <td>{{ event.title }}</td>
                         <td>
-                            <span class="badge {% if event.type == 'Auftritt' %}bg-danger{% else %}bg-info{% endif %}">
-                                {{ event.type }}
+                            <strong>{{ event.event_date|date("d.m.Y") }}</strong>
+                            {% if event.series_id %}
+                                <i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ event.title }}</td>
+                        <td>{{ event.location|default('-') }}</td>
+                        <td>
+                            <span class="badge bg-{{ event.type_color }}">
+                                {{ event.type_name }}
                             </span>
                         </td>
                         <td>{{ event.project_name|default('-') }}</td>
                         <td class="text-end">
-                            <a href="/attendance/{{ event.id }}" class="btn btn-sm btn-outline-primary" title="Anwesenheiten">
-                                <i class="bi bi-clipboard-check"></i> Anwesenheit
-                            </a>
+                            <div class="btn-group">
+                                <a href="/attendance/{{ event.id }}" class="btn btn-sm btn-outline-primary" title="Anwesenheiten">
+                                    <i class="bi bi-clipboard-check"></i> Anwesenheit
+                                </a>
+                                {% if session.can_manage_users or session.role_level >= 40 %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a href="/events/{{ event.id }}/edit" class="dropdown-item">
+                                            <i class="bi bi-pencil me-2"></i> Termin bearbeiten
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <form action="/events/{{ event.id }}/delete" method="post" onsubmit="return confirm('Diesen Termin wirklich löschen?');">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="bi bi-trash me-2"></i> Termin löschen
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% if event.series_id %}
+                                    <li>
+                                        <form action="/events/{{ event.id }}/delete-series" method="post" onsubmit="return confirm('Die gesamte Serie ab diesem Termin wirklich löschen?');">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="bi bi-repeat me-2"></i> Serie löschen
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
@@ -88,13 +200,17 @@
                         <input type="date" class="form-control" id="event_date" name="event_date" required>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="type" class="form-label">Typ *</label>
-                        <select class="form-select" id="type" name="type" required>
-                            <option value="Probe">Probe</option>
-                            <option value="Auftritt">Auftritt</option>
-                            <option value="Sondertermin">Sondertermin</option>
+                        <label for="event_type_id" class="form-label">Typ *</label>
+                        <select class="form-select" id="event_type_id" name="event_type_id" required>
+                            {% for et in event_types %}
+                                <option value="{{ et.id }}">{{ et.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
+                </div>
+                <div class="mb-3">
+                    <label for="location" class="form-label">Ort (Optional)</label>
+                    <input type="text" class="form-control" id="location" name="location">
                 </div>
                 <div class="mb-3">
                     <label for="project_id" class="form-label">Projekt (Optional)</label>
@@ -105,6 +221,48 @@
                         {% endfor %}
                     </select>
                 </div>
+
+                <hr class="my-4">
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="repeat_event" name="repeat" value="1">
+                    <label class="form-check-label fw-bold" for="repeat_event">
+                        Termin wiederholen
+                    </label>
+                </div>
+
+                <div id="recurrence_options" style="display: none;">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Wiederhole jeden</label>
+                            <input type="number" class="form-control" name="recurrence_interval" value="1" min="1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">&nbsp;</label>
+                            <select class="form-select" name="frequency" id="frequency">
+                                <option value="daily">Tag</option>
+                                <option value="weekly" selected>Woche</option>
+                                <option value="monthly">Monat</option>
+                                <option value="yearly">Jahr</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="weekday_selector" class="mb-3">
+                        <label class="form-label small text-muted">am</label>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
+                                <input type="checkbox" class="btn-check" id="day_{{ loop.index }}" name="weekdays[]" value="{{ loop.index }}" {% if loop.index == 1 %}checked{% endif %}>
+                                <label class="btn btn-outline-primary btn-sm px-3" for="day_{{ loop.index }}">{{ day }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="series_end_date" class="form-label small text-muted">Wiederholung beenden am</label>
+                        <input type="date" class="form-control" id="series_end_date" name="series_end_date">
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -114,4 +272,8 @@
     </div>
 </div>
 {% endif %}
+
+{% block scripts %}
+<script src="/js/events.js"></script>
+{% endblock %}
 {% endblock %}

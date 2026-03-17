@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -68,8 +68,7 @@ class ProfileController
                 $_SESSION['success'] = 'Dein Profil wurde erfolgreich aktualisiert.';
                 $_SESSION['user_name'] = $firstName;
             }
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Speichern: ' . $e->getMessage();
         }
 

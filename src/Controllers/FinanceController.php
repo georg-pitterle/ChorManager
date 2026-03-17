@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controllers;
@@ -58,8 +59,9 @@ class FinanceController
             $minYear = (int) Carbon::parse($allDates->min_d)->format('Y');
             $maxYear = (int) Carbon::parse($allDates->max_d)->format('Y') + 1;
             for ($y = $minYear - 2; $y <= $maxYear + 2; $y++) {
-                if (isset($years[$y]))
+                if (isset($years[$y])) {
                     continue;
+                }
                 [$s, $e] = $this->datesForYear($y, $day, $month);
                 $count = Finance::whereBetween('invoice_date', [$s->format('Y-m-d'), $e->format('Y-m-d')])->count();
                 if ($count > 0) {
@@ -133,8 +135,9 @@ class FinanceController
             $uploadedFiles = $request->getUploadedFiles();
             if (isset($uploadedFiles['attachments'])) {
                 $files = $uploadedFiles['attachments'];
-                if (!is_array($files))
+                if (!is_array($files)) {
                     $files = [$files];
+                }
 
                 foreach ($files as $file) {
                     if ($file->getError() === UPLOAD_ERR_OK) {

@@ -1,6 +1,6 @@
 <?php
-declare(strict_types = 1)
-;
+
+declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -47,8 +47,7 @@ class VoiceGroupController
         try {
             VoiceGroup::create(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich angelegt.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
         }
 
@@ -70,8 +69,7 @@ class VoiceGroupController
             $group = VoiceGroup::findOrFail($id);
             $group->update(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich aktualisiert.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
         }
 
@@ -86,8 +84,7 @@ class VoiceGroupController
             $group = VoiceGroup::findOrFail($id);
             $group->delete();
             $_SESSION['success'] = 'Stimmgruppe erfolgreich gelöscht.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
         }
 
@@ -111,8 +108,7 @@ class VoiceGroupController
                 'voice_group_id' => $groupId
             ]);
             $_SESSION['success'] = 'Unterstimme erfolgreich angelegt.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
         }
 
@@ -134,8 +130,7 @@ class VoiceGroupController
             $subVoice = SubVoice::findOrFail($subId);
             $subVoice->update(['name' => $name]);
             $_SESSION['success'] = 'Unterstimme erfolgreich aktualisiert.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
         }
 
@@ -150,8 +145,7 @@ class VoiceGroupController
             $subVoice = SubVoice::findOrFail($subId);
             $subVoice->delete();
             $_SESSION['success'] = 'Unterstimme erfolgreich gelöscht.';
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
         }
 

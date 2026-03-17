@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controllers;
@@ -63,6 +64,41 @@ class AppSettingController
                         ]
                     );
                 }
+            }
+
+            // Save SMTP settings
+            $smtpFields = [
+                'smtp_host',
+                'smtp_port',
+                'smtp_username',
+                'smtp_encryption',
+                'smtp_from_email',
+                'smtp_from_name'
+            ];
+
+            foreach ($smtpFields as $field) {
+                if (isset($data[$field])) {
+                    AppSetting::updateOrCreate(
+                        ['setting_key' => $field],
+                        [
+                            'setting_value' => trim($data[$field]),
+                            'binary_content' => '',
+                            'mime_type' => 'text/plain'
+                        ]
+                    );
+                }
+            }
+
+            // Handle password separately: only update if a value is provided
+            if (!empty($data['smtp_password'])) {
+                AppSetting::updateOrCreate(
+                    ['setting_key' => 'smtp_password'],
+                    [
+                        'setting_value' => trim($data['smtp_password']),
+                        'binary_content' => '',
+                        'mime_type' => 'text/plain'
+                    ]
+                );
             }
 
             $_SESSION['success'] = 'Einstellungen erfolgreich gespeichert.';
