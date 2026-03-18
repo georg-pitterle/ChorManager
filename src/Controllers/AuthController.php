@@ -63,7 +63,8 @@ class AuthController
             foreach ($user->roles as $role) {
                 // Determine logic from old PDO behavior (the roles table holds these columns currently)
                 // Note: since schema.sql didn't define can_manage_users, can_edit_users, can_manage_project_members
-                // on the roles table, this logic might need those columns mapped if they exist, or rely on hierarchy_level.
+                // on the roles table, this logic might need those columns mapped if they exist,
+                // or rely on hierarchy_level.
                 // Assuming hierarchy_level > 80 means can manage users (based on old code).
                 if ($role->hierarchy_level >= 80) {
                     $canManageUsers = true;

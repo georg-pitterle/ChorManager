@@ -25,7 +25,7 @@ class EventController
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $eventTypeId = !empty($queryParams['event_type_id']) ? (int)$queryParams['event_type_id'] : null;
         $sort = $queryParams['sort'] ?? 'event_date';
-        $direction = $queryParams['direction'] ?? 'desc';
+        $direction = $queryParams['direction'] ?? 'asc';
 
         // Allowed sort columns
         $allowedSorts = ['event_date', 'title', 'type', 'project_name', 'location'];
@@ -113,8 +113,8 @@ class EventController
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $repeat = !empty($data['repeat']);
 
-        if (!$title || !$eventDateStr) {
-            $_SESSION['error'] = 'Titel und Datum sind Pflichtfelder.';
+        if (!$eventDateStr) {
+            $_SESSION['error'] = 'Datum ist ein Pflichtfeld.';
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
 
@@ -124,6 +124,10 @@ class EventController
                 $eventType = \App\Models\EventType::find($eventTypeId);
             }
             $typeName = $eventType ? $eventType->name : 'Probe';
+            
+            if (empty($title)) {
+                $title = $typeName;
+            }
 
             if (!$repeat) {
                 // Single event
@@ -196,7 +200,8 @@ class EventController
                     } elseif ($frequency === 'weekly') {
                         // If it's weekly, we check all weekdays in the current week,
                         // then jump by interval weeks if we've passed all selected weekdays.
-                        // Simplification for now: jump 1 day at a time, and when we finish a week, skip (interval-1) weeks.
+                        // Simplification for now: jump 1 day at a time, and when we finish a week,
+                        // skip (interval-1) weeks.
                         $prevDay = (int)$currentDate->format('N');
                         $currentDate->modify('+1 day');
                         $nextDay = (int)$currentDate->format('N');
@@ -258,9 +263,10 @@ class EventController
         $eventDateStr = $data['event_date'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
+        $updateSeries = !empty($data['update_series']);
 
-        if (!$title || !$eventDateStr) {
-            $_SESSION['error'] = 'Titel und Datum sind Pflichtfelder.';
+        if (!$eventDateStr) {
+            $_SESSION['error'] = 'Datum ist ein Pflichtfeld.';
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -270,17 +276,40 @@ class EventController
                 $eventType = \App\Models\EventType::find($eventTypeId);
             }
             $typeName = $eventType ? $eventType->name : $event->type;
+            
+            if (empty($title)) {
+                $title = $typeName;
+            }
 
-            $event->update([
+            $updateData = [
                 'title' => $title,
-                'event_date' => $eventDateStr,
                 'event_type_id' => $eventTypeId,
                 'project_id' => $projectId,
                 'type' => $typeName,
                 'location' => trim($data['location'] ?? '')
-            ]);
+            ];
 
-            $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
+            if ($updateSeries && $event->series_id) {
+                $eventsToUpdate = Event::where('series_id', $event->series_id)
+                                        ->where('event_date', '>=', $event->event_date)
+                                        ->get();
+                
+                foreach ($eventsToUpdate as $eventInSeries) {
+                    $eventInSeries->update($updateData);
+                }
+
+                $event->update([
+                    'event_date' => $eventDateStr,
+                ]);
+
+                $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
+
+            } else {
+                 $updateData['event_date'] = $eventDateStr;
+                 $event->update($updateData);
+                $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
+            }
+
         } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler: ' . $e->getMessage();
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
@@ -311,7 +340,7 @@ class EventController
                 ->where('event_date', '>=', $event->event_date)
                 ->delete();
 
-            $_SESSION['success'] = 'Event-Serie (Zukunft) gelöscht.';
+            $_SESSION['success'] = 'Alle zukünftigen Termine der Serie wurden gelöscht.';
         }
         return $response->withHeader('Location', '/events')->withStatus(302);
     }

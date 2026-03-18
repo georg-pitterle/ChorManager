@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const recurrenceOptions = document.getElementById('recurrence_options');
     const frequencySelect = document.getElementById('frequency');
     const weekdaySelector = document.getElementById('weekday_selector');
-
+    
     if (repeatCheckbox) {
         repeatCheckbox.addEventListener('change', function() {
             recurrenceOptions.style.display = this.checked ? 'block' : 'none';
@@ -18,6 +18,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (frequencySelect) {
         frequencySelect.addEventListener('change', function() {
             weekdaySelector.style.display = (this.value === 'weekly') ? 'block' : 'none';
+        });
+    }
+
+    const filterForm = document.getElementById('event-filter-form');
+    const projectFilter = document.getElementById('filter_project');
+    const typeFilter = document.getElementById('filter_type');
+
+    if (filterForm && projectFilter && typeFilter) {
+        projectFilter.addEventListener('change', function() {
+            filterForm.submit();
+        });
+        typeFilter.addEventListener('change', function() {
+            filterForm.submit();
         });
     }
 });

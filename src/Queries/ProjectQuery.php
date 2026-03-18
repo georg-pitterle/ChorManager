@@ -105,7 +105,8 @@ class ProjectQuery
             if (!isset($grouped[$vgName][$svName])) {
                 $grouped[$vgName][$svName] = [];
             }
-            // store raw array structure compatible with legacy twig templates (or just pass the user object if preferred)
+            // store raw array structure compatible with legacy twig templates
+            //(or just pass the user object if preferred)
             // for minimal twig breakage, we can store array data
             $grouped[$vgName][$svName][] = [
                 'id' => $user->id,

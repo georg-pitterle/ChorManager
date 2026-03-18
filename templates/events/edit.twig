@@ -59,6 +59,13 @@
                         </select>
                     </div>
 
+                    {% if event.series_id %}
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="update_series" name="update_series" value="1">
+                        <label class="form-check-label" for="update_series">Änderungen auf zukünftige Termine der Serie anwenden?</label>
+                    </div>
+                    {% endif %}
+
                     <div class="d-flex justify-content-between mt-4">
                         <a href="/events" class="btn btn-secondary">Abbrechen</a>
                         <button type="submit" class="btn btn-primary">Änderungen speichern</button>

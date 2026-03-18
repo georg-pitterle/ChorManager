@@ -185,10 +185,14 @@ class FinanceController
         $totalExpense = (float) $finances->where('type', 'expense')->sum('amount');
         $balance = $totalIncome - $totalExpense;
 
-        $cashIncome = (float) $finances->where('type', 'income')->where('payment_method', 'cash')->sum('amount');
-        $cashExpense = (float) $finances->where('type', 'expense')->where('payment_method', 'cash')->sum('amount');
-        $bankIncome = (float) $finances->where('type', 'income')->where('payment_method', 'bank_transfer')->sum('amount');
-        $bankExpense = (float) $finances->where('type', 'expense')->where('payment_method', 'bank_transfer')->sum('amount');
+        $cashIncome = (float) $finances->where('type', 'income')
+            ->where('payment_method', 'cash')->sum('amount');
+        $cashExpense = (float) $finances->where('type', 'expense')
+            ->where('payment_method', 'cash')->sum('amount');
+        $bankIncome = (float) $finances->where('type', 'income')
+            ->where('payment_method', 'bank_transfer')->sum('amount');
+        $bankExpense = (float) $finances->where('type', 'expense')
+            ->where('payment_method', 'bank_transfer')->sum('amount');
 
         $groupTotals = [];
         foreach ($finances as $f) {
