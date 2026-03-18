@@ -126,7 +126,8 @@ class EvaluationController
                     $filterVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
                 }
 
-                $groupedMembers = $this->projectQuery->getProjectMembersGroupedByVoice($projectId, $filterVoiceGroupIds);
+                $groupedMembers = $this->projectQuery
+                    ->getProjectMembersGroupedByVoice($projectId, $filterVoiceGroupIds);
 
                 if ($userId > 0) {
                     $user = User::find($userId);

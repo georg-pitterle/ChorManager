@@ -41,8 +41,8 @@
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <form method="get" action="/events" class="row g-3 align-items-end">
-            <div class="col-md-4">
+        <form method="get" action="/events" id="event-filter-form" class="row g-3 align-items-end">
+            <div class="col-md-5">
                 <label for="filter_project" class="form-label small">Projekt</label>
                 <select name="project_id" id="filter_project" class="form-select">
                     <option value="">Alle Projekte</option>
@@ -51,7 +51,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-5">
                 <label for="filter_type" class="form-label small">Event-Typ</label>
                 <select name="event_type_id" id="filter_type" class="form-select">
                     <option value="">Alle Typen</option>
@@ -60,12 +60,9 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4 d-flex gap-2">
-                <button type="submit" class="btn btn-secondary flex-grow-1">
-                    <i class="bi bi-filter"></i> Filtern
-                </button>
-                <a href="/events" class="btn btn-outline-secondary">
-                    <i class="bi bi-x-circle"></i>
+            <div class="col-md-2 d-flex">
+                <a href="/events" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x-circle"></i> Reset
                 </a>
             </div>
             <input type="hidden" name="sort" value="{{ filters.sort }}">

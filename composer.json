@@ -27,8 +27,8 @@
         "sort-packages": true
     },
     "scripts": {
-        "phpcs": "phpcs",
-        "phpcbf": "phpcbf",
+        "phpcs": "phpcs --standard=phpcs.xml src/",
+        "phpcbf": "phpcbf --standard=phpcs.xml src/",
         "migrate": "phinx migrate -e development"
     }
 }

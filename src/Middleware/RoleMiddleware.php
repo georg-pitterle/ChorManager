@@ -62,7 +62,7 @@ class RoleMiddleware implements MiddlewareInterface
 
         if ($this->requiresProjectMemberManagement && !$canManageProjectMembers && !$canManageUsers) {
             $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Projektmitgliederverwaltung.");
+            $response->getBody()->write("Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.");
             return $response->withStatus(403);
         }
 

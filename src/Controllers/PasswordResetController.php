@@ -51,7 +51,7 @@ class PasswordResetController
 
         if (!$user || !$user->is_active) {
             // we show success anyway to prevent email enumeration
-            $_SESSION['success'] = 'Falls die E-Mail-Adresse in unserem System existiert, haben wir dir einen Link zum Zurücksetzen deines Passworts gesendet.';
+            $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
             return $response->withHeader('Location', '/forgot-password')->withStatus(302);
         }
 
@@ -85,7 +85,7 @@ class PasswordResetController
         $sent = $mailer->sendHtmlMail($email, 'Passwort zurücksetzen - Chor Manager', $htmlBody);
 
         if ($sent) {
-            $_SESSION['success'] = 'Falls die E-Mail-Adresse in unserem System existiert, haben wir dir einen Link zum Zurücksetzen deines Passworts gesendet.';
+            $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
         } else {
             $_SESSION['error'] = 'Fehler beim Senden der E-Mail. Bitte kontaktiere den Administrator.';
         }

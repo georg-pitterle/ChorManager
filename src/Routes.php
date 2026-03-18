@@ -110,9 +110,27 @@ return function (App $app) {
                     $masterGroup->post('/voice-groups/{id:[0-9]+}/update', [VoiceGroupController::class, 'updateGroup']);
                     $masterGroup->post('/voice-groups/{id:[0-9]+}/delete', [VoiceGroupController::class, 'deleteGroup']);
 
-                    $masterGroup->post('/voice-groups/{id:[0-9]+}/sub', [VoiceGroupController::class, 'createSubVoice']);
-                    $masterGroup->post('/voice-groups/{id:[0-9]+}/sub/{sub_id:[0-9]+}/update', [VoiceGroupController::class, 'updateSubVoice']);
-                    $masterGroup->post('/voice-groups/{id:[0-9]+}/sub/{sub_id:[0-9]+}/delete', [VoiceGroupController::class, 'deleteSubVoice']);
+                    $masterGroup->post(
+                        '/voice-groups/{id:[0-9]+}/sub',
+                        [
+                            VoiceGroupController::class,
+                            'createSubVoice'
+                        ]
+                    );
+                    $masterGroup->post(
+                        '/voice-groups/{id:[0-9]+}/sub/{sub_id:[0-9]+}/update',
+                        [
+                            VoiceGroupController::class,
+                            'updateSubVoice'
+                        ]
+                    );
+                    $masterGroup->post(
+                        '/voice-groups/{id:[0-9]+}/sub/{sub_id:[0-9]+}/delete',
+                        [
+                            VoiceGroupController::class,
+                            'deleteSubVoice'
+                        ]
+                    );
 
                 // Event Type Management
                     $masterGroup->get('/event-types', [EventTypeController::class, 'index']);
@@ -136,8 +154,14 @@ return function (App $app) {
                     $financeGroup->post('/finances/{id:[0-9]+}/delete', [FinanceController::class, 'delete']);
                     $financeGroup->get('/finances/report', [FinanceController::class, 'report']);
                     $financeGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
-                    $financeGroup->get('/finances/attachments/{id:[0-9]+}', [FinanceController::class, 'viewAttachment']);
-                    $financeGroup->post('/finances/attachments/{id:[0-9]+}/delete', [FinanceController::class, 'deleteAttachment']);
+                    $financeGroup->get(
+                        '/finances/attachments/{id:[0-9]+}',
+                        [FinanceController::class, 'viewAttachment']
+                    );
+                    $financeGroup->post(
+                        '/finances/attachments/{id:[0-9]+}/delete',
+                        [FinanceController::class, 'deleteAttachment']
+                    );
                 }
             )->add(new RoleMiddleware(false, 0, false, false, true));
 
@@ -147,7 +171,10 @@ return function (App $app) {
                 function (RouteCollectorProxy $projGroup) {
                     $projGroup->get('/{id:[0-9]+}/members', [ProjectController::class, 'showMembers']);
                     $projGroup->post('/{id:[0-9]+}/members', [ProjectController::class, 'addMember']);
-                    $projGroup->post('/{id:[0-9]+}/members/{user_id:[0-9]+}/remove', [ProjectController::class, 'removeMember']);
+                    $projGroup->post(
+                        '/{id:[0-9]+}/members/{user_id:[0-9]+}/remove',
+                        [ProjectController::class, 'removeMember']
+                    );
                 }
             )->add(new RoleMiddleware(false, 0, false, true)); // requiresProjectMemberManagement
         }
