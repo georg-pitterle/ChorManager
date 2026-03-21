@@ -1,0 +1,179 @@
+{% extends "layout.twig" %}
+
+{% block title %}Sponsoren - Chor Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom mt-4">
+    <h1 class="h2"><i class="bi bi-people me-2"></i>Sponsoren</h1>
+    <div class="d-flex gap-2">
+        <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house me-1"></i> Dashboard</a>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createSponsorModal">
+            <i class="bi bi-plus-lg"></i> Neuer Sponsor
+        </button>
+    </div>
+</div>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ success }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{# Filter #}
+<form method="get" action="/sponsoring/sponsors" class="row g-2 mb-3">
+    <div class="col-sm-5 col-md-4">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Suche (Name, Kontakt, E-Mail)..." value="{{ q }}">
+    </div>
+    <div class="col-sm-4 col-md-3">
+        <select name="status" class="form-select form-select-sm">
+            <option value="">– Alle Status –</option>
+            {% for s in statuses %}
+            <option value="{{ s }}" {{ s == status ? 'selected' : '' }}>{{ s|capitalize }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-funnel"></i> Filtern</button>
+        {% if q or status %}
+        <a href="/sponsoring/sponsors" class="btn btn-outline-secondary btn-sm ms-1"><i class="bi bi-x"></i> Zurücksetzen</a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Typ</th>
+                <th>Status</th>
+                <th>E-Mail</th>
+                <th>Telefon</th>
+                <th>Vereinbarungen</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sponsor in sponsors %}
+            <tr>
+                <td>
+                    <a href="/sponsoring/sponsors/{{ sponsor.id }}" class="fw-semibold text-decoration-none">
+                        {{ sponsor.name }}
+                    </a>
+                    {% if sponsor.contact_person %}
+                    <div class="text-muted small">{{ sponsor.contact_person }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if sponsor.type == 'organization' %}
+                    <i class="bi bi-building" title="Organisation"></i>
+                    {% else %}
+                    <i class="bi bi-person" title="Einzelperson"></i>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set statusColors = {'prospect': 'secondary', 'contacted': 'info', 'negotiating': 'warning', 'active': 'success', 'paused': 'secondary', 'closed': 'dark'} %}
+                    {% set statusLabels = {'prospect': 'Interessent', 'contacted': 'Kontaktiert', 'negotiating': 'Verhandlung', 'active': 'Aktiv', 'paused': 'Pausiert', 'closed': 'Abgeschlossen'} %}
+                    <span class="badge bg-{{ statusColors[sponsor.status] ?? 'secondary' }}">{{ statusLabels[sponsor.status] ?? sponsor.status }}</span>
+                </td>
+                <td>
+                    {% if sponsor.email %}
+                    <a href="mailto:{{ sponsor.email }}" class="text-decoration-none small">{{ sponsor.email }}</a>
+                    {% else %}–{% endif %}
+                </td>
+                <td class="small">{{ sponsor.phone ?? '–' }}</td>
+                <td>
+                    <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
+                </td>
+                <td class="text-end text-nowrap">
+                    <a href="/sponsoring/sponsors/{{ sponsor.id }}" class="btn btn-sm btn-outline-secondary" title="Details">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}/delete" class="d-inline"
+                          onsubmit="return confirm('Sponsor „{{ sponsor.name }}" wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">Keine Sponsoren gefunden.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# Modal: Neuer Sponsor #}
+<div class="modal fade" id="createSponsorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form method="post" action="/sponsoring/sponsors">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Neuer Sponsor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Typ</label>
+                            <select name="type" class="form-select">
+                                <option value="organization">Organisation / Firma</option>
+                                <option value="person">Einzelperson</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="prospect">Interessent</option>
+                                <option value="contacted">Kontaktiert</option>
+                                <option value="negotiating">Verhandlung</option>
+                                <option value="active">Aktiv</option>
+                                <option value="paused">Pausiert</option>
+                                <option value="closed">Abgeschlossen</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Kontaktperson</label>
+                            <input type="text" name="contact_person" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">E-Mail</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Telefon</label>
+                            <input type="text" name="phone" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Website</label>
+                            <input type="url" name="website" class="form-control" placeholder="https://...">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Adresse</label>
+                            <textarea name="address" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Anlegen</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

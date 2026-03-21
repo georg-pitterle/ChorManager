@@ -18,6 +18,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresProjectMemberManagement;
     private bool $requiresFinanceManagement;
     private bool $requiresMasterDataManagement;
+    private bool $requiresSponsoringManagement;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -25,7 +26,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $allowVoiceGroupReps = false,
         bool $requiresProjectMemberManagement = false,
         bool $requiresFinanceManagement = false,
-        bool $requiresMasterDataManagement = false
+        bool $requiresMasterDataManagement = false,
+        bool $requiresSponsoringManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -33,6 +35,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresProjectMemberManagement = $requiresProjectMemberManagement;
         $this->requiresFinanceManagement = $requiresFinanceManagement;
         $this->requiresMasterDataManagement = $requiresMasterDataManagement;
+        $this->requiresSponsoringManagement = $requiresSponsoringManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -46,7 +49,14 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
         $canManageFinances = $_SESSION['can_manage_finances'] ?? false;
         $canManageMasterData = $_SESSION['can_manage_master_data'] ?? false;
+        $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
+
+        if ($this->requiresSponsoringManagement && !$canManageSponsoring && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Sponsoring-Verwaltung.");
+            return $response->withStatus(403);
+        }
 
         if ($this->requiresMasterDataManagement && !$canManageMasterData && !$canManageUsers) {
             $response = new SlimResponse();

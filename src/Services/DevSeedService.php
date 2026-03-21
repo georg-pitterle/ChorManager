@@ -16,6 +16,11 @@ use App\Models\Project;
 use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\Sponsor;
+use App\Models\SponsorAttachment;
+use App\Models\SponsorPackage;
+use App\Models\SponsoringContact;
+use App\Models\Sponsorship;
 use App\Models\SubVoice;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -23,6 +28,11 @@ use DateTimeImmutable;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use RuntimeException;
 
+/**
+ * DevSeedService must cover all persisted production modules.
+ * Feature work is incomplete when new tables or relations are missing from the seed run.
+ * For every new persisted feature, update imports, counts, resetSeedData(), seed methods, and the run() flow.
+ */
 class DevSeedService
 {
     private const MODE_APPEND = 'append';
@@ -84,6 +94,11 @@ class DevSeedService
                 'remember_logins' => 0,
                 'settings' => 0,
                 'app_settings' => 0,
+                'sponsor_packages' => 0,
+                'sponsors' => 0,
+                'sponsorships' => 0,
+                'sponsoring_contacts' => 0,
+                'sponsor_attachments' => 0,
             ],
         ];
 
@@ -109,6 +124,11 @@ class DevSeedService
 
             $this->seedAttendance($projectMembers, $projectEvents);
             $this->seedFinances($projects, 320, 40);
+            $packages = $this->seedSponsorPackages();
+            $sponsors = $this->seedSponsors();
+            $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
+            $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
+            $this->seedSponsorAttachments($sponsorships);
             $this->seedAuthData($users['all']);
             $this->seedAppSettings();
         });
@@ -147,6 +167,11 @@ class DevSeedService
             'finance_attachments',
             'remember_logins',
             'password_resets',
+            'sponsor_attachments',
+            'sponsoring_contacts',
+            'sponsorships',
+            'sponsors',
+            'sponsor_packages',
             'project_users',
             'user_voice_groups',
             'user_roles',
@@ -180,7 +205,8 @@ class DevSeedService
                 'can_edit_users' => 1,
                 'can_manage_project_members' => 1,
                 'can_manage_finances' => 1,
-                'can_manage_master_data' => 1
+                'can_manage_master_data' => 1,
+                'can_manage_sponsoring' => 1,
             ],
             [
                 'name' => 'Vorstand',
@@ -189,7 +215,8 @@ class DevSeedService
                 'can_edit_users' => 1,
                 'can_manage_project_members' => 1,
                 'can_manage_finances' => 1,
-                'can_manage_master_data' => 1
+                'can_manage_master_data' => 1,
+                'can_manage_sponsoring' => 1,
             ],
             [
                 'name' => 'Chorleitung',
@@ -198,7 +225,8 @@ class DevSeedService
                 'can_edit_users' => 0,
                 'can_manage_project_members' => 1,
                 'can_manage_finances' => 0,
-                'can_manage_master_data' => 1
+                'can_manage_master_data' => 1,
+                'can_manage_sponsoring' => 1,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -207,7 +235,8 @@ class DevSeedService
                 'can_edit_users' => 0,
                 'can_manage_project_members' => 1,
                 'can_manage_finances' => 0,
-                'can_manage_master_data' => 0
+                'can_manage_master_data' => 0,
+                'can_manage_sponsoring' => 0,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -216,7 +245,8 @@ class DevSeedService
                 'can_edit_users' => 0,
                 'can_manage_project_members' => 0,
                 'can_manage_finances' => 0,
-                'can_manage_master_data' => 0
+                'can_manage_master_data' => 0,
+                'can_manage_sponsoring' => 0,
             ],
             [
                 'name' => 'Mitglied',
@@ -225,13 +255,14 @@ class DevSeedService
                 'can_edit_users' => 0,
                 'can_manage_project_members' => 0,
                 'can_manage_finances' => 0,
-                'can_manage_master_data' => 0
+                'can_manage_master_data' => 0,
+                'can_manage_sponsoring' => 0,
             ],
         ];
 
         $roles = [];
         foreach ($definitions as $roleData) {
-            $role = Role::firstOrCreate(['name' => $roleData['name']], $roleData);
+            $role = Role::updateOrCreate(['name' => $roleData['name']], $roleData);
             $roles[$role->name] = $role;
             if ($role->wasRecentlyCreated) {
                 $this->report['counts']['roles']++;
@@ -859,6 +890,614 @@ class DevSeedService
 
             if ($model->wasRecentlyCreated) {
                 $this->report['counts']['app_settings']++;
+            }
+        }
+    }
+
+    private function seedSponsorPackages(): array
+    {
+        $definitions = [
+            [
+                'name' => 'Bronze',
+                'description' => 'Kleines Einstiegspaket mit Logo auf ausgewählten Werbemitteln.',
+                'min_amount' => 500.00,
+                'color' => 'secondary',
+            ],
+            [
+                'name' => 'Silber',
+                'description' => 'Sichtbarkeit bei Konzerten, Website und Programmheft.',
+                'min_amount' => 1200.00,
+                'color' => 'info',
+            ],
+            [
+                'name' => 'Gold',
+                'description' => 'Erweiterte Präsenz mit Ansprache bei Veranstaltungen.',
+                'min_amount' => 2500.00,
+                'color' => 'warning',
+            ],
+            [
+                'name' => 'Hauptsponsor',
+                'description' => 'Exklusive Hauptpartnerschaft für Saison oder Projekt.',
+                'min_amount' => 5000.00,
+                'color' => 'danger',
+            ],
+        ];
+
+        $packages = [];
+        foreach ($definitions as $definition) {
+            $package = SponsorPackage::updateOrCreate(
+                ['name' => $definition['name']],
+                $definition
+            );
+
+            if ($package->wasRecentlyCreated) {
+                $this->report['counts']['sponsor_packages']++;
+            }
+
+            $packages[$package->name] = $package;
+        }
+
+        return $packages;
+    }
+
+    private function seedSponsors(): array
+    {
+        $definitions = [
+            [
+                'type' => 'organization',
+                'name' => 'Musikhaus Weber',
+                'contact_person' => 'Hannes Weber',
+                'email' => 'partnerschaft@musikhaus-weber.local',
+                'phone' => '+43 662 401 120',
+                'address' => 'Linzer Gasse 12, 5020 Salzburg',
+                'website' => 'https://musikhaus-weber.local',
+                'notes' => 'Langjähriger Förderer regionaler Kulturprojekte.',
+                'status' => 'active',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'Kulturstiftung am Fluss',
+                'contact_person' => 'Dr. Eva Sonnleitner',
+                'email' => 'foerderungen@kulturstiftung-fluss.local',
+                'phone' => '+43 662 401 121',
+                'address' => 'Uferstraße 8, 5020 Salzburg',
+                'website' => 'https://kulturstiftung-fluss.local',
+                'notes' => 'Interessiert an Jugend- und Bildungsprojekten.',
+                'status' => 'negotiating',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'Druckerei Klangfarbe',
+                'contact_person' => 'Miriam Pichler',
+                'email' => 'miriam.pichler@klangfarbe.local',
+                'phone' => '+43 662 401 122',
+                'address' => 'Musterweg 5, 5071 Wals',
+                'website' => null,
+                'notes' => 'Bietet Sachleistungen für Drucksorten an.',
+                'status' => 'contacted',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'ProAudio Salzburg',
+                'contact_person' => 'Robert Unger',
+                'email' => 'office@proaudio-salzburg.local',
+                'phone' => '+43 662 401 123',
+                'address' => 'Technikpark 3, 5020 Salzburg',
+                'website' => 'https://proaudio-salzburg.local',
+                'notes' => 'Gute Option für Technik-Sponsoring bei Konzerten.',
+                'status' => 'prospect',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'Bankhaus Fortschritt',
+                'contact_person' => 'Thomas König',
+                'email' => 'kultur@bankhaus-fortschritt.local',
+                'phone' => '+43 662 401 124',
+                'address' => 'Rathausplatz 1, 5020 Salzburg',
+                'website' => 'https://bankhaus-fortschritt.local',
+                'notes' => 'Fragt nach Gegenleistungen im Jahresbericht.',
+                'status' => 'paused',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'Hotel Harmonie',
+                'contact_person' => 'Sabine Leitner',
+                'email' => 'sabine.leitner@hotel-harmonie.local',
+                'phone' => '+43 662 401 125',
+                'address' => 'Mozartkai 17, 5020 Salzburg',
+                'website' => null,
+                'notes' => 'Prüft Unterstützung für Gastkünstler-Unterbringung.',
+                'status' => 'negotiating',
+            ],
+            [
+                'type' => 'person',
+                'name' => 'Barbara Singer',
+                'contact_person' => 'Barbara Singer',
+                'email' => 'barbara.singer@privat.local',
+                'phone' => '+43 664 401 126',
+                'address' => 'Aiglhofstraße 22, 5020 Salzburg',
+                'website' => null,
+                'notes' => 'Private Förderin mit starkem Bezug zum Chor.',
+                'status' => 'active',
+            ],
+            [
+                'type' => 'person',
+                'name' => 'Martin Reiter',
+                'contact_person' => 'Martin Reiter',
+                'email' => 'martin.reiter@privat.local',
+                'phone' => null,
+                'address' => null,
+                'website' => null,
+                'notes' => 'Hat nach erstem Konzertbesuch Interesse signalisiert.',
+                'status' => 'contacted',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'Bäckerei Morgenstern',
+                'contact_person' => 'Lisa Morgenstern',
+                'email' => 'kontakt@baeckerei-morgenstern.local',
+                'phone' => '+43 662 401 127',
+                'address' => 'Marktplatz 6, 5020 Salzburg',
+                'website' => 'https://baeckerei-morgenstern.local',
+                'notes' => 'Frühere Kooperation abgeschlossen, evtl. Wiederaufnahme.',
+                'status' => 'closed',
+            ],
+            [
+                'type' => 'organization',
+                'name' => 'Eventagentur Taktvoll',
+                'contact_person' => 'Claudia Aigner',
+                'email' => 'claudia.aigner@taktvoll.local',
+                'phone' => '+43 662 401 128',
+                'address' => 'Messeallee 4, 5020 Salzburg',
+                'website' => 'https://taktvoll.local',
+                'notes' => 'Interesse an Projektpartnerschaft für Herbstkonzert.',
+                'status' => 'active',
+            ],
+        ];
+
+        $sponsors = [];
+        foreach ($definitions as $definition) {
+            $sponsor = Sponsor::updateOrCreate(
+                ['name' => $definition['name']],
+                $definition
+            );
+
+            if ($sponsor->wasRecentlyCreated) {
+                $this->report['counts']['sponsors']++;
+            }
+
+            $sponsors[$sponsor->name] = $sponsor;
+        }
+
+        return $sponsors;
+    }
+
+    private function seedSponsorships(array $sponsors, array $packages, array $projects, array $activeUsers): array
+    {
+        $definitions = [
+            'Musikhaus Weber' => [
+                [
+                    'package' => 'Gold',
+                    'project_offset' => -1,
+                    'assigned_user_offset' => 0,
+                    'amount' => 3200.00,
+                    'status' => 'active',
+                    'start_date' => '-8 months',
+                    'end_date' => '+4 months',
+                    'notes' => 'Aktive Saisonpartnerschaft inklusive Logo auf allen Konzertmedien.',
+                ],
+                [
+                    'package' => 'Silber',
+                    'project_offset' => null,
+                    'assigned_user_offset' => 1,
+                    'amount' => 1500.00,
+                    'status' => 'closed',
+                    'start_date' => '-20 months',
+                    'end_date' => '-8 months',
+                    'notes' => 'Abgeschlossene Unterstützung für vergangene Konzertreihe.',
+                ],
+            ],
+            'Kulturstiftung am Fluss' => [
+                [
+                    'package' => 'Hauptsponsor',
+                    'project_offset' => -2,
+                    'assigned_user_offset' => 2,
+                    'amount' => 7500.00,
+                    'status' => 'negotiating',
+                    'start_date' => '+1 month',
+                    'end_date' => '+13 months',
+                    'notes' => 'Förderantrag für Jubiläumsprojekt in finaler Abstimmung.',
+                ],
+            ],
+            'Druckerei Klangfarbe' => [
+                [
+                    'package' => 'Bronze',
+                    'project_offset' => -1,
+                    'assigned_user_offset' => 3,
+                    'amount' => 650.00,
+                    'status' => 'contacted',
+                    'start_date' => '-1 month',
+                    'end_date' => '+11 months',
+                    'notes' => 'Sachleistung für Programmhefte wurde angeboten.',
+                ],
+            ],
+            'ProAudio Salzburg' => [
+                [
+                    'package' => 'Silber',
+                    'project_offset' => -1,
+                    'assigned_user_offset' => 4,
+                    'amount' => 1400.00,
+                    'status' => 'prospect',
+                    'start_date' => '+2 months',
+                    'end_date' => '+14 months',
+                    'notes' => 'Erstgespräch für Technikpartnerschaft geplant.',
+                ],
+            ],
+            'Bankhaus Fortschritt' => [
+                [
+                    'package' => 'Gold',
+                    'project_offset' => null,
+                    'assigned_user_offset' => 5,
+                    'amount' => 2600.00,
+                    'status' => 'paused',
+                    'start_date' => '-10 months',
+                    'end_date' => '+2 months',
+                    'notes' => 'Entscheidung vertagt bis nach Budgetrunde.',
+                ],
+            ],
+            'Hotel Harmonie' => [
+                [
+                    'package' => 'Silber',
+                    'project_offset' => -2,
+                    'assigned_user_offset' => 6,
+                    'amount' => 1800.00,
+                    'status' => 'negotiating',
+                    'start_date' => '+3 months',
+                    'end_date' => '+15 months',
+                    'notes' => 'Kombination aus Zimmerkontingent und Geldleistung in Verhandlung.',
+                ],
+            ],
+            'Barbara Singer' => [
+                [
+                    'package' => 'Bronze',
+                    'project_offset' => null,
+                    'assigned_user_offset' => 7,
+                    'amount' => 800.00,
+                    'status' => 'active',
+                    'start_date' => '-4 months',
+                    'end_date' => '+8 months',
+                    'notes' => 'Private Förderzusage mit jährlicher Verlängerungsoption.',
+                ],
+            ],
+            'Martin Reiter' => [
+                [
+                    'package' => 'Bronze',
+                    'project_offset' => null,
+                    'assigned_user_offset' => 8,
+                    'amount' => 500.00,
+                    'status' => 'contacted',
+                    'start_date' => '+1 month',
+                    'end_date' => '+12 months',
+                    'notes' => 'Nachfassgespräch nach persönlicher Zusage offen.',
+                ],
+            ],
+            'Bäckerei Morgenstern' => [
+                [
+                    'package' => 'Bronze',
+                    'project_offset' => -3,
+                    'assigned_user_offset' => 9,
+                    'amount' => 700.00,
+                    'status' => 'closed',
+                    'start_date' => '-24 months',
+                    'end_date' => '-13 months',
+                    'notes' => 'Frühere Kooperation beendet, Kontakt bleibt erhalten.',
+                ],
+            ],
+            'Eventagentur Taktvoll' => [
+                [
+                    'package' => 'Hauptsponsor',
+                    'project_offset' => -1,
+                    'assigned_user_offset' => 10,
+                    'amount' => 6200.00,
+                    'status' => 'active',
+                    'start_date' => '-2 months',
+                    'end_date' => '+10 months',
+                    'notes' => 'Leitpartnerschaft für Herbstprojekt inklusive Social-Media-Paket.',
+                ],
+                [
+                    'package' => 'Gold',
+                    'project_offset' => null,
+                    'assigned_user_offset' => 11,
+                    'amount' => 3000.00,
+                    'status' => 'negotiating',
+                    'start_date' => '+5 months',
+                    'end_date' => '+17 months',
+                    'notes' => 'Zusätzliche Kooperation für Sommergala in Vorbereitung.',
+                ],
+            ],
+        ];
+
+        $projectCount = count($projects);
+        $activeUserCount = count($activeUsers);
+        $sponsorships = [];
+
+        foreach ($definitions as $sponsorName => $items) {
+            if (!isset($sponsors[$sponsorName])) {
+                continue;
+            }
+
+            $sponsor = $sponsors[$sponsorName];
+
+            foreach ($items as $index => $item) {
+                if (!isset($packages[$item['package']])) {
+                    continue;
+                }
+
+                $package = $packages[$item['package']];
+                $project = null;
+                if ($item['project_offset'] !== null && $projectCount > 0) {
+                    $projectIndex = max(0, $projectCount + (int) $item['project_offset']);
+                    $project = $projects[$projectIndex] ?? null;
+                }
+
+                $assignedUser = null;
+                if ($activeUserCount > 0) {
+                    $assignedUser = $activeUsers[$item['assigned_user_offset'] % $activeUserCount];
+                }
+
+                $startDate = (new DateTimeImmutable())->modify($item['start_date'])->format('Y-m-d');
+                $endDate = (new DateTimeImmutable())->modify($item['end_date'])->format('Y-m-d');
+
+                $sponsorship = Sponsorship::updateOrCreate(
+                    [
+                        'sponsor_id' => $sponsor->id,
+                        'notes' => $item['notes'],
+                    ],
+                    [
+                        'project_id' => $project?->id,
+                        'package_id' => $package->id,
+                        'assigned_user_id' => $assignedUser?->id,
+                        'amount' => max((float) $item['amount'], (float) $package->min_amount),
+                        'status' => $item['status'],
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
+                        'notes' => $item['notes'],
+                    ]
+                );
+
+                if ($sponsorship->wasRecentlyCreated) {
+                    $this->report['counts']['sponsorships']++;
+                }
+
+                $sponsorships[$sponsorName . '-' . $index] = $sponsorship;
+            }
+        }
+
+        return $sponsorships;
+    }
+
+    private function seedSponsoringContacts(array $sponsors, array $sponsorships, array $activeUsers): void
+    {
+        $definitions = [
+            [
+                'sponsor' => 'Musikhaus Weber',
+                'sponsorship_key' => 'Musikhaus Weber-0',
+                'user_offset' => 0,
+                'contact_date' => '-21 days',
+                'type' => 'meeting',
+                'summary' => 'Quartalsgespräch zur Sichtbarkeit beim Sommerkonzert.',
+                'follow_up_date' => '+3 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Kulturstiftung am Fluss',
+                'sponsorship_key' => 'Kulturstiftung am Fluss-0',
+                'user_offset' => 1,
+                'contact_date' => '-10 days',
+                'type' => 'email',
+                'summary' => 'Finale Unterlagen für Förderentscheidung übermittelt.',
+                'follow_up_date' => '-1 day',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Druckerei Klangfarbe',
+                'sponsorship_key' => 'Druckerei Klangfarbe-0',
+                'user_offset' => 2,
+                'contact_date' => '-14 days',
+                'type' => 'call',
+                'summary' => 'Telefonat zu Druckkontingent und Lieferterminen geführt.',
+                'follow_up_date' => '+5 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'ProAudio Salzburg',
+                'sponsorship_key' => 'ProAudio Salzburg-0',
+                'user_offset' => 3,
+                'contact_date' => '-5 days',
+                'type' => 'email',
+                'summary' => 'Angebotsanfrage für Technikpartnerschaft versendet.',
+                'follow_up_date' => '+9 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Bankhaus Fortschritt',
+                'sponsorship_key' => 'Bankhaus Fortschritt-0',
+                'user_offset' => 4,
+                'contact_date' => '-35 days',
+                'type' => 'meeting',
+                'summary' => 'Budgetgespräch mit Hinweis auf spätere Wiedervorlage.',
+                'follow_up_date' => '-7 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Hotel Harmonie',
+                'sponsorship_key' => 'Hotel Harmonie-0',
+                'user_offset' => 5,
+                'contact_date' => '-8 days',
+                'type' => 'call',
+                'summary' => 'Zimmerkontingent für Herbstprojekt mündlich zugesagt.',
+                'follow_up_date' => '+4 days',
+                'follow_up_done' => 1,
+            ],
+            [
+                'sponsor' => 'Barbara Singer',
+                'sponsorship_key' => 'Barbara Singer-0',
+                'user_offset' => 6,
+                'contact_date' => '-18 days',
+                'type' => 'letter',
+                'summary' => 'Persönliches Dankschreiben mit Konzertfotos versendet.',
+                'follow_up_date' => null,
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Martin Reiter',
+                'sponsorship_key' => 'Martin Reiter-0',
+                'user_offset' => 7,
+                'contact_date' => '-3 days',
+                'type' => 'other',
+                'summary' => 'Kurzes Gespräch nach Probe, Interesse an Privatförderung bekräftigt.',
+                'follow_up_date' => '+11 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Bäckerei Morgenstern',
+                'sponsorship_key' => 'Bäckerei Morgenstern-0',
+                'user_offset' => 8,
+                'contact_date' => '-60 days',
+                'type' => 'email',
+                'summary' => 'Archivnotiz zum Ende der früheren Kooperation ergänzt.',
+                'follow_up_date' => null,
+                'follow_up_done' => 1,
+            ],
+            [
+                'sponsor' => 'Eventagentur Taktvoll',
+                'sponsorship_key' => 'Eventagentur Taktvoll-0',
+                'user_offset' => 9,
+                'contact_date' => '-6 days',
+                'type' => 'meeting',
+                'summary' => 'Abstimmung zum Bühnenbranding für das Herbstprojekt.',
+                'follow_up_date' => '+2 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Eventagentur Taktvoll',
+                'sponsorship_key' => 'Eventagentur Taktvoll-1',
+                'user_offset' => 10,
+                'contact_date' => '-2 days',
+                'type' => 'email',
+                'summary' => 'Zusätzliche Kooperationsidee für Sommergala angefragt.',
+                'follow_up_date' => '+12 days',
+                'follow_up_done' => 0,
+            ],
+            [
+                'sponsor' => 'Musikhaus Weber',
+                'sponsorship_key' => null,
+                'user_offset' => 11,
+                'contact_date' => '-90 days',
+                'type' => 'letter',
+                'summary' => 'Jahresrückblick postalisch an Geschäftsführung übermittelt.',
+                'follow_up_date' => null,
+                'follow_up_done' => 1,
+            ],
+        ];
+
+        $activeUserCount = count($activeUsers);
+
+        foreach ($definitions as $definition) {
+            if (!isset($sponsors[$definition['sponsor']])) {
+                continue;
+            }
+
+            $sponsor = $sponsors[$definition['sponsor']];
+            $sponsorship = $definition['sponsorship_key'] !== null
+                ? ($sponsorships[$definition['sponsorship_key']] ?? null)
+                : null;
+            $user = $activeUserCount > 0
+                ? $activeUsers[$definition['user_offset'] % $activeUserCount]
+                : null;
+
+            $contactDate = (new DateTimeImmutable())->modify($definition['contact_date'])->format('Y-m-d');
+            $followUpDate = $definition['follow_up_date'] !== null
+                ? (new DateTimeImmutable())->modify($definition['follow_up_date'])->format('Y-m-d')
+                : null;
+
+            $contact = SponsoringContact::updateOrCreate(
+                [
+                    'sponsor_id' => $sponsor->id,
+                    'contact_date' => $contactDate,
+                    'type' => $definition['type'],
+                    'summary' => $definition['summary'],
+                ],
+                [
+                    'sponsorship_id' => $sponsorship?->id,
+                    'user_id' => $user?->id,
+                    'follow_up_date' => $followUpDate,
+                    'follow_up_done' => $definition['follow_up_done'],
+                ]
+            );
+
+            if ($contact->wasRecentlyCreated) {
+                $this->report['counts']['sponsoring_contacts']++;
+            }
+        }
+    }
+
+    private function seedSponsorAttachments(array $sponsorships): void
+    {
+        $definitions = [
+            [
+                'sponsorship_key' => 'Musikhaus Weber-0',
+                'original_name' => 'vertrag-musikhaus-weber.pdf',
+                'mime_type' => 'application/pdf',
+                'file_content' => 'PDF Testinhalt: Sponsoringvertrag Musikhaus Weber',
+            ],
+            [
+                'sponsorship_key' => 'Kulturstiftung am Fluss-0',
+                'original_name' => 'foerderantrag-kulturstiftung.pdf',
+                'mime_type' => 'application/pdf',
+                'file_content' => 'PDF Testinhalt: Förderantrag Kulturstiftung am Fluss',
+            ],
+            [
+                'sponsorship_key' => 'Barbara Singer-0',
+                'original_name' => 'dankesschreiben-barbara-singer.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Vielen Dank für Ihre Unterstützung des Chorprojekts.',
+            ],
+            [
+                'sponsorship_key' => 'Eventagentur Taktvoll-0',
+                'original_name' => 'branding-briefing-taktvoll.pdf',
+                'mime_type' => 'application/pdf',
+                'file_content' => 'PDF Testinhalt: Branding-Briefing Eventagentur Taktvoll',
+            ],
+            [
+                'sponsorship_key' => 'Eventagentur Taktvoll-1',
+                'original_name' => 'angebot-sommergala.pdf',
+                'mime_type' => 'application/pdf',
+                'file_content' => 'PDF Testinhalt: Angebot Sommergala Sponsoring',
+            ],
+        ];
+
+        foreach ($definitions as $definition) {
+            $sponsorship = $sponsorships[$definition['sponsorship_key']] ?? null;
+            if (!$sponsorship instanceof Sponsorship) {
+                continue;
+            }
+
+            $storedFilename = bin2hex(random_bytes(8)) . '_' . $definition['original_name'];
+            $attachment = SponsorAttachment::firstOrCreate(
+                [
+                    'sponsorship_id' => $sponsorship->id,
+                    'original_name' => $definition['original_name'],
+                ],
+                [
+                    'filename' => $storedFilename,
+                    'mime_type' => $definition['mime_type'],
+                    'file_content' => $definition['file_content'],
+                ]
+            );
+
+            if ($attachment->wasRecentlyCreated) {
+                $this->report['counts']['sponsor_attachments']++;
             }
         }
     }

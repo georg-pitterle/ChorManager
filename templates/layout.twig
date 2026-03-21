@@ -27,8 +27,15 @@
                     </li>
                     {% if session.can_manage_finances %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/finances">
+                        <a class="nav-link {% if active_nav == 'finances' %}active{% endif %}" href="/finances">
                             <i class="bi bi-bank me-1"></i> Kassa
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if session.can_manage_sponsoring %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_nav == 'sponsoring' %}active{% endif %}" href="/sponsoring">
+                            <i class="bi bi-briefcase me-1"></i> Sponsoring
                         </a>
                     </li>
                     {% endif %}

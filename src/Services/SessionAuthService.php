@@ -18,6 +18,7 @@ class SessionAuthService
         $canManageProjectMembers = false;
         $canManageFinances = false;
         $canManageMasterData = false;
+        $canManageSponsoring = false;
         $maxRoleLevel = 0;
 
         foreach ($user->roles as $role) {
@@ -42,6 +43,9 @@ class SessionAuthService
             if ($role->can_manage_master_data) {
                 $canManageMasterData = true;
             }
+            if ($role->can_manage_sponsoring) {
+                $canManageSponsoring = true;
+            }
 
             if ($role->hierarchy_level > $maxRoleLevel) {
                 $maxRoleLevel = (int) $role->hierarchy_level;
@@ -53,6 +57,7 @@ class SessionAuthService
         $_SESSION['can_manage_project_members'] = $canManageProjectMembers;
         $_SESSION['can_manage_finances'] = $canManageFinances;
         $_SESSION['can_manage_master_data'] = $canManageMasterData;
+        $_SESSION['can_manage_sponsoring'] = $canManageSponsoring;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
     }

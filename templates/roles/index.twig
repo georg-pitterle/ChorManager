@@ -38,6 +38,7 @@
                         <th>Projektmitglieder</th>
                         <th>Stammdaten</th>
                         <th>Finanzen (Kassa)</th>
+                        <th>Sponsoring</th>
                         <th class="text-end">Aktive Mitglieder</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
@@ -82,6 +83,13 @@
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
+                        <td data-label="Sponsoring">
+                            {% if role.can_manage_sponsoring %}
+                                <span class="badge bg-info"><i class="bi bi-briefcase"></i> Ja</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                            {% endif %}
+                        </td>
                         <td data-label="Aktive Mitglieder" class="text-end">
                             <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
                         </td>
@@ -96,7 +104,8 @@
                                 data-edit="{{ role.can_edit_users ? '1' : '0' }}"
                                 data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
                                 data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
-                                data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}">
+                                data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
+                                data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}">
                                 <i class="bi bi-pencil"></i> Bearbeiten
                             </button>
                         </td>
@@ -171,6 +180,14 @@
                     </label>
                     <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul sehen und Finanzeinträge verwalten.</div>
                 </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_sponsoring" name="can_manage_sponsoring" value="1">
+                    <label class="form-check-label fw-bold text-info" for="can_manage_sponsoring">
+                        Sponsoring verwalten
+                    </label>
+                    <div class="form-text">Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.</div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -238,6 +255,14 @@
                         Kassa verwalten
                     </label>
                     <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul sehen und Finanzeinträge verwalten.</div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_sponsoring" name="can_manage_sponsoring" value="1">
+                    <label class="form-check-label fw-bold text-info" for="edit_can_manage_sponsoring">
+                        Sponsoring verwalten
+                    </label>
+                    <div class="form-text">Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.</div>
                 </div>
             </div>
             <div class="modal-footer">

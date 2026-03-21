@@ -19,6 +19,11 @@ use App\Controllers\ProfileController;
 use App\Controllers\AppSettingController;
 use App\Controllers\EventTypeController;
 use App\Controllers\DevSeedController;
+use App\Controllers\SponsoringDashboardController;
+use App\Controllers\SponsorController;
+use App\Controllers\SponsorshipController;
+use App\Controllers\SponsoringContactController;
+use App\Controllers\SponsorPackageController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Slim\Routing\RouteCollectorProxy;
@@ -178,6 +183,45 @@ return function (App $app) {
                     );
                 }
             )->add(new RoleMiddleware(false, 0, false, true)); // requiresProjectMemberManagement
+
+            // Sponsoring Routes
+            $group->group(
+                '/sponsoring',
+                function (RouteCollectorProxy $sponsoringGroup) {
+                    $sponsoringGroup->get('', [SponsoringDashboardController::class, 'index']);
+
+                    // Sponsor-Stammdaten
+                    $sponsoringGroup->get('/sponsors', [SponsorController::class, 'index']);
+                    $sponsoringGroup->post('/sponsors', [SponsorController::class, 'create']);
+                    $sponsoringGroup->get('/sponsors/{id:[0-9]+}', [SponsorController::class, 'detail']);
+                    $sponsoringGroup->post('/sponsors/{id:[0-9]+}', [SponsorController::class, 'update']);
+                    $sponsoringGroup->post('/sponsors/{id:[0-9]+}/delete', [SponsorController::class, 'delete']);
+
+                    // Vereinbarungen
+                    $sponsoringGroup->post('/sponsorships', [SponsorshipController::class, 'create']);
+                    $sponsoringGroup->post('/sponsorships/{id:[0-9]+}', [SponsorshipController::class, 'update']);
+                    $sponsoringGroup->post('/sponsorships/{id:[0-9]+}/delete', [SponsorshipController::class, 'delete']);
+                    $sponsoringGroup->get(
+                        '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}',
+                        [SponsorshipController::class, 'downloadAttachment']
+                    );
+                    $sponsoringGroup->post(
+                        '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                        [SponsorshipController::class, 'deleteAttachment']
+                    );
+
+                    // Kontakthistorie
+                    $sponsoringGroup->post('/contacts', [SponsoringContactController::class, 'create']);
+                    $sponsoringGroup->post('/contacts/{id:[0-9]+}/done', [SponsoringContactController::class, 'markDone']);
+                    $sponsoringGroup->post('/contacts/{id:[0-9]+}/delete', [SponsoringContactController::class, 'delete']);
+
+                    // Paketverwaltung
+                    $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
+                    $sponsoringGroup->post('/packages', [SponsorPackageController::class, 'create']);
+                    $sponsoringGroup->post('/packages/{id:[0-9]+}', [SponsorPackageController::class, 'update']);
+                    $sponsoringGroup->post('/packages/{id:[0-9]+}/delete', [SponsorPackageController::class, 'delete']);
+                }
+            )->add(new RoleMiddleware(false, 0, false, false, false, false, true));
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])

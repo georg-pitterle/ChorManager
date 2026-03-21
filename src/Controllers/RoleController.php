@@ -48,6 +48,7 @@ class RoleController
         $canManageProjectMembers = isset($data['can_manage_project_members']) ? 1 : 0;
         $canManageFinances = isset($data['can_manage_finances']) ? 1 : 0;
         $canManageMasterData = isset($data['can_manage_master_data']) ? 1 : 0;
+        $canManageSponsoring = isset($data['can_manage_sponsoring']) ? 1 : 0;
 
         if (!$name) {
             $_SESSION['error'] = 'Der Rollenname darf nicht leer sein.';
@@ -62,7 +63,8 @@ class RoleController
                 'can_edit_users' => $canEditUsers,
                 'can_manage_project_members' => $canManageProjectMembers,
                 'can_manage_finances' => $canManageFinances,
-                'can_manage_master_data' => $canManageMasterData
+                'can_manage_master_data' => $canManageMasterData,
+                'can_manage_sponsoring' => $canManageSponsoring
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
         } catch (\Exception $e) {
@@ -87,6 +89,7 @@ class RoleController
         $canManageProjectMembers = isset($data['can_manage_project_members']) ? 1 : 0;
         $canManageFinances = isset($data['can_manage_finances']) ? 1 : 0;
         $canManageMasterData = isset($data['can_manage_master_data']) ? 1 : 0;
+        $canManageSponsoring = isset($data['can_manage_sponsoring']) ? 1 : 0;
 
         if (!$name) {
             $_SESSION['error'] = 'Der Rollenname darf nicht leer sein.';
@@ -102,7 +105,8 @@ class RoleController
                 'can_edit_users' => $canEditUsers,
                 'can_manage_project_members' => $canManageProjectMembers,
                 'can_manage_finances' => $canManageFinances,
-                'can_manage_master_data' => $canManageMasterData
+                'can_manage_master_data' => $canManageMasterData,
+                'can_manage_sponsoring' => $canManageSponsoring
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';
         } catch (\Exception $e) {
