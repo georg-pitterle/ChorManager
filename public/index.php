@@ -2,8 +2,14 @@
 
 use DI\ContainerBuilder;
 use Slim\Factory\AppFactory;
+use Dotenv\Dotenv;
 
 require __DIR__ . '/../vendor/autoload.php';
+
+$envPath = __DIR__ . '/../.env';
+if (file_exists($envPath)) {
+    Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
+}
 
 $secureSessionCookie = (getenv('APP_ENV') === 'production')
     || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');

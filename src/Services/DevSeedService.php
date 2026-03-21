@@ -481,24 +481,28 @@ class DevSeedService
         $projectMembers = [];
         $activeIds = array_map(fn(User $user) => (int) $user->id, $activeUsers);
         $activeIds = $this->shuffled($activeIds);
-        $projectSize = min(95, count($activeIds));
-        $overlapCount = (int) floor($projectSize * 0.8);
-        $newCount = max(0, $projectSize - $overlapCount);
 
-        $previous = [];
-        foreach ($projects as $index => $project) {
-            if ($index === 0) {
-                $selection = array_slice($activeIds, 0, $projectSize);
-            } else {
-                $overlap = array_slice($this->shuffled($previous), 0, $overlapCount);
-                $rest = array_values(array_diff($activeIds, $overlap));
-                $newMembers = array_slice($this->shuffled($rest), 0, $newCount);
-                $selection = array_merge($overlap, $newMembers);
-            }
+        $activeCount = count($activeIds);
+        if ($activeCount === 0) {
+            return $projectMembers;
+        }
 
-            $selection = array_slice(array_values(array_unique($selection)), 0, $projectSize);
+        // Ca. 70% sind in ALLEN Projekten
+        $coreCount = max(1, (int) round($activeCount * 0.70));
+
+        // Pro Projekt nehmen nicht alle Aktiven teil (z.B. 85%)
+        $projectSize = max($coreCount, (int) round($activeCount * 0.85));
+        $projectSize = min($projectSize, $activeCount);
+
+        $coreMembers = array_slice($activeIds, 0, $coreCount);
+        $optionalPool = array_values(array_diff($activeIds, $coreMembers));
+
+        foreach ($projects as $project) {
+            $optionalNeeded = max(0, $projectSize - $coreCount);
+            $optionalSelection = array_slice($this->shuffled($optionalPool), 0, $optionalNeeded);
+
+            $selection = array_values(array_unique(array_merge($coreMembers, $optionalSelection)));
             $projectMembers[$project->id] = $selection;
-            $previous = $selection;
 
             foreach ($selection as $userId) {
                 if (!$project->users()->where('user_id', $userId)->exists()) {
@@ -841,12 +845,6 @@ class DevSeedService
     {
         $settings = [
             'app_name' => 'Chor Manager (Seed)',
-            'smtp_host' => 'mailhog',
-            'smtp_port' => '1025',
-            'smtp_username' => 'seed-user',
-            'smtp_encryption' => '',
-            'smtp_from_email' => 'noreply@chor.local',
-            'smtp_from_name' => 'Chor Manager Seed',
         ];
 
         foreach ($settings as $key => $value) {

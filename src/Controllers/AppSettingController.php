@@ -8,7 +8,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\AppSetting;
-use Psr\Http\Message\UploadedFileInterface;
 
 class AppSettingController
 {
@@ -64,41 +63,6 @@ class AppSettingController
                         ]
                     );
                 }
-            }
-
-            // Save SMTP settings
-            $smtpFields = [
-                'smtp_host',
-                'smtp_port',
-                'smtp_username',
-                'smtp_encryption',
-                'smtp_from_email',
-                'smtp_from_name'
-            ];
-
-            foreach ($smtpFields as $field) {
-                if (isset($data[$field])) {
-                    AppSetting::updateOrCreate(
-                        ['setting_key' => $field],
-                        [
-                            'setting_value' => trim($data[$field]),
-                            'binary_content' => '',
-                            'mime_type' => 'text/plain'
-                        ]
-                    );
-                }
-            }
-
-            // Handle password separately: only update if a value is provided
-            if (!empty($data['smtp_password'])) {
-                AppSetting::updateOrCreate(
-                    ['setting_key' => 'smtp_password'],
-                    [
-                        'setting_value' => trim($data['smtp_password']),
-                        'binary_content' => '',
-                        'mime_type' => 'text/plain'
-                    ]
-                );
             }
 
             $_SESSION['success'] = 'Einstellungen erfolgreich gespeichert.';

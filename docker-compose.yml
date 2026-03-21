@@ -14,6 +14,14 @@ services:
       - DB_DATABASE=choir_db
       - DB_USERNAME=choir_user
       - DB_PASSWORD=choir_password
+      - SMTP_HOST=${SMTP_HOST:-mailhog}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_AUTH=${SMTP_AUTH:-0}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-none}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@chor.local}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Chor Manager}
     depends_on:
       - db
     networks:
@@ -53,6 +61,7 @@ services:
 
 volumes:
   db_data:
+
 
 networks:
   choir-network:

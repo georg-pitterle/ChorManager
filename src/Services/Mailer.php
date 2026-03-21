@@ -6,7 +6,6 @@ namespace App\Services;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-use App\Models\AppSetting;
 
 class Mailer
 {
@@ -20,16 +19,14 @@ class Mailer
 
     private function configure(): void
     {
-        $settings = AppSetting::all()->pluck('setting_value', 'setting_key')->toArray();
-
         $this->mail->isSMTP();
         $this->mail->CharSet = 'UTF-8';
-        $this->mail->Host = $settings['smtp_host'] ?? 'smtp.gmail.com';
-        $this->mail->SMTPAuth = true;
-        $this->mail->Username = $settings['smtp_username'] ?? '';
-        $this->mail->Password = $settings['smtp_password'] ?? '';
+        $this->mail->Host = $this->readEnv('SMTP_HOST', 'mailhog');
+        $this->mail->SMTPAuth = $this->readBoolEnv('SMTP_AUTH', true);
+        $this->mail->Username = $this->readEnv('SMTP_USERNAME', '');
+        $this->mail->Password = $this->readEnv('SMTP_PASSWORD', '');
 
-        $encryption = strtolower($settings['smtp_encryption'] ?? 'tls');
+        $encryption = strtolower($this->readEnv('SMTP_ENCRYPTION', 'none'));
         if ($encryption === 'tls') {
             $this->mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($encryption === 'ssl') {
@@ -38,12 +35,42 @@ class Mailer
             $this->mail->SMTPSecure = '';
         }
 
-        $this->mail->Port = (int)($settings['smtp_port'] ?? 587);
+        $this->mail->Port = (int) $this->readEnv('SMTP_PORT', '1025');
 
-        $fromEmail = $settings['smtp_from_email'] ?? 'noreply@example.com';
-        $fromName = $settings['smtp_from_name'] ?? 'Chor Manager';
+        $fromEmail = $this->readEnv('SMTP_FROM_EMAIL', 'noreply@chor.local');
+        $fromName = $this->readEnv('SMTP_FROM_NAME', 'Chor Manager');
 
         $this->mail->setFrom($fromEmail, $fromName);
+    }
+
+    private function readEnv(string $key, string $default): string
+    {
+        $value = getenv($key);
+        if ($value === false) {
+            return $default;
+        }
+
+        $value = trim((string) $value);
+        return $value !== '' ? $value : $default;
+    }
+
+    private function readBoolEnv(string $key, bool $default): bool
+    {
+        $value = getenv($key);
+        if ($value === false) {
+            return $default;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+            return false;
+        }
+
+        if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+            return true;
+        }
+
+        return $default;
     }
 
     public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool

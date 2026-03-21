@@ -43,6 +43,19 @@ This directory contains the production deployment configuration for the Choir Ma
 | `MYSQL_ROOT_PASSWORD` | MySQL root password | - | **Yes** |
 | `NGINX_PORT` | External nginx port | `80` | No |
 | `APP_ENV` | Application environment | `production` | No |
+| `SMTP_HOST` | SMTP server host | - | **Yes** |
+| `SMTP_PORT` | SMTP server port | `587` | No |
+| `SMTP_AUTH` | SMTP authentication enabled (`1/0`) | `1` | No |
+| `SMTP_USERNAME` | SMTP username | - | **Yes** |
+| `SMTP_PASSWORD` | SMTP password | - | **Yes** |
+| `SMTP_ENCRYPTION` | SMTP encryption (`tls`, `ssl`, `none`) | `tls` | No |
+| `SMTP_FROM_EMAIL` | Sender email address | - | **Yes** |
+| `SMTP_FROM_NAME` | Sender display name | `Chor Manager` | No |
+
+### SMTP Configuration
+
+SMTP is configured exclusively via environment variables in deployment.
+It is not managed in the application's Stammdaten/App-Einstellungen UI.
 
 ## Application Image
 

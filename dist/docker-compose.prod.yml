@@ -13,13 +13,21 @@ services:
       - DB_USERNAME=${DB_USERNAME:-choir_user}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_PORT=${DB_PORT:-3306}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_AUTH=${SMTP_AUTH:-1}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-tls}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Chor Manager}
     depends_on:
       db:
         condition: service_healthy
     networks:
       - choir-network
     healthcheck:
-      test: ["CMD", "php", "-r", "echo 'OK';"]
+      test: [ "CMD", "php", "-r", "echo 'OK';" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,7 +54,7 @@ services:
     networks:
       - choir-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME:-choir_user}", "-p${DB_PASSWORD}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME:-choir_user}", "-p${DB_PASSWORD}" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -72,7 +80,7 @@ services:
     networks:
       - choir-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

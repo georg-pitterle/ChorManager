@@ -51,6 +51,32 @@ These credentials are generated for Dev-only workflows and must never be used in
 Every newly implemented feature must include matching seed data updates so the feature is testable immediately in a fresh Dev environment.
 At minimum, update the Dev seed implementation in `src/Services/DevSeedService.php` and include realistic sample records for the new domain model.
 
+## SMTP Configuration via ENV
+
+SMTP settings are configured via environment variables and are no longer managed in the Stammdaten/App-Einstellungen UI.
+
+Required/available variables:
+
+- `SMTP_HOST` (Dev default: `mailhog`)
+- `SMTP_PORT` (Dev default: `1025`)
+- `SMTP_AUTH` (`1/0`, `true/false`; default `0` in Dev)
+- `SMTP_USERNAME` (typically required in production)
+- `SMTP_PASSWORD` (required in production)
+- `SMTP_ENCRYPTION` (`tls`, `ssl`, `none`; Dev default: `none`)
+- `SMTP_FROM_EMAIL` (Dev default: `noreply@chor.local`)
+- `SMTP_FROM_NAME` (Dev default: `Chor Manager`)
+
+Example for local Mailhog setups:
+
+```bash
+SMTP_HOST=mailhog
+SMTP_PORT=1025
+SMTP_AUTH=0
+SMTP_ENCRYPTION=none
+SMTP_FROM_EMAIL=noreply@chor.local
+SMTP_FROM_NAME="Chor Manager"
+```
+
 ## Deployment
 
 ### Docker
