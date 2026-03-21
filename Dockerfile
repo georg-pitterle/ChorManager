@@ -15,19 +15,19 @@ RUN apk add --no-cache \
 # Build and enable PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        mbstring \
-        pdo_mysql \
-        gd \
-        zip \
-        pcntl \
-        bcmath \
+    mbstring \
+    pdo_mysql \
+    gd \
+    zip \
+    pcntl \
+    bcmath \
     && apk del --no-cache \
-        libzip-dev \
-        mariadb-dev \
-        oniguruma-dev \
-        libpng-dev \
-        libjpeg-turbo-dev \
-        freetype-dev
+    libzip-dev \
+    mariadb-dev \
+    oniguruma-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -42,11 +42,14 @@ WORKDIR /var/www/html
 # Copy composer files
 COPY composer.json composer.lock* ./
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install PHP dependencies (without running scripts yet)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 # Copy application code
 COPY . .
+
+# Now run the copy-assets script
+RUN php bin/copy-assets.php
 
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
