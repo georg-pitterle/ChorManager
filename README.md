@@ -77,9 +77,9 @@ SMTP_FROM_EMAIL=noreply@chor.local
 SMTP_FROM_NAME="Chor Manager"
 ```
 
-## Deployment
+# Deployment
 
-### Docker
+## Docker
 
 To deploy the application using Docker:
 
@@ -89,4 +89,110 @@ To deploy the application using Docker:
    ```
 
 2. The application will be available at http://localhost
+
+## Installation without Docker
+
+The application can be run as a traditional PHP application with Nginx or Apache.
+
+### Requirements
+
+- PHP 8.5
+- Composer 2
+- MySQL or MariaDB
+- Web server with PHP-FPM or Apache with rewrite support
+
+Required PHP extensions:
+
+- mbstring
+- pdo_mysql
+- gd
+- zip
+- bcmath
+
+### 1. Clone the project
+
+```bash
+git clone <REPOSITORY-URL>
+cd ChorManager
+```
+
+### 2. Install dependencies
+
+```bash
+composer install --no-dev --optimize-autoloader --no-interaction
+```
+
+### 3. Create the configuration
+
+```bash
+cp .env.example .env
+```
+
+Example of the most important values in `.env`:
+
+```dotenv
+APP_ENV=production
+
+DB_HOST=127.0.0.1
+DB_DATABASE=chormanager
+DB_USERNAME=chormanager
+DB_PASSWORD=change_me
+DB_PORT=3306
+
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_AUTH=1
+SMTP_USERNAME=smtp-user
+SMTP_PASSWORD=change_me
+SMTP_ENCRYPTION=tls
+SMTP_FROM_EMAIL=noreply@example.com
+SMTP_FROM_NAME=Chor Manager
+```
+
+Note: The application should currently be able to reach the database via the default port `3306`.
+
+### 4. Run database migrations
+
+```bash
+php vendor/bin/phinx migrate
+```
+
+### 5. Configure the web server
+
+The web root must point to the `public` directory.
+
+Example Nginx configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+    root /var/www/chormanager/public;
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}
+```
+
+### 6. Create the first administrator account
+
+After the first start, an administrator account can be created via `/setup`.
+
+### Notes
+
+- For production use, the application should only be served over HTTPS.
+- Bootstrap assets are automatically copied to `public/vendor` during `composer install`.
+- If `composer install` is run with `--no-scripts`, the assets must be copied manually:
+
+```bash
+php bin/copy-assets.php
+```
 
