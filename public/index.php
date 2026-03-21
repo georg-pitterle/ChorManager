@@ -5,6 +5,23 @@ use Slim\Factory\AppFactory;
 
 require __DIR__ . '/../vendor/autoload.php';
 
+$secureSessionCookie = (getenv('APP_ENV') === 'production')
+    || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+
+ini_set('session.use_only_cookies', '1');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_secure', $secureSessionCookie ? '1' : '0');
+ini_set('session.cookie_samesite', 'Lax');
+
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => $secureSessionCookie,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
+
 // Instantiate PHP-DI ContainerBuilder
 $containerBuilder = new ContainerBuilder();
 

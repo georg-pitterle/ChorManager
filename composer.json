@@ -31,6 +31,18 @@
     "scripts": {
         "phpcs": "phpcs --standard=phpcs.xml src/",
         "phpcbf": "phpcbf --standard=phpcs.xml src/",
-        "migrate": "phinx migrate -e development"
+        "migrate": "phinx migrate -e development",
+        "post-install-cmd": [
+            "@copy-assets"
+        ],
+        "post-update-cmd": [
+            "@copy-assets"
+        ],
+        "copy-assets": [
+            "mkdir -p public/vendor/bootstrap/dist/css public/vendor/bootstrap/dist/js public/vendor/bootstrap-icons/font",
+            "cp -f vendor/twbs/bootstrap/dist/css/bootstrap.min.css public/vendor/bootstrap/dist/css/",
+            "cp -f vendor/twbs/bootstrap/dist/js/bootstrap.bundle.min.js public/vendor/bootstrap/dist/js/",
+            "cp -rf vendor/twbs/bootstrap-icons/font/* public/vendor/bootstrap-icons/font/"
+        ]
     }
 }

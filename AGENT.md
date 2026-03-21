@@ -1,108 +1,45 @@
-# Gemini Code Intelligence Context: ChorManager
+# ChorManager Agent Rules (Minimal)
 
-This document provides a comprehensive overview of the ChorManager project, its structure, and its development conventions to be used as a context for AI-powered development assistance.
+## Scope
+These rules are for AI coding agents working in this repository.
 
-## Project Overview
+## Environment
+- Use DDEV for project commands.
+- On Windows host, prefer PowerShell commands.
+- Inside DDEV/container, use project-appropriate shell commands.
 
-ChorManager is a web application designed for choir management. It provides functionalities for managing members, events, attendance, finances, and internal projects.
+## Database
+- All schema changes must be done via Phinx migrations.
+- Default migration command: `ddev exec ./vendor/bin/phinx migrate`.
+- Agents should run migrations automatically for schema changes.
+- Agents must report migration outcome (success or error with cause).
+- Ask before running migrations only if:
+  - environment is production or unclear,
+  - migration is destructive/potentially destructive,
+  - access/connectivity is missing.
 
-*   **Project Name:** ChorManager
-*   **Type:** PHP Web Application
-*   **Primary Language:** PHP 8.5
+## Code and Style
+- Follow PSR-12.
+- Use 4 spaces (no tabs).
+- Line length: soft limit 120, hard limit 130.
+- Run style checks for substantial changes:
+  - `ddev composer phpcs`
+  - `ddev composer phpcbf` (if needed)
 
-### Core Technologies
+## Project Constraints
+- Do not modify files in `vendor/`.
+- Do not use inline JavaScript in templates; use dedicated JS files.
+- Do not use inline CSS in templates; use CSS files.
+- Keep UI responsive on mobile and desktop.
 
-*   **Backend Framework:** [Slim 4](https://www.slimframework.com/)
-*   **Database:** MariaDB (version 11.8 specified in DDEV)
-*   **ORM:** [Illuminate Database](https://laravel.com/docs/10.x/database) (Eloquent)
-*   **Dependency Injection:** [PHP-DI](https://php-di.org/)
-*   **Templating:** [Twig](https://twig.symfony.com/) via `slim/twig-view`
-*   **Database Migrations:** [Phinx](https://phinx.org/)
-*   **Emailing:** [PHPMailer](https://github.com/PHPMailer/PHPMailer)
+## Security Baseline
+- Follow OWASP principles.
+- Rotate session ID after successful login.
+- Use secure cookie settings (HttpOnly, Secure where applicable, SameSite).
+- Validate all user input.
+- Apply least privilege.
+- Never store secrets or credentials in the repository.
 
-### Architecture
-
-The application follows a typical Model-View-Controller (MVC) like pattern facilitated by the Slim framework.
-
-*   **`src/`**: The main application directory.
-    *   **`Controllers/`**: Contains the controller classes that handle application logic.
-    *   **`Models/`**: Contains the Eloquent ORM models that define the database schema and relationships.
-    *   **`Middleware/`**: Contains custom middleware for authentication and role-based access control.
-    *   **`Routes.php`**: Defines all application routes and maps them to controller actions. This file is the primary entry point for understanding the application's features and API surface.
-    *   **`Dependencies.php`**: Configures the PHP-DI container, wiring together services and dependencies.
-*   **`public/`**: The web server document root, containing the front controller (`index.php`) and static assets (CSS, JS, images).
-*   **`templates/`**: Contains Twig templates for the views.
-*   **`db/migrations/`**: Contains the Phinx database migration files.
-
-## Building and Running
-
-This project is configured to use [DDEV](https://ddev.com/) for a consistent local development environment.
-
-### Prerequisites
-
-1.  [Docker](https://www.docker.com/products/docker-desktop/)
-2.  [DDEV](https://ddev.com/get-started/)
-
-### First-Time Setup
-
-1.  **Start DDEV:**
-    ```bash
-    ddev start
-    ```
-    This will read the `.ddev/config.yaml` file, download the necessary Docker images, and start the project containers (web and database).
-
-2.  **Install Dependencies:**
-    ```bash
-    ddev composer install
-    ```
-
-3.  **Run Database Migrations:**
-    ```bash
-    ddev exec ./vendor/bin/phinx migrate
-    ```
-    Or using the composer script alias:
-    ```bash
-    ddev composer migrate
-    ```
-
-The application will be available at the URL provided by `ddev start` (usually `https://chormanager.ddev.site`).
-
-### Day-to-Day Commands
-
-*   **Start the environment:** `ddev start`
-*   **Stop the environment:** `ddev stop`
-*   **Access the application shell:** `ddev ssh`
-*   **Run a composer command:** `ddev composer <command>`
-
-## Development Conventions
-
-### Database
-
-*   Database schema changes **must** be made via Phinx migrations.
-*   To create a new migration, run: `ddev exec ./vendor/bin/phinx create MyNewMigration`
-*   After creating the migration file in `db/migrations/`, edit it to define the `up()` and `down()` methods.
-*   Apply the migration with `ddev exec ./vendor/bin/phinx migrate`.
-
-### Coding Style
-
-* Use PSR12 Format
-* No lines longer than 130 characters
-
-
-*   The project uses [PHP_CodeSniffer](httpss://github.com/squizlabs/PHP_CodeSniffer) to enforce coding standards, with rules defined in `phpcs.xml`.
-*   **Check for violations:**
-    ```bash
-    ddev composer phpcs
-    ```
-*   **Automatically fix violations (where possible):**
-    ```bash
-    ddev composer phpcbf
-    ```
-It is recommended to run the checker before committing changes.
-
-# Common
-
-Do not change files in vendor-folder.
-Do not use inline javascript. make .js files. 
-Do not use inline style. use own .css files.
-The app has to be responsive for use on mobile phones.
+## Reporting
+- Never perform important actions silently.
+- Always summarize what was changed, what was executed, and the result.

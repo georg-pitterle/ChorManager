@@ -10,16 +10,26 @@ use Slim\Views\Twig;
 use App\Queries\UserQuery;
 use App\Models\User;
 use App\Models\Role;
+use App\Services\RememberLoginService;
+use App\Services\SessionAuthService;
 
 class AuthController
 {
     private Twig $view;
     private UserQuery $userQuery;
+    private RememberLoginService $rememberLoginService;
+    private SessionAuthService $sessionAuthService;
 
-    public function __construct(Twig $view, UserQuery $userQuery)
-    {
+    public function __construct(
+        Twig $view,
+        UserQuery $userQuery,
+        RememberLoginService $rememberLoginService,
+        SessionAuthService $sessionAuthService
+    ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
+        $this->rememberLoginService = $rememberLoginService;
+        $this->sessionAuthService = $sessionAuthService;
     }
 
     public function showLogin(Request $request, Response $response): Response
@@ -30,6 +40,10 @@ class AuthController
         }
 
         if (isset($_SESSION['user_id'])) {
+            return $response->withHeader('Location', '/dashboard')->withStatus(302);
+        }
+
+        if ($this->tryAutoLoginFromRememberCookie($request)) {
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
 
@@ -46,62 +60,24 @@ class AuthController
         $data = (array) $request->getParsedBody();
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
+        $remember = isset($data['remember']) && $data['remember'] === '1';
 
         $user = $this->userQuery->findByEmail($email);
 
         if ($user && password_verify($password, $user->password)) {
-            $_SESSION['user_id'] = (int) $user->id;
-            $_SESSION['user_name'] = $user->first_name . ' ' . $user->last_name;
+            session_regenerate_id(true);
+            $this->sessionAuthService->setAuthenticatedUser($user);
 
-            $canManageUsers = false;
-            $canEditUsers = false;
-            $canManageProjectMembers = false;
-            $canManageFinances = false;
-            $canManageMasterData = false;
-            $maxRoleLevel = 0;
-
-            foreach ($user->roles as $role) {
-                // Determine logic from old PDO behavior (the roles table holds these columns currently)
-                // Note: since schema.sql didn't define can_manage_users, can_edit_users, can_manage_project_members
-                // on the roles table, this logic might need those columns mapped if they exist,
-                // or rely on hierarchy_level.
-                // Assuming hierarchy_level > 80 means can manage users (based on old code).
-                if ($role->hierarchy_level >= 80) {
-                    $canManageUsers = true;
-                    $canEditUsers = true;
-                    $canManageProjectMembers = true;
+            if ($remember) {
+                $tokenValue = $this->rememberLoginService->issueForUser((int) $user->id, $request);
+                $this->rememberLoginService->setRememberCookie($tokenValue);
+            } else {
+                $existingRememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
+                if (is_string($existingRememberCookie) && $existingRememberCookie !== '') {
+                    $this->rememberLoginService->invalidateByCookieValue($existingRememberCookie);
                 }
-
-                if ($role->can_manage_users) {
-                    $canManageUsers = true;
-                }
-                if ($role->can_edit_users) {
-                    $canEditUsers = true;
-                }
-                if ($role->can_manage_project_members) {
-                    $canManageProjectMembers = true;
-                }
-                if ($role->can_manage_finances) {
-                    $canManageFinances = true;
-                }
-                if ($role->can_manage_master_data) {
-                    $canManageMasterData = true;
-                }
-
-                if ($role->hierarchy_level > $maxRoleLevel) {
-                    $maxRoleLevel = (int) $role->hierarchy_level;
-                }
+                $this->rememberLoginService->clearRememberCookie();
             }
-
-            $_SESSION['can_manage_users'] = $canManageUsers;
-            $_SESSION['can_edit_users'] = $canEditUsers;
-            $_SESSION['can_manage_project_members'] = $canManageProjectMembers;
-            $_SESSION['can_manage_finances'] = $canManageFinances;
-            $_SESSION['can_manage_master_data'] = $canManageMasterData;
-            $_SESSION['role_level'] = $maxRoleLevel;
-
-            $voiceGroupIds = $user->voiceGroups->pluck('id')->toArray();
-            $_SESSION['voice_group_ids'] = $voiceGroupIds;
 
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
@@ -167,15 +143,8 @@ class AuthController
             $user->roles()->attach($adminRole->id);
 
             // Log them in immediately
-            $_SESSION['user_id'] = (int) $user->id;
-            $_SESSION['user_name'] = $user->first_name . ' ' . $user->last_name;
-            $_SESSION['can_manage_users'] = true;
-            $_SESSION['can_edit_users'] = true;
-            $_SESSION['can_manage_project_members'] = true;
-            $_SESSION['can_manage_finances'] = true;
-            $_SESSION['can_manage_master_data'] = true;
-            $_SESSION['role_level'] = 100;
-            $_SESSION['voice_group_ids'] = [];
+            session_regenerate_id(true);
+            $this->sessionAuthService->setAuthenticatedUser($user->load(['roles', 'voiceGroups']));
 
             $_SESSION['success'] = 'Administratorkonto erfolgreich erstellt!';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
@@ -187,7 +156,43 @@ class AuthController
 
     public function logout(Request $request, Response $response): Response
     {
-        session_destroy();
+        $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
+        if (is_string($rememberCookie) && $rememberCookie !== '') {
+            $this->rememberLoginService->invalidateByCookieValue($rememberCookie);
+        }
+
+        $this->rememberLoginService->clearRememberCookie();
+        $this->sessionAuthService->clearSession();
+
         return $response->withHeader('Location', '/login')->withStatus(302);
+    }
+
+    private function tryAutoLoginFromRememberCookie(Request $request): bool
+    {
+        $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
+        if (!is_string($rememberCookie) || $rememberCookie === '') {
+            return false;
+        }
+
+        $rememberToken = $this->rememberLoginService->validateCookieValue($rememberCookie);
+        if (!$rememberToken) {
+            $this->rememberLoginService->clearRememberCookie();
+            return false;
+        }
+
+        $user = $this->userQuery->findById((int) $rememberToken->user_id);
+        if (!$user || !(bool) $user->is_active) {
+            $rememberToken->delete();
+            $this->rememberLoginService->clearRememberCookie();
+            return false;
+        }
+
+        session_regenerate_id(true);
+        $this->sessionAuthService->setAuthenticatedUser($user);
+
+        $rotatedToken = $this->rememberLoginService->rotateToken($rememberToken, $request);
+        $this->rememberLoginService->setRememberCookie($rotatedToken);
+
+        return true;
     }
 }
