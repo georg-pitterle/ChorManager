@@ -18,6 +18,7 @@ use App\Controllers\FinanceController;
 use App\Controllers\ProfileController;
 use App\Controllers\AppSettingController;
 use App\Controllers\EventTypeController;
+use App\Controllers\DevSeedController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Slim\Routing\RouteCollectorProxy;
@@ -99,12 +100,12 @@ return function (App $app) {
                     $masterGroup->get('/projects', [ProjectController::class, 'index']);
                     $masterGroup->post('/projects', [ProjectController::class, 'create']);
 
-                // Role Management
+                    // Role Management
                     $masterGroup->get('/roles', [RoleController::class, 'index']);
                     $masterGroup->post('/roles', [RoleController::class, 'create']);
                     $masterGroup->post('/roles/{id:[0-9]+}', [RoleController::class, 'update']);
 
-                // Voice Group Management
+                    // Voice Group Management
                     $masterGroup->get('/voice-groups', [VoiceGroupController::class, 'index']);
                     $masterGroup->post('/voice-groups', [VoiceGroupController::class, 'createGroup']);
                     $masterGroup->post('/voice-groups/{id:[0-9]+}/update', [VoiceGroupController::class, 'updateGroup']);
@@ -132,13 +133,13 @@ return function (App $app) {
                         ]
                     );
 
-                // Event Type Management
+                    // Event Type Management
                     $masterGroup->get('/event-types', [EventTypeController::class, 'index']);
                     $masterGroup->post('/event-types', [EventTypeController::class, 'create']);
                     $masterGroup->post('/event-types/{id:[0-9]+}/update', [EventTypeController::class, 'update']);
                     $masterGroup->post('/event-types/{id:[0-9]+}/delete', [EventTypeController::class, 'delete']);
 
-                // App Settings
+                    // App Settings
                     $masterGroup->get('/settings', [AppSettingController::class, 'index']);
                     $masterGroup->post('/settings', [AppSettingController::class, 'save']);
                 }
@@ -177,6 +178,10 @@ return function (App $app) {
                     );
                 }
             )->add(new RoleMiddleware(false, 0, false, true)); // requiresProjectMemberManagement
+
+            // Dev-only seed endpoint, still protected by admin permission.
+            $group->post('/dev/seed', [DevSeedController::class, 'run'])
+                ->add(new RoleMiddleware(true));
         }
     )->add(AuthMiddleware::class);
 };

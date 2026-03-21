@@ -18,6 +18,13 @@ These rules are for AI coding agents working in this repository.
   - migration is destructive/potentially destructive,
   - access/connectivity is missing.
 
+## Seed Data Requirement
+- For every newly implemented feature, agents must also add or update seed data so the feature can be tested immediately in Dev.
+- Seed data must be realistic and cover relevant user flows of the new feature.
+- If a feature introduces new tables or relations, seed generation must include those relations.
+- Seed updates must be implemented in the Dev seed workflow (`src/Services/DevSeedService.php` and related entry points).
+- Feature work is not complete until seed data coverage is included and reported.
+
 ## Code and Style
 - Follow PSR-12.
 - Use 4 spaces (no tabs).

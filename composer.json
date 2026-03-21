@@ -32,6 +32,7 @@
         "phpcs": "phpcs --standard=phpcs.xml src/",
         "phpcbf": "phpcbf --standard=phpcs.xml src/",
         "migrate": "phinx migrate -e development",
+        "seed:dev": "php bin/dev_seed.php",
         "post-install-cmd": [
             "@copy-assets"
         ],

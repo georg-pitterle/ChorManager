@@ -124,7 +124,7 @@ class EventController
                 $eventType = \App\Models\EventType::find($eventTypeId);
             }
             $typeName = $eventType ? $eventType->name : 'Probe';
-            
+
             if (empty($title)) {
                 $title = $typeName;
             }
@@ -276,7 +276,7 @@ class EventController
                 $eventType = \App\Models\EventType::find($eventTypeId);
             }
             $typeName = $eventType ? $eventType->name : $event->type;
-            
+
             if (empty($title)) {
                 $title = $typeName;
             }
@@ -293,7 +293,7 @@ class EventController
                 $eventsToUpdate = Event::where('series_id', $event->series_id)
                                         ->where('event_date', '>=', $event->event_date)
                                         ->get();
-                
+
                 foreach ($eventsToUpdate as $eventInSeries) {
                     $eventInSeries->update($updateData);
                 }
@@ -303,13 +303,11 @@ class EventController
                 ]);
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
-
             } else {
                  $updateData['event_date'] = $eventDateStr;
                  $event->update($updateData);
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
             }
-
         } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler: ' . $e->getMessage();
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
