@@ -14,14 +14,6 @@ if (file_exists($envPath)) {
     Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 }
 
-if (getenv('DB_USERNAME') === false && getenv('DB_USER') !== false) {
-    putenv('DB_USERNAME=' . (string) getenv('DB_USER'));
-}
-
-if (getenv('DB_PASSWORD') === false && getenv('DB_PASS') !== false) {
-    putenv('DB_PASSWORD=' . (string) getenv('DB_PASS'));
-}
-
 $options = [
     'mode' => 'append',
     'years' => 3,
