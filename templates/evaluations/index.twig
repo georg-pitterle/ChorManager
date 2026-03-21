@@ -31,7 +31,7 @@
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0" id="evaluationsTable">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards" id="evaluationsTable">
                 <thead class="table-dark">
                     <tr>
                         <th class="sortable" data-sort="string" data-col="0" role="button" tabindex="0" title="Klicken zum Sortieren">
@@ -62,12 +62,12 @@
                         data-sort-excused="{{ stat.excused_count|default(0) }}"
                         data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
                         data-sort-percentage="{{ stat.percentage|default(0) }}">
-                        <td><strong>{{ stat.last_name }}, {{ stat.first_name }}</strong></td>
-                        <td>{{ stat.voice_group_name|default('-') }}</td>
-                        <td class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
-                        <td class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
-                        <td class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
-                        <td class="text-end">
+                        <td data-label="Name"><strong>{{ stat.last_name }}, {{ stat.first_name }}</strong></td>
+                        <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
+                        <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
+                        <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
+                        <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
+                        <td data-label="Quote" class="text-end">
                             {% set barColor = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
                             <div class="d-flex align-items-center justify-content-end">
                                 <span class="me-2 fw-bold {% if stat.percentage >= 75 %}text-success{% elseif stat.percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ stat.percentage }}%</span>

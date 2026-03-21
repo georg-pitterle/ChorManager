@@ -99,3 +99,10 @@ The application will be available at the URL provided by `ddev start` (usually `
     ddev composer phpcbf
     ```
 It is recommended to run the checker before committing changes.
+
+# Common
+
+Do not change files in vendor-folder.
+Do not use inline javascript. make .js files. 
+Do not use inline style. use own .css files.
+The app has to be responsive for use on mobile phones.

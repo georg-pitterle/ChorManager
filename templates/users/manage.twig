@@ -28,7 +28,7 @@
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
                     <tr>
                         <th>Name</th>
@@ -44,14 +44,14 @@
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td>{{ user.first_name }} {{ user.last_name }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>
+                        <td data-label="Name">{{ user.first_name }} {{ user.last_name }}</td>
+                        <td data-label="E-Mail">{{ user.email }}</td>
+                        <td data-label="Rolle">
                             {% for role in user.roles %}
                                 <span class="badge bg-secondary me-1">{{ role.name }}</span>
                             {% endfor %}
                         </td>
-                        <td>
+                        <td data-label="Stimme">
                             {% if user.voice_group_ids|length > 0 %}
                                 {% for group_id in user.voice_group_ids %}
                                     {% for g in voice_groups %}
@@ -75,7 +75,7 @@
                             {% endif %}
                         </td>
                         {% if can_manage_project_members or can_edit_users %}
-                        <td>
+                        <td data-label="Projekte">
                             {% for pid in user.project_ids %}
                                 {% for p in projects %}
                                     {% if p.id == pid %}
@@ -87,7 +87,7 @@
                             {% endfor %}
                         </td>
                         {% endif %}
-                        <td class="text-end">
+                        <td data-label="Aktionen" class="text-end">
                             {% if can_edit_users %}
                             <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}" title="Bearbeiten">
                                 <i class="bi bi-pencil-fill"></i>

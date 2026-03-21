@@ -42,7 +42,7 @@
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
         <form method="get" action="/events" id="event-filter-form" class="row g-3 align-items-end">
-            <div class="col-md-5">
+            <div class="col-12 col-md-5 mb-2">
                 <label for="filter_project" class="form-label small">Projekt</label>
                 <select name="project_id" id="filter_project" class="form-select">
                     <option value="">Alle Projekte</option>
@@ -51,7 +51,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-12 col-md-5 mb-2">
                 <label for="filter_type" class="form-label small">Event-Typ</label>
                 <select name="event_type_id" id="filter_type" class="form-select">
                     <option value="">Alle Typen</option>
@@ -60,7 +60,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2 d-flex">
+            <div class="col-12 col-md-2 d-flex">
                 <a href="/events" class="btn btn-outline-secondary w-100">
                     <i class="bi bi-x-circle"></i> Reset
                 </a>
@@ -74,7 +74,7 @@
 <div class="card shadow-sm border-0" style="overflow: visible;">
     <div class="card-body p-0" style="overflow: visible;">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
                     <tr>
                         <th>
@@ -116,21 +116,21 @@
                 <tbody>
                     {% for event in events %}
                     <tr>
-                        <td>
+                        <td data-label="Datum">
                             <strong>{{ event.event_date|date("d.m.Y") }}</strong>
                             {% if event.series_id %}
                                 <i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>
                             {% endif %}
                         </td>
-                        <td>{{ event.title }}</td>
-                        <td>{{ event.location|default('-') }}</td>
-                        <td>
+                        <td data-label="Titel">{{ event.title }}</td>
+                        <td data-label="Ort">{{ event.location|default('-') }}</td>
+                        <td data-label="Typ">
                             <span class="badge bg-{{ event.type_color }}">
                                 {{ event.type_name }}
                             </span>
                         </td>
-                        <td>{{ event.project_name|default('-') }}</td>
-                        <td class="text-end">
+                        <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
+                        <td data-label="Aktionen" class="text-end">
                             <div class="btn-group">
                                 <a href="/attendance/{{ event.id }}" class="btn btn-sm btn-outline-primary" title="Anwesenheiten">
                                     <i class="bi bi-clipboard-check"></i> Anwesenheit
@@ -168,7 +168,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">Keine Termine geplant.</td>
+                        <td colspan="6" class="text-center py-4 text-muted">Keine Termine geplant.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

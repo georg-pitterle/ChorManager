@@ -1,0 +1,55 @@
+/* Responsive table styles */
+@media (max-width: 767.98px) {
+  .table-responsive-cards thead {
+    display: none;
+  }
+
+  .table-responsive-cards tbody,
+  .table-responsive-cards tr,
+  .table-responsive-cards td {
+    display: block;
+    width: 100%;
+  }
+
+  .table-responsive-cards tr {
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+  }
+
+  .table-responsive-cards td {
+    text-align: right;
+    border: none;
+    border-bottom: 1px solid #e9ecef;
+    position: relative;
+    padding-left: 50%;
+    min-height: 48px; /* Ensure consistent height */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .table-responsive-cards td:before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: bold;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .table-responsive-cards td:last-child {
+    border-bottom: none;
+  }
+
+  .table-responsive-cards .text-end,
+  .table-responsive-cards .text-center {
+    text-align: right !important; /* Override alignment for consistency */
+  }
+
+  .table-responsive-cards .btn-group {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

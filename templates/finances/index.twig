@@ -20,7 +20,7 @@
         <h1>Kassabuch</h1>
         <p class="text-muted">Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong></p>
     </div>
-    <div class="col-md-6 d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
+    <div class="col-md-6 d-flex flex-column flex-sm-row justify-content-md-end align-items-stretch align-items-sm-center gap-2">
         {% if available_years|length >= 1 %}
         <form method="get" action="/finances" class="d-flex align-items-center gap-2">
             <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
@@ -31,12 +31,14 @@
             </select>
         </form>
         {% endif %}
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#settingsModal">
-            <i class="bi bi-gear"></i> Konfiguration
-        </button>
-        <a href="/finances/report?year={{ selected_year }}" class="btn btn-info text-white btn-sm">
-            <i class="bi bi-graph-up"></i> Auswertung
-        </a>
+        <div class="btn-group w-100 w-sm-auto">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                <i class="bi bi-gear"></i> Konfiguration
+            </button>
+            <a href="/finances/report?year={{ selected_year }}" class="btn btn-info text-white btn-sm">
+                <i class="bi bi-graph-up"></i> Auswertung
+            </a>
+        </div>
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#financeModal" onclick="resetFinanceModal()">
             <i class="bi bi-plus-circle"></i> Neuer Eintrag
         </button>
@@ -59,7 +61,7 @@
 <div class="card shadow-sm border-0" style="overflow: visible;">
     <div class="card-body p-0" style="overflow: visible;">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
                     <tr>
                         <th>Lfd. Nr.</th>
@@ -77,35 +79,35 @@
                 <tbody>
                     {% for item in finances %}
                     <tr>
-                        <td><strong>{{ item.running_number }}</strong></td>
-                        <td>{{ item.invoice_date|date("d.m.Y") }}</td>
-                        <td>{{ item.payment_date ? item.payment_date|date("d.m.Y") : '<span class="text-danger small">Offen</span>'|raw }}</td>
-                        <td>{{ item.description }}</td>
-                        <td>
+                        <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
+                        <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
+                        <td data-label="Zahldatum">{{ item.payment_date ? item.payment_date|date("d.m.Y") : '<span class="text-danger small">Offen</span>'|raw }}</td>
+                        <td data-label="Beschreibung">{{ item.description }}</td>
+                        <td data-label="Gruppe">
                             {% if item.group_name %}
                             <span class="badge rounded-pill bg-light text-dark border">{{ item.group_name }}</span>
                             {% else %}
                             <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Art">
                             {% if item.type == 'income' %}
                                 <span class="badge bg-success">Eingang</span>
                             {% else %}
                                 <span class="badge bg-danger">Ausgang</span>
                             {% endif %}
                         </td>
-                        <td class="text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
+                        <td data-label="Betrag" class="text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
                             {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
                         </td>
-                        <td>
+                        <td data-label="Zahlungsart">
                             {% if item.payment_method == 'cash' %}
                                 <i class="bi bi-cash-coin me-1"></i> Bar
                             {% else %}
                                 <i class="bi bi-bank me-1"></i> Überweisung
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Anhänge">
                             {% if item.attachments|length > 0 %}
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
@@ -126,7 +128,7 @@
                                 <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
+                        <td data-label="Aktionen" class="text-end">
                             <button class="btn btn-sm btn-outline-secondary me-1" 
                                 onclick="editFinance({{ item|json_encode() }})" 
                                 title="Bearbeiten">

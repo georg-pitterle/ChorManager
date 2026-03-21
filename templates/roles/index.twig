@@ -28,7 +28,7 @@
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
                     <tr>
                         <th>Rollenname</th>
@@ -45,47 +45,47 @@
                 <tbody>
                     {% for role in roles %}
                     <tr>
-                        <td><strong>{{ role.name }}</strong></td>
-                        <td>{{ role.hierarchy_level }}</td>
-                        <td>
+                        <td data-label="Rollenname"><strong>{{ role.name }}</strong></td>
+                        <td data-label="Level">{{ role.hierarchy_level }}</td>
+                        <td data-label="Admin-Rechte">
                             {% if role.can_manage_users %}
                                 <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Ja</span>
                             {% else %}
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Edit-Rechte">
                             {% if role.can_edit_users %}
                                 <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Ja</span>
                             {% else %}
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Projektmitglieder">
                             {% if role.can_manage_project_members %}
                                 <span class="badge bg-info"><i class="bi bi-people"></i> Ja</span>
                             {% else %}
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Stammdaten">
                             {% if role.can_manage_master_data %}
                                 <span class="badge bg-primary"><i class="bi bi-database"></i> Ja</span>
                             {% else %}
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Finanzen (Kassa)">
                             {% if role.can_manage_finances %}
                                 <span class="badge bg-success"><i class="bi bi-cash"></i> Ja</span>
                             {% else %}
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
+                        <td data-label="Aktive Mitglieder" class="text-end">
                             <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
                         </td>
-                        <td class="text-end">
+                        <td data-label="Aktionen" class="text-end">
                             <button type="button" class="btn btn-sm btn-outline-secondary edit-role-btn" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#editRoleModal"

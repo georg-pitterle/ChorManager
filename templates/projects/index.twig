@@ -28,7 +28,7 @@
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
                     <tr>
                         <th>Projektname</th>
@@ -43,12 +43,12 @@
                 <tbody>
                     {% for project in projects %}
                     <tr>
-                        <td><strong>{{ project.name }}</strong></td>
-                        <td>{{ project.description|default('-') }}</td>
-                        <td>{{ project.start_date|default('-') }}</td>
-                        <td>{{ project.end_date|default('-') }}</td>
+                        <td data-label="Projektname"><strong>{{ project.name }}</strong></td>
+                        <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
+                        <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>
+                        <td data-label="Enddatum">{{ project.end_date|default('-') }}</td>
                         {% if session.can_manage_project_members %}
-                        <td class="text-end">
+                        <td data-label="Aktionen" class="text-end">
                             <a href="/projects/{{ project.id }}/members" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-people"></i> Mitglieder
                             </a>
