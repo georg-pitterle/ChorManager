@@ -38,6 +38,8 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
+APP_VOLUME="chormanager_app_data"
+
 echo "✅ Docker is running"
 
 # Pull latest images
@@ -46,7 +48,11 @@ docker compose -f docker-compose.prod.yml pull
 
 # Start services
 echo "🏗️  Starting services..."
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml down
+docker volume rm -f "${APP_VOLUME}" || true
+
+echo "🏗️ Starting services with fresh app volume..."
+docker compose -f docker-compose.prod.yml up -d --force-recreate
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."

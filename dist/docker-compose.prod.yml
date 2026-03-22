@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/georg-pitterle/chormanager:latest
+    image: ghcr.io/georg-pitterle/chormanager:${APP_IMAGE_TAG:-latest}
     container_name: chormanager-app
     restart: unless-stopped
     working_dir: /var/www/html
@@ -119,6 +119,7 @@ volumes:
     driver: local
   app_data:
     driver: local
+    name: chormanager_app_data
 
 networks:
   choir-network:
