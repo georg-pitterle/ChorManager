@@ -5,6 +5,10 @@ RUN apk add --no-cache \
     git \
     curl \
     mysql-client \
+    libzip \
+    libpng \
+    libjpeg-turbo \
+    freetype \
     libzip-dev \
     mariadb-dev \
     oniguruma-dev \

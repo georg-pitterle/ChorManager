@@ -9,5 +9,8 @@ done
 # Run migrations
 php vendor/bin/phinx migrate
 
+# Ensure public vendor assets are present for static delivery
+php bin/copy-assets.php
+
 # Start PHP-FPM
 php-fpm

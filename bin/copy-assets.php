@@ -1,35 +1,51 @@
 <?php
 
-function copyAssets(): void {
+function copyRecursive(string $source, string $destination): void
+{
+    if (is_dir($source)) {
+        @mkdir($destination, 0755, true);
+        $entries = scandir($source);
+        if ($entries === false) {
+            throw new RuntimeException("Failed to read directory $source");
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            copyRecursive($source . '/' . $entry, $destination . '/' . $entry);
+        }
+        return;
+    }
+
+    @mkdir(dirname($destination), 0755, true);
+    if (!copy($source, $destination)) {
+        throw new RuntimeException("Failed to copy $source to $destination");
+    }
+}
+
+function copyAssets(): void
+{
     $source = 'vendor/twbs/bootstrap/dist/css/bootstrap.min.css';
     $dest = 'public/vendor/bootstrap/dist/css/bootstrap.min.css';
-    
+
     @mkdir(dirname($dest), 0755, true);
     if (!copy($source, $dest)) {
         throw new RuntimeException("Failed to copy $source to $dest");
     }
-    
+
     $source = 'vendor/twbs/bootstrap/dist/js/bootstrap.bundle.min.js';
     $dest = 'public/vendor/bootstrap/dist/js/bootstrap.bundle.min.js';
-    
+
     @mkdir(dirname($dest), 0755, true);
     if (!copy($source, $dest)) {
         throw new RuntimeException("Failed to copy $source to $dest");
     }
-    
+
     $srcDir = 'vendor/twbs/bootstrap-icons/font';
     $destDir = 'public/vendor/bootstrap-icons/font';
-    
-    @mkdir($destDir, 0755, true);
-    
-    $files = glob($srcDir . '/*');
-    foreach ($files as $file) {
-        if (is_file($file)) {
-            if (!copy($file, $destDir . '/' . basename($file))) {
-                throw new RuntimeException("Failed to copy $file");
-            }
-        }
-    }
+    copyRecursive($srcDir, $destDir);
 }
 
 try {
