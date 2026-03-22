@@ -50,8 +50,8 @@ AppFactory::setContainer($container);
 $app = AppFactory::create();
 
 // Register middleware
-// $middleware = require __DIR__ . '/../src/Middleware.php';
-// $middleware($app);
+$middleware = require __DIR__ . '/../src/Middleware.php';
+$middleware($app);
 
 // Register routes
 $routes = require __DIR__ . '/../src/Routes.php';

@@ -52,6 +52,13 @@ return function (App $app) {
         }
     );
 
+    // Healthcheck endpoint
+    $app->get('/health', function (Request $request, Response $response) {
+        $response->getBody()->write('OK');
+        return $response->withHeader('Content-Type', 'text/plain');
+    });
+
+
     // Protected Routes
     $app->group(
         '',
