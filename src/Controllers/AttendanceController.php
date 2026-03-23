@@ -14,6 +14,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
 {
+    private const SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
+
     private Twig $view;
 
     public function __construct(Twig $view)
@@ -23,21 +25,32 @@ class AttendanceController
 
     public function show(Request $request, Response $response, array $args): Response
     {
-        $eventId = isset($args['event_id']) ? (int)$args['event_id'] : null;
+        $routeEventId = isset($args['event_id']) ? (int) $args['event_id'] : null;
+        $queryParams = $request->getQueryParams();
+        $queryEventId = isset($queryParams['event_id']) && is_numeric((string) $queryParams['event_id'])
+            ? (int) $queryParams['event_id']
+            : null;
 
-        $events = Event::orderBy('event_date', 'desc')->get();
+        $events = Event::orderBy('event_date', 'asc')->get();
 
-        if (!$eventId && $events->count() > 0) {
-            $eventId = $events->first()->id;
+        $eventId = $this->resolveSelectedEventId($routeEventId, $queryEventId, $events);
+        if ($eventId !== null) {
+            $_SESSION[self::SELECTED_EVENT_SESSION_KEY] = $eventId;
+        } else {
+            unset($_SESSION[self::SELECTED_EVENT_SESSION_KEY]);
         }
 
         $event = null;
+        $previousEventId = null;
+        $nextEventId = null;
         $voiceGroups = [];
 
         if ($eventId) {
-            $event = Event::find($eventId);
+            $event = $events->firstWhere('id', $eventId);
 
             if ($event) {
+                [$previousEventId, $nextEventId] = $this->getPreviousAndNextEventIds($events, (int) $event->id);
+
                 $canManageUsers = $_SESSION['can_manage_users'] ?? false;
                 $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
                 $roleLevel = $_SESSION['role_level'] ?? 0;
@@ -114,6 +127,8 @@ class AttendanceController
         return $this->view->render($response, 'attendance/show.twig', [
             'events' => $events,
             'current_event' => $event,
+            'previous_event_id' => $previousEventId,
+            'next_event_id' => $nextEventId,
             'voice_groups' => $voiceGroups,
             'success' => $success,
             'error' => $error
@@ -122,8 +137,8 @@ class AttendanceController
 
     public function save(Request $request, Response $response, array $args): Response
     {
-        $eventId = (int)$args['event_id'];
-        $data = (array)$request->getParsedBody();
+        $eventId = (int) $args['event_id'];
+        $data = (array) $request->getParsedBody();
         $attendances = $data['attendance'] ?? [];
         $notes = $data['note'] ?? [];
 
@@ -144,6 +159,7 @@ class AttendanceController
             }
 
             Capsule::commit();
+            $_SESSION[self::SELECTED_EVENT_SESSION_KEY] = $eventId;
             $_SESSION['success'] = 'Anwesenheiten erfolgreich gespeichert.';
         } catch (\Exception $e) {
             Capsule::rollBack();
@@ -151,5 +167,91 @@ class AttendanceController
         }
 
         return $response->withHeader('Location', '/attendance/' . $eventId)->withStatus(302);
+    }
+
+    private function resolveSelectedEventId(?int $routeEventId, ?int $queryEventId, $events): ?int
+    {
+        $sessionEventId = isset($_SESSION[self::SELECTED_EVENT_SESSION_KEY])
+            ? (int) $_SESSION[self::SELECTED_EVENT_SESSION_KEY]
+            : null;
+
+        $candidates = [$routeEventId, $queryEventId, $sessionEventId];
+        foreach ($candidates as $candidate) {
+            if ($candidate !== null && $candidate > 0 && $this->eventExists($events, $candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $this->findNearestEventId($events);
+    }
+
+    private function eventExists($events, int $eventId): bool
+    {
+        return $events->contains(function ($event) use ($eventId) {
+            return (int) $event->id === $eventId;
+        });
+    }
+
+    private function findNearestEventId($events): ?int
+    {
+        if ($events->isEmpty()) {
+            return null;
+        }
+
+        $now = new \DateTimeImmutable();
+        $bestEventId = null;
+        $bestDiff = null;
+        $bestIsFuture = false;
+
+        foreach ($events as $event) {
+            $eventDate = $event->event_date;
+            if (!$eventDate instanceof \DateTimeInterface) {
+                $eventDate = new \DateTimeImmutable((string) $eventDate);
+            }
+
+            $eventTs = $eventDate->getTimestamp();
+            $nowTs = $now->getTimestamp();
+            $diff = abs($eventTs - $nowTs);
+            $isFuture = $eventTs >= $nowTs;
+
+            if (
+                $bestDiff === null
+                || $diff < $bestDiff
+                || ($diff === $bestDiff && $isFuture && !$bestIsFuture)
+            ) {
+                $bestEventId = (int) $event->id;
+                $bestDiff = $diff;
+                $bestIsFuture = $isFuture;
+            }
+        }
+
+        return $bestEventId;
+    }
+
+    private function getPreviousAndNextEventIds($events, int $currentEventId): array
+    {
+        $previousEventId = null;
+        $nextEventId = null;
+
+        $currentIndex = $events->search(function ($event) use ($currentEventId) {
+            return (int) $event->id === $currentEventId;
+        });
+
+        if ($currentIndex === false) {
+            return [$previousEventId, $nextEventId];
+        }
+
+        $previousEvent = $events->get($currentIndex - 1);
+        $nextEvent = $events->get($currentIndex + 1);
+
+        if ($previousEvent) {
+            $previousEventId = (int) $previousEvent->id;
+        }
+
+        if ($nextEvent) {
+            $nextEventId = (int) $nextEvent->id;
+        }
+
+        return [$previousEventId, $nextEventId];
     }
 }

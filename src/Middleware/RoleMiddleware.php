@@ -19,6 +19,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresFinanceManagement;
     private bool $requiresMasterDataManagement;
     private bool $requiresSponsoringManagement;
+    private bool $requiresSongLibraryManagement;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -27,7 +28,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresProjectMemberManagement = false,
         bool $requiresFinanceManagement = false,
         bool $requiresMasterDataManagement = false,
-        bool $requiresSponsoringManagement = false
+        bool $requiresSponsoringManagement = false,
+        bool $requiresSongLibraryManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -36,6 +38,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresFinanceManagement = $requiresFinanceManagement;
         $this->requiresMasterDataManagement = $requiresMasterDataManagement;
         $this->requiresSponsoringManagement = $requiresSponsoringManagement;
+        $this->requiresSongLibraryManagement = $requiresSongLibraryManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -50,7 +53,14 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageFinances = $_SESSION['can_manage_finances'] ?? false;
         $canManageMasterData = $_SESSION['can_manage_master_data'] ?? false;
         $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
+        $canManageSongLibrary = $_SESSION['can_manage_song_library'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
+
+        if ($this->requiresSongLibraryManagement && !$canManageSongLibrary && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Liedbibliothek-Verwaltung.");
+            return $response->withStatus(403);
+        }
 
         if ($this->requiresSponsoringManagement && !$canManageSponsoring && !$canManageUsers) {
             $response = new SlimResponse();

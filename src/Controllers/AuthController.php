@@ -15,6 +15,8 @@ use App\Services\SessionAuthService;
 
 class AuthController
 {
+    private const ATTENDANCE_SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
+
     private Twig $view;
     private UserQuery $userQuery;
     private RememberLoginService $rememberLoginService;
@@ -67,6 +69,7 @@ class AuthController
         if ($user && password_verify($password, $user->password)) {
             session_regenerate_id(true);
             $this->sessionAuthService->setAuthenticatedUser($user);
+            unset($_SESSION[self::ATTENDANCE_SELECTED_EVENT_SESSION_KEY]);
 
             if ($remember) {
                 $tokenValue = $this->rememberLoginService->issueForUser((int) $user->id, $request);
@@ -189,6 +192,7 @@ class AuthController
 
         session_regenerate_id(true);
         $this->sessionAuthService->setAuthenticatedUser($user);
+        unset($_SESSION[self::ATTENDANCE_SELECTED_EVENT_SESSION_KEY]);
 
         $rotatedToken = $this->rememberLoginService->rotateToken($rememberToken, $request);
         $this->rememberLoginService->setRememberCookie($rotatedToken);

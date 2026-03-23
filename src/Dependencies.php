@@ -27,8 +27,7 @@ return function (ContainerBuilder $containerBuilder) {
             $capsule->bootEloquent();
 
             return $capsule;
-        }
-        ,
+        },
         UserQuery::class => \DI\autowire(),
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
@@ -44,6 +43,13 @@ return function (ContainerBuilder $containerBuilder) {
                 session_start();
             }
             $environment->addGlobal('session', $_SESSION);
+
+            $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+            $currentPath = (string) parse_url($requestUri, PHP_URL_PATH);
+            if ($currentPath === '') {
+                $currentPath = '/';
+            }
+            $environment->addGlobal('current_path', $currentPath);
 
             // Add App Settings to Twig
             try {

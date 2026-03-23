@@ -39,6 +39,30 @@ body {
     font-weight: 500;
 }
 
+.navbar-dark .nav-link.active,
+.navbar-dark .nav-link.dropdown-toggle.active {
+    color: #E8A817;
+}
+
+.navbar .dropdown-menu .dropdown-item.active,
+.navbar .dropdown-menu .dropdown-item:active {
+    background-color: #E8A817;
+    color: #2b2b2b;
+    font-weight: 600;
+}
+
+@media (max-width: 767.98px) {
+    .navbar .navbar-collapse {
+        padding-top: 0.5rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .navbar .dropdown-menu {
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
 /* Primary Button Overrides (Dark text on yellow for readability) */
 .btn-primary {
     --bs-btn-color: #2b2b2b;

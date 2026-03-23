@@ -27,4 +27,9 @@ class Project extends Model
     {
         return $this->hasMany(Event::class, 'project_id', 'id');
     }
+
+    public function songs()
+    {
+        return $this->hasMany(Song::class, 'project_id', 'id');
+    }
 }

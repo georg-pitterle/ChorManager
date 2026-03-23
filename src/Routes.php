@@ -24,6 +24,8 @@ use App\Controllers\SponsorController;
 use App\Controllers\SponsorshipController;
 use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsorPackageController;
+use App\Controllers\SongLibraryController;
+use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Slim\Routing\RouteCollectorProxy;
@@ -88,6 +90,11 @@ return function (App $app) {
             $group->get('/attendance', [AttendanceController::class, 'show']);
             $group->get('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'show']);
             $group->post('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'save']);
+
+            // Download section for project members
+            $group->get('/downloads', [DownloadController::class, 'index']);
+            $group->get('/downloads/attachments/{attachment_id:[0-9]+}/download', [DownloadController::class, 'downloadAttachment']);
+            $group->get('/downloads/attachments/{attachment_id:[0-9]+}/stream', [DownloadController::class, 'streamAttachment']);
 
             // Evaluations - accessible for all logged-in users
             $group->get('/evaluations', [EvaluationController::class, 'index']);
@@ -229,6 +236,22 @@ return function (App $app) {
                     $sponsoringGroup->post('/packages/{id:[0-9]+}/delete', [SponsorPackageController::class, 'delete']);
                 }
             )->add(new RoleMiddleware(false, 0, false, false, false, false, true));
+
+            // Song library management
+            $group->group(
+                '/song-library',
+                function (RouteCollectorProxy $songsGroup) {
+                    $songsGroup->get('', [SongLibraryController::class, 'index']);
+                    $songsGroup->post('/songs', [SongLibraryController::class, 'createSong']);
+                    $songsGroup->post('/songs/{id:[0-9]+}/update', [SongLibraryController::class, 'updateSong']);
+                    $songsGroup->post('/songs/{id:[0-9]+}/delete', [SongLibraryController::class, 'deleteSong']);
+                    $songsGroup->post('/songs/{id:[0-9]+}/attachments', [SongLibraryController::class, 'uploadAttachments']);
+                    $songsGroup->post(
+                        '/songs/{song_id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                        [SongLibraryController::class, 'deleteAttachment']
+                    );
+                }
+            )->add(new RoleMiddleware(false, 0, false, false, false, false, false, true));
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])
