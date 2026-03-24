@@ -11,6 +11,10 @@ use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Finance;
 use App\Models\FinanceAttachment;
+use App\Models\Newsletter;
+use App\Models\NewsletterTemplate;
+use App\Models\NewsletterArchive;
+use App\Models\NewsletterRecipient;
 use App\Models\PasswordReset;
 use App\Models\Project;
 use App\Models\RememberLogin;
@@ -99,6 +103,10 @@ class DevSeedService
                 'sponsorships' => 0,
                 'sponsoring_contacts' => 0,
                 'sponsor_attachments' => 0,
+                'newsletter_templates' => 0,
+                'newsletters' => 0,
+                'newsletter_recipients' => 0,
+                'newsletter_archive' => 0,
             ],
         ];
 
@@ -129,6 +137,7 @@ class DevSeedService
             $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
             $this->seedSponsorAttachments($sponsorships);
+            $this->seedNewsletters($projects, $users['active']);
             $this->seedAuthData($users['all']);
             $this->seedAppSettings();
         });
@@ -172,6 +181,10 @@ class DevSeedService
             'sponsorships',
             'sponsors',
             'sponsor_packages',
+            'newsletter_recipients',
+            'newsletter_archive',
+            'newsletters',
+            'newsletter_templates',
             'project_users',
             'user_voice_groups',
             'user_roles',
@@ -1772,5 +1785,145 @@ class DevSeedService
         $endTs = $end->getTimestamp();
         $randomTs = mt_rand($startTs, $endTs);
         return (new DateTimeImmutable())->setTimestamp($randomTs);
+    }
+
+    private function seedNewsletters(array $projects, array $activeUsers): void
+    {
+        $templateDefinitions = [
+            [
+                'name' => 'Event-Ankündigung',
+                'category' => 'event',
+                'content_html' => '<h2>Kommender Auftritt</h2>' .
+                    '<p>Liebe Sängerinnen und Sänger,</p>' .
+                    '<p>wir heißen euch herzlich zu unserem kommenden Konzert willkommen!</p>' .
+                    '<p><strong>Datum: [EVENT_DATE]</strong><br>' .
+                    '<strong>Uhrzeit: [EVENT_TIME]</strong><br>' .
+                    '<strong>Ort: [EVENT_LOCATION]</strong></p>' .
+                    '<p>Wir freuen uns auf euer Erscheinen!</p>',
+            ],
+            [
+                'name' => 'Newsletter Standard',
+                'category' => 'general',
+                'content_html' => '<h2>Newsletter</h2>' .
+                    '<p>Liebe Projektmitglieder,</p>' .
+                    '<p>hier sind die wichtigsten Neuigkeiten und Infos zum Projekt:</p>' .
+                    '<ul><li>Informationen</li><li>Ankündigungen</li><li>Sonstiges</li></ul>' .
+                    '<p>Viel Spaß beim Lesen!</p>',
+            ],
+            [
+                'name' => 'Nachbericht',
+                'category' => 'report',
+                'content_html' => '<h2>Ein großartiger Erfolg!</h2>' .
+                    '<p>Unser Konzert war ein voller Erfolg. Vielen Dank an alle Beteiligten!</p>' .
+                    '<p>Weitere Bilder finden Sie auf unserer Website.</p>',
+            ],
+        ];
+
+        $adminUser = $activeUsers[0] ?? null;
+
+        foreach ($templateDefinitions as $templateDef) {
+            $template = NewsletterTemplate::updateOrCreate(
+                ['name' => $templateDef['name'], 'project_id' => null],
+                [
+                    'description' => 'Vordefinierte Vorlage',
+                    'content_html' => $templateDef['content_html'],
+                    'project_id' => null,
+                    'category' => $templateDef['category'],
+                    'created_by' => $adminUser?->id ?? 1,
+                ]
+            );
+
+            if ($template->wasRecentlyCreated) {
+                $this->report['counts']['newsletter_templates']++;
+            }
+        }
+
+        // Create sent newsletters for each project
+        foreach ($projects as $project) {
+            if (count($project->users) === 0) {
+                continue;
+            }
+
+            // 2-3 gesendete Newsletter pro Projekt
+            $sentCount = mt_rand(2, 3);
+            for ($i = 0; $i < $sentCount; $i++) {
+                $createdUser = $activeUsers[$i % count($activeUsers)] ?? $activeUsers[0];
+                $sentDate = (new DateTimeImmutable())->modify('-' . ($sentCount - $i) * 7 . ' days');
+
+                $newsletter = Newsletter::create([
+                    'project_id' => $project->id,
+                    'event_id' => null,
+                    'title' => 'Newsletter ' . $project->name . ' #' . ($i + 1),
+                    'content_html' => '<h2>Newsletter ' . $project->name . '</h2>' .
+                        '<p>Aktuelle Informationen zum Projekt:</p>' .
+                        '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>',
+                    'status' => 'sent',
+                    'created_by' => $createdUser->id,
+                    'locked_by' => null,
+                    'locked_at' => null,
+                    'sent_at' => $sentDate->format('Y-m-d H:i:s'),
+                ]);
+
+                $this->report['counts']['newsletters']++;
+
+                // Add recipients from project members
+                $recipients = $project->users()->pluck('user_id')->toArray();
+                $newsletter->recipient_count = count($recipients);
+                $newsletter->save();
+
+                foreach ($recipients as $userId) {
+                    NewsletterRecipient::create([
+                        'newsletter_id' => $newsletter->id,
+                        'user_id' => $userId,
+                        'status' => 'sent',
+                    ]);
+                    $this->report['counts']['newsletter_recipients']++;
+
+                    // Add to archive
+                    $user = User::find($userId);
+                    if ($user) {
+                        $readAt = mt_rand(1, 100) > 30 ?
+                            (new DateTimeImmutable())->format('Y-m-d H:i:s') :
+                            null;
+                        NewsletterArchive::create([
+                            'newsletter_id' => $newsletter->id,
+                            'user_id' => $userId,
+                            'email' => $user->email,
+                            'sent_at' => $sentDate->format('Y-m-d H:i:s'),
+                            'read_at' => $readAt,
+                        ]);
+                        $this->report['counts']['newsletter_archive']++;
+                    }
+                }
+            }
+
+            // 1 Draft pro Projekt
+            $draftUser = $activeUsers[(0 + 1) % count($activeUsers)];
+            $draft = Newsletter::create([
+                'project_id' => $project->id,
+                'event_id' => null,
+                'title' => 'Entwurf: ' . $project->name . ' - Neuer Newsletter',
+                'content_html' => '<h2>Editierbar</h2><p>Dies ist ein Entwurfs-Newsletter, der noch bearbeitet werden kann.</p>',
+                'status' => 'draft',
+                'created_by' => $draftUser->id,
+                'locked_by' => null,
+                'locked_at' => null,
+            ]);
+
+            $this->report['counts']['newsletters']++;
+
+            $recipients = $project->users()->pluck('user_id')->toArray();
+            $draft->recipient_count = count($recipients);
+            $draft->save();
+
+            foreach ($recipients as $userId) {
+                NewsletterRecipient::create([
+                    'newsletter_id' => $draft->id,
+                    'user_id' => $userId,
+                    'status' => 'pending',
+                ]);
+                $this->report['counts']['newsletter_recipients']++;
+            }
+        }
     }
 }

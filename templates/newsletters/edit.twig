@@ -1,0 +1,200 @@
+{% extends "layout.twig" %}
+
+{% block title %}Newsletter bearbeiten{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>Newsletter bearbeiten</h1>
+            <p class="text-muted">Projekt: <strong>{{ project.name }}</strong></p>
+        </div>
+    </div>
+
+    <!-- Lock Warning -->
+    {% if newsletter.isLocked() and newsletter.locked_by != session.user_id %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Newsletter wird bearbeitet!</strong>
+        Dieser Newsletter wird gerade von
+        <strong>{{ newsletter.lockedBy.first_name }} {{ newsletter.lockedBy.last_name }}</strong>
+        bearbeitet. Aktualisierung alle 30 Sekunden.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <form id="edit-newsletter-form" method="post" action="/newsletters/{{ newsletter.id }}">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Newsletter-Einstellungen</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Titel <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="title" name="title"
+                           value="{{ newsletter.title }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="event_id" class="form-label">Event (optional)</label>
+                    <select class="form-select" id="event_id" name="event_id">
+                        <option value="">-- Keine Auswahl --</option>
+                        {% for event in events %}
+                        <option value="{{ event.id }}"
+                                {% if newsletter.event_id == event.id %}selected{% endif %}>
+                            {{ event.title }} ({{ event.event_date|date('d.m.Y') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Empfänger:</strong> <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
+                    {% if newsletter.event_id %}
+                        Teilnehmer des Events
+                    {% else %}
+                        Alle Projektmitglieder
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Inhalt</h5>
+            </div>
+            <div class="card-body">
+                <textarea id="content_html" name="content_html" class="tinymce-editor">{{ newsletter.content_html }}</textarea>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+            <div>
+                <a href="?project_id={{ project.id }}&status=draft" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+            </div>
+            <div>
+                <button type="button" class="btn btn-outline-warning" id="save-draft-btn">
+                    <i class="bi bi-floppy"></i> Speichern
+                </button>
+                <button type="button" class="btn btn-outline-info" id="preview-btn">
+                    <i class="bi bi-eye"></i> Vorschau
+                </button>
+                <form id="send-form" method="post" action="/newsletters/{{ newsletter.id }}/send" style="display: inline;">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-send"></i> Versenden
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Save Template Modal -->
+        <div class="modal fade" id="saveTemplateModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Als Vorlage speichern</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="template_name" class="form-label">Vorlagen-Name</label>
+                            <input type="text" class="form-control" id="template_name"
+                                   value="{{ newsletter.title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="template_category" class="form-label">Kategorie</label>
+                            <select class="form-select" id="template_category">
+                                <option value="general">Allgemein</option>
+                                <option value="event">Event-Ankündigung</option>
+                                <option value="update">Update</option>
+                                <option value="report">Nachbericht</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="template_description" class="form-label">Beschreibung</label>
+                            <textarea class="form-control" id="template_description" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Abbrechen
+                        </button>
+                        <button type="button" class="btn btn-primary" id="save-template-btn">
+                            Speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-4" data-bs-toggle="modal"
+                data-bs-target="#saveTemplateModal">
+            <i class="bi bi-bookmark"></i> Als Vorlage speichern
+        </button>
+    </form>
+</div>
+
+<script>
+// Auto-save every 30 seconds
+setInterval(function() {
+    document.getElementById('edit-newsletter-form').dispatchEvent(new Event('submit'));
+}, 30000);
+
+// Save Draft
+document.getElementById('save-draft-btn').addEventListener('click', async function() {
+    const formData = new FormData(document.getElementById('edit-newsletter-form'));
+    formData.set('content_html', tinymce.get('content_html').getContent());
+
+    const response = await fetch('/newsletters/{{ newsletter.id }}', {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        alert('Fehler beim Speichern');
+        return;
+    }
+
+    alert('Newsletter gespeichert');
+});
+
+// Preview
+document.getElementById('preview-btn').addEventListener('click', function() {
+    window.open('/newsletters/{{ newsletter.id }}/preview', '_blank');
+});
+
+// Save Template
+document.getElementById('save-template-btn').addEventListener('click', async function() {
+    const formData = new FormData();
+    formData.set('template_name', document.getElementById('template_name').value);
+    formData.set('template_category', document.getElementById('template_category').value);
+    formData.set('template_description', document.getElementById('template_description').value);
+
+    const response = await fetch('/newsletters/{{ newsletter.id }}/save-as-template', {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        alert('Fehler beim Speichern der Vorlage');
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('saveTemplateModal')).hide();
+    alert('Vorlage gespeichert');
+});
+
+// Lock Polling
+setInterval(async function() {
+    const response = await fetch('/newsletters/{{ newsletter.id }}/check-lock');
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data.locked && !data.is_me) {
+        alert(`Newsletter wird jetzt von ${data.locked_by_user} bearbeitet`);
+        window.location.reload();
+    }
+}, 30000);
+</script>
+{% endblock %}

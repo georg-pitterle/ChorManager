@@ -25,6 +25,7 @@ use App\Controllers\SponsorshipController;
 use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SongLibraryController;
+use App\Controllers\NewsletterController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
@@ -93,7 +94,10 @@ return function (App $app) {
 
             // Download section for project members
             $group->get('/downloads', [DownloadController::class, 'index']);
-            $group->get('/downloads/attachments/{attachment_id:[0-9]+}/download', [DownloadController::class, 'downloadAttachment']);
+            $group->get(
+                '/downloads/attachments/{attachment_id:[0-9]+}/download',
+                [DownloadController::class, 'downloadAttachment']
+            );
             $group->get('/downloads/attachments/{attachment_id:[0-9]+}/stream', [DownloadController::class, 'streamAttachment']);
 
             // Evaluations - accessible for all logged-in users
@@ -252,6 +256,20 @@ return function (App $app) {
                     );
                 }
             )->add(new RoleMiddleware(false, 0, false, false, false, false, false, true));
+
+            // Newsletter management
+            $group->get('/newsletters', [NewsletterController::class, 'index']);
+            $group->get('/newsletters/create', [NewsletterController::class, 'create']);
+            $group->post('/newsletters', [NewsletterController::class, 'store']);
+            $group->get('/newsletters/{id:[0-9]+}/edit', [NewsletterController::class, 'edit']);
+            $group->post('/newsletters/{id:[0-9]+}', [NewsletterController::class, 'update']);
+            $group->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
+            $group->post('/newsletters/{id:[0-9]+}/send', [NewsletterController::class, 'send']);
+            $group->post('/newsletters/{id:[0-9]+}/save-as-template', [NewsletterController::class, 'saveAsTemplate']);
+            $group->get('/newsletters/template/{id:[0-9]+}', [NewsletterController::class, 'getTemplate']);
+            $group->get('/newsletters/{id:[0-9]+}/check-lock', [NewsletterController::class, 'checkLock']);
+            $group->get('/newsletters/archive', [NewsletterController::class, 'archiveIndex']);
+            $group->post('/newsletters/{id:[0-9]+}/delete', [NewsletterController::class, 'deleteDraft']);
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])

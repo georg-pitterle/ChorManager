@@ -63,7 +63,10 @@ class DownloadController
         return $response
             ->withHeader('Content-Type', $attachment->mime_type ?: 'application/octet-stream')
             ->withHeader('Content-Length', (string) strlen($attachment->file_content))
-            ->withHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"; filename*=UTF-8\'\'' . rawurlencode($fileName));
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . $fileName . '"; filename*=UTF-8\'\'' . rawurlencode($fileName)
+            );
     }
 
     public function streamAttachment(Request $request, Response $response, array $args): Response

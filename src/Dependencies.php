@@ -10,6 +10,9 @@ use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
+use App\Services\NewsletterService;
+use App\Services\NewsletterLockingService;
+use App\Services\NewsletterRecipientService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 return function (ContainerBuilder $containerBuilder) {
@@ -32,6 +35,9 @@ return function (ContainerBuilder $containerBuilder) {
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
+        NewsletterRecipientService::class => \DI\autowire(),
+        NewsletterLockingService::class => \DI\autowire(),
+        NewsletterService::class => \DI\autowire(),
 
         Twig::class => function (ContainerInterface $c) {
             $settings = $c->get('settings')['view'];

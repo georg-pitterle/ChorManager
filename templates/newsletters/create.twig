@@ -1,0 +1,109 @@
+{% extends "layout.twig" %}
+
+{% block title %}Newsletter erstellen{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h1>Neuer Newsletter</h1>
+            <p class="text-muted">Projekt: <strong>{{ project.name }}</strong></p>
+        </div>
+    </div>
+
+    <form id="create-newsletter-form" method="post" action="/newsletters">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Newsletter-Einstellungen</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Titel <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="title" name="title"
+                           placeholder="z.B. Januar Newsletter 2026" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="event_id" class="form-label">Event (optional)</label>
+                    <select class="form-select" id="event_id" name="event_id">
+                        <option value="">-- Keine Auswahl --</option>
+                        {% for event in events %}
+                        <option value="{{ event.id }}">
+                            {{ event.title }} ({{ event.event_date|date('d.m.Y') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Wenn ein Event ausgewählt wird, erhalten nur die Teilnehmer dieses Events den Newsletter.
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="template" class="form-label">Vorlage laden (optional)</label>
+                    <select class="form-select" id="template" data-action="load-template">
+                        <option value="">-- Keine Vorlage --</option>
+                        {% for template in templates %}
+                        <option value="{{ template.id }}">
+                            [{{ template.category|upper }}] {{ template.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Inhalt</h5>
+            </div>
+            <div class="card-body">
+                <textarea id="content_html" name="content_html" class="tinymce-editor"></textarea>
+            </div>
+        </div>
+
+        <input type="hidden" name="project_id" value="{{ project.id }}">
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="?project_id={{ project.id }}&status=draft" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Abbrechen
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle"></i> Erstellen als Entwurf
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('template').addEventListener('change', async function() {
+    if (!this.value) return;
+
+    const response = await fetch(`/newsletters/template/${this.value}`);
+    if (!response.ok) return;
+
+    const data = await response.json();
+    tinymce.get('content_html').setContent(data.content_html);
+    document.getElementById('title').value = data.name;
+});
+
+document.getElementById('create-newsletter-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    formData.set('content_html', tinymce.get('content_html').getContent());
+
+    const response = await fetch('/newsletters', {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        alert('Fehler beim Erstellen des Newsletters');
+        return;
+    }
+
+    const data = await response.json();
+    window.location.href = data.redirect;
+});
+</script>
+{% endblock %}
