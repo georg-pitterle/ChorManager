@@ -150,9 +150,9 @@ class DevSeedService
 
     private function assertDevMode(): void
     {
-        $appEnv = strtolower((string) (getenv('APP_ENV') ?: ''));
+        $appEnv = strtolower(\App\Util\EnvHelper::read('APP_ENV', 'development'));
         $allowed = in_array($appEnv, ['development', 'dev', 'local'], true);
-        $seedAllowed = (string) (getenv('ALLOW_DEV_SEED') ?: '') === '1';
+        $seedAllowed = \App\Util\EnvHelper::readBool('ALLOW_DEV_SEED', false);
 
         if (!$allowed || !$seedAllowed) {
             throw new RuntimeException('Dev seed is only allowed with APP_ENV=development|dev|local and ALLOW_DEV_SEED=1.');

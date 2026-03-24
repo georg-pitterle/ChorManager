@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Services\Mailer;
 
 class NewsletterController
 {
@@ -36,14 +37,76 @@ class NewsletterController
         $this->recipientService = $recipientService;
     }
 
+    /**
+     * Build a JSON response without relying on framework-specific helper functions.
+     *
+     * @param Response $response
+     * @param array<string, mixed> $payload
+     * @param int $status
+     * @return Response
+     */
+    private function jsonResponse(Response $response, array $payload, int $status = 200): Response
+    {
+        $response->getBody()->write((string) json_encode($payload));
+
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus($status);
+    }
+
+    /**
+     * Resolve projects the current user is allowed to access.
+     *
+     * @param int|null $userId
+     * @return \Illuminate\Support\Collection<int, Project>
+     */
+    private function getAccessibleProjects(?int $userId)
+    {
+        if (!$userId) {
+            return Project::query()->whereRaw('1 = 0')->get();
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
+            return Project::query()->whereRaw('1 = 0')->get();
+        }
+
+        $isAdmin = $user->roles()->where('name', 'Admin')->exists();
+        if ($isAdmin) {
+            return Project::query()->orderBy('name')->get();
+        }
+
+        return $user->projects()->orderBy('name')->get();
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
+        $userId = $_SESSION['user_id'] ?? null;
+        $projects = $this->getAccessibleProjects($userId);
+
+        if ($projects->isEmpty()) {
+            return $this->view->render($response, 'newsletters/index.twig', [
+                'newsletters' => [],
+                'project' => null,
+                'projects' => $projects,
+                'status' => 'draft',
+                'user_id' => $userId,
+            ]);
+        }
+
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $status = $queryParams['status'] ?? 'draft';
 
         if (!$projectId) {
-            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            $defaultProject = $projects->first();
+            return $response->withHeader('Location', '/newsletters?project_id=' . $defaultProject->id . '&status=' . $status)
+                ->withStatus(302);
+        }
+
+        $project = $projects->firstWhere('id', $projectId);
+        if (!$project) {
+            return $response->withStatus(403);
         }
 
         $query = Newsletter::query()->where('project_id', $projectId);
@@ -52,18 +115,15 @@ class NewsletterController
             $query->where('status', $status);
         }
 
-        $newsletters = $query->orderBy('created_at', 'desc')->get();
-
-        $project = Project::find($projectId);
-        if (!$project) {
-            return $response->withStatus(404);
-        }
-
-        $userId = $_SESSION['user_id'] ?? null;
+        $newsletters = $query
+            ->with(['createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return $this->view->render($response, 'newsletters/index.twig', [
             'newsletters' => $newsletters,
             'project' => $project,
+            'projects' => $projects,
             'status' => $status,
             'user_id' => $userId,
         ]);
@@ -72,18 +132,27 @@ class NewsletterController
     public function create(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
-        $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
+        $userId = $_SESSION['user_id'] ?? null;
+        $projects = $this->getAccessibleProjects($userId);
 
-        if (!$projectId) {
-            return $response->withStatus(400);
+        if ($projects->isEmpty()) {
+            return $response->withStatus(403);
         }
 
-        $project = Project::find($projectId);
+        $projectId = !empty($queryParams['project_id'])
+            ? (int)$queryParams['project_id']
+            : (int) $projects->first()->id;
+
+        $project = $projects->firstWhere('id', $projectId);
+
         if (!$project) {
-            return $response->withStatus(404);
+            return $response->withStatus(403);
         }
 
-        $events = Event::where('project_id', $projectId)->orderBy('event_date', 'desc')->get();
+        $events = Event::with('project')
+            ->whereIn('project_id', $projects->pluck('id')->toArray())
+            ->orderBy('event_date', 'desc')
+            ->get();
         $templates = NewsletterTemplate::where('project_id', $projectId)
             ->orWhereNull('project_id')
             ->orderBy('category')
@@ -92,6 +161,7 @@ class NewsletterController
 
         return $this->view->render($response, 'newsletters/create.twig', [
             'project' => $project,
+            'projects' => $projects,
             'events' => $events,
             'templates' => $templates,
         ]);
@@ -107,44 +177,70 @@ class NewsletterController
             return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
         }
 
+        $projects = $this->getAccessibleProjects($userId);
+        $canAccessProject = $projects->contains(function ($project) use ($projectId) {
+            return (int) $project->id === $projectId;
+        });
+
+        if (!$canAccessProject) {
+            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+        }
+
         $project = Project::find($projectId);
         if (!$project) {
             return $response->withStatus(404);
         }
 
+        $eventId = null;
+        if (!empty($data['event_id'])) {
+            $requestedEventId = (int) $data['event_id'];
+            $event = Event::where('id', $requestedEventId)
+                ->where('project_id', $projectId)
+                ->first();
+            if ($event) {
+                $eventId = $requestedEventId;
+            }
+        }
+
         $newsletter = Newsletter::create([
             'project_id' => $projectId,
-            'event_id' => !empty($data['event_id']) ? (int)$data['event_id'] : null,
+            'event_id' => $eventId,
             'title' => $data['title'] ?? 'Untitled Newsletter',
             'content_html' => $data['content_html'] ?? '',
             'status' => 'draft',
             'created_by' => $userId,
         ]);
 
-        $recipients = $this->recipientService->resolveRecipients($projectId, (int)($data['event_id'] ?? 0));
-        $newsletter->recipient_count = count($recipients);
-        $newsletter->save();
+        $recipients = $this->recipientService->resolveRecipients($projectId, (int) ($eventId ?? 0));
+        $this->recipientService->setRecipients($newsletter, $recipients->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all());
 
-        return $response->withStatus(201)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody(\GuzzleHttp\Psr7\stream_for(json_encode([
-                'id' => $newsletter->id,
-                'redirect' => "/newsletters/{$newsletter->id}/edit?project_id={$projectId}",
-            ])));
+        return $this->jsonResponse($response, [
+            'id' => $newsletter->id,
+            'redirect' => "/newsletters/{$newsletter->id}/edit?project_id={$projectId}",
+        ], 201);
     }
 
     public function edit(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
-        $queryParams = $request->getQueryParams();
-        $projectId = (int)($queryParams['project_id'] ?? 0);
+        $userId = $_SESSION['user_id'] ?? null;
+        $projects = $this->getAccessibleProjects($userId);
 
         $newsletter = Newsletter::find($id);
-        if (!$newsletter || $newsletter->project_id !== $projectId) {
+        if (!$newsletter) {
             return $response->withStatus(404);
         }
 
-        $userId = $_SESSION['user_id'] ?? null;
+        $canAccessNewsletterProject = $projects->contains(function ($project) use ($newsletter) {
+            return (int) $project->id === (int) $newsletter->project_id;
+        });
+
+        if (!$canAccessNewsletterProject) {
+            return $response->withStatus(403);
+        }
+
         $canEdit = $this->lockingService->canEdit($newsletter, $userId);
 
         if (!$canEdit) {
@@ -158,11 +254,15 @@ class NewsletterController
         $this->lockingService->acquireLock($newsletter, $userId);
 
         $project = $newsletter->project;
-        $events = Event::where('project_id', $projectId)->orderBy('event_date', 'desc')->get();
+        $events = Event::with('project')
+            ->whereIn('project_id', $projects->pluck('id')->toArray())
+            ->orderBy('event_date', 'desc')
+            ->get();
 
         return $this->view->render($response, 'newsletters/edit.twig', [
             'newsletter' => $newsletter,
             'project' => $project,
+            'projects' => $projects,
             'events' => $events,
         ]);
     }
@@ -182,19 +282,45 @@ class NewsletterController
             return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
         }
 
+        $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : (int) $newsletter->project_id;
+        $projects = $this->getAccessibleProjects($userId);
+        $canAccessProject = $projects->contains(function ($project) use ($projectId) {
+            return (int) $project->id === $projectId;
+        });
+
+        if (!$canAccessProject) {
+            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+        }
+
+        $eventId = null;
+        if (!empty($data['event_id'])) {
+            $requestedEventId = (int) $data['event_id'];
+            $event = Event::where('id', $requestedEventId)
+                ->where('project_id', $projectId)
+                ->first();
+            if ($event) {
+                $eventId = $requestedEventId;
+            }
+        }
+
         $newsletter->update([
+            'project_id' => $projectId,
             'title' => $data['title'] ?? $newsletter->title,
             'content_html' => $data['content_html'] ?? $newsletter->content_html,
-            'event_id' => !empty($data['event_id']) ? (int)$data['event_id'] : null,
+            'event_id' => $eventId,
         ]);
+
+        $recipients = $this->recipientService->resolveRecipients($projectId, (int) ($eventId ?? 0));
+        $this->recipientService->setRecipients($newsletter, $recipients->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all());
 
         $_SESSION['success'] = 'Newsletter aktualisiert';
 
-        return $response->withHeader('Content-Type', 'application/json')
-            ->withBody(\GuzzleHttp\Psr7\stream_for(json_encode([
-                'success' => true,
-                'message' => 'Newsletter aktualisiert',
-            ])));
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'message' => 'Newsletter aktualisiert',
+        ]);
     }
 
     public function preview(Request $request, Response $response): Response
@@ -259,12 +385,10 @@ class NewsletterController
             'created_by' => $userId,
         ]);
 
-        return $response->withStatus(201)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody(\GuzzleHttp\Psr7\stream_for(json_encode([
-                'success' => true,
-                'template_id' => $template->id,
-            ])));
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'template_id' => $template->id,
+        ], 201);
     }
 
     public function getTemplate(Request $request, Response $response): Response
@@ -276,12 +400,11 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
-        return $response->withHeader('Content-Type', 'application/json')
-            ->withBody(\GuzzleHttp\Psr7\stream_for(json_encode([
-                'id' => $template->id,
-                'name' => $template->name,
-                'content_html' => $template->content_html,
-            ])));
+        return $this->jsonResponse($response, [
+            'id' => $template->id,
+            'name' => $template->name,
+            'content_html' => $template->content_html,
+        ]);
     }
 
     public function checkLock(Request $request, Response $response): Response
@@ -295,21 +418,19 @@ class NewsletterController
         }
 
         if (!$newsletter->isLocked()) {
-            return $response->withHeader('Content-Type', 'application/json')
-                ->withBody(\GuzzleHttp\Psr7\stream_for(json_encode([
-                    'locked' => false,
-                ])));
+            return $this->jsonResponse($response, [
+                'locked' => false,
+            ]);
         }
 
         $lockedByUser = User::find($newsletter->locked_by);
 
-        return $response->withHeader('Content-Type', 'application/json')
-            ->withBody(\GuzzleHttp\Psr7\stream_for(json_encode([
-                'locked' => true,
-                'locked_by_user' => $lockedByUser ? $lockedByUser->first_name . ' ' . $lockedByUser->last_name : 'Unknown',
-                'locked_at' => $newsletter->locked_at->format('Y-m-d H:i:s'),
-                'is_me' => $newsletter->locked_by === $userId,
-            ])));
+        return $this->jsonResponse($response, [
+            'locked' => true,
+            'locked_by_user' => $lockedByUser ? $lockedByUser->first_name . ' ' . $lockedByUser->last_name : 'Unknown',
+            'locked_at' => $newsletter->locked_at->format('Y-m-d H:i:s'),
+            'is_me' => $newsletter->locked_by === $userId,
+        ]);
     }
 
     public function archiveIndex(Request $request, Response $response): Response
@@ -326,6 +447,7 @@ class NewsletterController
 
         return $this->view->render($response, 'newsletters/archive.twig', [
             'archived_newsletters' => $archived,
+            'active_nav' => 'newsletters_archive',
         ]);
     }
 

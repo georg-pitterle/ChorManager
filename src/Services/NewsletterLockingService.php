@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Newsletter;
 use Carbon\Carbon;
-use DateTime;
 
 class NewsletterLockingService
 {
@@ -34,7 +33,7 @@ class NewsletterLockingService
         // Acquire or renew lock
         $newsletter->update([
             'locked_by' => $userId,
-            'locked_at' => now(),
+            'locked_at' => Carbon::now(),
         ]);
 
         return true;
@@ -135,7 +134,7 @@ class NewsletterLockingService
         $lockTime = $newsletter->locked_at;
         $expiryTime = $lockTime->addMinutes(self::LOCK_TIMEOUT_MINUTES);
 
-        return now()->gt($expiryTime);
+        return Carbon::now()->gt($expiryTime);
     }
 
     /**

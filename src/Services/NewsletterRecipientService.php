@@ -16,9 +16,9 @@ class NewsletterRecipientService
      *
      * @param int $projectId
      * @param int $eventId Optional event ID
-     * @return Collection|array
+     * @return Collection<int, User>
      */
-    public function resolveRecipients(int $projectId, int $eventId = 0): array
+    public function resolveRecipients(int $projectId, int $eventId = 0): Collection
     {
         if ($eventId > 0) {
             return $this->getEventAttendees($eventId);
@@ -31,73 +31,67 @@ class NewsletterRecipientService
      * Get all active members of a project
      *
      * @param int $projectId
-     * @return User[]
+     * @return Collection<int, User>
      */
-    public function getProjectMembers(int $projectId): array
+    public function getProjectMembers(int $projectId): Collection
     {
-        $members = User::query()
+        return User::query()
             ->whereHas('projects', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);
             })
             ->where('is_active', 1)
             ->get();
-
-        return $members->toArray();
     }
 
     /**
      * Get attendees for an event
      *
      * @param int $eventId
-     * @return User[]
+     * @return Collection<int, User>
      */
-    public function getEventAttendees(int $eventId): array
+    public function getEventAttendees(int $eventId): Collection
     {
         $event = Event::find($eventId);
         if (!$event) {
-            return [];
+            return new Collection();
         }
 
-        $attendees = User::query()
-            ->whereHas('attendance', function ($query) use ($eventId) {
+        return User::query()
+            ->whereHas('attendances', function ($query) use ($eventId) {
                 $query->where('event_id', $eventId)
                     ->where('attended', 1);
             })
             ->where('is_active', 1)
             ->get();
-
-        return $attendees->toArray();
     }
 
     /**
      * Get stored recipients for a newsletter
      *
      * @param int $newsletterId
-     * @return User[]
+     * @return Collection<int, User>
      */
-    public function getRecipients(int $newsletterId): array
+    public function getRecipients(int $newsletterId): Collection
     {
-        $recipients = User::query()
+        return User::query()
             ->whereHas('newsletterRecipients', function ($query) use ($newsletterId) {
                 $query->where('newsletter_id', $newsletterId);
             })
             ->get();
-
-        return $recipients->toArray();
     }
 
     /**
      * Store or update recipients for a newsletter
      *
      * @param Newsletter $newsletter
-     * @param array $userIds User IDs
+     * @param array<int> $userIds User IDs
      * @return void
      */
     public function setRecipients(Newsletter $newsletter, array $userIds): void
     {
         $newsletter->recipients()->delete();
 
-        foreach ($userIds as $userId) {
+        foreach (array_values(array_unique($userIds)) as $userId) {
             $newsletter->recipients()->create([
                 'user_id' => $userId,
                 'status' => 'pending',

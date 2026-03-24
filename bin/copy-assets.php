@@ -46,6 +46,18 @@ function copyAssets(): void
     $srcDir = 'vendor/twbs/bootstrap-icons/font';
     $destDir = 'public/vendor/bootstrap-icons/font';
     copyRecursive($srcDir, $destDir);
+
+    $srcDir = 'vendor/tinymce/tinymce';
+    $destDir = 'public/vendor/tinymce/tinymce';
+    copyRecursive($srcDir, $destDir);
+
+    $source = 'vendor/mklkj/tinymce-i18n/langs7/de.js';
+    $dest = 'public/vendor/tinymce/langs/de.js';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
 }
 
 try {

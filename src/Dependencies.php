@@ -10,10 +10,12 @@ use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
+use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Twig\TwigFunction;
 
 return function (ContainerBuilder $containerBuilder) {
     $containerBuilder->addDefinitions([
@@ -35,6 +37,7 @@ return function (ContainerBuilder $containerBuilder) {
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
+        Mailer::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
@@ -64,6 +67,43 @@ return function (ContainerBuilder $containerBuilder) {
                 $appSettings = [];
             }
             $environment->addGlobal('app_settings', $appSettings);
+
+            $environment->addFunction(new TwigFunction(
+                'nav_active',
+                function (
+                    string $path,
+                    ?string $activeNav = null,
+                    array $pathPrefixes = [],
+                    array $navKeys = [],
+                    array $excludePrefixes = []
+                ): bool {
+                    foreach ($excludePrefixes as $excludePrefix) {
+                        if ($excludePrefix !== '' && str_starts_with($path, $excludePrefix)) {
+                            return false;
+                        }
+                    }
+
+                    if ($activeNav !== null && $activeNav !== '' && in_array($activeNav, $navKeys, true)) {
+                        return true;
+                    }
+
+                    foreach ($pathPrefixes as $prefix) {
+                        if ($prefix === '/' && $path === '/') {
+                            return true;
+                        }
+
+                        if ($prefix === '/') {
+                            continue;
+                        }
+
+                        if ($prefix !== '' && str_starts_with($path, $prefix)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            ));
 
             return $twig;
         }

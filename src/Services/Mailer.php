@@ -6,10 +6,13 @@ namespace App\Services;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+use App\Util\EnvHelper;
 
 class Mailer
 {
     private PHPMailer $mail;
+    private ?string $lastError = null;
+    private bool $useSmtp = false;
 
     public function __construct()
     {
@@ -19,14 +22,35 @@ class Mailer
 
     private function configure(): void
     {
-        $this->mail->isSMTP();
         $this->mail->CharSet = 'UTF-8';
-        $this->mail->Host = $this->readEnv('SMTP_HOST', 'mailhog');
-        $this->mail->SMTPAuth = $this->readBoolEnv('SMTP_AUTH', true);
-        $this->mail->Username = $this->readEnv('SMTP_USERNAME', '');
-        $this->mail->Password = $this->readEnv('SMTP_PASSWORD', '');
 
-        $encryption = strtolower($this->readEnv('SMTP_ENCRYPTION', 'none'));
+        $fromEmail = EnvHelper::read('SMTP_FROM_EMAIL', 'noreply@chor.local');
+        $fromName = EnvHelper::read('SMTP_FROM_NAME', 'Chor Manager');
+        $this->mail->setFrom($fromEmail, $fromName);
+
+        if ($this->hasSmtpConfig()) {
+            $this->configureSmtp();
+        } else {
+            $this->configureSendmail();
+        }
+    }
+
+    private function hasSmtpConfig(): bool
+    {
+        $smtpHost = EnvHelper::read('SMTP_HOST', '');
+        return $smtpHost !== '';
+    }
+
+    private function configureSmtp(): void
+    {
+        $this->useSmtp = true;
+        $this->mail->isSMTP();
+        $this->mail->Host = EnvHelper::read('SMTP_HOST', 'mailhog');
+        $this->mail->SMTPAuth = EnvHelper::readBool('SMTP_AUTH', true);
+        $this->mail->Username = EnvHelper::read('SMTP_USERNAME', '');
+        $this->mail->Password = EnvHelper::read('SMTP_PASSWORD', '');
+
+        $encryption = strtolower(EnvHelper::read('SMTP_ENCRYPTION', 'none'));
         if ($encryption === 'tls') {
             $this->mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($encryption === 'ssl') {
@@ -35,47 +59,19 @@ class Mailer
             $this->mail->SMTPSecure = '';
         }
 
-        $this->mail->Port = (int) $this->readEnv('SMTP_PORT', '1025');
-
-        $fromEmail = $this->readEnv('SMTP_FROM_EMAIL', 'noreply@chor.local');
-        $fromName = $this->readEnv('SMTP_FROM_NAME', 'Chor Manager');
-
-        $this->mail->setFrom($fromEmail, $fromName);
+        $this->mail->Port = (int) EnvHelper::read('SMTP_PORT', '1025');
     }
 
-    private function readEnv(string $key, string $default): string
+    private function configureSendmail(): void
     {
-        $value = getenv($key);
-        if ($value === false) {
-            return $default;
-        }
-
-        $value = trim((string) $value);
-        return $value !== '' ? $value : $default;
-    }
-
-    private function readBoolEnv(string $key, bool $default): bool
-    {
-        $value = getenv($key);
-        if ($value === false) {
-            return $default;
-        }
-
-        $normalized = strtolower(trim((string) $value));
-        if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
-            return false;
-        }
-
-        if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
-            return true;
-        }
-
-        return $default;
+        $this->useSmtp = false;
+        $this->mail->isSendmail();
     }
 
     public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
     {
         try {
+            $this->lastError = null;
             $this->mail->clearAddresses();
             $this->mail->addAddress($to);
             $this->mail->isHTML(true);
@@ -85,10 +81,27 @@ class Mailer
             // Generate plain text version from HTML
             $this->mail->AltBody = strip_tags($htmlBody);
 
-            return $this->mail->send();
+            $result = $this->mail->send();
+            if ($result) {
+                $mode = $this->useSmtp ? 'SMTP' : 'sendmail';
+                error_log("Newsletter: Mail sent successfully via {$mode} to {$to}");
+            }
+            return $result;
         } catch (Exception $e) {
-            error_log("Message could not be sent. Mailer Error: {$this->mail->ErrorInfo}");
+            $this->lastError = $this->mail->ErrorInfo !== '' ? $this->mail->ErrorInfo : $e->getMessage();
+            $mode = $this->useSmtp ? 'SMTP' : 'sendmail';
+            error_log("Newsletter: Message could not be sent via {$mode}. Error: {$this->lastError}");
             return false;
         }
+    }
+
+    public function getLastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    public function isUsingSmtp(): bool
+    {
+        return $this->useSmtp;
     }
 }

@@ -30,6 +30,17 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
+                    <label for="project_id" class="form-label">Projekt <span class="text-danger">*</span></label>
+                    <select class="form-select" id="project_id" name="project_id" required>
+                        {% for selectableProject in projects %}
+                        <option value="{{ selectableProject.id }}" {% if newsletter.project_id == selectableProject.id %}selected{% endif %}>
+                            {{ selectableProject.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
                     <label for="title" class="form-label">Titel <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="title" name="title"
                            value="{{ newsletter.title }}" required>
@@ -40,9 +51,9 @@
                     <select class="form-select" id="event_id" name="event_id">
                         <option value="">-- Keine Auswahl --</option>
                         {% for event in events %}
-                        <option value="{{ event.id }}"
+                        <option value="{{ event.id }}" data-project-id="{{ event.project_id }}"
                                 {% if newsletter.event_id == event.id %}selected{% endif %}>
-                            {{ event.title }} ({{ event.event_date|date('d.m.Y') }})
+                            {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -70,7 +81,7 @@
 
         <div class="d-grid gap-2 d-md-flex justify-content-md-between">
             <div>
-                <a href="?project_id={{ project.id }}&status=draft" class="btn btn-outline-secondary">
+                <a href="/newsletters?project_id={{ project.id }}&status=draft" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
@@ -78,14 +89,12 @@
                 <button type="button" class="btn btn-outline-warning" id="save-draft-btn">
                     <i class="bi bi-floppy"></i> Speichern
                 </button>
-                <button type="button" class="btn btn-outline-info" id="preview-btn">
+                <button type="button" class="btn btn-outline-info" id="preview-btn" data-bs-toggle="modal" data-bs-target="#previewModal">
                     <i class="bi bi-eye"></i> Vorschau
                 </button>
-                <form id="send-form" method="post" action="/newsletters/{{ newsletter.id }}/send" style="display: inline;">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-send"></i> Versenden
-                    </button>
-                </form>
+                <button type="button" class="btn btn-success" id="send-newsletter-btn">
+                    <i class="bi bi-send"></i> Versenden
+                </button>
             </div>
         </div>
 
@@ -134,35 +143,152 @@
             <i class="bi bi-bookmark"></i> Als Vorlage speichern
         </button>
     </form>
+
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="previewModalLabel">Newsletter-Vorschau</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 pb-3 border-bottom">
+                        <h4 id="preview-modal-title" class="mb-1"></h4>
+                        <small class="text-muted">
+                            Projekt: <span id="preview-modal-project"></span>
+                            | Event: <span id="preview-modal-event">Kein Event</span>
+                        </small>
+                    </div>
+                    <div id="preview-modal-content" class="newsletter-content bg-light p-4 rounded"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="send-form" method="post" action="/newsletters/{{ newsletter.id }}/send" class="d-none"></form>
 </div>
 
 <script>
-// Auto-save every 30 seconds
-setInterval(function() {
-    document.getElementById('edit-newsletter-form').dispatchEvent(new Event('submit'));
-}, 30000);
+const editForm = document.getElementById('edit-newsletter-form');
+const newsletterUpdateUrl = '/newsletters/{{ newsletter.id }}';
+let lastSavedSnapshot = null;
+let saveInProgress = false;
 
-// Save Draft
-document.getElementById('save-draft-btn').addEventListener('click', async function() {
-    const formData = new FormData(document.getElementById('edit-newsletter-form'));
-    formData.set('content_html', tinymce.get('content_html').getContent());
+function filterEventsByProject() {
+    const projectId = document.getElementById('project_id').value;
+    const eventSelect = document.getElementById('event_id');
+    const options = eventSelect.querySelectorAll('option[data-project-id]');
 
-    const response = await fetch('/newsletters/{{ newsletter.id }}', {
-        method: 'POST',
-        body: formData
+    options.forEach(option => {
+        const matches = option.getAttribute('data-project-id') === projectId;
+        option.hidden = !matches;
+        option.disabled = !matches;
     });
 
-    if (!response.ok) {
-        alert('Fehler beim Speichern');
+    const selectedOption = eventSelect.options[eventSelect.selectedIndex];
+    if (selectedOption && selectedOption.hasAttribute('data-project-id')
+        && selectedOption.getAttribute('data-project-id') !== projectId) {
+        eventSelect.value = '';
+    }
+}
+
+function createSnapshot() {
+    const projectId = document.getElementById('project_id').value || '';
+    const title = document.getElementById('title').value || '';
+    const eventId = document.getElementById('event_id').value || '';
+    const editor = tinymce.get('content_html');
+    const contentHtml = editor ? editor.getContent() : '';
+
+    return JSON.stringify({
+        project_id: projectId,
+        title: title,
+        event_id: eventId,
+        content_html: contentHtml
+    });
+}
+
+async function saveNewsletter(showSuccessMessage = false) {
+    if (saveInProgress) {
         return;
     }
 
-    alert('Newsletter gespeichert');
+    const currentSnapshot = createSnapshot();
+    if (lastSavedSnapshot !== null && currentSnapshot === lastSavedSnapshot) {
+        return;
+    }
+
+    saveInProgress = true;
+    const formData = new FormData(editForm);
+    const editor = tinymce.get('content_html');
+    formData.set('content_html', editor ? editor.getContent() : '');
+
+    try {
+        const response = await fetch(newsletterUpdateUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            if (showSuccessMessage) {
+                alert('Fehler beim Speichern');
+            }
+            return;
+        }
+
+        lastSavedSnapshot = currentSnapshot;
+        if (showSuccessMessage) {
+            alert('Newsletter gespeichert');
+        }
+    } finally {
+        saveInProgress = false;
+    }
+}
+
+// Prevent default HTML form submit to avoid navigating to JSON response.
+editForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    saveNewsletter(true);
+});
+
+// Initialize snapshot after editor has loaded.
+window.addEventListener('load', function () {
+    filterEventsByProject();
+    lastSavedSnapshot = createSnapshot();
+});
+
+document.getElementById('project_id').addEventListener('change', filterEventsByProject);
+
+// Auto-save every 30 seconds, but only when something changed.
+setInterval(function () {
+    saveNewsletter(false);
+}, 30000);
+
+// Save Draft
+document.getElementById('save-draft-btn').addEventListener('click', function () {
+    saveNewsletter(true);
 });
 
 // Preview
 document.getElementById('preview-btn').addEventListener('click', function() {
-    window.open('/newsletters/{{ newsletter.id }}/preview', '_blank');
+    const selectedEvent = document.querySelector('#event_id option:checked');
+    document.getElementById('preview-modal-title').textContent = document.getElementById('title').value || 'Ohne Titel';
+    document.getElementById('preview-modal-project').textContent = document.querySelector('#project_id option:checked')?.textContent?.trim() || '';
+    document.getElementById('preview-modal-event').textContent = selectedEvent && selectedEvent.value
+        ? selectedEvent.textContent.trim()
+        : 'Kein Event';
+    document.getElementById('preview-modal-content').innerHTML = tinymce.get('content_html')?.getContent() || '';
+});
+
+document.getElementById('send-newsletter-btn').addEventListener('click', function () {
+    if (confirm('Newsletter jetzt versenden?')) {
+        document.getElementById('send-form').submit();
+    }
 });
 
 // Save Template

@@ -55,4 +55,9 @@ class User extends Model
     {
         return $this->hasMany(Attendance::class, 'user_id', 'id');
     }
+
+    public function newsletterRecipients()
+    {
+        return $this->hasMany(NewsletterRecipient::class, 'user_id', 'id');
+    }
 }

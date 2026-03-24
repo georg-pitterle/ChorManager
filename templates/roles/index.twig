@@ -40,6 +40,7 @@
                         <th>Finanzen (Kassa)</th>
                         <th>Sponsoring</th>
                         <th>Liedbibliothek</th>
+                        <th>Newsletter</th>
                         <th class="text-end">Aktive Mitglieder</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
@@ -98,6 +99,13 @@
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
+                        <td data-label="Newsletter">
+                            {% if role.can_manage_newsletters %}
+                                <span class="badge bg-success"><i class="bi bi-envelope-open"></i> Ja</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                            {% endif %}
+                        </td>
                         <td data-label="Aktive Mitglieder" class="text-end">
                             <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
                         </td>
@@ -114,14 +122,15 @@
                                 data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
                                 data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
                                 data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
-                                data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}">
+                                data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
+                                data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}">
                                 <i class="bi bi-pencil"></i> Bearbeiten
                             </button>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="11" class="text-center py-4 text-muted">Keine Rollen gefunden.</td>
+                        <td colspan="12" class="text-center py-4 text-muted">Keine Rollen gefunden.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -204,6 +213,14 @@
                         Liedbibliothek verwalten
                     </label>
                     <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_newsletters" name="can_manage_newsletters" value="1">
+                    <label class="form-check-label fw-bold text-success" for="can_manage_newsletters">
+                        Newsletter verwalten
+                    </label>
+                    <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -288,6 +305,14 @@
                         Liedbibliothek verwalten
                     </label>
                     <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_newsletters" name="can_manage_newsletters" value="1">
+                    <label class="form-check-label fw-bold text-success" for="edit_can_manage_newsletters">
+                        Newsletter verwalten
+                    </label>
+                    <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
                 </div>
             </div>
             <div class="modal-footer">

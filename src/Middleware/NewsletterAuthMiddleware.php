@@ -11,6 +11,7 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use App\Models\Newsletter;
 use App\Models\Project;
 use App\Models\User;
+use Slim\Psr7\Response as Psr7Response;
 
 class NewsletterAuthMiddleware implements MiddlewareInterface
 {
@@ -95,7 +96,7 @@ class NewsletterAuthMiddleware implements MiddlewareInterface
 
     private function forbiddenResponse(string $message): Response
     {
-        $response = new \GuzzleHttp\Psr7\Response(403);
+        $response = new Psr7Response(403);
         $response->getBody()->write(json_encode(['error' => $message]));
         return $response->withHeader('Content-Type', 'application/json');
     }

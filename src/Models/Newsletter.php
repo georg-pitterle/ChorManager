@@ -27,6 +27,11 @@ class Newsletter extends Model
     ];
 
     protected $casts = [
+        'project_id' => 'integer',
+        'event_id' => 'integer',
+        'recipient_count' => 'integer',
+        'locked_by' => 'integer',
+        'created_by' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'locked_at' => 'datetime',

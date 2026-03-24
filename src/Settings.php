@@ -3,18 +3,19 @@
 declare(strict_types=1);
 
 use DI\ContainerBuilder;
+use App\Util\EnvHelper;
 
 return function (ContainerBuilder $containerBuilder) {
     // Global Settings Object
     $containerBuilder->addDefinitions([
         'settings' => [
-            'displayErrorDetails' => getenv('APP_ENV') !== 'production', // Set to false in production
+            'displayErrorDetails' => EnvHelper::read('APP_ENV', 'development') !== 'production', // Set to false in production
             'db' => [
                 'driver' => 'mysql',
-                'host' => $_ENV['DB_HOST'] ?? 'db',
-                'database' => $_ENV['DB_DATABASE'] ?? 'db',
-                'username' => $_ENV['DB_USERNAME'] ?? 'db',
-                'password' => $_ENV['DB_PASSWORD'] ?? 'db',
+                'host' => EnvHelper::read('DB_HOST', 'db'),
+                'database' => EnvHelper::read('DB_DATABASE', 'db'),
+                'username' => EnvHelper::read('DB_USERNAME', 'db'),
+                'password' => EnvHelper::read('DB_PASSWORD', 'db'),
                 'charset' => 'utf8mb4',
                 'collation' => 'utf8mb4_unicode_ci',
                 'prefix' => '',

@@ -14,11 +14,12 @@
 <body>
     {% if session.user_id %}
     {% set path = current_path|default('/') %}
-    {% set is_dashboard_active = path == '/' or path starts with '/dashboard' or active_nav|default('') == 'dashboard' %}
-    {% set is_events_active = path starts with '/events' or path starts with '/attendance' or active_nav|default('') == 'events' %}
-    {% set is_areas_active = path starts with '/finances' or path starts with '/sponsoring' or path starts with '/song-library' or path starts with '/downloads' or active_nav|default('') in ['finances', 'sponsoring', 'song_library', 'downloads'] %}
-    {% set is_admin_active = path starts with '/users' or path starts with '/projects' or path starts with '/roles' or path starts with '/voice-groups' or path starts with '/event-types' or path starts with '/settings' or active_nav|default('') in ['users', 'projects', 'roles', 'voice_groups', 'event_types', 'settings'] %}
-    {% set is_evaluations_active = path starts with '/evaluations' or active_nav|default('') == 'evaluations' %}
+    {% set nav = active_nav|default('') %}
+    {% set is_dashboard_active = nav_active(path, nav, ['/', '/dashboard'], ['dashboard']) %}
+    {% set is_events_active = nav_active(path, nav, ['/events', '/attendance'], ['events']) %}
+    {% set is_areas_active = nav_active(path, nav, ['/finances', '/sponsoring', '/song-library', '/downloads', '/newsletters'], ['finances', 'sponsoring', 'song_library', 'downloads', 'newsletters', 'newsletters_archive', '/newsletters/archive']) %}
+    {% set is_admin_active = nav_active(path, nav, ['/users', '/projects', '/roles', '/voice-groups', '/event-types', '/settings'], ['users', 'projects', 'roles', 'voice_groups', 'event_types', 'settings']) %}
+    {% set is_evaluations_active = nav_active(path, nav, ['/evaluations'], ['evaluations', 'evaluations_project_members']) %}
 
     {% set can_show_admin = session.can_manage_master_data or session.can_manage_users or session.role_level >= 40 %}
     {% set can_show_evaluations = session.can_manage_users or session.role_level >= 40 or session.can_manage_project_members %}
@@ -39,8 +40,8 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if is_events_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-calendar-event me-1"></i> Termine</a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item {% if path starts with '/events' or active_nav|default('') == 'events' %}active{% endif %}" href="/events"><i class="bi bi-calendar-event me-2"></i> Termine</a></li>
-                            <li><a class="dropdown-item {% if path starts with '/attendance' %}active{% endif %}" href="/attendance"><i class="bi bi-check2-square me-2"></i> Anwesenheit</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/events'], ['events']) %}active{% endif %}" href="/events"><i class="bi bi-calendar-event me-2"></i> Termine</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/attendance'], ['attendance']) %}active{% endif %}" href="/attendance"><i class="bi bi-check2-square me-2"></i> Anwesenheit</a></li>
                         </ul>
                     </li>
 
@@ -48,15 +49,19 @@
                         <a class="nav-link dropdown-toggle {% if is_areas_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-grid-3x3-gap-fill me-1"></i> Bereiche</a>
                         <ul class="dropdown-menu">
                             {% if session.can_manage_finances %}
-                            <li><a class="dropdown-item {% if path starts with '/finances' or active_nav|default('') == 'finances' %}active{% endif %}" href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/finances'], ['finances']) %}active{% endif %}" href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a></li>
                             {% endif %}
                             {% if session.can_manage_sponsoring %}
-                            <li><a class="dropdown-item {% if path starts with '/sponsoring' or active_nav|default('') == 'sponsoring' %}active{% endif %}" href="/sponsoring"><i class="bi bi-briefcase me-2"></i> Sponsoring</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/sponsoring'], ['sponsoring']) %}active{% endif %}" href="/sponsoring"><i class="bi bi-briefcase me-2"></i> Sponsoring</a></li>
                             {% endif %}
                             {% if session.can_manage_song_library %}
-                            <li><a class="dropdown-item {% if path starts with '/song-library' or active_nav|default('') == 'song_library' %}active{% endif %}" href="/song-library"><i class="bi bi-music-note-list me-2"></i> Liedbibliothek</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/song-library'], ['song_library']) %}active{% endif %}" href="/song-library"><i class="bi bi-music-note-list me-2"></i> Liedbibliothek</a></li>
                             {% endif %}
-                            <li><a class="dropdown-item {% if path starts with '/downloads' or active_nav|default('') == 'downloads' %}active{% endif %}" href="/downloads"><i class="bi bi-download me-2"></i> Downloads</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/downloads'], ['downloads']) %}active{% endif %}" href="/downloads"><i class="bi bi-download me-2"></i> Downloads</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/newsletters/archive'], ['newsletters_archive', '/newsletters/archive']) %}active{% endif %}" href="/newsletters/archive"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a></li>
+                            {% if session.can_manage_newsletters %}
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/newsletters'], ['newsletters'], ['/newsletters/archive']) %}active{% endif %}" href="/newsletters"><i class="bi bi-envelope-open me-2"></i> Newsletter</a></li>
+                            {% endif %}
                         </ul>
                     </li>
 
@@ -65,15 +70,15 @@
                         <a class="nav-link dropdown-toggle {% if is_admin_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-gear-fill me-1"></i> Verwaltung</a>
                         <ul class="dropdown-menu">
                             {% if session.can_manage_users or session.role_level >= 40 %}
-                            <li><a class="dropdown-item {% if path starts with '/users' or active_nav|default('') == 'users' %}active{% endif %}" href="/users"><i class="bi bi-people-fill me-2"></i> Mitgliederverwaltung</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/users'], ['users']) %}active{% endif %}" href="/users"><i class="bi bi-people-fill me-2"></i> Mitgliederverwaltung</a></li>
                             {% endif %}
                             {% if session.can_manage_master_data or session.can_manage_users %}
-                            <li><a class="dropdown-item {% if path starts with '/projects' or active_nav|default('') == 'projects' %}active{% endif %}" href="/projects"><i class="bi bi-folder-fill me-2"></i> Projekte</a></li>
-                            <li><a class="dropdown-item {% if path starts with '/roles' or active_nav|default('') == 'roles' %}active{% endif %}" href="/roles"><i class="bi bi-shield-lock-fill me-2"></i> Rollen</a></li>
-                            <li><a class="dropdown-item {% if path starts with '/voice-groups' or active_nav|default('') == 'voice_groups' %}active{% endif %}" href="/voice-groups"><i class="bi bi-music-note-beamed me-2"></i> Stimmgruppen</a></li>
-                            <li><a class="dropdown-item {% if path starts with '/event-types' or active_nav|default('') == 'event_types' %}active{% endif %}" href="/event-types"><i class="bi bi-tag me-2"></i> Event-Typen</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/projects'], ['projects']) %}active{% endif %}" href="/projects"><i class="bi bi-folder-fill me-2"></i> Projekte</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/roles'], ['roles']) %}active{% endif %}" href="/roles"><i class="bi bi-shield-lock-fill me-2"></i> Rollen</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/voice-groups'], ['voice_groups']) %}active{% endif %}" href="/voice-groups"><i class="bi bi-music-note-beamed me-2"></i> Stimmgruppen</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/event-types'], ['event_types']) %}active{% endif %}" href="/event-types"><i class="bi bi-tag me-2"></i> Event-Typen</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item {% if path starts with '/settings' or active_nav|default('') == 'settings' %}active{% endif %}" href="/settings"><i class="bi bi-sliders me-2"></i> App-Einstellungen</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/settings'], ['settings']) %}active{% endif %}" href="/settings"><i class="bi bi-sliders me-2"></i> App-Einstellungen</a></li>
                             {% endif %}
                         </ul>
                     </li>
@@ -84,9 +89,9 @@
                         <a class="nav-link dropdown-toggle {% if is_evaluations_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-bar-chart-fill me-1"></i> Auswertungen</a>
                         <ul class="dropdown-menu">
                             {% if session.can_manage_users or session.role_level >= 40 %}
-                            <li><a class="dropdown-item {% if path starts with '/evaluations' and not (path starts with '/evaluations/project-members') %}active{% endif %}" href="/evaluations"><i class="bi bi-bar-chart-line-fill me-2"></i> Anwesenheitsquoten</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/evaluations'], ['evaluations'], ['/evaluations/project-members']) %}active{% endif %}" href="/evaluations"><i class="bi bi-bar-chart-line-fill me-2"></i> Anwesenheitsquoten</a></li>
                             {% endif %}
-                            <li><a class="dropdown-item {% if path starts with '/evaluations/project-members' %}active{% endif %}" href="/evaluations/project-members"><i class="bi bi-people-fill me-2"></i> Projektmitglieder</a></li>
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/evaluations/project-members'], ['evaluations_project_members']) %}active{% endif %}" href="/evaluations/project-members"><i class="bi bi-people-fill me-2"></i> Projektmitglieder</a></li>
                         </ul>
                     </li>
                     {% endif %}
@@ -114,25 +119,8 @@
     <script src="/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/common.js"></script>
 
-    <!-- TinyMCE WYSIWYG Editor -->
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js"></script>
-    <script>
-        if (document.querySelector('.tinymce-editor')) {
-            tinymce.init({
-                selector: '.tinymce-editor',
-                plugins: 'image link media table lists code fullscreen',
-                toolbar: 'undo redo | formatselect | bold italic underline | forecolor | alignleft aligncenter alignright | bullist numlist outdent indent | link image media table | code fullscreen',
-                height: 400,
-                menubar: 'file edit view insert format tools table help',
-                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; }',
-                setup: function(editor) {
-                    editor.on('change', function() {
-                        tinymce.triggerSave();
-                    });
-                }
-            });
-        }
-    </script>
+    <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
+    <script src="/js/tinymce-init.js"></script>
 
     {% block scripts %}{% endblock %}
 </body>

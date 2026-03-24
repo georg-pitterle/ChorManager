@@ -4,13 +4,30 @@
 
 {% block content %}
 <div class="container mt-4">
+    {% if projects|length == 0 %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+        Keine Projekte verfuegbar.
+    </div>
+    {% else %}
     <div class="row mb-4">
         <div class="col-md-8">
             <h1>Newsletter</h1>
             <p class="text-muted">Projekt: <strong>{{ project.name }}</strong></p>
+            <form method="get" class="d-flex align-items-center gap-2 mt-2">
+                <label for="project_id" class="form-label mb-0">Projekt:</label>
+                <select id="project_id" name="project_id" class="form-select onchange-submit" style="max-width: 320px;">
+                    {% for selectableProject in projects %}
+                    <option value="{{ selectableProject.id }}" {% if selectableProject.id == project.id %}selected{% endif %}>
+                        {{ selectableProject.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="status" value="{{ status }}">
+            </form>
         </div>
         <div class="col-md-4 text-end">
-            <a href="{{ request.getQueryParams()['project_id'] }}" class="btn btn-primary">
+            <a href="/newsletters/create?project_id={{ project.id }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Neuer Newsletter
             </a>
         </div>
@@ -97,6 +114,7 @@
         <i class="bi bi-info-circle"></i>
         Keine Newsletter in dieser Kategorie vorhanden.
     </div>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

@@ -21,6 +21,7 @@ class Role extends Model
         'can_manage_master_data',
         'can_manage_sponsoring',
         'can_manage_song_library',
+        'can_manage_newsletters',
     ];
 
     public function users()

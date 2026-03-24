@@ -15,7 +15,7 @@ class RememberLoginService
 
     public function __construct()
     {
-        $configuredDays = (int) (getenv('REMEMBER_ME_DAYS') ?: 30);
+        $configuredDays = (int) \App\Util\EnvHelper::read('REMEMBER_ME_DAYS', '30');
         $this->rememberDays = max(1, $configuredDays);
     }
 
@@ -138,7 +138,7 @@ class RememberLoginService
 
     private function shouldUseSecureCookie(): bool
     {
-        if (getenv('APP_ENV') === 'production') {
+        if (\App\Util\EnvHelper::read('APP_ENV', 'development') === 'production') {
             return true;
         }
 

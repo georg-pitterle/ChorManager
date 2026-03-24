@@ -15,7 +15,7 @@
                             | Erstellt: {{ newsletter.created_at|date('d.m.Y H:i') }}
                         </small>
                     </div>
-                    <a href="{{ request.getQueryParams()['project_id'] ? '/newsletters?project_id=' ~ request.getQueryParams()['project_id'] ~ '&status=draft' : 'javascript:history.back()' }}"
+                    <a href="/newsletters?project_id={{ newsletter.project_id }}&status={{ newsletter.status == 'sent' ? 'sent' : 'draft' }}"
                        class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-x-circle"></i> Schließen
                     </a>

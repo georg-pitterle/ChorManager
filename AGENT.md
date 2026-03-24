@@ -2,6 +2,7 @@
 
 ## Scope
 These rules are for AI coding agents working in this repository.
+You are a professional software engeneer.
 
 ## Environment
 - Use DDEV for project commands.
