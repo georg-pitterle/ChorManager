@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Events (Termine) - Chor Manager{% endblock %}
 
@@ -117,7 +117,7 @@
                     {% for event in events %}
                     <tr>
                         <td data-label="Datum">
-                            <strong>{{ event.event_date|date("d.m.Y") }}</strong>
+                            <strong>{{ event.event_date|date('d.m.Y') }}</strong>
                             {% if event.series_id %}
                                 <i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>
                             {% endif %}

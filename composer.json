@@ -18,8 +18,10 @@
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
+        "friendsoftwig/twigcs": "^6.6",
         "phpunit/phpunit": "^10.0",
-        "squizlabs/php_codesniffer": "^4.0"
+        "squizlabs/php_codesniffer": "^4.0",
+        "vincentlanglet/twig-cs-fixer": "^3.14"
     },
     "autoload": {
         "psr-4": {
@@ -33,6 +35,8 @@
     "scripts": {
         "phpcs": "phpcs --standard=phpcs.xml src/",
         "phpcbf": "phpcbf --standard=phpcs.xml src/",
+        "twigcs": "twigcs --display blocking",
+        "twigcbf": "twig-cs-fixer fix",
         "migrate": "phinx migrate -e development",
         "seed:dev": "php bin/dev_seed.php",
         "post-install-cmd": [

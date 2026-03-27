@@ -1,0 +1,9 @@
+root = true
+
+[*.{php,js,css,twig,json,md,yml,yaml,xml,sql,sh,env}]
+end_of_line = lf
+insert_final_newline = true
+
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+insert_final_newline = true

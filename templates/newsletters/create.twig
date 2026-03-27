@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Newsletter erstellen{% endblock %}
 
@@ -20,9 +20,9 @@
                 <div class="mb-3">
                     <label for="project_id" class="form-label">Projekt <span class="text-danger">*</span></label>
                     <select class="form-select" id="project_id" name="project_id" required>
-                        {% for selectableProject in projects %}
-                        <option value="{{ selectableProject.id }}" {% if selectableProject.id == project.id %}selected{% endif %}>
-                            {{ selectableProject.name }}
+                        {% for selectable_project in projects %}
+                        <option value="{{ selectable_project.id }}" {% if selectable_project.id == project.id %}selected{% endif %}>
+                            {{ selectable_project.name }}
                         </option>
                         {% endfor %}
                     </select>

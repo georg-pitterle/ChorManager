@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Mein Profil - Chor Manager{% endblock %}
 
@@ -52,9 +52,9 @@
                         </button>
                     </div>
                 </form>
-                
+
                 <hr>
-                
+
                 <div class="row mt-4">
                     <div class="col-6 mb-3">
                         <label class="text-muted small fw-bold text-uppercase">Rolle(n)</label>
@@ -92,19 +92,19 @@
             </div>
             <div class="card-body">
                 <form action="/profile/password" method="post">
-                    
+
                     <div class="mb-4">
                         <label for="old_password" class="form-label">Aktuelles Passwort</label>
                         <input type="password" class="form-control" id="old_password" name="old_password" required>
                     </div>
                     <hr>
-                    
+
                     <div class="mb-3">
                         <label for="new_password" class="form-label">Neues Passwort</label>
                         <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6">
                         <div class="form-text">Das Passwort muss aus mindestens 6 Zeichen bestehen.</div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label for="new_password_confirm" class="form-label">Neues Passwort bestätigen</label>
                         <input type="password" class="form-control" id="new_password_confirm" name="new_password_confirm" required minlength="6">

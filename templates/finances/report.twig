@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Finanzauswertung - Chor Manager{% endblock %}
 
@@ -43,7 +43,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-4">
         <div class="card shadow-sm border-0 border-start border-danger border-4 h-100">
             <div class="card-body py-4">
@@ -59,7 +59,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-4">
         <div class="card shadow-sm border-0 border-start {{ balance >= 0 ? 'border-primary' : 'border-warning' }} border-4 h-100">
             <div class="card-body py-4">
@@ -277,7 +277,7 @@
                         <td colspan="5" class="text-center py-4 text-muted">Keine Buchungen vorhanden.</td>
                     </tr>
                     {% endfor %}
-                    
+
                     {% if finances|length > 0 %}
                     <tr class="table-dark fw-bold">
                         <td colspan="3" class="text-end">Gesamtsaldo:</td>

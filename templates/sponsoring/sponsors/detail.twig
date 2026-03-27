@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}{{ sponsor.name }} - Sponsoring - Chor Manager{% endblock %}
 
@@ -37,10 +37,10 @@
 {% endif %}
 
 {# Status-Badge #}
-{% set statusColors = {'prospect': 'secondary', 'contacted': 'info', 'negotiating': 'warning', 'active': 'success', 'paused': 'secondary', 'closed': 'dark'} %}
-{% set statusLabels = {'prospect': 'Interessent', 'contacted': 'Kontaktiert', 'negotiating': 'Verhandlung', 'active': 'Aktiv', 'paused': 'Pausiert', 'closed': 'Abgeschlossen'} %}
+{% set status_colors = {prospect: 'secondary', contacted: 'info', negotiating: 'warning', active: 'success', paused: 'secondary', closed: 'dark'} %}
+{% set status_labels = {prospect: 'Interessent', contacted: 'Kontaktiert', negotiating: 'Verhandlung', active: 'Aktiv', paused: 'Pausiert', closed: 'Abgeschlossen'} %}
 <p class="mb-3">
-    <span class="badge fs-6 bg-{{ statusColors[sponsor.status] ?? 'secondary' }}">{{ statusLabels[sponsor.status] ?? sponsor.status }}</span>
+    <span class="badge fs-6 bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
 </p>
 
 {# Tabs #}
@@ -82,7 +82,7 @@
                             <label class="form-label">Status</label>
                             <select name="status" class="form-select">
                                 {% for s in statuses %}
-                                <option value="{{ s }}" {{ s == sponsor.status ? 'selected' : '' }}>{{ statusLabels[s] ?? s }}</option>
+                                <option value="{{ s }}" {{ s == sponsor.status ? 'selected' : '' }}>{{ status_labels[s] ?? s }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -125,15 +125,15 @@
 
     {# ─── Tab 2: Vereinbarungen ─── #}
     <div class="tab-pane fade" id="pane-vereinbarungen" role="tabpanel">
-        {% set activeTotal = 0 %}
+        {% set active_total = 0 %}
         {% for s in sponsor.sponsorships %}
             {% if s.status == 'active' %}
-                {% set activeTotal = activeTotal + s.amount %}
+                {% set active_total = active_total + s.amount %}
             {% endif %}
         {% endfor %}
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="text-muted">Aktive Vereinbarungen: <strong>{{ activeTotal|number_format(2, '.', ',') }} €</strong></span>
+            <span class="text-muted">Aktive Vereinbarungen: <strong>{{ active_total|number_format(2, '.', ',') }} €</strong></span>
             <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newSponsorshipModal">
                 <i class="bi bi-plus-lg me-1"></i>Neue Vereinbarung
             </button>
@@ -162,7 +162,7 @@
                             <span class="badge bg-{{ sp.package.color }}">{{ sp.package.name }}</span>
                             {% else %}–{% endif %}
                         </td>
-                        <td><span class="badge bg-{{ statusColors[sp.status] ?? 'secondary' }}">{{ statusLabels[sp.status] ?? sp.status }}</span></td>
+                        <td><span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span></td>
                         <td class="text-nowrap">{{ sp.amount|number_format(2, '.', ',') }} €</td>
                         <td>{{ sp.project ? sp.project.name : '–' }}</td>
                         <td>{{ sp.assignedUser ? sp.assignedUser.first_name ~ ' ' ~ sp.assignedUser.last_name : '–' }}</td>
@@ -244,7 +244,7 @@
                                     <label class="form-label">Status</label>
                                     <select name="status" class="form-select">
                                         {% for s in statuses %}
-                                        <option value="{{ s }}">{{ statusLabels[s] ?? s }}</option>
+                                        <option value="{{ s }}">{{ status_labels[s] ?? s }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -323,7 +323,7 @@
                                     <label class="form-label">Status</label>
                                     <select name="status" class="form-select">
                                         {% for s in statuses %}
-                                        <option value="{{ s }}" {{ s == sp.status ? 'selected' : '' }}>{{ statusLabels[s] ?? s }}</option>
+                                        <option value="{{ s }}" {{ s == sp.status ? 'selected' : '' }}>{{ status_labels[s] ?? s }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>

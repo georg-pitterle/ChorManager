@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Dashboard - {{ app_settings.app_name|default('Chor Manager') }}{% endblock %}
 
@@ -22,7 +22,7 @@
             </div>
         </div>
     </div>
-    
+
     {% if can_manage_users %}
     <div class="col-md-4 mb-4">
         <div class="card h-100 shadow-sm border-success">

@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Rollen verwalten - Chor Manager{% endblock %}
 
@@ -110,8 +110,8 @@
                             <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
                         </td>
                         <td data-label="Aktionen" class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-secondary edit-role-btn" 
-                                data-bs-toggle="modal" 
+                            <button type="button" class="btn btn-sm btn-outline-secondary edit-role-btn"
+                                data-bs-toggle="modal"
                                 data-bs-target="#editRoleModal"
                                 data-id="{{ role.id }}"
                                 data-name="{{ role.name }}"
@@ -152,7 +152,7 @@
                     <label for="name" class="form-label">Rollenname *</label>
                     <input type="text" class="form-control" id="name" name="name" required>
                 </div>
-                
+
                 <div class="mb-3">
                     <label for="hierarchy_level" class="form-label">Hierarchie-Level (0-100) *</label>
                     <input type="number" class="form-control" id="hierarchy_level" name="hierarchy_level" min="0" max="100" value="0" required>
@@ -244,7 +244,7 @@
                     <label for="edit_name" class="form-label">Rollenname *</label>
                     <input type="text" class="form-control" id="edit_name" name="name" required>
                 </div>
-                
+
                 <div class="mb-3">
                     <label for="edit_hierarchy_level" class="form-label">Hierarchie-Level (0-100) *</label>
                     <input type="number" class="form-control" id="edit_hierarchy_level" name="hierarchy_level" min="0" max="100" required>

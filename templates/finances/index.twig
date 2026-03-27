@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Kassabuch - Chor Manager{% endblock %}
 
@@ -80,8 +80,8 @@
                     {% for item in finances %}
                     <tr>
                         <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
-                        <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
-                        <td data-label="Zahldatum">{{ item.payment_date ? item.payment_date|date("d.m.Y") : '<span class="text-danger small">Offen</span>'|raw }}</td>
+                        <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
+                        <td data-label="Zahldatum">{{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}</td>
                         <td data-label="Beschreibung">{{ item.description }}</td>
                         <td data-label="Gruppe">
                             {% if item.group_name %}
@@ -129,8 +129,8 @@
                             {% endif %}
                         </td>
                         <td data-label="Aktionen" class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary me-1" 
-                                onclick="editFinance({{ item|json_encode() }})" 
+                            <button class="btn btn-sm btn-outline-secondary me-1"
+                                onclick="editFinance({{ item|json_encode() }})"
                                 title="Bearbeiten">
                                 <i class="bi bi-pencil"></i>
                             </button>
@@ -161,7 +161,7 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" name="id" id="finance_id" value="">
-                
+
                 <div class="mb-3">
                     <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
                     <input type="date" class="form-control" id="invoice_date" name="invoice_date" required>

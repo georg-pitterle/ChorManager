@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Event-Typen - Chor Manager{% endblock %}
 
@@ -88,7 +88,7 @@
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen? 
+                            Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen?
                             <p class="text-danger mt-2 small"><i class="bi bi-exclamation-triangle-fill"></i> Bestehende Events mit diesem Typ werden auf "null" gesetzt!</p>
                         </div>
                         <div class="modal-footer border-0">

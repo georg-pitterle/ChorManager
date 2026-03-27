@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Mitgliederverwaltung - Chor Manager{% endblock %}
 
@@ -58,10 +58,10 @@
                                         {% if g.id == group_id %}
                                             <span class="d-inline-block border p-1 rounded mb-1 text-nowrap">
                                             {{ g.name }}
-                                            {% set svId = user.voice_group_pivots[group_id] %}
-                                            {% if svId %}
+                                            {% set sv_id = user.voice_group_pivots[group_id] %}
+                                            {% if sv_id %}
                                                 {% for sv in sub_voices %}
-                                                    {% if sv.id == svId %}
+                                                    {% if sv.id == sv_id %}
                                                         <small class="text-muted">({{ sv.name }})</small>
                                                     {% endif %}
                                                 {% endfor %}
@@ -130,12 +130,12 @@
                         <input type="text" class="form-control" id="last_name" name="last_name" required>
                     </div>
                 </div>
-                
+
                 <div class="mb-3">
                     <label for="email" class="form-label">E-Mail-Adresse *</label>
                     <input type="email" class="form-control" id="email" name="email" required>
                 </div>
-                
+
                 <div class="mb-3">
                     <label for="password" class="form-label">Initiales Passwort *</label>
                     <input type="password" class="form-control" id="password" name="password" required>
@@ -220,12 +220,12 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Rollen (Mehrfachauswahl) *</label><br>
                         {% for role in roles %}
-                            {% set hasRole = false %}
+                            {% set has_role = false %}
                             {% for ur in user.roles %}
-                                {% if ur.id == role.id %}{% set hasRole = true %}{% endif %}
+                                {% if ur.id == role.id %}{% set has_role = true %}{% endif %}
                             {% endfor %}
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="roles[]" value="{{ role.id }}" id="role_{{ user.id }}_{{ role.id }}" {% if hasRole %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" name="roles[]" value="{{ role.id }}" id="role_{{ user.id }}_{{ role.id }}" {% if has_role %}checked{% endif %}>
                                 <label class="form-check-label" for="role_{{ user.id }}_{{ role.id }}">{{ role.name }}</label>
                             </div>
                         {% endfor %}
@@ -233,19 +233,19 @@
                     <div class="col-md-6 mb-3 border-start">
                         <label class="form-label">Stimmengruppen</label><br>
                         {% for group in voice_groups %}
-                            {% set hasGroup = group.id in user.voice_group_ids %}
-                            {% set currentSubvoice = user.voice_group_pivots[group.id] ?? null %}
+                            {% set has_group = group.id in user.voice_group_ids %}
+                            {% set current_subvoice = user.voice_group_pivots[group.id] ?? null %}
                             <div class="mb-2 p-2 border rounded bg-light">
                                 <div class="form-check">
-                                    <input class="form-check-input vg-checkbox" type="checkbox" name="voice_groups[]" value="{{ group.id }}" id="vg_{{ user.id }}_{{ group.id }}" {% if hasGroup %}checked{% endif %}>
+                                    <input class="form-check-input vg-checkbox" type="checkbox" name="voice_groups[]" value="{{ group.id }}" id="vg_{{ user.id }}_{{ group.id }}" {% if has_group %}checked{% endif %}>
                                     <label class="form-check-label fw-bold" for="vg_{{ user.id }}_{{ group.id }}">{{ group.name }}</label>
                                 </div>
-                                <div class="mt-1 ps-4 collapse-sv" {% if not hasGroup %}style="display: none;"{% endif %}>
+                                <div class="mt-1 ps-4 collapse-sv" {% if not has_group %}style="display: none;"{% endif %}>
                                     <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
                                         <option value="">(Keine Teilstimme)</option>
                                         {% for sv in sub_voices %}
                                             {% if sv.voice_group_id == group.id %}
-                                                <option value="{{ sv.id }}" {% if currentSubvoice == sv.id %}selected{% endif %}>{{ sv.name }}</option>
+                                                <option value="{{ sv.id }}" {% if current_subvoice == sv.id %}selected{% endif %}>{{ sv.name }}</option>
                                             {% endif %}
                                         {% endfor %}
                                     </select>
@@ -261,9 +261,9 @@
                     <div class="form-text mb-2">Mitglied diesen Projekten zuordnen:</div>
                     <div class="d-flex flex-wrap gap-2">
                         {% for p in projects %}
-                            {% set inProject = p.id in user.project_ids %}
+                            {% set in_project = p.id in user.project_ids %}
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="projects[]" value="{{ p.id }}" id="proj_{{ user.id }}_{{ p.id }}" {% if inProject %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" name="projects[]" value="{{ p.id }}" id="proj_{{ user.id }}_{{ p.id }}" {% if in_project %}checked{% endif %}>
                                 <label class="form-check-label" for="proj_{{ user.id }}_{{ p.id }}">{{ p.name }}</label>
                             </div>
                         {% endfor %}

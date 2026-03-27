@@ -1,4 +1,4 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}Sponsoren - Chor Manager{% endblock %}
 
@@ -79,9 +79,9 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% set statusColors = {'prospect': 'secondary', 'contacted': 'info', 'negotiating': 'warning', 'active': 'success', 'paused': 'secondary', 'closed': 'dark'} %}
-                    {% set statusLabels = {'prospect': 'Interessent', 'contacted': 'Kontaktiert', 'negotiating': 'Verhandlung', 'active': 'Aktiv', 'paused': 'Pausiert', 'closed': 'Abgeschlossen'} %}
-                    <span class="badge bg-{{ statusColors[sponsor.status] ?? 'secondary' }}">{{ statusLabels[sponsor.status] ?? sponsor.status }}</span>
+                    {% set status_colors = {prospect: 'secondary', contacted: 'info', negotiating: 'warning', active: 'success', paused: 'secondary', closed: 'dark'} %}
+                    {% set status_labels = {prospect: 'Interessent', contacted: 'Kontaktiert', negotiating: 'Verhandlung', active: 'Aktiv', paused: 'Pausiert', closed: 'Abgeschlossen'} %}
+                    <span class="badge bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
                 </td>
                 <td>
                     {% if sponsor.email %}
