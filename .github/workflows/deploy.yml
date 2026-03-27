@@ -51,6 +51,8 @@ jobs:
       with:
         context: .
         file: ./Dockerfile.web
+        build-args: |
+          APP_IMAGE=${{ steps.set-images.outputs.app }}
         push: true
         tags: ${{ steps.set-images.outputs.web }}
         platforms: linux/amd64,linux/arm64
