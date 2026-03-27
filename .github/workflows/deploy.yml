@@ -28,16 +28,31 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set image tag
-      id: set-tag
-      run: echo "tag=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):latest" >> $GITHUB_OUTPUT
+    - name: Set image names
+      id: set-images
+      run: |
+        OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        echo "app=ghcr.io/$OWNER/chormanager-app:latest" >> "$GITHUB_OUTPUT"
+        echo "web=ghcr.io/$OWNER/chormanager-web:latest" >> "$GITHUB_OUTPUT"
 
-    - name: Build and push Docker image
+    - name: Build and push app image
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./Dockerfile
         push: true
-        tags: ${{ steps.set-tag.outputs.tag }}
+        tags: ${{ steps.set-images.outputs.app }}
         platforms: linux/amd64,linux/arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=app
+        cache-to: type=gha,mode=max,scope=app
+
+    - name: Build and push web image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.web
+        push: true
+        tags: ${{ steps.set-images.outputs.web }}
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha,scope=web
+        cache-to: type=gha,mode=max,scope=web

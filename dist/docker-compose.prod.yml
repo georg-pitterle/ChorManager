@@ -23,8 +23,7 @@ services:
     working_dir: /var/www/html
     environment: *app-environment
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - internal
     healthcheck:
@@ -75,12 +74,10 @@ services:
 
   web:
     image: ghcr.io/georg-pitterle/chormanager-web:latest
-    container_name: chormanager-web-prod
     hostname: chormanager-web-prod
     restart: unless-stopped
     depends_on:
-      app:
-        condition: service_healthy
+      - app
     networks:
       internal:
       proxy:
@@ -109,6 +106,7 @@ services:
 
 volumes:
   db_data:
+
 
 networks:
   internal:
