@@ -46,11 +46,6 @@ The seed report now includes `credentials_by_role` with one demo login per role:
 Each entry contains `role`, `email`, `password_plain`, and `user_id`.
 These credentials are generated for Dev-only workflows and must never be used in production.
 
-### Requirement for New Features
-
-Every newly implemented feature must include matching seed data updates so the feature is testable immediately in a fresh Dev environment.
-At minimum, update the Dev seed implementation in `src/Services/DevSeedService.php` and include realistic sample records for the new domain model.
-
 ## SMTP Configuration via ENV
 
 SMTP settings are configured via environment variables and are no longer managed in the Stammdaten/App-Einstellungen UI.

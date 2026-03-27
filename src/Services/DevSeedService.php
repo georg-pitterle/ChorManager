@@ -220,6 +220,8 @@ class DevSeedService
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_manage_song_library' => 1,
+                'can_manage_newsletters' => 1,
             ],
             [
                 'name' => 'Vorstand',
@@ -230,6 +232,8 @@ class DevSeedService
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_manage_song_library' => 1,
+                'can_manage_newsletters' => 1,
             ],
             [
                 'name' => 'Chorleitung',
@@ -240,6 +244,8 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_manage_song_library' => 1,
+                'can_manage_newsletters' => 1,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -250,6 +256,8 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_manage_song_library' => 0,
+                'can_manage_newsletters' => 0,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -260,6 +268,8 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_manage_song_library' => 0,
+                'can_manage_newsletters' => 0,
             ],
             [
                 'name' => 'Mitglied',
@@ -270,6 +280,8 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_manage_song_library' => 0,
+                'can_manage_newsletters' => 0,
             ],
         ];
 

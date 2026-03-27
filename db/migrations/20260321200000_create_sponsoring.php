@@ -91,6 +91,7 @@ final class CreateSponsoring extends AbstractMigration
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
 
         $this->execute("ALTER TABLE roles ADD COLUMN can_manage_sponsoring tinyint(1) NOT NULL DEFAULT 0;");
+        $this->execute("UPDATE roles SET can_manage_sponsoring = 1 WHERE name IN ('Admin', 'Vorstand', 'Chorleitung');");
     }
 
     public function down(): void

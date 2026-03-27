@@ -1,48 +1,46 @@
-# Choir Manager - Production Deployment
+# Choir Manager - Production Deployment with Portainer and SWAG
 
-This directory contains the production deployment configuration for the Choir Manager application.
+This directory contains a production stack for Portainer. The web container is not published directly and is intended to be reached through an existing linuxserver.io SWAG instance on the shared Docker network `portainer_network`.
+
+## Deployment Model
+
+- `db` is only reachable on an internal Docker network.
+- `app` runs PHP-FPM and database migrations automatically on startup.
+- `web` serves the application over HTTP only inside Docker.
+- `web` is attached to the external network `portainer_network` so SWAG can reverse proxy to it.
+- No public ports are opened by this stack.
 
 ## Prerequisites
 
-- Docker and Docker Compose installed
-- At least 2GB RAM available
-- At least 5GB free disk space
-- Access to GitHub Container Registry (ghcr.io) - the application image is pulled from there
+- Portainer stack deployment or Docker Compose on the target host
+- An existing SWAG container attached to `portainer_network`
+- At least 2 GB RAM and 5 GB free disk space
+- Access to GitHub Container Registry `ghcr.io`
 
-## Quick Start
+## Portainer Deployment
 
-1. **Copy environment configuration:**
-   ```bash
-   cp .env.example .env
-   ```
+1. Copy the values from `.env.example` into Portainer stack environment variables.
+2. Deploy the stack with `docker-compose.prod.yml`.
+3. Ensure the external Docker network `portainer_network` already exists and SWAG is attached to it.
+4. Create a SWAG proxy config that forwards your hostname to `http://chormanager-web-prod:80`.
 
-2. **Edit the .env file with your production values:**
-   ```bash
-   nano .env  # or your preferred editor
-   ```
+If you deploy without Portainer, create the external network first:
 
-3. **Deploy the application:**
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d
-   ```
-
-4. **Check deployment status:**
-   ```bash
-   docker compose -f docker-compose.prod.yml ps
-   docker compose -f docker-compose.prod.yml logs
-   ```
+```bash
+docker network create portainer_network
+docker compose --env-file .env -f docker-compose.prod.yml up -d
+```
 
 ## Environment Variables
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
+| `APP_IMAGE_TAG` | Image tag from GHCR | `latest` | No |
 | `DB_DATABASE` | MySQL database name | `choir_db` | No |
 | `DB_USERNAME` | MySQL user | `choir_user` | No |
 | `DB_PASSWORD` | MySQL password | - | **Yes** |
-| `DB_PORT` | MySQL port | `3306` | No |
+| `DB_PORT` | Database port used by the app config | `3306` | No |
 | `MYSQL_ROOT_PASSWORD` | MySQL root password | - | **Yes** |
-| `NGINX_PORT` | External nginx port | `80` | No |
-| `APP_ENV` | Application environment | `production` | No |
 | `SMTP_HOST` | SMTP server host | - | **Yes** |
 | `SMTP_PORT` | SMTP server port | `587` | No |
 | `SMTP_AUTH` | SMTP authentication enabled (`1/0`) | `1` | No |
@@ -51,105 +49,72 @@ This directory contains the production deployment configuration for the Choir Ma
 | `SMTP_ENCRYPTION` | SMTP encryption (`tls`, `ssl`, `none`) | `tls` | No |
 | `SMTP_FROM_EMAIL` | Sender email address | - | **Yes** |
 | `SMTP_FROM_NAME` | Sender display name | `Chor Manager` | No |
+| `REMEMBER_ME_DAYS` | Remember-me cookie lifetime in days | `30` | No |
+| `TZ` | Container timezone | `Europe/Vienna` | No |
 
-### SMTP Configuration
+SMTP is configured exclusively via environment variables. It is no longer managed in the application UI.
 
-SMTP is configured exclusively via environment variables in deployment.
-It is not managed in the application's Stammdaten/App-Einstellungen UI.
+## SWAG Reverse Proxy Example
 
-## Application Image
+Create a SWAG config such as `/config/nginx/proxy-confs/chormanager.subdomain.conf`:
 
-The application uses a pre-built Docker image from GitHub Container Registry:
-- **Image**: `ghcr.io/georg-pitterle/chormanager:latest`
-- **Source**: Automatically pulled during deployment
-- **Build Process**: Handled by GitHub Actions CI/CD pipeline
+```nginx
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
 
-## Production Features
+    server_name choir.example.com;
 
-- **Health Checks**: All services include health checks for monitoring
-- **Logging**: JSON logging with size limits (10MB per file, 3 files max)
-- **Security**: No exposed database ports, read-only file mounts
-- **Reliability**: Proper dependency management and restart policies
-- **Resource Management**: Configurable resource limits
+    include /config/nginx/ssl.conf;
 
-## Database Migration
+    client_max_body_size 26m;
 
-The application will automatically run database migrations on first startup. If you need to run migrations manually:
-
-```bash
-docker compose -f docker-compose.prod.yml exec app php vendor/bin/phinx migrate
+    location / {
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set $upstream_app chormanager-web-prod;
+        set $upstream_port 80;
+        set $upstream_proto http;
+        proxy_pass $upstream_proto://$upstream_app:$upstream_port;
+    }
+}
 ```
 
-## Monitoring
+Adjust `server_name` to your real hostname and reload SWAG afterwards.
 
-### Health Checks
-- **App**: PHP health check every 30 seconds
-- **Database**: MySQL ping check every 30 seconds
-- **Nginx**: HTTP health check every 30 seconds
+## Operational Notes
 
-### Logs
-View logs for all services:
+- The stack copies the image contents into a named volume before startup so `app` and `web` serve the exact same code.
+- The copy step clears the target volume first. That avoids stale files during image updates, which is important for Portainer-based redeployments.
+- Database migrations run automatically when `app` starts.
+- The internal web service exposes `/health`, which is used for container health checks.
+
+## Logs and Health
+
 ```bash
-docker compose -f docker-compose.prod.yml logs -f
-```
-
-View logs for specific service:
-```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f web
 docker compose -f docker-compose.prod.yml logs -f app
+docker compose -f docker-compose.prod.yml logs -f db
 ```
 
 ## Backup
 
-### Database Backup
 ```bash
-docker compose -f docker-compose.prod.yml exec db mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" $DB_DATABASE > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose -f docker-compose.prod.yml exec db \
+  mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" "$DB_DATABASE" > backup.sql
 ```
 
-### Database Restore
+Restore:
+
 ```bash
-docker compose -f docker-compose.prod.yml exec -T db mysql -u root -p"$MYSQL_ROOT_PASSWORD" $DB_DATABASE < backup_file.sql
-```
-
-## Scaling
-
-The current setup is designed for single-instance deployment. For high-availability:
-
-1. Use external MySQL cluster
-2. Add Redis for session storage
-3. Implement load balancer for nginx
-4. Add monitoring (Prometheus/Grafana)
-
-## Troubleshooting
-
-### Application not accessible
-```bash
-# Check service status
-docker compose -f docker-compose.prod.yml ps
-
-# Check logs
-docker compose -f docker-compose.prod.yml logs app
-docker compose -f docker-compose.prod.yml logs nginx
-```
-
-### Database connection issues
-```bash
-# Check database health
-docker compose -f docker-compose.prod.yml exec db mysqladmin ping -u $DB_USERNAME -p$DB_PASSWORD
-
-# Check database logs
-docker compose -f docker-compose.prod.yml logs db
-```
-
-### Permission issues
-```bash
-# Reset permissions
-docker compose -f docker-compose.prod.yml exec app chown -R www-data:www-data /var/www/html
+docker compose -f docker-compose.prod.yml exec -T db \
+  mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$DB_DATABASE" < backup.sql
 ```
 
 ## Security Notes
 
-- Change all default passwords in `.env`
-- Use strong, unique passwords
-- Consider using Docker secrets for sensitive data
-- Regularly update base images
-- Monitor logs for security issues
+- Keep all secrets in Portainer stack variables or an external secret store, never in Git.
+- Do not publish MySQL or the internal web container directly to the host.
+- Terminate TLS in SWAG and serve the app only through HTTPS.
+- Update image tags deliberately instead of relying on long-unpatched `latest` deployments.

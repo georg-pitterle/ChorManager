@@ -1,36 +1,64 @@
+x-app-environment: &app-environment
+  APP_ENV: production
+  DB_HOST: db
+  DB_DATABASE: ${DB_DATABASE:?set in Portainer}
+  DB_USERNAME: ${DB_USERNAME:?set in Portainer}
+  DB_PASSWORD: ${DB_PASSWORD:?set in Portainer}
+  DB_PORT: ${DB_PORT:-3306}
+  SMTP_HOST: ${SMTP_HOST:?set in Portainer}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_AUTH: ${SMTP_AUTH:-1}
+  SMTP_USERNAME: ${SMTP_USERNAME:?set in Portainer}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:?set in Portainer}
+  SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
+  SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:?set in Portainer}
+  SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Chor Manager}
+  REMEMBER_ME_DAYS: ${REMEMBER_ME_DAYS:-30}
+  TZ: ${TZ:-Europe/Vienna}
+
 services:
+  init:
+    image: ghcr.io/georg-pitterle/chormanager:${APP_IMAGE_TAG:-latest}
+    restart: "no"
+    network_mode: "none"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        find /mnt/app -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+        cp -a /var/www/html/. /mnt/app/
+    volumes:
+      - app_code:/mnt/app
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   app:
     image: ghcr.io/georg-pitterle/chormanager:${APP_IMAGE_TAG:-latest}
-    container_name: chormanager-app
     restart: unless-stopped
     working_dir: /var/www/html
-    environment:
-      APP_ENV: production
-      DB_HOST: db
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_PORT: ${DB_PORT}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_AUTH: ${SMTP_AUTH}
-      SMTP_USERNAME: ${SMTP_USERNAME}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+    environment: *app-environment
     depends_on:
-      - db
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
     networks:
-      - choir-network
+      - internal
     volumes:
-      - app_data:/var/www/html
+      - app_code:/var/www/html
     healthcheck:
-      test: [ "CMD", "php", "-r", "echo 'OK';" ]
+      test: [ "CMD", "php", "-r", "if (@fsockopen('127.0.0.1',9000)) { exit(0); } exit(1);" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -38,76 +66,103 @@ services:
         max-file: "3"
 
   db:
-    image: mysql:8.0
+    image: mysql:8.4
     restart: unless-stopped
-    container_name: chormanager-db
-    command: --default-authentication-plugin=mysql_native_password
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-name-resolve
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_SSL_MODE: DISABLED
+      MYSQL_DATABASE: ${DB_DATABASE:?set in Portainer}
+      MYSQL_USER: ${DB_USERNAME:?set in Portainer}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set in Portainer}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in Portainer}
+      TZ: ${TZ:-Europe/Vienna}
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - choir-network
+      - internal
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}" ]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 60s
+    stop_grace_period: 1m
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 
-  nginx:
-    image: nginx:alpine
+  web:
+    image: nginx:1.28-alpine
+    container_name: chormanager-web-prod
+    hostname: chormanager-web-prod
     restart: unless-stopped
-    container_name: chormanager-nginx
     depends_on:
-      - app
+      init:
+        condition: service_completed_successfully
+      app:
+        condition: service_healthy
     networks:
-      - choir-network
+      internal:
+      proxy:
+        aliases:
+          - chormanager-web-prod
+    expose:
+      - "80"
     volumes:
-      - app_data:/var/www/html:ro
+      - app_code:/var/www/html:ro
+    tmpfs:
+      - /etc/nginx/conf.d
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    read_only: true
     command:
       - /bin/sh
-      - -c
+      - -ec
       - |
         cat > /etc/nginx/conf.d/default.conf <<'EOF'
         server {
             listen 80;
-            server_name localhost;
+            server_name _;
             root /var/www/html/public;
             index index.php;
+            server_tokens off;
+            client_max_body_size 26m;
 
             location / {
-                try_files $$uri $$uri/ /index.php?$$query_string;
+              try_files $$uri $$uri/ /index.php?$$query_string;
             }
 
-            location ~ \.php$$ {
+            location ~ \.php$ {
+                include /etc/nginx/fastcgi_params;
                 fastcgi_pass app:9000;
                 fastcgi_index index.php;
-                fastcgi_param SCRIPT_FILENAME $$document_root$$fastcgi_script_name;
-                include fastcgi_params;
+              fastcgi_param SCRIPT_FILENAME $$document_root$$fastcgi_script_name;
+              fastcgi_param HTTP_X_FORWARDED_PROTO $$http_x_forwarded_proto;
+              fastcgi_param HTTP_X_FORWARDED_HOST $$http_host;
+              fastcgi_param HTTP_X_FORWARDED_FOR $$proxy_add_x_forwarded_for;
             }
 
-            location ~ /\.ht {
+            location ~ /\.(?!well-known) {
                 deny all;
             }
         }
         EOF
         nginx -g 'daemon off;'
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health" ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/css/style.css" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -116,11 +171,13 @@ services:
 
 volumes:
   db_data:
-    driver: local
-  app_data:
-    driver: local
-    name: chormanager_app_data
+  app_code:
+
 
 networks:
-  choir-network:
+  internal:
     driver: bridge
+    internal: true
+  proxy:
+    external: true
+    name: portainer_network
