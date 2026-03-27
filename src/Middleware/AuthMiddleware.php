@@ -71,6 +71,23 @@ class AuthMiddleware implements MiddlewareInterface
             return $response->withHeader('Location', '/login')->withStatus(302);
         }
 
+        $currentUser = $this->userQuery->findById((int) $_SESSION['user_id']);
+        if (!$currentUser || !(bool) $currentUser->is_active) {
+            $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
+            if (is_string($rememberCookie) && $rememberCookie !== '') {
+                $this->rememberLoginService->invalidateByCookieValue($rememberCookie);
+                $this->rememberLoginService->clearRememberCookie();
+            }
+
+            $this->sessionAuthService->clearSession();
+
+            $response = new SlimResponse();
+            return $response->withHeader('Location', '/login')->withStatus(302);
+        }
+
+        // Refresh rights snapshot on every protected request.
+        $this->sessionAuthService->setAuthenticatedUser($currentUser);
+
         // Pass session data to view globally, can be done via middleware or Twig extension.
         // For simplicity, we can inject globals into Twig in Dependencies.php, but since we use Slim-Twig,
         // we can also do it there.
