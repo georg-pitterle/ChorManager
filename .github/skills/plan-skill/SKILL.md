@@ -16,4 +16,4 @@ Rules:
 6. End with `Next:` and exactly one immediate next step.
 7. Write in clear, concise language focused on outcomes, not implementation details.
 8. Plan must be copilot-friendly and actionable without further interpretation.
-9. important: show the planin a field that can be copied.
+9. important: show the planin a field with soft breaks that can be copied.

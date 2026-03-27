@@ -17,40 +17,16 @@ x-app-environment: &app-environment
   TZ: ${TZ:-Europe/Vienna}
 
 services:
-  init:
-    image: ghcr.io/georg-pitterle/chormanager:${APP_IMAGE_TAG:-latest}
-    restart: "no"
-    network_mode: "none"
-    entrypoint:
-      - /bin/sh
-      - -ec
-      - |
-        find /mnt/app -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-        cp -a /var/www/html/. /mnt/app/
-    volumes:
-      - app_code:/mnt/app
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   app:
-    image: ghcr.io/georg-pitterle/chormanager:${APP_IMAGE_TAG:-latest}
+    image: ghcr.io/georg-pitterle/chormanager-app:latest
     restart: unless-stopped
     working_dir: /var/www/html
     environment: *app-environment
     depends_on:
-      init:
-        condition: service_completed_successfully
       db:
         condition: service_healthy
     networks:
       - internal
-    volumes:
-      - app_code:/var/www/html
     healthcheck:
       test: [ "CMD", "php", "-r", "if (@fsockopen('127.0.0.1',9000)) { exit(0); } exit(1);" ]
       interval: 30s
@@ -98,13 +74,11 @@ services:
         max-file: "3"
 
   web:
-    image: nginx:1.28-alpine
+    image: ghcr.io/georg-pitterle/chormanager-web:latest
     container_name: chormanager-web-prod
     hostname: chormanager-web-prod
     restart: unless-stopped
     depends_on:
-      init:
-        condition: service_completed_successfully
       app:
         condition: service_healthy
     networks:
@@ -114,47 +88,11 @@ services:
           - chormanager-web-prod
     expose:
       - "80"
-    volumes:
-      - app_code:/var/www/html:ro
     tmpfs:
-      - /etc/nginx/conf.d
       - /var/cache/nginx
       - /var/run
       - /tmp
     read_only: true
-    command:
-      - /bin/sh
-      - -ec
-      - |
-        cat > /etc/nginx/conf.d/default.conf <<'EOF'
-        server {
-            listen 80;
-            server_name _;
-            root /var/www/html/public;
-            index index.php;
-            server_tokens off;
-            client_max_body_size 26m;
-
-            location / {
-              try_files $$uri $$uri/ /index.php?$$query_string;
-            }
-
-            location ~ \.php$ {
-                include /etc/nginx/fastcgi_params;
-                fastcgi_pass app:9000;
-                fastcgi_index index.php;
-              fastcgi_param SCRIPT_FILENAME $$document_root$$fastcgi_script_name;
-              fastcgi_param HTTP_X_FORWARDED_PROTO $$http_x_forwarded_proto;
-              fastcgi_param HTTP_X_FORWARDED_HOST $$http_host;
-              fastcgi_param HTTP_X_FORWARDED_FOR $$proxy_add_x_forwarded_for;
-            }
-
-            location ~ /\.(?!well-known) {
-                deny all;
-            }
-        }
-        EOF
-        nginx -g 'daemon off;'
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/css/style.css" ]
       interval: 30s
@@ -171,8 +109,6 @@ services:
 
 volumes:
   db_data:
-  app_code:
-
 
 networks:
   internal:
