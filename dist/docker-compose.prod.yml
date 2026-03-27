@@ -25,7 +25,9 @@ services:
     depends_on:
       - db
     networks:
-      - internal
+      internal:
+        aliases:
+          - chormanager-fpm
     healthcheck:
       test: [ "CMD", "php", "-r", "if (@fsockopen('127.0.0.1',9000)) { exit(0); } exit(1);" ]
       interval: 30s
@@ -47,6 +49,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-name-resolve
+      - --mysql-native-password=ON
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:?set in Portainer}
       MYSQL_USER: ${DB_USERNAME:?set in Portainer}
@@ -91,7 +94,7 @@ services:
       - /tmp
     read_only: true
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/css/style.css" ]
+      test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/css/style.css || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
