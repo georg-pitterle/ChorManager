@@ -37,8 +37,9 @@
                                 Komponist: {{ song.composer|default('-') }} | Arrangeur: {{ song.arranger|default('-') }} | Verlag: {{ song.publisher|default('-') }}
                             </p>
 
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0 table-responsive-cards">
+                            <div class="table-responsive" data-table-engine="true" data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}" data-default-view="cards">
+                                {% include 'partials/table_toolbar.twig' %}
+                                <table class="table table-sm align-middle mb-0 table-responsive-cards" id="downloadsSongTable{{ song.id }}">
                                     <thead>
                                         <tr>
                                             <th>Datei</th>

@@ -4,6 +4,34 @@
 }
 
 @media (max-width: 767.98px) {
+  [data-table-engine="true"][data-active-view="table"] .table-responsive-cards thead {
+    display: table-header-group;
+  }
+
+  [data-table-engine="true"][data-active-view="table"] .table-responsive-cards tbody {
+    display: table-row-group;
+  }
+
+  [data-table-engine="true"][data-active-view="table"] .table-responsive-cards tr {
+    display: table-row;
+    margin-bottom: 0;
+    border: none;
+  }
+
+  [data-table-engine="true"][data-active-view="table"] .table-responsive-cards td {
+    display: table-cell;
+    width: auto;
+    text-align: inherit;
+    border-bottom: 1px solid #e9ecef;
+    position: static;
+    padding-left: 0.5rem;
+    min-height: 0;
+  }
+
+  [data-table-engine="true"][data-active-view="table"] .table-responsive-cards td:before {
+    content: none;
+  }
+
   .table-shell .table-responsive {
     overflow-x: auto;
     padding-bottom: 60px;

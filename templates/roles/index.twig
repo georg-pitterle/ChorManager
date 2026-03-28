@@ -31,10 +31,11 @@
 </div>
 {% endif %}
 
-<div class="surface-card card border-0 table-shell">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="roles.index" data-default-view="table">
+    {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 table-responsive-cards">
+            <table class="table table-hover table-striped mb-0 table-responsive-cards" id="rolesTable">
                 <thead class="table-dark">
                     <tr>
                         <th>Rollenname</th>

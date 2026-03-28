@@ -66,9 +66,10 @@
 </div>
 
 <div class="surface-card card border-0 table-shell">
-    <div class="card-body p-0">
+            <div class="card-body p-0" data-table-engine="true" data-table-id="events.index" data-default-view="table">
+                {% include 'partials/table_toolbar.twig' %}
         <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 table-responsive-cards">
+                    <table class="table table-hover align-middle mb-0 table-responsive-cards" id="eventsTable">
                 <thead class="table-dark">
                     <tr>
                         <th>
