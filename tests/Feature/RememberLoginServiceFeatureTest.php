@@ -23,7 +23,6 @@ class RememberLoginServiceFeatureTest extends TestCase
     {
         $service = new RememberLoginService();
         $method = new ReflectionMethod($service, 'splitCookieValue');
-        $method->setAccessible(true);
 
         $selector = str_repeat('a', 18);
         $validator = str_repeat('b', 64);
@@ -36,7 +35,6 @@ class RememberLoginServiceFeatureTest extends TestCase
     {
         $service = new RememberLoginService();
         $method = new ReflectionMethod($service, 'splitCookieValue');
-        $method->setAccessible(true);
 
         $this->assertSame([null, null], $method->invoke($service, 'invalid'));
         $this->assertSame([null, null], $method->invoke($service, 'short:token'));
@@ -49,7 +47,6 @@ class RememberLoginServiceFeatureTest extends TestCase
 
         $service = new RememberLoginService();
         $method = new ReflectionMethod($service, 'shouldUseSecureCookie');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($service));
     }

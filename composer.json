@@ -40,6 +40,7 @@
         "twigcbf": "twig-cs-fixer fix",
         "migrate": "phinx migrate -e development",
         "seed:dev": "php bin/dev_seed.php",
+        "test": "php vendor/bin/phpunit",
         "post-install-cmd": [
             "@copy-assets"
         ],
