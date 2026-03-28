@@ -79,11 +79,20 @@ body.app-shell {
 .navbar.bg-dark.app-topbar .navbar-toggler {
     flex-shrink: 0;
     margin-left: 0.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-color: rgba(255, 255, 255, 0.4);
 }
 
-.navbar.bg-dark.app-topbar .navbar-toggler .bi-list {
+.navbar.bg-dark.app-topbar .navbar-toggler .app-topbar__burger-symbol {
     display: block;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 1.6rem;
+    font-weight: 700;
     line-height: 1;
 }
 
