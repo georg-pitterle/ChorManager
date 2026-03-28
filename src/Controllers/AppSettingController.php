@@ -11,6 +11,8 @@ use App\Models\AppSetting;
 
 class AppSettingController
 {
+    public const DEFAULT_PRIMARY_COLOR = '#E8A817';
+
     private Twig $view;
 
     public function __construct(Twig $view)
@@ -37,6 +39,7 @@ class AppSettingController
     {
         $data = (array) $request->getParsedBody();
         $appName = trim($data['app_name'] ?? '');
+        $primaryColor = self::normalizePrimaryColor($data['primary_color'] ?? null);
 
         try {
             if ($appName) {
@@ -49,6 +52,15 @@ class AppSettingController
                     ]
                 );
             }
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'primary_color'],
+                [
+                    'setting_value' => $primaryColor,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
 
             $uploadedFiles = $request->getUploadedFiles();
             if (isset($uploadedFiles['app_logo'])) {
@@ -71,6 +83,56 @@ class AppSettingController
         }
 
         return $response->withHeader('Location', '/settings')->withStatus(302);
+    }
+
+    public static function normalizePrimaryColor(?string $value): string
+    {
+        $candidate = strtoupper(trim((string) $value));
+
+        if ($candidate === '') {
+            return self::DEFAULT_PRIMARY_COLOR;
+        }
+
+        if ($candidate[0] !== '#') {
+            $candidate = '#' . $candidate;
+        }
+
+        if (preg_match('/^#([A-F0-9]{6}|[A-F0-9]{3})$/', $candidate) !== 1) {
+            return self::DEFAULT_PRIMARY_COLOR;
+        }
+
+        if (strlen($candidate) === 4) {
+            return sprintf(
+                '#%1$s%1$s%2$s%2$s%3$s%3$s',
+                $candidate[1],
+                $candidate[2],
+                $candidate[3]
+            );
+        }
+
+        return $candidate;
+    }
+
+    public function themeCss(Request $request, Response $response): Response
+    {
+        $themeColor = self::DEFAULT_PRIMARY_COLOR;
+
+        try {
+            $themeColor = self::normalizePrimaryColor(AppSetting::query()->find('primary_color')?->setting_value);
+        } catch (\Throwable $exception) {
+            $themeColor = self::DEFAULT_PRIMARY_COLOR;
+        }
+
+        $css = ':root, [data-bs-theme="light"] {' . "\n"
+            . "    --theme-primary: {$themeColor};\n"
+            . "    --bs-primary: {$themeColor};\n"
+            . "}\n";
+
+        $response->getBody()->write($css);
+
+        return $response
+            ->withHeader('Content-Type', 'text/css; charset=utf-8')
+            ->withHeader('Cache-Control', 'no-store, max-age=0');
     }
 
     public function logo(Request $request, Response $response): Response

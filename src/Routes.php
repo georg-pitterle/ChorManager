@@ -39,6 +39,7 @@ return function (App $app) {
     $app->get('/setup', [AuthController::class, 'showSetup']);
     $app->post('/setup', [AuthController::class, 'processSetup']);
     $app->get('/logo', [AppSettingController::class, 'logo']);
+    $app->get('/theme.css', [AppSettingController::class, 'themeCss']);
 
     // Password Reset Routes
     $app->get('/forgot-password', [\App\Controllers\PasswordResetController::class, 'showForgotForm']);

@@ -48,6 +48,22 @@
                         </div>
                     </div>
 
+                    <div class="mb-4">
+                        <label for="primary_color" class="form-label fw-bold">Primärfarbe</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="primary_color"
+                            name="primary_color"
+                            value="{{ settings.primary_color|default('#E8A817') }}"
+                            inputmode="text"
+                            pattern="^#?[A-Fa-f0-9]{3}([A-Fa-f0-9]{3})?$"
+                        >
+                        <div class="form-text">
+                            Hex-Farbwert, zum Beispiel #E8A817. Leer oder ungültig fällt auf das Standardgelb zurück.
+                        </div>
+                    </div>
+
                     <hr class="my-4">
                     <div class="alert alert-info" role="alert">
                         E-Mail-Konfiguration erfolgt über Umgebungsvariablen und wird nicht mehr in den Stammdaten verwaltet.
