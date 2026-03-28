@@ -159,10 +159,6 @@ body.app-shell {
         justify-content: flex-start;
     }
 
-    .app-topbar__brand-name {
-        display: none;
-    }
-
     .navbar-dark .navbar-brand {
         max-width: calc(100% - 2.75rem);
     }

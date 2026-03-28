@@ -20,15 +20,14 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('navbar-expand-lg', $layoutContent);
     }
 
-    public function testTopbarCssHidesBrandNameOnSmallScreens(): void
+    public function testTopbarCssDoesNotForceHideBrandNameOnSmallScreens(): void
     {
         $stylePath = dirname(__DIR__) . '/../public/css/style.css';
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
         $this->assertStringContainsString('@media (max-width: 767.98px)', $styleContent);
-        $this->assertStringContainsString('.app-topbar__brand-name', $styleContent);
-        $this->assertStringContainsString('display: none;', $styleContent);
+        $this->assertStringNotContainsString(".app-topbar__brand-name {\n        display: none;", $styleContent);
     }
 
     public function testTopbarCssDefinesVisibleTogglerIconStyling(): void
