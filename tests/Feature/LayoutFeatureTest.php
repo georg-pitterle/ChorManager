@@ -61,4 +61,18 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('flex-wrap: wrap;', $styleContent);
         $this->assertStringContainsString('max-width: 100%;', $styleContent);
     }
+
+    public function testCssDefinesHeaderAndListheadTokens(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        $this->assertStringContainsString('--header-bg-start:', $styleContent);
+        $this->assertStringContainsString('--header-bg-end:', $styleContent);
+        $this->assertStringContainsString('--header-accent-line:', $styleContent);
+        $this->assertStringContainsString('--listhead-bg:', $styleContent);
+        $this->assertStringContainsString('--listhead-text:', $styleContent);
+        $this->assertStringContainsString('--listhead-border:', $styleContent);
+    }
 }
