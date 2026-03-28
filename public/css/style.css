@@ -203,6 +203,22 @@ thead th {
     background-color: var(--listhead-bg, #eef1f5);
 }
 
+/* =====================================================================
+   Corporate Card Header
+   Harmonized with listhead style. Semantic Bootstrap header colors
+   (success / danger / warning / info) are excluded via :not() guards so
+   they retain their communicative meaning.
+   !important is required: Bootstrap utility classes (.bg-dark, .bg-white,
+   .bg-light etc.) also declare background-color with !important. Our
+   selector has higher specificity, so our !important rule wins.
+   ===================================================================== */
+.card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
+    background-color: var(--listhead-bg, #eef1f5) !important;
+    color: var(--listhead-text, #1f2937) !important;
+    border-bottom: 3px solid var(--header-accent-line, #E8A817);
+    font-weight: 600;
+}
+
 /* Primary Button Overrides (Dark text on yellow for readability) */
 .btn-primary {
     --bs-btn-color: #2b2b2b;

@@ -127,4 +127,27 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('text-transform: uppercase', $styleContent);
         $this->assertStringContainsString('letter-spacing: 0.04em', $styleContent);
     }
+
+    public function testCssDefinesCardHeaderHarmonizationRule(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        // Global selector with semantic guards must exist
+        $this->assertStringContainsString(
+            '.card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning)',
+            $styleContent
+        );
+        // Must use the listhead background token with !important to beat Bootstrap utilities
+        $this->assertStringContainsString(
+            'var(--listhead-bg, #eef1f5) !important',
+            $styleContent
+        );
+        // Must carry the accent bottom border
+        $this->assertStringContainsString(
+            'border-bottom: 3px solid var(--header-accent-line',
+            $styleContent
+        );
+    }
 }
