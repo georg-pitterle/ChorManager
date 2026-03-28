@@ -40,17 +40,15 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('line-height: 1;', $styleContent);
     }
 
-    public function testTopbarTogglerIsVisibleOnlyBelowLgBreakpoint(): void
+    public function testTopbarCssDoesNotOverrideBootstrapTogglerVisibility(): void
     {
         $stylePath = dirname(__DIR__) . '/../public/css/style.css';
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
-        $this->assertStringContainsString('@media (max-width: 991.98px)', $styleContent);
         $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler {', $styleContent);
-        $this->assertStringContainsString('display: inline-flex;', $styleContent);
-        $this->assertStringContainsString('@media (min-width: 992px)', $styleContent);
-        $this->assertStringContainsString('display: none !important;', $styleContent);
+        $this->assertStringNotContainsString('display: inline-flex;', $styleContent);
+        $this->assertStringNotContainsString('display: none !important;', $styleContent);
     }
 
     public function testPageHeaderCssWrapsActionsToAvoidHorizontalOverflow(): void
