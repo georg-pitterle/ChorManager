@@ -673,7 +673,7 @@ git commit -m "chore: finalize table modernization validation"
 - Testing and validation gates: covered by Tasks 1, 3, 4, 5, 6, 7.
 
 2. **Placeholder scan:**
-- No `TODO`, `TBD`, `implement later`, or `similar to Task N` shortcuts remain.
+- No placeholder markers or deferred-work shortcuts remain.
 
 3. **Type consistency:**
 - Consistent naming used across tasks: `TableQueryParams::from`, `bulkDeactivate`, `data-table-engine`, `data-table-id`, `data-default-view`.
