@@ -2,14 +2,18 @@
 
 {% block title %}Downloads - Chor Manager{% endblock %}
 
-{% block content %}
-<div class="row mt-4 mb-3">
-    <div class="col-12">
-        <h1>Downloads</h1>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+        <h1 class="h2 mb-1">Downloads</h1>
         <p class="text-muted mb-0">Hier findest du die Lieder und Dateien zu den Projekten, an denen du teilnimmst.</p>
     </div>
-</div>
+</section>
+{% endblock %}
 
+{% block content %}
+<section class="surface-card form-surface p-4 mb-4">
 <div class="accordion" id="downloadsProjectsAccordion">
 {% for project in projects %}
     <div class="accordion-item mb-3 border-0 shadow-sm">
@@ -92,6 +96,7 @@
     <div class="alert alert-info">Du bist derzeit keinem Projekt mit Liedern zugeordnet.</div>
 {% endfor %}
 </div>
+</section>
 {% endblock %}
 
 {% block scripts %}

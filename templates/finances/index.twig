@@ -2,25 +2,14 @@
 
 {% block title %}Kassabuch - Chor Manager{% endblock %}
 
-{% block content %}
-<style>
-    /* Fix for dropdowns in table-responsive */
-    .table-responsive {
-        overflow: visible !important;
-    }
-    @media (max-width: 767.98px) {
-        .table-responsive {
-            overflow-x: auto !important;
-            padding-bottom: 60px; /* Space for dropdown on mobile */
-        }
-    }
-</style>
-<div class="row mt-4 mb-3">
-    <div class="col-md-6 d-flex flex-column justify-content-center">
-        <h1>Kassabuch</h1>
-        <p class="text-muted">Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong></p>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+        <h1 class="h2 mb-1">Kassabuch</h1>
+        <p class="text-muted mb-0">Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong></p>
     </div>
-    <div class="col-md-6 d-flex flex-column flex-sm-row justify-content-md-end align-items-stretch align-items-sm-center gap-2">
+    <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
         {% if available_years|length >= 1 %}
         <form method="get" action="/finances" class="d-flex align-items-center gap-2">
             <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
@@ -43,8 +32,10 @@
             <i class="bi bi-plus-circle"></i> Neuer Eintrag
         </button>
     </div>
-</div>
+</section>
+{% endblock %}
 
+{% block content %}
 {% if success %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ success }}
@@ -58,8 +49,8 @@
 </div>
 {% endif %}
 
-<div class="card shadow-sm border-0" style="overflow: visible;">
-    <div class="card-body p-0" style="overflow: visible;">
+<div class="surface-card card border-0 table-shell">
+    <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
