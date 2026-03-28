@@ -14,13 +14,14 @@ The suite should improve regression detection for validation rules, permission d
 2. Password reset
 3. Profile management
 4. User management
-5. Session authentication and permission derivation
-6. Remember-login behavior
-7. Downloads
-8. Finance
-9. Sponsoring
-10. Song library
-11. Newsletters
+5. Roles
+6. Session authentication and permission derivation
+7. Remember-login behavior
+8. Downloads
+9. Finance
+10. Sponsoring
+11. Song library
+12. Newsletters
 
 ### Excluded Areas
 
@@ -29,15 +30,14 @@ The suite should improve regression detection for validation rules, permission d
 3. Evaluations
 4. Events
 5. Projects
-6. Roles
-7. Voice groups
-8. Event types
-9. App settings
-10. Dev seed internals
-11. Migrations
-12. Full-stack HTTP flows
-13. Real database behavior
-14. Real mail delivery
+6. Voice groups
+7. Event types
+8. App settings
+9. Dev seed internals
+10. Migrations
+11. Full-stack HTTP flows
+12. Real database behavior
+13. Real mail delivery
 
 ## Test Philosophy
 
@@ -160,6 +160,24 @@ Implementation note:
 
 1. If these rules are too entangled with model queries, extract only the permission and validation decision logic into a small helper rather than forcing mocked ORM chains into tests
 
+### Roles
+
+Files:
+
+1. src/Controllers/RoleController.php
+2. src/Routes.php
+3. templates/roles/
+
+Coverage:
+
+1. Structural checks for role routes, controller methods, and templates
+2. Pure-logic tests for required role-name validation
+3. Pure-logic tests for permission-flag payload normalization from request data if extracted or otherwise isolated cleanly
+
+Implementation note:
+
+1. Roles are included because permission configuration is security-sensitive and directly affects SessionAuthService-derived authorization behavior
+
 ### Downloads
 
 Files:
@@ -255,14 +273,15 @@ Proposed layout:
 2. tests/Feature/PasswordResetFeatureTest.php
 3. tests/Feature/ProfileFeatureTest.php
 4. tests/Feature/UserManagementFeatureTest.php
-5. tests/Feature/DownloadFeatureTest.php
-6. tests/Feature/FinanceFeatureTest.php
-7. tests/Feature/SponsoringFeatureTest.php
-8. tests/Feature/SongLibraryFeatureTest.php
-9. tests/Feature/NewsletterFeatureTest.php
-10. tests/Unit/SessionAuthServiceTest.php
-11. tests/Unit/RememberLoginServiceTest.php
-12. Additional unit-style helper tests only where small extractions are introduced
+5. tests/Feature/RoleFeatureTest.php
+6. tests/Feature/DownloadFeatureTest.php
+7. tests/Feature/FinanceFeatureTest.php
+8. tests/Feature/SponsoringFeatureTest.php
+9. tests/Feature/SongLibraryFeatureTest.php
+10. tests/Feature/NewsletterFeatureTest.php
+11. tests/Unit/SessionAuthServiceTest.php
+12. tests/Unit/RememberLoginServiceTest.php
+13. Additional unit-style helper tests only where small extractions are introduced
 
 If the repository prefers a single tests/Feature-only layout, the unit-style tests may remain in tests/Feature as long as their intent is clear and they do not rely on integration behavior.
 
