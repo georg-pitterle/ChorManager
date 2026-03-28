@@ -15,11 +15,13 @@ class UserManagementFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\UserController::class, 'create'));
         $this->assertTrue(method_exists(\App\Controllers\UserController::class, 'update'));
         $this->assertTrue(method_exists(\App\Controllers\UserController::class, 'deactivate'));
+        $this->assertTrue(method_exists(\App\Controllers\UserController::class, 'bulkDeactivate'));
 
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/users'", $routesContent);
         $this->assertStringContainsString("'/deactivate/{id:[0-9]+}'", $routesContent);
+        $this->assertStringContainsString("'/bulk-deactivate'", $routesContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/users/manage.twig'));
     }
