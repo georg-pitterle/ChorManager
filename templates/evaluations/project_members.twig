@@ -46,7 +46,7 @@
 {% if grouped_members|length > 0 %}
     {% for voice_group, sub_voices in grouped_members %}
     <div class="surface-card card shadow-sm mb-4 border-0 table-shell">
-        <div class="card-header bg-dark text-white">
+        <div class="card-header">
             <h5 class="mb-0">
                 <i class="bi bi-music-note-beamed"></i>
                 {% if voice_group == '_ohne_stimmgruppe' %}Ohne Stimmgruppe{% else %}{{ voice_group }}{% endif %}

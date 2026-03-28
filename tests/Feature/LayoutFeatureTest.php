@@ -150,4 +150,29 @@ class LayoutFeatureTest extends TestCase
             $styleContent
         );
     }
+
+    public function testTemplateCardHeadersDoNotCarryMisleadingDarkClasses(): void
+    {
+        $base = dirname(__DIR__) . '/..';
+        $templates = [
+            $base . '/templates/attendance/show.twig',
+            $base . '/templates/evaluations/project_members.twig',
+            $base . '/templates/profile/index.twig',
+        ];
+
+        foreach ($templates as $path) {
+            $content = file_get_contents($path);
+            $this->assertIsString($content);
+            $this->assertStringNotContainsString(
+                'card-header bg-dark',
+                $content,
+                basename($path) . ' still carries card-header bg-dark'
+            );
+            $this->assertStringNotContainsString(
+                'card-header bg-secondary',
+                $content,
+                basename($path) . ' still carries card-header bg-secondary'
+            );
+        }
+    }
 }
