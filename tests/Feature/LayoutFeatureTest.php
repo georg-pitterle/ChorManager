@@ -175,4 +175,22 @@ class LayoutFeatureTest extends TestCase
             );
         }
     }
+
+    public function testCssDefinesNarrowViewportListheadRefinements(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        // A narrow-viewport thead th override must exist
+        // Verify by checking for the exact font-size reduction value
+        $this->assertStringContainsString('font-size: 0.75rem', $styleContent);
+        // The responsive card-header padding reduction must exist
+        $this->assertStringContainsString('padding: 0.625rem 1rem', $styleContent);
+        // Confirm the narrow styles live inside a 767.98px media query
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 767\.98px\).*font-size: 0\.75rem/s',
+            $styleContent
+        );
+    }
 }

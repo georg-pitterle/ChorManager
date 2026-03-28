@@ -219,6 +219,22 @@ thead th {
     font-weight: 600;
 }
 
+/* Narrow-viewport refinements for listhead and card-header.
+   This block must come after the base thead and card-header rules above
+   so that at <=767.98px these values override them in the cascade. */
+@media (max-width: 767.98px) {
+    thead th {
+        font-size: 0.75rem;
+        letter-spacing: 0.02em;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
+        padding: 0.625rem 1rem;
+    }
+}
+
 /* Primary Button Overrides (Dark text on yellow for readability) */
 .btn-primary {
     --bs-btn-color: #2b2b2b;
