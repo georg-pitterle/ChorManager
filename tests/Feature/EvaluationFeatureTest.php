@@ -15,6 +15,10 @@ class EvaluationFeatureTest extends TestCase
         $this->assertTrue(method_exists(EvaluationController::class, 'index'));
         $this->assertTrue(method_exists(EvaluationController::class, 'projectMembers'));
 
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EvaluationController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('TableQueryParams::from', $controllerContent);
+
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/evaluations'", $routesContent);

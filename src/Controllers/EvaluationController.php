@@ -10,6 +10,7 @@ use Slim\Views\Twig;
 use App\Models\Project;
 use App\Models\User;
 use App\Queries\ProjectQuery;
+use App\Util\TableQueryParams;
 
 class EvaluationController
 {
@@ -25,6 +26,10 @@ class EvaluationController
     public function index(Request $request, Response $response): Response
     {
         $params = $request->getQueryParams();
+        $tableParams = TableQueryParams::from(
+            $params,
+            ['last_name', 'first_name', 'percentage', 'present_count', 'excused_count', 'unexcused_count']
+        );
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
 
@@ -96,7 +101,8 @@ class EvaluationController
             'projects' => $projects,
             'selected_project' => $selectedProject,
             'stats' => $stats,
-            'total_events' => $totalEvents
+            'total_events' => $totalEvents,
+            'table_params' => $tableParams,
         ]);
     }
 
