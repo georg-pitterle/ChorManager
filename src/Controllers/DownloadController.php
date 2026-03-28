@@ -99,16 +99,12 @@ class DownloadController
                 ->withHeader('Content-Disposition', 'inline; filename="' . $this->safeFileName($attachment->original_name) . '"');
         }
 
-        if (!preg_match('/^bytes=(\d*)-(\d*)$/', $rangeHeader, $matches)) {
+        $range = self::parseRangeHeader($rangeHeader, $fileSize);
+        if ($range === null) {
             return $response->withStatus(416)->withHeader('Content-Range', 'bytes */' . $fileSize);
         }
 
-        $start = $matches[1] === '' ? 0 : (int) $matches[1];
-        $end = $matches[2] === '' ? $fileSize - 1 : (int) $matches[2];
-
-        if ($start < 0 || $end < $start || $start >= $fileSize || $end >= $fileSize) {
-            return $response->withStatus(416)->withHeader('Content-Range', 'bytes */' . $fileSize);
-        }
+        [$start, $end] = $range;
 
         $length = $end - $start + 1;
         $chunk = substr($content, $start, $length);
@@ -139,7 +135,36 @@ class DownloadController
 
     private function safeFileName(string $name): string
     {
+        return self::normalizeFileName($name);
+    }
+
+    public static function normalizeFileName(string $name): string
+    {
         $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
-        return trim($safe) !== '' ? $safe : 'download';
+        $trimmed = trim($safe);
+        return $trimmed !== '' ? $trimmed : 'download';
+    }
+
+    /**
+     * @return array{0:int,1:int}|null
+     */
+    public static function parseRangeHeader(string $rangeHeader, int $fileSize): ?array
+    {
+        if ($fileSize <= 0) {
+            return null;
+        }
+
+        if (!preg_match('/^bytes=(\d*)-(\d*)$/', trim($rangeHeader), $matches)) {
+            return null;
+        }
+
+        $start = $matches[1] === '' ? 0 : (int) $matches[1];
+        $end = $matches[2] === '' ? $fileSize - 1 : (int) $matches[2];
+
+        if ($start < 0 || $end < $start || $start >= $fileSize || $end >= $fileSize) {
+            return null;
+        }
+
+        return [$start, $end];
     }
 }

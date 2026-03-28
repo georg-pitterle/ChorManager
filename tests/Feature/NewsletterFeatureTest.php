@@ -146,7 +146,11 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'update'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'preview'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'send'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'saveAsTemplate'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'getTemplate'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'checkLock'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'archiveIndex'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'deleteDraft'));
     }
 
     /**
@@ -157,5 +161,8 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../src/Routes.php'));
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertStringContainsString('newsletter', strtolower($routesContent));
+        $this->assertStringContainsString('/newsletters/template/{id:[0-9]+}', $routesContent);
+        $this->assertStringContainsString('/newsletters/{id:[0-9]+}/check-lock', $routesContent);
+        $this->assertStringContainsString('/newsletters/{id:[0-9]+}/delete', $routesContent);
     }
 }

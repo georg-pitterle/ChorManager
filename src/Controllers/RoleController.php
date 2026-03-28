@@ -18,6 +18,23 @@ class RoleController
         $this->view = $view;
     }
 
+    /**
+     * @return array<string,int>
+     */
+    public static function buildPermissionFlags(array $data): array
+    {
+        return [
+            'can_manage_users' => isset($data['can_manage_users']) ? 1 : 0,
+            'can_edit_users' => isset($data['can_edit_users']) ? 1 : 0,
+            'can_manage_project_members' => isset($data['can_manage_project_members']) ? 1 : 0,
+            'can_manage_finances' => isset($data['can_manage_finances']) ? 1 : 0,
+            'can_manage_master_data' => isset($data['can_manage_master_data']) ? 1 : 0,
+            'can_manage_sponsoring' => isset($data['can_manage_sponsoring']) ? 1 : 0,
+            'can_manage_song_library' => isset($data['can_manage_song_library']) ? 1 : 0,
+            'can_manage_newsletters' => isset($data['can_manage_newsletters']) ? 1 : 0,
+        ];
+    }
+
     public function index(Request $request, Response $response): Response
     {
         // Eloquent equivalent of the Raw query with user count
@@ -43,14 +60,7 @@ class RoleController
         $data = (array) $request->getParsedBody();
         $name = trim($data['name'] ?? '');
         $hierarchyLevel = (int) ($data['hierarchy_level'] ?? 0);
-        $canManageUsers = isset($data['can_manage_users']) ? 1 : 0;
-        $canEditUsers = isset($data['can_edit_users']) ? 1 : 0;
-        $canManageProjectMembers = isset($data['can_manage_project_members']) ? 1 : 0;
-        $canManageFinances = isset($data['can_manage_finances']) ? 1 : 0;
-        $canManageMasterData = isset($data['can_manage_master_data']) ? 1 : 0;
-        $canManageSponsoring = isset($data['can_manage_sponsoring']) ? 1 : 0;
-        $canManageSongLibrary = isset($data['can_manage_song_library']) ? 1 : 0;
-        $canManageNewsletters = isset($data['can_manage_newsletters']) ? 1 : 0;
+        $permissions = self::buildPermissionFlags($data);
 
         if (!$name) {
             $_SESSION['error'] = 'Der Rollenname darf nicht leer sein.';
@@ -61,14 +71,14 @@ class RoleController
             Role::create([
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
-                'can_manage_users' => $canManageUsers,
-                'can_edit_users' => $canEditUsers,
-                'can_manage_project_members' => $canManageProjectMembers,
-                'can_manage_finances' => $canManageFinances,
-                'can_manage_master_data' => $canManageMasterData,
-                'can_manage_sponsoring' => $canManageSponsoring,
-                'can_manage_song_library' => $canManageSongLibrary,
-                'can_manage_newsletters' => $canManageNewsletters
+                'can_manage_users' => $permissions['can_manage_users'],
+                'can_edit_users' => $permissions['can_edit_users'],
+                'can_manage_project_members' => $permissions['can_manage_project_members'],
+                'can_manage_finances' => $permissions['can_manage_finances'],
+                'can_manage_master_data' => $permissions['can_manage_master_data'],
+                'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
+                'can_manage_song_library' => $permissions['can_manage_song_library'],
+                'can_manage_newsletters' => $permissions['can_manage_newsletters']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
         } catch (\Exception $e) {
@@ -88,14 +98,7 @@ class RoleController
         $data = (array) $request->getParsedBody();
         $name = trim($data['name'] ?? '');
         $hierarchyLevel = (int) ($data['hierarchy_level'] ?? 0);
-        $canManageUsers = isset($data['can_manage_users']) ? 1 : 0;
-        $canEditUsers = isset($data['can_edit_users']) ? 1 : 0;
-        $canManageProjectMembers = isset($data['can_manage_project_members']) ? 1 : 0;
-        $canManageFinances = isset($data['can_manage_finances']) ? 1 : 0;
-        $canManageMasterData = isset($data['can_manage_master_data']) ? 1 : 0;
-        $canManageSponsoring = isset($data['can_manage_sponsoring']) ? 1 : 0;
-        $canManageSongLibrary = isset($data['can_manage_song_library']) ? 1 : 0;
-        $canManageNewsletters = isset($data['can_manage_newsletters']) ? 1 : 0;
+        $permissions = self::buildPermissionFlags($data);
 
         if (!$name) {
             $_SESSION['error'] = 'Der Rollenname darf nicht leer sein.';
@@ -107,14 +110,14 @@ class RoleController
             $role->update([
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
-                'can_manage_users' => $canManageUsers,
-                'can_edit_users' => $canEditUsers,
-                'can_manage_project_members' => $canManageProjectMembers,
-                'can_manage_finances' => $canManageFinances,
-                'can_manage_master_data' => $canManageMasterData,
-                'can_manage_sponsoring' => $canManageSponsoring,
-                'can_manage_song_library' => $canManageSongLibrary,
-                'can_manage_newsletters' => $canManageNewsletters
+                'can_manage_users' => $permissions['can_manage_users'],
+                'can_edit_users' => $permissions['can_edit_users'],
+                'can_manage_project_members' => $permissions['can_manage_project_members'],
+                'can_manage_finances' => $permissions['can_manage_finances'],
+                'can_manage_master_data' => $permissions['can_manage_master_data'],
+                'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
+                'can_manage_song_library' => $permissions['can_manage_song_library'],
+                'can_manage_newsletters' => $permissions['can_manage_newsletters']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';
         } catch (\Exception $e) {

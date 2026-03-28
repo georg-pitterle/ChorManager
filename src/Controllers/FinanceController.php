@@ -42,9 +42,24 @@ class FinanceController
     private function defaultStartYear(int $day, int $month): int
     {
         $now = Carbon::now();
-        return ($now->month > $month || ($now->month == $month && $now->day >= $day))
-            ? $now->year
-            : $now->year - 1;
+        return self::computeDefaultStartYear((int) $now->year, (int) $now->month, (int) $now->day, $day, $month);
+    }
+
+    public static function computeDefaultStartYear(
+        int $currentYear,
+        int $currentMonth,
+        int $currentDay,
+        int $fiscalDay,
+        int $fiscalMonth
+    ): int {
+        return ($currentMonth > $fiscalMonth || ($currentMonth === $fiscalMonth && $currentDay >= $fiscalDay))
+            ? $currentYear
+            : $currentYear - 1;
+    }
+
+    public static function normalizeAmountInput(string $amount): string
+    {
+        return str_replace(',', '.', trim($amount));
     }
 
     private function buildAvailableYears(int $day, int $month): array
@@ -117,7 +132,7 @@ class FinanceController
                 'description' => trim($data['description'] ?? ''),
                 'group_name' => !empty(trim($data['group_name'] ?? '')) ? trim($data['group_name']) : null,
                 'type' => $data['type'],
-                'amount' => str_replace(',', '.', $data['amount'] ?? '0'),
+                'amount' => self::normalizeAmountInput((string) ($data['amount'] ?? '0')),
                 'payment_method' => $data['payment_method'],
             ];
             if ($id) {

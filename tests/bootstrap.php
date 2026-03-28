@@ -8,3 +8,6 @@ $_SERVER['HTTP_HOST'] = 'localhost';
 
 // Load autoloader
 require dirname(__DIR__) . '/vendor/autoload.php';
+
+// Load shared test helpers that are not autoloaded via Composer.
+require_once __DIR__ . '/Feature/TestHttpHelpers.php';

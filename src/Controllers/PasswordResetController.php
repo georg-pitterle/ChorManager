@@ -10,15 +10,16 @@ use Slim\Views\Twig;
 use App\Models\User;
 use App\Models\PasswordReset;
 use App\Services\Mailer;
-use Illuminate\Support\Str;
 
 class PasswordResetController
 {
     private Twig $view;
+    private Mailer $mailer;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, ?Mailer $mailer = null)
     {
         $this->view = $view;
+        $this->mailer = $mailer ?? new Mailer();
     }
 
     public function showForgotForm(Request $request, Response $response): Response
@@ -76,13 +77,12 @@ class PasswordResetController
         }
         $resetLink .= '/reset-password?token=' . $token . '&email=' . urlencode($email);
 
-        $mailer = new Mailer();
         $htmlBody = $this->view->fetch('emails/password_reset.twig', [
             'user' => $user,
             'reset_link' => $resetLink
         ]);
 
-        $sent = $mailer->sendHtmlMail($email, 'Passwort zurücksetzen - Chor Manager', $htmlBody);
+        $sent = $this->mailer->sendHtmlMail($email, 'Passwort zurücksetzen - Chor Manager', $htmlBody);
 
         if ($sent) {
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
