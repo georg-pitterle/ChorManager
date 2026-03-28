@@ -2,12 +2,21 @@
 
 {% block title %}Newsletter-Archiv{% endblock %}
 
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+        <h1 class="h2 mb-1">Meine Newsletter</h1>
+        <p class="text-muted mb-0">Alle Newsletter, die an Sie versendet wurden</p>
+    </div>
+</section>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h1>Meine Newsletter</h1>
-    <p class="text-muted">Alle Newsletter, die an Sie versendet wurden</p>
+<div class="container">
 
     {% if archived_newsletters|length > 0 %}
+    <div class="surface-card form-surface p-4 mb-4">
     <div class="row">
         {% for archive_item in archived_newsletters %}
         <div class="col-md-6 mb-4">
@@ -60,6 +69,7 @@
             </div>
         </div>
         {% endfor %}
+    </div>
     </div>
     {% else %}
     <div class="alert alert-info">

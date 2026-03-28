@@ -2,12 +2,20 @@
 
 {% block title %}Sponsoring-Pakete - Chor Manager{% endblock %}
 
-{% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom mt-4">
-    <h1 class="h2"><i class="bi bi-box-seam me-2"></i>Sponsoring-Pakete</h1>
-    <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Zurück zum Dashboard</a>
-</div>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+        <h1 class="h2 mb-1"><i class="bi bi-box-seam me-2"></i>Sponsoring-Pakete</h1>
+        <p class="text-muted mb-0">Pakete, Mindestbeträge und Farben zentral verwalten.</p>
+    </div>
+    <div class="page-actions">
+        <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Zurück zum Dashboard</a>
+    </div>
+</section>
+{% endblock %}
 
+{% block content %}
 {% if success %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ success }}
@@ -21,6 +29,7 @@
 </div>
 {% endif %}
 
+<div class="surface-card table-shell">
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead class="table-light">
@@ -120,5 +129,6 @@
             </tr>
         </tfoot>
     </table>
+</div>
 </div>
 {% endblock %}

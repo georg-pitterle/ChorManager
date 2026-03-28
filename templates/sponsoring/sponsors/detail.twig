@@ -2,8 +2,8 @@
 
 {% block title %}{{ sponsor.name }} - Sponsoring - Chor Manager{% endblock %}
 
-{% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom mt-4">
+{% block page_header %}
+<section class="page-header">
     <div>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-1">
@@ -12,17 +12,21 @@
                 <li class="breadcrumb-item active">{{ sponsor.name }}</li>
             </ol>
         </nav>
-        <h1 class="h2 mb-0">
+        <h1 class="h2 mb-1">
             {% if sponsor.type == 'organization' %}<i class="bi bi-building me-2"></i>{% else %}<i class="bi bi-person me-2"></i>{% endif %}
             {{ sponsor.name }}
         </h1>
     </div>
-    <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-          onsubmit="return confirm('Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
-        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Löschen</button>
-    </form>
-</div>
+    <div class="page-actions">
+        <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+              onsubmit="return confirm('Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
+            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Löschen</button>
+        </form>
+    </div>
+</section>
+{% endblock %}
 
+{% block content %}
 {% if success %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ success }}
