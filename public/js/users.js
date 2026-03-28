@@ -1,6 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.vg-checkbox').forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.vg-checkbox').forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
             var container = this.closest('.border');
             var selector = container.querySelector('.collapse-sv');
             if (this.checked) {
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAll = document.getElementById('selectAllUsers');
     const hidden = document.getElementById('bulkUserIds');
     const button = document.getElementById('bulkDeactivateButton');
-    const rowCheckboxes = Array.from(document.querySelectorAll('.user-row-select')).filter(function(cb) {
+    const rowCheckboxes = Array.from(document.querySelectorAll('.user-row-select')).filter(function (cb) {
         return !cb.disabled;
     });
 
@@ -24,9 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const selected = rowCheckboxes.filter(function(cb) {
+        const selected = rowCheckboxes.filter(function (cb) {
             return cb.checked;
-        }).map(function(cb) {
+        }).map(function (cb) {
             return cb.value;
         });
 
@@ -40,15 +40,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            rowCheckboxes.forEach(function(cb) {
+        selectAll.addEventListener('change', function () {
+            rowCheckboxes.forEach(function (cb) {
                 cb.checked = selectAll.checked;
             });
             syncBulkSelection();
         });
     }
 
-    rowCheckboxes.forEach(function(cb) {
+    rowCheckboxes.forEach(function (cb) {
         cb.addEventListener('change', syncBulkSelection);
     });
 

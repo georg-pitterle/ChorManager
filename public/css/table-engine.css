@@ -24,4 +24,52 @@
     border-radius: 0.75rem;
     margin: 0.75rem;
     padding: 0.5rem;
+    background: #fff;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td {
+    text-align: right;
+    border: none;
+    border-bottom: 1px solid var(--theme-border);
+    position: relative;
+    padding: 0.75rem 0.5rem 0.75rem 45%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 600;
+    color: var(--theme-text-muted);
+    text-align: left;
+    white-space: nowrap;
+    max-width: calc(45% - 1rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td:last-child {
+    border-bottom: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards .text-end,
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards .text-center {
+    text-align: right !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards .btn-group {
+    width: 100%;
+    justify-content: flex-end;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards audio,
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards midi-player {
+    max-width: 100%;
 }
