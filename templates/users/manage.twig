@@ -2,16 +2,22 @@
 
 {% block title %}Mitgliederverwaltung - Chor Manager{% endblock %}
 
-{% block content %}
-<div class="row mt-4">
-    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
-        <h1>Mitgliederverwaltung</h1>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
+        <h1 class="h2 mb-1">Mitgliederverwaltung</h1>
+        <p class="text-muted mb-0">Mitglieder, Rollen, Stimmen und Projektzuordnungen zentral verwalten.</p>
+    </div>
+    <div class="page-actions">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
             <i class="bi bi-person-plus-fill"></i> Mitglied hinzufügen
         </button>
     </div>
-</div>
+</section>
+{% endblock %}
 
+{% block content %}
 {% if success %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ success }}
@@ -25,7 +31,7 @@
 </div>
 {% endif %}
 
-<div class="card shadow-sm border-0">
+<div class="surface-card card border-0 table-shell">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards">
