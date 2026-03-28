@@ -35,7 +35,8 @@
 </div>
 </section>
 
-<div class="surface-card card border-0 table-shell">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="evaluations.index" data-default-view="cards">
+    {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards" id="evaluationsTable">
@@ -102,17 +103,8 @@
 </div>
 {% endif %}
 
-{% if selected_project %}
-<style>
-    .sortable { cursor: pointer; user-select: none; }
-    .sortable:hover { background-color: #3d4348 !important; color: #fff !important; }
-    .sortable .sort-icon { opacity: 0.5; }
-    .sortable.sorted-asc .sort-icon,
-    .sortable.sorted-desc .sort-icon { opacity: 1; }
-</style>
 {% block scripts %}
 <script src="/js/evaluations.js"></script>
 {% endblock %}
-{% endif %}
 
 {% endblock %}
