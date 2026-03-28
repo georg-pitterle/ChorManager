@@ -104,4 +104,27 @@ class LayoutFeatureTest extends TestCase
         // Must be visually contained with a border-radius
         $this->assertStringContainsString('border-radius: 0.375rem', $styleContent);
     }
+
+    public function testCssDefinesListheadHarmonizationRules(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        // All three thead variants must be targeted
+        $this->assertStringContainsString('thead.table-dark', $styleContent);
+        $this->assertStringContainsString('thead.table-light', $styleContent);
+        $this->assertStringContainsString('thead:not([class])', $styleContent);
+        // Must use listhead tokens
+        $this->assertStringContainsString('var(--listhead-bg', $styleContent);
+        $this->assertStringContainsString('var(--listhead-text', $styleContent);
+        // Accent bottom-border on thead
+        $this->assertMatchesRegularExpression(
+            '/thead\.(table-dark|table-light).*border-bottom: 3px solid var\(--header-accent-line/s',
+            $styleContent
+        );
+        // Typographic treatment on th cells
+        $this->assertStringContainsString('text-transform: uppercase', $styleContent);
+        $this->assertStringContainsString('letter-spacing: 0.04em', $styleContent);
+    }
 }

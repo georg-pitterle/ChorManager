@@ -175,6 +175,34 @@ body.app-shell {
     }
 }
 
+/* =====================================================================
+   Corporate Listhead
+   Applies to all three table header variants: .table-dark, .table-light,
+   and bare thead with no class. All render as the same light-neutral surface
+   with an accent bottom border.
+   Bootstrap reads --bs-table-bg and --bs-table-color on thead and cascades
+   them down to tr and td/th via its own .table > :not(caption) > * > * rule.
+   The `thead th` block adds direct cell overrides as a safe fallback and
+   applies the typographic treatment.
+   ===================================================================== */
+thead.table-dark,
+thead.table-light,
+thead:not([class]) {
+    --bs-table-bg: var(--listhead-bg, #eef1f5);
+    --bs-table-color: var(--listhead-text, #1f2937);
+    --bs-table-border-color: var(--listhead-border, #d9dee7);
+    border-bottom: 3px solid var(--header-accent-line, #E8A817);
+}
+
+thead th {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    color: var(--listhead-text, #1f2937);
+    background-color: var(--listhead-bg, #eef1f5);
+}
+
 /* Primary Button Overrides (Dark text on yellow for readability) */
 .btn-primary {
     --bs-btn-color: #2b2b2b;
