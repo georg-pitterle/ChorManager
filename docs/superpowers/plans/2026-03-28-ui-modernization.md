@@ -820,8 +820,271 @@ git add templates/layout.twig templates/dashboard/index.twig templates/events/in
 git commit -m "feat: implement modernized application ui"
 ```
 
+## Task 8: Apply Shell Pattern To Master Data Domains
+
+**Files:**
+
+- Modify: `templates/users/manage.twig`
+- Modify: `templates/projects/index.twig`
+- Modify: `templates/projects/members.twig`
+- Modify: `templates/roles/index.twig`
+- Modify: `templates/voice_groups/index.twig`
+- Modify: `templates/settings/event_types.twig`
+- Create: `tests/Feature/ProjectFeatureTest.php`
+- Create: `tests/Feature/VoiceGroupFeatureTest.php`
+- Create: `tests/Feature/EventTypeFeatureTest.php`
+- Test: `tests/Feature/UserManagementFeatureTest.php`
+- Test: `tests/Feature/RoleFeatureTest.php`
+
+- [ ] **Step 1: Add a standardized page header block to each listed master-data template**
+
+```twig
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
+        <h1 class="h2 mb-1">{{ page_title }}</h1>
+        <p class="text-muted mb-0">{{ page_subtitle }}</p>
+    </div>
+    <div class="page-actions">
+        {{ page_actions|raw }}
+    </div>
+</section>
+{% endblock %}
+```
+
+- [ ] **Step 2: Wrap each main table or form area in shared surfaces**
+
+```twig
+<section class="surface-card filter-surface mb-4">
+    <div class="card-body p-4">
+        {# existing filter controls #}
+    </div>
+</section>
+
+<section class="surface-card table-shell">
+    <div class="table-responsive">
+        {# existing table markup #}
+    </div>
+</section>
+```
+
+- [ ] **Step 3: Add and run master-data structure tests for project, voice group, and event type pages**
+
+Run: `ddev exec php vendor/bin/phpunit tests/Feature/ProjectFeatureTest.php tests/Feature/VoiceGroupFeatureTest.php tests/Feature/EventTypeFeatureTest.php`
+
+Expected: `OK`
+
+- [ ] **Step 4: Verify existing user and role structure tests stay green**
+
+Run: `ddev exec php vendor/bin/phpunit tests/Feature/UserManagementFeatureTest.php tests/Feature/RoleFeatureTest.php`
+
+Expected: `OK`
+
+- [ ] **Step 5: Commit master-data wave changes**
+
+```bash
+git add templates/users/manage.twig templates/projects/index.twig templates/projects/members.twig templates/roles/index.twig templates/voice_groups/index.twig templates/settings/event_types.twig
+git add tests/Feature/ProjectFeatureTest.php tests/Feature/VoiceGroupFeatureTest.php tests/Feature/EventTypeFeatureTest.php
+git commit -m "feat: apply modern ui pattern to master data domains"
+```
+
+## Task 9: Apply Shell Pattern To Attendance And Evaluation Domains
+
+**Files:**
+
+- Modify: `templates/attendance/show.twig`
+- Modify: `templates/evaluations/index.twig`
+- Modify: `templates/evaluations/project_members.twig`
+- Create: `tests/Feature/AttendanceFeatureTest.php`
+- Create: `tests/Feature/EvaluationFeatureTest.php`
+
+- [ ] **Step 1: Add consistent page header to attendance and evaluation templates**
+
+```twig
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Auswertung</p>
+        <h1 class="h2 mb-1">{{ page_title }}</h1>
+        <p class="text-muted mb-0">{{ page_subtitle }}</p>
+    </div>
+</section>
+{% endblock %}
+```
+
+- [ ] **Step 2: Use shared surfaces for filters, results, and table/detail sections**
+
+```twig
+<section class="surface-card filter-surface mb-4">
+    <div class="card-body p-4">{{ filters|raw }}</div>
+</section>
+
+<section class="surface-card table-shell">
+    <div class="card-body p-0">{{ results|raw }}</div>
+</section>
+```
+
+- [ ] **Step 3: Add and run attendance/evaluation structure tests**
+
+Run: `ddev exec php vendor/bin/phpunit tests/Feature/AttendanceFeatureTest.php tests/Feature/EvaluationFeatureTest.php`
+
+Expected: `OK`
+
+- [ ] **Step 4: Commit attendance/evaluation wave changes**
+
+```bash
+git add templates/attendance/show.twig templates/evaluations/index.twig templates/evaluations/project_members.twig
+git add tests/Feature/AttendanceFeatureTest.php tests/Feature/EvaluationFeatureTest.php
+git commit -m "feat: apply modern ui pattern to attendance and evaluations"
+```
+
+## Task 10: Apply Shell Pattern To Finance And Song Library Domains
+
+**Files:**
+
+- Modify: `templates/finances/index.twig`
+- Modify: `templates/finances/report.twig`
+- Modify: `templates/songs/manage.twig`
+- Modify: `templates/songs/downloads.twig`
+- Test: `tests/Feature/FinanceFeatureTest.php`
+- Test: `tests/Feature/SongLibraryFeatureTest.php`
+- Test: `tests/Feature/DownloadFeatureTest.php`
+
+- [ ] **Step 1: Add standardized headers and action bars to finance and song templates**
+
+```twig
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+        <h1 class="h2 mb-1">{{ page_title }}</h1>
+    </div>
+    <div class="page-actions">{{ actions|raw }}</div>
+</section>
+{% endblock %}
+```
+
+- [ ] **Step 2: Ensure lists, uploads, and reports use shared surface containers**
+
+```twig
+<section class="surface-card form-surface mb-4">
+    <div class="card-body p-4">{{ form_or_filters|raw }}</div>
+</section>
+
+<section class="surface-card table-shell">
+    <div class="table-responsive">{{ table_or_report|raw }}</div>
+</section>
+```
+
+- [ ] **Step 3: Run related domain tests**
+
+Run: `ddev exec php vendor/bin/phpunit tests/Feature/FinanceFeatureTest.php tests/Feature/SongLibraryFeatureTest.php tests/Feature/DownloadFeatureTest.php`
+
+Expected: `OK`
+
+- [ ] **Step 4: Commit finance/song wave changes**
+
+```bash
+git add templates/finances/index.twig templates/finances/report.twig templates/songs/manage.twig templates/songs/downloads.twig
+git commit -m "feat: apply modern ui pattern to finance and songs"
+```
+
+## Task 11: Apply Shell Pattern To Newsletter And Sponsoring Domains
+
+**Files:**
+
+- Modify: `templates/newsletters/index.twig`
+- Modify: `templates/newsletters/create.twig`
+- Modify: `templates/newsletters/edit.twig`
+- Modify: `templates/newsletters/preview.twig`
+- Modify: `templates/newsletters/archive.twig`
+- Modify: `templates/newsletters/locked.twig`
+- Modify: `templates/sponsoring/dashboard.twig`
+- Modify: `templates/sponsoring/packages/index.twig`
+- Modify: `templates/sponsoring/sponsors/index.twig`
+- Modify: `templates/sponsoring/sponsors/detail.twig`
+- Test: `tests/Feature/NewsletterFeatureTest.php`
+- Test: `tests/Feature/SponsoringFeatureTest.php`
+
+- [ ] **Step 1: Standardize page headers across newsletter and sponsoring templates**
+
+```twig
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+        <h1 class="h2 mb-1">{{ page_title }}</h1>
+        <p class="text-muted mb-0">{{ page_subtitle }}</p>
+    </div>
+    <div class="page-actions">{{ page_actions|raw }}</div>
+</section>
+{% endblock %}
+```
+
+- [ ] **Step 2: Use shared list/form/detail surfaces for all newsletter and sponsor views**
+
+```twig
+<section class="surface-card form-surface mb-4">
+    <div class="card-body p-4">{{ editor_or_form|raw }}</div>
+</section>
+
+<section class="surface-card table-shell">
+    <div class="card-body p-0">{{ list_or_detail|raw }}</div>
+</section>
+```
+
+- [ ] **Step 3: Run related domain tests**
+
+Run: `ddev exec php vendor/bin/phpunit tests/Feature/NewsletterFeatureTest.php tests/Feature/SponsoringFeatureTest.php`
+
+Expected: `OK`
+
+- [ ] **Step 4: Commit newsletter/sponsoring wave changes**
+
+```bash
+git add templates/newsletters/index.twig templates/newsletters/create.twig templates/newsletters/edit.twig templates/newsletters/preview.twig templates/newsletters/archive.twig templates/newsletters/locked.twig templates/sponsoring/dashboard.twig templates/sponsoring/packages/index.twig templates/sponsoring/sponsors/index.twig templates/sponsoring/sponsors/detail.twig
+git commit -m "feat: apply modern ui pattern to newsletters and sponsoring"
+```
+
+## Task 12: All-Areas Acceptance Gate
+
+**Files:**
+
+- Test: `tests/Feature/*.php`
+
+- [ ] **Step 1: Run complete feature suite for all areas**
+
+Run: `ddev exec php vendor/bin/phpunit tests/Feature`
+
+Expected: `OK` for all feature tests.
+
+- [ ] **Step 2: Run full suite and coding standards**
+
+Run: `ddev exec php vendor/bin/phpunit`
+
+Expected: `OK`
+
+Run: `ddev composer phpcs`
+
+Expected: no blocking violations.
+
+- [ ] **Step 3: Perform manual responsive walkthrough of every template domain**
+
+```text
+Validate desktop and mobile rendering for attendance, auth, dashboard, evaluations, events, finances, newsletters, profile, projects, roles, settings, songs, sponsoring, users, and voice_groups.
+Confirm consistent page headers, action bars, filter surfaces, table surfaces, form surfaces, and alert states.
+```
+
+- [ ] **Step 4: Commit all-area completion checkpoint**
+
+```bash
+git add templates public/css tests/Feature
+git commit -m "feat: complete modern ui rollout across all areas"
+```
+
 ## Self-Review
 
-- Spec coverage check: the plan covers shared shell, dashboard, list/table pattern, form/settings work, auth refresh, configurable primary color, testing, and responsive verification.
+- Spec coverage check: the plan covers shared shell, configurable primary color, and explicit rollout for all template domains listed in the spec.
 - Placeholder scan: no `TODO`, `TBD`, ellipsis placeholders, or "similar to previous task" shortcuts remain.
 - Type consistency check: the plan consistently uses `themeCss()`, `normalizePrimaryColor()`, `primary_color`, and `/theme.css` across controller, route, template, and test tasks.

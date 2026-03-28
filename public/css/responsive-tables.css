@@ -31,7 +31,8 @@
     border-bottom: 1px solid #e9ecef;
     position: relative;
     padding-left: 50%;
-    min-height: 48px; /* Ensure consistent height */
+    min-height: 48px;
+    /* Ensure consistent height */
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -54,7 +55,8 @@
 
   .table-responsive-cards .text-end,
   .table-responsive-cards .text-center {
-    text-align: right !important; /* Override alignment for consistency */
+    text-align: right !important;
+    /* Override alignment for consistency */
   }
 
   .table-responsive-cards .btn-group {
