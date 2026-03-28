@@ -3,3 +3,4 @@ vendor/
 .env
 ChorManager.code-workspace
 .twig-cs-fixer.cache
+.superpowers/
