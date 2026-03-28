@@ -2,17 +2,23 @@
 
 {% block title %}Dashboard - {{ app_settings.app_name|default('Chor Manager') }}{% endblock %}
 
-{% block content %}
-<div class="row mt-4">
-    <div class="col-12">
-        <h1 class="mb-4">Willkommen, {{ session.user_name|default('Mitglied') }}</h1>
-        <hr>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Dashboard</p>
+        <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default('Mitglied') }}</h1>
+        <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
     </div>
-</div>
+    <div class="page-actions">
+        <a href="/attendance" class="btn btn-primary">Zur Anwesenheit</a>
+    </div>
+</section>
+{% endblock %}
 
+{% block content %}
 <div class="row">
     <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm border-primary">
+        <div class="surface-card card h-100 border-primary">
             <div class="card-body">
                 <h5 class="card-title text-primary"><i class="bi bi-calendar-check-fill"></i> Nächste Probe</h5>
                 <p class="card-text">
@@ -25,7 +31,7 @@
 
     {% if can_manage_users %}
     <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm border-success">
+        <div class="surface-card card h-100 border-success">
             <div class="card-body">
                 <h5 class="card-title text-success"><i class="bi bi-people-fill"></i> Mitgliederverwaltung</h5>
                 <p class="card-text">
@@ -36,7 +42,7 @@
         </div>
     </div>
     <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm border-info">
+        <div class="surface-card card h-100 border-info">
             <div class="card-body">
                 <h5 class="card-title text-info"><i class="bi bi-bar-chart-fill"></i> Auswertungen</h5>
                 <p class="card-text">
@@ -48,7 +54,7 @@
     </div>
     {% elseif role_level >= 40 %} {# Stimmvertretung/Ersatz #}
     <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm border-warning">
+        <div class="surface-card card h-100 border-warning">
             <div class="card-body">
                 <h5 class="card-title text-warning"><i class="bi bi-person-lines-fill"></i> Meine Stimmgruppe</h5>
                 <p class="card-text">
