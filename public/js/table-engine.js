@@ -30,6 +30,22 @@
         });
 
         setView(initialView);
+
+        const searchInput = container.querySelector('[data-table-search]');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const q = searchInput.value.trim().toLowerCase();
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function (row) {
+                    if (!q) {
+                        row.hidden = false;
+                        return;
+                    }
+                    const text = row.textContent.toLowerCase();
+                    row.hidden = !text.includes(q);
+                });
+            });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
