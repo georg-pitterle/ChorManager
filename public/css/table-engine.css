@@ -1,0 +1,27 @@
+.table-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards thead {
+    display: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tbody,
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tr,
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td {
+    display: block;
+    width: 100%;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tr {
+    border: 1px solid var(--theme-border);
+    border-radius: 0.75rem;
+    margin: 0.75rem;
+    padding: 0.5rem;
+}

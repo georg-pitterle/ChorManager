@@ -315,4 +315,49 @@ class UserController
         $_SESSION['success'] = 'Mitglied wurde archiviert (deaktiviert).';
         return $response->withHeader('Location', '/users')->withStatus(302);
     }
+
+    public function bulkDeactivate(Request $request, Response $response): Response
+    {
+        $data = (array) $request->getParsedBody();
+        $sourceIds = $data['user_ids'] ?? [];
+
+        if (is_string($sourceIds)) {
+            $sourceIds = explode(',', $sourceIds);
+        }
+
+        $ids = array_values(array_filter(array_map('intval', (array) $sourceIds)));
+
+        if (empty($ids)) {
+            $_SESSION['error'] = 'Keine Mitglieder ausgewählt.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
+        $processed = 0;
+        $failed = [];
+
+        foreach ($ids as $id) {
+            if ($id === (int) ($_SESSION['user_id'] ?? 0)) {
+                $failed[] = $id;
+                continue;
+            }
+
+            $targetUser = $this->userQuery->findById($id);
+            if (!$targetUser) {
+                $failed[] = $id;
+                continue;
+            }
+
+            $targetUser->is_active = 0;
+            $this->userPersistence->save($targetUser);
+            $processed++;
+        }
+
+        $_SESSION['success'] = sprintf(
+            'Bulk-Aktion abgeschlossen: %d deaktiviert, %d fehlgeschlagen.',
+            $processed,
+            count($failed)
+        );
+
+        return $response->withHeader('Location', '/users')->withStatus(302);
+    }
 }
