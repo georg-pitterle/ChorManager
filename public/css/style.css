@@ -60,6 +60,25 @@ body.app-shell {
     color: var(--theme-primary, #E8A817);
     font-weight: 700;
     letter-spacing: 0.5px;
+    min-width: 0;
+    max-width: calc(100% - 3.25rem);
+}
+
+.navbar.bg-dark.app-topbar .container-fluid {
+    flex-wrap: nowrap;
+}
+
+.app-topbar__brand-name {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.navbar.bg-dark.app-topbar .navbar-toggler {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
 }
 
 .navbar-dark .navbar-brand:hover,
@@ -97,6 +116,16 @@ body.app-shell {
     .navbar .dropdown-menu {
         margin-top: 0.25rem;
         margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .app-topbar__brand-name {
+        display: none;
+    }
+
+    .navbar-dark .navbar-brand {
+        max-width: calc(100% - 2.75rem);
     }
 }
 
