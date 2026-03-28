@@ -6,13 +6,34 @@ Die Anwendung soll ein moderneres, klareres und produktiveres Erscheinungsbild e
 
 ## Umfang
 
-Die erste Phase umfasst:
+Die Modernisierung umfasst alle produktiven Bereiche der Anwendung:
 
 - die globale App-Shell für eingeloggte Nutzer
 - das Dashboard
-- Listen- und Verwaltungsseiten
-- Formulare und Detailseiten in den Bereichen wie Termine, Benutzer, Rollen und Finanzen
+- Listen-, Verwaltungs-, Formular- und Detailseiten in allen Domänen
 - Auth-Seiten wie Login, Setup und Passwort-Reset
+
+Konkrete Bereichsabdeckung (Templates):
+
+- `attendance/`
+- `auth/`
+- `dashboard/`
+- `evaluations/`
+- `events/`
+- `finances/`
+- `newsletters/`
+- `profile/`
+- `projects/`
+- `roles/`
+- `settings/`
+- `songs/`
+- `sponsoring/`
+- `users/`
+- `voice_groups/`
+
+Nicht Teil der visuellen Redesign-Umsetzung:
+
+- reine Mail-Templates unter `emails/` (nur funktionale Korrekturen, kein visuelles App-Redesign)
 
 Nicht Teil dieser Phase sind:
 
@@ -192,12 +213,20 @@ Diese Zustände sollen nicht länger wie zufällige Bootstrap-Standardbausteine 
 
 Die Umsetzung soll in kontrollierten Schritten erfolgen:
 
-1. globale Shell und Design-Basis modernisieren
-2. Dashboard umstellen
-3. Listen- und Tabellenmuster für zentrale Verwaltungsseiten vereinheitlichen
-4. Formulare und Detailseiten angleichen
-5. Auth-Seiten an die neue Designsprache anbinden
-6. Primärfarben-Konfiguration in App-Einstellungen ergänzen
+1. globale Shell, Design-Basis und Primärfarben-Konfiguration modernisieren
+2. Auth- und Einstiegsseiten angleichen (`auth/`, `dashboard/`, `profile/`)
+3. Kern-Verwaltung und Stammdaten angleichen (`users/`, `projects/`, `roles/`, `voice_groups/`, `settings/`)
+4. Termin- und Anwesenheitsfluss angleichen (`events/`, `attendance/`, `evaluations/`)
+5. Finanz- und Dokumentenfluss angleichen (`finances/`, `songs/`, `downloads` innerhalb `songs/downloads.twig`)
+6. Kommunikations- und Sponsoring-Bereiche angleichen (`newsletters/`, `sponsoring/`)
+
+Für jede Welle gelten dieselben UI-Regeln:
+
+- einheitlicher Seitenkopf
+- konsistente Aktionsleisten
+- konsistente Filter- und Tabellenflächen
+- konsistente Formularabschnitte und Zustandsdarstellungen
+- mobile und Desktop-Parität
 
 Diese Reihenfolge minimiert visuelle Brüche und erlaubt wiederverwendbare Muster, bevor breite Template-Anpassungen beginnen.
 

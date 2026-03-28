@@ -10,6 +10,32 @@
 
 ---
 
+## Scope Update: All Areas
+
+This plan's UI rules and task patterns must be applied consistently to all template domains in the repository, not only the initial subset.
+
+Full rollout coverage:
+
+- `attendance/`
+- `auth/`
+- `dashboard/`
+- `evaluations/`
+- `events/`
+- `finances/`
+- `newsletters/`
+- `profile/`
+- `projects/`
+- `roles/`
+- `settings/`
+- `songs/`
+- `sponsoring/`
+- `users/`
+- `voice_groups/`
+
+Execution rule: after completing Tasks 1-7 as baseline patterns, repeat the same page-header/list/form/state conventions for every remaining area before final acceptance.
+
+---
+
 ## File Map
 
 **Create:**
