@@ -89,4 +89,19 @@ class LayoutFeatureTest extends TestCase
         // Must carry explicit box-shadow for depth
         $this->assertStringContainsString('box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4)', $styleContent);
     }
+
+    public function testCssDefinesNavActiveChipStyle(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        // Active link must have a primary-tinted background chip
+        $this->assertStringContainsString(
+            'background: rgba(var(--theme-primary-rgb), 0.12)',
+            $styleContent
+        );
+        // Must be visually contained with a border-radius
+        $this->assertStringContainsString('border-radius: 0.375rem', $styleContent);
+    }
 }
