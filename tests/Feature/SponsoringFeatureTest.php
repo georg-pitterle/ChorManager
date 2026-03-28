@@ -62,4 +62,18 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString('data-label="Name"', $templateContent);
         $this->assertStringContainsString('data-label="Aktionen"', $templateContent);
     }
+
+    public function testSponsoringDashboardTemplateUsesResponsiveTableEngine(): void
+    {
+        $templatePath = dirname(__DIR__) . '/../templates/sponsoring/dashboard.twig';
+        $templateContent = file_get_contents($templatePath);
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('data-table-id="sponsoring.dashboard.followups"', $templateContent);
+        $this->assertStringContainsString('data-table-id="sponsoring.dashboard.recent_contacts"', $templateContent);
+        $this->assertStringContainsString("'partials/table_toolbar.twig'", $templateContent);
+        $this->assertStringContainsString('table-responsive-cards', $templateContent);
+        $this->assertStringContainsString('data-label="Datum"', $templateContent);
+        $this->assertStringContainsString('data-label="Zusammenfassung"', $templateContent);
+    }
 }

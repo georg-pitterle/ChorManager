@@ -9,7 +9,7 @@
         <h1 class="h2 mb-1"><i class="bi bi-briefcase me-2"></i>Sponsoring</h1>
         <p class="text-muted mb-0">Sponsoren, Pakete und Kontaktverlauf an einem Ort steuern.</p>
     </div>
-    <div class="page-actions btn-group">
+    <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
         <a href="/sponsoring/sponsors" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people me-1"></i> Sponsoren</a>
         <a href="/sponsoring/packages" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-seam me-1"></i> Pakete</a>
     </div>
@@ -88,31 +88,32 @@
 
 {# Fällige Wiedervorlagen #}
 {% if upcoming_follow_ups|length > 0 %}
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4 table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.followups" data-default-view="cards">
     <div class="card-header bg-white border-bottom fw-semibold">
         <i class="bi bi-alarm me-1 text-danger"></i> Wiedervorlagen (fällig / nächste 7 Tage)
     </div>
+    {% include 'partials/table_toolbar.twig' %}
     <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
+        <table class="table table-sm table-hover mb-0 align-middle table-responsive-cards" id="sponsoringFollowUpsTable">
             <thead class="table-light">
                 <tr>
                     <th>Datum</th>
                     <th>Sponsor</th>
                     <th>Vereinbarung</th>
                     <th>Zuständig</th>
-                    <th></th>
+                    <th class="text-end">Aktionen</th>
                 </tr>
             </thead>
             <tbody>
                 {% for contact in upcoming_follow_ups %}
                 <tr {% if contact.follow_up_date.format('Y-m-d') <= date().format('Y-m-d') %}class="table-warning"{% endif %}>
-                    <td class="text-nowrap">{{ contact.follow_up_date ? contact.follow_up_date.format('d.m.Y') : '' }}</td>
-                    <td>
+                    <td data-label="Datum" class="text-nowrap">{{ contact.follow_up_date ? contact.follow_up_date.format('d.m.Y') : '' }}</td>
+                    <td data-label="Sponsor">
                         <a href="/sponsoring/sponsors/{{ contact.sponsor.id }}">{{ contact.sponsor.name }}</a>
                     </td>
-                    <td>{{ contact.sponsorship ? contact.sponsorship.id : '–' }}</td>
-                    <td>{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
-                    <td>
+                    <td data-label="Vereinbarung">{{ contact.sponsorship ? contact.sponsorship.id : '–' }}</td>
+                    <td data-label="Zuständig">{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
+                    <td data-label="Aktionen" class="text-end">
                         <form method="post" action="/sponsoring/contacts/{{ contact.id }}/done" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-success">
                                 <i class="bi bi-check-lg"></i> Erledigt
@@ -133,8 +134,10 @@
         <i class="bi bi-clock-history me-1"></i> Letzte Kontakte
     </div>
     {% if recent_contacts|length > 0 %}
+    <div class="table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.recent_contacts" data-default-view="cards">
+    {% include 'partials/table_toolbar.twig' %}
     <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
+        <table class="table table-sm table-hover mb-0 align-middle table-responsive-cards" id="sponsoringRecentContactsTable">
             <thead class="table-light">
                 <tr>
                     <th>Datum</th>
@@ -147,11 +150,11 @@
             <tbody>
                 {% for contact in recent_contacts %}
                 <tr>
-                    <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
-                    <td>
+                    <td data-label="Datum" class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
+                    <td data-label="Sponsor">
                         <a href="/sponsoring/sponsors/{{ contact.sponsor.id }}">{{ contact.sponsor.name }}</a>
                     </td>
-                    <td>
+                    <td data-label="Art">
                         {% if contact.type == 'call' %}<i class="bi bi-telephone" title="Anruf"></i>
                         {% elseif contact.type == 'email' %}<i class="bi bi-envelope" title="E-Mail"></i>
                         {% elseif contact.type == 'meeting' %}<i class="bi bi-people" title="Treffen"></i>
@@ -165,12 +168,13 @@
                             {% else %}Sonstiges{% endif %}
                         </span>
                     </td>
-                    <td class="text-truncate" style="max-width:300px;">{{ contact.summary }}</td>
-                    <td>{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
+                    <td data-label="Zusammenfassung" class="text-truncate" style="max-width:300px;">{{ contact.summary }}</td>
+                    <td data-label="Protokolliert von">{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     </div>
     {% else %}
     <div class="card-body text-muted">Noch keine Kontakte vorhanden.</div>
