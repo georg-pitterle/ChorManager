@@ -37,9 +37,13 @@ class AuthFeatureTest extends TestCase
         $this->assertStringContainsString("'/login'", $routesContent);
         $this->assertStringContainsString("'/logout'", $routesContent);
         $this->assertStringContainsString("'/setup'", $routesContent);
+        $this->assertStringContainsString('/forgot-password', $routesContent);
+        $this->assertStringContainsString('/reset-password', $routesContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/auth/login.twig'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/auth/setup.twig'));
+        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/auth/forgot_password.twig'));
+        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/auth/reset_password.twig'));
     }
 
     public function testSessionAuthServiceSetsFlagsFromRolesAndVoiceGroups(): void

@@ -3,45 +3,41 @@
 {% block title %}Ersteinrichtung - Chor Manager{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow-lg border-0">
-            <div class="login-header">
-                <img src="/img/logo.png" alt="App Logo" height="60" class="mb-2">
-                <h2 class="h4 mt-2 font-weight-bold">Ersteinrichtung</h2>
-                <p class="mb-0 text-white-50">Erstelle den ersten Administrator-Account.</p>
-            </div>
-            <div class="card-body p-4 p-md-5">
+<section class="auth-shell">
+    <div class="auth-card surface-card">
+        <div class="auth-brand-panel">
+            <img src="/logo" alt="App Logo" class="auth-logo mb-3">
+            <h1 class="h4 mb-2">Ersteinrichtung</h1>
+            <p class="mb-0">Erstelle den ersten Administrator-Account.</p>
+        </div>
 
-                {% if error %}
-                    <div class="alert alert-danger" role="alert">
-                        {{ error }}
-                    </div>
-                {% endif %}
+        <div class="auth-form-panel p-4 p-md-5">
+            {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error }}
+                </div>
+            {% endif %}
 
-                <form action="/setup" method="post">
-                    <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="firstNameInput" name="first_name" placeholder="Vorname" required autofocus>
-                        <label for="firstNameInput">Vorname</label>
-                    </div>
-                    <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="lastNameInput" name="last_name" placeholder="Nachname" required>
-                        <label for="lastNameInput">Nachname</label>
-                    </div>
-                    <div class="form-floating mb-3">
-                        <input type="email" class="form-control" id="emailInput" name="email" placeholder="name@example.com" required>
-                        <label for="emailInput">E-Mail-Adresse</label>
-                    </div>
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Passwort" required>
-                        <label for="passwordInput">Passwort</label>
-                    </div>
-                    <div class="d-grid gap-2 mt-4">
-                        <button class="btn btn-primary btn-lg" type="submit">Setup abschließen</button>
-                    </div>
-                </form>
-            </div>
+            <form action="/setup" method="post" class="d-grid gap-3">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="firstNameInput" name="first_name" placeholder="Vorname" required autofocus>
+                    <label for="firstNameInput">Vorname</label>
+                </div>
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="lastNameInput" name="last_name" placeholder="Nachname" required>
+                    <label for="lastNameInput">Nachname</label>
+                </div>
+                <div class="form-floating">
+                    <input type="email" class="form-control" id="emailInput" name="email" placeholder="name@example.com" required>
+                    <label for="emailInput">E-Mail-Adresse</label>
+                </div>
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Passwort" required>
+                    <label for="passwordInput">Passwort</label>
+                </div>
+                <button class="btn btn-primary btn-lg w-100" type="submit">Setup abschließen</button>
+            </form>
         </div>
     </div>
-</div>
+</section>
 {% endblock %}

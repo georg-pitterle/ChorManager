@@ -163,3 +163,44 @@ a:hover {
     padding: 1.5rem;
     text-align: center;
 }
+
+.auth-shell {
+    min-height: calc(100vh - 8rem);
+    display: grid;
+    place-items: center;
+}
+
+.auth-card {
+    width: min(920px, 100%);
+    display: grid;
+    grid-template-columns: minmax(260px, 360px) minmax(320px, 1fr);
+    overflow: hidden;
+}
+
+.auth-brand-panel {
+    background: linear-gradient(160deg, #18212b 0%, #243244 100%);
+    color: #fff;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.auth-logo {
+    max-height: 64px;
+    width: auto;
+}
+
+.auth-form-panel {
+    background: #fff;
+}
+
+@media (max-width: 991.98px) {
+    .auth-card {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand-panel {
+        padding: 1.5rem;
+    }
+}
