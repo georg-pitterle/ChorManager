@@ -29,4 +29,15 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('.app-topbar__brand-name', $styleContent);
         $this->assertStringContainsString('display: none;', $styleContent);
     }
+
+    public function testTopbarCssDefinesExplicitVisibleTogglerIcon(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler-icon', $styleContent);
+        $this->assertStringContainsString('background-image: url("data:image/svg+xml', $styleContent);
+        $this->assertStringContainsString('rgba(255,255,255,0.95)', $styleContent);
+    }
 }
