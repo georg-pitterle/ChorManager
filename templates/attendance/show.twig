@@ -2,23 +2,25 @@
 
 {% block title %}Anwesenheitsliste - Chor Manager{% endblock %}
 
-{% block content %}
-<div class="row mt-4 mb-3">
-    <div class="col-12 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-        <h1>Anwesenheiten eintragen</h1>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Auswertung</p>
+        <h1 class="h2 mb-1">Anwesenheiten eintragen</h1>
+        <p class="text-muted mb-0">Termine auswählen und Anwesenheitsstatus strukturiert erfassen.</p>
+    </div>
+    <div class="page-actions d-flex flex-column flex-md-row gap-2">
+        <div class="btn-group" role="group" aria-label="Termin Navigation">
+            <a href="{% if previous_event_id %}/attendance/{{ previous_event_id }}{% else %}#{% endif %}" class="btn btn-outline-secondary {% if not previous_event_id %}disabled{% endif %}" {% if not previous_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
+                <i class="bi bi-chevron-left"></i> Vorheriger Termin
+            </a>
+            <a href="{% if next_event_id %}/attendance/{{ next_event_id }}{% else %}#{% endif %}" class="btn btn-outline-secondary {% if not next_event_id %}disabled{% endif %}" {% if not next_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
+                Nächster Termin <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
 
-        <div class="d-flex flex-column flex-md-row mt-2 mt-md-0 gap-2">
-            <div class="btn-group" role="group" aria-label="Termin Navigation">
-                <a href="{% if previous_event_id %}/attendance/{{ previous_event_id }}{% else %}#{% endif %}" class="btn btn-outline-secondary {% if not previous_event_id %}disabled{% endif %}" {% if not previous_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
-                    <i class="bi bi-chevron-left"></i> Vorheriger Termin
-                </a>
-                <a href="{% if next_event_id %}/attendance/{{ next_event_id }}{% else %}#{% endif %}" class="btn btn-outline-secondary {% if not next_event_id %}disabled{% endif %}" {% if not next_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
-                    Nächster Termin <i class="bi bi-chevron-right"></i>
-                </a>
-            </div>
-
-            <form class="d-flex" method="get" action="/attendance" id="eventSelectForm">
-            <select class="form-select me-2 attendance-selector" name="event_id">
+        <form class="d-flex" method="get" action="/attendance" id="eventSelectForm">
+            <select class="form-select attendance-selector" name="event_id">
                 <option value="">-- Termin wählen --</option>
                 {% for e in events %}
                     <option value="{{ e.id }}" {% if current_event and current_event.id == e.id %}selected{% endif %}>
@@ -26,11 +28,12 @@
                     </option>
                 {% endfor %}
             </select>
-            </form>
-        </div>
+        </form>
     </div>
-</div>
+</section>
+{% endblock %}
 
+{% block content %}
 {% if success %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ success }}
@@ -45,7 +48,8 @@
 {% endif %}
 
 {% if current_event %}
-<div class="card shadow-sm mb-4 border-primary">
+<section class="surface-card form-surface mb-4">
+<div class="card shadow-sm mb-0 border-primary border-0">
     <div class="card-body">
         <h5 class="card-title text-primary">{{ current_event.title }}</h5>
         <h6 class="card-subtitle mb-2 text-muted">
@@ -55,6 +59,7 @@
         </h6>
     </div>
 </div>
+</section>
 
 <form action="/attendance/{{ current_event.id }}" method="post">
     {% set has_members = false %}

@@ -2,28 +2,33 @@
 
 {% block title %}Projektmitglieder - Chor Manager{% endblock %}
 
-{% block content %}
-<div class="row mt-4 mb-3">
-    <div class="col-12 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-        <h1>Projektmitglieder</h1>
-        <div class="d-flex gap-2 mt-2 mt-md-0">
-            <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
-            <form class="d-flex" method="get" action="/evaluations/project-members">
-                <select class="form-select me-2 onchange-submit" name="project_id" style="min-width: 200px;">
-                    <option value="">-- Projekt wählen --</option>
-                    {% for p in projects %}
-                        <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
-                            {{ p.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </form>
-        </div>
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Auswertung</p>
+        <h1 class="h2 mb-1">Projektmitglieder</h1>
+        <p class="text-muted mb-0">Mitglieder je Projekt nach Stimmgruppen und Teilstimmen gruppiert.</p>
     </div>
-</div>
+    <div class="page-actions d-flex gap-2">
+        <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
+        <form class="d-flex" method="get" action="/evaluations/project-members">
+            <select class="form-select onchange-submit" name="project_id" style="min-width: 220px;">
+                <option value="">-- Projekt wählen --</option>
+                {% for p in projects %}
+                    <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
+                        {{ p.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</section>
+{% endblock %}
 
+{% block content %}
 {% if selected_project %}
-<div class="card shadow-sm mb-4 border-info">
+<section class="surface-card form-surface mb-4">
+<div class="card shadow-sm mb-0 border-info border-0">
     <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h5 class="card-title text-info mb-0">Projekt: {{ selected_project.name }}</h5>
@@ -36,10 +41,11 @@
         {% endif %}
     </div>
 </div>
+</section>
 
 {% if grouped_members|length > 0 %}
     {% for voice_group, sub_voices in grouped_members %}
-    <div class="card shadow-sm mb-4 border-0">
+    <div class="surface-card card shadow-sm mb-4 border-0 table-shell">
         <div class="card-header bg-dark text-white">
             <h5 class="mb-0">
                 <i class="bi bi-music-note-beamed"></i>
