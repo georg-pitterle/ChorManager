@@ -75,5 +75,7 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString('table-responsive-cards', $templateContent);
         $this->assertStringContainsString('data-label="Datum"', $templateContent);
         $this->assertStringContainsString('data-label="Zusammenfassung"', $templateContent);
+        $this->assertStringContainsString('class="table-summary-cell"', $templateContent);
+        $this->assertStringContainsString('class="table-summary-content"', $templateContent);
     }
 }

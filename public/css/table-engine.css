@@ -8,6 +8,14 @@
     border-bottom: 1px solid var(--theme-border);
 }
 
+.table-summary-cell .table-summary-content {
+    display: inline-block;
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 [data-table-engine="true"][data-active-view="cards"],
 [data-table-engine="true"][data-active-view="cards"] .table-responsive {
     overflow: visible !important;
@@ -79,4 +87,19 @@
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards audio,
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards midi-player {
     max-width: 100%;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards .table-summary-cell {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards .table-summary-cell .table-summary-content {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
 }

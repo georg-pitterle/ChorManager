@@ -168,7 +168,9 @@
                             {% else %}Sonstiges{% endif %}
                         </span>
                     </td>
-                    <td data-label="Zusammenfassung" class="text-truncate" style="max-width:300px;">{{ contact.summary }}</td>
+                    <td data-label="Zusammenfassung" class="table-summary-cell">
+                        <span class="table-summary-content">{{ contact.summary }}</span>
+                    </td>
                     <td data-label="Protokolliert von">{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
                 </tr>
                 {% endfor %}
