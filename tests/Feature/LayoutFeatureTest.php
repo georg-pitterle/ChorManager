@@ -75,4 +75,18 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('--listhead-text:', $styleContent);
         $this->assertStringContainsString('--listhead-border:', $styleContent);
     }
+
+    public function testTopbarCssUsesGradientWithAccentBorder(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        // Must use a gradient instead of a flat rgba() background
+        $this->assertStringContainsString('linear-gradient(135deg', $styleContent);
+        // Accent border must reference the header token
+        $this->assertStringContainsString('3px solid var(--header-accent-line', $styleContent);
+        // Must carry explicit box-shadow for depth
+        $this->assertStringContainsString('box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4)', $styleContent);
+    }
 }

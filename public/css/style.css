@@ -78,9 +78,10 @@ body.app-shell {
 
 /* Navbar Styling */
 .navbar.bg-dark.app-topbar {
-    background: rgba(24, 33, 43, 0.94) !important;
+    background: linear-gradient(135deg, rgba(36, 50, 68, 0.97) 0%, rgba(24, 33, 43, 0.97) 100%) !important;
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 3px solid var(--header-accent-line, #E8A817);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
 }
 
 .navbar-dark .navbar-brand {
