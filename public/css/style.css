@@ -221,7 +221,7 @@ thead th {
 
 /* Narrow-viewport refinements for listhead and card-header.
    This block must come after the base thead and card-header rules above
-    so that at ≤767.98px these values override them in the cascade. */
+   so that at ≤767.98px these values override them in the cascade. */
 @media (max-width: 767.98px) {
     thead th {
         font-size: 0.75rem;
