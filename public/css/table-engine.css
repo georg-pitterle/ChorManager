@@ -8,6 +8,11 @@
     border-bottom: 1px solid var(--theme-border);
 }
 
+[data-table-engine="true"][data-active-view="cards"],
+[data-table-engine="true"][data-active-view="cards"] .table-responsive {
+    overflow: visible !important;
+}
+
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards thead {
     display: none;
 }
@@ -25,6 +30,8 @@
     margin: 0.75rem;
     padding: 0.5rem;
     background: #fff;
+    width: calc(100% - 1.5rem);
+    box-sizing: border-box;
 }
 
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td {
