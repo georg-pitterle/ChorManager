@@ -9,7 +9,13 @@
         <h1 class="h2 mb-1">Mitgliederverwaltung</h1>
         <p class="text-muted mb-0">Mitglieder, Rollen, Stimmen und Projektzuordnungen zentral verwalten.</p>
     </div>
-    <div class="page-actions">
+    <div class="page-actions d-flex gap-2">
+        <form action="/users/bulk-deactivate" method="post" id="bulkDeactivateForm" data-confirm="Ausgewählte Mitglieder wirklich archivieren?">
+            <input type="hidden" name="user_ids" id="bulkUserIds" value="">
+            <button type="submit" class="btn btn-outline-danger" id="bulkDeactivateButton" disabled>
+                <i class="bi bi-person-x"></i> Auswahl archivieren
+            </button>
+        </form>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
             <i class="bi bi-person-plus-fill"></i> Mitglied hinzufügen
         </button>
@@ -37,6 +43,7 @@
             <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
                     <tr>
+                        <th><input type="checkbox" id="selectAllUsers" aria-label="Alle Mitglieder auswählen"></th>
                         <th>Name</th>
                         <th>E-Mail</th>
                         <th>Rolle</th>
@@ -50,6 +57,15 @@
                 <tbody>
                     {% for user in users %}
                     <tr>
+                        <td data-label="Auswahl">
+                            <input
+                                type="checkbox"
+                                class="user-row-select"
+                                value="{{ user.id }}"
+                                {% if user.id == session.user_id %}disabled{% endif %}
+                                aria-label="Mitglied auswählen"
+                            >
+                        </td>
                         <td data-label="Name">{{ user.first_name }} {{ user.last_name }}</td>
                         <td data-label="E-Mail">{{ user.email }}</td>
                         <td data-label="Rolle">
@@ -108,7 +124,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ (can_manage_project_members or can_edit_users) ? 6 : 5 }}" class="text-center py-4 text-muted">Keine aktiven Mitglieder gefunden.</td>
+                        <td colspan="{{ (can_manage_project_members or can_edit_users) ? 7 : 6 }}" class="text-center py-4 text-muted">Keine aktiven Mitglieder gefunden.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
