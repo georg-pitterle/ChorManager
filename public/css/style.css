@@ -37,9 +37,27 @@ body.app-shell {
     display: flex;
     justify-content: space-between;
     align-items: end;
+    flex-wrap: wrap;
     gap: 1rem;
     margin: 1.5rem auto 1rem;
     max-width: 1140px;
+}
+
+.page-header> :first-child {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.page-header .page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    max-width: 100%;
+}
+
+.page-header .page-actions>* {
+    max-width: 100%;
 }
 
 .surface-card {
@@ -88,11 +106,8 @@ body.app-shell {
     border-color: rgba(255, 255, 255, 0.4);
 }
 
-.navbar.bg-dark.app-topbar .navbar-toggler .app-topbar__burger-symbol {
+.navbar.bg-dark.app-topbar .navbar-toggler .bi-list {
     display: block;
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 1.6rem;
-    font-weight: 700;
     line-height: 1;
 }
 
@@ -135,6 +150,15 @@ body.app-shell {
 }
 
 @media (max-width: 767.98px) {
+    .page-header {
+        align-items: stretch;
+    }
+
+    .page-header .page-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
     .app-topbar__brand-name {
         display: none;
     }

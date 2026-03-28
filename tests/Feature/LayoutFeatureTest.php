@@ -16,7 +16,7 @@ class LayoutFeatureTest extends TestCase
         $this->assertIsString($layoutContent);
         $this->assertStringContainsString('class="app-topbar__brand-name"', $layoutContent);
         $this->assertStringContainsString('class="navbar-toggler"', $layoutContent);
-        $this->assertStringContainsString('class="app-topbar__burger-symbol"', $layoutContent);
+        $this->assertStringContainsString('class="bi bi-list fs-3 text-white"', $layoutContent);
         $this->assertStringContainsString('navbar-expand-lg', $layoutContent);
     }
 
@@ -37,7 +37,18 @@ class LayoutFeatureTest extends TestCase
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
-        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler .app-topbar__burger-symbol', $styleContent);
-        $this->assertStringContainsString('font-size: 1.6rem;', $styleContent);
+        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler .bi-list', $styleContent);
+        $this->assertStringContainsString('line-height: 1;', $styleContent);
+    }
+
+    public function testPageHeaderCssWrapsActionsToAvoidHorizontalOverflow(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        $this->assertStringContainsString('.page-header .page-actions', $styleContent);
+        $this->assertStringContainsString('flex-wrap: wrap;', $styleContent);
+        $this->assertStringContainsString('max-width: 100%;', $styleContent);
     }
 }
