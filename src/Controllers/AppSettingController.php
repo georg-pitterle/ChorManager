@@ -123,9 +123,15 @@ class AppSettingController
             $themeColor = self::DEFAULT_PRIMARY_COLOR;
         }
 
+        $themeRgb = self::hexToRgb($themeColor);
+        $themeStrong = self::darkenHex($themeColor, 16);
+
         $css = ':root, [data-bs-theme="light"] {' . "\n"
             . "    --theme-primary: {$themeColor};\n"
+            . "    --theme-primary-rgb: {$themeRgb};\n"
+            . "    --theme-primary-strong: {$themeStrong};\n"
             . "    --bs-primary: {$themeColor};\n"
+            . "    --bs-primary-rgb: {$themeRgb};\n"
             . "}\n";
 
         $response->getBody()->write($css);
@@ -133,6 +139,29 @@ class AppSettingController
         return $response
             ->withHeader('Content-Type', 'text/css; charset=utf-8')
             ->withHeader('Cache-Control', 'no-store, max-age=0');
+    }
+
+    private static function hexToRgb(string $hexColor): string
+    {
+        $normalized = ltrim(self::normalizePrimaryColor($hexColor), '#');
+
+        $red = hexdec(substr($normalized, 0, 2));
+        $green = hexdec(substr($normalized, 2, 2));
+        $blue = hexdec(substr($normalized, 4, 2));
+
+        return sprintf('%d, %d, %d', $red, $green, $blue);
+    }
+
+    private static function darkenHex(string $hexColor, int $percentage): string
+    {
+        $normalized = ltrim(self::normalizePrimaryColor($hexColor), '#');
+        $factor = max(0.0, min(1.0, 1 - ($percentage / 100)));
+
+        $red = (int) round(hexdec(substr($normalized, 0, 2)) * $factor);
+        $green = (int) round(hexdec(substr($normalized, 2, 2)) * $factor);
+        $blue = (int) round(hexdec(substr($normalized, 4, 2)) * $factor);
+
+        return sprintf('#%02X%02X%02X', $red, $green, $blue);
     }
 
     public function logo(Request $request, Response $response): Response

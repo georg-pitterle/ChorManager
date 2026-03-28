@@ -40,4 +40,28 @@ class AppSettingFeatureTest extends TestCase
         $this->assertSame('#E8A817', AppSettingController::normalizePrimaryColor('not-a-color'));
         $this->assertSame('#E8A817', AppSettingController::normalizePrimaryColor('#12345'));
     }
+
+    public function testLayoutLoadsThemeCssAfterBaseStyleSheet(): void
+    {
+        $layoutContent = file_get_contents(dirname(__DIR__) . '/../templates/layout.twig');
+
+        $this->assertIsString($layoutContent);
+
+        $stylePosition = strpos($layoutContent, '<link rel="stylesheet" href="/css/style.css">');
+        $themePosition = strpos($layoutContent, '<link rel="stylesheet" href="/theme.css">');
+
+        $this->assertIsInt($stylePosition);
+        $this->assertIsInt($themePosition);
+        $this->assertGreaterThan($stylePosition, $themePosition);
+    }
+
+    public function testThemeCssControllerDefinesDerivedPrimaryVariables(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/AppSettingController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('--theme-primary-rgb', $controllerContent);
+        $this->assertStringContainsString('--theme-primary-strong', $controllerContent);
+        $this->assertStringContainsString('--bs-primary-rgb', $controllerContent);
+    }
 }
