@@ -193,4 +193,14 @@ class LayoutFeatureTest extends TestCase
             $styleContent
         );
     }
+
+    public function testEventsTableHeadLinksDoNotUseWhiteTextClass(): void
+    {
+        $eventsTemplatePath = dirname(__DIR__) . '/../templates/events/index.twig';
+        $eventsTemplateContent = file_get_contents($eventsTemplatePath);
+
+        $this->assertIsString($eventsTemplateContent);
+        $this->assertStringNotContainsString('text-white text-decoration-none', $eventsTemplateContent);
+        $this->assertStringContainsString('text-decoration-none text-reset', $eventsTemplateContent);
+    }
 }

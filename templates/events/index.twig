@@ -73,7 +73,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'event_date', direction: (filters.sort == 'event_date' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'event_date', direction: (filters.sort == 'event_date' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Datum
                                 {% if filters.sort == 'event_date' %}
                                     <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
@@ -81,7 +81,7 @@
                             </a>
                         </th>
                         <th>
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'title', direction: (filters.sort == 'title' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'title', direction: (filters.sort == 'title' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Titel
                                 {% if filters.sort == 'title' %}
                                     <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
@@ -90,7 +90,7 @@
                         </th>
                         <th>Ort</th>
                         <th>
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'type', direction: (filters.sort == 'type' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'type', direction: (filters.sort == 'type' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Typ
                                 {% if filters.sort == 'type' %}
                                     <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
@@ -98,7 +98,7 @@
                             </a>
                         </th>
                         <th>
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'project_name', direction: (filters.sort == 'project_name' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-white text-decoration-none">
+                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'project_name', direction: (filters.sort == 'project_name' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Projekt
                                 {% if filters.sort == 'project_name' %}
                                     <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>

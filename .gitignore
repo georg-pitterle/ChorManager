@@ -4,3 +4,4 @@ vendor/
 ChorManager.code-workspace
 .twig-cs-fixer.cache
 .superpowers/
+.phpunit.result.cache
