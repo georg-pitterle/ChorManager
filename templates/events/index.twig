@@ -2,30 +2,24 @@
 
 {% block title %}Events (Termine) - Chor Manager{% endblock %}
 
-{% block content %}
-<style>
-    /* Fix for dropdowns in table-responsive */
-    .table-responsive {
-        overflow: visible !important;
-    }
-    @media (max-width: 767.98px) {
-        .table-responsive {
-            overflow-x: auto !important;
-            padding-bottom: 60px; /* Space for dropdown on mobile */
-        }
-    }
-</style>
-<div class="row mt-4">
-    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
-        <h1>Termine / Events</h1>
-        {% if session.can_manage_users %}
+{% block page_header %}
+<section class="page-header">
+    <div>
+        <p class="text-uppercase text-muted small mb-1">Termine</p>
+        <h1 class="h2 mb-1">Events</h1>
+        <p class="text-muted mb-0">Plane Termine, filtere Ergebnisse und bearbeite Serien konsistent an einem Ort.</p>
+    </div>
+    {% if session.can_manage_users %}
+    <div class="page-actions">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
             <i class="bi bi-calendar-plus"></i> Termin erstellen
         </button>
-        {% endif %}
     </div>
-</div>
+    {% endif %}
+</section>
+{% endblock %}
 
+{% block content %}
 {% if success %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ success }}
@@ -39,7 +33,7 @@
 </div>
 {% endif %}
 
-<div class="card shadow-sm border-0 mb-4">
+<div class="surface-card card border-0 mb-4 filter-surface">
     <div class="card-body">
         <form method="get" action="/events" id="event-filter-form" class="row g-3 align-items-end">
             <div class="col-12 col-md-5 mb-2">
@@ -71,8 +65,8 @@
     </div>
 </div>
 
-<div class="card shadow-sm border-0" style="overflow: visible;">
-    <div class="card-body p-0" style="overflow: visible;">
+<div class="surface-card card border-0 table-shell">
+    <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards">
                 <thead class="table-dark">
