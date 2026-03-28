@@ -1,4 +1,8 @@
 (function (window, document) {
+    function isMobileViewport() {
+        return window.matchMedia('(max-width: 767.98px)').matches;
+    }
+
     function initTable(container) {
         const table = container.querySelector('table');
         if (!table) {
@@ -9,7 +13,8 @@
         const prefs = window.ChorTablePrefs ? window.ChorTablePrefs.read(tableId) : {};
 
         const modeButtons = container.querySelectorAll('[data-table-view]');
-        const initialView = prefs.view || container.dataset.defaultView || 'table';
+        const configuredDefaultView = container.dataset.defaultView || 'table';
+        const initialView = prefs.view || (isMobileViewport() ? configuredDefaultView : 'table');
 
         function setView(view) {
             container.dataset.activeView = view;
