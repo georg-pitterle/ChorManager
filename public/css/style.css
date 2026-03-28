@@ -100,7 +100,7 @@ body.app-shell {
     width: 2.5rem;
     height: 2.5rem;
     padding: 0;
-    display: inline-flex;
+    display: none;
     align-items: center;
     justify-content: center;
     border-color: rgba(255, 255, 255, 0.4);
@@ -138,6 +138,10 @@ body.app-shell {
 }
 
 @media (max-width: 991.98px) {
+    .navbar.bg-dark.app-topbar .navbar-toggler {
+        display: inline-flex;
+    }
+
     .navbar .navbar-collapse {
         padding-top: 0.5rem;
         padding-bottom: 0.25rem;
@@ -146,6 +150,12 @@ body.app-shell {
     .navbar .dropdown-menu {
         margin-top: 0.25rem;
         margin-bottom: 0.5rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .navbar.bg-dark.app-topbar .navbar-toggler {
+        display: none !important;
     }
 }
 
