@@ -9,7 +9,7 @@
         <h1 class="h2 mb-1"><i class="bi bi-people me-2"></i>Sponsoren</h1>
         <p class="text-muted mb-0">Sponsorenstammdaten und Vereinbarungen verwalten.</p>
     </div>
-    <div class="page-actions d-flex gap-2">
+    <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
         <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house me-1"></i> Dashboard</a>
         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createSponsorModal">
             <i class="bi bi-plus-lg"></i> Neuer Sponsor
@@ -55,9 +55,10 @@
 </form>
 </section>
 
-<div class="surface-card table-shell">
+<div class="surface-card table-shell" data-table-engine="true" data-table-id="sponsoring.sponsors.index" data-default-view="cards">
+{% include 'partials/table_toolbar.twig' %}
 <div class="table-responsive">
-    <table class="table table-hover align-middle">
+    <table class="table table-hover align-middle mb-0 table-responsive-cards" id="sponsorsTable">
         <thead class="table-light">
             <tr>
                 <th>Name</th>
@@ -66,13 +67,13 @@
                 <th>E-Mail</th>
                 <th>Telefon</th>
                 <th>Vereinbarungen</th>
-                <th></th>
+                <th class="text-end">Aktionen</th>
             </tr>
         </thead>
         <tbody>
             {% for sponsor in sponsors %}
             <tr>
-                <td>
+                <td data-label="Name">
                     <a href="/sponsoring/sponsors/{{ sponsor.id }}" class="fw-semibold text-decoration-none">
                         {{ sponsor.name }}
                     </a>
@@ -80,28 +81,28 @@
                     <div class="text-muted small">{{ sponsor.contact_person }}</div>
                     {% endif %}
                 </td>
-                <td>
+                <td data-label="Typ">
                     {% if sponsor.type == 'organization' %}
                     <i class="bi bi-building" title="Organisation"></i>
                     {% else %}
                     <i class="bi bi-person" title="Einzelperson"></i>
                     {% endif %}
                 </td>
-                <td>
+                <td data-label="Status">
                     {% set status_colors = {prospect: 'secondary', contacted: 'info', negotiating: 'warning', active: 'success', paused: 'secondary', closed: 'dark'} %}
                     {% set status_labels = {prospect: 'Interessent', contacted: 'Kontaktiert', negotiating: 'Verhandlung', active: 'Aktiv', paused: 'Pausiert', closed: 'Abgeschlossen'} %}
                     <span class="badge bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
                 </td>
-                <td>
+                <td data-label="E-Mail">
                     {% if sponsor.email %}
                     <a href="mailto:{{ sponsor.email }}" class="text-decoration-none small">{{ sponsor.email }}</a>
                     {% else %}–{% endif %}
                 </td>
-                <td class="small">{{ sponsor.phone ?? '–' }}</td>
-                <td>
+                <td data-label="Telefon" class="small">{{ sponsor.phone ?? '–' }}</td>
+                <td data-label="Vereinbarungen">
                     <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
                 </td>
-                <td class="text-end text-nowrap">
+                <td data-label="Aktionen" class="text-end text-nowrap">
                     <a href="/sponsoring/sponsors/{{ sponsor.id }}" class="btn btn-sm btn-outline-secondary" title="Details">
                         <i class="bi bi-eye"></i>
                     </a>

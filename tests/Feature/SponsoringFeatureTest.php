@@ -49,4 +49,17 @@ class SponsoringFeatureTest extends TestCase
         $this->assertTrue(is_dir(dirname(__DIR__) . '/../templates/sponsoring'));
         $this->assertTrue(is_dir(dirname(__DIR__) . '/../templates/sponsoring/sponsors'));
     }
+
+    public function testSponsorsIndexTemplateUsesResponsiveTableEngine(): void
+    {
+        $templatePath = dirname(__DIR__) . '/../templates/sponsoring/sponsors/index.twig';
+        $templateContent = file_get_contents($templatePath);
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('data-table-engine="true"', $templateContent);
+        $this->assertStringContainsString("'partials/table_toolbar.twig'", $templateContent);
+        $this->assertStringContainsString('table-responsive-cards', $templateContent);
+        $this->assertStringContainsString('data-label="Name"', $templateContent);
+        $this->assertStringContainsString('data-label="Aktionen"', $templateContent);
+    }
 }
