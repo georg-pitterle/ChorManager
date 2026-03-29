@@ -93,6 +93,7 @@ The application can be run as a traditional PHP application with Nginx or Apache
 
 - PHP 8.5
 - Composer 2
+- Node.js 24+ and npm
 - MySQL or MariaDB
 - Web server with PHP-FPM or Apache with rewrite support
 
@@ -114,7 +115,9 @@ cd ChorManager
 ### 2. Install dependencies
 
 ```bash
-composer install --no-dev --optimize-autoloader --no-interaction
+npm ci --omit=dev
+composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+php bin/copy-assets.php
 ```
 
 ### 3. Create the configuration
@@ -184,8 +187,9 @@ After the first start, an administrator account can be created via `/setup`.
 ### Notes
 
 - For production use, the application should only be served over HTTPS.
-- Bootstrap assets are automatically copied to `public/vendor` during `composer install`.
-- If `composer install` is run with `--no-scripts`, the assets must be copied manually:
+- Frontend assets from npm packages are copied to `public/vendor` via `bin/copy-assets.php`.
+- After `npm ci`, run `php bin/copy-assets.php` whenever frontend packages are updated.
+- If `composer install` is run with scripts enabled, no frontend assets are copied automatically:
 
 ```bash
 php bin/copy-assets.php

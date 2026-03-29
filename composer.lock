@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4c667cbac1c4421fcf75c253c526e754",
+    "content-hash": "a8c853b472961dcd7f43106f6d2d2674",
     "packages": [
         {
             "name": "brick/math",
@@ -1201,43 +1201,6 @@
                 }
             ],
             "time": "2026-03-19T18:52:39+00:00"
-        },
-        {
-            "name": "mklkj/tinymce-i18n",
-            "version": "24.12.30",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/mklkj/tinymce-i18n.git",
-                "reference": "5bb5d9b172b5dbfe05607a6d4c7988d2844fa8c9"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/mklkj/tinymce-i18n/zipball/5bb5d9b172b5dbfe05607a6d4c7988d2844fa8c9",
-                "reference": "5bb5d9b172b5dbfe05607a6d4c7988d2844fa8c9",
-                "shasum": ""
-            },
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "TinyMCE Community"
-                }
-            ],
-            "description": "Languages for TinyMCE 4, 5 and 6",
-            "homepage": "https://github.com/mklkj/tinymce-i18n",
-            "keywords": [
-                "i18n",
-                "languages",
-                "tinymce"
-            ],
-            "support": {
-                "issues": "https://github.com/mklkj/tinymce-i18n/issues",
-                "source": "https://github.com/mklkj/tinymce-i18n/tree/24.12.30"
-            },
-            "time": "2024-12-30T10:42:10+00:00"
         },
         {
             "name": "nesbot/carbon",
@@ -3706,154 +3669,6 @@
                 }
             ],
             "time": "2025-07-15T13:41:35+00:00"
-        },
-        {
-            "name": "tinymce/tinymce",
-            "version": "7.9.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/tinymce/tinymce-dist.git",
-                "reference": "f05e38fecf76287442dd3301786955a83bbe954f"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/tinymce/tinymce-dist/zipball/f05e38fecf76287442dd3301786955a83bbe954f",
-                "reference": "f05e38fecf76287442dd3301786955a83bbe954f",
-                "shasum": ""
-            },
-            "type": "component",
-            "extra": {
-                "component": {
-                    "files": [
-                        "tinymce.min.js",
-                        "plugins/*/plugin.min.js",
-                        "themes/*/theme.min.js",
-                        "models/*/model.min.js",
-                        "skins/**",
-                        "icons/*/icons.min.js"
-                    ],
-                    "scripts": [
-                        "tinymce.js",
-                        "plugins/*/plugin.js",
-                        "themes/*/theme.js",
-                        "models/*/model.js",
-                        "icons/*/icons.js"
-                    ]
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-or-later"
-            ],
-            "description": "Web based JavaScript HTML WYSIWYG editor control.",
-            "homepage": "https://www.tiny.cloud/",
-            "keywords": [
-                "contenteditable",
-                "editing",
-                "html",
-                "javascript",
-                "rich editor",
-                "rich text",
-                "rich text editor",
-                "richtext",
-                "rte",
-                "text",
-                "tinymce",
-                "wysiwyg"
-            ],
-            "support": {
-                "source": "https://github.com/tinymce/tinymce-dist/tree/7.9.2"
-            },
-            "time": "2026-02-11T03:44:54+00:00"
-        },
-        {
-            "name": "twbs/bootstrap",
-            "version": "v5.3.8",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/twbs/bootstrap.git",
-                "reference": "25aa8cc0b32f0d1a54be575347e6d84b70b1acd7"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/twbs/bootstrap/zipball/25aa8cc0b32f0d1a54be575347e6d84b70b1acd7",
-                "reference": "25aa8cc0b32f0d1a54be575347e6d84b70b1acd7",
-                "shasum": ""
-            },
-            "replace": {
-                "twitter/bootstrap": "self.version"
-            },
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mark Otto",
-                    "email": "markdotto@gmail.com"
-                },
-                {
-                    "name": "Jacob Thornton",
-                    "email": "jacobthornton@gmail.com"
-                }
-            ],
-            "description": "The most popular front-end framework for developing responsive, mobile first projects on the web.",
-            "homepage": "https://getbootstrap.com/",
-            "keywords": [
-                "JS",
-                "css",
-                "framework",
-                "front-end",
-                "mobile-first",
-                "responsive",
-                "sass",
-                "web"
-            ],
-            "support": {
-                "issues": "https://github.com/twbs/bootstrap/issues",
-                "source": "https://github.com/twbs/bootstrap/tree/v5.3.8"
-            },
-            "time": "2025-08-26T02:01:02+00:00"
-        },
-        {
-            "name": "twbs/bootstrap-icons",
-            "version": "v1.13.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/twbs/icons.git",
-                "reference": "ce0e49dd063243118a115f17ad1fe1fe7576d552"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/twbs/icons/zipball/ce0e49dd063243118a115f17ad1fe1fe7576d552",
-                "reference": "ce0e49dd063243118a115f17ad1fe1fe7576d552",
-                "shasum": ""
-            },
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mark Otto",
-                    "email": "markdotto@gmail.com"
-                }
-            ],
-            "description": "Official open source SVG icon library for Bootstrap",
-            "homepage": "https://icons.getbootstrap.com/",
-            "keywords": [
-                "bootstrap",
-                "icon font",
-                "icons",
-                "svg"
-            ],
-            "support": {
-                "issues": "https://github.com/twbs/icons/issues",
-                "source": "https://github.com/twbs/icons/tree/v1.13.1"
-            },
-            "time": "2025-05-09T23:01:19+00:00"
         },
         {
             "name": "twig/twig",

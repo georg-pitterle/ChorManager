@@ -4,6 +4,8 @@ FROM php:8.5-fpm-alpine
 RUN apk add --no-cache \
     git \
     curl \
+    nodejs \
+    npm \
     mysql-client \
     libzip \
     libpng \
@@ -45,6 +47,10 @@ WORKDIR /var/www/html
 
 # Copy composer files
 COPY composer.json composer.lock* ./
+
+# Copy npm manifest files and install frontend dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev --no-audit --no-fund
 
 # Install PHP dependencies (without running scripts yet)
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts

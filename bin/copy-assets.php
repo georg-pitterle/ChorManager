@@ -27,7 +27,7 @@ function copyRecursive(string $source, string $destination): void
 
 function copyAssets(): void
 {
-    $source = 'vendor/twbs/bootstrap/dist/css/bootstrap.min.css';
+    $source = 'node_modules/bootstrap/dist/css/bootstrap.min.css';
     $dest = 'public/vendor/bootstrap/dist/css/bootstrap.min.css';
 
     @mkdir(dirname($dest), 0755, true);
@@ -35,7 +35,7 @@ function copyAssets(): void
         throw new RuntimeException("Failed to copy $source to $dest");
     }
 
-    $source = 'vendor/twbs/bootstrap/dist/js/bootstrap.bundle.min.js';
+    $source = 'node_modules/bootstrap/dist/js/bootstrap.bundle.min.js';
     $dest = 'public/vendor/bootstrap/dist/js/bootstrap.bundle.min.js';
 
     @mkdir(dirname($dest), 0755, true);
@@ -43,16 +43,24 @@ function copyAssets(): void
         throw new RuntimeException("Failed to copy $source to $dest");
     }
 
-    $srcDir = 'vendor/twbs/bootstrap-icons/font';
+    $srcDir = 'node_modules/bootstrap-icons/font';
     $destDir = 'public/vendor/bootstrap-icons/font';
     copyRecursive($srcDir, $destDir);
 
-    $srcDir = 'vendor/tinymce/tinymce';
+    $srcDir = 'node_modules/tinymce';
     $destDir = 'public/vendor/tinymce/tinymce';
     copyRecursive($srcDir, $destDir);
 
-    $source = 'vendor/mklkj/tinymce-i18n/langs7/de.js';
+    $source = 'node_modules/tinymce-i18n/langs7/de.js';
     $dest = 'public/vendor/tinymce/langs/de.js';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
+
+    $source = 'node_modules/html-midi-player/dist/midi-player.min.js';
+    $dest = 'public/vendor/html-midi-player/dist/midi-player.min.js';
 
     @mkdir(dirname($dest), 0755, true);
     if (!copy($source, $dest)) {

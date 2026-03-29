@@ -6,6 +6,7 @@ README.md
 .ddev
 .github
 vendor
+node_modules
 composer.lock
 *.log
 .DS_Store

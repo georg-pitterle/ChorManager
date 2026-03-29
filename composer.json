@@ -6,16 +6,12 @@
     "require": {
         "php": "^8.5",
         "illuminate/database": "^10.0",
-        "mklkj/tinymce-i18n": "^24.3",
         "php-di/php-di": "^7.0",
         "phpmailer/phpmailer": "^7.0",
         "robmorgan/phinx": "^0.16.10",
         "slim/psr7": "^1.6",
         "slim/slim": "^4.0",
         "slim/twig-view": "^3.3",
-        "tinymce/tinymce": "^7.9",
-        "twbs/bootstrap": "^5.3",
-        "twbs/bootstrap-icons": "^1.13",
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
@@ -41,12 +37,6 @@
         "migrate": "phinx migrate -e development",
         "seed:dev": "php bin/dev_seed.php",
         "test": "php vendor/bin/phpunit",
-        "post-install-cmd": [
-            "@copy-assets"
-        ],
-        "post-update-cmd": [
-            "@copy-assets"
-        ],
         "copy-assets": "@php bin/copy-assets.php"
     }
 }

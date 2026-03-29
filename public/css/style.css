@@ -212,7 +212,7 @@ thead th {
    .bg-light etc.) also declare background-color with !important. Our
    selector has higher specificity, so our !important rule wins.
    ===================================================================== */
-.card>.card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
+.card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
     background-color: var(--listhead-bg, #eef1f5) !important;
     color: var(--listhead-text, #1f2937) !important;
     border-bottom: 3px solid var(--header-accent-line, #E8A817);
@@ -230,7 +230,7 @@ thead th {
         padding-bottom: 0.5rem;
     }
 
-    .card>.card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
+    .card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
         padding: 0.625rem 1rem;
     }
 }
