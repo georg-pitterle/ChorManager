@@ -46,16 +46,27 @@ class UserController
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
         $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
 
-        $users = $this->userQuery->getAllUsers();
+        $params = $request->getQueryParams();
+        $showArchived = isset($params['archived']) && $params['archived'] === '1';
 
-        if (!$canManageUsers) {
-            if (empty($myVgs)) {
-                $users = collect(); // empty eloquent collection
-            } else {
-                $users = $users->filter(function ($user) use ($myVgs) {
-                    $uVgIds = $user->voiceGroups->pluck('id')->toArray();
-                    return !empty(array_intersect($myVgs, $uVgIds));
-                });
+        if ($showArchived && !$canManageUsers) {
+            $showArchived = false;
+        }
+
+        if ($showArchived) {
+            $users = $this->userQuery->getArchivedUsers();
+        } else {
+            $users = $this->userQuery->getAllUsers();
+
+            if (!$canManageUsers) {
+                if (empty($myVgs)) {
+                    $users = collect();
+                } else {
+                    $users = $users->filter(function ($user) use ($myVgs) {
+                        $uVgIds = $user->voiceGroups->pluck('id')->toArray();
+                        return !empty(array_intersect($myVgs, $uVgIds));
+                    });
+                }
             }
         }
 
@@ -95,6 +106,7 @@ class UserController
             'projects' => $projects,
             'can_edit_users' => $canEditUsers,
             'can_manage_project_members' => $canManageProjectMembers,
+            'show_archived' => $showArchived,
             'success' => $success,
             'error' => $error
         ]);
@@ -359,5 +371,28 @@ class UserController
         );
 
         return $response->withHeader('Location', '/users')->withStatus(302);
+    }
+
+    public function restore(Request $request, Response $response, array $args): Response
+    {
+        $canManageUsers = $_SESSION['can_manage_users'] ?? false;
+        if (!$canManageUsers) {
+            $_SESSION['error'] = 'Du hast keine Berechtigung, Mitglieder wiederherzustellen.';
+            return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
+        }
+
+        $userId = (int) $args['id'];
+        $targetUser = $this->userQuery->findById($userId);
+
+        if (!$targetUser || (bool) $targetUser->is_active) {
+            $_SESSION['error'] = 'Mitglied nicht gefunden oder bereits aktiv.';
+            return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
+        }
+
+        $targetUser->is_active = 1;
+        $this->userPersistence->save($targetUser);
+
+        $_SESSION['success'] = 'Mitglied wurde erfolgreich wiederhergestellt.';
+        return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
     }
 }

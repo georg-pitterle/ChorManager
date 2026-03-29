@@ -9,16 +9,27 @@
         <h1 class="h2 mb-1">Mitgliederverwaltung</h1>
         <p class="text-muted mb-0">Mitglieder, Rollen, Stimmen und Projektzuordnungen zentral verwalten.</p>
     </div>
-    <div class="page-actions d-flex gap-2">
-        <form action="/users/bulk-deactivate" method="post" id="bulkDeactivateForm" data-confirm="Ausgewählte Mitglieder wirklich archivieren?">
-            <input type="hidden" name="user_ids" id="bulkUserIds" value="">
-            <button type="submit" class="btn btn-outline-danger" id="bulkDeactivateButton" disabled>
-                <i class="bi bi-person-x"></i> Auswahl archivieren
+    <div class="page-actions d-flex gap-2 align-items-center">
+        {% if show_archived %}
+            <a href="/users" class="btn btn-outline-secondary">
+                <i class="bi bi-people"></i> Aktive anzeigen
+            </a>
+        {% else %}
+            {% if session.can_manage_users %}
+            <a href="/users?archived=1" class="btn btn-outline-secondary">
+                <i class="bi bi-archive"></i> Archivierte anzeigen
+            </a>
+            {% endif %}
+            <form action="/users/bulk-deactivate" method="post" id="bulkDeactivateForm" data-confirm="Ausgewählte Mitglieder wirklich archivieren?">
+                <input type="hidden" name="user_ids" id="bulkUserIds" value="">
+                <button type="submit" class="btn btn-outline-danger" id="bulkDeactivateButton" disabled>
+                    <i class="bi bi-person-x"></i> Auswahl archivieren
+                </button>
+            </form>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                <i class="bi bi-person-plus-fill"></i> Mitglied hinzufügen
             </button>
-        </form>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-            <i class="bi bi-person-plus-fill"></i> Mitglied hinzufügen
-        </button>
+        {% endif %}
     </div>
 </section>
 {% endblock %}
@@ -44,7 +55,7 @@
             <table class="table table-hover table-striped mb-0 table-responsive-cards" id="usersTable">
                 <thead class="table-dark">
                     <tr>
-                        <th><input type="checkbox" id="selectAllUsers" aria-label="Alle Mitglieder auswählen"></th>
+                        {% if not show_archived %}<th><input type="checkbox" id="selectAllUsers" aria-label="Alle Mitglieder auswählen"></th>{% endif %}
                         <th>Name</th>
                         <th>E-Mail</th>
                         <th>Rolle</th>
@@ -58,6 +69,7 @@
                 <tbody>
                     {% for user in users %}
                     <tr>
+                        {% if not show_archived %}
                         <td data-label="Auswahl">
                             <input
                                 type="checkbox"
@@ -67,6 +79,7 @@
                                 aria-label="Mitglied auswählen"
                             >
                         </td>
+                        {% endif %}
                         <td data-label="Name">{{ user.first_name }} {{ user.last_name }}</td>
                         <td data-label="E-Mail">{{ user.email }}</td>
                         <td data-label="Rolle">
@@ -111,6 +124,13 @@
                         </td>
                         {% endif %}
                         <td data-label="Aktionen" class="text-end">
+                            {% if show_archived %}
+                            <form action="/users/restore/{{ user.id }}" method="post" class="d-inline" data-confirm="Mitglied {{ user.first_name }} {{ user.last_name }} wirklich wiederherstellen?">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Wiederherstellen">
+                                    <i class="bi bi-person-check-fill"></i> Wiederherstellen
+                                </button>
+                            </form>
+                            {% else %}
                             {% if can_edit_users %}
                             <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}" title="Bearbeiten">
                                 <i class="bi bi-pencil-fill"></i>
@@ -121,11 +141,14 @@
                                     <i class="bi bi-person-x-fill"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ (can_manage_project_members or can_edit_users) ? 7 : 6 }}" class="text-center py-4 text-muted">Keine aktiven Mitglieder gefunden.</td>
+                        <td colspan="{{ (can_manage_project_members or can_edit_users) ? (show_archived ? 6 : 7) : (show_archived ? 5 : 6) }}" class="text-center py-4 text-muted">
+                            {% if show_archived %}Keine archivierten Mitglieder gefunden.{% else %}Keine aktiven Mitglieder gefunden.{% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -209,7 +232,7 @@
     </div>
 </div>
 
-{% if can_edit_users %}
+{% if can_edit_users and not show_archived %}
 {% for user in users %}
 <!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-labelledby="editUserModalLabel{{ user.id }}" aria-hidden="true">

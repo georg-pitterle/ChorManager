@@ -33,6 +33,15 @@ class UserQuery
             ->get();
     }
 
+    public function getArchivedUsers(): Collection
+    {
+        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
+            ->where('is_active', 0)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+    }
+
     public function getRole(int $roleId): ?Role
     {
         return Role::find($roleId);
