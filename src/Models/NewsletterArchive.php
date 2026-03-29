@@ -17,12 +17,10 @@ class NewsletterArchive extends Model
         'user_id',
         'email',
         'sent_at',
-        'read_at',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
-        'read_at' => 'datetime',
     ];
 
     public function newsletter(): BelongsTo
@@ -33,10 +31,5 @@ class NewsletterArchive extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function isRead(): bool
-    {
-        return $this->read_at !== null;
     }
 }

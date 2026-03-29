@@ -22,14 +22,9 @@
         <div class="col-md-6 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-1">{{ archive_item.newsletter.title }}</h6>
+                    <h6 class="mb-1 fw-bold">{{ archive_item.newsletter.title }}</h6>
                     <small class="text-muted">
                         {{ archive_item.sent_at|date('d.m.Y H:i') }}
-                        {% if archive_item.read_at %}
-                            | Gelesen: {{ archive_item.read_at|date('d.m.Y H:i') }}
-                        {% else %}
-                            | <span class="badge bg-warning">Ungelesen</span>
-                        {% endif %}
                     </small>
                 </div>
                 <div class="card-body" style="max-height: 200px; overflow: hidden;">
@@ -40,7 +35,7 @@
                 <div class="card-footer">
                     <button type="button" class="btn btn-sm btn-outline-primary"
                             data-bs-toggle="modal" data-bs-target="#archiveModal{{ archive_item.id }}">
-                        <i class="bi bi-eye"></i> Volltext anzeigen
+                        <i class="bi bi-eye"></i> Anzeigen
                     </button>
                 </div>
             </div>

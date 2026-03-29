@@ -96,6 +96,15 @@ body.app-shell {
     flex-wrap: nowrap;
 }
 
+.navbar-logo {
+    height: 36px;
+    width: auto;
+    max-width: 100%;
+    aspect-ratio: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
 .app-topbar__brand-name {
     display: inline-block;
     max-width: 100%;
@@ -172,6 +181,10 @@ body.app-shell {
 
     .navbar-dark .navbar-brand {
         max-width: calc(100% - 2.75rem);
+    }
+
+    .navbar-logo {
+        height: 32px;
     }
 }
 
@@ -324,6 +337,23 @@ a:hover {
 .auth-logo {
     max-height: 64px;
     width: auto;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+
+.logo-preview-frame {
+    min-width: 120px;
+}
+
+.logo-preview {
+    max-height: 80px;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    aspect-ratio: auto;
+    object-fit: contain;
 }
 
 .auth-form-panel {

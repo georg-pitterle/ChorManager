@@ -203,4 +203,56 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringNotContainsString('text-white text-decoration-none', $eventsTemplateContent);
         $this->assertStringContainsString('text-decoration-none text-reset', $eventsTemplateContent);
     }
+
+    public function testLayoutUsesNavbarLogoClassWithoutFixedHeightAttribute(): void
+    {
+        $layoutPath = dirname(__DIR__) . '/../templates/layout.twig';
+        $layoutContent = file_get_contents($layoutPath);
+
+        $this->assertIsString($layoutContent);
+        $this->assertStringContainsString('class="me-2 navbar-logo"', $layoutContent);
+        $this->assertStringNotContainsString('src="/logo" alt="Logo" height="36"', $layoutContent);
+    }
+
+    public function testTopbarCssDefinesNavbarLogoProportionRules(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        $this->assertStringContainsString('.navbar-logo {', $styleContent);
+        $this->assertStringContainsString('height: 36px;', $styleContent);
+        $this->assertStringContainsString('width: auto;', $styleContent);
+        $this->assertStringContainsString('object-fit: contain;', $styleContent);
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 767\.98px\).*\.navbar-logo \{\s*height: 32px;/s',
+            $styleContent
+        );
+    }
+
+    public function testSettingsTemplateUsesClassBasedLogoPreviewWithoutInlineStyles(): void
+    {
+        $settingsPath = dirname(__DIR__) . '/../templates/settings/index.twig';
+        $settingsContent = file_get_contents($settingsPath);
+
+        $this->assertIsString($settingsContent);
+        $this->assertStringContainsString('class="bg-light p-3 rounded border text-center logo-preview-frame"', $settingsContent);
+        $this->assertStringContainsString('class="mb-2 d-inline-block logo-preview"', $settingsContent);
+        $this->assertStringNotContainsString('alt="Aktuelles Logo" style=', $settingsContent);
+    }
+
+    public function testCssDefinesSettingsLogoPreviewProportionRules(): void
+    {
+        $stylePath = dirname(__DIR__) . '/../public/css/style.css';
+        $styleContent = file_get_contents($stylePath);
+
+        $this->assertIsString($styleContent);
+        $this->assertStringContainsString('.logo-preview-frame {', $styleContent);
+        $this->assertStringContainsString('min-width: 120px;', $styleContent);
+        $this->assertStringContainsString('.logo-preview {', $styleContent);
+        $this->assertStringContainsString('max-height: 80px;', $styleContent);
+        $this->assertStringContainsString('width: auto;', $styleContent);
+        $this->assertStringContainsString('height: auto;', $styleContent);
+        $this->assertStringContainsString('aspect-ratio: auto;', $styleContent);
+    }
 }

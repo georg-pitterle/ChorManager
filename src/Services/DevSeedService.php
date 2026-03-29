@@ -1894,15 +1894,11 @@ class DevSeedService
                     // Add to archive
                     $user = User::find($userId);
                     if ($user) {
-                        $readAt = mt_rand(1, 100) > 30 ?
-                            (new DateTimeImmutable())->format('Y-m-d H:i:s') :
-                            null;
                         NewsletterArchive::create([
                             'newsletter_id' => $newsletter->id,
                             'user_id' => $userId,
                             'email' => $user->email,
                             'sent_at' => $sentDate->format('Y-m-d H:i:s'),
-                            'read_at' => $readAt,
                         ]);
                         $this->report['counts']['newsletter_archive']++;
                     }
