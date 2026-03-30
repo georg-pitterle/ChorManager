@@ -124,9 +124,21 @@ body.app-shell {
     border-color: rgba(255, 255, 255, 0.4);
 }
 
-.navbar.bg-dark.app-topbar .navbar-toggler .bi-list {
+.navbar.bg-dark.app-topbar .navbar-toggler .toggler-icon {
     display: block;
     line-height: 1;
+}
+
+.navbar.bg-dark.app-topbar .navbar-toggler .toggler-icon-close {
+    display: none;
+}
+
+.navbar.bg-dark.app-topbar .navbar-toggler[aria-expanded="true"] .toggler-icon-open {
+    display: none;
+}
+
+.navbar.bg-dark.app-topbar .navbar-toggler[aria-expanded="true"] .toggler-icon-close {
+    display: block;
 }
 
 .navbar-dark .navbar-brand:hover,
@@ -158,6 +170,25 @@ body.app-shell {
 }
 
 @media (max-width: 991.98px) {
+    .navbar.bg-dark.app-topbar .container-fluid {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .navbar.bg-dark.app-topbar .navbar-collapse {
+        width: 100%;
+        flex-basis: 100%;
+        margin-top: 0.5rem;
+    }
+
+    .navbar.bg-dark.app-topbar .navbar-collapse:not(.show) {
+        display: none !important;
+    }
+
+    .navbar.bg-dark.app-topbar .navbar-collapse.show {
+        display: block !important;
+    }
+
     .navbar .navbar-collapse {
         padding-top: 0.5rem;
         padding-bottom: 0.25rem;
@@ -225,7 +256,7 @@ thead th {
    .bg-light etc.) also declare background-color with !important. Our
    selector has higher specificity, so our !important rule wins.
    ===================================================================== */
-.card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
+.card>.card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
     background-color: var(--listhead-bg, #eef1f5) !important;
     color: var(--listhead-text, #1f2937) !important;
     border-bottom: 3px solid var(--header-accent-line, #E8A817);
@@ -243,7 +274,7 @@ thead th {
         padding-bottom: 0.5rem;
     }
 
-    .card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
+    .card>.card-header:not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
         padding: 0.625rem 1rem;
     }
 }

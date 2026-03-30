@@ -8,7 +8,11 @@
     function read(tableId) {
         try {
             const raw = window.localStorage.getItem(key(tableId));
-            return raw ? JSON.parse(raw) : {};
+            const parsed = raw ? JSON.parse(raw) : {};
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return parsed;
+            }
+            return {};
         } catch (_e) {
             return {};
         }

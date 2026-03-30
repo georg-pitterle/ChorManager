@@ -22,4 +22,15 @@ class TableUxFeatureTest extends TestCase
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../public/js/table-preferences.js'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../public/css/table-engine.css'));
     }
+
+    public function testSharedToolbarExposesAutoCardsAndTableModes(): void
+    {
+        $toolbarContent = file_get_contents(dirname(__DIR__) . '/../templates/partials/table_toolbar.twig');
+
+        $this->assertIsString($toolbarContent);
+        $this->assertStringContainsString('data-table-mode="auto"', $toolbarContent);
+        $this->assertStringContainsString('data-table-view="cards"', $toolbarContent);
+        $this->assertStringContainsString('data-table-view="table"', $toolbarContent);
+        $this->assertStringContainsString('>Auto<', $toolbarContent);
+    }
 }

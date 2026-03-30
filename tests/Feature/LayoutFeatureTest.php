@@ -16,7 +16,8 @@ class LayoutFeatureTest extends TestCase
         $this->assertIsString($layoutContent);
         $this->assertStringContainsString('class="app-topbar__brand-name"', $layoutContent);
         $this->assertStringContainsString('class="navbar-toggler"', $layoutContent);
-        $this->assertStringContainsString('class="bi bi-list fs-3 text-white"', $layoutContent);
+        $this->assertStringContainsString('class="bi bi-list fs-3 text-white toggler-icon toggler-icon-open"', $layoutContent);
+        $this->assertStringContainsString('class="bi bi-x-lg fs-4 text-white toggler-icon toggler-icon-close"', $layoutContent);
         $this->assertStringContainsString('navbar-expand-lg', $layoutContent);
     }
 
@@ -36,7 +37,8 @@ class LayoutFeatureTest extends TestCase
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
-        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler .bi-list', $styleContent);
+        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler .toggler-icon', $styleContent);
+        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler[aria-expanded="true"] .toggler-icon-close', $styleContent);
         $this->assertStringContainsString('line-height: 1;', $styleContent);
     }
 
@@ -48,7 +50,10 @@ class LayoutFeatureTest extends TestCase
         $this->assertIsString($styleContent);
         $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler {', $styleContent);
         $this->assertStringNotContainsString('display: inline-flex;', $styleContent);
-        $this->assertStringNotContainsString('display: none !important;', $styleContent);
+        $this->assertStringNotContainsString(
+            '.navbar.bg-dark.app-topbar .navbar-toggler {' . "\n" . '        display: none !important;',
+            $styleContent
+        );
     }
 
     public function testPageHeaderCssWrapsActionsToAvoidHorizontalOverflow(): void
@@ -136,7 +141,7 @@ class LayoutFeatureTest extends TestCase
         $this->assertIsString($styleContent);
         // Global selector with semantic guards must exist
         $this->assertStringContainsString(
-            '.card > .card-header:not(.bg-success):not(.bg-danger):not(.bg-warning)',
+            '.card>.card-header:not(.bg-success):not(.bg-danger):not(.bg-warning)',
             $styleContent
         );
         // Must use the listhead background token with !important to beat Bootstrap utilities
