@@ -10,7 +10,7 @@ use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Finance;
-use App\Models\FinanceAttachment;
+use App\Models\Attachment;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
 use App\Models\NewsletterArchive;
@@ -21,7 +21,6 @@ use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Sponsor;
-use App\Models\SponsorAttachment;
 use App\Models\SponsorPackage;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
@@ -173,10 +172,12 @@ class DevSeedService
 
         $tables = [
             'attendance',
-            'finance_attachments',
+            'activities',
+            'attachments',
+            'comments',
+            'tasks',
             'remember_logins',
             'password_resets',
-            'sponsor_attachments',
             'sponsoring_contacts',
             'sponsorships',
             'sponsors',
@@ -833,9 +834,11 @@ class DevSeedService
             $runningNumber++;
 
             if ($attachmentsLeft > 0 && mt_rand(1, 100) <= 30) {
-                FinanceAttachment::create([
-                    'finance_id' => $finance->id,
+                Attachment::create([
+                    'entity_type' => 'finance',
+                    'entity_id' => $finance->id,
                     'filename' => sprintf('beleg-%05d.txt', $finance->running_number),
+                    'original_name' => sprintf('beleg-%05d.txt', $finance->running_number),
                     'mime_type' => 'text/plain',
                     'file_content' => 'Automatisch generierter Testbeleg fuer Laufnummer ' . $finance->running_number,
                 ]);
@@ -850,9 +853,11 @@ class DevSeedService
                 break;
             }
 
-            FinanceAttachment::create([
-                'finance_id' => $finance->id,
+            Attachment::create([
+                'entity_type' => 'finance',
+                'entity_id' => $finance->id,
                 'filename' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
+                'original_name' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
                 'mime_type' => 'text/plain',
                 'file_content' => 'Zusatzbeleg fuer Testdaten.',
             ]);
@@ -1509,9 +1514,10 @@ class DevSeedService
             }
 
             $storedFilename = bin2hex(random_bytes(8)) . '_' . $definition['original_name'];
-            $attachment = SponsorAttachment::firstOrCreate(
+            $attachment = Attachment::firstOrCreate(
                 [
-                    'sponsorship_id' => $sponsorship->id,
+                    'entity_type' => 'sponsorship',
+                    'entity_id' => $sponsorship->id,
                     'original_name' => $definition['original_name'],
                 ],
                 [

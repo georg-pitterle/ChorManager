@@ -48,6 +48,7 @@
                         <th>Sponsoring</th>
                         <th>Liedbibliothek</th>
                         <th>Newsletter</th>
+                        <th>Aufgaben/Planung</th>
                         <th class="text-end">Aktive Mitglieder</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
@@ -113,6 +114,13 @@
                                 <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
                             {% endif %}
                         </td>
+                        <td data-label="Aufgaben/Planung">
+                            {% if role.can_manage_tasks %}
+                                <span class="badge bg-primary"><i class="bi bi-list-check"></i> Ja</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                            {% endif %}
+                        </td>
                         <td data-label="Aktive Mitglieder" class="text-end">
                             <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
                         </td>
@@ -130,7 +138,8 @@
                                 data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
                                 data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
                                 data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
-                                data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}">
+                                data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
+                                data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
                                 <i class="bi bi-pencil"></i> Bearbeiten
                             </button>
                         </td>
@@ -229,6 +238,14 @@
                     </label>
                     <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
                 </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_tasks" name="can_manage_tasks" value="1">
+                    <label class="form-check-label fw-bold text-primary" for="can_manage_tasks">
+                        Projektplanung (Aufgaben)
+                    </label>
+                    <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -320,6 +337,14 @@
                         Newsletter verwalten
                     </label>
                     <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_tasks" name="can_manage_tasks" value="1">
+                    <label class="form-check-label fw-bold text-primary" for="edit_can_manage_tasks">
+                        Projektplanung (Aufgaben)
+                    </label>
+                    <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
                 </div>
             </div>
             <div class="modal-footer">

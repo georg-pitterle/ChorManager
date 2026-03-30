@@ -30,6 +30,8 @@ class ProjectController
     public function index(Request $request, Response $response): Response
     {
         $projects = clone $this->projectQuery->getAllProjects();
+        $userId = $_SESSION['user_id'] ?? 0;
+        $userProjectIds = \App\Models\User::find($userId)->projects()->pluck('projects.id')->toArray();
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -37,6 +39,7 @@ class ProjectController
 
         return $this->view->render($response, 'projects/index.twig', [
             'projects' => $projects,
+            'userProjectIds' => $userProjectIds,
             'success' => $success,
             'error' => $error
         ]);

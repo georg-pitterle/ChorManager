@@ -21,6 +21,7 @@ class SessionAuthService
         $canManageSponsoring = false;
         $canManageSongLibrary = false;
         $canManageNewsletters = false;
+        $canManageTasks = false;
         $maxRoleLevel = 0;
 
         foreach ($user->roles as $role) {
@@ -28,6 +29,7 @@ class SessionAuthService
                 $canManageUsers = true;
                 $canEditUsers = true;
                 $canManageProjectMembers = true;
+                $canManageTasks = true;
             }
 
             if ($role->can_manage_users) {
@@ -54,6 +56,9 @@ class SessionAuthService
             if ($role->can_manage_newsletters) {
                 $canManageNewsletters = true;
             }
+            if ($role->can_manage_tasks) {
+                $canManageTasks = true;
+            }
 
             if ($role->hierarchy_level > $maxRoleLevel) {
                 $maxRoleLevel = (int) $role->hierarchy_level;
@@ -68,6 +73,7 @@ class SessionAuthService
         $_SESSION['can_manage_sponsoring'] = $canManageSponsoring;
         $_SESSION['can_manage_song_library'] = $canManageSongLibrary;
         $_SESSION['can_manage_newsletters'] = $canManageNewsletters;
+        $_SESSION['can_manage_tasks'] = $canManageTasks;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
     }

@@ -60,4 +60,19 @@ class User extends Model
     {
         return $this->hasMany(NewsletterRecipient::class, 'user_id', 'id');
     }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to', 'id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'user_id', 'id');
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(Activity::class, 'user_id', 'id')->orderBy('created_at', 'desc');
+    }
 }

@@ -30,6 +30,6 @@ class Finance extends Model
 
     public function attachments()
     {
-        return $this->hasMany(FinanceAttachment::class, 'finance_id');
+        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'finance');
     }
 }

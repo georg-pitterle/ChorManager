@@ -65,6 +65,7 @@ class AuthFeatureTest extends TestCase
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 1,
+                'can_manage_tasks' => 0,
             ],
             (object) [
                 'hierarchy_level' => 85,
@@ -76,6 +77,7 @@ class AuthFeatureTest extends TestCase
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 0,
+                'can_manage_tasks' => 1,
             ],
         ]);
 

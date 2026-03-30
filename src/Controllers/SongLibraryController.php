@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Models\Project;
 use App\Models\Song;
-use App\Models\SongAttachment;
+use App\Models\Attachment;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -162,8 +162,9 @@ class SongLibraryController
 
             $mimeType = trim((string) $file->getClientMediaType()) ?: 'application/octet-stream';
 
-            SongAttachment::create([
-                'song_id' => $songId,
+            Attachment::create([
+                'entity_type' => 'song',
+                'entity_id' => $songId,
                 'filename' => bin2hex(random_bytes(16)) . '_' . $originalName,
                 'original_name' => $originalName,
                 'mime_type' => $mimeType,
@@ -181,8 +182,8 @@ class SongLibraryController
         $songId = (int) ($args['song_id'] ?? 0);
         $attachmentId = (int) ($args['attachment_id'] ?? 0);
 
-        $attachment = SongAttachment::find($attachmentId);
-        if (!$attachment || $attachment->song_id !== $songId) {
+        $attachment = Attachment::where('entity_type', 'song')->find($attachmentId);
+        if (!$attachment || $attachment->entity_id !== $songId) {
             $_SESSION['error'] = 'Anhang nicht gefunden.';
             return $response->withHeader('Location', '/song-library')->withStatus(302);
         }

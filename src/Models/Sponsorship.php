@@ -56,6 +56,6 @@ class Sponsorship extends Model
 
     public function attachments()
     {
-        return $this->hasMany(SponsorAttachment::class, 'sponsorship_id');
+        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'sponsorship');
     }
 }

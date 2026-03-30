@@ -32,4 +32,19 @@ class Project extends Model
     {
         return $this->hasMany(Song::class, 'project_id', 'id');
     }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'project_id', 'id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'entity_id', 'id')->where('entity_type', 'project');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'project');
+    }
 }

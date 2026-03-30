@@ -27,6 +27,6 @@ class Song extends Model
 
     public function attachments()
     {
-        return $this->hasMany(SongAttachment::class, 'song_id', 'id');
+        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'song');
     }
 }

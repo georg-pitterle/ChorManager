@@ -8,7 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Finance;
-use App\Models\FinanceAttachment;
+use App\Models\Attachment;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Psr\Http\Message\UploadedFileInterface;
@@ -156,9 +156,11 @@ class FinanceController
 
                 foreach ($files as $file) {
                     if ($file->getError() === UPLOAD_ERR_OK) {
-                        FinanceAttachment::create([
-                            'finance_id' => $finance->id,
+                        Attachment::create([
+                            'entity_type' => 'finance',
+                            'entity_id' => $finance->id,
                             'filename' => $file->getClientFilename(),
+                            'original_name' => $file->getClientFilename(),
                             'mime_type' => $file->getClientMediaType(),
                             'file_content' => $file->getStream()->getContents(),
                         ]);
@@ -257,7 +259,7 @@ class FinanceController
     public function viewAttachment(Request $request, Response $response, array $args): Response
     {
         try {
-            $attachment = FinanceAttachment::findOrFail((int) $args['id']);
+            $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
             $response->getBody()->write($attachment->file_content);
             return $response
                 ->withHeader('Content-Type', $attachment->mime_type)
@@ -270,7 +272,7 @@ class FinanceController
     public function deleteAttachment(Request $request, Response $response, array $args): Response
     {
         try {
-            $attachment = FinanceAttachment::findOrFail((int) $args['id']);
+            $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
             $attachment->delete();
             $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         } catch (\Exception $e) {

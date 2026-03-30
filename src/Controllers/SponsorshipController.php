@@ -8,7 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Sponsorship;
-use App\Models\SponsorAttachment;
+use App\Models\Attachment;
 
 class SponsorshipController
 {
@@ -33,8 +33,9 @@ class SponsorshipController
 
         foreach ($files as $file) {
             if ($file->getError() === UPLOAD_ERR_OK) {
-                SponsorAttachment::create([
-                    'sponsorship_id' => $sponsorshipId,
+                Attachment::create([
+                    'entity_type'    => 'sponsorship',
+                    'entity_id'      => $sponsorshipId,
                     'filename'       => bin2hex(random_bytes(16)) . '_' . $file->getClientFilename(),
                     'original_name'  => $file->getClientFilename(),
                     'mime_type'      => $file->getClientMediaType(),
@@ -138,10 +139,10 @@ class SponsorshipController
         $sponsorshipId = (int) $args['id'];
         $attachmentId  = (int) $args['attachment_id'];
 
-        $attachment = SponsorAttachment::findOrFail($attachmentId);
+        $attachment = Attachment::where('entity_type', 'sponsorship')->findOrFail($attachmentId);
 
         // IDOR-Schutz: Anhang muss zur angeforderten Vereinbarung gehören
-        if ($attachment->sponsorship_id !== $sponsorshipId) {
+        if ($attachment->entity_id !== $sponsorshipId) {
             $response->getBody()->write('Zugriff verweigert.');
             return $response->withStatus(403);
         }
@@ -160,10 +161,10 @@ class SponsorshipController
         $data          = (array) $request->getParsedBody();
 
         try {
-            $attachment = SponsorAttachment::findOrFail($attachmentId);
+            $attachment = Attachment::where('entity_type', 'sponsorship')->findOrFail($attachmentId);
 
             // IDOR-Schutz
-            if ($attachment->sponsorship_id !== $sponsorshipId) {
+            if ($attachment->entity_id !== $sponsorshipId) {
                 $response->getBody()->write('Zugriff verweigert.');
                 return $response->withStatus(403);
             }

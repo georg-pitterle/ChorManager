@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('edit_can_manage_sponsoring').checked = this.getAttribute('data-sponsoring') === '1';
                 document.getElementById('edit_can_manage_song_library').checked = this.getAttribute('data-song-library') === '1';
                 document.getElementById('edit_can_manage_newsletters').checked = this.getAttribute('data-newsletters') === '1';
+                document.getElementById('edit_can_manage_tasks').checked = this.getAttribute('data-tasks') === '1';
             });
         });
     }

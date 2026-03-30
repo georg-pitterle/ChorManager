@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\Project;
-use App\Models\SongAttachment;
+use App\Models\Attachment;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -120,13 +120,14 @@ class DownloadController
             ->withHeader('Content-Disposition', 'inline; filename="' . $this->safeFileName($attachment->original_name) . '"');
     }
 
-    private function findMemberAttachment(int $userId, int $attachmentId): ?SongAttachment
+    private function findMemberAttachment(int $userId, int $attachmentId): ?Attachment
     {
         if ($userId <= 0 || $attachmentId <= 0) {
             return null;
         }
 
-        return SongAttachment::where('id', $attachmentId)
+        return Attachment::where('id', $attachmentId)
+            ->where('entity_type', 'song')
             ->whereHas('song.project.users', function ($query) use ($userId) {
                 $query->where('users.id', $userId);
             })

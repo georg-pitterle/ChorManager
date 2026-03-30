@@ -10,6 +10,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\UserController;
 use App\Controllers\ProjectController;
 use App\Controllers\EventController;
+use App\Controllers\TaskController;
 use App\Controllers\AttendanceController;
 use App\Controllers\EvaluationController;
 use App\Controllers\RoleController;
@@ -202,8 +203,24 @@ return function (App $app) {
                         '/{id:[0-9]+}/members/{user_id:[0-9]+}/remove',
                         [ProjectController::class, 'removeMember']
                     );
+                    $projGroup->get('/{project_id:[0-9]+}/tasks', [TaskController::class, 'index']);
+                    $projGroup->post('/{project_id:[0-9]+}/tasks', [TaskController::class, 'create']);
                 }
             )->add(new RoleMiddleware(false, 0, false, true)); // requiresProjectMemberManagement
+
+            // Task Detail Routes (accessible by project members or task managers)
+            $group->group(
+                '/tasks',
+                function (RouteCollectorProxy $taskGroup) {
+                    $taskGroup->get('/{id:[0-9]+}', [TaskController::class, 'detail']);
+                    $taskGroup->post('/{id:[0-9]+}/update', [TaskController::class, 'update']);
+                    $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);
+                    $taskGroup->post('/{id:[0-9]+}/comments', [TaskController::class, 'addComment']);
+                    $taskGroup->post('/{id:[0-9]+}/attachments', [TaskController::class, 'uploadAttachment']);
+                    $taskGroup->get('/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/download', [TaskController::class, 'downloadAttachment']);
+                    $taskGroup->post('/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete', [TaskController::class, 'deleteAttachment']);
+                }
+            )->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, true)); // requiresTaskManagement
 
             // Sponsoring Routes
             $group->group(
