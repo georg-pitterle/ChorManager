@@ -6,3 +6,4 @@ ChorManager.code-workspace
 .superpowers/
 .phpunit.result.cache
 node_modules/
+docs/
