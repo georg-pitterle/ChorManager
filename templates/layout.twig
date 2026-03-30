@@ -68,6 +68,18 @@
                         </ul>
                     </li>
 
+                    {% if can_show_evaluations %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if is_evaluations_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-bar-chart-fill me-1"></i> Auswertungen</a>
+                        <ul class="dropdown-menu">
+                            {% if session.can_manage_users or session.role_level >= 40 %}
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/evaluations'], ['evaluations'], ['/evaluations/project-members']) %}active{% endif %}" href="/evaluations"><i class="bi bi-bar-chart-line-fill me-2"></i> Anwesenheitsquoten</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/evaluations/project-members'], ['evaluations_project_members']) %}active{% endif %}" href="/evaluations/project-members"><i class="bi bi-people-fill me-2"></i> Projektmitglieder</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
                     {% if can_show_admin %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if is_admin_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-gear-fill me-1"></i> Verwaltung</a>
@@ -87,17 +99,6 @@
                     </li>
                     {% endif %}
 
-                    {% if can_show_evaluations %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if is_evaluations_active %}active{% endif %}" href="#" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-bar-chart-fill me-1"></i> Auswertungen</a>
-                        <ul class="dropdown-menu">
-                            {% if session.can_manage_users or session.role_level >= 40 %}
-                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/evaluations'], ['evaluations'], ['/evaluations/project-members']) %}active{% endif %}" href="/evaluations"><i class="bi bi-bar-chart-line-fill me-2"></i> Anwesenheitsquoten</a></li>
-                            {% endif %}
-                            <li><a class="dropdown-item {% if nav_active(path, nav, ['/evaluations/project-members'], ['evaluations_project_members']) %}active{% endif %}" href="/evaluations/project-members"><i class="bi bi-people-fill me-2"></i> Projektmitglieder</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
                 </ul>
                 <div class="d-flex align-items-center text-white dropdown">
                     <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
