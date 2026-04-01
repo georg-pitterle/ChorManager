@@ -66,13 +66,13 @@
 </div>
 
 <div class="surface-card card border-0 table-shell">
-            <div class="card-body p-0" data-table-engine="true" data-table-id="events.index" data-default-view="table">
+            <div class="card-body p-0" data-table-engine="true" data-table-id="events.index" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
                 {% include 'partials/table_toolbar.twig' %}
         <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-responsive-cards" id="eventsTable">
                 <thead class="table-dark">
                     <tr>
-                        <th>
+                        <th data-sort-key="event_date" data-sort-type="date">
                             <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'event_date', direction: (filters.sort == 'event_date' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Datum
                                 {% if filters.sort == 'event_date' %}
@@ -80,7 +80,7 @@
                                 {% endif %}
                             </a>
                         </th>
-                        <th>
+                        <th data-sort-key="title" data-sort-type="text">
                             <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'title', direction: (filters.sort == 'title' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Titel
                                 {% if filters.sort == 'title' %}
@@ -88,8 +88,8 @@
                                 {% endif %}
                             </a>
                         </th>
-                        <th>Ort</th>
-                        <th>
+                        <th data-sort-key="location" data-sort-type="text">Ort</th>
+                        <th data-sort-key="type" data-sort-type="text">
                             <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'type', direction: (filters.sort == 'type' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Typ
                                 {% if filters.sort == 'type' %}
@@ -97,7 +97,7 @@
                                 {% endif %}
                             </a>
                         </th>
-                        <th>
+                        <th data-sort-key="project_name" data-sort-type="text">
                             <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'project_name', direction: (filters.sort == 'project_name' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
                                 Projekt
                                 {% if filters.sort == 'project_name' %}

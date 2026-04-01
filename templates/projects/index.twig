@@ -31,17 +31,17 @@
 </div>
 {% endif %}
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="projects.index" data-default-view="table">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="projects.index" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards" id="projectsTable">
                 <thead class="table-dark">
                     <tr>
-                        <th>Projektname</th>
-                        <th>Beschreibung</th>
-                        <th>Startdatum</th>
-                        <th>Enddatum</th>
+                        <th data-sort-key="project_name" data-sort-type="text">Projektname</th>
+                        <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
+                        <th data-sort-key="start_date" data-sort-type="date">Startdatum</th>
+                        <th data-sort-key="end_date" data-sort-type="date">Enddatum</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
@@ -58,7 +58,7 @@
                                 <i class="bi bi-list-check"></i> Planung
                             </a>
                             {% endif %}
-                            
+
                             {% if session.can_manage_project_members %}
                             <a href="/projects/{{ project.id }}/members" class="btn btn-sm btn-outline-primary ms-1">
                                 <i class="bi bi-people"></i> Mitglieder

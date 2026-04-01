@@ -8,6 +8,252 @@ use PHPUnit\Framework\TestCase;
 
 class TableEngineViewportAutoFeatureTest extends TestCase
 {
+    public function testEngineCombinesSearchPluginFiltersAndPaginationDeterministically(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-composition-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+const rows = [];
+for (let i = 1; i <= 150; i += 1) {
+    const isAlpha = i <= 120;
+    const isTenor = i % 2 === 0;
+    rows.push({
+        hidden: false,
+        dataset: {
+            role: isTenor ? 'tenor' : 'bass'
+        },
+        textContent: (isAlpha ? 'alpha ' : 'beta ') + i,
+        querySelectorAll: function () {
+            return [];
+        }
+    });
+}
+
+const storage = {
+    'chor.table.users.manage': JSON.stringify({
+        state: {
+            pluginFilters: {
+                usersManage: {
+                    role: 'tenor'
+                }
+            }
+        }
+    })
+};
+
+const table = {
+    id: 'usersTable',
+    scrollWidth: 700,
+    clientWidth: 700,
+    parentElement: { clientWidth: 900 },
+    closest: function () { return { clientWidth: 900 }; },
+    querySelectorAll: function (selector) {
+        if (selector === 'tbody tr') {
+            return rows;
+        }
+        return [];
+    }
+};
+
+const searchInput = {
+    value: '',
+    disabled: true,
+    _onInput: null,
+    addEventListener: function (_eventName, cb) {
+        this._onInput = cb;
+    }
+};
+
+const pluginSlot = {
+    appendChild: function () {}
+};
+
+const resetButton = {
+    disabled: true,
+    addEventListener: function () {}
+};
+
+const pageSizeSelect = {
+    value: '25',
+    disabled: true,
+    options: [
+        { value: '25' },
+        { value: '50' },
+        { value: '100' }
+    ],
+    addEventListener: function () {}
+};
+
+const pagePrevButton = {
+    disabled: true,
+    addEventListener: function () {}
+};
+
+const pageNextButton = {
+    disabled: true,
+    addEventListener: function () {}
+};
+
+const pageLabel = {
+    textContent: ''
+};
+
+const container = {
+    dataset: {
+        tableId: 'users.manage',
+        tableEngine: 'true',
+        tablePlugins: 'usersManage',
+        defaultPageSize: '25'
+    },
+    querySelector: function (selector) {
+        if (selector === 'table') return table;
+        if (selector === '[data-table-search]') return searchInput;
+        if (selector === '[data-table-plugin-slot]') return pluginSlot;
+        if (selector === '[data-table-reset]') return resetButton;
+        if (selector === '[data-table-page-size]') return pageSizeSelect;
+        if (selector === '[data-table-page-prev]') return pagePrevButton;
+        if (selector === '[data-table-page-next]') return pageNextButton;
+        if (selector === '[data-table-page-label]') return pageLabel;
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') return [];
+        if (selector === 'th[data-sort-key]') return [];
+        return [];
+    }
+};
+
+const documentMock = {
+    _onReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') {
+            this._onReady = cb;
+        }
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') {
+            return [container];
+        }
+        return [];
+    },
+    createElement: function () {
+        return {
+            className: '',
+            textContent: '',
+            value: '',
+            dataset: {},
+            children: [],
+            appendChild: function (child) { this.children.push(child); },
+            setAttribute: function () {},
+            addEventListener: function () {}
+        };
+    }
+};
+
+const windowMock = {
+    addEventListener: function () {},
+    localStorage: {
+        getItem: function (key) {
+            return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null;
+        },
+        setItem: function (key, value) {
+            storage[key] = value;
+        },
+        removeItem: function (key) {
+            delete storage[key];
+        }
+    },
+    ChorTablePrefs: {
+        read: function (tableId) {
+            const raw = storage['chor.table.' + tableId];
+            return raw ? JSON.parse(raw) : {};
+        },
+        write: function (tableId, value) {
+            storage['chor.table.' + tableId] = JSON.stringify(value);
+        },
+        clear: function (tableId) {
+            delete storage['chor.table.' + tableId];
+        }
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+
+eval(engineCode);
+
+windowMock.ChorTableEngine.registerFilterPlugin('usersManage', function (context) {
+    let state = { role: '' };
+
+    return {
+        mount: function () {
+            context.pluginSlot.appendChild({ mounted: true });
+        },
+        getPredicate: function () {
+            return function (row) {
+                return context.matchCell(row, 'role', state.role);
+            };
+        },
+        getState: function () {
+            return state;
+        },
+        setState: function (nextState) {
+            state = Object.assign({ role: '' }, nextState || {});
+        },
+        reset: function () {
+            state = { role: '' };
+        }
+    };
+});
+
+documentMock._onReady();
+
+if (rows[0].hidden !== true || rows[1].hidden !== false) {
+    throw new Error('Expected plugin baseline to hide bass rows and keep tenor rows visible');
+}
+
+const initiallyVisible = rows.filter(function (row) { return !row.hidden; }).length;
+if (initiallyVisible !== 25) {
+    throw new Error('Expected page size 25 on baseline');
+}
+
+searchInput.value = 'beta';
+searchInput._onInput();
+
+if (pageLabel.textContent !== 'Seite 1 / 1') {
+    throw new Error('Expected narrowed search+plugin result to be single page');
+}
+
+const visibleAfterSearch = rows.filter(function (row) { return !row.hidden; }).length;
+if (visibleAfterSearch !== 15) {
+    throw new Error('Expected 15 visible rows after search+plugin composition');
+}
+
+if (pageNextButton.disabled !== true) {
+    throw new Error('Expected next button disabled on single page result');
+}
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
     public function testEngineUsesOverrideOnlyPreferenceModelWithLegacyFallback(): void
     {
         $engine = file_get_contents(dirname(__DIR__) . '/../public/js/table-engine.js');
@@ -16,6 +262,8 @@ class TableEngineViewportAutoFeatureTest extends TestCase
         $this->assertStringContainsString('viewOverride', $engine);
         $this->assertStringContainsString('prefs.view', $engine);
         $this->assertStringContainsString('data-table-mode', $engine);
+        $this->assertStringContainsString('registerFilterPlugin', $engine);
+        $this->assertStringContainsString('tablePlugins', $engine);
     }
 
     public function testAutoModeUpdatesOnResizeAndDoesNotPersistDuringInitialization(): void
@@ -253,6 +501,418 @@ JS;
 
         file_put_contents($tempScript, $nodeScript);
 
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testEngineRuntimeBehaviorForSortPaginationAndReset(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $prefsPath = dirname(__DIR__) . '/../public/js/table-preferences.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-pagination-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+const prefsCode = fs.readFileSync(process.argv[2], 'utf8');
+const engineCode = fs.readFileSync(process.argv[3], 'utf8');
+
+const storage = {};
+const rows = [];
+for (let i = 1; i <= 205; i++) {
+    rows.push({
+        hidden: false,
+        dataset: {
+            sortName: String(206 - i)
+        },
+        textContent: 'Name ' + i,
+        querySelectorAll: () => []
+    });
+}
+
+const sortByNameHeader = {
+    dataset: { sortKey: 'name' },
+    _onClick: null,
+    addEventListener: function (_eventName, cb) {
+        this._onClick = cb;
+    },
+    click: function () {
+        if (typeof this._onClick === 'function') {
+            this._onClick();
+        }
+    }
+};
+
+const table = {
+    id: 'usersTable',
+    scrollWidth: 700,
+    clientWidth: 700,
+    parentElement: { clientWidth: 900 },
+    closest: () => ({ clientWidth: 900 }),
+    querySelectorAll: (selector) => selector === 'tbody tr' ? rows : []
+};
+
+storage['chor.table.users.manage'] = JSON.stringify({
+    state: {
+        pageSize: 999,
+        page: 1
+    }
+});
+
+const searchInput = {
+    value: '',
+    disabled: true,
+    addEventListener: function (_e, cb) { this._onInput = cb; }
+};
+const resetBtn = {
+    disabled: true,
+    addEventListener: function (_e, cb) { this._onClick = cb; },
+    click: function () { this._onClick(); }
+};
+const pageSize = {
+    value: '100',
+    disabled: true,
+    options: [{ value: '50' }, { value: '100' }, { value: '200' }],
+    attrs: {},
+    setAttribute: function (name, value) { this.attrs[name] = value; },
+    addEventListener: function (_e, cb) { this._onChange = cb; }
+};
+const prevBtn = {
+    disabled: true,
+    attrs: {},
+    setAttribute: function (name, value) { this.attrs[name] = value; },
+    addEventListener: function (_e, cb) { this._onClick = cb; }
+};
+const nextBtn = {
+    disabled: true,
+    attrs: {},
+    setAttribute: function (name, value) { this.attrs[name] = value; },
+    addEventListener: function (_e, cb) { this._onClick = cb; }
+};
+const pageLabel = { textContent: '' };
+
+const container = {
+    dataset: { tableId: 'users.manage', tableEngine: 'true', defaultPageSize: '100' },
+    querySelector: function (selector) {
+        if (selector === 'table') return table;
+        if (selector === '[data-table-search]') return searchInput;
+        if (selector === '[data-table-reset]') return resetBtn;
+        if (selector === '[data-table-page-size]') return pageSize;
+        if (selector === '[data-table-page-prev]') return prevBtn;
+        if (selector === '[data-table-page-next]') return nextBtn;
+        if (selector === '[data-table-page-label]') return pageLabel;
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') return [];
+        if (selector === 'th[data-sort-key]') return [sortByNameHeader];
+        return [];
+    }
+};
+
+const documentMock = {
+    _onReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') this._onReady = cb;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') return [container];
+        return [];
+    }
+};
+
+const windowMock = {
+    addEventListener: function () {},
+    localStorage: {
+        getItem: (k) => Object.prototype.hasOwnProperty.call(storage, k) ? storage[k] : null,
+        setItem: (k, v) => { storage[k] = v; },
+        removeItem: (k) => { delete storage[k]; }
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+eval(prefsCode);
+eval(engineCode);
+documentMock._onReady();
+
+function parsePageLabel(label) {
+    const match = String(label || '').match(/(\d+)\s*[^\d]+\s*(\d+)/);
+    if (!match) {
+        throw new Error('Could not parse pagination label: ' + label);
+    }
+    return { page: Number(match[1]), total: Number(match[2]) };
+}
+
+function visibleRows() {
+    return rows.filter((row) => !row.hidden);
+}
+
+function firstVisibleRowText() {
+    const first = visibleRows()[0];
+    return first ? first.textContent : '';
+}
+
+let parsed = parsePageLabel(pageLabel.textContent);
+if (parsed.page !== 1 || parsed.total !== 3) throw new Error('Expected first page with three total pages after initialization');
+if (visibleRows().length !== 100) throw new Error('Expected first page to render a 100-row visibility window by default');
+if (pageSize.value !== '100') throw new Error('Persisted invalid page size should normalize to default page size 100');
+if (pageSize.attrs['aria-controls'] !== 'usersTable') throw new Error('Page-size control should link to table via aria-controls');
+if (prevBtn.attrs['aria-controls'] !== 'usersTable') throw new Error('Prev control should link to table via aria-controls');
+if (nextBtn.attrs['aria-controls'] !== 'usersTable') throw new Error('Next control should link to table via aria-controls');
+
+if (nextBtn.disabled !== false) throw new Error('Next should be enabled on page 1 of 3');
+if (prevBtn.disabled !== true) throw new Error('Prev should be disabled on page 1 of 3');
+if (searchInput.disabled !== false) throw new Error('Search should be enabled when engine initializes');
+if (pageSize.disabled !== false) throw new Error('Page size should be enabled when engine initializes');
+if (resetBtn.disabled !== false) throw new Error('Reset should be enabled when engine initializes');
+
+sortByNameHeader.click();
+if (visibleRows().length !== 100) throw new Error('Sorting should keep the current page-size visibility window');
+if (firstVisibleRowText() !== 'Name 106') throw new Error('First sort click should apply ascending sort by data-sort-name visibility window');
+if (rows[0].hidden !== true) throw new Error('Ascending sort should move Name 1 out of the first-page visibility window');
+if (rows[105].hidden !== false) throw new Error('Ascending sort should bring Name 106 into the first-page visibility window');
+if (rows[204].hidden !== false) throw new Error('Ascending sort should include Name 205 in the first-page visibility window');
+
+sortByNameHeader.click();
+if (visibleRows().length !== 100) throw new Error('Sort direction toggle should keep the same page-size visibility window');
+if (firstVisibleRowText() !== 'Name 1') throw new Error('Second sort click should toggle to descending sort by data-sort-name');
+if (rows[0].hidden !== false) throw new Error('Descending sort should bring Name 1 back into the first-page visibility window');
+if (rows[105].hidden !== true) throw new Error('Descending sort should move Name 106 out of the first-page visibility window');
+
+pageSize.value = '200';
+pageSize._onChange();
+parsed = parsePageLabel(pageLabel.textContent);
+if (parsed.page !== 1 || parsed.total !== 2) throw new Error('Expected first page with two total pages after page-size change');
+if (visibleRows().length !== 200) throw new Error('Expected page-size change to expand the visibility window to 200 rows');
+
+nextBtn._onClick();
+parsed = parsePageLabel(pageLabel.textContent);
+if (parsed.page !== 2 || parsed.total !== 2) throw new Error('Expected second page with two total pages after next click');
+if (visibleRows().length !== 5) throw new Error('Expected second page visibility window to contain remaining 5 rows');
+if (nextBtn.disabled !== true) throw new Error('Next should be disabled on last page');
+
+resetBtn.click();
+if (pageSize.value !== '100') throw new Error('Reset should restore default page size 100');
+parsed = parsePageLabel(pageLabel.textContent);
+if (parsed.page !== 1 || parsed.total !== 3) throw new Error('Reset should restore first page with three total pages');
+if (visibleRows().length !== 100) throw new Error('Reset should restore the default 100-row visibility window');
+if (Object.prototype.hasOwnProperty.call(storage, 'chor.table.users.manage')) throw new Error('Reset should clear persisted preferences');
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($prefsPath) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testEngineRuntimeBehaviorForRegisteredFilterPlugin(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-plugin-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+const engineCode = fs.readFileSync(process.argv[2], 'utf8');
+
+const storage = {
+    'chor.table.users.manage': JSON.stringify({
+        state: {
+            pluginFilters: {
+                usersManage: { role: 'admin' }
+            }
+        }
+    })
+};
+
+const rows = [
+    {
+        hidden: false,
+        dataset: { role: 'admin' },
+        textContent: 'Alice',
+        querySelectorAll: function () { return []; }
+    },
+    {
+        hidden: false,
+        dataset: { role: 'member' },
+        textContent: 'Bob',
+        querySelectorAll: function () { return []; }
+    }
+];
+
+const table = {
+    id: 'usersTable',
+    scrollWidth: 700,
+    clientWidth: 700,
+    parentElement: { clientWidth: 900 },
+    closest: function () { return { clientWidth: 900 }; },
+    querySelectorAll: function (selector) {
+        if (selector === 'tbody tr') {
+            return rows;
+        }
+        return [];
+    }
+};
+
+const pluginSlot = {
+    children: [],
+    appendChild: function (child) {
+        this.children.push(child);
+    }
+};
+
+const resetButton = {
+    _onClick: null,
+    disabled: true,
+    addEventListener: function (_eventName, cb) { this._onClick = cb; },
+    click: function () { if (this._onClick) { this._onClick(); } }
+};
+
+const container = {
+    dataset: {
+        tableId: 'users.manage',
+        tableEngine: 'true',
+        tablePlugins: 'usersManage'
+    },
+    querySelector: function (selector) {
+        if (selector === 'table') return table;
+        if (selector === '[data-table-plugin-slot]') return pluginSlot;
+        if (selector === '[data-table-reset]') return resetButton;
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') return [];
+        if (selector === 'th[data-sort-key]') return [];
+        return [];
+    }
+};
+
+function createElement(tagName) {
+    return {
+        tagName,
+        className: '',
+        textContent: '',
+        value: '',
+        dataset: {},
+        children: [],
+        appendChild: function (child) { this.children.push(child); },
+        setAttribute: function () {},
+        addEventListener: function () {}
+    };
+}
+
+const documentMock = {
+    _onReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') {
+            this._onReady = cb;
+        }
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') {
+            return [container];
+        }
+        return [];
+    },
+    createElement
+};
+
+const windowMock = {
+    addEventListener: function () {},
+    localStorage: {
+        getItem: function (key) {
+            return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null;
+        },
+        setItem: function (key, value) {
+            storage[key] = value;
+        },
+        removeItem: function (key) {
+            delete storage[key];
+        }
+    },
+    ChorTablePrefs: {
+        read: function (tableId) {
+            const raw = storage['chor.table.' + tableId];
+            return raw ? JSON.parse(raw) : {};
+        },
+        write: function (tableId, value) {
+            storage['chor.table.' + tableId] = JSON.stringify(value);
+        },
+        clear: function (tableId) {
+            delete storage['chor.table.' + tableId];
+        }
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+eval(engineCode);
+
+if (!windowMock.ChorTableEngine || typeof windowMock.ChorTableEngine.registerFilterPlugin !== 'function') {
+    throw new Error('Expected registerFilterPlugin API to exist');
+}
+
+let resetCalls = 0;
+windowMock.ChorTableEngine.registerFilterPlugin('usersManage', function (context) {
+    let state = { role: '' };
+    return {
+        mount: function () {
+            context.pluginSlot.appendChild({ name: 'mounted' });
+        },
+        getPredicate: function () {
+            return function (row) {
+                return context.matchCell(row, 'role', state.role);
+            };
+        },
+        getState: function () {
+            return state;
+        },
+        setState: function (nextState) {
+            state = Object.assign({ role: '' }, nextState || {});
+        },
+        reset: function () {
+            resetCalls += 1;
+            state = { role: '' };
+        }
+    };
+});
+
+documentMock._onReady();
+
+if (rows[0].hidden !== false || rows[1].hidden !== true) {
+    throw new Error('Persisted plugin state should filter to matching rows');
+}
+
+if (pluginSlot.children.length !== 1) {
+    throw new Error('Registered plugin should mount into plugin slot');
+}
+
+resetButton.click();
+
+if (resetCalls !== 1) {
+    throw new Error('Reset should call plugin.reset exactly once');
+}
+
+if (rows[0].hidden !== false || rows[1].hidden !== false) {
+    throw new Error('Reset should clear plugin filter and restore all rows');
+}
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
         $output = [];
         $exitCode = 1;
         exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);

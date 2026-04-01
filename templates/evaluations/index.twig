@@ -35,31 +35,19 @@
 </div>
 </section>
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="evaluations.index" data-default-view="cards">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="evaluations.index" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards" id="evaluationsTable">
                 <thead class="table-dark">
                     <tr>
-                        <th class="sortable" data-sort="string" data-col="0" role="button" tabindex="0" title="Klicken zum Sortieren">
-                            Name <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
-                        </th>
-                        <th class="sortable" data-sort="string" data-col="1" role="button" tabindex="0" title="Klicken zum Sortieren">
-                            Stimmgruppe <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
-                        </th>
-                        <th class="sortable text-center" data-sort="number" data-col="2" role="button" tabindex="0" title="Klicken zum Sortieren">
-                            Anwesend <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
-                        </th>
-                        <th class="sortable text-center" data-sort="number" data-col="3" role="button" tabindex="0" title="Klicken zum Sortieren">
-                            Entschuldigt <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
-                        </th>
-                        <th class="sortable text-center" data-sort="number" data-col="4" role="button" tabindex="0" title="Klicken zum Sortieren">
-                            Unentschuldigt <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
-                        </th>
-                        <th class="sortable text-end" data-sort="number" data-col="5" role="button" tabindex="0" title="Klicken zum Sortieren">
-                            Quote <i class="bi bi-arrow-down-up ms-1 sort-icon" aria-hidden="true"></i>
-                        </th>
+                        <th data-sort-key="name" data-sort-type="text">Name</th>
+                        <th data-sort-key="voice" data-sort-type="text">Stimmgruppe</th>
+                        <th class="text-center" data-sort-key="present" data-sort-type="number">Anwesend</th>
+                        <th class="text-center" data-sort-key="excused" data-sort-type="number">Entschuldigt</th>
+                        <th class="text-center" data-sort-key="unexcused" data-sort-type="number">Unentschuldigt</th>
+                        <th class="text-end" data-sort-key="percentage" data-sort-type="number">Quote</th>
                     </tr>
                 </thead>
                 <tbody>

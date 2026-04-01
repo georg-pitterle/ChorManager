@@ -8,6 +8,43 @@
     border-bottom: 1px solid var(--theme-border);
 }
 
+[data-table-view-toggle] {
+    display: flex;
+    gap: 0.25rem;
+}
+
+[data-table-pagination] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+[data-table-pagination] [data-table-page-label] {
+    min-width: 6.5rem;
+    text-align: center;
+}
+
+[data-table-pagination] [data-table-page-size] {
+    width: auto;
+    min-width: 5.5rem;
+}
+
+@media (max-width: 767.98px) {
+    .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    [data-table-pagination] {
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    [data-table-view-toggle] {
+        justify-content: flex-end;
+    }
+}
+
 .table-summary-cell .table-summary-content {
     display: inline-block;
     max-width: 300px;

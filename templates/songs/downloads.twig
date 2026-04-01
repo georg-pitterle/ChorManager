@@ -37,13 +37,20 @@
                                 Komponist: {{ song.composer|default('-') }} | Arrangeur: {{ song.arranger|default('-') }} | Verlag: {{ song.publisher|default('-') }}
                             </p>
 
-                            <div class="table-responsive" data-table-engine="true" data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}" data-default-view="cards">
-                                {% include 'partials/table_toolbar.twig' %}
-                                <table class="table table-sm align-middle mb-0 table-responsive-cards" id="downloadsSongTable{{ song.id }}">
+                            <div data-table-engine="true" data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
+                                <div class="d-flex justify-content-end align-items-center gap-2 mb-2">
+                                    <div class="btn-group" role="group" aria-label="Ansicht umschalten" data-table-view-toggle>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-mode="auto">Auto</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="cards">Karten</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="table">Tabelle</button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0 table-responsive-cards" id="downloadsSongTable{{ song.id }}">
                                     <thead>
                                         <tr>
-                                            <th>Datei</th>
-                                            <th>Typ</th>
+                                            <th data-sort-key="file_name" data-sort-type="text">Datei</th>
+                                            <th data-sort-key="mime_type" data-sort-type="text">Typ</th>
                                             <th>Groesse</th>
                                             <th>Wiedergabe</th>
                                             <th class="text-end">Aktionen</th>
@@ -86,6 +93,7 @@
                                     {% endfor %}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         </div>
                     </div>

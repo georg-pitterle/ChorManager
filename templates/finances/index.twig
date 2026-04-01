@@ -49,21 +49,21 @@
 </div>
 {% endif %}
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="finances.index" data-default-view="table">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="finances.index" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards" id="financesTable">
                 <thead class="table-dark">
                     <tr>
-                        <th>Lfd. Nr.</th>
-                        <th>Rechnungsdatum</th>
-                        <th>Zahldatum</th>
-                        <th>Beschreibung</th>
-                        <th>Gruppe</th>
-                        <th>Art</th>
-                        <th class="text-end">Betrag</th>
-                        <th>Zahlungsart</th>
+                        <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
+                        <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
+                        <th data-sort-key="payment_date" data-sort-type="date">Zahldatum</th>
+                        <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
+                        <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
+                        <th data-sort-key="type" data-sort-type="text">Art</th>
+                        <th class="text-end" data-sort-key="amount" data-sort-type="number">Betrag</th>
+                        <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
                         <th>Anhänge</th>
                         <th class="text-end">Aktionen</th>
                     </tr>

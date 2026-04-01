@@ -33,18 +33,18 @@
 </div>
 {% endif %}
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="tasks.index" data-default-view="table">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="tasks.index" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover table-striped mb-0 table-responsive-cards" id="tasksTable">
                 <thead class="table-dark">
                     <tr>
-                        <th>Titel</th>
-                        <th>Verantwortlich</th>
-                        <th>Fällig am</th>
+                        <th data-sort-key="task_title" data-sort-type="text">Titel</th>
+                        <th data-sort-key="assignee_name" data-sort-type="text">Verantwortlich</th>
+                        <th data-sort-key="due_date" data-sort-type="date">Fällig am</th>
                         <th>Priorität</th>
-                        <th>Status</th>
+                        <th data-sort-key="task_status" data-sort-type="text">Status</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
@@ -123,7 +123,7 @@
                     <label for="title" class="form-label">Titel der Aufgabe *</label>
                     <input type="text" class="form-control" id="title" name="title" required>
                 </div>
-                
+
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="assigned_user_id" class="form-label">Zugewiesen an (optional)</label>

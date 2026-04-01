@@ -26,5 +26,13 @@
         }
     }
 
-    window.ChorTablePrefs = { read, write };
+    function clear(tableId) {
+        try {
+            window.localStorage.removeItem(key(tableId));
+        } catch (_e) {
+            // Intentionally noop fallback.
+        }
+    }
+
+    window.ChorTablePrefs = { read, write, clear };
 })(window);

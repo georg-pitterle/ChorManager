@@ -55,18 +55,18 @@
 </form>
 </section>
 
-<div class="surface-card table-shell" data-table-engine="true" data-table-id="sponsoring.sponsors.index" data-default-view="cards">
+<div class="surface-card table-shell" data-table-engine="true" data-table-id="sponsoring.sponsors.index" data-default-view="cards" data-default-page-size="100" data-page-size-options="25,50,100,200">
 {% include 'partials/table_toolbar.twig' %}
 <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 table-responsive-cards" id="sponsorsTable">
         <thead class="table-light">
             <tr>
-                <th>Name</th>
-                <th>Typ</th>
-                <th>Status</th>
+                <th data-sort-key="sponsor_name" data-sort-type="text">Name</th>
+                <th data-sort-key="category" data-sort-type="text">Typ</th>
+                <th data-sort-key="status" data-sort-type="text">Status</th>
                 <th>E-Mail</th>
                 <th>Telefon</th>
-                <th>Vereinbarungen</th>
+                <th data-sort-key="sponsorship_count" data-sort-type="number">Vereinbarungen</th>
                 <th class="text-end">Aktionen</th>
             </tr>
         </thead>
@@ -99,7 +99,7 @@
                     {% else %}–{% endif %}
                 </td>
                 <td data-label="Telefon" class="small">{{ sponsor.phone ?? '–' }}</td>
-                <td data-label="Vereinbarungen">
+                <td data-label="Vereinbarungen" data-sort-key="sponsorship_count" data-sort-value="{{ sponsor.sponsorships|length }}">
                     <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
                 </td>
                 <td data-label="Aktionen" class="text-end text-nowrap">

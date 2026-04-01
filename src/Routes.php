@@ -217,8 +217,14 @@ return function (App $app) {
                     $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);
                     $taskGroup->post('/{id:[0-9]+}/comments', [TaskController::class, 'addComment']);
                     $taskGroup->post('/{id:[0-9]+}/attachments', [TaskController::class, 'uploadAttachment']);
-                    $taskGroup->get('/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/download', [TaskController::class, 'downloadAttachment']);
-                    $taskGroup->post('/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete', [TaskController::class, 'deleteAttachment']);
+                    $taskGroup->get(
+                        '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/download',
+                        [TaskController::class, 'downloadAttachment']
+                    );
+                    $taskGroup->post(
+                        '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                        [TaskController::class, 'deleteAttachment']
+                    );
                 }
             )->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, true)); // requiresTaskManagement
 

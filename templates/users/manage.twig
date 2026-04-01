@@ -48,7 +48,7 @@
 </div>
 {% endif %}
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="users.manage" data-default-view="table">
+<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="users.manage" data-default-view="table" data-table-plugins="usersManage" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -56,19 +56,39 @@
                 <thead class="table-dark">
                     <tr>
                         {% if not show_archived %}<th><input type="checkbox" id="selectAllUsers" aria-label="Alle Mitglieder auswählen"></th>{% endif %}
-                        <th>Name</th>
-                        <th>E-Mail</th>
-                        <th>Rolle</th>
-                        <th>Stimme</th>
+                        <th data-sort-key="name" data-sort-type="text">Name</th>
+                        <th data-sort-key="email" data-sort-type="text">E-Mail</th>
+                        <th data-sort-key="role" data-sort-type="text">Rolle</th>
+                        <th data-sort-key="voice" data-sort-type="text">Stimme</th>
                         {% if can_manage_project_members or can_edit_users %}
-                        <th>Projekte</th>
+                        <th data-sort-key="project" data-sort-type="text">Projekte</th>
                         {% endif %}
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
-                    <tr>
+                    {% set role_filter = '' %}
+                    {% for role in user.roles %}
+                        {% set role_filter = role_filter ~ ' ' ~ role.name|lower %}
+                    {% endfor %}
+                    {% set voice_filter = '' %}
+                    {% for group_id in user.voice_group_ids %}
+                        {% for g in voice_groups %}
+                            {% if g.id == group_id %}
+                                {% set voice_filter = voice_filter ~ ' ' ~ g.name|lower %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% set project_filter = '' %}
+                    {% for pid in user.project_ids %}
+                        {% for p in projects %}
+                            {% if p.id == pid %}
+                                {% set project_filter = project_filter ~ ' ' ~ p.name|lower %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    <tr data-role="{{ role_filter|trim }}" data-voice="{{ voice_filter|trim }}" data-project="{{ project_filter|trim }}">
                         {% if not show_archived %}
                         <td data-label="Auswahl">
                             <input

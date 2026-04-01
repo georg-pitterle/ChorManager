@@ -88,7 +88,7 @@
 
 {# Fällige Wiedervorlagen #}
 {% if upcoming_follow_ups|length > 0 %}
-<div class="card border-0 shadow-sm mb-4 table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.followups" data-default-view="cards">
+<div class="card border-0 shadow-sm mb-4 table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.followups" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     <div class="card-header bg-white border-bottom fw-semibold">
         <i class="bi bi-alarm me-1 text-danger"></i> Wiedervorlagen (fällig / nächste 7 Tage)
     </div>
@@ -97,10 +97,10 @@
         <table class="table table-sm table-hover mb-0 align-middle table-responsive-cards" id="sponsoringFollowUpsTable">
             <thead class="table-light">
                 <tr>
-                    <th>Datum</th>
-                    <th>Sponsor</th>
+                    <th data-sort-key="next_followup_date" data-sort-type="date">Datum</th>
+                    <th data-sort-key="sponsor_name" data-sort-type="text">Sponsor</th>
                     <th>Vereinbarung</th>
-                    <th>Zuständig</th>
+                    <th data-sort-key="owner_name" data-sort-type="text">Zuständig</th>
                     <th class="text-end">Aktionen</th>
                 </tr>
             </thead>
@@ -134,15 +134,15 @@
         <i class="bi bi-clock-history me-1"></i> Letzte Kontakte
     </div>
     {% if recent_contacts|length > 0 %}
-    <div class="table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.recent_contacts" data-default-view="cards">
+    <div class="table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.recent_contacts" data-default-view="cards" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle table-responsive-cards" id="sponsoringRecentContactsTable">
             <thead class="table-light">
                 <tr>
-                    <th>Datum</th>
-                    <th>Sponsor</th>
-                    <th>Art</th>
+                    <th data-sort-key="contact_date" data-sort-type="date">Datum</th>
+                    <th data-sort-key="sponsor_name" data-sort-type="text">Sponsor</th>
+                    <th data-sort-key="channel" data-sort-type="text">Art</th>
                     <th>Zusammenfassung</th>
                     <th>Protokolliert von</th>
                 </tr>

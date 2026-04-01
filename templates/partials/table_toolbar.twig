@@ -1,8 +1,21 @@
 <div class="table-toolbar">
-    <div class="d-flex gap-2 align-items-center">
+    <div class="d-flex gap-2 align-items-center flex-wrap" data-table-controls>
         <input type="search" class="form-control form-control-sm" data-table-search placeholder="Suche..." aria-label="Tabellensuche">
+        <div class="d-flex gap-2 align-items-center" data-table-plugin-slot></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-reset disabled>Zuruecksetzen</button>
     </div>
-    <div class="btn-group" role="group" aria-label="Ansicht umschalten">
+    <div class="d-flex gap-2 align-items-center flex-wrap" data-table-pagination>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-page-prev aria-label="Vorherige Seite" disabled>&lt;</button>
+        <span class="small text-muted" data-table-page-label role="status" aria-live="polite" aria-atomic="true">Seite 1 / 1</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-page-next aria-label="Naechste Seite" disabled>&gt;</button>
+        <select class="form-select form-select-sm" data-table-page-size aria-label="Seitengroesse" disabled>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="200">200</option>
+        </select>
+    </div>
+    <div class="btn-group ms-auto" role="group" aria-label="Ansicht umschalten" data-table-view-toggle>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-table-mode="auto">Auto</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="cards">Karten</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="table">Tabelle</button>
