@@ -288,7 +288,6 @@ return function (App $app) {
             $group->post('/newsletters/{id:[0-9]+}/save-as-template', [NewsletterController::class, 'saveAsTemplate']);
             $group->get('/newsletters/template/{id:[0-9]+}', [NewsletterController::class, 'getTemplate']);
             $group->get('/newsletters/{id:[0-9]+}/check-lock', [NewsletterController::class, 'checkLock']);
-            $group->get('/newsletters/archive', [NewsletterController::class, 'archiveIndex']);
             $group->post('/newsletters/{id:[0-9]+}/delete', [NewsletterController::class, 'deleteDraft']);
 
             // Dev-only seed endpoint, still protected by admin permission.

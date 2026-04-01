@@ -16,7 +16,7 @@ final class CreateNewsletters extends AbstractMigration
             event_id int(11) DEFAULT NULL,
             title varchar(255) NOT NULL,
             content_html longtext NOT NULL,
-            status enum('draft', 'scheduled', 'sent', 'archived') NOT NULL DEFAULT 'draft',
+            status enum('draft', 'sent') NOT NULL DEFAULT 'draft',
             recipient_count int(11) NOT NULL DEFAULT 0,
             locked_by int(11) DEFAULT NULL,
             locked_at timestamp NULL DEFAULT NULL,

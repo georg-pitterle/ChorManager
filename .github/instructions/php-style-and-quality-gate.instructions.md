@@ -9,3 +9,4 @@ applyTo: "**/*.php"
 - Keep line length at a soft limit of 120 and a hard limit of 130.
 - For substantial PHP changes, run `ddev composer phpcs`.
 - If formatting fixes are needed, use `ddev composer phpcbf`.
+- Format also files that are not changed

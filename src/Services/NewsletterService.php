@@ -32,7 +32,7 @@ class NewsletterService
      */
     public function send(Newsletter $newsletter, int $userId): void
     {
-        if ($newsletter->status !== 'draft') {
+        if (!$newsletter->isDraft()) {
             throw new Exception('Nur Entwürfe können versendet werden');
         }
 
@@ -98,7 +98,7 @@ class NewsletterService
         }
 
         $newsletter->update([
-            'status' => 'sent',
+            'status' => Newsletter::STATUS_SENT,
             'sent_at' => Carbon::now(),
         ]);
     }
@@ -138,7 +138,7 @@ class NewsletterService
     {
         $errors = [];
 
-        if ($newsletter->status !== 'draft') {
+        if (!$newsletter->isDraft()) {
             $errors[] = 'Newsletter-Status erlaubt keinen Versand';
         }
 

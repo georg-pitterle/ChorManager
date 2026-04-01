@@ -10,6 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Newsletter extends Model
 {
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_SENT = 'sent';
+    public const SUPPORTED_STATUSES = [
+        self::STATUS_DRAFT,
+        self::STATUS_SENT,
+    ];
+
     protected $table = 'newsletters';
     public $timestamps = false;
 
@@ -70,7 +77,7 @@ class Newsletter extends Model
 
     public function isDraft(): bool
     {
-        return $this->status === 'draft';
+        return $this->status === self::STATUS_DRAFT;
     }
 
     public function isLocked(): bool
@@ -80,6 +87,6 @@ class Newsletter extends Model
 
     public function isSent(): bool
     {
-        return $this->status === 'sent';
+        return $this->status === self::STATUS_SENT;
     }
 }

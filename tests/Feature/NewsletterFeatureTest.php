@@ -76,7 +76,6 @@ class NewsletterFeatureTest extends TestCase
             'create.twig',
             'edit.twig',
             'preview.twig',
-            'archive.twig',
             'locked.twig',
         ];
 
@@ -99,6 +98,9 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'isLocked'));
         $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'project'));
         $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'createdBy'));
+        $this->assertSame('draft', \App\Models\Newsletter::STATUS_DRAFT);
+        $this->assertSame('sent', \App\Models\Newsletter::STATUS_SENT);
+        $this->assertSame(['draft', 'sent'], \App\Models\Newsletter::SUPPORTED_STATUSES);
     }
 
     /**
@@ -149,8 +151,43 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'saveAsTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'getTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'checkLock'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'archiveIndex'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'deleteDraft'));
+    }
+
+    /**
+     * Test newsletter index only exposes supported statuses
+     */
+    public function testNewsletterIndexTemplateOmitsArchiveUi(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/index.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringNotContainsString('status=archived', $template);
+        $this->assertStringNotContainsString('Archiv', $template);
+    }
+
+    /**
+     * Test send flow still archives delivered newsletters per recipient
+     */
+    public function testSendFlowStillPersistsNewsletterArchiveEntries(): void
+    {
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterService.php');
+
+        $this->assertIsString($serviceContent);
+        $this->assertStringContainsString("NewsletterArchive::create([", $serviceContent);
+        $this->assertStringContainsString("'status' => Newsletter::STATUS_SENT", $serviceContent);
+    }
+
+    /**
+     * Test newsletter schema does not expose removed legacy statuses
+     */
+    public function testNewsletterMigrationOmitsLegacyStatuses(): void
+    {
+        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260323150000_create_newsletters.php');
+
+        $this->assertIsString($migrationContent);
+        $this->assertStringContainsString("status enum('draft', 'sent')", $migrationContent);
+        $this->assertStringNotContainsString("scheduled', 'sent', 'archived", $migrationContent);
     }
 
     /**

@@ -57,12 +57,6 @@
                 Versendet
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status == 'archived' %}active{% endif %}"
-               href="?project_id={{ project.id }}&status=archived">
-                Archiv
-            </a>
-        </li>
     </ul>
     </div>
 
@@ -100,8 +94,6 @@
                             <span class="badge bg-secondary">Entwurf</span>
                         {% elseif newsletter.status == 'sent' %}
                             <span class="badge bg-success">Versendet</span>
-                        {% elseif newsletter.status == 'archived' %}
-                            <span class="badge bg-dark">Archiv</span>
                         {% endif %}
                     </td>
                     <td>

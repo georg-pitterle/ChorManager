@@ -1875,7 +1875,7 @@ class DevSeedService
                     'content_html' => '<h2>Newsletter ' . $project->name . '</h2>' .
                         '<p>Aktuelle Informationen zum Projekt:</p>' .
                         '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>',
-                    'status' => 'sent',
+                    'status' => Newsletter::STATUS_SENT,
                     'created_by' => $createdUser->id,
                     'locked_by' => null,
                     'locked_at' => null,
@@ -1918,7 +1918,7 @@ class DevSeedService
                 'event_id' => null,
                 'title' => 'Entwurf: ' . $project->name . ' - Neuer Newsletter',
                 'content_html' => '<h2>Editierbar</h2><p>Dies ist ein Entwurfs-Newsletter, der noch bearbeitet werden kann.</p>',
-                'status' => 'draft',
+                'status' => Newsletter::STATUS_DRAFT,
                 'created_by' => $draftUser->id,
                 'locked_by' => null,
                 'locked_at' => null,

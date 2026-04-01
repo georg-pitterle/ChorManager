@@ -9,7 +9,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
-use App\Models\NewsletterArchive;
 use App\Models\Project;
 use App\Models\Event;
 use App\Models\User;
@@ -90,13 +89,18 @@ class NewsletterController
                 'newsletters' => [],
                 'project' => null,
                 'projects' => $projects,
-                'status' => 'draft',
+                'status' => Newsletter::STATUS_DRAFT,
                 'user_id' => $userId,
             ]);
         }
 
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
-        $status = $queryParams['status'] ?? 'draft';
+        $status = $queryParams['status'] ?? Newsletter::STATUS_DRAFT;
+        $allowedStatuses = Newsletter::SUPPORTED_STATUSES;
+
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = Newsletter::STATUS_DRAFT;
+        }
 
         if (!$projectId) {
             $defaultProject = $projects->first();
@@ -111,9 +115,7 @@ class NewsletterController
 
         $query = Newsletter::query()->where('project_id', $projectId);
 
-        if (in_array($status, ['draft', 'scheduled', 'sent', 'archived'])) {
-            $query->where('status', $status);
-        }
+        $query->where('status', $status);
 
         $newsletters = $query
             ->with(['createdBy'])
@@ -207,7 +209,7 @@ class NewsletterController
             'event_id' => $eventId,
             'title' => $data['title'] ?? 'Untitled Newsletter',
             'content_html' => $data['content_html'] ?? '',
-            'status' => 'draft',
+            'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $userId,
         ]);
 
@@ -343,7 +345,7 @@ class NewsletterController
         $userId = $_SESSION['user_id'] ?? null;
 
         $newsletter = Newsletter::find($id);
-        if (!$newsletter || $newsletter->status !== 'draft') {
+        if (!$newsletter || !$newsletter->isDraft()) {
             return $response->withStatus(404);
         }
 
@@ -361,7 +363,10 @@ class NewsletterController
             return $response->withStatus(500);
         }
 
-        return $response->withHeader('Location', "/newsletters?project_id={$newsletter->project_id}&status=sent")
+        return $response->withHeader(
+            'Location',
+            "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_SENT
+        )
             ->withStatus(302);
     }
 
@@ -433,31 +438,13 @@ class NewsletterController
         ]);
     }
 
-    public function archiveIndex(Request $request, Response $response): Response
-    {
-        $userId = $_SESSION['user_id'] ?? null;
-        if (!$userId) {
-            return $response->withStatus(403);
-        }
-
-        $archived = NewsletterArchive::where('user_id', $userId)
-            ->with('newsletter')
-            ->orderBy('sent_at', 'desc')
-            ->get();
-
-        return $this->view->render($response, 'newsletters/archive.twig', [
-            'archived_newsletters' => $archived,
-            'active_nav' => 'newsletters_archive',
-        ]);
-    }
-
     public function deleteDraft(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
 
         $newsletter = Newsletter::find($id);
-        if (!$newsletter || $newsletter->status !== 'draft') {
+        if (!$newsletter || !$newsletter->isDraft()) {
             return $response->withStatus(404);
         }
 
@@ -468,7 +455,10 @@ class NewsletterController
         $newsletter->delete();
         $_SESSION['success'] = 'Newsletter-Entwurf gelöscht';
 
-        return $response->withHeader('Location', "/newsletters?project_id={$newsletter->project_id}&status=draft")
+        return $response->withHeader(
+            'Location',
+            "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
+        )
             ->withStatus(302);
     }
 }
