@@ -71,10 +71,20 @@ class SponsoringFeatureTest extends TestCase
         $this->assertIsString($templateContent);
         $this->assertStringContainsString('data-table-id="sponsoring.dashboard.followups"', $templateContent);
         $this->assertStringContainsString('data-table-id="sponsoring.dashboard.recent_contacts"', $templateContent);
+        $this->assertStringContainsString('data-default-view="table"', $templateContent);
         $this->assertStringContainsString("'partials/table_toolbar.twig'", $templateContent);
         $this->assertStringContainsString('table-responsive-cards', $templateContent);
+        $this->assertStringContainsString('data-sort-key="follow_up_date"', $templateContent);
+        $this->assertStringContainsString('data-sort-key="agreement_amount"', $templateContent);
+        $this->assertStringContainsString('data-sort-key="contact_type"', $templateContent);
+        $this->assertStringContainsString('data-sort-key="owner_name"', $templateContent);
+        $this->assertStringContainsString('data-sort-follow_up_date="{{ contact.follow_up_date_sort }}"', $templateContent);
+        $this->assertStringContainsString('data-sort-agreement_amount="{{ contact.agreement_amount_sort }}"', $templateContent);
+        $this->assertStringContainsString('data-sort-contact_date="{{ contact.contact_date_sort }}"', $templateContent);
+        $this->assertStringContainsString('data-sort-contact_type="{{ contact.contact_type_sort }}"', $templateContent);
         $this->assertStringContainsString('data-label="Datum"', $templateContent);
         $this->assertStringContainsString('data-label="Zusammenfassung"', $templateContent);
+        $this->assertStringContainsString('Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.', $templateContent);
         $this->assertStringContainsString('class="table-summary-cell"', $templateContent);
         $this->assertStringContainsString('class="table-summary-content"', $templateContent);
     }

@@ -87,34 +87,45 @@
 </div>
 
 {# Fällige Wiedervorlagen #}
-{% if upcoming_follow_ups|length > 0 %}
 <div class="card border-0 shadow-sm mb-4 table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.followups" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     <div class="card-header bg-white border-bottom fw-semibold">
         <i class="bi bi-alarm me-1 text-danger"></i> Wiedervorlagen (fällig / nächste 7 Tage)
     </div>
+    {% if upcoming_follow_ups|length > 0 %}
     {% include 'partials/table_toolbar.twig' %}
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle table-responsive-cards" id="sponsoringFollowUpsTable">
             <thead class="table-light">
                 <tr>
-                    <th data-sort-key="next_followup_date" data-sort-type="date">Datum</th>
+                    <th data-sort-key="follow_up_date" data-sort-type="date">Datum</th>
                     <th data-sort-key="sponsor_name" data-sort-type="text">Sponsor</th>
-                    <th>Vereinbarung</th>
+                    <th data-sort-key="agreement_amount" data-sort-type="number">Vereinbarung</th>
                     <th data-sort-key="owner_name" data-sort-type="text">Zuständig</th>
                     <th class="text-end">Aktionen</th>
                 </tr>
             </thead>
             <tbody>
                 {% for contact in upcoming_follow_ups %}
-                <tr {% if contact.follow_up_date.format('Y-m-d') <= date().format('Y-m-d') %}class="table-warning"{% endif %}>
-                    <td data-label="Datum" class="text-nowrap">{{ contact.follow_up_date ? contact.follow_up_date.format('d.m.Y') : '' }}</td>
+                <tr data-sort-follow_up_date="{{ contact.follow_up_date_sort }}" data-sort-sponsor_name="{{ contact.sponsor_name|lower }}" data-sort-agreement_amount="{{ contact.agreement_amount_sort }}" data-sort-owner_name="{{ contact.owner_name_sort }}" {% if contact.is_overdue %}class="table-warning"{% endif %}>
+                    <td data-label="Datum" class="text-nowrap">{{ contact.follow_up_date_display }}</td>
                     <td data-label="Sponsor">
-                        <a href="/sponsoring/sponsors/{{ contact.sponsor.id }}">{{ contact.sponsor.name }}</a>
+                        {% if contact.sponsor_url %}
+                        <a href="{{ contact.sponsor_url }}">{{ contact.sponsor_name }}</a>
+                        {% else %}
+                        {{ contact.sponsor_name }}
+                        {% endif %}
                     </td>
-                    <td data-label="Vereinbarung">{{ contact.sponsorship ? contact.sponsorship.id : '–' }}</td>
-                    <td data-label="Zuständig">{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
+                    <td data-label="Vereinbarung">
+                        {% if contact.agreement_package_name == '-' %}
+                        -
+                        {% else %}
+                        <div class="fw-semibold">{{ contact.agreement_package_name }}</div>
+                        <div class="small text-muted">{{ contact.agreement_amount_display }} | {{ contact.agreement_status_label }}</div>
+                        {% endif %}
+                    </td>
+                    <td data-label="Zuständig">{{ contact.owner_name }}</td>
                     <td data-label="Aktionen" class="text-end">
-                        <form method="post" action="/sponsoring/contacts/{{ contact.id }}/done" class="d-inline">
+                        <form method="post" action="{{ contact.mark_done_url }}" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-success">
                                 <i class="bi bi-check-lg"></i> Erledigt
                             </button>
@@ -125,8 +136,10 @@
             </tbody>
         </table>
     </div>
+    {% else %}
+    <div class="card-body text-muted">Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.</div>
+    {% endif %}
 </div>
-{% endif %}
 
 {# Letzte Kontakte #}
 <div class="card border-0 shadow-sm">
@@ -134,7 +147,7 @@
         <i class="bi bi-clock-history me-1"></i> Letzte Kontakte
     </div>
     {% if recent_contacts|length > 0 %}
-    <div class="table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.recent_contacts" data-default-view="cards" data-default-page-size="100" data-page-size-options="25,50,100,200">
+    <div class="table-shell" data-table-engine="true" data-table-id="sponsoring.dashboard.recent_contacts" data-default-view="table" data-default-page-size="100" data-page-size-options="25,50,100,200">
     {% include 'partials/table_toolbar.twig' %}
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle table-responsive-cards" id="sponsoringRecentContactsTable">
@@ -142,36 +155,34 @@
                 <tr>
                     <th data-sort-key="contact_date" data-sort-type="date">Datum</th>
                     <th data-sort-key="sponsor_name" data-sort-type="text">Sponsor</th>
-                    <th data-sort-key="channel" data-sort-type="text">Art</th>
+                    <th data-sort-key="contact_type" data-sort-type="text">Art</th>
                     <th>Zusammenfassung</th>
-                    <th>Protokolliert von</th>
+                    <th data-sort-key="owner_name" data-sort-type="text">Protokolliert von</th>
                 </tr>
             </thead>
             <tbody>
                 {% for contact in recent_contacts %}
-                <tr>
-                    <td data-label="Datum" class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
+                <tr data-sort-contact_date="{{ contact.contact_date_sort }}" data-sort-sponsor_name="{{ contact.sponsor_name|lower }}" data-sort-contact_type="{{ contact.contact_type_sort }}" data-sort-owner_name="{{ contact.owner_name_sort }}">
+                    <td data-label="Datum" class="text-nowrap">{{ contact.contact_date_display }}</td>
                     <td data-label="Sponsor">
-                        <a href="/sponsoring/sponsors/{{ contact.sponsor.id }}">{{ contact.sponsor.name }}</a>
+                        {% if contact.sponsor_url %}
+                        <a href="{{ contact.sponsor_url }}">{{ contact.sponsor_name }}</a>
+                        {% else %}
+                        {{ contact.sponsor_name }}
+                        {% endif %}
                     </td>
                     <td data-label="Art">
-                        {% if contact.type == 'call' %}<i class="bi bi-telephone" title="Anruf"></i>
-                        {% elseif contact.type == 'email' %}<i class="bi bi-envelope" title="E-Mail"></i>
-                        {% elseif contact.type == 'meeting' %}<i class="bi bi-people" title="Treffen"></i>
-                        {% elseif contact.type == 'letter' %}<i class="bi bi-file-text" title="Brief"></i>
+                        {% if contact.contact_type_sort == 'call' %}<i class="bi bi-telephone" title="Anruf"></i>
+                        {% elseif contact.contact_type_sort == 'email' %}<i class="bi bi-envelope" title="E-Mail"></i>
+                        {% elseif contact.contact_type_sort == 'meeting' %}<i class="bi bi-people" title="Treffen"></i>
+                        {% elseif contact.contact_type_sort == 'letter' %}<i class="bi bi-file-text" title="Brief"></i>
                         {% else %}<i class="bi bi-chat-dots" title="Sonstiges"></i>{% endif %}
-                        <span class="ms-1 d-none d-md-inline">
-                            {% if contact.type == 'call' %}Anruf
-                            {% elseif contact.type == 'email' %}E-Mail
-                            {% elseif contact.type == 'meeting' %}Treffen
-                            {% elseif contact.type == 'letter' %}Brief
-                            {% else %}Sonstiges{% endif %}
-                        </span>
+                        <span class="ms-1 d-none d-md-inline">{{ contact.contact_type_label }}</span>
                     </td>
                     <td data-label="Zusammenfassung" class="table-summary-cell">
                         <span class="table-summary-content">{{ contact.summary }}</span>
                     </td>
-                    <td data-label="Protokolliert von">{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
+                    <td data-label="Protokolliert von">{{ contact.owner_name }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

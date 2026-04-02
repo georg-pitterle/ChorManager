@@ -56,22 +56,28 @@ class SponsoringContactController
     {
         $id   = (int) $args['id'];
         $data = (array) $request->getParsedBody();
+        $queryParams = $request->getQueryParams();
+        $redirectTo = (string) ($data['redirect_to'] ?? $queryParams['redirect_to'] ?? '');
 
         try {
             $contact = SponsoringContact::findOrFail($id);
             $contact->update(['follow_up_done' => 1]);
             $sponsorId = $contact->sponsor_id;
             $_SESSION['success'] = 'Wiedervorlage als erledigt markiert.';
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $_SESSION['error'] = 'Fehler: ' . $e->getMessage();
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
-        $redirectTo = $sponsorId
-            ? '/sponsoring/sponsors/' . $sponsorId
-            : '/sponsoring';
+        if ($redirectTo === 'dashboard') {
+            $redirectPath = '/sponsoring';
+        } elseif ($sponsorId) {
+            $redirectPath = '/sponsoring/sponsors/' . $sponsorId;
+        } else {
+            $redirectPath = '/sponsoring';
+        }
 
-        return $response->withHeader('Location', $redirectTo)->withStatus(302);
+        return $response->withHeader('Location', $redirectPath)->withStatus(302);
     }
 
     public function delete(Request $request, Response $response, array $args): Response
