@@ -45,7 +45,7 @@ class SponsoringDashboardController
             ->with(['sponsor', 'user', 'sponsorship.package'])
             ->orderBy('follow_up_date')
             ->get()
-            ->map(fn (SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $todayIso))
+            ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $todayIso))
             ->values()
             ->all();
 
@@ -54,7 +54,7 @@ class SponsoringDashboardController
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get()
-            ->map(fn (SponsoringContact $contact): array => $this->mapRecentContact($contact))
+            ->map(fn(SponsoringContact $contact): array => $this->mapRecentContact($contact))
             ->values()
             ->all();
 
