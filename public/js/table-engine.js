@@ -28,6 +28,13 @@
         return value === 'desc' ? 'desc' : 'asc';
     }
 
+    function normalizeMode(value) {
+        if (value === 'auto' || value === 'cards' || value === 'table') {
+            return value;
+        }
+        return 'auto';
+    }
+
     function createDefaultState(container) {
         const defaultPageSize = asInt(container.dataset.defaultPageSize, DEFAULT_PAGE_SIZE);
         return {
@@ -221,7 +228,7 @@
         const allowedPageSizes = getAllowedPageSizes(pageSizeSelect, defaults.pageSize);
         const requestedPluginNames = parsePluginNames(container.dataset.tablePlugins);
         const plugins = [];
-        let mode = prefs.viewOverride || prefs.view || 'auto';
+        let mode = normalizeMode(prefs.viewOverride || prefs.view || container.dataset.defaultView || 'auto');
         let state = createState(container, prefs.state, allowedPageSizes);
         let lastMeasuredTableWidth = 0;
 
@@ -452,13 +459,6 @@
             persistState();
         }
 
-        function normalizeMode(value) {
-            if (value === 'auto' || value === 'cards' || value === 'table') {
-                return value;
-            }
-            return 'auto';
-        }
-
         function getTableViewportElement() {
             if (typeof table.closest === 'function') {
                 const responsiveWrapper = table.closest('.table-responsive');
@@ -472,18 +472,27 @@
         function measureWidths() {
             const viewportElement = getTableViewportElement();
             const availableWidth = viewportElement && viewportElement.clientWidth ? viewportElement.clientWidth : 0;
-            // Bootstrap tables have width:100% which makes scrollWidth always equal the container
-            // width. Temporarily override to max-content so we measure the table's natural
-            // content width instead of the stretched width. Guard for non-browser environments.
-            let requiredWidth;
-            if (table.style) {
-                const savedWidth = table.style.width;
-                table.style.width = 'max-content';
-                requiredWidth = table.scrollWidth || table.clientWidth || 0;
-                table.style.width = savedWidth;
-            } else {
-                requiredWidth = table.scrollWidth || table.clientWidth || 0;
+
+            if (!viewportElement || !table) {
+                return { availableWidth, requiredWidth: 0 };
             }
+
+            const hadActiveView = Object.prototype.hasOwnProperty.call(container.dataset, 'activeView');
+            const previousView = container.dataset.activeView;
+            container.dataset.activeView = 'table';
+
+            const requiredWidth = Math.max(
+                viewportElement.scrollWidth || 0,
+                table.scrollWidth || 0,
+                table.clientWidth || 0
+            );
+
+            if (hadActiveView) {
+                container.dataset.activeView = previousView;
+            } else {
+                delete container.dataset.activeView;
+            }
+
             return { availableWidth, requiredWidth };
         }
 
@@ -576,6 +585,13 @@
         });
 
         instantiatePlugins();
+
+        applyRows();
+
+        const initialWidths = measureWidths();
+        if (initialWidths.requiredWidth > 0) {
+            lastMeasuredTableWidth = initialWidths.requiredWidth;
+        }
 
         applyMode(mode, false);
 
@@ -687,7 +703,6 @@
             });
         }
 
-        applyRows();
     }
 
     document.addEventListener('DOMContentLoaded', function () {

@@ -261,6 +261,7 @@ JS;
         $this->assertIsString($engine);
         $this->assertStringContainsString('viewOverride', $engine);
         $this->assertStringContainsString('prefs.view', $engine);
+        $this->assertStringContainsString('container.dataset.defaultView', $engine);
         $this->assertStringContainsString('data-table-mode', $engine);
         $this->assertStringContainsString('registerFilterPlugin', $engine);
         $this->assertStringContainsString('tablePlugins', $engine);
@@ -272,6 +273,7 @@ JS;
 
         $this->assertIsString($engine);
         $this->assertStringContainsString('table.scrollWidth', $engine);
+        $this->assertStringContainsString('viewportElement.scrollWidth', $engine);
         $this->assertStringContainsString('clientWidth', $engine);
         $this->assertStringContainsString('AUTO_VIEW_HYSTERESIS_PX', $engine);
         $this->assertStringContainsString("window.addEventListener('resize'", $engine);
@@ -494,6 +496,460 @@ responsiveWrapper.clientWidth = 740;
 resizeHandlers.forEach((cb) => cb());
 if (container.dataset.activeView !== 'table') {
     throw new Error('Auto mode should switch back to table when overflow pressure is gone');
+}
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testAutoModeCanReturnToTableFromPersistedCardsOverrideAtWideViewport(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-persisted-cards-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+const resizeHandlers = [];
+const responsiveWrapper = {
+    clientWidth: 1700
+};
+
+function makeButton(dataset) {
+    return {
+        dataset,
+        _handlers: {},
+        classList: {
+            toggle: function () {}
+        },
+        setAttribute: function () {},
+        addEventListener: function (eventName, cb) {
+            this._handlers[eventName] = cb;
+        },
+        click: function () {
+            if (this._handlers.click) {
+                this._handlers.click();
+            }
+        }
+    };
+}
+
+const autoButton = makeButton({ tableMode: 'auto' });
+const cardsButton = makeButton({ tableView: 'cards' });
+const tableButton = makeButton({ tableView: 'table' });
+const modeButtons = [autoButton, cardsButton, tableButton];
+
+const rows = [
+    { hidden: false, textContent: 'Visible row', dataset: {}, querySelectorAll: function () { return []; } },
+    { hidden: false, textContent: 'Another visible row', dataset: {}, querySelectorAll: function () { return []; } },
+    { hidden: false, textContent: 'Off-page row with long content '.repeat(80), dataset: {}, querySelectorAll: function () { return []; } }
+];
+
+const tableElement = {
+    id: 'table-id',
+    scrollWidth: 700,
+    clientWidth: 700,
+    style: {},
+    parentElement: responsiveWrapper,
+    closest: function (selector) {
+        if (selector === '.table-responsive') {
+            return responsiveWrapper;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === 'tbody tr') {
+            return rows;
+        }
+        return [];
+    }
+};
+
+const pageSizeSelect = {
+    value: '2',
+    disabled: true,
+    options: [{ value: '2' }],
+    setAttribute: function () {},
+    addEventListener: function () {}
+};
+
+const container = {
+    dataset: {
+        tableId: 'engine.persisted-cards',
+        tableEngine: 'true',
+        defaultView: 'table',
+        defaultPageSize: '2'
+    },
+    querySelector: function (selector) {
+        if (selector === 'table') {
+            return tableElement;
+        }
+        if (selector === '[data-table-page-size]') {
+            return pageSizeSelect;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') {
+            return modeButtons;
+        }
+        if (selector === 'th[data-sort-key]') {
+            return [];
+        }
+        return [];
+    }
+};
+
+const documentMock = {
+    _domReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') {
+            this._domReady = cb;
+        }
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') {
+            return [container];
+        }
+        return [];
+    }
+};
+
+const windowMock = {
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'resize') {
+            resizeHandlers.push(cb);
+        }
+    },
+    ChorTablePrefs: {
+        read: function () {
+            return { viewOverride: 'cards' };
+        },
+        write: function () {},
+        clear: function () {}
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+
+eval(engineCode);
+
+if (typeof documentMock._domReady !== 'function') {
+    throw new Error('DOMContentLoaded handler was not registered');
+}
+
+documentMock._domReady();
+
+if (container.dataset.activeView !== 'cards') {
+    throw new Error('Expected persisted cards override to initialize cards view');
+}
+
+tableElement.scrollWidth = 2000;
+autoButton.click();
+
+if (container.dataset.activeView !== 'table') {
+    throw new Error('Expected auto mode to switch back to table at wide viewport');
+}
+
+const visibleRows = rows.filter(function (row) {
+    return !row.hidden;
+});
+
+if (visibleRows.length !== 2) {
+    throw new Error('Expected initial pagination to hide off-page rows before measuring width');
+}
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testDefaultViewIsUsedWhenNoPreferenceExists(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-default-view-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+const responsiveWrapper = {
+    clientWidth: 900,
+    scrollWidth: 900
+};
+
+const tableElement = {
+    id: 'table-id',
+    clientWidth: 900,
+    scrollWidth: 900,
+    parentElement: responsiveWrapper,
+    closest: function (selector) {
+        if (selector === '.table-responsive') {
+            return responsiveWrapper;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === 'tbody tr') {
+            return [];
+        }
+        return [];
+    }
+};
+
+const container = {
+    dataset: {
+        tableId: 'engine.default-view',
+        tableEngine: 'true',
+        defaultView: 'cards'
+    },
+    querySelector: function (selector) {
+        if (selector === 'table') {
+            return tableElement;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') {
+            return [];
+        }
+        if (selector === 'th[data-sort-key]') {
+            return [];
+        }
+        return [];
+    }
+};
+
+const documentMock = {
+    _domReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') {
+            this._domReady = cb;
+        }
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') {
+            return [container];
+        }
+        return [];
+    }
+};
+
+const windowMock = {
+    addEventListener: function () {},
+    ChorTablePrefs: {
+        read: function () {
+            return {};
+        },
+        write: function () {}
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+
+eval(engineCode);
+documentMock._domReady();
+
+if (container.dataset.activeView !== 'cards') {
+    throw new Error('Expected data-default-view=cards to initialize cards view');
+}
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testAutoModeUsesRealTableLayoutMeasurementForWrappedDesktopTable(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-real-layout-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+const responsiveWrapper = {
+    clientWidth: 1296,
+    scrollWidth: 1296
+};
+
+const tableStyle = {};
+const containerDataset = {
+    tableId: 'projects.index',
+    tableEngine: 'true',
+    defaultView: 'auto',
+    defaultPageSize: '100'
+};
+
+const rows = [];
+for (let i = 0; i < 6; i += 1) {
+    rows.push({
+        hidden: false,
+        dataset: {},
+        textContent: 'Projekt ' + i,
+        querySelectorAll: function () { return []; }
+    });
+}
+
+const tableElement = {
+    id: 'projectsTable',
+    style: tableStyle,
+    get clientWidth() {
+        return 1296;
+    },
+    get scrollWidth() {
+        if (tableStyle.width === 'max-content') {
+            return 2200;
+        }
+        if (containerDataset.activeView === 'cards') {
+            return 2200;
+        }
+        return 1296;
+    },
+    parentElement: responsiveWrapper,
+    closest: function (selector) {
+        if (selector === '.table-responsive') {
+            return responsiveWrapper;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === 'tbody tr') {
+            return rows;
+        }
+        return [];
+    }
+};
+
+function makeButton(label, dataset) {
+    return {
+        label,
+        dataset,
+        _handlers: {},
+        classList: {
+            toggle: function () {}
+        },
+        setAttribute: function () {},
+        addEventListener: function (eventName, cb) {
+            this._handlers[eventName] = cb;
+        },
+        click: function () {
+            if (this._handlers.click) {
+                this._handlers.click();
+            }
+        }
+    };
+}
+
+const modeButtons = [
+    makeButton('Auto', { tableMode: 'auto' }),
+    makeButton('Karten', { tableView: 'cards' }),
+    makeButton('Tabelle', { tableView: 'table' })
+];
+
+const pageSizeSelect = {
+    value: '100',
+    disabled: true,
+    options: [{ value: '100' }],
+    setAttribute: function () {},
+    addEventListener: function () {}
+};
+
+const container = {
+    dataset: containerDataset,
+    querySelector: function (selector) {
+        if (selector === 'table') {
+            return tableElement;
+        }
+        if (selector === '[data-table-page-size]') {
+            return pageSizeSelect;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') {
+            return modeButtons;
+        }
+        if (selector === 'th[data-sort-key]') {
+            return [];
+        }
+        return [];
+    }
+};
+
+const documentMock = {
+    _domReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') {
+            this._domReady = cb;
+        }
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') {
+            return [container];
+        }
+        return [];
+    }
+};
+
+const windowMock = {
+    addEventListener: function () {},
+    ChorTablePrefs: {
+        read: function () {
+            return {};
+        },
+        write: function () {}
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+
+eval(engineCode);
+documentMock._domReady();
+
+if (container.dataset.activeView !== 'table') {
+    throw new Error('Expected wrapped desktop table to stay in table view in auto mode');
 }
 
 console.log('ok');
