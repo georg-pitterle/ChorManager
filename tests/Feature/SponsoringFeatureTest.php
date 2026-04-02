@@ -28,6 +28,7 @@ class SponsoringFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'downloadAttachment'));
         $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'deleteAttachment'));
         $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'create'));
+        $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'update'));
         $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'markDone'));
         $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'delete'));
         $this->assertTrue(method_exists(\App\Controllers\SponsorPackageController::class, 'index'));
@@ -44,6 +45,8 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString("'/sponsors'", $routesContent);
         $this->assertStringContainsString("'/sponsorships'", $routesContent);
         $this->assertStringContainsString("'/contacts'", $routesContent);
+        $this->assertStringContainsString("'/contacts/{id:[0-9]+}'", $routesContent);
+        $this->assertStringContainsString("SponsoringContactController::class, 'update'", $routesContent);
         $this->assertStringContainsString("'/packages'", $routesContent);
 
         $this->assertTrue(is_dir(dirname(__DIR__) . '/../templates/sponsoring'));
@@ -71,7 +74,7 @@ class SponsoringFeatureTest extends TestCase
         $this->assertIsString($templateContent);
         $this->assertStringContainsString('data-table-id="sponsoring.dashboard.followups"', $templateContent);
         $this->assertStringContainsString('data-table-id="sponsoring.dashboard.recent_contacts"', $templateContent);
-        $this->assertStringContainsString('data-default-view="table"', $templateContent);
+        $this->assertStringContainsString('data-default-view="auto"', $templateContent);
         $this->assertStringContainsString("'partials/table_toolbar.twig'", $templateContent);
         $this->assertStringContainsString('table-responsive-cards', $templateContent);
         $this->assertStringContainsString('data-sort-key="follow_up_date"', $templateContent);
@@ -87,5 +90,16 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString('Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.', $templateContent);
         $this->assertStringContainsString('class="table-summary-cell"', $templateContent);
         $this->assertStringContainsString('class="table-summary-content"', $templateContent);
+    }
+
+    public function testSponsorDetailTemplateProvidesContactEditControls(): void
+    {
+        $templatePath = dirname(__DIR__) . '/../templates/sponsoring/sponsors/detail.twig';
+        $templateContent = file_get_contents($templatePath);
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('data-bs-target="#editContactModal{{ contact.id }}"', $templateContent);
+        $this->assertStringContainsString('id="editContactModal{{ contact.id }}"', $templateContent);
+        $this->assertStringContainsString('action="/sponsoring/contacts/{{ contact.id }}"', $templateContent);
     }
 }

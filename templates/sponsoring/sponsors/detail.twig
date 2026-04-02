@@ -435,6 +435,13 @@
                             {% else %}–{% endif %}
                         </td>
                         <td>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    title="Bearbeiten"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editContactModal{{ contact.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
                             <form method="post" action="/sponsoring/contacts/{{ contact.id }}/delete" class="d-inline"
                                   onsubmit="return confirm('Kontakt löschen?');">
                                 <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
@@ -448,6 +455,63 @@
                 </tbody>
             </table>
         </div>
+
+        {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+        <div class="modal fade" id="editContactModal{{ contact.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form method="post" action="/sponsoring/contacts/{{ contact.id }}">
+                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Kontakt bearbeiten</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Datum <span class="text-danger">*</span></label>
+                                    <input type="date" name="contact_date" class="form-control" value="{{ contact.contact_date ? contact.contact_date.format('Y-m-d') : '' }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Art <span class="text-danger">*</span></label>
+                                    <select name="type" class="form-select" required>
+                                        <option value="call" {{ contact.type == 'call' ? 'selected' : '' }}>Anruf</option>
+                                        <option value="email" {{ contact.type == 'email' ? 'selected' : '' }}>E-Mail</option>
+                                        <option value="meeting" {{ contact.type == 'meeting' ? 'selected' : '' }}>Treffen</option>
+                                        <option value="letter" {{ contact.type == 'letter' ? 'selected' : '' }}>Brief</option>
+                                        <option value="other" {{ contact.type == 'other' ? 'selected' : '' }}>Sonstiges</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Vereinbarung</label>
+                                    <select name="sponsorship_id" class="form-select">
+                                        <option value="">– Keine –</option>
+                                        {% for sp in sponsor.sponsorships %}
+                                        <option value="{{ sp.id }}" {{ contact.sponsorship_id == sp.id ? 'selected' : '' }}>
+                                            #{{ sp.id }}{% if sp.package %} – {{ sp.package.name }}{% endif %} ({{ sp.amount|number_format(2, '.', ',') }} €)
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Zusammenfassung <span class="text-danger">*</span></label>
+                                    <textarea name="summary" class="form-control" rows="3" required>{{ contact.summary }}</textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Wiedervorlage am</label>
+                                    <input type="date" name="follow_up_date" class="form-control" value="{{ contact.follow_up_date ? contact.follow_up_date.format('Y-m-d') : '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
         {% else %}
         <div class="text-muted py-3">Noch keine Kontakte vorhanden.</div>
         {% endif %}

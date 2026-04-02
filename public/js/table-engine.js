@@ -35,6 +35,23 @@
         return 'auto';
     }
 
+    function resolveAutoView(overflowDelta, currentView, useHysteresis) {
+        if (currentView === 'cards') {
+            if (useHysteresis) {
+                return overflowDelta < -AUTO_VIEW_HYSTERESIS_PX ? 'table' : 'cards';
+            }
+            return overflowDelta > 1 ? 'cards' : 'table';
+        }
+
+        if (currentView === 'table') {
+            return overflowDelta > 1 ? 'cards' : 'table';
+        }
+
+        return overflowDelta > 1 ? 'cards' : 'table';
+    }
+
+    window.ChorTableEngine.resolveAutoView = resolveAutoView;
+
     function createDefaultState(container) {
         const defaultPageSize = asInt(container.dataset.defaultPageSize, DEFAULT_PAGE_SIZE);
         return {
@@ -518,27 +535,22 @@
             return requiredWidth - availableWidth;
         }
 
-        function getAutoView(currentView) {
+        function getAutoView(currentView, useHysteresis) {
             const overflowDelta = getOverflowDelta(currentView);
-
-            if (currentView === 'cards') {
-                return overflowDelta < -AUTO_VIEW_HYSTERESIS_PX ? 'table' : 'cards';
-            }
-
-            if (currentView === 'table') {
-                return overflowDelta > 1 ? 'cards' : 'table';
-            }
-
-            return overflowDelta > 1 ? 'cards' : 'table';
+            return resolveAutoView(overflowDelta, currentView, useHysteresis !== false);
         }
 
-        function getEffectiveView(activeMode, currentView) {
-            return activeMode === 'auto' ? getAutoView(currentView) : activeMode;
+        function getEffectiveView(activeMode, currentView, options) {
+            if (activeMode !== 'auto') {
+                return activeMode;
+            }
+
+            return getAutoView(currentView, !(options && options.disableAutoHysteresis));
         }
 
-        function applyEffectiveView(activeMode) {
+        function applyEffectiveView(activeMode, options) {
             const currentView = container.dataset.activeView;
-            container.dataset.activeView = getEffectiveView(activeMode, currentView);
+            container.dataset.activeView = getEffectiveView(activeMode, currentView, options);
         }
 
         function persistMode(nextMode) {
@@ -568,9 +580,9 @@
             });
         }
 
-        function applyMode(nextMode, shouldPersist) {
+        function applyMode(nextMode, shouldPersist, options) {
             mode = normalizeMode(nextMode);
-            applyEffectiveView(mode);
+            applyEffectiveView(mode, options);
             syncModeButtons(mode);
             if (shouldPersist) {
                 persistMode(mode);
@@ -580,7 +592,11 @@
         modeButtons.forEach((btn) => {
             btn.addEventListener('click', function () {
                 const clickedMode = btn.dataset.tableMode || btn.dataset.tableView;
-                applyMode(clickedMode, true);
+                applyMode(
+                    clickedMode,
+                    true,
+                    clickedMode === 'auto' ? { disableAutoHysteresis: true } : null
+                );
             });
         });
 
@@ -698,7 +714,7 @@
                 }
 
                 mode = 'auto';
-                applyMode(mode, false);
+                applyMode(mode, false, { disableAutoHysteresis: true });
                 applyRows();
             });
         }

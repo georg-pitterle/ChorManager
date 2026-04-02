@@ -256,6 +256,7 @@ return function (App $app) {
 
                     // Kontakthistorie
                     $sponsoringGroup->post('/contacts', [SponsoringContactController::class, 'create']);
+                    $sponsoringGroup->post('/contacts/{id:[0-9]+}', [SponsoringContactController::class, 'update']);
                     $sponsoringGroup->post('/contacts/{id:[0-9]+}/done', [SponsoringContactController::class, 'markDone']);
                     $sponsoringGroup->post('/contacts/{id:[0-9]+}/delete', [SponsoringContactController::class, 'delete']);
 

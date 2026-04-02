@@ -97,4 +97,33 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/sponsoring');
     }
+
+    public function testContactUpdateValidationFailureRedirectsBackToSponsorDetail(): void
+    {
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/contacts/999999', ['sponsor_id' => '42']);
+        $response = $this->makeResponse();
+
+        $result = $controller->update($request, $response, ['id' => '999999']);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors/42');
+        $this->assertArrayHasKey('error', $_SESSION);
+    }
+
+    public function testContactUpdateRejectsUnknownContactType(): void
+    {
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/contacts/999999', [
+            'sponsor_id' => '42',
+            'contact_date' => '2026-04-03',
+            'type' => 'fax',
+            'summary' => 'Test',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->update($request, $response, ['id' => '999999']);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors/42');
+        $this->assertSame('Ungueltige Kontaktart.', $_SESSION['error']);
+    }
 }
