@@ -54,12 +54,16 @@
 
     function createDefaultState(container) {
         const defaultPageSize = asInt(container.dataset.defaultPageSize, DEFAULT_PAGE_SIZE);
+        const defaultSortKey = typeof container.dataset.defaultSortKey === 'string'
+            ? container.dataset.defaultSortKey.trim()
+            : '';
+        const defaultSortDir = normalizeSortDir(container.dataset.defaultSortDir);
         return {
             page: 1,
             pageSize: defaultPageSize,
             searchQuery: '',
-            sortKey: '',
-            sortDir: 'asc',
+            sortKey: defaultSortKey,
+            sortDir: defaultSortDir,
             pluginFilters: {}
         };
     }
@@ -113,7 +117,7 @@
             pageSize: normalizePageSize(safe.pageSize, allowedPageSizes, defaults.pageSize),
             searchQuery: typeof safe.searchQuery === 'string' ? safe.searchQuery : defaults.searchQuery,
             sortKey: typeof safe.sortKey === 'string' ? safe.sortKey : defaults.sortKey,
-            sortDir: normalizeSortDir(safe.sortDir),
+            sortDir: typeof safe.sortDir === 'string' ? normalizeSortDir(safe.sortDir) : defaults.sortDir,
             pluginFilters: pluginFilters
         };
     }

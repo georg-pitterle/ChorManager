@@ -1377,4 +1377,227 @@ JS;
         $this->assertSame(0, $exitCode, implode("\n", $output));
         $this->assertContains('ok', $output);
     }
+
+    public function testDefaultSortKeyAndDirAreAppliedOnFirstLoad(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-default-sort-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+const rows = [
+    { hidden: false, dataset: { sortName: 'charlie' }, textContent: 'Charlie', querySelectorAll: function () { return []; } },
+    { hidden: false, dataset: { sortName: 'alice' }, textContent: 'Alice', querySelectorAll: function () { return []; } },
+    { hidden: false, dataset: { sortName: 'bob' }, textContent: 'Bob', querySelectorAll: function () { return []; } }
+];
+const table = {
+    id: '', scrollWidth: 0, clientWidth: 0,
+    closest: function () { return null; },
+    querySelectorAll: function (sel) { return sel === 'tbody tr' ? rows : []; }
+};
+const container = {
+    dataset: { tableEngine: 'true', tableId: 'test.default-sort', defaultView: 'table', defaultPageSize: '2', defaultSortKey: 'name', defaultSortDir: 'asc' },
+    querySelector: function (sel) {
+        if (sel === 'table') { return table; }
+        if (sel === '[data-table-search]') { return { value: '', disabled: true, addEventListener: function () {} }; }
+        if (sel === '[data-table-reset]') { return { disabled: true, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-size]') { return { value: '2', disabled: true, options: [{ value: '2' }], addEventListener: function () {} }; }
+        if (sel === '[data-table-page-prev]') { return { disabled: true, setAttribute: function () {}, removeAttribute: function () {}, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-next]') { return { disabled: true, setAttribute: function () {}, removeAttribute: function () {}, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-label]') { return { textContent: '' }; }
+        if (sel === '[data-table-pagination]') { return { textContent: '', setAttribute: function () {}, removeAttribute: function () {} }; }
+        if (sel === '[data-table-plugin-slot]') { return { appendChild: function () {}, querySelectorAll: function () { return []; } }; }
+        return null;
+    },
+    querySelectorAll: function (sel) {
+        if (sel === '[data-table-mode], [data-table-view]') { return []; }
+        if (sel === 'th[data-sort-key]') { return [{ dataset: { sortKey: 'name' }, addEventListener: function () {} }]; }
+        return [];
+    },
+    addEventListener: function () {}
+};
+const documentMock = {
+    _onReady: null,
+    addEventListener: function (eventName, cb) { if (eventName === 'DOMContentLoaded') { this._onReady = cb; } },
+    querySelectorAll: function (sel) { return sel === '[data-table-engine="true"]' ? [container] : []; },
+    createElement: function () { return { className: '', textContent: '', value: '', dataset: {}, children: [], appendChild: function (c) { this.children.push(c); }, setAttribute: function () {}, addEventListener: function () {} }; }
+};
+global.window = { addEventListener: function () {}, ChorTablePrefs: { read: function () { return {}; }, write: function () {}, clear: function () {} } };
+global.document = documentMock;
+eval(engineCode);
+documentMock._onReady();
+
+// asc: alice, bob, charlie; page 1 (size 2) => alice(rows[1]) + bob(rows[2]) visible, charlie(rows[0]) hidden
+if (rows[1].hidden !== false) { throw new Error('rows[1] (alice) should be visible on page 1 of asc sort, hidden=' + rows[1].hidden); }
+if (rows[2].hidden !== false) { throw new Error('rows[2] (bob) should be visible on page 1 of asc sort, hidden=' + rows[2].hidden); }
+if (rows[0].hidden !== true) { throw new Error('rows[0] (charlie) should be hidden on page 1 of asc sort, hidden=' + rows[0].hidden); }
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testDefaultSortDescIsAppliedOnFirstLoad(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-default-sort-desc-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+const rows = [
+    { hidden: false, dataset: { sortName: 'charlie' }, textContent: 'Charlie', querySelectorAll: function () { return []; } },
+    { hidden: false, dataset: { sortName: 'alice' }, textContent: 'Alice', querySelectorAll: function () { return []; } },
+    { hidden: false, dataset: { sortName: 'bob' }, textContent: 'Bob', querySelectorAll: function () { return []; } }
+];
+const table = {
+    id: '', scrollWidth: 0, clientWidth: 0,
+    closest: function () { return null; },
+    querySelectorAll: function (sel) { return sel === 'tbody tr' ? rows : []; }
+};
+const container = {
+    dataset: { tableEngine: 'true', tableId: 'test.default-sort-desc', defaultView: 'table', defaultPageSize: '2', defaultSortKey: 'name', defaultSortDir: 'desc' },
+    querySelector: function (sel) {
+        if (sel === 'table') { return table; }
+        if (sel === '[data-table-search]') { return { value: '', disabled: true, addEventListener: function () {} }; }
+        if (sel === '[data-table-reset]') { return { disabled: true, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-size]') { return { value: '2', disabled: true, options: [{ value: '2' }], addEventListener: function () {} }; }
+        if (sel === '[data-table-page-prev]') { return { disabled: true, setAttribute: function () {}, removeAttribute: function () {}, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-next]') { return { disabled: true, setAttribute: function () {}, removeAttribute: function () {}, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-label]') { return { textContent: '' }; }
+        if (sel === '[data-table-pagination]') { return { textContent: '', setAttribute: function () {}, removeAttribute: function () {} }; }
+        if (sel === '[data-table-plugin-slot]') { return { appendChild: function () {}, querySelectorAll: function () { return []; } }; }
+        return null;
+    },
+    querySelectorAll: function (sel) {
+        if (sel === '[data-table-mode], [data-table-view]') { return []; }
+        if (sel === 'th[data-sort-key]') { return [{ dataset: { sortKey: 'name' }, addEventListener: function () {} }]; }
+        return [];
+    },
+    addEventListener: function () {}
+};
+const documentMock = {
+    _onReady: null,
+    addEventListener: function (eventName, cb) { if (eventName === 'DOMContentLoaded') { this._onReady = cb; } },
+    querySelectorAll: function (sel) { return sel === '[data-table-engine="true"]' ? [container] : []; },
+    createElement: function () { return { className: '', textContent: '', value: '', dataset: {}, children: [], appendChild: function (c) { this.children.push(c); }, setAttribute: function () {}, addEventListener: function () {} }; }
+};
+global.window = { addEventListener: function () {}, ChorTablePrefs: { read: function () { return {}; }, write: function () {}, clear: function () {} } };
+global.document = documentMock;
+eval(engineCode);
+documentMock._onReady();
+
+// desc: charlie, bob, alice; page 1 (size 2) => charlie(rows[0]) + bob(rows[2]) visible, alice(rows[1]) hidden
+if (rows[0].hidden !== false) { throw new Error('rows[0] (charlie) should be visible on page 1 of desc sort, hidden=' + rows[0].hidden); }
+if (rows[2].hidden !== false) { throw new Error('rows[2] (bob) should be visible on page 1 of desc sort, hidden=' + rows[2].hidden); }
+if (rows[1].hidden !== true) { throw new Error('rows[1] (alice) should be hidden on page 1 of desc sort, hidden=' + rows[1].hidden); }
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
+
+    public function testPersistedStateOverridesDefaultSortKey(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-persisted-sort-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+// rows: charlie(score=10), alice(score=30), bob(score=20)
+// Default sort: name asc => alice, bob, charlie
+// Persisted: score asc => charlie(10), bob(20), alice(30)
+// Page 1 (size 2): charlie(rows[0]) + bob(rows[2]) visible; alice(rows[1]) hidden
+const rows = [
+    { hidden: false, dataset: { sortName: 'charlie', sortScore: '10' }, textContent: 'Charlie 10', querySelectorAll: function () { return []; } },
+    { hidden: false, dataset: { sortName: 'alice', sortScore: '30' }, textContent: 'Alice 30', querySelectorAll: function () { return []; } },
+    { hidden: false, dataset: { sortName: 'bob', sortScore: '20' }, textContent: 'Bob 20', querySelectorAll: function () { return []; } }
+];
+const storage = {
+    'chor.table.test.persisted-sort': JSON.stringify({ state: { sortKey: 'score', sortDir: 'asc' } })
+};
+const table = {
+    id: '', scrollWidth: 0, clientWidth: 0,
+    closest: function () { return null; },
+    querySelectorAll: function (sel) { return sel === 'tbody tr' ? rows : []; }
+};
+const container = {
+    dataset: { tableEngine: 'true', tableId: 'test.persisted-sort', defaultView: 'table', defaultPageSize: '2', defaultSortKey: 'name', defaultSortDir: 'asc' },
+    querySelector: function (sel) {
+        if (sel === 'table') { return table; }
+        if (sel === '[data-table-search]') { return { value: '', disabled: true, addEventListener: function () {} }; }
+        if (sel === '[data-table-reset]') { return { disabled: true, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-size]') { return { value: '2', disabled: true, options: [{ value: '2' }], addEventListener: function () {} }; }
+        if (sel === '[data-table-page-prev]') { return { disabled: true, setAttribute: function () {}, removeAttribute: function () {}, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-next]') { return { disabled: true, setAttribute: function () {}, removeAttribute: function () {}, addEventListener: function () {} }; }
+        if (sel === '[data-table-page-label]') { return { textContent: '' }; }
+        if (sel === '[data-table-pagination]') { return { textContent: '', setAttribute: function () {}, removeAttribute: function () {} }; }
+        if (sel === '[data-table-plugin-slot]') { return { appendChild: function () {}, querySelectorAll: function () { return []; } }; }
+        return null;
+    },
+    querySelectorAll: function (sel) {
+        if (sel === '[data-table-mode], [data-table-view]') { return []; }
+        if (sel === 'th[data-sort-key]') { return [{ dataset: { sortKey: 'name' }, addEventListener: function () {} }, { dataset: { sortKey: 'score' }, addEventListener: function () {} }]; }
+        return [];
+    },
+    addEventListener: function () {}
+};
+const documentMock = {
+    _onReady: null,
+    addEventListener: function (eventName, cb) { if (eventName === 'DOMContentLoaded') { this._onReady = cb; } },
+    querySelectorAll: function (sel) { return sel === '[data-table-engine="true"]' ? [container] : []; },
+    createElement: function () { return { className: '', textContent: '', value: '', dataset: {}, children: [], appendChild: function (c) { this.children.push(c); }, setAttribute: function () {}, addEventListener: function () {} }; }
+};
+global.window = {
+    addEventListener: function () {},
+    ChorTablePrefs: {
+        read: function (tableId) { const raw = storage['chor.table.' + tableId]; return raw ? JSON.parse(raw) : {}; },
+        write: function () {},
+        clear: function () {}
+    }
+};
+global.document = documentMock;
+eval(engineCode);
+documentMock._onReady();
+
+if (rows[0].hidden !== false) { throw new Error('rows[0] (charlie, score=10) should be visible as first in score-asc, hidden=' + rows[0].hidden); }
+if (rows[2].hidden !== false) { throw new Error('rows[2] (bob, score=20) should be visible as second in score-asc, hidden=' + rows[2].hidden); }
+if (rows[1].hidden !== true) { throw new Error('rows[1] (alice, score=30) should be hidden on page 1 of score-asc, hidden=' + rows[1].hidden); }
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
+    }
 }
