@@ -155,4 +155,27 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringNotContainsString('data-sort-key="excused_count"', $evaluationsTemplate);
         $this->assertStringNotContainsString('data-sort-key="unexcused_count"', $evaluationsTemplate);
     }
+
+    public function testAllTableEngineContainersHaveDefaultSortKey(): void
+    {
+        $templates = [
+            'templates/users/manage.twig',
+            'templates/finances/index.twig',
+            'templates/evaluations/index.twig',
+            'templates/events/index.twig',
+            'templates/songs/downloads.twig',
+            'templates/roles/index.twig',
+            'templates/sponsoring/dashboard.twig',
+            'templates/projects/index.twig',
+            'templates/projects/members.twig',
+            'templates/projects/tasks.twig',
+            'templates/sponsoring/sponsors/index.twig',
+        ];
+
+        foreach ($templates as $template) {
+            $content = file_get_contents(dirname(__DIR__) . '/../' . $template);
+            $this->assertIsString($content, $template);
+            $this->assertStringContainsString('data-default-sort-key=', $content, "Table engine in $template must declare a data-default-sort-key attribute");
+        }
+    }
 }
