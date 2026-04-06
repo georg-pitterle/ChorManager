@@ -54,6 +54,16 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-12 col-md-2 mb-2">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="show_old_events"
+                        name="show_old_events" value="1"
+                        {% if filters.show_old_events %}checked{% endif %}>
+                    <label class="form-check-label small" for="show_old_events">
+                        Alte Termine anzeigen
+                    </label>
+                </div>
+            </div>
             <div class="col-12 col-md-2 d-flex align-items-end mb-2">
                 <a href="/events" class="btn btn-outline-secondary w-100">
                     <i class="bi bi-x-circle"></i> Reset
