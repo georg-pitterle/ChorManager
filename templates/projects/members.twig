@@ -66,7 +66,11 @@
                 <tbody>
                     {% set seen_ids = [] %}
                     {% for m in members %}
-                    <tr>
+                    <tr
+                        data-sort-member_name="{{ (m.last_name ~ ', ' ~ m.first_name)|lower }}"
+                        data-sort-email="{{ m.email|lower }}"
+                        data-sort-voice="{{ m.voice_groups_display|default('')|lower }}"
+                    >
                         <td data-label="Name"><strong>{{ m.last_name }}, {{ m.first_name }}</strong></td>
                         <td data-label="E-Mail">{{ m.email }}</td>
                         <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>

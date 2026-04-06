@@ -55,7 +55,11 @@
                 </thead>
                 <tbody>
                     {% for role in roles %}
-                    <tr>
+                    <tr
+                        data-sort-role_name="{{ role.name|lower }}"
+                        data-sort-hierarchy_level="{{ role.hierarchy_level }}"
+                        data-sort-permission_scope="{{ role.can_manage_users ? 'ja' : 'nein' }}"
+                    >
                         <td data-label="Rollenname"><strong>{{ role.name }}</strong></td>
                         <td data-label="Level">{{ role.hierarchy_level }}</td>
                         <td data-label="Admin-Rechte">

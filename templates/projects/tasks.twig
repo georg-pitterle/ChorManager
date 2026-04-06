@@ -50,7 +50,12 @@
                 </thead>
                 <tbody>
                     {% for task in tasks %}
-                    <tr>
+                    <tr
+                        data-sort-task_title="{{ task.name|lower }}"
+                        data-sort-assignee_name="{{ task.assignee ? (task.assignee.first_name ~ ' ' ~ task.assignee.last_name)|lower : '' }}"
+                        data-sort-due_date="{{ task.end_date ? task.end_date|date('Y-m-d') : '9999-12-31' }}"
+                        data-sort-task_status="{{ task.status|lower }}"
+                    >
                         <td data-label="Titel">
                             <strong>{{ task.name }}</strong>
                             {% if task.comments_count > 0 %}

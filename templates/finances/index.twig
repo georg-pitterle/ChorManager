@@ -70,7 +70,16 @@
                 </thead>
                 <tbody>
                     {% for item in finances %}
-                    <tr>
+                    <tr
+                        data-sort-running_number="{{ item.running_number }}"
+                        data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
+                        data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
+                        data-sort-description="{{ item.description|lower }}"
+                        data-sort-group_name="{{ item.group_name|default('')|lower }}"
+                        data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
+                        data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
+                        data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}"
+                    >
                         <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
                         <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
                         <td data-label="Zahldatum">{{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}</td>

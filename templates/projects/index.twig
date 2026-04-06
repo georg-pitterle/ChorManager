@@ -47,7 +47,12 @@
                 </thead>
                 <tbody>
                     {% for project in projects %}
-                    <tr>
+                    <tr
+                        data-sort-project_name="{{ project.name|lower }}"
+                        data-sort-description="{{ project.description|default('')|lower }}"
+                        data-sort-start_date="{{ project.start_date|default('') }}"
+                        data-sort-end_date="{{ project.end_date|default('') }}"
+                    >
                         <td data-label="Projektname"><strong>{{ project.name }}</strong></td>
                         <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
                         <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>

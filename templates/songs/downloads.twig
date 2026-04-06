@@ -61,7 +61,10 @@
                                         {% set mime = attachment.mime_type|lower %}
                                         {% set is_mp3 = mime == 'audio/mpeg' %}
                                         {% set is_midi = mime == 'audio/midi' or mime == 'audio/x-midi' or mime == 'application/x-midi' %}
-                                        <tr>
+                                        <tr
+                                            data-sort-file_name="{{ attachment.original_name|lower }}"
+                                            data-sort-mime_type="{{ attachment.mime_type|lower }}"
+                                        >
                                             <td data-label="Datei">{{ attachment.original_name }}</td>
                                             <td data-label="Typ"><small>{{ attachment.mime_type }}</small></td>
                                             <td data-label="Groesse">{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>

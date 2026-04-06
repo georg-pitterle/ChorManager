@@ -88,7 +88,16 @@
                             {% endif %}
                         {% endfor %}
                     {% endfor %}
-                    <tr data-role="{{ role_filter|trim }}" data-voice="{{ voice_filter|trim }}" data-project="{{ project_filter|trim }}">
+                    <tr
+                        data-role="{{ role_filter|trim }}"
+                        data-voice="{{ voice_filter|trim }}"
+                        data-project="{{ project_filter|trim }}"
+                        data-sort-name="{{ (user.first_name ~ ' ' ~ user.last_name)|lower }}"
+                        data-sort-email="{{ user.email|lower }}"
+                        data-sort-role="{{ role_filter|trim }}"
+                        data-sort-voice="{{ voice_filter|trim }}"
+                        data-sort-project="{{ project_filter|trim }}"
+                    >
                         {% if not show_archived %}
                         <td data-label="Auswahl">
                             <input

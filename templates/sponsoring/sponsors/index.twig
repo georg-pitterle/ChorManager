@@ -72,7 +72,12 @@
         </thead>
         <tbody>
             {% for sponsor in sponsors %}
-            <tr>
+            <tr
+                data-sort-sponsor_name="{{ sponsor.name|lower }}"
+                data-sort-category="{{ sponsor.type == 'organization' ? 'organisation' : 'einzelperson' }}"
+                data-sort-status="{{ sponsor.status|lower }}"
+                data-sort-sponsorship_count="{{ sponsor.sponsorships|length }}"
+            >
                 <td data-label="Name">
                     <a href="/sponsoring/sponsors/{{ sponsor.id }}" class="fw-semibold text-decoration-none">
                         {{ sponsor.name }}

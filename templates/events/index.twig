@@ -59,8 +59,6 @@
                     <i class="bi bi-x-circle"></i> Reset
                 </a>
             </div>
-            <input type="hidden" name="sort" value="{{ filters.sort }}">
-            <input type="hidden" name="direction" value="{{ filters.direction }}">
         </form>
     </div>
 </div>
@@ -72,45 +70,23 @@
                     <table class="table table-hover align-middle mb-0 table-responsive-cards" id="eventsTable">
                 <thead class="table-dark">
                     <tr>
-                        <th data-sort-key="event_date" data-sort-type="date">
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'event_date', direction: (filters.sort == 'event_date' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
-                                Datum
-                                {% if filters.sort == 'event_date' %}
-                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th data-sort-key="title" data-sort-type="text">
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'title', direction: (filters.sort == 'title' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
-                                Titel
-                                {% if filters.sort == 'title' %}
-                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
-                                {% endif %}
-                            </a>
-                        </th>
+                        <th data-sort-key="event_date" data-sort-type="date">Datum</th>
+                        <th data-sort-key="title" data-sort-type="text">Titel</th>
                         <th data-sort-key="location" data-sort-type="text">Ort</th>
-                        <th data-sort-key="type" data-sort-type="text">
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'type', direction: (filters.sort == 'type' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
-                                Typ
-                                {% if filters.sort == 'type' %}
-                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th data-sort-key="project_name" data-sort-type="text">
-                            <a href="/events?{{ {project_id: filters.project_id, event_type_id: filters.event_type_id, sort: 'project_name', direction: (filters.sort == 'project_name' and filters.direction == 'asc' ? 'desc' : 'asc')}|url_encode }}" class="text-decoration-none text-reset">
-                                Projekt
-                                {% if filters.sort == 'project_name' %}
-                                    <i class="bi bi-caret-{{ filters.direction == 'asc' ? 'up' : 'down' }}-fill"></i>
-                                {% endif %}
-                            </a>
-                        </th>
+                        <th data-sort-key="type" data-sort-type="text">Typ</th>
+                        <th data-sort-key="project_name" data-sort-type="text">Projekt</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for event in events %}
-                    <tr>
+                    <tr
+                        data-sort-event_date="{{ event.event_date|date('Y-m-d') }}"
+                        data-sort-title="{{ event.title|lower }}"
+                        data-sort-location="{{ event.location|default('')|lower }}"
+                        data-sort-type="{{ event.type_name|lower }}"
+                        data-sort-project_name="{{ event.project_name|default('')|lower }}"
+                    >
                         <td data-label="Datum">
                             <strong>{{ event.event_date|date('d.m.Y') }}</strong>
                             {% if event.series_id %}

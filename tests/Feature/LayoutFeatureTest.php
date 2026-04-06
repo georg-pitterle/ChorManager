@@ -199,14 +199,15 @@ class LayoutFeatureTest extends TestCase
         );
     }
 
-    public function testEventsTableHeadLinksDoNotUseWhiteTextClass(): void
+    public function testEventsTableUsesClientSideSortableHeaders(): void
     {
         $eventsTemplatePath = dirname(__DIR__) . '/../templates/events/index.twig';
         $eventsTemplateContent = file_get_contents($eventsTemplatePath);
 
         $this->assertIsString($eventsTemplateContent);
         $this->assertStringNotContainsString('text-white text-decoration-none', $eventsTemplateContent);
-        $this->assertStringContainsString('text-decoration-none text-reset', $eventsTemplateContent);
+        $this->assertStringNotContainsString('/events?{{', $eventsTemplateContent);
+        $this->assertStringContainsString('<th data-sort-key="event_date" data-sort-type="date">Datum</th>', $eventsTemplateContent);
     }
 
     public function testLayoutUsesNavbarLogoClassWithoutFixedHeightAttribute(): void
