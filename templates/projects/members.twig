@@ -44,7 +44,7 @@
 {% endif %}
 
 <div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="projects.members" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="member_name">
-    {% include 'partials/table_toolbar.twig' %}
+    {{ include('partials/table_toolbar.twig') }}
     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-people-fill"></i> Projektmitglieder ({{ members|length }})</h5>
         <a href="/evaluations/project-members?project_id={{ project.id }}" class="btn btn-sm btn-outline-light">

@@ -95,26 +95,26 @@
         </div>
 
         <!-- Comments -->
-        {% include 'partials/comments.twig' with {
-            'comments': task.comments,
-            'submit_url': '/tasks/' ~ task.id ~ '/comments'
-        } %}
+        {{ include('partials/comments.twig', {
+            comments: task.comments,
+            submit_url: '/tasks/' ~ task.id ~ '/comments',
+        }) }}
 
     </div>
 
     <div class="col-lg-4">
         <!-- Attachments -->
-        {% include 'partials/attachments.twig' with {
-            'attachments': task.attachments,
-            'upload_url': '/tasks/' ~ task.id ~ '/attachments',
-            'download_url': '/tasks/' ~ task.id ~ '/attachments',
-            'delete_url': '/tasks/' ~ task.id ~ '/attachments'
-        } %}
+        {{ include('partials/attachments.twig', {
+            attachments: task.attachments,
+            upload_url: '/tasks/' ~ task.id ~ '/attachments',
+            download_url: '/tasks/' ~ task.id ~ '/attachments',
+            delete_url: '/tasks/' ~ task.id ~ '/attachments',
+        }) }}
 
         <!-- Activity History -->
-        {% include 'partials/history.twig' with {
-            'activities': task.activities|reverse
-        } %}
+        {{ include('partials/history.twig', {
+            activities: task.activities|reverse,
+        }) }}
 
         <!-- Danger Zone -->
         <div class="card border-danger shadow-sm mb-4">
