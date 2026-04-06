@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -26,6 +27,7 @@ class EventController
         $eventTypeId = !empty($queryParams['event_type_id']) ? (int)$queryParams['event_type_id'] : null;
         $sort = $queryParams['sort'] ?? 'event_date';
         $direction = $queryParams['direction'] ?? 'asc';
+        $showOldEvents = !empty($queryParams['show_old_events']) ? (int)$queryParams['show_old_events'] : 0;
 
         // Allowed sort columns
         $allowedSorts = ['event_date', 'title', 'type', 'project_name', 'location'];
@@ -40,6 +42,11 @@ class EventController
         }
         if ($eventTypeId) {
             $query->where('event_type_id', $eventTypeId);
+        }
+
+        // Filter out old events (older than 14 days) unless show_old_events=1
+        if (!$showOldEvents) {
+            $query->whereDate('event_date', '>=', Carbon::now()->subDays(14));
         }
 
         if ($sort === 'project_name') {
@@ -96,6 +103,7 @@ class EventController
             'filters' => [
                 'project_id' => $projectId,
                 'event_type_id' => $eventTypeId,
+                'show_old_events' => $showOldEvents,
                 'sort' => $sort,
                 'direction' => $direction
             ],
