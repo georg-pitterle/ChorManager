@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\Project;
+use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -145,21 +146,79 @@ class EventFeatureTest extends TestCase
         $this->assertStringNotContainsString('Old Event No Project', $body);
     }
 
-    private function createEvent(string $title, string $relativeDate, ?int $projectId = null): Event
+    public function testResetClearsShowOldEventsFilter(): void
     {
-        return Event::create([
-            'title' => $title,
-            'project_id' => $projectId,
-            'event_date' => (new \DateTimeImmutable($relativeDate . ' 12:00:00'))->format('Y-m-d H:i:s'),
+        $oldEvent = Event::create([
+            'title' => 'Old Event',
+            'event_date' => Carbon::now()->subDays(20)->format('Y-m-d H:i:s'),
             'type' => 'Probe',
-            'location' => 'Test Location',
+            'location' => null,
         ]);
+
+        $controller = new EventController($this->createTwig());
+
+        $request = $this->makeRequest('GET', '/events?show_old_events=1', [], ['show_old_events' => '1']);
+        $response = $this->makeResponse();
+        $result = $controller->index($request, $response);
+
+        $this->assertStringContainsString($oldEvent->title, (string) $result->getBody());
+
+        $request = $this->makeRequest('GET', '/events');
+        $response = $this->makeResponse();
+        $result = $controller->index($request, $response);
+
+        $this->assertStringNotContainsString($oldEvent->title, (string) $result->getBody());
     }
 
-    private function renderEventsIndex(array $queryParams = []): string
+    public function testMultipleFiltersWorkTogether(): void
     {
-        $_SERVER['REQUEST_URI'] = '/events' . ($queryParams === [] ? '' : '?' . http_build_query($queryParams));
+        $project = Project::create([
+            'name' => 'Project A',
+            'description' => 'Project for combined event filter test',
+        ]);
+        $eventType = \App\Models\EventType::create([
+            'name' => 'Probe',
+            'color' => 'primary',
+        ]);
 
+        $oldEventInProject = Event::create([
+            'title' => 'Old Event in Project',
+            'event_date' => Carbon::now()->subDays(20)->format('Y-m-d H:i:s'),
+            'project_id' => $project->id,
+            'event_type_id' => $eventType->id,
+            'type' => 'Probe',
+            'location' => null,
+        ]);
+
+        $oldEventOtherProject = Event::create([
+            'title' => 'Old Event Other Project',
+            'event_date' => Carbon::now()->subDays(20)->format('Y-m-d H:i:s'),
+            'project_id' => null,
+            'event_type_id' => $eventType->id,
+            'type' => 'Probe',
+            'location' => null,
+        ]);
+
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest(
+            'GET',
+            '/events?show_old_events=1&project_id=' . $project->id . '&event_type_id=' . $eventType->id,
+            [],
+            [
+                'show_old_events' => '1',
+                'project_id' => (string) $project->id,
+                'event_type_id' => (string) $eventType->id,
+            ]
+        );
+        $response = $this->makeResponse();
+        $result = $controller->index($request, $response);
+
+        $this->assertStringContainsString($oldEventInProject->title, (string) $result->getBody());
+        $this->assertStringNotContainsString($oldEventOtherProject->title, (string) $result->getBody());
+    }
+
+    private function createTwig(): Twig
+    {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
         $environment = $twig->getEnvironment();
         $environment->addGlobal('session', $_SESSION);
@@ -201,6 +260,26 @@ class EventFeatureTest extends TestCase
                 return false;
             }
         ));
+
+        return $twig;
+    }
+
+    private function createEvent(string $title, string $relativeDate, ?int $projectId = null): Event
+    {
+        return Event::create([
+            'title' => $title,
+            'project_id' => $projectId,
+            'event_date' => (new \DateTimeImmutable($relativeDate . ' 12:00:00'))->format('Y-m-d H:i:s'),
+            'type' => 'Probe',
+            'location' => 'Test Location',
+        ]);
+    }
+
+    private function renderEventsIndex(array $queryParams = []): string
+    {
+        $_SERVER['REQUEST_URI'] = '/events' . ($queryParams === [] ? '' : '?' . http_build_query($queryParams));
+
+        $twig = $this->createTwig();
 
         $controller = new EventController($twig);
         $request = $this->makeRequest('GET', '/events', [], $queryParams);
