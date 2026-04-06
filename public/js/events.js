@@ -24,13 +24,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.getElementById('event-filter-form');
     const projectFilter = document.getElementById('filter_project');
     const typeFilter = document.getElementById('filter_type');
+    const showOldEventsCheckbox = document.getElementById('show_old_events');
 
-    if (filterForm && projectFilter && typeFilter) {
-        projectFilter.addEventListener('change', function() {
-            filterForm.submit();
-        });
-        typeFilter.addEventListener('change', function() {
-            filterForm.submit();
-        });
+    if (filterForm) {
+        if (projectFilter) {
+            projectFilter.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
+
+        if (typeFilter) {
+            typeFilter.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
+
+        if (showOldEventsCheckbox) {
+            showOldEventsCheckbox.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
     }
 });
