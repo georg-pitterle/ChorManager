@@ -9,12 +9,7 @@
             {% for comment in comments %}
                 <div class="d-flex mb-3">
                     <div class="flex-shrink-0">
-                        <div class="bg-light rounded-circle p-2 text-primary"
-                             style="width: 40px;
-                                    height: 40px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center">
+                        <div class="bg-light rounded-circle p-2 text-primary avatar-circle">
                             {{ comment.user.first_name|first }}{{ comment.user.last_name|first }}
                         </div>
                     </div>

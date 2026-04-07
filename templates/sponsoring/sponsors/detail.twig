@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}{{ sponsor.name }} - Sponsoring - Chor Manager{% endblock %}
+{% block title %}
+    {{ sponsor.name }} - Sponsoring - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -35,7 +37,7 @@
             </form>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -778,4 +780,4 @@
             </div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

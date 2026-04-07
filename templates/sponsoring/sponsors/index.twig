@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Sponsoren - Chor Manager{% endblock %}
+{% block title %}
+    Sponsoren - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -20,7 +22,7 @@
             </button>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -151,8 +153,22 @@
                                    title="Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}/delete" class="d-inline"
-                                    onsubmit="return confirm('Sponsor „{{ sponsor.name }}" wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
+                                <form method="post"
+                                      action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Sponsor"
+                                      {{ sponsor.name }}
+                                      "
+                                      wirklich
+                                      löschen
+                                      Alle
+                                      verknüpften
+                                      Daten
+                                      werden
+                                      ebenfalls
+                                      gelöscht.
+                                      '
+                                      ">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -247,4 +263,4 @@
             </form>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

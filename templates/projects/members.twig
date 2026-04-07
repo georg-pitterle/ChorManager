@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Projektmitglieder: {{ project.name }} - Chor Manager{% endblock %}
+{% block title %}
+    Projektmitglieder: {{ project.name }} - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -18,7 +20,7 @@
                 <form action="/projects/{{ project.id }}/members"
                       method="post"
                       class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-                    <select name="user_id" class="form-select" style="min-width: 220px;" required>
+                    <select name="user_id" class="form-select select-min-220" required>
                         <option value="">-- Mitglied hinzufügen --</option>
                         {% for u in available_users %}<option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }}</option>{% endfor %}
                     </select>

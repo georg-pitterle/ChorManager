@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Auswertungen - Chor Manager{% endblock %}
+{% block title %}
+    Auswertungen - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -21,7 +23,7 @@
             </form>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if selected_project %}
@@ -82,10 +84,10 @@
                                                          {% else %}
                                                              text-danger
                                                          {% endif %}">{{ stat.percentage }}%</span>
-                                            <div class="progress" style="width: 60px; height: 8px;">
-                                                <div class="progress-bar {{ bar_color }}"
+                                            <div class="progress progress-sm">
+                                                <div class="progress-bar progress-bar-dynamic {{ bar_color }}"
                                                      role="progressbar"
-                                                     style="width: {{ stat.percentage }}%"
+                                                     style="--progress-value: {{ stat.percentage }}%"
                                                      aria-valuenow="{{ stat.percentage }}"
                                                      aria-valuemin="0"
                                                      aria-valuemax="100"></div>
@@ -113,6 +115,8 @@
         </div>
     {% endif %}
 
-    {% block scripts %}<script src="/js/evaluations.js"></script>{% endblock %}
+    {% block scripts %}
+        <script src="/js/evaluations.js"></script>
+    {% endblock scripts %}
 
-{% endblock %}
+{% endblock content %}

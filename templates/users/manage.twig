@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Mitgliederverwaltung - Chor Manager{% endblock %}
+{% block title %}
+    Mitgliederverwaltung - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -41,7 +43,7 @@
             {% endif %}
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -309,7 +311,7 @@
                                                id="vg_add_{{ group.id }}">
                                         <label class="form-check-label fw-bold" for="vg_add_{{ group.id }}">{{ group.name }}</label>
                                     </div>
-                                    <div class="mt-1 ps-4 collapse-sv" style="display: none;">
+                                    <div class="mt-1 ps-4 collapse-sv d-none">
                                         <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
                                             <option value="">(Keine Teilstimme)</option>
                                             {% for sv in sub_voices %}
@@ -422,8 +424,7 @@
                                                 <label class="form-check-label fw-bold"
                                                        for="vg_{{ user.id }}_{{ group.id }}">{{ group.name }}</label>
                                             </div>
-                                            <div class="mt-1 ps-4 collapse-sv"
-                                                 {% if not has_group %}style="display: none;"{% endif %}>
+                                            <div class="mt-1 ps-4 collapse-sv{% if not has_group %} d-none{% endif %}">
                                                 <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
                                                     <option value="">(Keine Teilstimme)</option>
                                                     {% for sv in sub_voices %}
@@ -470,5 +471,7 @@
         {% endfor %}
     {% endif %}
 
-    {% block scripts %}<script src="/js/users.js"></script>{% endblock %}
-{% endblock %}
+    {% block scripts %}
+        <script src="/js/users.js"></script>
+    {% endblock scripts %}
+{% endblock content %}

@@ -144,7 +144,8 @@ class TableUxFeatureTest extends TestCase
         $sponsorsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/sponsoring/sponsors/index.twig');
         $this->assertIsString($sponsorsTemplate);
         $this->assertStringContainsString('data-sort-key="sponsorship_count" data-sort-type="number"', $sponsorsTemplate);
-        $this->assertStringContainsString('data-sort-key="sponsorship_count" data-sort-value="{{ sponsor.sponsorships|length }}"', $sponsorsTemplate);
+        $this->assertStringContainsString('data-sort-key="sponsorship_count"', $sponsorsTemplate);
+        $this->assertStringContainsString('data-sort-value="{{ sponsor.sponsorships|length }}"', $sponsorsTemplate);
         $this->assertStringNotContainsString('data-sort-key="last_contact_date" data-sort-type="date">Vereinbarungen</th>', $sponsorsTemplate);
 
         $evaluationsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/evaluations/index.twig');

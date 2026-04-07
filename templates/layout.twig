@@ -4,11 +4,13 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description"
-              content="{{ app_settings.app_description|default("Chor Manager – Verwaltung von Mitgliedern, Terminen und Projekten.") }}">
+              content="{{ app_settings.app_description|default('Chor Manager – Verwaltung von Mitgliedern, Terminen und Projekten.') }}">
         <meta name="keywords"
-              content="{{ app_settings.app_keywords|default("chor, chorverwaltung, mitglieder, termine, projekte, newsletter") }}">
+              content="{{ app_settings.app_keywords|default('chor, chorverwaltung, mitglieder, termine, projekte, newsletter') }}">
         <title>
-            {% block title %}{{ app_settings.app_name|default("Chor Manager") }}{% endblock %}
+            {% block title %}
+                {{ app_settings.app_name|default('Chor Manager') }}
+            {% endblock title %}
         </title>
         <!-- Bootstrap CSS -->
         <link rel="stylesheet" href="/vendor/bootstrap/dist/css/bootstrap.min.css">
@@ -35,7 +37,7 @@
                 <div class="container-fluid app-topbar__inner">
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
                         <img src="/logo" alt="Logo" class="me-2 navbar-logo">
-                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default("Chor Manager") }}</span></a>
+                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default('Chor Manager') }}</span></a>
                     <button class="navbar-toggler"
                             type="button"
                             data-bs-toggle="collapse"

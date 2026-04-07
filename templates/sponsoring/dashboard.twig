@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Sponsoring - Chor Manager{% endblock %}
+{% block title %}
+    Sponsoring - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -16,7 +18,7 @@
             <a href="/sponsoring/packages" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-seam me-1"></i> Pakete</a>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {# KPI-Karten #}
@@ -226,4 +228,4 @@
             <div class="card-body text-muted">Noch keine Kontakte vorhanden.</div>
         {% endif %}
     </div>
-{% endblock %}
+{% endblock content %}

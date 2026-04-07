@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Finanzauswertung - Chor Manager{% endblock %}
+{% block title %}
+    Finanzauswertung - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -17,9 +19,7 @@
                       action="/finances/report"
                       class="d-flex align-items-center gap-2">
                     <label class="text-muted small mb-0">Geschäftsjahr:</label>
-                    <select name="year"
-                            class="form-select form-select-sm onchange-submit"
-                            style="width:auto">
+                    <select name="year" class="form-select form-select-sm onchange-submit w-auto">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
                             </option>
@@ -32,7 +32,7 @@
             </a>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     <div class="row g-4 mb-4">
@@ -105,17 +105,17 @@
                     <table class="table table-sm mb-0">
                         <tr>
                             <td class="text-muted">Einnahmen</td>
-                            <td class="text-end text-success fw-bold">+ {{ cash_income|number_format(2, ',', '.') }} &euro;</td>
+                            <td class="text-end text-success fw-bold">+ {{ cash_income|number_format(2, ',', '.') }} €</td>
                         </tr>
                         <tr>
                             <td class="text-muted">Ausgaben</td>
-                            <td class="text-end text-danger fw-bold">&minus; {{ cash_expense|number_format(2, ',', '.') }} &euro;</td>
+                            <td class="text-end text-danger fw-bold">− {{ cash_expense|number_format(2, ',', '.') }} €</td>
                         </tr>
                         <tr class="table-light fw-bold">
                             <td>Saldo Bar</td>
                             {% set cash_balance = cash_income - cash_expense %}
                             <td class="text-end {{ cash_balance >= 0 ? 'text-success' : 'text-danger' }}">
-                                {{ cash_balance|number_format(2, ',', '.') }} &euro;
+                                {{ cash_balance|number_format(2, ',', '.') }} €
                             </td>
                         </tr>
                     </table>
@@ -129,22 +129,22 @@
                         <div class="bg-info bg-opacity-10 p-3 rounded-circle me-3">
                             <i class="bi bi-bank text-info fs-4"></i>
                         </div>
-                        <h6 class="mb-0 fw-semibold">&Uuml;berweisung (Bank)</h6>
+                        <h6 class="mb-0 fw-semibold">Überweisung (Bank)</h6>
                     </div>
                     <table class="table table-sm mb-0">
                         <tr>
                             <td class="text-muted">Einnahmen</td>
-                            <td class="text-end text-success fw-bold">+ {{ bank_income|number_format(2, ',', '.') }} &euro;</td>
+                            <td class="text-end text-success fw-bold">+ {{ bank_income|number_format(2, ',', '.') }} €</td>
                         </tr>
                         <tr>
                             <td class="text-muted">Ausgaben</td>
-                            <td class="text-end text-danger fw-bold">&minus; {{ bank_expense|number_format(2, ',', '.') }} &euro;</td>
+                            <td class="text-end text-danger fw-bold">− {{ bank_expense|number_format(2, ',', '.') }} €</td>
                         </tr>
                         <tr class="table-light fw-bold">
                             <td>Saldo Bank</td>
                             {% set bank_balance = bank_income - bank_expense %}
                             <td class="text-end {{ bank_balance >= 0 ? 'text-success' : 'text-danger' }}">
-                                {{ bank_balance|number_format(2, ',', '.') }} &euro;
+                                {{ bank_balance|number_format(2, ',', '.') }} €
                             </td>
                         </tr>
                     </table>
@@ -312,4 +312,4 @@
             </div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

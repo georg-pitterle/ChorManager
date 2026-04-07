@@ -114,7 +114,7 @@ class EventFeatureTest extends TestCase
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
 
         $this->assertStringContainsString('id="show_old_events"', $body);
-        $this->assertStringContainsString('name="show_old_events" value="1"', $body);
+        $this->assertMatchesRegularExpression('/name="show_old_events"\s+value="1"/', $body);
         $this->assertMatchesRegularExpression('/<input[^>]*id="show_old_events"[^>]*checked[^>]*>/', $body);
     }
 

@@ -15,7 +15,7 @@
                                 <a href="{{ download_url }}/{{ attachment.id }}/download"
                                    class="text-decoration-none fw-medium text-dark">{{ attachment.original_name }}</a>
                                 <div class="text-muted small">
-                                    {{ attachment.file_size ? (attachment.file_size / 1024)|round(1) ~ ' KB' : '?' }} &bull; {{ attachment.created_at|date('d.m.Y') }}
+                                    {{ attachment.file_size ? (attachment.file_size / 1024)|round(1) ~ ' KB' : '?' }} • {{ attachment.created_at|date('d.m.Y') }}
                                 </div>
                             </div>
                         </div>

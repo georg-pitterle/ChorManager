@@ -1,6 +1,8 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
-{% block title %}Newsletter erstellen{% endblock %}
+{% block title %}
+    Newsletter erstellen
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -18,7 +20,7 @@
             </a>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     <div class="container-fluid px-0">
@@ -59,7 +61,7 @@
                             <option value="">-- Keine Auswahl --</option>
                             {% for event in events %}
                                 <option value="{{ event.id }}" data-project-id="{{ event.project_id }}">
-                                    {{ event.title }} ({{ event.event_date|date("d.m.Y") }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>
@@ -158,4 +160,4 @@ document.getElementById('create-newsletter-form').addEventListener('submit', asy
 
 filterEventsByProject();
     </script>
-{% endblock %}
+{% endblock content %}

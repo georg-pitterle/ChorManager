@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Dashboard - {{ app_settings.app_name|default('Chor Manager') }}{% endblock %}
+{% block title %}
+    Dashboard - {{ app_settings.app_name|default('Chor Manager') }}
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -13,7 +15,7 @@
             <a href="/attendance" class="btn btn-primary">Zur Anwesenheit</a>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     <div class="row">
@@ -67,4 +69,4 @@
             </div>
         {% endif %}
     </div>
-{% endblock %}
+{% endblock content %}

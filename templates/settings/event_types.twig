@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Event-Typen - Chor Manager{% endblock %}
+{% block title %}
+    Event-Typen - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -17,7 +19,7 @@
             </button>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}<div class="alert alert-success mt-3">{{ success }}</div>{% endif %}
@@ -178,4 +180,4 @@
             </form>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

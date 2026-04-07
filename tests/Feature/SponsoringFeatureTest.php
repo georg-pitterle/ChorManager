@@ -60,7 +60,7 @@ class SponsoringFeatureTest extends TestCase
 
         $this->assertIsString($templateContent);
         $this->assertStringContainsString('data-table-engine="true"', $templateContent);
-        $this->assertStringContainsString("'partials/table_toolbar.twig'", $templateContent);
+        $this->assertStringContainsString('partials/table_toolbar.twig', $templateContent);
         $this->assertStringContainsString('table-responsive-cards', $templateContent);
         $this->assertStringContainsString('data-label="Name"', $templateContent);
         $this->assertStringContainsString('data-label="Aktionen"', $templateContent);
@@ -75,7 +75,7 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString('data-table-id="sponsoring.dashboard.followups"', $templateContent);
         $this->assertStringContainsString('data-table-id="sponsoring.dashboard.recent_contacts"', $templateContent);
         $this->assertStringContainsString('data-default-view="auto"', $templateContent);
-        $this->assertStringContainsString("'partials/table_toolbar.twig'", $templateContent);
+        $this->assertStringContainsString('partials/table_toolbar.twig', $templateContent);
         $this->assertStringContainsString('table-responsive-cards', $templateContent);
         $this->assertStringContainsString('data-sort-key="follow_up_date"', $templateContent);
         $this->assertStringContainsString('data-sort-key="agreement_amount"', $templateContent);

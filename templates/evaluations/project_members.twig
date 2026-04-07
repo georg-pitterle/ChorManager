@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Projektmitglieder - Chor Manager{% endblock %}
+{% block title %}
+    Projektmitglieder - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -12,9 +14,7 @@
         <div class="page-actions d-flex gap-2">
             <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
             <form class="d-flex" method="get" action="/evaluations/project-members">
-                <select class="form-select onchange-submit"
-                        name="project_id"
-                        style="min-width: 220px">
+                <select class="form-select onchange-submit select-min-220" name="project_id">
                     <option value="">-- Projekt wählen --</option>
                     {% for p in projects %}
                         <option value="{{ p.id }}"
@@ -24,7 +24,7 @@
             </form>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if selected_project %}
@@ -106,4 +106,4 @@
             </p>
         </div>
     {% endif %}
-{% endblock %}
+{% endblock content %}

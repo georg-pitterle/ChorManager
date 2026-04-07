@@ -1,6 +1,8 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
-{% block title %}Newsletter gesperrt{% endblock %}
+{% block title %}
+    Newsletter gesperrt
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -10,7 +12,7 @@
             <p class="text-muted mb-0">{{ newsletter.title }}</p>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     <div class="container-fluid px-0 mt-2">
@@ -33,7 +35,7 @@
                                 <br>
                                 {{ locked_by_user.first_name }} {{ locked_by_user.last_name }}
                                 <br>
-                                <small class="text-muted">{{ newsletter.locked_at|date("d.m.Y H:i:s") }}</small>
+                                <small class="text-muted">{{ newsletter.locked_at|date('d.m.Y H:i:s') }}</small>
                             </div>
                         {% endif %}
 
@@ -74,4 +76,4 @@ setInterval(function() {
     reloadLockedNewsletterView();
 }, 30000);
     </script>
-{% endblock %}
+{% endblock content %}

@@ -400,3 +400,47 @@ a:hover {
         padding: 1.5rem;
     }
 }
+
+/* =====================================================================
+   Utility classes replacing inline styles
+   ===================================================================== */
+
+/* Small fixed-size progress bar (e.g. evaluation percentage column) */
+.progress-sm {
+    width: 60px;
+    height: 8px;
+}
+
+/* Dynamic progress bar value via CSS custom property.
+   Set --progress-value on the element from a Twig expression. */
+.progress-bar-dynamic {
+    width: var(--progress-value, 0%);
+}
+
+/* Minimum-width constraint for project/member select dropdowns */
+.select-min-220 {
+    min-width: 220px;
+}
+
+/* Avatar circle for comment author initials */
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Timeline dot marker */
+.timeline-dot {
+    width: 12px;
+    height: 12px;
+    top: 6px;
+}
+
+/* Newsletter HTML-content preview area */
+.newsletter-content-preview {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 4px;
+}

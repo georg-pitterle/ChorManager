@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Downloads - Chor Manager{% endblock %}
+{% block title %}
+    Downloads - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -10,7 +12,7 @@
             <p class="text-muted mb-0">Hier findest du die Lieder und Dateien zu den Projekten, an denen du teilnimmst.</p>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     <section class="surface-card form-surface p-4 mb-4">
@@ -132,9 +134,9 @@
             {% endfor %}
         </div>
     </section>
-{% endblock %}
+{% endblock content %}
 
 {% block scripts %}
     <script src="/vendor/html-midi-player/dist/midi-player.min.js"></script>
     <script src="/js/downloads.js"></script>
-{% endblock %}
+{% endblock scripts %}

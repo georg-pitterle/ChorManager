@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Anwesenheitsliste - Chor Manager{% endblock %}
+{% block title %}
+    Anwesenheitsliste - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -36,7 +38,7 @@
             </form>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -155,4 +157,4 @@
         </div>
     {% endif %}
 
-{% endblock %}
+{% endblock content %}

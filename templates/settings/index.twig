@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}App-Einstellungen - Chor Manager{% endblock %}
+{% block title %}
+    App-Einstellungen - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -10,7 +12,7 @@
             <p class="text-muted mb-0">Name, Logo und Standardfarbe zentral verwalten.</p>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -94,4 +96,4 @@
             </div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

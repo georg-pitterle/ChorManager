@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Liedbibliothek - Chor Manager{% endblock %}
+{% block title %}
+    Liedbibliothek - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -18,7 +20,7 @@
             </button>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -226,4 +228,4 @@
             </form>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

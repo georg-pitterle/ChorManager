@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Aufgaben - {{ project.name }} - Chor Manager{% endblock %}
+{% block title %}
+    Aufgaben - {{ project.name }} - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -20,7 +22,7 @@
             </button>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -205,4 +207,4 @@
             </form>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

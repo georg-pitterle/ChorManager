@@ -1,6 +1,8 @@
 {% extends 'layout.twig' %}
 
-{% block title %}Kassabuch - Chor Manager{% endblock %}
+{% block title %}
+    Kassabuch - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -18,9 +20,8 @@
                       class="d-flex align-items-center gap-2">
                     <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
                     <select name="year"
-                            class="form-select form-select-sm"
-                            onchange="this.form.submit()"
-                            style="width:auto">
+                            class="form-select form-select-sm w-auto"
+                            onchange="this.form.submit()">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
                             </option>
@@ -49,7 +50,7 @@
             </button>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     {% if success %}
@@ -175,7 +176,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="/finances/{{ item.id }}/delete"
-                                          method="POST"
+                                          method="post"
                                           class="d-inline"
                                           onsubmit="return confirm('Eintrag {{ item.running_number }} wirklich löschen?');">
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
@@ -361,5 +362,7 @@
         </div>
     </div>
 
-    {% block scripts %}<script src="/js/finances.js"></script>{% endblock %}
-{% endblock %}
+    {% block scripts %}
+        <script src="/js/finances.js"></script>
+    {% endblock scripts %}
+{% endblock content %}

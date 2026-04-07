@@ -1,6 +1,8 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
-{% block title %}Newsletter-Vorschau ({{ newsletter.title }}){% endblock %}
+{% block title %}
+    Newsletter-Vorschau ({{ newsletter.title }})
+{% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
@@ -16,7 +18,7 @@
             </a>
         </div>
     </section>
-{% endblock %}
+{% endblock page_header %}
 
 {% block content %}
     <div class="container-fluid px-0">
@@ -28,15 +30,12 @@
                             <h5 class="mb-1">{{ newsletter.title }}</h5>
                             <small class="text-muted">
                                 Von: {{ newsletter.createdBy.first_name }} {{ newsletter.createdBy.last_name }}
-                                | Erstellt: {{ newsletter.created_at|date("d.m.Y H:i") }}
+                                | Erstellt: {{ newsletter.created_at|date('d.m.Y H:i') }}
                             </small>
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="newsletter-content"
-                             style="background-color: #f8f9fa;
-                                    padding: 20px;
-                                    border-radius: 4px">{{ newsletter.content_html|raw }}</div>
+                        <div class="newsletter-content newsletter-content-preview">{{ newsletter.content_html|raw }}</div>
                     </div>
                     <div class="card-footer">
                         <div class="text-muted text-center">
@@ -75,4 +74,4 @@
         background-color: #f2f2f2;
     }
     </style>
-{% endblock %}
+{% endblock content %}
