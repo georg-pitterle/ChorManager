@@ -3,115 +3,138 @@
 {% block title %}Downloads - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Bereiche</p>
-        <h1 class="h2 mb-1">Downloads</h1>
-        <p class="text-muted mb-0">Hier findest du die Lieder und Dateien zu den Projekten, an denen du teilnimmst.</p>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+            <h1 class="h2 mb-1">Downloads</h1>
+            <p class="text-muted mb-0">Hier findest du die Lieder und Dateien zu den Projekten, an denen du teilnimmst.</p>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-<section class="surface-card form-surface p-4 mb-4">
-<div class="accordion" id="downloadsProjectsAccordion">
-{% for project in projects %}
-    <div class="accordion-item mb-3 border-0 shadow-sm">
-        <h2 class="accordion-header" id="download-heading-{{ project.id }}">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#download-collapse-{{ project.id }}" aria-expanded="false" aria-controls="download-collapse-{{ project.id }}">
-                <span class="fw-semibold">{{ project.name }}</span>
-                <span class="badge bg-secondary ms-3">{{ project.songs|length }} Lieder</span>
-            </button>
-        </h2>
-        <div id="download-collapse-{{ project.id }}" class="accordion-collapse collapse" aria-labelledby="download-heading-{{ project.id }}" data-bs-parent="#downloadsProjectsAccordion">
-            <div class="accordion-body">
-                {% if project.songs|length == 0 %}
-                    <p class="text-muted mb-0">Keine Lieder in diesem Projekt vorhanden.</p>
-                {% endif %}
+    <section class="surface-card form-surface p-4 mb-4">
+        <div class="accordion" id="downloadsProjectsAccordion">
+            {% for project in projects %}
+                <div class="accordion-item mb-3 border-0 shadow-sm">
+                    <h2 class="accordion-header" id="download-heading-{{ project.id }}">
+                        <button class="accordion-button collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#download-collapse-{{ project.id }}"
+                                aria-expanded="false"
+                                aria-controls="download-collapse-{{ project.id }}">
+                            <span class="fw-semibold">{{ project.name }}</span>
+                            <span class="badge bg-secondary ms-3">{{ project.songs|length }} Lieder</span>
+                        </button>
+                    </h2>
+                    <div id="download-collapse-{{ project.id }}"
+                         class="accordion-collapse collapse"
+                         aria-labelledby="download-heading-{{ project.id }}"
+                         data-bs-parent="#downloadsProjectsAccordion">
+                        <div class="accordion-body">
+                            {% if project.songs|length == 0 %}<p class="text-muted mb-0">Keine Lieder in diesem Projekt vorhanden.</p>{% endif %}
 
-                {% for song in project.songs %}
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5 class="mb-1">{{ song.title }}</h5>
-                            <p class="text-muted small mb-3">
-                                Komponist: {{ song.composer|default('-') }} | Arrangeur: {{ song.arranger|default('-') }} | Verlag: {{ song.publisher|default('-') }}
-                            </p>
+                            {% for song in project.songs %}
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h5 class="mb-1">{{ song.title }}</h5>
+                                        <p class="text-muted small mb-3">
+                                            Komponist: {{ song.composer|default('-') }} | Arrangeur: {{ song.arranger|default('-') }} | Verlag: {{ song.publisher|default('-') }}
+                                        </p>
 
-                            <div data-table-engine="true" data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="file_name">
-                                <div class="d-flex justify-content-end align-items-center gap-2 mb-2">
-                                    <div class="btn-group" role="group" aria-label="Ansicht umschalten" data-table-view-toggle>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-mode="auto">Auto</button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="cards">Karten</button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="table">Tabelle</button>
+                                        <div data-table-engine="true"
+                                             data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}"
+                                             data-default-view="auto"
+                                             data-default-page-size="100"
+                                             data-page-size-options="25,50,100,200"
+                                             data-default-sort-key="file_name">
+                                            <div class="d-flex justify-content-end align-items-center gap-2 mb-2">
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Ansicht umschalten"
+                                                     data-table-view-toggle>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-table-mode="auto">Auto</button>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-table-view="cards">Karten</button>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-table-view="table">Tabelle</button>
+                                                </div>
+                                            </div>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0 table-responsive-cards"
+                                                       id="downloadsSongTable{{ song.id }}">
+                                                    <thead>
+                                                        <tr>
+                                                            <th data-sort-key="file_name" data-sort-type="text">Datei</th>
+                                                            <th data-sort-key="mime_type" data-sort-type="text">Typ</th>
+                                                            <th>Groesse</th>
+                                                            <th>Wiedergabe</th>
+                                                            <th class="text-end">Aktionen</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for attachment in song.attachments %}
+                                                            {% set mime = attachment.mime_type|lower %}
+                                                            {% set is_mp3 = mime == 'audio/mpeg' %}
+                                                            {% set is_midi = mime == 'audio/midi' or mime == 'audio/x-midi' or mime == 'application/x-midi' %}
+                                                            <tr data-sort-file_name="{{ attachment.original_name|lower }}"
+                                                                data-sort-mime_type="{{ attachment.mime_type|lower }}">
+                                                                <td data-label="Datei">{{ attachment.original_name }}</td>
+                                                                <td data-label="Typ">
+                                                                    <small>{{ attachment.mime_type }}</small>
+                                                                </td>
+                                                                <td data-label="Groesse">{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
+                                                                <td data-label="Wiedergabe">
+                                                                    {% if is_mp3 %}
+                                                                        <audio controls preload="none" class="w-100">
+                                                                            <source src="/downloads/attachments/{{ attachment.id }}/stream"
+                                                                                    type="audio/mpeg">
+                                                                            Dein Browser unterstuetzt kein Audio-Playback.
+                                                                        </audio>
+                                                                    {% elseif is_midi %}
+                                                                        <div class="midi-player-block" data-midi-id="{{ attachment.id }}">
+                                                                            <midi-player src="/downloads/attachments/{{ attachment.id }}/stream" sound-font visualizer="#none" class="w-100"></midi-player>
+                                                                            <small class="text-muted d-none midi-fallback">MIDI-Playback im Browser nicht verfuegbar. Bitte Datei herunterladen.</small>
+                                                                        </div>
+                                                                    {% else %}
+                                                                        <span class="text-muted">Nicht direkt abspielbar</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td data-label="Aktionen" class="text-end">
+                                                                    <a class="btn btn-sm btn-outline-primary"
+                                                                       href="/downloads/attachments/{{ attachment.id }}/download">
+                                                                        <i class="bi bi-download"></i> Download
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                        {% else %}
+                                                            <tr>
+                                                                <td colspan="5" class="text-muted">Keine Anhaenge zu diesem Lied vorhanden.</td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table table-sm align-middle mb-0 table-responsive-cards" id="downloadsSongTable{{ song.id }}">
-                                    <thead>
-                                        <tr>
-                                            <th data-sort-key="file_name" data-sort-type="text">Datei</th>
-                                            <th data-sort-key="mime_type" data-sort-type="text">Typ</th>
-                                            <th>Groesse</th>
-                                            <th>Wiedergabe</th>
-                                            <th class="text-end">Aktionen</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    {% for attachment in song.attachments %}
-                                        {% set mime = attachment.mime_type|lower %}
-                                        {% set is_mp3 = mime == 'audio/mpeg' %}
-                                        {% set is_midi = mime == 'audio/midi' or mime == 'audio/x-midi' or mime == 'application/x-midi' %}
-                                        <tr
-                                            data-sort-file_name="{{ attachment.original_name|lower }}"
-                                            data-sort-mime_type="{{ attachment.mime_type|lower }}"
-                                        >
-                                            <td data-label="Datei">{{ attachment.original_name }}</td>
-                                            <td data-label="Typ"><small>{{ attachment.mime_type }}</small></td>
-                                            <td data-label="Groesse">{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
-                                            <td data-label="Wiedergabe">
-                                                {% if is_mp3 %}
-                                                    <audio controls preload="none" class="w-100">
-                                                        <source src="/downloads/attachments/{{ attachment.id }}/stream" type="audio/mpeg">
-                                                        Dein Browser unterstuetzt kein Audio-Playback.
-                                                    </audio>
-                                                {% elseif is_midi %}
-                                                    <div class="midi-player-block" data-midi-id="{{ attachment.id }}">
-                                                        <midi-player src="/downloads/attachments/{{ attachment.id }}/stream" sound-font visualizer="#none" class="w-100"></midi-player>
-                                                        <small class="text-muted d-none midi-fallback">MIDI-Playback im Browser nicht verfuegbar. Bitte Datei herunterladen.</small>
-                                                    </div>
-                                                {% else %}
-                                                    <span class="text-muted">Nicht direkt abspielbar</span>
-                                                {% endif %}
-                                            </td>
-                                            <td data-label="Aktionen" class="text-end">
-                                                <a class="btn btn-sm btn-outline-primary" href="/downloads/attachments/{{ attachment.id }}/download">
-                                                    <i class="bi bi-download"></i> Download
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="5" class="text-muted">Keine Anhaenge zu diesem Lied vorhanden.</td>
-                                        </tr>
-                                    {% endfor %}
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>
+                            {% endfor %}
                         </div>
                     </div>
-                {% endfor %}
-            </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info">Du bist derzeit keinem Projekt mit Liedern zugeordnet.</div>
+            {% endfor %}
         </div>
-    </div>
-{% else %}
-    <div class="alert alert-info">Du bist derzeit keinem Projekt mit Liedern zugeordnet.</div>
-{% endfor %}
-</div>
-</section>
+    </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="/vendor/html-midi-player/dist/midi-player.min.js"></script>
-<script src="/js/downloads.js"></script>
+    <script src="/vendor/html-midi-player/dist/midi-player.min.js"></script>
+    <script src="/js/downloads.js"></script>
 {% endblock %}

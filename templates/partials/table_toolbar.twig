@@ -1,43 +1,78 @@
 <div class="table-toolbar">
     <div class="d-flex gap-2 align-items-center flex-wrap" data-table-controls>
-        <input type="search" class="form-control form-control-sm" data-table-search placeholder="Suche..." aria-label="Tabellensuche">
+        <input type="search"
+               class="form-control form-control-sm"
+               data-table-search
+               placeholder="Suche..."
+               aria-label="Tabellensuche">
         <div class="d-flex gap-2 align-items-center" data-table-plugin-slot></div>
         <div class="dropdown">
-            <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                data-bs-toggle="dropdown"
-                data-bs-auto-close="outside"
-                data-table-sort-toggle
-                disabled
-            >Sortierung</button>
-            <div class="dropdown-menu dropdown-menu-end table-sort-panel" data-table-sort-panel>
-                <p class="table-sort-panel-empty text-muted small mb-2" data-table-sort-empty>Keine aktive Sortierung.</p>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    data-bs-toggle="dropdown"
+                    data-bs-auto-close="outside"
+                    data-table-sort-toggle
+                    disabled>Sortierung</button>
+            <div class="dropdown-menu dropdown-menu-end table-sort-panel"
+                 data-table-sort-panel>
+                <p class="table-sort-panel-empty text-muted small mb-2"
+                   data-table-sort-empty>Keine aktive Sortierung.</p>
                 <div class="table-sort-panel-list mb-2" data-table-sort-current></div>
                 <div class="dropdown-divider my-2" data-table-sort-divider hidden></div>
                 <div data-table-sort-available-section hidden>
                     <p class="text-muted small mb-2">Weitere Spalten</p>
                     <div class="table-sort-panel-list" data-table-sort-available></div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-3" data-table-sort-clear disabled>Sortierung zurücksetzen</button>
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger w-100 mt-3"
+                        data-table-sort-clear
+                        disabled>Sortierung zurücksetzen</button>
             </div>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-reset disabled>Zuruecksetzen</button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-reset
+                disabled>Zuruecksetzen</button>
     </div>
-    <div class="d-flex gap-2 align-items-center flex-wrap" data-table-pagination>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-page-prev aria-label="Vorherige Seite" disabled>&lt;</button>
-        <span class="small text-muted" data-table-page-label role="status" aria-live="polite" aria-atomic="true">Seite 1 / 1</span>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-page-next aria-label="Naechste Seite" disabled>&gt;</button>
-        <select class="form-select form-select-sm" data-table-page-size aria-label="Seitengroesse" disabled>
+    <div class="d-flex gap-2 align-items-center flex-wrap"
+         data-table-pagination>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-page-prev
+                aria-label="Vorherige Seite"
+                disabled>&lt;</button>
+        <span class="small text-muted"
+              data-table-page-label
+              role="status"
+              aria-live="polite"
+              aria-atomic="true">Seite 1 / 1</span>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-page-next
+                aria-label="Naechste Seite"
+                disabled>&gt;</button>
+        <select class="form-select form-select-sm"
+                data-table-page-size
+                aria-label="Seitengroesse"
+                disabled>
             <option value="25">25</option>
             <option value="50">50</option>
             <option value="100" selected>100</option>
             <option value="200">200</option>
         </select>
     </div>
-    <div class="btn-group ms-auto" role="group" aria-label="Ansicht umschalten" data-table-view-toggle>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-mode="auto">Auto</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="cards">Karten</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-table-view="table">Tabelle</button>
+    <div class="btn-group ms-auto"
+         role="group"
+         aria-label="Ansicht umschalten"
+         data-table-view-toggle>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-mode="auto">Auto</button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-view="cards">Karten</button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-view="table">Tabelle</button>
     </div>
 </div>

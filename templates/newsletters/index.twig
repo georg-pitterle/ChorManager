@@ -3,123 +3,127 @@
 {% block title %}Newsletter-Übersicht{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
-        <h1 class="h2 mb-1">Newsletter</h1>
-        {% if project is defined and project %}
-        <p class="text-muted mb-0">Projekt: <strong>{{ project.name }}</strong></p>
-        {% else %}
-        <p class="text-muted mb-0">Projektbezogene Newsletter zentral verwalten.</p>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <h1 class="h2 mb-1">Newsletter</h1>
+            {% if project is defined and project %}
+                <p class="text-muted mb-0">
+                    Projekt: <strong>{{ project.name }}</strong>
+                </p>
+            {% else %}
+                <p class="text-muted mb-0">Projektbezogene Newsletter zentral verwalten.</p>
+            {% endif %}
+        </div>
+        {% if projects|length > 0 and project is defined and project %}
+            <div class="page-actions d-flex gap-2">
+                <form method="get" class="d-flex align-items-center gap-2">
+                    <label for="project_id" class="form-label mb-0">Projekt:</label>
+                    <select id="project_id"
+                            name="project_id"
+                            class="form-select onchange-submit"
+                            style="max-width: 320px">
+                        {% for selectable_project in projects %}
+                            <option value="{{ selectable_project.id }}"
+                                    {% if selectable_project.id == project.id %}selected{% endif %}>{{ selectable_project.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="status" value="{{ status }}">
+                </form>
+                <a href="/newsletters/create?project_id={{ project.id }}"
+                   class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Neuer Newsletter
+                </a>
+            </div>
         {% endif %}
-    </div>
-    {% if projects|length > 0 and project is defined and project %}
-    <div class="page-actions d-flex gap-2">
-        <form method="get" class="d-flex align-items-center gap-2">
-            <label for="project_id" class="form-label mb-0">Projekt:</label>
-            <select id="project_id" name="project_id" class="form-select onchange-submit" style="max-width: 320px;">
-                {% for selectable_project in projects %}
-                <option value="{{ selectable_project.id }}" {% if selectable_project.id == project.id %}selected{% endif %}>
-                    {{ selectable_project.name }}
-                </option>
-                {% endfor %}
-            </select>
-            <input type="hidden" name="status" value="{{ status }}">
-        </form>
-        <a href="/newsletters/create?project_id={{ project.id }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Neuer Newsletter
-        </a>
-    </div>
-    {% endif %}
-</section>
+    </section>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    {% if projects|length == 0 %}
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i>
-        Keine Projekte verfuegbar.
-    </div>
-    {% else %}
-    <!-- Filter Tabs -->
-    <div class="surface-card form-surface p-4 mb-4">
-    <ul class="nav nav-tabs mb-0">
-        <li class="nav-item">
-            <a class="nav-link {% if status == 'draft' %}active{% endif %}"
-               href="?project_id={{ project.id }}&status=draft">
-                Entwürfe
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status == 'sent' %}active{% endif %}"
-               href="?project_id={{ project.id }}&status=sent">
-                Versendet
-            </a>
-        </li>
-    </ul>
-    </div>
+    <div class="container">
+        {% if projects|length == 0 %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                Keine Projekte verfuegbar.
+            </div>
+        {% else %}
+            <!-- Filter Tabs -->
+            <div class="surface-card form-surface p-4 mb-4">
+                <ul class="nav nav-tabs mb-0">
+                    <li class="nav-item">
+                        <a class="nav-link
+                                  {% if status == 'draft' %}active{% endif %}"
+                           href="?project_id={{ project.id }}&status=draft">Entwürfe</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link
+                                  {% if status == 'sent' %}active{% endif %}"
+                           href="?project_id={{ project.id }}&status=sent">Versendet</a>
+                    </li>
+                </ul>
+            </div>
 
-    <!-- Newsletters List -->
-    {% if newsletters|length > 0 %}
-    <div class="surface-card table-shell">
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Titel</th>
-                    <th>Erstellt von</th>
-                    <th>Empfänger</th>
-                    <th>Erstellt am</th>
-                    <th>Status</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for newsletter in newsletters %}
-                <tr>
-                    <td>
-                        <strong>{{ newsletter.title }}</strong>
-                        {% if newsletter.event_id %}
-                        <br><small class="text-muted">Event: {{ newsletter.event.title ?? 'N/A' }}</small>
-                        {% endif %}
-                    </td>
-                    <td>{{ newsletter.createdBy.first_name }} {{ newsletter.createdBy.last_name }}</td>
-                    <td>
-                        <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
-                    </td>
-                    <td>{{ newsletter.created_at|date('d.m.Y H:i') }}</td>
-                    <td>
-                        {% if newsletter.status == 'draft' %}
-                            <span class="badge bg-secondary">Entwurf</span>
-                        {% elseif newsletter.status == 'sent' %}
-                            <span class="badge bg-success">Versendet</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if newsletter.status == 'draft' %}
-                            <a href="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Bearbeiten
-                            </a>
-                        {% endif %}
-                        <a href="/newsletters/{{ newsletter.id }}/preview"
-                           class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-eye"></i> Vorschau
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <!-- Newsletters List -->
+            {% if newsletters|length > 0 %}
+                <div class="surface-card table-shell">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Titel</th>
+                                    <th>Erstellt von</th>
+                                    <th>Empfänger</th>
+                                    <th>Erstellt am</th>
+                                    <th>Status</th>
+                                    <th>Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for newsletter in newsletters %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ newsletter.title }}</strong>
+                                            {% if newsletter.event_id %}
+                                                <br>
+                                                <small class="text-muted">Event: {{ newsletter.event.title ?? 'N/A' }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ newsletter.createdBy.first_name }} {{ newsletter.createdBy.last_name }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
+                                        </td>
+                                        <td>{{ newsletter.created_at|date('d.m.Y H:i') }}</td>
+                                        <td>
+                                            {% if newsletter.status == 'draft' %}
+                                                <span class="badge bg-secondary">Entwurf</span>
+                                            {% elseif newsletter.status == 'sent' %}
+                                                <span class="badge bg-success">Versendet</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if newsletter.status == 'draft' %}
+                                                <a href="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}"
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-pencil"></i> Bearbeiten
+                                                </a>
+                                            {% endif %}
+                                            <a href="/newsletters/{{ newsletter.id }}/preview"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-eye"></i> Vorschau
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Keine Newsletter in dieser Kategorie vorhanden.
+                </div>
+            {% endif %}
+        {% endif %}
     </div>
-    </div>
-    {% else %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        Keine Newsletter in dieser Kategorie vorhanden.
-    </div>
-    {% endif %}
-    {% endif %}
-</div>
 {% endblock %}

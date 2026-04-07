@@ -3,169 +3,227 @@
 {% block title %}Liedbibliothek - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Bereiche</p>
-        <h1 class="h2 mb-1">Liedbibliothek verwalten</h1>
-        <p class="text-muted mb-0">Lieder und Anhänge je Projekt strukturiert verwalten.</p>
-    </div>
-    <div class="page-actions">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSongModal">
-            <i class="bi bi-music-note-list"></i> Neues Lied
-        </button>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+            <h1 class="h2 mb-1">Liedbibliothek verwalten</h1>
+            <p class="text-muted mb-0">Lieder und Anhänge je Projekt strukturiert verwalten.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addSongModal">
+                <i class="bi bi-music-note-list"></i> Neues Lied
+            </button>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-<section class="surface-card form-surface p-4 mb-4">
-<div class="accordion" id="projectSongsAccordion">
-{% for project in projects %}
-    <div class="accordion-item mb-3 border-0 shadow-sm">
-        <h2 class="accordion-header" id="heading-{{ project.id }}">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ project.id }}" aria-expanded="false" aria-controls="collapse-{{ project.id }}">
-                <span class="fw-semibold">{{ project.name }}</span>
-                <span class="badge bg-secondary ms-3">{{ project.songs|length }} Lieder</span>
-            </button>
-        </h2>
-        <div id="collapse-{{ project.id }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ project.id }}" data-bs-parent="#projectSongsAccordion">
-            <div class="accordion-body">
-                {% if project.songs|length == 0 %}
-                    <p class="text-muted mb-0">Noch keine Lieder fuer dieses Projekt.</p>
-                {% endif %}
+    <section class="surface-card form-surface p-4 mb-4">
+        <div class="accordion" id="projectSongsAccordion">
+            {% for project in projects %}
+                <div class="accordion-item mb-3 border-0 shadow-sm">
+                    <h2 class="accordion-header" id="heading-{{ project.id }}">
+                        <button class="accordion-button collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapse-{{ project.id }}"
+                                aria-expanded="false"
+                                aria-controls="collapse-{{ project.id }}">
+                            <span class="fw-semibold">{{ project.name }}</span>
+                            <span class="badge bg-secondary ms-3">{{ project.songs|length }} Lieder</span>
+                        </button>
+                    </h2>
+                    <div id="collapse-{{ project.id }}"
+                         class="accordion-collapse collapse"
+                         aria-labelledby="heading-{{ project.id }}"
+                         data-bs-parent="#projectSongsAccordion">
+                        <div class="accordion-body">
+                            {% if project.songs|length == 0 %}<p class="text-muted mb-0">Noch keine Lieder fuer dieses Projekt.</p>{% endif %}
 
-                {% for song in project.songs %}
-                    <div class="card mb-3 border">
-                        <div class="card-body">
-                            <form action="/song-library/songs/{{ song.id }}/update" method="post" class="row g-2 align-items-end">
-                                <div class="col-md-3">
-                                    <label class="form-label">Titel *</label>
-                                    <input type="text" name="title" class="form-control" value="{{ song.title }}" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Komponist</label>
-                                    <input type="text" name="composer" class="form-control" value="{{ song.composer|default('') }}">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">Arrangeur</label>
-                                    <input type="text" name="arranger" class="form-control" value="{{ song.arranger|default('') }}">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">Verlag</label>
-                                    <input type="text" name="publisher" class="form-control" value="{{ song.publisher|default('') }}">
-                                </div>
-                                <div class="col-md-2 d-flex gap-2">
-                                    <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-save"></i></button>
-                                    <button type="submit" formaction="/song-library/songs/{{ song.id }}/delete" class="btn btn-outline-danger w-100" data-confirm="Lied '{{ song.title }}' wirklich loeschen?"><i class="bi bi-trash"></i></button>
-                                </div>
-                            </form>
+                            {% for song in project.songs %}
+                                <div class="card mb-3 border">
+                                    <div class="card-body">
+                                        <form action="/song-library/songs/{{ song.id }}/update"
+                                              method="post"
+                                              class="row g-2 align-items-end">
+                                            <div class="col-md-3">
+                                                <label class="form-label">Titel *</label>
+                                                <input type="text"
+                                                       name="title"
+                                                       class="form-control"
+                                                       value="{{ song.title }}"
+                                                       required>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Komponist</label>
+                                                <input type="text"
+                                                       name="composer"
+                                                       class="form-control"
+                                                       value="{{ song.composer|default('') }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label">Arrangeur</label>
+                                                <input type="text"
+                                                       name="arranger"
+                                                       class="form-control"
+                                                       value="{{ song.arranger|default('') }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label">Verlag</label>
+                                                <input type="text"
+                                                       name="publisher"
+                                                       class="form-control"
+                                                       value="{{ song.publisher|default('') }}">
+                                            </div>
+                                            <div class="col-md-2 d-flex gap-2">
+                                                <button type="submit" class="btn btn-outline-primary w-100">
+                                                    <i class="bi bi-save"></i>
+                                                </button>
+                                                <button type="submit"
+                                                        formaction="/song-library/songs/{{ song.id }}/delete"
+                                                        class="btn btn-outline-danger w-100"
+                                                        data-confirm="Lied '{{ song.title }}' wirklich loeschen?">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </form>
 
-                            <hr>
+                                        <hr>
 
-                            <form action="/song-library/songs/{{ song.id }}/attachments" method="post" enctype="multipart/form-data" class="row g-2 align-items-center">
-                                <div class="col-md-8">
-                                    <label class="form-label">Dateien anhaengen (mehrfach moeglich)</label>
-                                    <input type="file" name="attachments[]" class="form-control" multiple required>
-                                </div>
-                                <div class="col-md-4">
-                                    <button type="submit" class="btn btn-success mt-4"><i class="bi bi-upload"></i> Hochladen</button>
-                                </div>
-                            </form>
+                                        <form action="/song-library/songs/{{ song.id }}/attachments"
+                                              method="post"
+                                              enctype="multipart/form-data"
+                                              class="row g-2 align-items-center">
+                                            <div class="col-md-8">
+                                                <label class="form-label">Dateien anhaengen (mehrfach moeglich)</label>
+                                                <input type="file"
+                                                       name="attachments[]"
+                                                       class="form-control"
+                                                       multiple
+                                                       required>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button type="submit" class="btn btn-success mt-4">
+                                                    <i class="bi bi-upload"></i> Hochladen
+                                                </button>
+                                            </div>
+                                        </form>
 
-                            <div class="table-responsive mt-3">
-                                <table class="table table-sm align-middle mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>Dateiname</th>
-                                            <th>MIME</th>
-                                            <th>Groesse</th>
-                                            <th class="text-end">Aktion</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    {% for attachment in song.attachments %}
-                                        <tr>
-                                            <td>{{ attachment.original_name }}</td>
-                                            <td><small>{{ attachment.mime_type }}</small></td>
-                                            <td>{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
-                                            <td class="text-end">
-                                                <form action="/song-library/songs/{{ song.id }}/attachments/{{ attachment.id }}/delete" method="post" class="d-inline" data-confirm="Anhang wirklich loeschen?">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="4" class="text-muted">Noch keine Dateien vorhanden.</td>
-                                        </tr>
-                                    {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        <div class="table-responsive mt-3">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Dateiname</th>
+                                                        <th>MIME</th>
+                                                        <th>Groesse</th>
+                                                        <th class="text-end">Aktion</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for attachment in song.attachments %}
+                                                        <tr>
+                                                            <td>{{ attachment.original_name }}</td>
+                                                            <td>
+                                                                <small>{{ attachment.mime_type }}</small>
+                                                            </td>
+                                                            <td>{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
+                                                            <td class="text-end">
+                                                                <form action="/song-library/songs/{{ song.id }}/attachments/{{ attachment.id }}/delete"
+                                                                      method="post"
+                                                                      class="d-inline"
+                                                                      data-confirm="Anhang wirklich loeschen?">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                    {% else %}
+                                                        <tr>
+                                                            <td colspan="4" class="text-muted">Noch keine Dateien vorhanden.</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
                         </div>
                     </div>
-                {% endfor %}
-            </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info">Es sind keine Projekte vorhanden.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="modal fade"
+         id="addSongModal"
+         tabindex="-1"
+         aria-labelledby="addSongModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="/song-library/songs" method="post" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addSongModalLabel">Neues Lied anlegen</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="project_id" class="form-label">Projekt *</label>
+                        <select id="project_id" name="project_id" class="form-select" required>
+                            <option value="">-- Projekt auswaehlen --</option>
+                            {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Titel *</label>
+                        <input type="text" id="title" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="composer" class="form-label">Komponist</label>
+                        <input type="text" id="composer" name="composer" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="arranger" class="form-label">Arrangeur</label>
+                        <input type="text" id="arranger" name="arranger" class="form-control">
+                    </div>
+                    <div class="mb-0">
+                        <label for="publisher" class="form-label">Verlag</label>
+                        <input type="text" id="publisher" name="publisher" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
         </div>
     </div>
-{% else %}
-    <div class="alert alert-info">Es sind keine Projekte vorhanden.</div>
-{% endfor %}
-</div>
-</section>
-
-<div class="modal fade" id="addSongModal" tabindex="-1" aria-labelledby="addSongModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="/song-library/songs" method="post" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addSongModalLabel">Neues Lied anlegen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="project_id" class="form-label">Projekt *</label>
-                    <select id="project_id" name="project_id" class="form-select" required>
-                        <option value="">-- Projekt auswaehlen --</option>
-                        {% for project in projects %}
-                            <option value="{{ project.id }}">{{ project.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="title" class="form-label">Titel *</label>
-                    <input type="text" id="title" name="title" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label for="composer" class="form-label">Komponist</label>
-                    <input type="text" id="composer" name="composer" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label for="arranger" class="form-label">Arrangeur</label>
-                    <input type="text" id="arranger" name="arranger" class="form-control">
-                </div>
-                <div class="mb-0">
-                    <label for="publisher" class="form-label">Verlag</label>
-                    <input type="text" id="publisher" name="publisher" class="form-control">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Speichern</button>
-            </div>
-        </form>
-    </div>
-</div>
 {% endblock %}

@@ -3,363 +3,494 @@
 {% block title %}Rollen verwalten - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
-        <h1 class="h2 mb-1">Rollen verwalten</h1>
-        <p class="text-muted mb-0">Berechtigungen und Hierarchien transparent steuern.</p>
-    </div>
-    <div class="page-actions">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
-            <i class="bi bi-shield-plus"></i> Neue Rolle
-        </button>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
+            <h1 class="h2 mb-1">Rollen verwalten</h1>
+            <p class="text-muted mb-0">Berechtigungen und Hierarchien transparent steuern.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addRoleModal">
+                <i class="bi bi-shield-plus"></i> Neue Rolle
+            </button>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="roles.index" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="hierarchy_level" data-default-sort-dir="desc">
-    {{ include('partials/table_toolbar.twig') }}
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 table-responsive-cards" id="rolesTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th data-sort-key="role_name" data-sort-type="text">Rollenname</th>
-                        <th data-sort-key="hierarchy_level" data-sort-type="number">Level</th>
-                        <th data-sort-key="permission_scope" data-sort-type="text">Admin-Rechte</th>
-                        <th>Edit-Rechte</th>
-                        <th>Projektmitglieder</th>
-                        <th>Stammdaten</th>
-                        <th>Finanzen (Kassa)</th>
-                        <th>Sponsoring</th>
-                        <th>Liedbibliothek</th>
-                        <th>Newsletter</th>
-                        <th>Aufgaben/Planung</th>
-                        <th class="text-end">Aktive Mitglieder</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for role in roles %}
-                    <tr
-                        data-sort-role_name="{{ role.name|lower }}"
-                        data-sort-hierarchy_level="{{ role.hierarchy_level }}"
-                        data-sort-permission_scope="{{ role.can_manage_users ? 'ja' : 'nein' }}"
-                    >
-                        <td data-label="Rollenname"><strong>{{ role.name }}</strong></td>
-                        <td data-label="Level">{{ role.hierarchy_level }}</td>
-                        <td data-label="Admin-Rechte">
-                            {% if role.can_manage_users %}
-                                <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Edit-Rechte">
-                            {% if role.can_edit_users %}
-                                <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Projektmitglieder">
-                            {% if role.can_manage_project_members %}
-                                <span class="badge bg-info"><i class="bi bi-people"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Stammdaten">
-                            {% if role.can_manage_master_data %}
-                                <span class="badge bg-primary"><i class="bi bi-database"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Finanzen (Kassa)">
-                            {% if role.can_manage_finances %}
-                                <span class="badge bg-success"><i class="bi bi-cash"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Sponsoring">
-                            {% if role.can_manage_sponsoring %}
-                                <span class="badge bg-info"><i class="bi bi-briefcase"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Liedbibliothek">
-                            {% if role.can_manage_song_library %}
-                                <span class="badge bg-primary"><i class="bi bi-music-note-list"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Newsletter">
-                            {% if role.can_manage_newsletters %}
-                                <span class="badge bg-success"><i class="bi bi-envelope-open"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Aufgaben/Planung">
-                            {% if role.can_manage_tasks %}
-                                <span class="badge bg-primary"><i class="bi bi-list-check"></i> Ja</span>
-                            {% else %}
-                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Aktive Mitglieder" class="text-end">
-                            <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
-                        </td>
-                        <td data-label="Aktionen" class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-secondary edit-role-btn"
-                                data-bs-toggle="modal"
-                                data-bs-target="#editRoleModal"
-                                data-id="{{ role.id }}"
-                                data-name="{{ role.name }}"
-                                data-level="{{ role.hierarchy_level }}"
-                                data-manage="{{ role.can_manage_users ? '1' : '0' }}"
-                                data-edit="{{ role.can_edit_users ? '1' : '0' }}"
-                                data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
-                                data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
-                                data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
-                                data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
-                                data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
-                                data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
-                                data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
-                                <i class="bi bi-pencil"></i> Bearbeiten
-                            </button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="12" class="text-center py-4 text-muted">Keine Rollen gefunden.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="surface-card card border-0 table-shell"
+         data-table-engine="true"
+         data-table-id="roles.index"
+         data-default-view="auto"
+         data-default-page-size="100"
+         data-page-size-options="25,50,100,200"
+         data-default-sort-key="hierarchy_level"
+         data-default-sort-dir="desc">
+        {{ include('partials/table_toolbar.twig') }}
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                       id="rolesTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th data-sort-key="role_name" data-sort-type="text">Rollenname</th>
+                            <th data-sort-key="hierarchy_level" data-sort-type="number">Level</th>
+                            <th data-sort-key="permission_scope" data-sort-type="text">Admin-Rechte</th>
+                            <th>Edit-Rechte</th>
+                            <th>Projektmitglieder</th>
+                            <th>Stammdaten</th>
+                            <th>Finanzen (Kassa)</th>
+                            <th>Sponsoring</th>
+                            <th>Liedbibliothek</th>
+                            <th>Newsletter</th>
+                            <th>Aufgaben/Planung</th>
+                            <th class="text-end">Aktive Mitglieder</th>
+                            <th class="text-end">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in roles %}
+                            <tr data-sort-role_name="{{ role.name|lower }}"
+                                data-sort-hierarchy_level="{{ role.hierarchy_level }}"
+                                data-sort-permission_scope="{{ role.can_manage_users ? 'ja' : 'nein' }}">
+                                <td data-label="Rollenname">
+                                    <strong>{{ role.name }}</strong>
+                                </td>
+                                <td data-label="Level">{{ role.hierarchy_level }}</td>
+                                <td data-label="Admin-Rechte">
+                                    {% if role.can_manage_users %}
+                                        <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Edit-Rechte">
+                                    {% if role.can_edit_users %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Projektmitglieder">
+                                    {% if role.can_manage_project_members %}
+                                        <span class="badge bg-info"><i class="bi bi-people"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Stammdaten">
+                                    {% if role.can_manage_master_data %}
+                                        <span class="badge bg-primary"><i class="bi bi-database"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Finanzen (Kassa)">
+                                    {% if role.can_manage_finances %}
+                                        <span class="badge bg-success"><i class="bi bi-cash"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Sponsoring">
+                                    {% if role.can_manage_sponsoring %}
+                                        <span class="badge bg-info"><i class="bi bi-briefcase"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Liedbibliothek">
+                                    {% if role.can_manage_song_library %}
+                                        <span class="badge bg-primary"><i class="bi bi-music-note-list"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Newsletter">
+                                    {% if role.can_manage_newsletters %}
+                                        <span class="badge bg-success"><i class="bi bi-envelope-open"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Aufgaben/Planung">
+                                    {% if role.can_manage_tasks %}
+                                        <span class="badge bg-primary"><i class="bi bi-list-check"></i> Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Aktive Mitglieder" class="text-end">
+                                    <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
+                                </td>
+                                <td data-label="Aktionen" class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary edit-role-btn"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editRoleModal"
+                                            data-id="{{ role.id }}"
+                                            data-name="{{ role.name }}"
+                                            data-level="{{ role.hierarchy_level }}"
+                                            data-manage="{{ role.can_manage_users ? '1' : '0' }}"
+                                            data-edit="{{ role.can_edit_users ? '1' : '0' }}"
+                                            data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
+                                            data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
+                                            data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
+                                            data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
+                                            data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
+                                            data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
+                                            data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
+                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                    </button>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="12" class="text-center py-4 text-muted">Keine Rollen gefunden.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Add Role Modal -->
-<div class="modal fade" id="addRoleModal" tabindex="-1" aria-labelledby="addRoleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="/roles" method="post" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addRoleModalLabel">Neue Rolle anlegen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="name" class="form-label">Rollenname *</label>
-                    <input type="text" class="form-control" id="name" name="name" required>
+    <!-- Add Role Modal -->
+    <div class="modal fade"
+         id="addRoleModal"
+         tabindex="-1"
+         aria-labelledby="addRoleModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="/roles" method="post" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRoleModalLabel">Neue Rolle anlegen</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Rollenname *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="hierarchy_level" class="form-label">Hierarchie-Level (0-100) *</label>
-                    <input type="number" class="form-control" id="hierarchy_level" name="hierarchy_level" min="0" max="100" value="0" required>
-                    <div class="form-text">Höhere Level (z.B. 80-100) stehen für den Vorstand und die Chorleitung. "Mitglied" hat oft Level 0.</div>
-                </div>
+                    <div class="mb-3">
+                        <label for="hierarchy_level" class="form-label">Hierarchie-Level (0-100) *</label>
+                        <input type="number"
+                               class="form-control"
+                               id="hierarchy_level"
+                               name="hierarchy_level"
+                               min="0"
+                               max="100"
+                               value="0"
+                               required>
+                        <div class="form-text">
+                            Höhere Level (z.B. 80-100) stehen für den Vorstand und die Chorleitung. "Mitglied" hat oft Level 0.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3 mt-4">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_users" name="can_manage_users" value="1">
-                    <label class="form-check-label fw-bold text-danger" for="can_manage_users">
-                        Mitgliederverwaltung erlauben
-                    </label>
-                    <div class="form-text">Wenn aktiv, erhalten Mitglieder mit dieser Rolle Zugriff auf die globale Verwaltung, Rollen, Projekte und Events.</div>
-                </div>
+                    <div class="form-check form-switch mb-3 mt-4">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_users"
+                               name="can_manage_users"
+                               value="1">
+                        <label class="form-check-label fw-bold text-danger" for="can_manage_users">Mitgliederverwaltung erlauben</label>
+                        <div class="form-text">
+                            Wenn aktiv, erhalten Mitglieder mit dieser Rolle Zugriff auf die globale Verwaltung, Rollen, Projekte und Events.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_edit_users" name="can_edit_users" value="1">
-                    <label class="form-check-label fw-bold text-warning" for="can_edit_users">
-                        Mitglieder editieren erlauben
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person die Zuweisungen anderer Mitglieder bearbeiten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_edit_users"
+                               name="can_edit_users"
+                               value="1">
+                        <label class="form-check-label fw-bold text-warning" for="can_edit_users">Mitglieder editieren erlauben</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person die Zuweisungen anderer Mitglieder bearbeiten.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_project_members" name="can_manage_project_members" value="1">
-                    <label class="form-check-label fw-bold text-info" for="can_manage_project_members">
-                        Projektmitglieder verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_project_members"
+                               name="can_manage_project_members"
+                               value="1">
+                        <label class="form-check-label fw-bold text-info"
+                               for="can_manage_project_members">Projektmitglieder verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_master_data" name="can_manage_master_data" value="1">
-                    <label class="form-check-label fw-bold text-primary" for="can_manage_master_data">
-                        Stammdaten verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_master_data"
+                               name="can_manage_master_data"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="can_manage_master_data">Stammdaten verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_finances" name="can_manage_finances" value="1">
-                    <label class="form-check-label fw-bold text-success" for="can_manage_finances">
-                        Kassa verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul sehen und Finanzeinträge verwalten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_finances"
+                               name="can_manage_finances"
+                               value="1">
+                        <label class="form-check-label fw-bold text-success"
+                               for="can_manage_finances">Kassa verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul sehen und Finanzeinträge verwalten.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_sponsoring" name="can_manage_sponsoring" value="1">
-                    <label class="form-check-label fw-bold text-info" for="can_manage_sponsoring">
-                        Sponsoring verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_sponsoring"
+                               name="can_manage_sponsoring"
+                               value="1">
+                        <label class="form-check-label fw-bold text-info"
+                               for="can_manage_sponsoring">Sponsoring verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_song_library" name="can_manage_song_library" value="1">
-                    <label class="form-check-label fw-bold text-primary" for="can_manage_song_library">
-                        Liedbibliothek verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_song_library"
+                               name="can_manage_song_library"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="can_manage_song_library">Liedbibliothek verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_newsletters" name="can_manage_newsletters" value="1">
-                    <label class="form-check-label fw-bold text-success" for="can_manage_newsletters">
-                        Newsletter verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_newsletters"
+                               name="can_manage_newsletters"
+                               value="1">
+                        <label class="form-check-label fw-bold text-success"
+                               for="can_manage_newsletters">Newsletter verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="can_manage_tasks" name="can_manage_tasks" value="1">
-                    <label class="form-check-label fw-bold text-primary" for="can_manage_tasks">
-                        Projektplanung (Aufgaben)
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_tasks"
+                               name="can_manage_tasks"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary" for="can_manage_tasks">Projektplanung (Aufgaben)</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Rolle Speichern</button>
-            </div>
-        </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Rolle Speichern</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-<!-- Edit Role Modal -->
-<div class="modal fade" id="editRoleModal" tabindex="-1" aria-labelledby="editRoleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="/roles/0" method="post" id="editRoleForm" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editRoleModalLabel">Rolle bearbeiten</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="edit_name" class="form-label">Rollenname *</label>
-                    <input type="text" class="form-control" id="edit_name" name="name" required>
+    <!-- Edit Role Modal -->
+    <div class="modal fade"
+         id="editRoleModal"
+         tabindex="-1"
+         aria-labelledby="editRoleModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="/roles/0"
+                  method="post"
+                  id="editRoleForm"
+                  class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editRoleModalLabel">Rolle bearbeiten</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Rollenname *</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="edit_hierarchy_level" class="form-label">Hierarchie-Level (0-100) *</label>
-                    <input type="number" class="form-control" id="edit_hierarchy_level" name="hierarchy_level" min="0" max="100" required>
-                    <div class="form-text">Höhere Level (z.B. 80-100) stehen für den Vorstand und die Chorleitung. "Mitglied" hat oft Level 0.</div>
-                </div>
+                    <div class="mb-3">
+                        <label for="edit_hierarchy_level" class="form-label">Hierarchie-Level (0-100) *</label>
+                        <input type="number"
+                               class="form-control"
+                               id="edit_hierarchy_level"
+                               name="hierarchy_level"
+                               min="0"
+                               max="100"
+                               required>
+                        <div class="form-text">
+                            Höhere Level (z.B. 80-100) stehen für den Vorstand und die Chorleitung. "Mitglied" hat oft Level 0.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3 mt-4">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_users" name="can_manage_users" value="1">
-                    <label class="form-check-label fw-bold text-danger" for="edit_can_manage_users">
-                        Mitgliederverwaltung erlauben
-                    </label>
-                    <div class="form-text">Wenn aktiv, erhalten Mitglieder mit dieser Rolle Zugriff auf die globale Verwaltung, Rollen, Projekte und Events.</div>
-                </div>
+                    <div class="form-check form-switch mb-3 mt-4">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_users"
+                               name="can_manage_users"
+                               value="1">
+                        <label class="form-check-label fw-bold text-danger"
+                               for="edit_can_manage_users">Mitgliederverwaltung erlauben</label>
+                        <div class="form-text">
+                            Wenn aktiv, erhalten Mitglieder mit dieser Rolle Zugriff auf die globale Verwaltung, Rollen, Projekte und Events.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_edit_users" name="can_edit_users" value="1">
-                    <label class="form-check-label fw-bold text-warning" for="edit_can_edit_users">
-                        Mitglieder editieren erlauben
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person die Zuweisungen anderer Mitglieder bearbeiten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_edit_users"
+                               name="can_edit_users"
+                               value="1">
+                        <label class="form-check-label fw-bold text-warning"
+                               for="edit_can_edit_users">Mitglieder editieren erlauben</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person die Zuweisungen anderer Mitglieder bearbeiten.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_project_members" name="can_manage_project_members" value="1">
-                    <label class="form-check-label fw-bold text-info" for="edit_can_manage_project_members">
-                        Projektmitglieder verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_project_members"
+                               name="can_manage_project_members"
+                               value="1">
+                        <label class="form-check-label fw-bold text-info"
+                               for="edit_can_manage_project_members">Projektmitglieder verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_master_data" name="can_manage_master_data" value="1">
-                    <label class="form-check-label fw-bold text-primary" for="edit_can_manage_master_data">
-                        Stammdaten verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_master_data"
+                               name="can_manage_master_data"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_master_data">Stammdaten verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_finances" name="can_manage_finances" value="1">
-                    <label class="form-check-label fw-bold text-success" for="edit_can_manage_finances">
-                        Kassa verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul sehen und Finanzeinträge verwalten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_finances"
+                               name="can_manage_finances"
+                               value="1">
+                        <label class="form-check-label fw-bold text-success"
+                               for="edit_can_manage_finances">Kassa verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul sehen und Finanzeinträge verwalten.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_sponsoring" name="can_manage_sponsoring" value="1">
-                    <label class="form-check-label fw-bold text-info" for="edit_can_manage_sponsoring">
-                        Sponsoring verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_sponsoring"
+                               name="can_manage_sponsoring"
+                               value="1">
+                        <label class="form-check-label fw-bold text-info"
+                               for="edit_can_manage_sponsoring">Sponsoring verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                        </div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_song_library" name="can_manage_song_library" value="1">
-                    <label class="form-check-label fw-bold text-primary" for="edit_can_manage_song_library">
-                        Liedbibliothek verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_song_library"
+                               name="can_manage_song_library"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_song_library">Liedbibliothek verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_newsletters" name="can_manage_newsletters" value="1">
-                    <label class="form-check-label fw-bold text-success" for="edit_can_manage_newsletters">
-                        Newsletter verwalten
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
-                </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_newsletters"
+                               name="can_manage_newsletters"
+                               value="1">
+                        <label class="form-check-label fw-bold text-success"
+                               for="edit_can_manage_newsletters">Newsletter verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
+                    </div>
 
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="edit_can_manage_tasks" name="can_manage_tasks" value="1">
-                    <label class="form-check-label fw-bold text-primary" for="edit_can_manage_tasks">
-                        Projektplanung (Aufgaben)
-                    </label>
-                    <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_tasks"
+                               name="can_manage_tasks"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_tasks">Projektplanung (Aufgaben)</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Änderungen Speichern</button>
-            </div>
-        </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Änderungen Speichern</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-{% block scripts %}
-<script src="/js/roles.js"></script>
-{% endblock %}
+    {% block scripts %}<script src="/js/roles.js"></script>{% endblock %}
 {% endblock %}

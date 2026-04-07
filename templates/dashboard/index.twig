@@ -3,67 +3,68 @@
 {% block title %}Dashboard - {{ app_settings.app_name|default('Chor Manager') }}{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Dashboard</p>
-        <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default('Mitglied') }}</h1>
-        <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
-    </div>
-    <div class="page-actions">
-        <a href="/attendance" class="btn btn-primary">Zur Anwesenheit</a>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Dashboard</p>
+            <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default('Mitglied') }}</h1>
+            <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/attendance" class="btn btn-primary">Zur Anwesenheit</a>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="surface-card card h-100 border-primary">
-            <div class="card-body">
-                <h5 class="card-title text-primary"><i class="bi bi-calendar-check-fill"></i> Nächste Probe</h5>
-                <p class="card-text">
-                    Hier siehst du geplante Termine und kannst deine Anwesenheit eintragen.
-                </p>
-                <a href="/attendance" class="btn btn-outline-primary">Zur Anwesenheitsliste</a>
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="surface-card card h-100 border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-calendar-check-fill"></i> Nächste Probe
+                    </h5>
+                    <p class="card-text">Hier siehst du geplante Termine und kannst deine Anwesenheit eintragen.</p>
+                    <a href="/attendance" class="btn btn-outline-primary">Zur Anwesenheitsliste</a>
+                </div>
             </div>
         </div>
-    </div>
 
-    {% if can_manage_users %}
-    <div class="col-md-4 mb-4">
-        <div class="surface-card card h-100 border-success">
-            <div class="card-body">
-                <h5 class="card-title text-success"><i class="bi bi-people-fill"></i> Mitgliederverwaltung</h5>
-                <p class="card-text">
-                    Füge neue Mitglieder hinzu oder bearbeite Rollen und Stimmgruppen.
-                </p>
-                <a href="/users" class="btn btn-outline-success">Mitglieder verwalten</a>
+        {% if can_manage_users %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-success">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">
+                            <i class="bi bi-people-fill"></i> Mitgliederverwaltung
+                        </h5>
+                        <p class="card-text">Füge neue Mitglieder hinzu oder bearbeite Rollen und Stimmgruppen.</p>
+                        <a href="/users" class="btn btn-outline-success">Mitglieder verwalten</a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-4">
-        <div class="surface-card card h-100 border-info">
-            <div class="card-body">
-                <h5 class="card-title text-info"><i class="bi bi-bar-chart-fill"></i> Auswertungen</h5>
-                <p class="card-text">
-                    Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.
-                </p>
-                <a href="/evaluations" class="btn btn-outline-info">Statistiken ansehen</a>
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-info">
+                    <div class="card-body">
+                        <h5 class="card-title text-info">
+                            <i class="bi bi-bar-chart-fill"></i> Auswertungen
+                        </h5>
+                        <p class="card-text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
+                        <a href="/evaluations" class="btn btn-outline-info">Statistiken ansehen</a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    {% elseif role_level >= 40 %} {# Stimmvertretung/Ersatz #}
-    <div class="col-md-4 mb-4">
-        <div class="surface-card card h-100 border-warning">
-            <div class="card-body">
-                <h5 class="card-title text-warning"><i class="bi bi-person-lines-fill"></i> Meine Stimmgruppe</h5>
-                <p class="card-text">
-                    Verwalte die Anwesenheiten der Mitglieder deiner Stimmgruppe.
-                </p>
-                <a href="/attendance" class="btn btn-outline-warning">Anwesenheiten eintragen</a>
+        {% elseif role_level >= 40 %}
+            {# Stimmvertretung/Ersatz #}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">
+                            <i class="bi bi-person-lines-fill"></i> Meine Stimmgruppe
+                        </h5>
+                        <p class="card-text">Verwalte die Anwesenheiten der Mitglieder deiner Stimmgruppe.</p>
+                        <a href="/attendance" class="btn btn-outline-warning">Anwesenheiten eintragen</a>
+                    </div>
+                </div>
             </div>
-        </div>
+        {% endif %}
     </div>
-    {% endif %}
-</div>
 {% endblock %}

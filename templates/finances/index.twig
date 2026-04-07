@@ -3,266 +3,363 @@
 {% block title %}Kassabuch - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Bereiche</p>
-        <h1 class="h2 mb-1">Kassabuch</h1>
-        <p class="text-muted mb-0">Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong></p>
-    </div>
-    <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-        {% if available_years|length >= 1 %}
-        <form method="get" action="/finances" class="d-flex align-items-center gap-2">
-            <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
-            <select name="year" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;">
-                {% for year, label in available_years %}
-                <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        {% endif %}
-        <div class="btn-group w-100 w-sm-auto">
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                <i class="bi bi-gear"></i> Konfiguration
-            </button>
-            <a href="/finances/report?year={{ selected_year }}" class="btn btn-info text-white btn-sm">
-                <i class="bi bi-graph-up"></i> Auswertung
-            </a>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+            <h1 class="h2 mb-1">Kassabuch</h1>
+            <p class="text-muted mb-0">
+                Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong>
+            </p>
         </div>
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#financeModal" onclick="resetFinanceModal()">
-            <i class="bi bi-plus-circle"></i> Neuer Eintrag
-        </button>
-    </div>
-</section>
+        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            {% if available_years|length >= 1 %}
+                <form method="get"
+                      action="/finances"
+                      class="d-flex align-items-center gap-2">
+                    <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
+                    <select name="year"
+                            class="form-select form-select-sm"
+                            onchange="this.form.submit()"
+                            style="width:auto">
+                        {% for year, label in available_years %}
+                            <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            {% endif %}
+            <div class="btn-group w-100 w-sm-auto">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#settingsModal">
+                    <i class="bi bi-gear"></i> Konfiguration
+                </button>
+                <a href="/finances/report?year={{ selected_year }}"
+                   class="btn btn-info text-white btn-sm">
+                    <i class="bi bi-graph-up"></i> Auswertung
+                </a>
+            </div>
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#financeModal"
+                    onclick="resetFinanceModal()">
+                <i class="bi bi-plus-circle"></i> Neuer Eintrag
+            </button>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="finances.index" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="running_number" data-default-sort-dir="desc">
-    {{ include('partials/table_toolbar.twig') }}
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 table-responsive-cards" id="financesTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
-                        <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
-                        <th data-sort-key="payment_date" data-sort-type="date">Zahldatum</th>
-                        <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
-                        <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
-                        <th data-sort-key="type" data-sort-type="text">Art</th>
-                        <th class="text-end" data-sort-key="amount" data-sort-type="number">Betrag</th>
-                        <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
-                        <th>Anhänge</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in finances %}
-                    <tr
-                        data-sort-running_number="{{ item.running_number }}"
-                        data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
-                        data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
-                        data-sort-description="{{ item.description|lower }}"
-                        data-sort-group_name="{{ item.group_name|default('')|lower }}"
-                        data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
-                        data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
-                        data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}"
-                    >
-                        <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
-                        <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
-                        <td data-label="Zahldatum">{{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}</td>
-                        <td data-label="Beschreibung">{{ item.description }}</td>
-                        <td data-label="Gruppe">
-                            {% if item.group_name %}
-                            <span class="badge rounded-pill bg-light text-dark border">{{ item.group_name }}</span>
-                            {% else %}
-                            <span class="text-muted small">—</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Art">
-                            {% if item.type == 'income' %}
-                                <span class="badge bg-success">Eingang</span>
-                            {% else %}
-                                <span class="badge bg-danger">Ausgang</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Betrag" class="text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
-                            {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
-                        </td>
-                        <td data-label="Zahlungsart">
-                            {% if item.payment_method == 'cash' %}
-                                <i class="bi bi-cash-coin me-1"></i> Bar
-                            {% else %}
-                                <i class="bi bi-bank me-1"></i> Überweisung
-                            {% endif %}
-                        </td>
-                        <td data-label="Anhänge">
-                            {% if item.attachments|length > 0 %}
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
-                                        <i class="bi bi-paperclip"></i> ({{ item.attachments|length }})
+    <div class="surface-card card border-0 table-shell"
+         data-table-engine="true"
+         data-table-id="finances.index"
+         data-default-view="auto"
+         data-default-page-size="100"
+         data-page-size-options="25,50,100,200"
+         data-default-sort-key="running_number"
+         data-default-sort-dir="desc">
+        {{ include('partials/table_toolbar.twig') }}
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                       id="financesTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
+                            <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
+                            <th data-sort-key="payment_date" data-sort-type="date">Zahldatum</th>
+                            <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
+                            <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
+                            <th data-sort-key="type" data-sort-type="text">Art</th>
+                            <th class="text-end" data-sort-key="amount" data-sort-type="number">Betrag</th>
+                            <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
+                            <th>Anhänge</th>
+                            <th class="text-end">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in finances %}
+                            <tr data-sort-running_number="{{ item.running_number }}"
+                                data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
+                                data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
+                                data-sort-description="{{ item.description|lower }}"
+                                data-sort-group_name="{{ item.group_name|default('')|lower }}"
+                                data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
+                                data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
+                                data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
+                                <td data-label="Lfd. Nr.">
+                                    <strong>{{ item.running_number }}</strong>
+                                </td>
+                                <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
+                                <td data-label="Zahldatum">
+                                    {{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}
+                                </td>
+                                <td data-label="Beschreibung">{{ item.description }}</td>
+                                <td data-label="Gruppe">
+                                    {% if item.group_name %}
+                                        <span class="badge rounded-pill bg-light text-dark border">{{ item.group_name }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Art">
+                                    {% if item.type == 'income' %}
+                                        <span class="badge bg-success">Eingang</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Ausgang</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Betrag"
+                                    class="text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
+                                    {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
+                                </td>
+                                <td data-label="Zahlungsart">
+                                    {% if item.payment_method == 'cash' %}
+                                        <i class="bi bi-cash-coin me-1"></i> Bar
+                                    {% else %}
+                                        <i class="bi bi-bank me-1"></i> Überweisung
+                                    {% endif %}
+                                </td>
+                                <td data-label="Anhänge">
+                                    {% if item.attachments|length > 0 %}
+                                        <div class="btn-group">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-info dropdown-toggle"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    data-bs-boundary="viewport">
+                                                <i class="bi bi-paperclip"></i> ({{ item.attachments|length }})
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                {% for att in item.attachments %}
+                                                    <li>
+                                                        <a class="dropdown-item d-flex justify-content-between align-items-center"
+                                                           href="/finances/attachments/{{ att.id }}"
+                                                           target="_blank">
+                                                            <span>{{ att.filename }}</span>
+                                                            <i class="bi bi-box-arrow-up-right ms-2 small"></i>
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Aktionen" class="text-end">
+                                    <button class="btn btn-sm btn-outline-secondary me-1"
+                                            onclick="editFinance({{ item|json_encode() }})"
+                                            title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        {% for att in item.attachments %}
-                                            <li>
-                                                <a class="dropdown-item d-flex justify-content-between align-items-center" href="/finances/attachments/{{ att.id }}" target="_blank">
-                                                    <span>{{ att.filename }}</span>
-                                                    <i class="bi bi-box-arrow-up-right ms-2 small"></i>
-                                                </a>
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            {% else %}
-                                <span class="text-muted small">—</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Aktionen" class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary me-1"
-                                onclick="editFinance({{ item|json_encode() }})"
-                                title="Bearbeiten">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <form action="/finances/{{ item.id }}/delete" method="POST" class="d-inline" onsubmit="return confirm('Eintrag {{ item.running_number }} wirklich löschen?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">Keine Einträge in diesem Geschäftsjahr gefunden.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                    <form action="/finances/{{ item.id }}/delete"
+                                          method="POST"
+                                          class="d-inline"
+                                          onsubmit="return confirm('Eintrag {{ item.running_number }} wirklich löschen?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4 text-muted">Keine Einträge in diesem Geschäftsjahr gefunden.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="modal fade" id="financeModal" tabindex="-1" aria-labelledby="financeModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="/finances/save" method="post" enctype="multipart/form-data" class="modal-content border-0 shadow">
-            <div class="modal-header">
-                <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" name="id" id="finance_id" value="">
-
-                <div class="mb-3">
-                    <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
-                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" required>
+    <div class="modal fade"
+         id="financeModal"
+         tabindex="-1"
+         aria-labelledby="financeModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="/finances/save"
+                  method="post"
+                  enctype="multipart/form-data"
+                  class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="finance_id" value="">
 
-                <div class="mb-3">
-                    <label for="payment_date" class="form-label">Zahldatum</label>
-                    <input type="date" class="form-control" id="payment_date" name="payment_date">
-                    <div class="form-text">Leer lassen, wenn die Rechnung noch offen ist.</div>
-                </div>
+                    <div class="mb-3">
+                        <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
+                        <input type="date"
+                               class="form-control"
+                               id="invoice_date"
+                               name="invoice_date"
+                               required>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="description" class="form-label">Beschreibung *</label>
-                    <input type="text" class="form-control" id="description" name="description" required>
-                </div>
+                    <div class="mb-3">
+                        <label for="payment_date" class="form-label">Zahldatum</label>
+                        <input type="date"
+                               class="form-control"
+                               id="payment_date"
+                               name="payment_date">
+                        <div class="form-text">Leer lassen, wenn die Rechnung noch offen ist.</div>
+                    </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Gruppe <span class="text-muted small">(optional)</span></label>
-                    <select class="form-select" id="group_select" onchange="handleGroupSelect(this)">
-                        <option value="">— Keine Gruppe —</option>
-                        {% for g in groups %}
-                        <option value="{{ g }}">{{ g }}</option>
-                        {% endfor %}
-                        <option value="__new__">+ Neue Gruppe eingeben…</option>
-                    </select>
-                    <input type="text" class="form-control mt-2 d-none" id="group_name" name="group_name" placeholder="Name der neuen Gruppe" autocomplete="off">
-                </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung *</label>
+                        <input type="text"
+                               class="form-control"
+                               id="description"
+                               name="description"
+                               required>
+                    </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="type" class="form-label">Ein-/Ausgang *</label>
-                        <select class="form-select" id="type" name="type" required>
-                            <option value="income">Einnahme</option>
-                            <option value="expense" selected>Ausgabe</option>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Gruppe <span class="text-muted small">(optional)</span>
+                        </label>
+                        <select class="form-select"
+                                id="group_select"
+                                onchange="handleGroupSelect(this)">
+                            <option value="">— Keine Gruppe —</option>
+                            {% for g in groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+                            <option value="__new__">+ Neue Gruppe eingeben…</option>
                         </select>
+                        <input type="text"
+                               class="form-control mt-2 d-none"
+                               id="group_name"
+                               name="group_name"
+                               placeholder="Name der neuen Gruppe"
+                               autocomplete="off">
                     </div>
-                    <div class="col-md-6">
-                        <label for="payment_method" class="form-label">Zahlungsart *</label>
-                        <select class="form-select" id="payment_method" name="payment_method" required>
-                            <option value="bank_transfer" selected>Überweisung</option>
-                            <option value="cash">Bar</option>
-                        </select>
-                    </div>
-                </div>
 
-                <div class="mb-3">
-                    <label for="amount" class="form-label">Betrag (€) *</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="amount" name="amount" placeholder="0,00" required>
-                        <span class="input-group-text">€</span>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="type" class="form-label">Ein-/Ausgang *</label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="income">Einnahme</option>
+                                <option value="expense" selected>Ausgabe</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="payment_method" class="form-label">Zahlungsart *</label>
+                            <select class="form-select"
+                                    id="payment_method"
+                                    name="payment_method"
+                                    required>
+                                <option value="bank_transfer" selected>Überweisung</option>
+                                <option value="cash">Bar</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Betrag (€) *</label>
+                        <div class="input-group">
+                            <input type="text"
+                                   class="form-control"
+                                   id="amount"
+                                   name="amount"
+                                   placeholder="0,00"
+                                   required>
+                            <span class="input-group-text">€</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="attachments" class="form-label">Anhänge hochladen</label>
+                        <input type="file"
+                               class="form-control"
+                               id="attachments"
+                               name="attachments[]"
+                               multiple>
+                        <div class="form-text">Bilder oder PDFs zur Belegung (mehrere möglich).</div>
+                    </div>
+
+                    <div id="existing_attachments_section" class="mb-3 d-none">
+                        <label class="form-label">Vorhandene Anhänge</label>
+                        <div id="existing_attachments_list"
+                             class="list-group list-group-flush border rounded">
+                            <!-- Wird per JS befüllt -->
+                        </div>
                     </div>
                 </div>
-
-                <div class="mb-3">
-                    <label for="attachments" class="form-label">Anhänge hochladen</label>
-                    <input type="file" class="form-control" id="attachments" name="attachments[]" multiple>
-                    <div class="form-text">Bilder oder PDFs zur Belegung (mehrere möglich).</div>
+                <div class="modal-footer pb-0 border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
                 </div>
-
-                <div id="existing_attachments_section" class="mb-3 d-none">
-                    <label class="form-label">Vorhandene Anhänge</label>
-                    <div id="existing_attachments_list" class="list-group list-group-flush border rounded">
-                        <!-- Wird per JS befüllt -->
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer pb-0 border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Speichern</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
 
-<div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="/finances/settings" method="post" class="modal-content border-0 shadow">
-            <div class="modal-header bg-light">
-                <h5 class="modal-title">Kassabuch Konfiguration</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info py-2 small">
-                    <i class="bi bi-info-circle me-1"></i> Das Geschäftsjahr berechnet sich automatisch vom eingestellten Startdatum bis zum Tag davor im Folgejahr.
+    <div class="modal fade"
+         id="settingsModal"
+         tabindex="-1"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="/finances/settings"
+                  method="post"
+                  class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title">Kassabuch Konfiguration</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
-                <div class="mb-3">
-                    <label for="fiscal_year_start" class="form-label">Beginn des Geschäftsjahres</label>
-                    <input type="text" class="form-control" id="fiscal_year_start" name="fiscal_year_start" value="{{ fiscal_setting }}" placeholder="DD.MM." required>
-                    <div class="form-text">Format: <b>DD.MM.</b> (z.B. "01.09." für 1. September)</div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle me-1"></i> Das Geschäftsjahr berechnet sich automatisch vom eingestellten Startdatum bis zum Tag davor im Folgejahr.
+                    </div>
+                    <div class="mb-3">
+                        <label for="fiscal_year_start" class="form-label">Beginn des Geschäftsjahres</label>
+                        <input type="text"
+                               class="form-control"
+                               id="fiscal_year_start"
+                               name="fiscal_year_start"
+                               value="{{ fiscal_setting }}"
+                               placeholder="DD.MM."
+                               required>
+                        <div class="form-text">
+                            Format: <b>DD.MM.</b> (z.B. "01.09." für 1. September)
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
-            </div>
-        </form>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-{% block scripts %}
-<script src="/js/finances.js"></script>
-{% endblock %}
+    {% block scripts %}<script src="/js/finances.js"></script>{% endblock %}
 {% endblock %}

@@ -3,96 +3,119 @@
 {% block title %}Projektmitglieder: {{ project.name }} - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <a href="/projects" class="text-decoration-none text-muted small"><i class="bi bi-arrow-left"></i> Zurück zu Projekten</a>
-        <h1 class="h2 mb-1 mt-2">{{ project.name }}</h1>
-        {% if project.description %}
-            <p class="text-muted mb-0">{{ project.description }}</p>
-        {% else %}
-            <p class="text-muted mb-0">Mitgliederzuordnungen und Projektstände an einem Ort verwalten.</p>
+    <section class="page-header">
+        <div>
+            <a href="/projects" class="text-decoration-none text-muted small"><i class="bi bi-arrow-left"></i> Zurück zu Projekten</a>
+            <h1 class="h2 mb-1 mt-2">{{ project.name }}</h1>
+            {% if project.description %}
+                <p class="text-muted mb-0">{{ project.description }}</p>
+            {% else %}
+                <p class="text-muted mb-0">Mitgliederzuordnungen und Projektstände an einem Ort verwalten.</p>
+            {% endif %}
+        </div>
+        {% if available_users|length > 0 %}
+            <div class="page-actions">
+                <form action="/projects/{{ project.id }}/members"
+                      method="post"
+                      class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+                    <select name="user_id" class="form-select" style="min-width: 220px;" required>
+                        <option value="">-- Mitglied hinzufügen --</option>
+                        {% for u in available_users %}<option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary flex-shrink-0">
+                        <i class="bi bi-person-plus"></i> Hinzufügen
+                    </button>
+                </form>
+            </div>
         {% endif %}
-    </div>
-    {% if available_users|length > 0 %}
-    <div class="page-actions">
-        <form action="/projects/{{ project.id }}/members" method="post" class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <select name="user_id" class="form-select" style="min-width: 220px;" required>
-                <option value="">-- Mitglied hinzufügen --</option>
-                {% for u in available_users %}
-                    <option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary flex-shrink-0"><i class="bi bi-person-plus"></i> Hinzufügen</button>
-        </form>
-    </div>
-    {% endif %}
-</section>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="projects.members" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="member_name">
-    {{ include('partials/table_toolbar.twig') }}
-    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-people-fill"></i> Projektmitglieder ({{ members|length }})</h5>
-        <a href="/evaluations/project-members?project_id={{ project.id }}" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-bar-chart"></i> Auswertung anzeigen
-        </a>
-    </div>
-    <div class="card-body p-0">
-        {% if members|length > 0 %}
-        <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 table-responsive-cards" id="projectMembersTable">
-                <thead class="table-light">
-                    <tr>
-                        <th data-sort-key="member_name" data-sort-type="text">Name</th>
-                        <th data-sort-key="email" data-sort-type="text">E-Mail</th>
-                        <th data-sort-key="voice" data-sort-type="text">Stimmgruppe / Teilstimme</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% set seen_ids = [] %}
-                    {% for m in members %}
-                    <tr
-                        data-sort-member_name="{{ (m.last_name ~ ', ' ~ m.first_name)|lower }}"
-                        data-sort-email="{{ m.email|lower }}"
-                        data-sort-voice="{{ m.voice_groups_display|default('')|lower }}"
-                    >
-                        <td data-label="Name"><strong>{{ m.last_name }}, {{ m.first_name }}</strong></td>
-                        <td data-label="E-Mail">{{ m.email }}</td>
-                        <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>
-                        <td data-label="Aktionen" class="text-end">
-                            <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove" method="post" class="d-inline" data-confirm="{{ m.first_name }} {{ m.last_name }} wirklich vom Projekt entfernen?">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i> Entfernen</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
-        {% else %}
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-people fs-1 d-block mb-2"></i>
-            <p class="mb-0">Noch keine Mitglieder diesem Projekt zugeordnet.</p>
-            {% if available_users|length > 0 %}
-                <p class="small mt-2">Nutzen Sie das Formular oben, um Mitglieder hinzuzufügen.</p>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="surface-card card border-0 table-shell"
+         data-table-engine="true"
+         data-table-id="projects.members"
+         data-default-view="auto"
+         data-default-page-size="100"
+         data-page-size-options="25,50,100,200"
+         data-default-sort-key="member_name">
+        {{ include('partials/table_toolbar.twig') }}
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-people-fill"></i> Projektmitglieder ({{ members|length }})
+            </h5>
+            <a href="/evaluations/project-members?project_id={{ project.id }}"
+               class="btn btn-sm btn-outline-light">
+                <i class="bi bi-bar-chart"></i> Auswertung anzeigen
+            </a>
+        </div>
+        <div class="card-body p-0">
+            {% if members|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                           id="projectMembersTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-sort-key="member_name" data-sort-type="text">Name</th>
+                                <th data-sort-key="email" data-sort-type="text">E-Mail</th>
+                                <th data-sort-key="voice" data-sort-type="text">Stimmgruppe / Teilstimme</th>
+                                <th class="text-end">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set seen_ids = [] %}
+                            {% for m in members %}
+                                <tr data-sort-member_name="{{ (m.last_name ~ ', ' ~ m.first_name)|lower }}"
+                                    data-sort-email="{{ m.email|lower }}"
+                                    data-sort-voice="{{ m.voice_groups_display|default('')|lower }}">
+                                    <td data-label="Name">
+                                        <strong>{{ m.last_name }}, {{ m.first_name }}</strong>
+                                    </td>
+                                    <td data-label="E-Mail">{{ m.email }}</td>
+                                    <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>
+                                    <td data-label="Aktionen" class="text-end">
+                                        <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove"
+                                              method="post"
+                                              class="d-inline"
+                                              data-confirm="{{ m.first_name }} {{ m.last_name }} wirklich vom Projekt entfernen?">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-person-dash"></i> Entfernen
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-people fs-1 d-block mb-2"></i>
+                    <p class="mb-0">Noch keine Mitglieder diesem Projekt zugeordnet.</p>
+                    {% if available_users|length > 0 %}
+                        <p class="small mt-2">Nutzen Sie das Formular oben, um Mitglieder hinzuzufügen.</p>
+                    {% endif %}
+                </div>
             {% endif %}
         </div>
-        {% endif %}
     </div>
-</div>
 {% endblock %}

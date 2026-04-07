@@ -3,61 +3,66 @@
 {% block title %}Newsletter gesperrt{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
-        <h1 class="h2 mb-1">Newsletter gesperrt</h1>
-        <p class="text-muted mb-0">{{ newsletter.title }}</p>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <h1 class="h2 mb-1">Newsletter gesperrt</h1>
+            <p class="text-muted mb-0">{{ newsletter.title }}</p>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-2">
-    <div class="row">
-        <div class="col-md-6 offset-md-3">
-            <div class="surface-card card border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0">
-                        <i class="bi bi-lock-fill"></i> Newsletter gesperrt
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p>
-                        Der Newsletter <strong>{{ newsletter.title }}</strong> wird gerade bearbeitet und ist daher gesperrt.
-                    </p>
-
-                    {% if locked_by_user %}
-                    <div class="alert alert-info" role="alert">
-                        <strong>Derzeit von bearbeitet:</strong><br>
-                        {{ locked_by_user.first_name }} {{ locked_by_user.last_name }}<br>
-                        <small class="text-muted">{{ newsletter.locked_at|date('d.m.Y H:i:s') }}</small>
+    <div class="container mt-2">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <div class="surface-card card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-lock-fill"></i> Newsletter gesperrt
+                        </h5>
                     </div>
-                    {% endif %}
+                    <div class="card-body">
+                        <p>
+                            Der Newsletter <strong>{{ newsletter.title }}</strong> wird gerade bearbeitet und ist daher gesperrt.
+                        </p>
 
-                    <p class="text-muted">
-                        Die Sperrung wird automatisch nach 30 Minuten Inaktivität aufgehoben. Versuchen Sie, auf dieser
-                        Seite zu bleiben, um die Änderungen zu verfolgen.
-                    </p>
+                        {% if locked_by_user %}
+                            <div class="alert alert-info" role="alert">
+                                <strong>Derzeit von bearbeitet:</strong>
+                                <br>
+                                {{ locked_by_user.first_name }} {{ locked_by_user.last_name }}
+                                <br>
+                                <small class="text-muted">{{ newsletter.locked_at|date('d.m.Y H:i:s') }}</small>
+                            </div>
+                        {% endif %}
 
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
-                            <i class="bi bi-arrow-clockwise"></i> Seite neu laden
-                        </button>
-                        <a href="/newsletters?project_id={{ newsletter.project_id }}&status=draft" class="btn btn-outline-primary">
-                            <i class="bi bi-arrow-left"></i> Zurück zur Übersicht
-                        </a>
+                        <p class="text-muted">
+                            Die Sperrung wird automatisch nach 30 Minuten Inaktivität aufgehoben. Versuchen Sie, auf dieser
+                            Seite zu bleiben, um die Änderungen zu verfolgen.
+                        </p>
+
+                        <div class="d-grid gap-2">
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    onclick="location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> Seite neu laden
+                            </button>
+                            <a href="/newsletters?project_id={{ newsletter.project_id }}&status=draft"
+                               class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Zurück zur Übersicht
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
+    <script>
 // Refresh every 30 seconds to check if lock is released
 setInterval(function() {
     location.reload();
 }, 30000);
-</script>
+    </script>
 {% endblock %}

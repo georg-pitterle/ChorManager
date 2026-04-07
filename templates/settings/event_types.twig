@@ -3,142 +3,179 @@
 {% block title %}Event-Typen - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
-        <h1 class="h2 mb-1">Event-Typen verwalten</h1>
-        <p class="text-muted mb-0">Event-Kategorien und Farbcodierung zentral definieren.</p>
-    </div>
-    <div class="page-actions">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTypeModal">
-            <i class="bi bi-plus-lg"></i> Event-Typ hinzufügen
-        </button>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
+            <h1 class="h2 mb-1">Event-Typen verwalten</h1>
+            <p class="text-muted mb-0">Event-Kategorien und Farbcodierung zentral definieren.</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#createTypeModal">
+                <i class="bi bi-plus-lg"></i> Event-Typ hinzufügen
+            </button>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success mt-3">{{ success }}</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger mt-3">{{ error }}</div>
-{% endif %}
+    {% if success %}<div class="alert alert-success mt-3">{{ success }}</div>{% endif %}
+    {% if error %}<div class="alert alert-danger mt-3">{{ error }}</div>{% endif %}
 
-<section class="surface-card form-surface p-4 mb-4">
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-    {% for type in event_types %}
-    <div class="col">
-        <div class="card h-100 shadow-sm border-0">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <span class="badge bg-{{ type.color }} fs-6">{{ type.name }}</span>
-                <div>
-                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editTypeModal{{ type.id }}" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteTypeModal{{ type.id }}" title="Löschen"><i class="bi bi-trash"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Edit Type Modal -->
-        <div class="modal fade" id="editTypeModal{{ type.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <form method="post" action="/event-types/{{ type.id }}/update">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Event-Typ bearbeiten</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Name</label>
-                                <input type="text" name="name" class="form-control" value="{{ type.name }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Farbe (Bootstrap Klasse)</label>
-                                <select name="color" class="form-select">
-                                    <option value="primary" {% if type.color == 'primary' %}selected{% endif %}>Blau (Primary)</option>
-                                    <option value="secondary" {% if type.color == 'secondary' %}selected{% endif %}>Grau (Secondary)</option>
-                                    <option value="success" {% if type.color == 'success' %}selected{% endif %}>Grün (Success)</option>
-                                    <option value="danger" {% if type.color == 'danger' %}selected{% endif %}>Rot (Danger)</option>
-                                    <option value="warning" {% if type.color == 'warning' %}selected{% endif %}>Gelb (Warning)</option>
-                                    <option value="info" {% if type.color == 'info' %}selected{% endif %}>Hellblau (Info)</option>
-                                    <option value="dark" {% if type.color == 'dark' %}selected{% endif %}>Schwarz (Dark)</option>
-                                </select>
+    <section class="surface-card form-surface p-4 mb-4">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+            {% for type in event_types %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <span class="badge bg-{{ type.color }} fs-6">{{ type.name }}</span>
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editTypeModal{{ type.id }}"
+                                        title="Bearbeiten">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteTypeModal{{ type.id }}"
+                                        title="Löschen">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </div>
-                        <div class="modal-footer pb-0 border-0">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary">Speichern</button>
-                        </div>
                     </div>
-                </form>
-            </div>
-        </div>
 
-        <!-- Delete Type Modal -->
-        <div class="modal fade" id="deleteTypeModal{{ type.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <form method="post" action="/event-types/{{ type.id }}/delete">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header bg-danger text-white">
-                            <h5 class="modal-title">Event-Typ löschen</h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen?
-                            <p class="text-danger mt-2 small"><i class="bi bi-exclamation-triangle-fill"></i> Bestehende Events mit diesem Typ werden auf "null" gesetzt!</p>
-                        </div>
-                        <div class="modal-footer border-0">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-danger">Löschen</button>
+                    <!-- Edit Type Modal -->
+                    <div class="modal fade"
+                         id="editTypeModal{{ type.id }}"
+                         tabindex="-1"
+                         aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form method="post" action="/event-types/{{ type.id }}/update">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Event-Typ bearbeiten</h5>
+                                        <button type="button"
+                                                class="btn-close"
+                                                data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Name</label>
+                                            <input type="text"
+                                                   name="name"
+                                                   class="form-control"
+                                                   value="{{ type.name }}"
+                                                   required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Farbe (Bootstrap Klasse)</label>
+                                            <select name="color" class="form-select">
+                                                <option value="primary" {% if type.color == 'primary' %}selected{% endif %}>Blau (Primary)</option>
+                                                <option value="secondary"
+                                                        {% if type.color == 'secondary' %}selected{% endif %}>Grau (Secondary)</option>
+                                                <option value="success" {% if type.color == 'success' %}selected{% endif %}>Grün (Success)</option>
+                                                <option value="danger" {% if type.color == 'danger' %}selected{% endif %}>Rot (Danger)</option>
+                                                <option value="warning" {% if type.color == 'warning' %}selected{% endif %}>Gelb (Warning)</option>
+                                                <option value="info" {% if type.color == 'info' %}selected{% endif %}>Hellblau (Info)</option>
+                                                <option value="dark" {% if type.color == 'dark' %}selected{% endif %}>Schwarz (Dark)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer pb-0 border-0">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                        <button type="submit" class="btn btn-primary">Speichern</button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                </form>
-            </div>
+
+                    <!-- Delete Type Modal -->
+                    <div class="modal fade"
+                         id="deleteTypeModal{{ type.id }}"
+                         tabindex="-1"
+                         aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form method="post" action="/event-types/{{ type.id }}/delete">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-danger text-white">
+                                        <h5 class="modal-title">Event-Typ löschen</h5>
+                                        <button type="button"
+                                                class="btn-close btn-close-white"
+                                                data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen?
+                                        <p class="text-danger mt-2 small">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> Bestehende Events mit diesem Typ werden auf "null" gesetzt!
+                                        </p>
+                                    </div>
+                                    <div class="modal-footer border-0">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                        <button type="submit" class="btn btn-danger">Löschen</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-tag fs-1 d-block mb-3"></i>
+                    Keine Event-Typen konfiguriert.
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Create Type Modal -->
+    <div class="modal fade"
+         id="createTypeModal"
+         tabindex="-1"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" action="/event-types">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Neuen Event-Typ anlegen</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Name (z.B. Probe, Auftritt)</label>
+                            <input type="text"
+                                   name="name"
+                                   class="form-control"
+                                   required
+                                   placeholder="Name des Typs...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Farbe (Bootstrap Klasse)</label>
+                            <select name="color" class="form-select">
+                                <option value="primary">Blau (Primary)</option>
+                                <option value="secondary">Grau (Secondary)</option>
+                                <option value="success">Grün (Success)</option>
+                                <option value="danger">Rot (Danger)</option>
+                                <option value="warning">Gelb (Warning)</option>
+                                <option value="info" selected>Hellblau (Info)</option>
+                                <option value="dark">Schwarz (Dark)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer pb-0 border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Anlegen</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
-    {% else %}
-    <div class="col-12 text-center py-5 text-muted">
-        <i class="bi bi-tag fs-1 d-block mb-3"></i>
-        Keine Event-Typen konfiguriert.
-    </div>
-    {% endfor %}
-</div>
-</section>
-
-<!-- Create Type Modal -->
-<div class="modal fade" id="createTypeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="post" action="/event-types">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header">
-                    <h5 class="modal-title">Neuen Event-Typ anlegen</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Name (z.B. Probe, Auftritt)</label>
-                        <input type="text" name="name" class="form-control" required placeholder="Name des Typs...">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Farbe (Bootstrap Klasse)</label>
-                        <select name="color" class="form-select">
-                            <option value="primary">Blau (Primary)</option>
-                            <option value="secondary">Grau (Secondary)</option>
-                            <option value="success">Grün (Success)</option>
-                            <option value="danger">Rot (Danger)</option>
-                            <option value="warning">Gelb (Warning)</option>
-                            <option value="info" selected>Hellblau (Info)</option>
-                            <option value="dark">Schwarz (Dark)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer pb-0 border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Anlegen</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
 {% endblock %}

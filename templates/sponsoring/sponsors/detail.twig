@@ -3,574 +3,779 @@
 {% block title %}{{ sponsor.name }} - Sponsoring - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="/sponsoring">Sponsoring</a></li>
-                <li class="breadcrumb-item"><a href="/sponsoring/sponsors">Sponsoren</a></li>
-                <li class="breadcrumb-item active">{{ sponsor.name }}</li>
-            </ol>
-        </nav>
-        <h1 class="h2 mb-1">
-            {% if sponsor.type == 'organization' %}<i class="bi bi-building me-2"></i>{% else %}<i class="bi bi-person me-2"></i>{% endif %}
-            {{ sponsor.name }}
-        </h1>
-    </div>
-    <div class="page-actions">
-        <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-              onsubmit="return confirm('Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
-            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Löschen</button>
-        </form>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item">
+                        <a href="/sponsoring">Sponsoring</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/sponsoring/sponsors">Sponsoren</a>
+                    </li>
+                    <li class="breadcrumb-item active">{{ sponsor.name }}</li>
+                </ol>
+            </nav>
+            <h1 class="h2 mb-1">
+                {% if sponsor.type == 'organization' %}
+                    <i class="bi bi-building me-2"></i>
+                {% else %}
+                    <i class="bi bi-person me-2"></i>
+                {% endif %}
+                {{ sponsor.name }}
+            </h1>
+        </div>
+        <div class="page-actions">
+            <form method="post"
+                  action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+                  onsubmit="return confirm('Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-trash me-1"></i>Löschen
+                </button>
+            </form>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-
-{# Status-Badge #}
-{% set status_colors = {prospect: 'secondary', contacted: 'info', negotiating: 'warning', active: 'success', paused: 'secondary', closed: 'dark'} %}
-{% set status_labels = {prospect: 'Interessent', contacted: 'Kontaktiert', negotiating: 'Verhandlung', active: 'Aktiv', paused: 'Pausiert', closed: 'Abgeschlossen'} %}
-<p class="mb-3">
-    <span class="badge fs-6 bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
-</p>
-
-{# Tabs #}
-<ul class="nav nav-tabs mb-3" id="sponsorTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-stammdaten" data-bs-toggle="tab" data-bs-target="#pane-stammdaten" type="button" role="tab">
-            <i class="bi bi-info-circle me-1"></i>Stammdaten
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-vereinbarungen" data-bs-toggle="tab" data-bs-target="#pane-vereinbarungen" type="button" role="tab">
-            <i class="bi bi-file-earmark-text me-1"></i>Vereinbarungen
-            <span class="badge bg-secondary ms-1">{{ sponsor.sponsorships|length }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-kontakte" data-bs-toggle="tab" data-bs-target="#pane-kontakte" type="button" role="tab">
-            <i class="bi bi-chat-dots me-1"></i>Kontakthistorie
-            <span class="badge bg-secondary ms-1">{{ sponsor.contacts|length }}</span>
-        </button>
-    </li>
-</ul>
-
-<div class="tab-content">
-    {# ─── Tab 1: Stammdaten ─── #}
-    <div class="tab-pane fade show active" id="pane-stammdaten" role="tabpanel">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Typ</label>
-                            <select name="type" class="form-select">
-                                <option value="organization" {{ sponsor.type == 'organization' ? 'selected' : '' }}>Organisation / Firma</option>
-                                <option value="person" {{ sponsor.type == 'person' ? 'selected' : '' }}>Einzelperson</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Status</label>
-                            <select name="status" class="form-select">
-                                {% for s in statuses %}
-                                <option value="{{ s }}" {{ s == sponsor.status ? 'selected' : '' }}>{{ status_labels[s] ?? s }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" value="{{ sponsor.name }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Kontaktperson</label>
-                            <input type="text" name="contact_person" class="form-control" value="{{ sponsor.contact_person }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">E-Mail</label>
-                            <input type="email" name="email" class="form-control" value="{{ sponsor.email }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Telefon</label>
-                            <input type="text" name="phone" class="form-control" value="{{ sponsor.phone }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Website</label>
-                            <input type="url" name="website" class="form-control" value="{{ sponsor.website }}" placeholder="https://...">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Adresse</label>
-                            <textarea name="address" class="form-control" rows="2">{{ sponsor.address }}</textarea>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Notizen</label>
-                            <textarea name="notes" class="form-control" rows="3">{{ sponsor.notes }}</textarea>
-                        </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
-    </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-    {# ─── Tab 2: Vereinbarungen ─── #}
-    <div class="tab-pane fade" id="pane-vereinbarungen" role="tabpanel">
-        {% set active_total = 0 %}
-        {% for s in sponsor.sponsorships %}
-            {% if s.status == 'active' %}
-                {% set active_total = active_total + s.amount %}
-            {% endif %}
-        {% endfor %}
+    {# Status-Badge #}
+    {% set status_colors = {
+        prospect: 'secondary',
+        contacted: 'info',
+        negotiating: 'warning',
+        active: 'success',
+        paused: 'secondary',
+        closed: 'dark',
+    } %}
+    {% set status_labels = {
+        prospect: 'Interessent',
+        contacted: 'Kontaktiert',
+        negotiating: 'Verhandlung',
+        active: 'Aktiv',
+        paused: 'Pausiert',
+        closed: 'Abgeschlossen',
+    } %}
+    <p class="mb-3">
+        <span class="badge fs-6 bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
+    </p>
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="text-muted">Aktive Vereinbarungen: <strong>{{ active_total|number_format(2, '.', ',') }} €</strong></span>
-            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newSponsorshipModal">
-                <i class="bi bi-plus-lg me-1"></i>Neue Vereinbarung
+    {# Tabs #}
+    <ul class="nav nav-tabs mb-3" id="sponsorTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active"
+                    id="tab-stammdaten"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-stammdaten"
+                    type="button"
+                    role="tab">
+                <i class="bi bi-info-circle me-1"></i>Stammdaten
             </button>
-        </div>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="tab-vereinbarungen"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-vereinbarungen"
+                    type="button"
+                    role="tab">
+                <i class="bi bi-file-earmark-text me-1"></i>Vereinbarungen
+                <span class="badge bg-secondary ms-1">{{ sponsor.sponsorships|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="tab-kontakte"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-kontakte"
+                    type="button"
+                    role="tab">
+                <i class="bi bi-chat-dots me-1"></i>Kontakthistorie
+                <span class="badge bg-secondary ms-1">{{ sponsor.contacts|length }}</span>
+            </button>
+        </li>
+    </ul>
 
-        {% if sponsor.sponsorships|length > 0 %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Paket</th>
-                        <th>Status</th>
-                        <th>Betrag</th>
-                        <th>Projekt</th>
-                        <th>Zuständig</th>
-                        <th>Zeitraum</th>
-                        <th>Anhänge</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sp in sponsor.sponsorships %}
-                    <tr>
-                        <td>
-                            {% if sp.package %}
-                            <span class="badge bg-{{ sp.package.color }}">{{ sp.package.name }}</span>
-                            {% else %}–{% endif %}
-                        </td>
-                        <td><span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span></td>
-                        <td class="text-nowrap">{{ sp.amount|number_format(2, '.', ',') }} €</td>
-                        <td>{{ sp.project ? sp.project.name : '–' }}</td>
-                        <td>{{ sp.assignedUser ? sp.assignedUser.first_name ~ ' ' ~ sp.assignedUser.last_name : '–' }}</td>
-                        <td class="text-nowrap small">
-                            {{ sp.start_date ? sp.start_date.format('d.m.Y') : '–' }}
-                            {% if sp.start_date and sp.end_date %} – {% endif %}
-                            {{ sp.end_date ? sp.end_date.format('d.m.Y') : '' }}
-                        </td>
-                        <td>
-                            {% if sp.attachments|length > 0 %}
-                            <span class="badge bg-light text-dark border">{{ sp.attachments|length }} <i class="bi bi-paperclip"></i></span>
-                            {% else %}–{% endif %}
-                        </td>
-                        <td class="text-end text-nowrap">
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editSponsorshipModal{{ sp.id }}" title="Bearbeiten">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <form method="post" action="/sponsoring/sponsorships/{{ sp.id }}/delete" class="d-inline"
-                                  onsubmit="return confirm('Vereinbarung löschen?');">
-                                <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                    <i class="bi bi-trash"></i>
+    <div class="tab-content">
+        {# ─── Tab 1: Stammdaten ─── #}
+        <div class="tab-pane fade show active"
+             id="pane-stammdaten"
+             role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="post" action="/sponsoring/sponsors/{{ sponsor.id }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Typ</label>
+                                <select name="type" class="form-select">
+                                    <option value="organization"
+                                            {{ sponsor.type == 'organization' ? 'selected' : '' }}>Organisation / Firma
+                                    </option>
+                                    <option value="person" {{ sponsor.type == 'person' ? 'selected' : '' }}>Einzelperson
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-select">
+                                    {% for s in statuses %}
+                                        <option value="{{ s }}" {{ s == sponsor.status ? 'selected' : '' }}>{{ status_labels[s] ?? s }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">
+                                    Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       name="name"
+                                       class="form-control"
+                                       value="{{ sponsor.name }}"
+                                       required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Kontaktperson</label>
+                                <input type="text"
+                                       name="contact_person"
+                                       class="form-control"
+                                       value="{{ sponsor.contact_person }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">E-Mail</label>
+                                <input type="email"
+                                       name="email"
+                                       class="form-control"
+                                       value="{{ sponsor.email }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Telefon</label>
+                                <input type="text"
+                                       name="phone"
+                                       class="form-control"
+                                       value="{{ sponsor.phone }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Website</label>
+                                <input type="url"
+                                       name="website"
+                                       class="form-control"
+                                       value="{{ sponsor.website }}"
+                                       placeholder="https://...">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Adresse</label>
+                                <textarea name="address" class="form-control" rows="2">{{ sponsor.address }}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notizen</label>
+                                <textarea name="notes" class="form-control" rows="3">{{ sponsor.notes }}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save me-1"></i>Speichern
                                 </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {# Anhänge-Zeile #}
-                    {% if sp.attachments|length > 0 %}
-                    <tr class="table-light">
-                        <td colspan="8" class="ps-4 py-1">
-                            <small class="text-muted me-2"><i class="bi bi-paperclip"></i> Anhänge:</small>
-                            {% for att in sp.attachments %}
-                            <span class="me-2">
-                                <a href="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}" class="small">
-                                    <i class="bi bi-file-earmark-arrow-down"></i> {{ att.original_name }}
-                                </a>
-                                <form method="post" action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete" class="d-inline"
-                                      onsubmit="return confirm('Anhang löschen?');">
-                                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                    <button type="submit" class="btn btn-link btn-sm text-danger p-0 ms-1" title="Anhang löschen">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
-                                </form>
-                            </span>
-                            {% endfor %}
-                        </td>
-                    </tr>
-                    {% endif %}
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="text-muted py-3">Noch keine Vereinbarungen vorhanden.</div>
-        {% endif %}
-
-        {# Modal: Neue Vereinbarung #}
-        <div class="modal fade" id="newSponsorshipModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <form method="post" action="/sponsoring/sponsorships" enctype="multipart/form-data">
-                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Neue Vereinbarung</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Paket</label>
-                                    <select name="package_id" class="form-select">
-                                        <option value="">– Kein Paket –</option>
-                                        {% for pkg in packages %}
-                                        <option value="{{ pkg.id }}">{{ pkg.name }} (ab {{ pkg.min_amount|number_format(2, '.', ',') }} €)</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Status</label>
-                                    <select name="status" class="form-select">
-                                        {% for s in statuses %}
-                                        <option value="{{ s }}">{{ status_labels[s] ?? s }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Betrag (€) <span class="text-danger">*</span></label>
-                                    <input type="number" name="amount" class="form-control" step="0.01" min="0" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Zuständig</label>
-                                    <select name="assigned_user_id" class="form-select">
-                                        <option value="">– Keine Zuweisung –</option>
-                                        {% for user in users %}
-                                        <option value="{{ user.id }}">{{ user.last_name }}, {{ user.first_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Projekt</label>
-                                    <select name="project_id" class="form-select">
-                                        <option value="">– Kein Projekt –</option>
-                                        {% for project in projects %}
-                                        <option value="{{ project.id }}">{{ project.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Von</label>
-                                    <input type="date" name="start_date" class="form-control">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Bis</label>
-                                    <input type="date" name="end_date" class="form-control">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Notizen</label>
-                                    <textarea name="notes" class="form-control" rows="2"></textarea>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Anhänge</label>
-                                    <input type="file" name="attachments[]" class="form-control" multiple>
-                                </div>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Anlegen</button>
-                        </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
 
-        {# Edit-Modals für jede Vereinbarung #}
-        {% for sp in sponsor.sponsorships %}
-        <div class="modal fade" id="editSponsorshipModal{{ sp.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <form method="post" action="/sponsoring/sponsorships/{{ sp.id }}" enctype="multipart/form-data">
-                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Vereinbarung bearbeiten</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Paket</label>
-                                    <select name="package_id" class="form-select">
-                                        <option value="">– Kein Paket –</option>
-                                        {% for pkg in packages %}
-                                        <option value="{{ pkg.id }}" {{ sp.package_id == pkg.id ? 'selected' : '' }}>{{ pkg.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Status</label>
-                                    <select name="status" class="form-select">
-                                        {% for s in statuses %}
-                                        <option value="{{ s }}" {{ s == sp.status ? 'selected' : '' }}>{{ status_labels[s] ?? s }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Betrag (€) <span class="text-danger">*</span></label>
-                                    <input type="number" name="amount" class="form-control" step="0.01" min="0" value="{{ sp.amount }}" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Zuständig</label>
-                                    <select name="assigned_user_id" class="form-select">
-                                        <option value="">– Keine Zuweisung –</option>
-                                        {% for user in users %}
-                                        <option value="{{ user.id }}" {{ sp.assigned_user_id == user.id ? 'selected' : '' }}>{{ user.last_name }}, {{ user.first_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Projekt</label>
-                                    <select name="project_id" class="form-select">
-                                        <option value="">– Kein Projekt –</option>
-                                        {% for project in projects %}
-                                        <option value="{{ project.id }}" {{ sp.project_id == project.id ? 'selected' : '' }}>{{ project.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Von</label>
-                                    <input type="date" name="start_date" class="form-control" value="{{ sp.start_date ? sp.start_date.format('Y-m-d') : '' }}">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Bis</label>
-                                    <input type="date" name="end_date" class="form-control" value="{{ sp.end_date ? sp.end_date.format('Y-m-d') : '' }}">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Notizen</label>
-                                    <textarea name="notes" class="form-control" rows="2">{{ sp.notes }}</textarea>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Weitere Anhänge hinzufügen</label>
-                                    <input type="file" name="attachments[]" class="form-control" multiple>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
-                        </div>
-                    </div>
-                </form>
+        {# ─── Tab 2: Vereinbarungen ─── #}
+        <div class="tab-pane fade" id="pane-vereinbarungen" role="tabpanel">
+            {% set active_total = 0 %}
+            {% for s in sponsor.sponsorships %}
+                {% if s.status == 'active' %}
+                    {% set active_total = active_total + s.amount %}
+                {% endif %}
+            {% endfor %}
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">Aktive Vereinbarungen: <strong>{{ active_total|number_format(2, '.', ',') }} €</strong></span>
+                <button class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#newSponsorshipModal">
+                    <i class="bi bi-plus-lg me-1"></i>Neue Vereinbarung
+                </button>
             </div>
-        </div>
-        {% endfor %}
-    </div>
 
-    {# ─── Tab 3: Kontakthistorie ─── #}
-    <div class="tab-pane fade" id="pane-kontakte" role="tabpanel">
-        <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newContactModal">
-                <i class="bi bi-plus-lg me-1"></i>Kontakt protokollieren
-            </button>
-        </div>
-
-        {% if sponsor.contacts|length > 0 %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Datum</th>
-                        <th>Art</th>
-                        <th>Zusammenfassung</th>
-                        <th>Vereinbarung</th>
-                        <th>Protokolliert von</th>
-                        <th>Wiedervorlage</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
-                    <tr>
-                        <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
-                        <td class="text-nowrap">
-                            {% if contact.type == 'call' %}<i class="bi bi-telephone text-primary" title="Anruf"></i> Anruf
-                            {% elseif contact.type == 'email' %}<i class="bi bi-envelope text-info" title="E-Mail"></i> E-Mail
-                            {% elseif contact.type == 'meeting' %}<i class="bi bi-people text-success" title="Treffen"></i> Treffen
-                            {% elseif contact.type == 'letter' %}<i class="bi bi-file-text text-secondary" title="Brief"></i> Brief
-                            {% else %}<i class="bi bi-chat-dots text-muted" title="Sonstiges"></i> Sonstiges{% endif %}
-                        </td>
-                        <td>{{ contact.summary }}</td>
-                        <td>{{ contact.sponsorship ? '#' ~ contact.sponsorship.id : '–' }}</td>
-                        <td>{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
-                        <td class="text-nowrap">
-                            {% if contact.follow_up_date %}
-                                {% if contact.follow_up_done %}
-                                <span class="text-success"><i class="bi bi-check-circle"></i> {{ contact.follow_up_date.format('d.m.Y') }}</span>
-                                {% else %}
-                                <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %}text-danger fw-semibold{% else %}text-warning{% endif %}">
-                                    <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
-                                </span>
-                                <form method="post" action="/sponsoring/contacts/{{ contact.id }}/done" class="d-inline ms-1">
-                                    <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1" title="Erledigt">
-                                        <i class="bi bi-check"></i>
-                                    </button>
-                                </form>
+            {% if sponsor.sponsorships|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Paket</th>
+                                <th>Status</th>
+                                <th>Betrag</th>
+                                <th>Projekt</th>
+                                <th>Zuständig</th>
+                                <th>Zeitraum</th>
+                                <th>Anhänge</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sp in sponsor.sponsorships %}
+                                <tr>
+                                    <td>
+                                        {% if sp.package %}
+                                            <span class="badge bg-{{ sp.package.color }}">{{ sp.package.name }}</span>
+                                        {% else %}
+                                            –
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span>
+                                    </td>
+                                    <td class="text-nowrap">{{ sp.amount|number_format(2, '.', ',') }} €</td>
+                                    <td>{{ sp.project ? sp.project.name : '–' }}</td>
+                                    <td>{{ sp.assignedUser ? sp.assignedUser.first_name ~ ' ' ~ sp.assignedUser.last_name : '–' }}</td>
+                                    <td class="text-nowrap small">
+                                        {{ sp.start_date ? sp.start_date.format('d.m.Y') : '–' }}
+                                        {% if sp.start_date and sp.end_date %}–{% endif %}
+                                        {{ sp.end_date ? sp.end_date.format('d.m.Y') : '' }}
+                                    </td>
+                                    <td>
+                                        {% if sp.attachments|length > 0 %}
+                                            <span class="badge bg-light text-dark border">{{ sp.attachments|length }} <i class="bi bi-paperclip"></i></span>
+                                        {% else %}
+                                            –
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editSponsorshipModal{{ sp.id }}"
+                                                title="Bearbeiten">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post"
+                                              action="/sponsoring/sponsorships/{{ sp.id }}/delete"
+                                              class="d-inline"
+                                              onsubmit="return confirm('Vereinbarung löschen?');">
+                                            <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {# Anhänge-Zeile #}
+                                {% if sp.attachments|length > 0 %}
+                                    <tr class="table-light">
+                                        <td colspan="8" class="ps-4 py-1">
+                                            <small class="text-muted me-2"><i class="bi bi-paperclip"></i> Anhänge:</small>
+                                            {% for att in sp.attachments %}
+                                                <span class="me-2">
+                                                    <a href="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}"
+                                                       class="small">
+                                                        <i class="bi bi-file-earmark-arrow-down"></i> {{ att.original_name }}
+                                                    </a>
+                                                    <form method="post"
+                                                          action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
+                                                          class="d-inline"
+                                                          onsubmit="return confirm('Anhang löschen?');">
+                                                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                        <button type="submit"
+                                                                class="btn btn-link btn-sm text-danger p-0 ms-1"
+                                                                title="Anhang löschen">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
+                                                    </form>
+                                                </span>
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
                                 {% endif %}
-                            {% else %}–{% endif %}
-                        </td>
-                        <td>
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-secondary"
-                                    title="Bearbeiten"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editContactModal{{ contact.id }}">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <form method="post" action="/sponsoring/contacts/{{ contact.id }}/delete" class="d-inline"
-                                  onsubmit="return confirm('Kontakt löschen?');">
-                                <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                    <i class="bi bi-trash"></i>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-muted py-3">Noch keine Vereinbarungen vorhanden.</div>
+            {% endif %}
+
+            {# Modal: Neue Vereinbarung #}
+            <div class="modal fade"
+                 id="newSponsorshipModal"
+                 tabindex="-1"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <form method="post"
+                          action="/sponsoring/sponsorships"
+                          enctype="multipart/form-data">
+                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Neue Vereinbarung</h5>
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Paket</label>
+                                        <select name="package_id" class="form-select">
+                                            <option value="">– Kein Paket –</option>
+                                            {% for pkg in packages %}
+                                                <option value="{{ pkg.id }}">{{ pkg.name }} (ab {{ pkg.min_amount|number_format(2, '.', ',') }} €)</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Status</label>
+                                        <select name="status" class="form-select">
+                                            {% for s in statuses %}<option value="{{ s }}">{{ status_labels[s] ?? s }}</option>{% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            Betrag (€) <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="number"
+                                               name="amount"
+                                               class="form-control"
+                                               step="0.01"
+                                               min="0"
+                                               required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Zuständig</label>
+                                        <select name="assigned_user_id" class="form-select">
+                                            <option value="">– Keine Zuweisung –</option>
+                                            {% for user in users %}<option value="{{ user.id }}">{{ user.last_name }}, {{ user.first_name }}</option>{% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Projekt</label>
+                                        <select name="project_id" class="form-select">
+                                            <option value="">– Kein Projekt –</option>
+                                            {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Von</label>
+                                        <input type="date" name="start_date" class="form-control">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Bis</label>
+                                        <input type="date" name="end_date" class="form-control">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Notizen</label>
+                                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Anhänge</label>
+                                        <input type="file" name="attachments[]" class="form-control" multiple>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg me-1"></i>Anlegen
                                 </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
-        <div class="modal fade" id="editContactModal{{ contact.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <form method="post" action="/sponsoring/contacts/{{ contact.id }}">
-                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Kontakt bearbeiten</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Datum <span class="text-danger">*</span></label>
-                                    <input type="date" name="contact_date" class="form-control" value="{{ contact.contact_date ? contact.contact_date.format('Y-m-d') : '' }}" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Art <span class="text-danger">*</span></label>
-                                    <select name="type" class="form-select" required>
-                                        <option value="call" {{ contact.type == 'call' ? 'selected' : '' }}>Anruf</option>
-                                        <option value="email" {{ contact.type == 'email' ? 'selected' : '' }}>E-Mail</option>
-                                        <option value="meeting" {{ contact.type == 'meeting' ? 'selected' : '' }}>Treffen</option>
-                                        <option value="letter" {{ contact.type == 'letter' ? 'selected' : '' }}>Brief</option>
-                                        <option value="other" {{ contact.type == 'other' ? 'selected' : '' }}>Sonstiges</option>
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Vereinbarung</label>
-                                    <select name="sponsorship_id" class="form-select">
-                                        <option value="">– Keine –</option>
-                                        {% for sp in sponsor.sponsorships %}
-                                        <option value="{{ sp.id }}" {{ contact.sponsorship_id == sp.id ? 'selected' : '' }}>
-                                            #{{ sp.id }}{% if sp.package %} – {{ sp.package.name }}{% endif %} ({{ sp.amount|number_format(2, '.', ',') }} €)
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Zusammenfassung <span class="text-danger">*</span></label>
-                                    <textarea name="summary" class="form-control" rows="3" required>{{ contact.summary }}</textarea>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Wiedervorlage am</label>
-                                    <input type="date" name="follow_up_date" class="form-control" value="{{ contact.follow_up_date ? contact.follow_up_date.format('Y-m-d') : '' }}">
-                                </div>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
-                        </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
-        </div>
-        {% endfor %}
-        {% else %}
-        <div class="text-muted py-3">Noch keine Kontakte vorhanden.</div>
-        {% endif %}
 
-        {# Modal: Neuer Kontakt #}
-        <div class="modal fade" id="newContactModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <form method="post" action="/sponsoring/contacts">
-                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-chat-dots me-2"></i>Kontakt protokollieren</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Datum <span class="text-danger">*</span></label>
-                                    <input type="date" name="contact_date" class="form-control" value="{{ 'now'|date('Y-m-d') }}" required>
+            {# Edit-Modals für jede Vereinbarung #}
+            {% for sp in sponsor.sponsorships %}
+                <div class="modal fade"
+                     id="editSponsorshipModal{{ sp.id }}"
+                     tabindex="-1"
+                     aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <form method="post"
+                              action="/sponsoring/sponsorships/{{ sp.id }}"
+                              enctype="multipart/form-data">
+                            <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Vereinbarung bearbeiten</h5>
+                                    <button type="button"
+                                            class="btn-close"
+                                            data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Art <span class="text-danger">*</span></label>
-                                    <select name="type" class="form-select" required>
-                                        <option value="call">Anruf</option>
-                                        <option value="email">E-Mail</option>
-                                        <option value="meeting">Treffen</option>
-                                        <option value="letter">Brief</option>
-                                        <option value="other">Sonstiges</option>
-                                    </select>
+                                <div class="modal-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Paket</label>
+                                            <select name="package_id" class="form-select">
+                                                <option value="">– Kein Paket –</option>
+                                                {% for pkg in packages %}
+                                                    <option value="{{ pkg.id }}" {{ sp.package_id == pkg.id ? 'selected' : '' }}>{{ pkg.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Status</label>
+                                            <select name="status" class="form-select">
+                                                {% for s in statuses %}
+                                                    <option value="{{ s }}" {{ s == sp.status ? 'selected' : '' }}>{{ status_labels[s] ?? s }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">
+                                                Betrag (€) <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="number"
+                                                   name="amount"
+                                                   class="form-control"
+                                                   step="0.01"
+                                                   min="0"
+                                                   value="{{ sp.amount }}"
+                                                   required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Zuständig</label>
+                                            <select name="assigned_user_id" class="form-select">
+                                                <option value="">– Keine Zuweisung –</option>
+                                                {% for user in users %}
+                                                    <option value="{{ user.id }}"
+                                                            {{ sp.assigned_user_id == user.id ? 'selected' : '' }}>{{ user.last_name }}, {{ user.first_name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Projekt</label>
+                                            <select name="project_id" class="form-select">
+                                                <option value="">– Kein Projekt –</option>
+                                                {% for project in projects %}
+                                                    <option value="{{ project.id }}"
+                                                            {{ sp.project_id == project.id ? 'selected' : '' }}>{{ project.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Von</label>
+                                            <input type="date"
+                                                   name="start_date"
+                                                   class="form-control"
+                                                   value="{{ sp.start_date ? sp.start_date.format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Bis</label>
+                                            <input type="date"
+                                                   name="end_date"
+                                                   class="form-control"
+                                                   value="{{ sp.end_date ? sp.end_date.format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Notizen</label>
+                                            <textarea name="notes" class="form-control" rows="2">{{ sp.notes }}</textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Weitere Anhänge hinzufügen</label>
+                                            <input type="file" name="attachments[]" class="form-control" multiple>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label">Vereinbarung</label>
-                                    <select name="sponsorship_id" class="form-select">
-                                        <option value="">– Keine –</option>
-                                        {% for sp in sponsor.sponsorships %}
-                                        <option value="{{ sp.id }}">
-                                            #{{ sp.id }}{% if sp.package %} – {{ sp.package.name }}{% endif %} ({{ sp.amount|number_format(2, '.', ',') }} €)
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Zusammenfassung <span class="text-danger">*</span></label>
-                                    <textarea name="summary" class="form-control" rows="3" required></textarea>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Wiedervorlage am</label>
-                                    <input type="date" name="follow_up_date" class="form-control">
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-save me-1"></i>Speichern
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Speichern</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {# ─── Tab 3: Kontakthistorie ─── #}
+        <div class="tab-pane fade" id="pane-kontakte" role="tabpanel">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#newContactModal">
+                    <i class="bi bi-plus-lg me-1"></i>Kontakt protokollieren
+                </button>
+            </div>
+
+            {% if sponsor.contacts|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Datum</th>
+                                <th>Art</th>
+                                <th>Zusammenfassung</th>
+                                <th>Vereinbarung</th>
+                                <th>Protokolliert von</th>
+                                <th>Wiedervorlage</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                                <tr>
+                                    <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
+                                    <td class="text-nowrap">
+                                        {% if contact.type == 'call' %}
+                                            <i class="bi bi-telephone text-primary" title="Anruf"></i> Anruf
+                                        {% elseif contact.type == 'email' %}
+                                            <i class="bi bi-envelope text-info" title="E-Mail"></i> E-Mail
+                                        {% elseif contact.type == 'meeting' %}
+                                            <i class="bi bi-people text-success" title="Treffen"></i> Treffen
+                                        {% elseif contact.type == 'letter' %}
+                                            <i class="bi bi-file-text text-secondary" title="Brief"></i> Brief
+                                        {% else %}
+                                            <i class="bi bi-chat-dots text-muted" title="Sonstiges"></i> Sonstiges
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ contact.summary }}</td>
+                                    <td>{{ contact.sponsorship ? '#' ~ contact.sponsorship.id : '–' }}</td>
+                                    <td>{{ contact.user ? contact.user.first_name ~ ' ' ~ contact.user.last_name : '–' }}</td>
+                                    <td class="text-nowrap">
+                                        {% if contact.follow_up_date %}
+                                            {% if contact.follow_up_done %}
+                                                <span class="text-success"><i class="bi bi-check-circle"></i> {{ contact.follow_up_date.format('d.m.Y') }}</span>
+                                            {% else %}
+                                                <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %}
+                                                                 text-danger fw-semibold
+                                                             {% else %}
+                                                                 text-warning
+                                                             {% endif %}">
+                                                    <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
+                                                </span>
+                                                <form method="post"
+                                                      action="/sponsoring/contacts/{{ contact.id }}/done"
+                                                      class="d-inline ms-1">
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-outline-success py-0 px-1"
+                                                            title="Erledigt">
+                                                        <i class="bi bi-check"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        {% else %}
+                                            –
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                title="Bearbeiten"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editContactModal{{ contact.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post"
+                                              action="/sponsoring/contacts/{{ contact.id }}/delete"
+                                              class="d-inline"
+                                              onsubmit="return confirm('Kontakt löschen?');">
+                                            <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                    <div class="modal fade"
+                         id="editContactModal{{ contact.id }}"
+                         tabindex="-1"
+                         aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form method="post" action="/sponsoring/contacts/{{ contact.id }}">
+                                <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">
+                                            <i class="bi bi-pencil-square me-2"></i>Kontakt bearbeiten
+                                        </h5>
+                                        <button type="button"
+                                                class="btn-close"
+                                                data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    Datum <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="date"
+                                                       name="contact_date"
+                                                       class="form-control"
+                                                       value="{{ contact.contact_date ? contact.contact_date.format('Y-m-d') : '' }}"
+                                                       required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    Art <span class="text-danger">*</span>
+                                                </label>
+                                                <select name="type" class="form-select" required>
+                                                    <option value="call" {{ contact.type == 'call' ? 'selected' : '' }}>Anruf
+                                                    </option>
+                                                    <option value="email" {{ contact.type == 'email' ? 'selected' : '' }}>E-Mail
+                                                    </option>
+                                                    <option value="meeting" {{ contact.type == 'meeting' ? 'selected' : '' }}>Treffen
+                                                    </option>
+                                                    <option value="letter" {{ contact.type == 'letter' ? 'selected' : '' }}>Brief
+                                                    </option>
+                                                    <option value="other" {{ contact.type == 'other' ? 'selected' : '' }}>Sonstiges
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Vereinbarung</label>
+                                                <select name="sponsorship_id" class="form-select">
+                                                    <option value="">– Keine –</option>
+                                                    {% for sp in sponsor.sponsorships %}
+                                                        <option value="{{ sp.id }}"
+                                                                {{ contact.sponsorship_id == sp.id ? 'selected' : '' }}>
+                                                            #{{ sp.id }}
+                                                            {% if sp.package %}– {{ sp.package.name }}{% endif %}
+                                                            ({{ sp.amount|number_format(2, '.', ',') }} €)
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">
+                                                    Zusammenfassung <span class="text-danger">*</span>
+                                                </label>
+                                                <textarea name="summary" class="form-control" rows="3" required>{{ contact.summary }}</textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Wiedervorlage am</label>
+                                                <input type="date"
+                                                       name="follow_up_date"
+                                                       class="form-control"
+                                                       value="{{ contact.follow_up_date ? contact.follow_up_date.format('Y-m-d') : '' }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-save me-1"></i>Speichern
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                </form>
+                {% endfor %}
+            {% else %}
+                <div class="text-muted py-3">Noch keine Kontakte vorhanden.</div>
+            {% endif %}
+
+            {# Modal: Neuer Kontakt #}
+            <div class="modal fade"
+                 id="newContactModal"
+                 tabindex="-1"
+                 aria-hidden="true">
+                <div class="modal-dialog">
+                    <form method="post" action="/sponsoring/contacts">
+                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-chat-dots me-2"></i>Kontakt protokollieren
+                                </h5>
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            Datum <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date"
+                                               name="contact_date"
+                                               class="form-control"
+                                               value="{{ 'now'|date('Y-m-d') }}"
+                                               required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            Art <span class="text-danger">*</span>
+                                        </label>
+                                        <select name="type" class="form-select" required>
+                                            <option value="call">Anruf</option>
+                                            <option value="email">E-Mail</option>
+                                            <option value="meeting">Treffen</option>
+                                            <option value="letter">Brief</option>
+                                            <option value="other">Sonstiges</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Vereinbarung</label>
+                                        <select name="sponsorship_id" class="form-select">
+                                            <option value="">– Keine –</option>
+                                            {% for sp in sponsor.sponsorships %}
+                                                <option value="{{ sp.id }}">
+                                                    #{{ sp.id }}
+                                                    {% if sp.package %}– {{ sp.package.name }}{% endif %}
+                                                    ({{ sp.amount|number_format(2, '.', ',') }} €)
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">
+                                            Zusammenfassung <span class="text-danger">*</span>
+                                        </label>
+                                        <textarea name="summary" class="form-control" rows="3" required></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Wiedervorlage am</label>
+                                        <input type="date" name="follow_up_date" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg me-1"></i>Speichern
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock %}

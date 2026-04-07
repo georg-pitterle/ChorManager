@@ -3,95 +3,102 @@
 {% block title %}Newsletter erstellen{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
-        <h1 class="h2 mb-1">Neuer Newsletter</h1>
-        <p class="text-muted mb-0">Projekt: <strong>{{ project.name }}</strong></p>
-    </div>
-    <div class="page-actions">
-        <a href="/newsletters?project_id={{ project.id }}&status=draft" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Zurück zur Übersicht
-        </a>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <h1 class="h2 mb-1">Neuer Newsletter</h1>
+            <p class="text-muted mb-0">
+                Projekt: <strong>{{ project.name }}</strong>
+            </p>
+        </div>
+        <div class="page-actions">
+            <a href="/newsletters?project_id={{ project.id }}&status=draft"
+               class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Zurück zur Übersicht
+            </a>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <form id="create-newsletter-form" method="post" action="/newsletters">
-        <div class="surface-card form-surface card mb-4 border-0">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">Newsletter-Einstellungen</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label for="project_id" class="form-label">Projekt <span class="text-danger">*</span></label>
-                    <select class="form-select" id="project_id" name="project_id" required>
-                        {% for selectable_project in projects %}
-                        <option value="{{ selectable_project.id }}" {% if selectable_project.id == project.id %}selected{% endif %}>
-                            {{ selectable_project.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+    <div class="container">
+        <form id="create-newsletter-form" method="post" action="/newsletters">
+            <div class="surface-card form-surface card mb-4 border-0">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Newsletter-Einstellungen</h5>
                 </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="project_id" class="form-label">
+                            Projekt <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="project_id" name="project_id" required>
+                            {% for selectable_project in projects %}
+                                <option value="{{ selectable_project.id }}"
+                                        {% if selectable_project.id == project.id %}selected{% endif %}>{{ selectable_project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="title" class="form-label">Titel <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="title" name="title"
-                           placeholder="z.B. Januar Newsletter 2026" required>
-                </div>
+                    <div class="mb-3">
+                        <label for="title" class="form-label">
+                            Titel <span class="text-danger">*</span>
+                        </label>
+                        <input type="text"
+                               class="form-control"
+                               id="title"
+                               name="title"
+                               placeholder="z.B. Januar Newsletter 2026"
+                               required>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="event_id" class="form-label">Event (optional)</label>
-                    <select class="form-select" id="event_id" name="event_id">
-                        <option value="">-- Keine Auswahl --</option>
-                        {% for event in events %}
-                        <option value="{{ event.id }}" data-project-id="{{ event.project_id }}">
-                            {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    <div class="form-text">
-                        Wenn ein Event ausgewählt wird, erhalten nur die Teilnehmer dieses Events den Newsletter.
+                    <div class="mb-3">
+                        <label for="event_id" class="form-label">Event (optional)</label>
+                        <select class="form-select" id="event_id" name="event_id">
+                            <option value="">-- Keine Auswahl --</option>
+                            {% for event in events %}
+                                <option value="{{ event.id }}" data-project-id="{{ event.project_id }}">
+                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Wenn ein Event ausgewählt wird, erhalten nur die Teilnehmer dieses Events den Newsletter.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="template" class="form-label">Vorlage laden (optional)</label>
+                        <select class="form-select" id="template" data-action="load-template">
+                            <option value="">-- Keine Vorlage --</option>
+                            {% for template in templates %}
+                                <option value="{{ template.id }}">[{{ template.category|upper }}] {{ template.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                <div class="mb-3">
-                    <label for="template" class="form-label">Vorlage laden (optional)</label>
-                    <select class="form-select" id="template" data-action="load-template">
-                        <option value="">-- Keine Vorlage --</option>
-                        {% for template in templates %}
-                        <option value="{{ template.id }}">
-                            [{{ template.category|upper }}] {{ template.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+            <div class="surface-card form-surface card mb-4 border-0">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Inhalt</h5>
+                </div>
+                <div class="card-body">
+                    <textarea id="content_html" name="content_html" class="tinymce-editor"></textarea>
                 </div>
             </div>
-        </div>
 
-        <div class="surface-card form-surface card mb-4 border-0">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">Inhalt</h5>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="/newsletters?project_id={{ project.id }}&status=draft"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Abbrechen
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Erstellen als Entwurf
+                </button>
             </div>
-            <div class="card-body">
-                <textarea id="content_html" name="content_html" class="tinymce-editor"></textarea>
-            </div>
-        </div>
+        </form>
+    </div>
 
-        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-            <a href="/newsletters?project_id={{ project.id }}&status=draft" class="btn btn-outline-secondary">
-                <i class="bi bi-x-circle"></i> Abbrechen
-            </a>
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-check-circle"></i> Erstellen als Entwurf
-            </button>
-        </div>
-    </form>
-</div>
-
-<script>
+    <script>
 function filterEventsByProject() {
     const projectId = document.getElementById('project_id').value;
     const eventSelect = document.getElementById('event_id');
@@ -144,5 +151,5 @@ document.getElementById('create-newsletter-form').addEventListener('submit', asy
 });
 
 filterEventsByProject();
-</script>
+    </script>
 {% endblock %}

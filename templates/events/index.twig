@@ -1,257 +1,306 @@
-{% extends 'layout.twig' %}
+{{ extends 'layout.twig' }}
 
-{% block title %}Events (Termine) - Chor Manager{% endblock %}
+{% block title %}
+    Events (Termine) - Chor Manager
+{% endblock title %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Termine</p>
-        <h1 class="h2 mb-1">Events</h1>
-        <p class="text-muted mb-0">Plane Termine, filtere Ergebnisse und bearbeite Serien konsistent an einem Ort.</p>
-    </div>
-    {% if session.can_manage_users %}
-    <div class="page-actions">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
-            <i class="bi bi-calendar-plus"></i> Termin erstellen
-        </button>
-    </div>
-    {% endif %}
-</section>
-{% endblock %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Termine</p>
+            <h1 class="h2 mb-1">Events</h1>
+            <p class="text-muted mb-0">Plane Termine, filtere Ergebnisse und bearbeite Serien konsistent an einem Ort.</p>
+        </div>
+        {% if session.can_manage_users %}
+            <div class="page-actions">
+                <button type="button"
+                        class="btn btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addEventModal">
+                    <i class="bi bi-calendar-plus"></i> Termin erstellen
+                </button>
+            </div>
+        {% endif %}
+    </section>
+{% endblock page_header %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-
-<div class="surface-card card border-0 mb-4 filter-surface">
-    <div class="card-body">
-        <form method="get" action="/events" id="event-filter-form" class="row g-3 align-items-end">
-            <div class="col-12 col-md-5 mb-2">
-                <label for="filter_project" class="form-label small">Projekt</label>
-                <select name="project_id" id="filter_project" class="form-select">
-                    <option value="">Alle Projekte</option>
-                    {% for p in projects %}
-                        <option value="{{ p.id }}" {% if filters.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-5 mb-2">
-                <label for="filter_type" class="form-label small">Event-Typ</label>
-                <select name="event_type_id" id="filter_type" class="form-select">
-                    <option value="">Alle Typen</option>
-                    {% for et in event_types %}
-                        <option value="{{ et.id }}" {% if filters.event_type_id == et.id %}selected{% endif %}>{{ et.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-2 mb-2">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="show_old_events"
-                        name="show_old_events" value="1"
-                        {% if filters.show_old_events %}checked{% endif %}>
-                    <label class="form-check-label small" for="show_old_events">
-                        Alte Termine anzeigen
-                    </label>
-                </div>
-            </div>
-            <div class="col-12 col-md-2 d-flex align-items-end mb-2">
-                <a href="/events" class="btn btn-outline-secondary w-100">
-                    <i class="bi bi-x-circle"></i> Reset
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="surface-card card border-0 table-shell">
-            <div class="card-body p-0" data-table-engine="true" data-table-id="events.index" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="event_date" data-default-sort-dir="desc">
-                {{ include('partials/table_toolbar.twig') }}
-        <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-responsive-cards" id="eventsTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th data-sort-key="event_date" data-sort-type="date">Datum</th>
-                        <th data-sort-key="title" data-sort-type="text">Titel</th>
-                        <th data-sort-key="location" data-sort-type="text">Ort</th>
-                        <th data-sort-key="type" data-sort-type="text">Typ</th>
-                        <th data-sort-key="project_name" data-sort-type="text">Projekt</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for event in events %}
-                    <tr
-                        data-sort-event_date="{{ event.event_date|date('Y-m-d') }}"
-                        data-sort-title="{{ event.title|lower }}"
-                        data-sort-location="{{ event.location|default('')|lower }}"
-                        data-sort-type="{{ event.type_name|lower }}"
-                        data-sort-project_name="{{ event.project_name|default('')|lower }}"
-                    >
-                        <td data-label="Datum">
-                            <strong>{{ event.event_date|date('d.m.Y') }}</strong>
-                            {% if event.series_id %}
-                                <i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>
-                            {% endif %}
-                        </td>
-                        <td data-label="Titel">{{ event.title }}</td>
-                        <td data-label="Ort">{{ event.location|default('-') }}</td>
-                        <td data-label="Typ">
-                            <span class="badge bg-{{ event.type_color }}">
-                                {{ event.type_name }}
-                            </span>
-                        </td>
-                        <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
-                        <td data-label="Aktionen" class="text-end">
-                            <div class="btn-group">
-                                <a href="/attendance/{{ event.id }}" class="btn btn-sm btn-outline-primary" title="Anwesenheiten">
-                                    <i class="bi bi-clipboard-check"></i> Anwesenheit
-                                </a>
-                                {% if session.can_manage_users or session.role_level >= 40 %}
-                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
-                                    <span class="visually-hidden">Toggle Dropdown</span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <a href="/events/{{ event.id }}/edit" class="dropdown-item">
-                                            <i class="bi bi-pencil me-2"></i> Termin bearbeiten
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <form action="/events/{{ event.id }}/delete" method="post" onsubmit="return confirm('Diesen Termin wirklich löschen?');">
-                                            <button type="submit" class="dropdown-item text-danger">
-                                                <i class="bi bi-trash me-2"></i> Termin löschen
-                                            </button>
-                                        </form>
-                                    </li>
-                                    {% if event.series_id %}
-                                    <li>
-                                        <form action="/events/{{ event.id }}/delete-series" method="post" onsubmit="return confirm('Die gesamte Serie ab diesem Termin wirklich löschen?');">
-                                            <button type="submit" class="dropdown-item text-danger">
-                                                <i class="bi bi-repeat me-2"></i> Serie löschen
-                                            </button>
-                                        </form>
-                                    </li>
-                                    {% endif %}
-                                </ul>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">Keine Termine geplant.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
-    </div>
-</div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-{% if session.can_manage_users %}
-<!-- Add Event Modal -->
-<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="/events" method="post" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addEventModalLabel">Neuen Termin anlegen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="title" class="form-label">Titel *</label>
-                    <input type="text" class="form-control" id="title" name="title" required>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="event_date" class="form-label">Datum *</label>
-                        <input type="date" class="form-control" id="event_date" name="event_date" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="event_type_id" class="form-label">Typ *</label>
-                        <select class="form-select" id="event_type_id" name="event_type_id" required>
-                            {% for et in event_types %}
-                                <option value="{{ et.id }}">{{ et.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="location" class="form-label">Ort (Optional)</label>
-                    <input type="text" class="form-control" id="location" name="location">
-                </div>
-                <div class="mb-3">
-                    <label for="project_id" class="form-label">Projekt (Optional)</label>
-                    <select class="form-select" id="project_id" name="project_id">
-                        <option value="">Keinem Projekt zuordnen</option>
-                        {% for project in projects %}
-                            <option value="{{ project.id }}">{{ project.name }}</option>
+    <div class="surface-card card border-0 mb-4 filter-surface">
+        <div class="card-body">
+            <form method="get"
+                  action="/events"
+                  id="event-filter-form"
+                  class="row g-3 align-items-end">
+                <div class="col-12 col-md-5 mb-2">
+                    <label for="filter_project" class="form-label small">Projekt</label>
+                    <select name="project_id" id="filter_project" class="form-select">
+                        <option value="">Alle Projekte</option>
+                        {% for p in projects %}
+                            <option value="{{ p.id }}"
+                                    {% if filters.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-
-                <hr class="my-4">
-
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="repeat_event" name="repeat" value="1">
-                    <label class="form-check-label fw-bold" for="repeat_event">
-                        Termin wiederholen
-                    </label>
+                <div class="col-12 col-md-5 mb-2">
+                    <label for="filter_type" class="form-label small">Event-Typ</label>
+                    <select name="event_type_id" id="filter_type" class="form-select">
+                        <option value="">Alle Typen</option>
+                        {% for et in event_types %}
+                            <option value="{{ et.id }}"
+                                    {% if filters.event_type_id == et.id %}selected{% endif %}>{{ et.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
+                <div class="col-12 col-md-2 mb-2">
+                    <div class="form-check">
+                        <input type="checkbox"
+                               class="form-check-input"
+                               id="show_old_events"
+                               name="show_old_events"
+                               value="1"
+                               {% if filters.show_old_events %}checked{% endif %}>
+                        <label class="form-check-label small" for="show_old_events">Alte Termine anzeigen</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-2 d-flex align-items-end mb-2">
+                    <a href="/events" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-x-circle"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 
-                <div id="recurrence_options" style="display: none;">
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Wiederhole jeden</label>
-                            <input type="number" class="form-control" name="recurrence_interval" value="1" min="1">
+    <div class="surface-card card border-0 table-shell">
+        <div class="card-body p-0"
+             data-table-engine="true"
+             data-table-id="events.index"
+             data-default-view="auto"
+             data-default-page-size="100"
+             data-page-size-options="25,50,100,200"
+             data-default-sort-key="event_date"
+             data-default-sort-dir="desc">
+            {{ include('partials/table_toolbar.twig') }}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-responsive-cards"
+                       id="eventsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th data-sort-key="event_date" data-sort-type="date">Datum</th>
+                            <th data-sort-key="title" data-sort-type="text">Titel</th>
+                            <th data-sort-key="location" data-sort-type="text">Ort</th>
+                            <th data-sort-key="type" data-sort-type="text">Typ</th>
+                            <th data-sort-key="project_name" data-sort-type="text">Projekt</th>
+                            <th class="text-end">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                            <tr data-sort-event_date="{{ event.event_date|date('Y-m-d') }}"
+                                data-sort-title="{{ event.title|lower }}"
+                                data-sort-location="{{ event.location|default('')|lower }}"
+                                data-sort-type="{{ event.type_name|lower }}"
+                                data-sort-project_name="{{ event.project_name|default('')|lower }}">
+                                <td data-label="Datum">
+                                    <strong>{{ event.event_date|date('d.m.Y') }}</strong>
+                                    {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
+                                </td>
+                                <td data-label="Titel">{{ event.title }}</td>
+                                <td data-label="Ort">{{ event.location|default('-') }}</td>
+                                <td data-label="Typ">
+                                    <span class="badge bg-{{ event.type_color }}">{{ event.type_name }}</span>
+                                </td>
+                                <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
+                                <td data-label="Aktionen" class="text-end">
+                                    <div class="btn-group">
+                                        <a href="/attendance/{{ event.id }}"
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Anwesenheiten">
+                                            <i class="bi bi-clipboard-check"></i> Anwesenheit
+                                        </a>
+                                        {% if session.can_manage_users or session.role_level >= 40 %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    data-bs-boundary="viewport">
+                                                <span class="visually-hidden">Toggle Dropdown</span>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <a href="/events/{{ event.id }}/edit" class="dropdown-item">
+                                                        <i class="bi bi-pencil me-2"></i> Termin bearbeiten
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <form action="/events/{{ event.id }}/delete"
+                                                          method="post"
+                                                          onsubmit="return confirm('Diesen Termin wirklich löschen?');">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="bi bi-trash me-2"></i> Termin löschen
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% if event.series_id %}
+                                                    <li>
+                                                        <form action="/events/{{ event.id }}/delete-series"
+                                                              method="post"
+                                                              onsubmit="return confirm('Die gesamte Serie ab diesem Termin wirklich löschen?');">
+                                                            <button type="submit" class="dropdown-item text-danger">
+                                                                <i class="bi bi-repeat me-2"></i> Serie löschen
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                {% endif %}
+                                            </ul>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">Keine Termine geplant.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if session.can_manage_users %}
+        <!-- Add Event Modal -->
+        <div class="modal fade"
+             id="addEventModal"
+             tabindex="-1"
+             aria-labelledby="addEventModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="/events" method="post" class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addEventModalLabel">Neuen Termin anlegen</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Titel *</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">&nbsp;</label>
-                            <select class="form-select" name="frequency" id="frequency">
-                                <option value="daily">Tag</option>
-                                <option value="weekly" selected>Woche</option>
-                                <option value="monthly">Monat</option>
-                                <option value="yearly">Jahr</option>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="event_date" class="form-label">Datum *</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="event_date"
+                                       name="event_date"
+                                       required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="event_type_id" class="form-label">Typ *</label>
+                                <select class="form-select" id="event_type_id" name="event_type_id" required>
+                                    {% for et in event_types %}<option value="{{ et.id }}">{{ et.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Ort (Optional)</label>
+                            <input type="text" class="form-control" id="location" name="location">
+                        </div>
+                        <div class="mb-3">
+                            <label for="project_id" class="form-label">Projekt (Optional)</label>
+                            <select class="form-select" id="project_id" name="project_id">
+                                <option value="">Keinem Projekt zuordnen</option>
+                                {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
                             </select>
                         </div>
-                    </div>
 
-                    <div id="weekday_selector" class="mb-3">
-                        <label class="form-label small text-muted">am</label>
-                        <div class="d-flex flex-wrap gap-1">
-                            {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
-                                <input type="checkbox" class="btn-check" id="day_{{ loop.index }}" name="weekdays[]" value="{{ loop.index }}" {% if loop.index == 1 %}checked{% endif %}>
-                                <label class="btn btn-outline-primary btn-sm px-3" for="day_{{ loop.index }}">{{ day }}</label>
-                            {% endfor %}
+                        <hr class="my-4">
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="repeat_event"
+                                   name="repeat"
+                                   value="1">
+                            <label class="form-check-label fw-bold" for="repeat_event">Termin wiederholen</label>
+                        </div>
+
+                        <div id="recurrence_options" style="display: none;">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">Wiederhole jeden</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           name="recurrence_interval"
+                                           value="1"
+                                           min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">&nbsp;</label>
+                                    <select class="form-select" name="frequency" id="frequency">
+                                        <option value="daily">Tag</option>
+                                        <option value="weekly" selected>Woche</option>
+                                        <option value="monthly">Monat</option>
+                                        <option value="yearly">Jahr</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="weekday_selector" class="mb-3">
+                                <label class="form-label small text-muted">am</label>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
+                                        <input type="checkbox"
+                                               class="btn-check"
+                                               id="day_{{ loop.index }}"
+                                               name="weekdays[]"
+                                               value="{{ loop.index }}"
+                                               {% if loop.index == 1 %}checked{% endif %}>
+                                        <label class="btn btn-outline-primary btn-sm px-3"
+                                               for="day_{{ loop.index }}">{{ day }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="series_end_date" class="form-label small text-muted">Wiederholung beenden am</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="series_end_date"
+                                       name="series_end_date">
+                            </div>
                         </div>
                     </div>
-
-                    <div class="mb-3">
-                        <label for="series_end_date" class="form-label small text-muted">Wiederholung beenden am</label>
-                        <input type="date" class="form-control" id="series_end_date" name="series_end_date">
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
                     </div>
-                </div>
+                </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Speichern</button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endif %}
+        </div>
+    {% endif %}
 
-{% block scripts %}
-<script src="/js/events.js"></script>
-{% endblock %}
+    {% block scripts %}<script src="/js/events.js"></script>{% endblock %}
 {% endblock %}

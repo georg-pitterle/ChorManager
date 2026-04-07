@@ -14,6 +14,13 @@ composer_version: "2"
 web_environment: []
 corepack_enable: false
 default_container_timeout: "240"
+webimage_extra_packages: [python3-pip]
+
+hooks:
+  post-start:
+    - exec: "bash .ddev/commands/web/ensure-djlint"
+      service: web
+      user: root
 
 # Key features of DDEV's config.yaml:
 

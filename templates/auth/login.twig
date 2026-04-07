@@ -3,40 +3,51 @@
 {% block title %}Anmeldung - {{ app_settings.app_name|default('Chor Manager') }}{% endblock %}
 
 {% block content %}
-<section class="auth-shell">
-    <div class="auth-card surface-card">
-        <div class="auth-brand-panel">
-            <img src="/logo" alt="Logo" class="auth-logo mb-3">
-            <h1 class="h4 mb-2">{{ app_settings.app_name|default('Chor Manager') }}</h1>
-            <p class="mb-0">Bitte melde dich an, um fortzufahren.</p>
-        </div>
+    <section class="auth-shell">
+        <div class="auth-card surface-card">
+            <div class="auth-brand-panel">
+                <img src="/logo" alt="Logo" class="auth-logo mb-3">
+                <h1 class="h4 mb-2">{{ app_settings.app_name|default('Chor Manager') }}</h1>
+                <p class="mb-0">Bitte melde dich an, um fortzufahren.</p>
+            </div>
 
-        <div class="auth-form-panel p-4 p-md-5">
-            {% if error %}
-                <div class="alert alert-danger" role="alert">
-                    {{ error }}
-                </div>
-            {% endif %}
+            <div class="auth-form-panel p-4 p-md-5">
+                {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 
-            <form action="/login" method="post" class="d-grid gap-3">
-                <div class="form-floating">
-                    <input type="email" class="form-control" id="emailInput" name="email" placeholder="name@example.com" required autofocus>
-                    <label for="emailInput">E-Mail-Adresse</label>
-                </div>
-                <div class="form-floating">
-                    <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Passwort" required>
-                    <label for="passwordInput">Passwort</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="1" id="rememberMe" name="remember">
-                    <label class="form-check-label" for="rememberMe">Eingeloggt bleiben</label>
-                </div>
-                <button class="btn btn-primary btn-lg w-100" type="submit">Anmelden</button>
-                <div class="text-center">
-                    <a href="/forgot-password" class="text-muted small">Passwort vergessen?</a>
-                </div>
-            </form>
+                <form action="/login" method="post" class="d-grid gap-3">
+                    <div class="form-floating">
+                        <input type="email"
+                               class="form-control"
+                               id="emailInput"
+                               name="email"
+                               placeholder="name@example.com"
+                               required
+                               autofocus>
+                        <label for="emailInput">E-Mail-Adresse</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="password"
+                               class="form-control"
+                               id="passwordInput"
+                               name="password"
+                               placeholder="Passwort"
+                               required>
+                        <label for="passwordInput">Passwort</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               value="1"
+                               id="rememberMe"
+                               name="remember">
+                        <label class="form-check-label" for="rememberMe">Eingeloggt bleiben</label>
+                    </div>
+                    <button class="btn btn-primary btn-lg w-100" type="submit">Anmelden</button>
+                    <div class="text-center">
+                        <a href="/forgot-password" class="text-muted small">Passwort vergessen?</a>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 {% endblock %}

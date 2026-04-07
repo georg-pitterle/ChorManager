@@ -3,79 +3,95 @@
 {% block title %}App-Einstellungen - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
-        <h1 class="h2 mb-1">App-Einstellungen</h1>
-        <p class="text-muted mb-0">Name, Logo und Standardfarbe zentral verwalten.</p>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
+            <h1 class="h2 mb-1">App-Einstellungen</h1>
+            <p class="text-muted mb-0">Name, Logo und Standardfarbe zentral verwalten.</p>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="surface-card card border-0">
-            <div class="card-body p-4">
-                <form action="/settings" method="post" enctype="multipart/form-data" autocomplete="off">
-                    <div class="mb-4">
-                        <label for="app_name" class="form-label fw-bold">Name der App</label>
-                        <input type="text" class="form-control" id="app_name" name="app_name" value="{{ settings.app_name|default('Chor Manager') }}" required>
-                        <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
-                    </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="surface-card card border-0">
+                <div class="card-body p-4">
+                    <form action="/settings"
+                          method="post"
+                          enctype="multipart/form-data"
+                          autocomplete="off">
+                        <div class="mb-4">
+                            <label for="app_name" class="form-label fw-bold">Name der App</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="app_name"
+                                   name="app_name"
+                                   value="{{ settings.app_name|default('Chor Manager') }}"
+                                   required>
+                            <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
+                        </div>
 
-                    <div class="mb-4">
-                        <label for="app_logo" class="form-label fw-bold">Logo hochladen</label>
-                        <div class="d-flex align-items-start gap-4">
-                            <div class="bg-light p-3 rounded border text-center logo-preview-frame">
-                                <img src="/logo" alt="Aktuelles Logo" class="mb-2 d-inline-block logo-preview">
-                                <div class="small text-muted">Aktuelles Logo</div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <input class="form-control" type="file" id="app_logo" name="app_logo" accept="image/*">
-                                <div class="form-text">Empfohlen: Transparentes PNG oder SVG mit ca. 200x50 Pixeln.</div>
+                        <div class="mb-4">
+                            <label for="app_logo" class="form-label fw-bold">Logo hochladen</label>
+                            <div class="d-flex align-items-start gap-4">
+                                <div class="bg-light p-3 rounded border text-center logo-preview-frame">
+                                    <img src="/logo"
+                                         alt="Aktuelles Logo"
+                                         class="mb-2 d-inline-block logo-preview">
+                                    <div class="small text-muted">Aktuelles Logo</div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <input class="form-control"
+                                           type="file"
+                                           id="app_logo"
+                                           name="app_logo"
+                                           accept="image/*">
+                                    <div class="form-text">Empfohlen: Transparentes PNG oder SVG mit ca. 200x50 Pixeln.</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="mb-4">
-                        <label for="primary_color" class="form-label fw-bold">Primärfarbe</label>
-                        <input
-                            type="text"
-                            class="form-control"
-                            id="primary_color"
-                            name="primary_color"
-                            value="{{ settings.primary_color|default('#E8A817') }}"
-                            inputmode="text"
-                            pattern="^#?[A-Fa-f0-9]{3}([A-Fa-f0-9]{3})?$"
-                        >
-                        <div class="form-text">
-                            Hex-Farbwert, zum Beispiel #E8A817. Leer oder ungültig fällt auf das Standardgelb zurück.
+                        <div class="mb-4">
+                            <label for="primary_color" class="form-label fw-bold">Primärfarbe</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="primary_color"
+                                   name="primary_color"
+                                   value="{{ settings.primary_color|default('#E8A817') }}"
+                                   inputmode="text"
+                                   pattern="^#?[A-Fa-f0-9]{3}([A-Fa-f0-9]{3})?$">
+                            <div class="form-text">Hex-Farbwert, zum Beispiel #E8A817. Leer oder ungültig fällt auf das Standardgelb zurück.</div>
                         </div>
-                    </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Einstellungen speichern
-                        </button>
-                    </div>
-                </form>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Einstellungen speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock %}

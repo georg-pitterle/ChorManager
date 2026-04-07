@@ -3,120 +3,156 @@
 {% block title %}Anwesenheitsliste - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Auswertung</p>
-        <h1 class="h2 mb-1">Anwesenheiten eintragen</h1>
-        <p class="text-muted mb-0">Termine auswählen und Anwesenheitsstatus strukturiert erfassen.</p>
-    </div>
-    <div class="page-actions d-flex flex-column flex-md-row gap-2">
-        <div class="btn-group" role="group" aria-label="Termin Navigation">
-            <a href="{% if previous_event_id %}/attendance/{{ previous_event_id }}{% else %}#{% endif %}" class="btn btn-outline-secondary {% if not previous_event_id %}disabled{% endif %}" {% if not previous_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
-                <i class="bi bi-chevron-left"></i> Vorheriger Termin
-            </a>
-            <a href="{% if next_event_id %}/attendance/{{ next_event_id }}{% else %}#{% endif %}" class="btn btn-outline-secondary {% if not next_event_id %}disabled{% endif %}" {% if not next_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
-                Nächster Termin <i class="bi bi-chevron-right"></i>
-            </a>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Auswertung</p>
+            <h1 class="h2 mb-1">Anwesenheiten eintragen</h1>
+            <p class="text-muted mb-0">Termine auswählen und Anwesenheitsstatus strukturiert erfassen.</p>
         </div>
+        <div class="page-actions d-flex flex-column flex-md-row gap-2">
+            <div class="btn-group" role="group" aria-label="Termin Navigation">
+                <a href="{% if previous_event_id %}/attendance/{{ previous_event_id }}{% else %}#{% endif %}"
+                   class="btn btn-outline-secondary
+                          {% if not previous_event_id %}disabled{% endif %}"
+                   {% if not previous_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
+                    <i class="bi bi-chevron-left"></i> Vorheriger Termin
+                </a>
+                <a href="{% if next_event_id %}/attendance/{{ next_event_id }}{% else %}#{% endif %}"
+                   class="btn btn-outline-secondary
+                          {% if not next_event_id %}disabled{% endif %}"
+                   {% if not next_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
+                    Nächster Termin <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
 
-        <form class="d-flex" method="get" action="/attendance" id="eventSelectForm">
-            <select class="form-select attendance-selector" name="event_id">
-                <option value="">-- Termin wählen --</option>
-                {% for e in events %}
-                    <option value="{{ e.id }}" {% if current_event and current_event.id == e.id %}selected{% endif %}>
-                        {{ e.event_date|date('d.m.Y') }} - {{ e.title }} ({{ e.type }})
-                    </option>
-                {% endfor %}
-            </select>
-        </form>
-    </div>
-</section>
+            <form class="d-flex" method="get" action="/attendance" id="eventSelectForm">
+                <select class="form-select attendance-selector" name="event_id">
+                    <option value="">-- Termin wählen --</option>
+                    {% for e in events %}
+                        <option value="{{ e.id }}"
+                                {% if current_event and current_event.id == e.id %}selected{% endif %}>{{ e.event_date|date('d.m.Y') }} - {{ e.title }} ({{ e.type }})</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-{% if current_event %}
-<section class="surface-card form-surface mb-4">
-<div class="card shadow-sm mb-0 border-primary border-0">
-    <div class="card-body">
-        <h5 class="card-title text-primary">{{ current_event.title }}</h5>
-        <h6 class="card-subtitle mb-2 text-muted">
-            {{ current_event.event_date|date('d.m.Y') }}
-            {% if current_event.location %} | <i class="bi bi-geo-alt"></i> {{ current_event.location }}{% endif %}
-            | Typ: {{ current_event.type }}
-        </h6>
-    </div>
-</div>
-</section>
-
-<form action="/attendance/{{ current_event.id }}" method="post">
-    {% set has_members = false %}
-    <div class="row">
-        {% for vg_name, members in voice_groups %}
-            {% set has_members = true %}
-            <div class="col-md-6 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-header">
-                        <h5 class="mb-0">{{ vg_name }}</h5>
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        {% for member in members %}
-                        <li class="list-group-item">
-                            <div class="fw-bold mb-1">
-                                {{ member.last_name }}, {{ member.first_name }}
-                                {% if member.sub_voice_name %}
-                                    <small class="text-muted fw-normal">({{ member.sub_voice_name }})</small>
-                                {% endif %}
-                            </div>
-
-                            <div class="btn-group w-100 mb-2" role="group">
-                                <input type="radio" class="btn-check" name="attendance[{{ member.user_id }}]" id="att_{{ member.user_id }}_pres" value="present" {% if member.status == 'present' %}checked{% endif %}>
-                                <label class="btn btn-outline-success" for="att_{{ member.user_id }}_pres"><i class="bi bi-check-circle"></i> Anwesend</label>
-
-                                <input type="radio" class="btn-check" name="attendance[{{ member.user_id }}]" id="att_{{ member.user_id }}_exc" value="excused" {% if member.status == 'excused' %}checked{% endif %}>
-                                <label class="btn btn-outline-warning" for="att_{{ member.user_id }}_exc"><i class="bi bi-envelope"></i> Entschuldigt</label>
-
-                                <input type="radio" class="btn-check" name="attendance[{{ member.user_id }}]" id="att_{{ member.user_id }}_unexc" value="unexcused" {% if member.status == 'unexcused' %}checked{% endif %}>
-                                <label class="btn btn-outline-danger" for="att_{{ member.user_id }}_unexc"><i class="bi bi-x-circle"></i> Unentschuldigt</label>
-                            </div>
-
-                            <input type="text" class="form-control form-control-sm" name="note[{{ member.user_id }}]" placeholder="Notiz (optional)" value="{{ member.note }}">
-                        </li>
-                        {% endfor %}
-                    </ul>
+    {% if current_event %}
+        <section class="surface-card form-surface mb-4">
+            <div class="card shadow-sm mb-0 border-primary border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{{ current_event.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ current_event.event_date|date('d.m.Y') }}
+                        {% if current_event.location %}| <i class="bi bi-geo-alt"></i> {{ current_event.location }}{% endif %}
+                        | Typ: {{ current_event.type }}
+                    </h6>
                 </div>
             </div>
-        {% endfor %}
-    </div>
+        </section>
 
-    {% if has_members %}
-    <div class="sticky-bottom bg-light p-3 border-top d-flex justify-content-end shadow">
-        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save"></i> Anwesenheiten speichern</button>
-    </div>
+        <form action="/attendance/{{ current_event.id }}" method="post">
+            {% set has_members = false %}
+            <div class="row">
+                {% for vg_name, members in voice_groups %}
+                    {% set has_members = true %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header">
+                                <h5 class="mb-0">{{ vg_name }}</h5>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                {% for member in members %}
+                                    <li class="list-group-item">
+                                        <div class="fw-bold mb-1">
+                                            {{ member.last_name }}, {{ member.first_name }}
+                                            {% if member.sub_voice_name %}<small class="text-muted fw-normal">({{ member.sub_voice_name }})</small>{% endif %}
+                                        </div>
+
+                                        <div class="btn-group w-100 mb-2" role="group">
+                                            <input type="radio"
+                                                   class="btn-check"
+                                                   name="attendance[{{ member.user_id }}]"
+                                                   id="att_{{ member.user_id }}_pres"
+                                                   value="present"
+                                                   {% if member.status == 'present' %}checked{% endif %}>
+                                            <label class="btn btn-outline-success" for="att_{{ member.user_id }}_pres">
+                                                <i class="bi bi-check-circle"></i> Anwesend
+                                            </label>
+
+                                            <input type="radio"
+                                                   class="btn-check"
+                                                   name="attendance[{{ member.user_id }}]"
+                                                   id="att_{{ member.user_id }}_exc"
+                                                   value="excused"
+                                                   {% if member.status == 'excused' %}checked{% endif %}>
+                                            <label class="btn btn-outline-warning" for="att_{{ member.user_id }}_exc">
+                                                <i class="bi bi-envelope"></i> Entschuldigt
+                                            </label>
+
+                                            <input type="radio"
+                                                   class="btn-check"
+                                                   name="attendance[{{ member.user_id }}]"
+                                                   id="att_{{ member.user_id }}_unexc"
+                                                   value="unexcused"
+                                                   {% if member.status == 'unexcused' %}checked{% endif %}>
+                                            <label class="btn btn-outline-danger" for="att_{{ member.user_id }}_unexc">
+                                                <i class="bi bi-x-circle"></i> Unentschuldigt
+                                            </label>
+                                        </div>
+
+                                        <input type="text"
+                                               class="form-control form-control-sm"
+                                               name="note[{{ member.user_id }}]"
+                                               placeholder="Notiz (optional)"
+                                               value="{{ member.note }}">
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if has_members %}
+                <div class="sticky-bottom bg-light p-3 border-top d-flex justify-content-end shadow">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save"></i> Anwesenheiten speichern
+                    </button>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    Keine Mitglieder gefunden, für die Sie die Anwesenheit eintragen können. Evtl. ist diesem Termin keine Gruppe zugeordnet, oder Ihre Berechtigungen schränken die Anzeige ein.
+                </div>
+            {% endif %}
+        </form>
+
     {% else %}
-    <div class="alert alert-info">
-        Keine Mitglieder gefunden, für die Sie die Anwesenheit eintragen können. Evtl. ist diesem Termin keine Gruppe zugeordnet, oder Ihre Berechtigungen schränken die Anzeige ein.
-    </div>
+        <div class="alert alert-info py-5 text-center">
+            <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
+            Kein Termin ausgewählt oder es existieren noch keine Termine im Projekt.
+        </div>
     {% endif %}
-</form>
-
-{% else %}
-<div class="alert alert-info py-5 text-center">
-    <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
-    Kein Termin ausgewählt oder es existieren noch keine Termine im Projekt.
-</div>
-{% endif %}
 
 {% endblock %}

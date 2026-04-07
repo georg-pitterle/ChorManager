@@ -1,6 +1,8 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white pb-0 border-bottom-0">
-        <h5 class="mb-0"><i class="bi bi-paperclip text-info me-2"></i>Anhänge</h5>
+        <h5 class="mb-0">
+            <i class="bi bi-paperclip text-info me-2"></i>Anhänge
+        </h5>
     </div>
     <div class="card-body">
         {% if attachments|length > 0 %}
@@ -10,15 +12,21 @@
                         <div class="d-flex align-items-center">
                             <i class="bi bi-file-earmark-text text-muted fs-4 me-3"></i>
                             <div>
-                                <a href="{{ download_url }}/{{ attachment.id }}/download" class="text-decoration-none fw-medium text-dark">
-                                    {{ attachment.original_name }}
-                                </a>
-                                <div class="text-muted small">{{ attachment.file_size ? (attachment.file_size / 1024)|round(1) ~ ' KB' : '?' }} &bull; {{ attachment.created_at|date('d.m.Y') }}</div>
+                                <a href="{{ download_url }}/{{ attachment.id }}/download"
+                                   class="text-decoration-none fw-medium text-dark">{{ attachment.original_name }}</a>
+                                <div class="text-muted small">
+                                    {{ attachment.file_size ? (attachment.file_size / 1024)|round(1) ~ ' KB' : '?' }} &bull; {{ attachment.created_at|date('d.m.Y') }}
+                                </div>
                             </div>
                         </div>
                         <div>
-                            <form action="{{ delete_url }}/{{ attachment.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Möchten Sie diesen Anhang wirklich löschen?');">
-                                <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Löschen">
+                            <form action="{{ delete_url }}/{{ attachment.id }}/delete"
+                                  method="post"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Möchten Sie diesen Anhang wirklich löschen?');">
+                                <button type="submit"
+                                        class="btn btn-sm btn-link text-danger p-0"
+                                        title="Löschen">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
@@ -30,11 +38,20 @@
             <p class="text-muted small mb-3">Noch keine Anhänge vorhanden.</p>
         {% endif %}
 
-        <form action="{{ upload_url }}" method="post" enctype="multipart/form-data" class="bg-light p-3 rounded-3">
+        <form action="{{ upload_url }}"
+              method="post"
+              enctype="multipart/form-data"
+              class="bg-light p-3 rounded-3">
             <label class="form-label small fw-bold mb-1">Neue Dateien hochladen</label>
             <div class="input-group input-group-sm">
-                <input type="file" class="form-control" name="attachments[]" multiple required>
-                <button class="btn btn-outline-primary" type="submit"><i class="bi bi-upload"></i> Hochladen</button>
+                <input type="file"
+                       class="form-control"
+                       name="attachments[]"
+                       multiple
+                       required>
+                <button class="btn btn-outline-primary" type="submit">
+                    <i class="bi bi-upload"></i> Hochladen
+                </button>
             </div>
         </form>
     </div>

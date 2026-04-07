@@ -1,12 +1,17 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white pb-0 border-bottom-0">
-        <h5 class="mb-0"><i class="bi bi-clock-history text-secondary me-2"></i>Aktivitätsverlauf</h5>
+        <h5 class="mb-0">
+            <i class="bi bi-clock-history text-secondary me-2"></i>Aktivitätsverlauf
+        </h5>
     </div>
     <div class="card-body">
         <div class="timeline">
             {% for activity in activities %}
                 <div class="timeline-item pb-3 border-start ms-2 ps-3 position-relative border-secondary">
-                    <div class="timeline-marker bg-secondary rounded-circle position-absolute start-0 translate-middle" style="width: 12px; height: 12px; top: 6px;"></div>
+                    <div class="timeline-marker bg-secondary rounded-circle position-absolute start-0 translate-middle"
+                         style="width: 12px;
+                                height: 12px;
+                                top: 6px"></div>
                     <div class="d-flex justify-content-between">
                         <strong class="small">{{ activity.user.first_name }} {{ activity.user.last_name }}</strong>
                         <small class="text-muted">{{ activity.created_at|date('d.m.Y H:i') }}</small>

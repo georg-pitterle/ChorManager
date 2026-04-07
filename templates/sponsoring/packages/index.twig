@@ -3,132 +3,184 @@
 {% block title %}Sponsoring-Pakete - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
-        <h1 class="h2 mb-1"><i class="bi bi-box-seam me-2"></i>Sponsoring-Pakete</h1>
-        <p class="text-muted mb-0">Pakete, Mindestbeträge und Farben zentral verwalten.</p>
-    </div>
-    <div class="page-actions">
-        <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Zurück zum Dashboard</a>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-box-seam me-2"></i>Sponsoring-Pakete
+            </h1>
+            <p class="text-muted mb-0">Pakete, Mindestbeträge und Farben zentral verwalten.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Zurück zum Dashboard</a>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ success }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-{% if error %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    {{ error }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
 
-<div class="surface-card table-shell">
-<div class="table-responsive">
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>Name</th>
-                <th>Beschreibung</th>
-                <th>Mindestbetrag</th>
-                <th>Farbe</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for pkg in packages %}
-            <tr>
-                <td>
-                    <span class="badge bg-{{ pkg.color }} fs-6">{{ pkg.name }}</span>
-                </td>
-                <td class="small text-muted">{{ pkg.description ?? '–' }}</td>
-                <td class="text-nowrap">{{ pkg.min_amount|number_format(2, '.', ',') }} €</td>
-                <td><span class="badge bg-{{ pkg.color }}">{{ pkg.color }}</span></td>
-                <td class="text-end text-nowrap">
-                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editPackageModal{{ pkg.id }}">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <form method="post" action="/sponsoring/packages/{{ pkg.id }}/delete" class="d-inline"
-                          onsubmit="return confirm('Paket „{{ pkg.name }}" löschen?');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                </td>
-            </tr>
+    <div class="surface-card table-shell">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Beschreibung</th>
+                        <th>Mindestbetrag</th>
+                        <th>Farbe</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pkg in packages %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-{{ pkg.color }} fs-6">{{ pkg.name }}</span>
+                            </td>
+                            <td class="small text-muted">{{ pkg.description ?? '–' }}</td>
+                            <td class="text-nowrap">{{ pkg.min_amount|number_format(2, '.', ',') }} €</td>
+                            <td>
+                                <span class="badge bg-{{ pkg.color }}">{{ pkg.color }}</span>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editPackageModal{{ pkg.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form method="post" action="/sponsoring/packages/{{ pkg.id }}/delete" class="d-inline"
+                                    onsubmit="return confirm('Paket „{{ pkg.name }}" löschen?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
 
-            {# Edit Modal #}
-            <div class="modal fade" id="editPackageModal{{ pkg.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
-                    <form method="post" action="/sponsoring/packages/{{ pkg.id }}">
-                        <div class="modal-content border-0 shadow">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Paket bearbeiten</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label">Name <span class="text-danger">*</span></label>
-                                    <input type="text" name="name" class="form-control" value="{{ pkg.name }}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Beschreibung</label>
-                                    <textarea name="description" class="form-control" rows="2">{{ pkg.description }}</textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Mindestbetrag (€)</label>
-                                    <input type="number" name="min_amount" class="form-control" step="0.01" min="0" value="{{ pkg.min_amount }}">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Farbe</label>
-                                    <select name="color" class="form-select">
-                                        {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
-                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+                        {# Edit Modal #}
+                        <div class="modal fade"
+                             id="editPackageModal{{ pkg.id }}"
+                             tabindex="-1"
+                             aria-hidden="true">
+                            <div class="modal-dialog">
+                                <form method="post" action="/sponsoring/packages/{{ pkg.id }}">
+                                    <div class="modal-content border-0 shadow">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Paket bearbeiten</h5>
+                                            <button type="button"
+                                                    class="btn-close"
+                                                    data-bs-dismiss="modal"
+                                                    aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    Name <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="text"
+                                                       name="name"
+                                                       class="form-control"
+                                                       value="{{ pkg.name }}"
+                                                       required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Beschreibung</label>
+                                                <textarea name="description" class="form-control" rows="2">{{ pkg.description }}</textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Mindestbetrag (€)</label>
+                                                <input type="number"
+                                                       name="min_amount"
+                                                       class="form-control"
+                                                       step="0.01"
+                                                       min="0"
+                                                       value="{{ pkg.min_amount }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Farbe</label>
+                                                <select name="color" class="form-select">
+                                                    {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
+                                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-save me-1"></i>Speichern
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
-                    </form>
-                </div>
-            </div>
-            {% else %}
-            <tr>
-                <td colspan="5" class="text-center text-muted py-4">Noch keine Pakete angelegt.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        {# Inline-Formular: Neues Paket #}
-        <tfoot>
-            <tr class="table-light">
-                <form method="post" action="/sponsoring/packages">
-                    <td><input type="text" name="name" class="form-control form-control-sm" placeholder="Name *" required></td>
-                    <td><input type="text" name="description" class="form-control form-control-sm" placeholder="Beschreibung"></td>
-                    <td><input type="number" name="min_amount" class="form-control form-control-sm" step="0.01" min="0" placeholder="0.00"></td>
-                    <td>
-                        <select name="color" class="form-select form-select-sm">
-                            {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
-                            <option value="{{ c }}">{{ c }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td class="text-end">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Hinzufügen</button>
-                    </td>
-                </form>
-            </tr>
-        </tfoot>
-    </table>
-</div>
-</div>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">Noch keine Pakete angelegt.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                {# Inline-Formular: Neues Paket #}
+                <tfoot>
+                    <tr class="table-light">
+                        <form method="post" action="/sponsoring/packages">
+                            <td>
+                                <input type="text"
+                                       name="name"
+                                       class="form-control form-control-sm"
+                                       placeholder="Name *"
+                                       required>
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="description"
+                                       class="form-control form-control-sm"
+                                       placeholder="Beschreibung">
+                            </td>
+                            <td>
+                                <input type="number"
+                                       name="min_amount"
+                                       class="form-control form-control-sm"
+                                       step="0.01"
+                                       min="0"
+                                       placeholder="0.00">
+                            </td>
+                            <td>
+                                <select name="color" class="form-select form-select-sm">
+                                    {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
+                                        <option value="{{ c }}">{{ c }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="text-end">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-plus-lg me-1"></i>Hinzufügen
+                                </button>
+                            </td>
+                        </form>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
 {% endblock %}

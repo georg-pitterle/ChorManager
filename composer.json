@@ -34,6 +34,17 @@
         "phpcbf": "phpcbf --standard=phpcs.xml src/",
         "twigcs": "twigcs --display blocking",
         "twigcbf": "twig-cs-fixer fix",
+        "twig:reformat": "djlint templates --profile=twig --extension=twig --reformat || true",
+        "twig:check": "djlint templates --profile=twig --extension=twig --check",
+        "twig:lint": "@twigcs",
+        "twig:fix": [
+            "@twig:reformat",
+            "@twigcbf"
+        ],
+        "twig:all": [
+            "@twig:fix",
+            "@twig:lint"
+        ],
         "migrate": "phinx migrate -e development",
         "seed:dev": "php bin/dev_seed.php",
         "test": "php vendor/bin/phpunit",

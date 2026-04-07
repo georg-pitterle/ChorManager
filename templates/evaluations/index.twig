@@ -3,96 +3,116 @@
 {% block title %}Auswertungen - Chor Manager{% endblock %}
 
 {% block page_header %}
-<section class="page-header">
-    <div>
-        <p class="text-uppercase text-muted small mb-1">Auswertung</p>
-        <h1 class="h2 mb-1">Auswertungen / Statistiken</h1>
-        <p class="text-muted mb-0">Anwesenheitsdaten projektbezogen analysieren und vergleichen.</p>
-    </div>
-    <div class="page-actions">
-        <form class="d-flex" method="get" action="/evaluations">
-            <select class="form-select onchange-submit" name="project_id">
-                <option value="">-- Projekt wählen --</option>
-                {% for p in projects %}
-                    <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
-                        {{ p.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </form>
-    </div>
-</section>
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Auswertung</p>
+            <h1 class="h2 mb-1">Auswertungen / Statistiken</h1>
+            <p class="text-muted mb-0">Anwesenheitsdaten projektbezogen analysieren und vergleichen.</p>
+        </div>
+        <div class="page-actions">
+            <form class="d-flex" method="get" action="/evaluations">
+                <select class="form-select onchange-submit" name="project_id">
+                    <option value="">-- Projekt wählen --</option>
+                    {% for p in projects %}
+                        <option value="{{ p.id }}"
+                                {% if selected_project and selected_project.id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </section>
 {% endblock %}
 
 {% block content %}
-{% if selected_project %}
-<section class="surface-card form-surface mb-4">
-<div class="card shadow-sm mb-0 border-info border-0">
-    <div class="card-body">
-        <h5 class="card-title text-info">Statistik für Projekt: {{ selected_project.name }}</h5>
-        <h6 class="card-subtitle mb-2 text-muted">Termine im Projekt: {{ total_events }}</h6>
-    </div>
-</div>
-</section>
+    {% if selected_project %}
+        <section class="surface-card form-surface mb-4">
+            <div class="card shadow-sm mb-0 border-info border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Statistik für Projekt: {{ selected_project.name }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">Termine im Projekt: {{ total_events }}</h6>
+                </div>
+            </div>
+        </section>
 
-<div class="surface-card card border-0 table-shell" data-table-engine="true" data-table-id="evaluations.index" data-default-view="auto" data-default-page-size="100" data-page-size-options="25,50,100,200" data-default-sort-key="name">
-    {{ include('partials/table_toolbar.twig') }}
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 table-responsive-cards" id="evaluationsTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th data-sort-key="name" data-sort-type="text">Name</th>
-                        <th data-sort-key="voice" data-sort-type="text">Stimmgruppe</th>
-                        <th class="text-center" data-sort-key="present" data-sort-type="number">Anwesend</th>
-                        <th class="text-center" data-sort-key="excused" data-sort-type="number">Entschuldigt</th>
-                        <th class="text-center" data-sort-key="unexcused" data-sort-type="number">Unentschuldigt</th>
-                        <th class="text-end" data-sort-key="percentage" data-sort-type="number">Quote</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in stats %}
-                    <tr data-sort-name="{{ (stat.last_name ~ ', ' ~ stat.first_name)|lower }}"
-                        data-sort-voice="{{ (stat.voice_group_name|default('-'))|lower }}"
-                        data-sort-present="{{ stat.present_count|default(0) }}"
-                        data-sort-excused="{{ stat.excused_count|default(0) }}"
-                        data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
-                        data-sort-percentage="{{ stat.percentage|default(0) }}">
-                        <td data-label="Name"><strong>{{ stat.last_name }}, {{ stat.first_name }}</strong></td>
-                        <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
-                        <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
-                        <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
-                        <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
-                        <td data-label="Quote" class="text-end">
-                            {% set bar_color = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
-                            <div class="d-flex align-items-center justify-content-end">
-                                <span class="me-2 fw-bold {% if stat.percentage >= 75 %}text-success{% elseif stat.percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ stat.percentage }}%</span>
-                                <div class="progress" style="width: 60px; height: 8px;">
-                                    <div class="progress-bar {{ bar_color }}" role="progressbar" style="width: {{ stat.percentage }}%;" aria-valuenow="{{ stat.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">Keine Statistiken für dieses Projekt verfügbar. Möglicherweise haben noch keine Termine stattgefunden oder es sind keine Mitglieder aktiv.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="surface-card card border-0 table-shell"
+             data-table-engine="true"
+             data-table-id="evaluations.index"
+             data-default-view="auto"
+             data-default-page-size="100"
+             data-page-size-options="25,50,100,200"
+             data-default-sort-key="name">
+            {{ include('partials/table_toolbar.twig') }}
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                           id="evaluationsTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th data-sort-key="name" data-sort-type="text">Name</th>
+                                <th data-sort-key="voice" data-sort-type="text">Stimmgruppe</th>
+                                <th class="text-center" data-sort-key="present" data-sort-type="number">Anwesend</th>
+                                <th class="text-center" data-sort-key="excused" data-sort-type="number">Entschuldigt</th>
+                                <th class="text-center" data-sort-key="unexcused" data-sort-type="number">Unentschuldigt</th>
+                                <th class="text-end" data-sort-key="percentage" data-sort-type="number">Quote</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in stats %}
+                                <tr data-sort-name="{{ (stat.last_name ~ ', ' ~ stat.first_name)|lower }}"
+                                    data-sort-voice="{{ (stat.voice_group_name|default('-'))|lower }}"
+                                    data-sort-present="{{ stat.present_count|default(0) }}"
+                                    data-sort-excused="{{ stat.excused_count|default(0) }}"
+                                    data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
+                                    data-sort-percentage="{{ stat.percentage|default(0) }}">
+                                    <td data-label="Name">
+                                        <strong>{{ stat.last_name }}, {{ stat.first_name }}</strong>
+                                    </td>
+                                    <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
+                                    <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
+                                    <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
+                                    <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
+                                    <td data-label="Quote" class="text-end">
+                                        {% set bar_color = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
+                                        <div class="d-flex align-items-center justify-content-end">
+                                            <span class="me-2 fw-bold
+                                                         {% if stat.percentage >= 75 %}
+                                                             text-success
+                                                         {% elseif stat.percentage >= 50 %}
+                                                             text-warning
+                                                         {% else %}
+                                                             text-danger
+                                                         {% endif %}">{{ stat.percentage }}%</span>
+                                            <div class="progress" style="width: 60px; height: 8px;">
+                                                <div class="progress-bar {{ bar_color }}"
+                                                     role="progressbar"
+                                                     style="width: {{ stat.percentage }}%"
+                                                     aria-valuenow="{{ stat.percentage }}"
+                                                     aria-valuemin="0"
+                                                     aria-valuemax="100"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        Keine Statistiken für dieses Projekt verfügbar. Möglicherweise haben noch keine Termine stattgefunden oder es sind keine Mitglieder aktiv.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
 
-{% else %}
-<div class="alert alert-info py-5 text-center shadow-sm">
-    <i class="bi bi-bar-chart-fill fs-1 d-block mb-3 text-info"></i>
-    Willkommen im Auswertungsbereich. Bitte wählen Sie oben rechts ein Projekt aus, um die entsprechenden Anwesenheitsquoten der Chormitglieder anzuzeigen.
-</div>
-{% endif %}
+    {% else %}
+        <div class="alert alert-info py-5 text-center shadow-sm">
+            <i class="bi bi-bar-chart-fill fs-1 d-block mb-3 text-info"></i>
+            Willkommen im Auswertungsbereich. Bitte wählen Sie oben rechts ein Projekt aus, um die entsprechenden Anwesenheitsquoten der Chormitglieder anzuzeigen.
+        </div>
+    {% endif %}
 
-{% block scripts %}
-<script src="/js/evaluations.js"></script>
-{% endblock %}
+    {% block scripts %}<script src="/js/evaluations.js"></script>{% endblock %}
 
 {% endblock %}
