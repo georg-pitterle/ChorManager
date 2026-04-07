@@ -1,0 +1,54 @@
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle
+              {% if is_areas_active %}active{% endif %}"
+       href="#"
+       data-bs-toggle="dropdown"
+       aria-expanded="false"><i class="bi bi-grid-3x3-gap-fill me-1"></i> Bereiche</a>
+    <ul class="dropdown-menu">
+        {% if session.can_manage_users or session.role_level >= 40 %}
+            <li>
+                <a class="dropdown-item
+                          {% if nav_active(path, nav, ['/users'], ['users']) %}active{% endif %}"
+                   href="/users"><i class="bi bi-people-fill me-2"></i> Mitgliederverwaltung</a>
+            </li>
+        {% endif %}
+        {% if session.can_manage_finances %}
+            <li>
+                <a class="dropdown-item
+                          {% if nav_active(path, nav, ['/finances'], ['finances']) %}active{% endif %}"
+                   href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a>
+            </li>
+        {% endif %}
+        {% if session.can_manage_sponsoring %}
+            <li>
+                <a class="dropdown-item
+                          {% if nav_active(path, nav, ['/sponsoring'], ['sponsoring']) %}active{% endif %}"
+                   href="/sponsoring"><i class="bi bi-briefcase me-2"></i> Sponsoring</a>
+            </li>
+        {% endif %}
+        {% if session.can_manage_song_library %}
+            <li>
+                <a class="dropdown-item
+                          {% if nav_active(path, nav, ['/song-library'], ['song_library']) %}active{% endif %}"
+                   href="/song-library"><i class="bi bi-music-note-list me-2"></i> Liedbibliothek</a>
+            </li>
+        {% endif %}
+        <li>
+            <a class="dropdown-item
+                      {% if nav_active(path, nav, ['/downloads'], ['downloads']) %}active{% endif %}"
+               href="/downloads"><i class="bi bi-download me-2"></i> Downloads</a>
+        </li>
+        <li>
+            <a class="dropdown-item
+                      {% if nav_active(path, nav, ['/newsletters'], ['newsletters']) %}active{% endif %}"
+               href="/newsletters?status=sent"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a>
+        </li>
+        {% if session.can_manage_newsletters %}
+            <li>
+                <a class="dropdown-item
+                          {% if nav_active(path, nav, ['/newsletters'], ['newsletters'], ['/newsletters/archive']) %}active{% endif %}"
+                   href="/newsletters"><i class="bi bi-envelope-open me-2"></i> Newsletter</a>
+            </li>
+        {% endif %}
+    </ul>
+</li>

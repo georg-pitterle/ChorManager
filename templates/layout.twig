@@ -4,11 +4,11 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description"
-              content="{{ app_settings.app_description|default('Chor Manager – Verwaltung von Mitgliedern, Terminen und Projekten.') }}">
+              content="{{ app_settings.app_description|default("Chor Manager – Verwaltung von Mitgliedern, Terminen und Projekten.") }}">
         <meta name="keywords"
-              content="{{ app_settings.app_keywords|default('chor, chorverwaltung, mitglieder, termine, projekte, newsletter') }}">
+              content="{{ app_settings.app_keywords|default("chor, chorverwaltung, mitglieder, termine, projekte, newsletter") }}">
         <title>
-            {% block title %}{{ app_settings.app_name|default('Chor Manager') }}{% endblock %}
+            {% block title %}{{ app_settings.app_name|default("Chor Manager") }}{% endblock %}
         </title>
         <!-- Bootstrap CSS -->
         <link rel="stylesheet" href="/vendor/bootstrap/dist/css/bootstrap.min.css">
@@ -26,8 +26,8 @@
             {% set nav = active_nav|default('') %}
             {% set is_dashboard_active = nav_active(path, nav, ['/', '/dashboard'], ['dashboard']) %}
             {% set is_events_active = nav_active(path, nav, ['/events', '/attendance'], ['events']) %}
-            {% set is_areas_active = nav_active(path, nav, ['/finances', '/sponsoring', '/song-library', '/downloads', '/newsletters'], ['finances', 'sponsoring', 'song_library', 'downloads', 'newsletters']) %}
-            {% set is_admin_active = nav_active(path, nav, ['/users', '/projects', '/roles', '/voice-groups', '/event-types', '/settings'], ['users', 'projects', 'roles', 'voice_groups', 'event_types', 'settings']) %}
+            {% set is_areas_active = nav_active(path, nav, ['/users', '/finances', '/sponsoring', '/song-library', '/downloads', '/newsletters'], ['users', 'finances', 'sponsoring', 'song_library', 'downloads', 'newsletters']) %}
+            {% set is_admin_active = nav_active(path, nav, ['/projects', '/roles', '/voice-groups', '/event-types', '/settings'], ['projects', 'roles', 'voice_groups', 'event_types', 'settings']) %}
             {% set is_evaluations_active = nav_active(path, nav, ['/evaluations'], ['evaluations', 'evaluations_project_members']) %}
             {% set can_show_admin = session.can_manage_master_data or session.can_manage_users or session.role_level >= 40 %}
             {% set can_show_evaluations = session.can_manage_users or session.role_level >= 40 or session.can_manage_project_members %}
@@ -35,7 +35,7 @@
                 <div class="container-fluid app-topbar__inner">
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
                         <img src="/logo" alt="Logo" class="me-2 navbar-logo">
-                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default('Chor Manager') }}</span></a>
+                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default("Chor Manager") }}</span></a>
                     <button class="navbar-toggler"
                             type="button"
                             data-bs-toggle="collapse"
@@ -50,178 +50,47 @@
                     </button>
                     <div class="collapse navbar-collapse" id="navbarsExampleDefault">
                         <ul class="navbar-nav me-auto mb-2 mb-md-0">
-                            <li class="nav-item">
-                                <a class="nav-link
-                                          {% if is_dashboard_active %}active{% endif %}"
-                                   href="/dashboard"><i class="bi bi-house me-1"></i> Dashboard</a>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle
-                                          {% if is_events_active %}active{% endif %}"
-                                   href="#"
-                                   data-bs-toggle="dropdown"
-                                   aria-expanded="false"><i class="bi bi-calendar-event me-1"></i> Termine</a>
-                                <ul class="dropdown-menu">
-                                    <li>
-                                        <a class="dropdown-item
-                                                  {% if nav_active(path, nav, ['/events'], ['events']) %}active{% endif %}"
-                                           href="/events"><i class="bi bi-calendar-event me-2"></i> Termine</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item
-                                                  {% if nav_active(path, nav, ['/attendance'], ['attendance']) %}active{% endif %}"
-                                           href="/attendance"><i class="bi bi-check2-square me-2"></i> Anwesenheit</a>
-                                    </li>
-                                </ul>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle
-                                          {% if is_areas_active %}active{% endif %}"
-                                   href="#"
-                                   data-bs-toggle="dropdown"
-                                   aria-expanded="false"><i class="bi bi-grid-3x3-gap-fill me-1"></i> Bereiche</a>
-                                <ul class="dropdown-menu">
-                                    {% if session.can_manage_finances %}
-                                        <li>
-                                            <a class="dropdown-item
-                                                      {% if nav_active(path, nav, ['/finances'], ['finances']) %}active{% endif %}"
-                                               href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a>
-                                        </li>
-                                    {% endif %}
-                                    {% if session.can_manage_sponsoring %}
-                                        <li>
-                                            <a class="dropdown-item
-                                                      {% if nav_active(path, nav, ['/sponsoring'], ['sponsoring']) %}active{% endif %}"
-                                               href="/sponsoring"><i class="bi bi-briefcase me-2"></i> Sponsoring</a>
-                                        </li>
-                                    {% endif %}
-                                    {% if session.can_manage_song_library %}
-                                        <li>
-                                            <a class="dropdown-item
-                                                      {% if nav_active(path, nav, ['/song-library'], ['song_library']) %}active{% endif %}"
-                                               href="/song-library"><i class="bi bi-music-note-list me-2"></i> Liedbibliothek</a>
-                                        </li>
-                                    {% endif %}
-                                    <li>
-                                        <a class="dropdown-item
-                                                  {% if nav_active(path, nav, ['/downloads'], ['downloads']) %}active{% endif %}"
-                                           href="/downloads"><i class="bi bi-download me-2"></i> Downloads</a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item
-                                                  {% if nav_active(path, nav, ['/newsletters'], ['newsletters']) %}active{% endif %}"
-                                           href="/newsletters?status=sent"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a>
-                                    </li>
-                                    {% if session.can_manage_newsletters %}
-                                        <li>
-                                            <a class="dropdown-item
-                                                      {% if nav_active(path, nav, ['/newsletters'], ['newsletters'], ['/newsletters/archive']) %}active{% endif %}"
-                                               href="/newsletters"><i class="bi bi-envelope-open me-2"></i> Newsletter</a>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </li>
-                            {% if can_show_evaluations %}
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle
-                                              {% if is_evaluations_active %}active{% endif %}"
-                                       href="#"
-                                       data-bs-toggle="dropdown"
-                                       aria-expanded="false"><i class="bi bi-bar-chart-fill me-1"></i> Auswertungen</a>
-                                    <ul class="dropdown-menu">
-                                        {% if session.can_manage_users or session.role_level >= 40 %}
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/evaluations'], ['evaluations'], ['/evaluations/project-members']) %}active{% endif %}"
-                                                   href="/evaluations"><i class="bi bi-bar-chart-line-fill me-2"></i> Anwesenheitsquoten</a>
-                                            </li>
-                                        {% endif %}
-                                        <li>
-                                            <a class="dropdown-item
-                                                      {% if nav_active(path, nav, ['/evaluations/project-members'], ['evaluations_project_members']) %}active{% endif %}"
-                                               href="/evaluations/project-members"><i class="bi bi-people-fill me-2"></i> Projektmitglieder</a>
-                                        </li>
-                                    </ul>
-                                </li>
-                            {% endif %}
-                            {% if can_show_admin %}
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle
-                                              {% if is_admin_active %}active{% endif %}"
-                                       href="#"
-                                       data-bs-toggle="dropdown"
-                                       aria-expanded="false"><i class="bi bi-gear-fill me-1"></i> Verwaltung</a>
-                                    <ul class="dropdown-menu">
-                                        {% if session.can_manage_users or session.role_level >= 40 %}
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/users'], ['users']) %}active{% endif %}"
-                                                   href="/users"><i class="bi bi-people-fill me-2"></i> Mitgliederverwaltung</a>
-                                            </li>
-                                        {% endif %}
-                                        {% if session.can_manage_master_data or session.can_manage_users %}
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/projects'], ['projects']) %}active{% endif %}"
-                                                   href="/projects"><i class="bi bi-folder-fill me-2"></i> Projekte</a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/roles'], ['roles']) %}active{% endif %}"
-                                                   href="/roles"><i class="bi bi-shield-lock-fill me-2"></i> Rollen</a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/voice-groups'], ['voice_groups']) %}active{% endif %}"
-                                                   href="/voice-groups"><i class="bi bi-music-note-beamed me-2"></i> Stimmgruppen</a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/event-types'], ['event_types']) %}active{% endif %}"
-                                                   href="/event-types"><i class="bi bi-tag me-2"></i> Event-Typen</a>
-                                            </li>
-                                            <li>
-                                                <hr class="dropdown-divider">
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item
-                                                          {% if nav_active(path, nav, ['/settings'], ['settings']) %}active{% endif %}"
-                                                   href="/settings"><i class="bi bi-sliders me-2"></i> App-Einstellungen</a>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </li>
-                            {% endif %}
+                            {{ include('partials/navigation/dashboard.twig', {
+                                                        is_dashboard_active: is_dashboard_active,
+                                                        }, false) }}
+                            {{ include('partials/navigation/events.twig', {
+                                                        is_events_active: is_events_active,
+                                                        path: path,
+                                                        nav: nav,
+                                                        }, false) }}
+                            {{ include('partials/navigation/areas.twig', {
+                                                        is_areas_active: is_areas_active,
+                                                        path: path,
+                                                        nav: nav,
+                                                        session: session,
+                                                        }, false) }}
+                            {{ include('partials/navigation/evaluations.twig', {
+                                                        can_show_evaluations: can_show_evaluations,
+                                                        is_evaluations_active: is_evaluations_active,
+                                                        path: path,
+                                                        nav: nav,
+                                                        session: session,
+                                                        }, false) }}
+                            {{ include('partials/navigation/admin.twig', {
+                                                        can_show_admin: can_show_admin,
+                                                        is_admin_active: is_admin_active,
+                                                        path: path,
+                                                        nav: nav,
+                                                        session: session,
+                                                        }, false) }}
                         </ul>
-                        <div class="d-flex align-items-center text-white dropdown">
-                            <a href="#"
-                               class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
-                               id="userDropdown"
-                               data-bs-toggle="dropdown"
-                               aria-expanded="false">
-                                <i class="bi bi-person-circle fs-5 me-2"></i>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow"
-                                aria-labelledby="userDropdown">
-                                <li>
-                                    <a class="dropdown-item" href="/profile"><i class="bi bi-person-fill me-2"></i> Mein Profil</a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li>
-                                    <a class="dropdown-item text-danger" href="/logout"><i class="bi bi-box-arrow-right me-2"></i> Abmelden</a>
-                                </li>
-                            </ul>
-                        </div>
+                        {{ include('partials/navigation/user_menu.twig', [], false) }}
+
                     </div>
                 </div>
             </nav>
         {% endif %}
         <main class="app-main container-fluid">
-            {% block page_header %}{% endblock %}
+            {% block page_header %}
+            {% endblock page_header %}
             <div class="app-content container-xl">
-                {% block content %}{% endblock %}
+                {% block content %}
+                {% endblock content %}
             </div>
         </main>
         <!-- Bootstrap JS Bundle -->
@@ -232,6 +101,7 @@
         <script src="/js/common.js"></script>
         <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
         <script src="/js/tinymce-init.js"></script>
-        {% block scripts %}{% endblock %}
+        {% block scripts %}
+        {% endblock scripts %}
     </body>
 </html>

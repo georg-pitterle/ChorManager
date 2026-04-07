@@ -36,7 +36,11 @@
         "twigcbf": "twig-cs-fixer fix",
         "twig:reformat": "djlint templates --profile=twig --extension=twig --reformat || true",
         "twig:check": "djlint templates --profile=twig --extension=twig --check",
-        "twig:lint": "@twigcs",
+        "twig:eol": "php bin/check_lf.php templates twig",
+        "twig:lint": [
+            "@twig:eol",
+            "@twigcs"
+        ],
         "twig:fix": [
             "@twig:reformat",
             "@twigcbf"
