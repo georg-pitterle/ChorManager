@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block title %}Newsletter erstellen{% endblock %}
 
@@ -21,8 +21,9 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container">
+    <div class="container-fluid px-0">
         <form id="create-newsletter-form" method="post" action="/newsletters">
+            {% if is_modal|default(false) %}<input type="hidden" name="modal" value="1">{% endif %}
             <div class="surface-card form-surface card mb-4 border-0">
                 <div class="card-header bg-light">
                     <h5 class="mb-0">Newsletter-Einstellungen</h5>
@@ -58,7 +59,7 @@
                             <option value="">-- Keine Auswahl --</option>
                             {% for event in events %}
                                 <option value="{{ event.id }}" data-project-id="{{ event.project_id }}">
-                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.event_date|date("d.m.Y") }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>
@@ -147,6 +148,11 @@ document.getElementById('create-newsletter-form').addEventListener('submit', asy
     }
 
     const data = await response.json();
+    if ({{ is_modal|default(false) ? 'true' : 'false' }} && typeof window.newsletterModalNavigate === 'function') {
+        window.newsletterModalNavigate(data.redirect, 'Newsletter bearbeiten');
+        return;
+    }
+
     window.location.href = data.redirect;
 });
 

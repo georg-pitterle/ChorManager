@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block title %}Newsletter bearbeiten{% endblock %}
 
@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container">
+    <div class="container-fluid px-0">
         <!-- Lock Warning -->
         {% if newsletter.isLocked() and newsletter.locked_by != session.user_id %}
             <div class="alert alert-warning alert-dismissible fade show" role="alert">
@@ -68,7 +68,7 @@
                                 <option value="{{ event.id }}"
                                         data-project-id="{{ event.project_id }}"
                                         {% if newsletter.event_id == event.id %}selected{% endif %}>
-                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.event_date|date("d.m.Y") }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>
@@ -206,6 +206,7 @@
     <script>
 const editForm = document.getElementById('edit-newsletter-form');
 const newsletterUpdateUrl = '/newsletters/{{ newsletter.id }}';
+const isModalView = {{ is_modal|default(false) ? 'true' : 'false' }};
 let lastSavedSnapshot = null;
 let saveInProgress = false;
 
@@ -318,9 +319,33 @@ document.getElementById('preview-btn').addEventListener('click', function() {
 });
 
 document.getElementById('send-newsletter-btn').addEventListener('click', function () {
-    if (confirm('Newsletter jetzt versenden?')) {
-        document.getElementById('send-form').submit();
+    if (!confirm('Newsletter jetzt versenden?')) {
+        return;
     }
+
+    if (isModalView) {
+        fetch('/newsletters/{{ newsletter.id }}/send', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function (response) {
+            if (!response.ok) {
+                alert('Fehler beim Versenden des Newsletters');
+                return;
+            }
+
+            if (typeof window.newsletterModalCloseAndRefresh === 'function') {
+                window.newsletterModalCloseAndRefresh();
+                return;
+            }
+
+            window.location.reload();
+        });
+        return;
+    }
+
+    document.getElementById('send-form').submit();
 });
 
 // Save Template
@@ -351,6 +376,11 @@ setInterval(async function() {
     const data = await response.json();
     if (data.locked && !data.is_me) {
         alert(`Newsletter wird jetzt von ${data.locked_by_user} bearbeitet`);
+        if (isModalView && typeof window.newsletterModalCloseAndRefresh === 'function') {
+            window.newsletterModalCloseAndRefresh();
+            return;
+        }
+
         window.location.reload();
     }
 }, 30000);

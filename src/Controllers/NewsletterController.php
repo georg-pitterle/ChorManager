@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Newsletter;
+use App\Models\NewsletterArchive;
 use App\Models\NewsletterTemplate;
 use App\Models\Project;
 use App\Models\Event;
@@ -15,7 +16,6 @@ use App\Models\User;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
-use App\Services\Mailer;
 
 class NewsletterController
 {
@@ -83,6 +83,9 @@ class NewsletterController
         $queryParams = $request->getQueryParams();
         $userId = $_SESSION['user_id'] ?? null;
         $projects = $this->getAccessibleProjects($userId);
+        $projectIds = $projects->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all();
 
         if ($projects->isEmpty()) {
             return $this->view->render($response, 'newsletters/index.twig', [
@@ -100,6 +103,24 @@ class NewsletterController
 
         if (!in_array($status, $allowedStatuses, true)) {
             $status = Newsletter::STATUS_DRAFT;
+        }
+
+        if ($status === Newsletter::STATUS_SENT) {
+            $newsletters = Newsletter::query()
+                ->whereIn('project_id', $projectIds)
+                ->where('status', Newsletter::STATUS_SENT)
+                ->with(['createdBy', 'project', 'event'])
+                ->orderBy('sent_at', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return $this->view->render($response, 'newsletters/index.twig', [
+                'newsletters' => $newsletters,
+                'project' => null,
+                'projects' => $projects,
+                'status' => $status,
+                'user_id' => $userId,
+            ]);
         }
 
         if (!$projectId) {
@@ -131,9 +152,31 @@ class NewsletterController
         ]);
     }
 
+    public function archive(Request $request, Response $response): Response
+    {
+        $userId = $_SESSION['user_id'] ?? null;
+
+        if (!$userId) {
+            return $response->withHeader('Location', '/login')->withStatus(302);
+        }
+
+        $archives = NewsletterArchive::query()
+            ->where('user_id', (int) $userId)
+            ->with(['newsletter.createdBy', 'newsletter.project', 'newsletter.event'])
+            ->orderBy('sent_at', 'desc')
+            ->get();
+
+        return $this->view->render($response, 'newsletters/archive.twig', [
+            'archives' => $archives,
+            'active_nav' => 'newsletters_archive',
+            'user_id' => $userId,
+        ]);
+    }
+
     public function create(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
+        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
         $projects = $this->getAccessibleProjects($userId);
 
@@ -166,6 +209,7 @@ class NewsletterController
             'projects' => $projects,
             'events' => $events,
             'templates' => $templates,
+            'is_modal' => $isModal,
         ]);
     }
 
@@ -173,6 +217,7 @@ class NewsletterController
     {
         $data = $request->getParsedBody();
         $projectId = (int)($data['project_id'] ?? 0);
+        $isModal = ((string) ($data['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$projectId || !$userId) {
@@ -220,13 +265,15 @@ class NewsletterController
 
         return $this->jsonResponse($response, [
             'id' => $newsletter->id,
-            'redirect' => "/newsletters/{$newsletter->id}/edit?project_id={$projectId}",
+            'redirect' => "/newsletters/{$newsletter->id}/edit?project_id={$projectId}" . ($isModal ? '&modal=1' : ''),
         ], 201);
     }
 
     public function edit(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
+        $queryParams = $request->getQueryParams();
+        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
         $projects = $this->getAccessibleProjects($userId);
 
@@ -250,6 +297,7 @@ class NewsletterController
             return $this->view->render($response, 'newsletters/locked.twig', [
                 'newsletter' => $newsletter,
                 'locked_by_user' => $lockedByUser,
+                'is_modal' => $isModal,
             ], null, 423);
         }
 
@@ -266,6 +314,7 @@ class NewsletterController
             'project' => $project,
             'projects' => $projects,
             'events' => $events,
+            'is_modal' => $isModal,
         ]);
     }
 
@@ -328,6 +377,8 @@ class NewsletterController
     public function preview(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
+        $queryParams = $request->getQueryParams();
+        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $newsletter = Newsletter::find($id);
 
         if (!$newsletter) {
@@ -336,6 +387,7 @@ class NewsletterController
 
         return $this->view->render($response, 'newsletters/preview.twig', [
             'newsletter' => $newsletter,
+            'is_modal' => $isModal,
         ]);
     }
 

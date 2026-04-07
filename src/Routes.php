@@ -286,6 +286,7 @@ return function (App $app) {
 
             // Newsletter management
             $group->get('/newsletters', [NewsletterController::class, 'index']);
+            $group->get('/newsletters/archive', [NewsletterController::class, 'archive']);
             $group->get('/newsletters/create', [NewsletterController::class, 'create']);
             $group->post('/newsletters', [NewsletterController::class, 'store']);
             $group->get('/newsletters/{id:[0-9]+}/edit', [NewsletterController::class, 'edit']);

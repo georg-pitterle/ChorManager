@@ -40,8 +40,8 @@
         </li>
         <li>
             <a class="dropdown-item
-                      {% if nav_active(path, nav, ['/newsletters'], ['newsletters']) %}active{% endif %}"
-               href="/newsletters?status=sent"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a>
+                      {% if nav_active(path, nav, ['/newsletters/archive'], ['newsletters_archive']) %}active{% endif %}"
+               href="/newsletters/archive"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a>
         </li>
         {% if session.can_manage_newsletters %}
             <li>

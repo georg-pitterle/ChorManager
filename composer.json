@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.5",
-        "illuminate/database": "^10.0",
+        "illuminate/database": "^11.0",
         "php-di/php-di": "^7.0",
         "phpmailer/phpmailer": "^7.0",
         "robmorgan/phinx": "^0.16.10",
@@ -15,6 +15,7 @@
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
+        "cweagans/composer-patches": "^2.0",
         "friendsoftwig/twigcs": "^6.6",
         "phpunit/phpunit": "^10.0",
         "squizlabs/php_codesniffer": "^4.0",
@@ -26,8 +27,16 @@
         }
     },
     "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        },
         "process-timeout": 0,
         "sort-packages": true
+    },
+    "extra": {
+        "composer-patches": {
+            "patches-file": "patches/patches.json"
+        }
     },
     "scripts": {
         "phpcs": "phpcs --standard=phpcs.xml src/",

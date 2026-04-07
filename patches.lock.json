@@ -1,0 +1,17 @@
+{
+    "_hash": "05396a062917c24477aff6da3dd572be1015e246937f6650d29343f4120499a8",
+    "patches": {
+        "illuminate/database": [
+            {
+                "package": "illuminate/database",
+                "description": "Fix PHP 8.5 deprecation: null used as array offset in getDictionaryKey()",
+                "url": "patches/illuminate-database-null-array-key-php85.patch",
+                "sha256": "4b6ca45f3f2ac63f85dc737c50af9b9e11c58a1dab360a930f2c401fc01dcab3",
+                "depth": 1,
+                "extra": {
+                    "provenance": "patches-file:patches/patches.json"
+                }
+            }
+        ]
+    }
+}

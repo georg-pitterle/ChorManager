@@ -1,0 +1,105 @@
+{% extends 'layout.twig' %}
+
+{% block title %}Meine Newsletter{% endblock %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <h1 class="h2 mb-1">Meine Newsletter</h1>
+            <p class="text-muted mb-0">Hier siehst du nur Newsletter, die an dich versendet wurden.</p>
+        </div>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid px-0">
+        <div class="surface-card card border-0 table-shell"
+             data-table-engine="true"
+             data-table-id="newsletters.archive"
+             data-default-view="auto"
+             data-default-page-size="25"
+             data-page-size-options="25,50,100"
+             data-default-sort-key="sent"
+             data-default-sort-dir="desc">
+            {{ include("partials/table_toolbar.twig") }}
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                           id="newsletterArchiveTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th data-sort-key="title" data-sort-type="text">Titel</th>
+                                <th data-sort-key="project" data-sort-type="text">Projekt</th>
+                                <th data-sort-key="sender" data-sort-type="text">Erstellt von</th>
+                                <th data-sort-key="sent" data-sort-type="date">Gesendet am</th>
+                                <th class="text-end">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in archives %}
+                                {% set newsletter = entry.newsletter %}
+                                {% if newsletter %}
+                                    {% set sender_name = (newsletter.createdBy.first_name|default('') ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim %}
+                                    <tr data-sort-title="{{ newsletter.title|lower }}"
+                                        data-sort-project="{{ newsletter.project.name|default("") |lower }}"
+                                        data-sort-sender="{{ sender_name|lower }}"
+                                        data-sort-sent="{{ entry.sent_at|date("Y-m-d H:i:s") }}">
+                                        <td data-label="Titel">
+                                            <strong>{{ newsletter.title }}</strong>
+                                            {% if newsletter.event %}
+                                                <br>
+                                                <small class="text-muted">Event: {{ newsletter.event.title }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Projekt">{{ newsletter.project.name|default("-") }}</td>
+                                        <td data-label="Erstellt von">{{ sender_name|default("-") }}</td>
+                                        <td data-label="Gesendet am">{{ entry.sent_at|date("d.m.Y H:i") }}</td>
+                                        <td data-label="Aktionen" class="text-end">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
+                                                    data-newsletter-modal-title="Newsletter Vorschau">
+                                                <i class="bi bi-eye"></i> Vorschau
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Es wurden noch keine Newsletter an dich versendet.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade"
+             id="newsletterActionModal"
+             tabindex="-1"
+             aria-labelledby="newsletterActionModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-2 p-md-3">
+                        <div id="newsletterActionContent" class="container-fluid px-0"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}<script src="/js/newsletters.js"></script>{% endblock %}

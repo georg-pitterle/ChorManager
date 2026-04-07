@@ -7,7 +7,9 @@
         <div>
             <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
             <h1 class="h2 mb-1">Newsletter</h1>
-            {% if project is defined and project %}
+            {% if status == 'sent' %}
+                <p class="text-muted mb-0">Alle versendeten Newsletter aus deinen zugänglichen Projekten.</p>
+            {% elseif project is defined and project %}
                 <p class="text-muted mb-0">
                     Projekt: <strong>{{ project.name }}</strong>
                 </p>
@@ -15,13 +17,16 @@
                 <p class="text-muted mb-0">Projektbezogene Newsletter zentral verwalten.</p>
             {% endif %}
         </div>
-        {% if projects|length > 0 and project is defined and project %}
+        {% if projects|length > 0 and project is defined and project and status != 'sent' %}
             <div class="page-actions d-flex gap-2">
-                <form method="get" class="d-flex align-items-center gap-2">
+                <form method="get"
+                      action="/newsletters"
+                      class="d-flex align-items-center gap-2">
                     <label for="project_id" class="form-label mb-0">Projekt:</label>
                     <select id="project_id"
                             name="project_id"
                             class="form-select onchange-submit"
+                            onchange="this.form.submit()"
                             style="max-width: 320px">
                         {% for selectable_project in projects %}
                             <option value="{{ selectable_project.id }}"
@@ -29,18 +34,23 @@
                         {% endfor %}
                     </select>
                     <input type="hidden" name="status" value="{{ status }}">
+                    <noscript>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Anwenden</button>
+                    </noscript>
                 </form>
-                <a href="/newsletters/create?project_id={{ project.id }}"
-                   class="btn btn-primary">
+                <button type="button"
+                        class="btn btn-primary"
+                        data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"
+                        data-newsletter-modal-title="Neuer Newsletter">
                     <i class="bi bi-plus-circle"></i> Neuer Newsletter
-                </a>
+                </button>
             </div>
         {% endif %}
     </section>
 {% endblock %}
 
 {% block content %}
-    <div class="container">
+    <div class="container-fluid px-0">
         {% if projects|length == 0 %}
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle"></i>
@@ -51,66 +61,93 @@
             <div class="surface-card form-surface p-4 mb-4">
                 <ul class="nav nav-tabs mb-0">
                     <li class="nav-item">
+                        {% set draft_project_id = project is defined and project ? project.id : (projects|first).id %}
                         <a class="nav-link
                                   {% if status == 'draft' %}active{% endif %}"
-                           href="?project_id={{ project.id }}&status=draft">Entwürfe</a>
+                           href="?project_id={{ draft_project_id }}&status=draft">Entwürfe</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link
                                   {% if status == 'sent' %}active{% endif %}"
-                           href="?project_id={{ project.id }}&status=sent">Versendet</a>
+                           href="?status=sent">Versendet</a>
                     </li>
                 </ul>
             </div>
 
             <!-- Newsletters List -->
-            {% if newsletters|length > 0 %}
-                <div class="surface-card table-shell">
+            <div class="surface-card card border-0 table-shell"
+                 data-table-engine="true"
+                 data-table-id="newsletters.index"
+                 data-default-view="auto"
+                 data-default-page-size="25"
+                 data-page-size-options="25,50,100"
+                 data-default-sort-key="created"
+                 data-default-sort-dir="desc">
+                {{ include("partials/table_toolbar.twig") }}
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                               id="newslettersTable">
+                            <thead class="table-dark">
                                 <tr>
-                                    <th>Titel</th>
-                                    <th>Erstellt von</th>
-                                    <th>Empfänger</th>
-                                    <th>Erstellt am</th>
-                                    <th>Status</th>
-                                    <th>Aktionen</th>
+                                    <th data-sort-key="title" data-sort-type="text">Titel</th>
+                                    <th data-sort-key="sender" data-sort-type="text">Erstellt von</th>
+                                    <th data-sort-key="recipients" data-sort-type="number">Empfänger</th>
+                                    <th data-sort-key="created" data-sort-type="date">Erstellt am</th>
+                                    <th data-sort-key="status" data-sort-type="text">Status</th>
+                                    <th class="text-end">Aktionen</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for newsletter in newsletters %}
-                                    <tr>
-                                        <td>
+                                    <tr data-sort-title="{{ newsletter.title|lower }}"
+                                        data-sort-sender="{{ (newsletter.createdBy.first_name|default("") ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim|lower }}"
+                                        data-sort-recipients="{{ newsletter.recipient_count }}"
+                                        data-sort-created="{{ newsletter.created_at|date("Y-m-d H:i:s") }}"
+                                        data-sort-status="{{ newsletter.status|lower }}">
+                                        <td data-label="Titel">
                                             <strong>{{ newsletter.title }}</strong>
                                             {% if newsletter.event_id %}
                                                 <br>
                                                 <small class="text-muted">Event: {{ newsletter.event.title ?? 'N/A' }}</small>
                                             {% endif %}
                                         </td>
-                                        <td>{{ newsletter.createdBy.first_name }} {{ newsletter.createdBy.last_name }}</td>
-                                        <td>
+                                        <td data-label="Erstellt von">
+                                            {{ newsletter.createdBy.first_name|default("") }} {{ newsletter.createdBy.last_name|default("") }}
+                                        </td>
+                                        <td data-label="Empfänger">
                                             <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
                                         </td>
-                                        <td>{{ newsletter.created_at|date('d.m.Y H:i') }}</td>
-                                        <td>
+                                        <td data-label="Erstellt am">{{ newsletter.created_at|date("d.m.Y H:i") }}</td>
+                                        <td data-label="Status">
                                             {% if newsletter.status == 'draft' %}
                                                 <span class="badge bg-secondary">Entwurf</span>
                                             {% elseif newsletter.status == 'sent' %}
                                                 <span class="badge bg-success">Versendet</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td data-label="Aktionen" class="text-end">
                                             {% if newsletter.status == 'draft' %}
-                                                <a href="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}"
-                                                   class="btn btn-sm btn-outline-primary">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"
+                                                        data-newsletter-modal-title="Newsletter bearbeiten">
                                                     <i class="bi bi-pencil"></i> Bearbeiten
-                                                </a>
+                                                </button>
                                             {% endif %}
-                                            <a href="/newsletters/{{ newsletter.id }}/preview"
-                                               class="btn btn-sm btn-outline-secondary">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
+                                                    data-newsletter-modal-title="Newsletter Vorschau">
                                                 <i class="bi bi-eye"></i> Vorschau
-                                            </a>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Keine Newsletter in dieser Kategorie vorhanden.
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -118,12 +155,30 @@
                         </table>
                     </div>
                 </div>
-            {% else %}
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    Keine Newsletter in dieser Kategorie vorhanden.
+            </div>
+
+            <div class="modal fade"
+                 id="newsletterActionModal"
+                 tabindex="-1"
+                 aria-labelledby="newsletterActionModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-2 p-md-3">
+                            <div id="newsletterActionContent" class="container-fluid px-0"></div>
+                        </div>
+                    </div>
                 </div>
-            {% endif %}
+            </div>
         {% endif %}
     </div>
 {% endblock %}
+
+{% block scripts %}<script src="/js/newsletters.js"></script>{% endblock %}

@@ -1,0 +1,7 @@
+{
+    "patches": {
+        "illuminate/database": {
+            "Fix PHP 8.5 deprecation: null used as array offset in getDictionaryKey()": "patches/illuminate-database-null-array-key-php85.patch"
+        }
+    }
+}

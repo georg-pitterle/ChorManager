@@ -73,6 +73,7 @@ class NewsletterFeatureTest extends TestCase
     {
         $templates = [
             'index.twig',
+            'archive.twig',
             'create.twig',
             'edit.twig',
             'preview.twig',
@@ -86,6 +87,8 @@ class NewsletterFeatureTest extends TestCase
                 "Template file missing: $path"
             );
         }
+
+        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/layout_modal.twig'));
     }
 
     /**
@@ -142,6 +145,7 @@ class NewsletterFeatureTest extends TestCase
     public function testControllerHasRequiredActions(): void
     {
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'index'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'archive'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'create'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'store'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'edit'));
@@ -157,13 +161,56 @@ class NewsletterFeatureTest extends TestCase
     /**
      * Test newsletter index only exposes supported statuses
      */
-    public function testNewsletterIndexTemplateOmitsArchiveUi(): void
+    public function testNewsletterArchiveTemplateExistsAndMentionsMeineNewsletter(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/index.twig');
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/archive.twig');
 
         $this->assertIsString($template);
-        $this->assertStringNotContainsString('status=archived', $template);
-        $this->assertStringNotContainsString('Archiv', $template);
+        $this->assertStringContainsString('Meine Newsletter', $template);
+        $this->assertStringContainsString('an dich versendet', $template);
+    }
+
+    /**
+     * Test newsletter templates use modal actions and robust project filter submit
+     */
+    public function testNewsletterTemplatesUseModalActionsAndProjectFilterSubmit(): void
+    {
+        $indexTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/index.twig');
+        $archiveTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/archive.twig');
+        $createTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/create.twig');
+        $editTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/edit.twig');
+        $previewTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/preview.twig');
+        $lockedTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/locked.twig');
+        $scriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters.js');
+
+        $this->assertIsString($indexTemplate);
+        $this->assertIsString($archiveTemplate);
+        $this->assertIsString($createTemplate);
+        $this->assertIsString($editTemplate);
+        $this->assertIsString($previewTemplate);
+        $this->assertIsString($lockedTemplate);
+        $this->assertIsString($scriptContent);
+
+        $this->assertStringContainsString('action="/newsletters"', $indexTemplate);
+        $this->assertStringContainsString('onchange="this.form.submit()"', $indexTemplate);
+        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"', $indexTemplate);
+        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"', $indexTemplate);
+        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"', $indexTemplate);
+        $this->assertStringContainsString('id="newsletterActionModal"', $indexTemplate);
+        $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $indexTemplate);
+
+        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"', $archiveTemplate);
+        $this->assertStringContainsString('id="newsletterActionModal"', $archiveTemplate);
+        $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $archiveTemplate);
+
+        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $createTemplate);
+        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $editTemplate);
+        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $previewTemplate);
+        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $lockedTemplate);
+
+        $this->assertStringContainsString('data-newsletter-modal-url', $scriptContent);
+        $this->assertStringContainsString('newsletterActionModal', $scriptContent);
+        $this->assertStringContainsString('window.location.reload()', $scriptContent);
     }
 
     /**
@@ -198,6 +245,7 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../src/Routes.php'));
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertStringContainsString('newsletter', strtolower($routesContent));
+        $this->assertStringContainsString('/newsletters/archive', $routesContent);
         $this->assertStringContainsString('/newsletters/template/{id:[0-9]+}', $routesContent);
         $this->assertStringContainsString('/newsletters/{id:[0-9]+}/check-lock', $routesContent);
         $this->assertStringContainsString('/newsletters/{id:[0-9]+}/delete', $routesContent);

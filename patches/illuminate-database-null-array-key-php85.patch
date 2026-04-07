@@ -1,0 +1,12 @@
+--- a/Eloquent/Relations/Concerns/InteractsWithDictionary.php
++++ b/Eloquent/Relations/Concerns/InteractsWithDictionary.php
+@@ -30,6 +30,8 @@
+             throw new InvalidArgumentException('Model attribute value is an object but does not have a __toString method.');
+         }
+ 
+-        return $attribute;
++        // PHP 8.5 deprecates using null as an array offset; return '' so that
++        // BelongsTo::match() never places a null key into its lookup dictionary.
++        return $attribute ?? '';
+     }
+ }
