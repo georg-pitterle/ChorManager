@@ -73,7 +73,7 @@
          data-default-page-size="100"
          data-page-size-options="25,50,100,200"
          data-default-sort-key="name">
-        {{ include('partials/table_toolbar.twig') }}
+        {{ include("partials/table_toolbar.twig") }}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -99,11 +99,11 @@
                     </thead>
                     <tbody>
                         {% for user in users %}
-                            {% set role_filter = '' %}
+                            {% set role_filter = "" %}
                             {% for role in user.roles %}
                                 {% set role_filter = role_filter ~ ' ' ~ role.name|lower %}
                             {% endfor %}
-                            {% set voice_filter = '' %}
+                            {% set voice_filter = "" %}
                             {% for group_id in user.voice_group_ids %}
                                 {% for g in voice_groups %}
                                     {% if g.id == group_id %}
@@ -111,7 +111,7 @@
                                     {% endif %}
                                 {% endfor %}
                             {% endfor %}
-                            {% set project_filter = '' %}
+                            {% set project_filter = "" %}
                             {% for pid in user.project_ids %}
                                 {% for p in projects %}
                                     {% if p.id == pid %}
@@ -430,7 +430,9 @@
                                                     {% for sv in sub_voices %}
                                                         {% if sv.voice_group_id == group.id %}
                                                             <option value="{{ sv.id }}"
-                                                                    {% if current_subvoice == sv.id %}selected{% endif %}>{{ sv.name }}</option>
+                                                                    {% if current_subvoice == sv.id %}selected{% endif %}>
+                                                                {{ sv.name }}
+                                                            </option>
                                                         {% endif %}
                                                     {% endfor %}
                                                 </select>

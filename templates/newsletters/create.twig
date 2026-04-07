@@ -38,7 +38,9 @@
                         <select class="form-select" id="project_id" name="project_id" required>
                             {% for selectable_project in projects %}
                                 <option value="{{ selectable_project.id }}"
-                                        {% if selectable_project.id == project.id %}selected{% endif %}>{{ selectable_project.name }}</option>
+                                        {% if selectable_project.id == project.id %}selected{% endif %}>
+                                    {{ selectable_project.name }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -61,7 +63,7 @@
                             <option value="">-- Keine Auswahl --</option>
                             {% for event in events %}
                                 <option value="{{ event.id }}" data-project-id="{{ event.project_id }}">
-                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.event_date|date("d.m.Y") }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>

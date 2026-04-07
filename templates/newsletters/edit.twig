@@ -45,7 +45,9 @@
                         <select class="form-select" id="project_id" name="project_id" required>
                             {% for selectable_project in projects %}
                                 <option value="{{ selectable_project.id }}"
-                                        {% if newsletter.project_id == selectable_project.id %}selected{% endif %}>{{ selectable_project.name }}</option>
+                                        {% if newsletter.project_id == selectable_project.id %}selected{% endif %}>
+                                    {{ selectable_project.name }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -70,7 +72,7 @@
                                 <option value="{{ event.id }}"
                                         data-project-id="{{ event.project_id }}"
                                         {% if newsletter.event_id == event.id %}selected{% endif %}>
-                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.event_date|date("d.m.Y") }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>

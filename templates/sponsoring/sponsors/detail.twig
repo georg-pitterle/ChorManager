@@ -61,20 +61,20 @@
 
     {# Status-Badge #}
     {% set status_colors = {
-        prospect: 'secondary',
-        contacted: 'info',
-        negotiating: 'warning',
-        active: 'success',
-        paused: 'secondary',
-        closed: 'dark',
+        "prospect": "secondary",
+        "contacted": "info",
+        "negotiating": "warning",
+        "active": "success",
+        "paused": "secondary",
+        "closed": "dark"
     } %}
     {% set status_labels = {
-        prospect: 'Interessent',
-        contacted: 'Kontaktiert',
-        negotiating: 'Verhandlung',
-        active: 'Aktiv',
-        paused: 'Pausiert',
-        closed: 'Abgeschlossen',
+        "prospect": "Interessent",
+        "contacted": "Kontaktiert",
+        "negotiating": "Verhandlung",
+        "active": "Aktiv",
+        "paused": "Pausiert",
+        "closed": "Abgeschlossen"
     } %}
     <p class="mb-3">
         <span class="badge fs-6 bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
@@ -252,9 +252,9 @@
                                     <td>{{ sp.project ? sp.project.name : '–' }}</td>
                                     <td>{{ sp.assignedUser ? sp.assignedUser.first_name ~ ' ' ~ sp.assignedUser.last_name : '–' }}</td>
                                     <td class="text-nowrap small">
-                                        {{ sp.start_date ? sp.start_date.format('d.m.Y') : '–' }}
+                                        {{ sp.start_date ? sp.start_date.format("d.m.Y") : '–' }}
                                         {% if sp.start_date and sp.end_date %}–{% endif %}
-                                        {{ sp.end_date ? sp.end_date.format('d.m.Y') : '' }}
+                                        {{ sp.end_date ? sp.end_date.format("d.m.Y") : '' }}
                                     </td>
                                     <td>
                                         {% if sp.attachments|length > 0 %}
@@ -484,14 +484,14 @@
                                             <input type="date"
                                                    name="start_date"
                                                    class="form-control"
-                                                   value="{{ sp.start_date ? sp.start_date.format('Y-m-d') : '' }}">
+                                                   value="{{ sp.start_date ? sp.start_date.format("Y-m-d") : '' }}">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">Bis</label>
                                             <input type="date"
                                                    name="end_date"
                                                    class="form-control"
-                                                   value="{{ sp.end_date ? sp.end_date.format('Y-m-d') : '' }}">
+                                                   value="{{ sp.end_date ? sp.end_date.format("Y-m-d") : '' }}">
                                         </div>
                                         <div class="col-12">
                                             <label class="form-label">Notizen</label>
@@ -543,7 +543,7 @@
                         <tbody>
                             {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
                                 <tr>
-                                    <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
+                                    <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format("d.m.Y") : '' }}</td>
                                     <td class="text-nowrap">
                                         {% if contact.type == 'call' %}
                                             <i class="bi bi-telephone text-primary" title="Anruf"></i> Anruf
@@ -563,14 +563,10 @@
                                     <td class="text-nowrap">
                                         {% if contact.follow_up_date %}
                                             {% if contact.follow_up_done %}
-                                                <span class="text-success"><i class="bi bi-check-circle"></i> {{ contact.follow_up_date.format('d.m.Y') }}</span>
+                                                <span class="text-success"><i class="bi bi-check-circle"></i> {{ contact.follow_up_date.format("d.m.Y") }}</span>
                                             {% else %}
-                                                <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %}
-                                                                 text-danger fw-semibold
-                                                             {% else %}
-                                                                 text-warning
-                                                             {% endif %}">
-                                                    <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
+                                                <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %} text-danger fw-semibold {% else %} text-warning {% endif %}">
+                                                    <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format("d.m.Y") }}
                                                 </span>
                                                 <form method="post"
                                                       action="/sponsoring/contacts/{{ contact.id }}/done"
@@ -637,7 +633,7 @@
                                                 <input type="date"
                                                        name="contact_date"
                                                        class="form-control"
-                                                       value="{{ contact.contact_date ? contact.contact_date.format('Y-m-d') : '' }}"
+                                                       value="{{ contact.contact_date ? contact.contact_date.format("Y-m-d") : '' }}"
                                                        required>
                                             </div>
                                             <div class="col-md-6">
@@ -682,7 +678,7 @@
                                                 <input type="date"
                                                        name="follow_up_date"
                                                        class="form-control"
-                                                       value="{{ contact.follow_up_date ? contact.follow_up_date.format('Y-m-d') : '' }}">
+                                                       value="{{ contact.follow_up_date ? contact.follow_up_date.format("Y-m-d") : '' }}">
                                             </div>
                                         </div>
                                     </div>
@@ -728,7 +724,7 @@
                                         <input type="date"
                                                name="contact_date"
                                                class="form-control"
-                                               value="{{ 'now'|date('Y-m-d') }}"
+                                               value="{{ 'now'|date("Y-m-d") }}"
                                                required>
                                     </div>
                                     <div class="col-md-6">

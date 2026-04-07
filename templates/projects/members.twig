@@ -60,7 +60,7 @@
          data-default-page-size="100"
          data-page-size-options="25,50,100,200"
          data-default-sort-key="member_name">
-        {{ include('partials/table_toolbar.twig') }}
+        {{ include("partials/table_toolbar.twig") }}
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="bi bi-people-fill"></i> Projektmitglieder ({{ members|length }})
@@ -88,12 +88,12 @@
                             {% for m in members %}
                                 <tr data-sort-member_name="{{ (m.last_name ~ ', ' ~ m.first_name)|lower }}"
                                     data-sort-email="{{ m.email|lower }}"
-                                    data-sort-voice="{{ m.voice_groups_display|default('')|lower }}">
+                                    data-sort-voice="{{ m.voice_groups_display|default("")|lower }}">
                                     <td data-label="Name">
                                         <strong>{{ m.last_name }}, {{ m.first_name }}</strong>
                                     </td>
                                     <td data-label="E-Mail">{{ m.email }}</td>
-                                    <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>
+                                    <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default("-") }}</td>
                                     <td data-label="Aktionen" class="text-end">
                                         <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove"
                                               method="post"

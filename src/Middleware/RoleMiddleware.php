@@ -60,7 +60,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
 
-        if ($this->requiresTaskManagement && !$canManageTasks && !$canManageUsers && !$canManageMasterData) {
+        if ($this->requiresTaskManagement && !$canManageTasks) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.");
             return $response->withStatus(403);

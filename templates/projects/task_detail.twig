@@ -13,7 +13,7 @@
             </p>
             <h1 class="h2 mb-1">{{ task.name }}</h1>
             <p class="text-muted mb-0">
-                Erstellt von {{ task.createdBy.first_name }} {{ task.createdBy.last_name }} am {{ task.created_at|date('d.m.Y') }}
+                Erstellt von {{ task.createdBy.first_name }} {{ task.createdBy.last_name }} am {{ task.created_at|date("d.m.Y") }}
             </p>
         </div>
         <div class="page-actions">
@@ -99,7 +99,7 @@
                             <span class="text-muted small d-block mb-1">Zeitraum</span>
                             {% if task.start_date or task.end_date %}
                                 <i class="bi bi-calendar-event text-secondary me-1"></i>
-                                {{ task.start_date ? task.start_date|date('d.m.Y') : '?' }} — {{ task.end_date ? task.end_date|date('d.m.Y') : '?' }}
+                                {{ task.start_date ? task.start_date|date("d.m.Y") : '?' }} — {{ task.end_date ? task.end_date|date("d.m.Y") : '?' }}
                             {% else %}
                                 <span class="text-muted fst-italic">Ohne Datum</span>
                             {% endif %}
@@ -110,25 +110,25 @@
 
             <!-- Comments -->
             {{ include('partials/comments.twig', {
-                        comments: task.comments,
-                        submit_url: '/tasks/' ~ task.id ~ '/comments',
-                        }) }}
+            comments: task.comments,
+            submit_url: '/tasks/' ~ task.id ~ '/comments',
+            }) }}
 
         </div>
 
         <div class="col-lg-4">
             <!-- Attachments -->
             {{ include('partials/attachments.twig', {
-                        attachments: task.attachments,
-                        upload_url: '/tasks/' ~ task.id ~ '/attachments',
-                        download_url: '/tasks/' ~ task.id ~ '/attachments',
-                        delete_url: '/tasks/' ~ task.id ~ '/attachments',
-                        }) }}
+            attachments: task.attachments,
+            upload_url: '/tasks/' ~ task.id ~ '/attachments',
+            download_url: '/tasks/' ~ task.id ~ '/attachments',
+            delete_url: '/tasks/' ~ task.id ~ '/attachments',
+            }) }}
 
             <!-- Activity History -->
             {{ include('partials/history.twig', {
-                        activities: task.activities|reverse,
-                        }) }}
+            activities: task.activities|reverse,
+            }) }}
 
             <!-- Danger Zone -->
             <div class="card border-danger shadow-sm mb-4">
@@ -228,7 +228,7 @@
                                    class="form-control"
                                    id="start_date"
                                    name="start_date"
-                                   value="{{ task.start_date ? task.start_date|date('Y-m-d') : '' }}">
+                                   value="{{ task.start_date ? task.start_date|date("Y-m-d") : '' }}">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="due_date" class="form-label">Fälligkeitsdatum</label>
@@ -236,7 +236,7 @@
                                    class="form-control"
                                    id="due_date"
                                    name="due_date"
-                                   value="{{ task.end_date ? task.end_date|date('Y-m-d') : '' }}">
+                                   value="{{ task.end_date ? task.end_date|date("Y-m-d") : '' }}">
                         </div>
                     </div>
 

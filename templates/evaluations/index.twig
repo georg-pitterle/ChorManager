@@ -17,7 +17,9 @@
                     <option value="">-- Projekt wählen --</option>
                     {% for p in projects %}
                         <option value="{{ p.id }}"
-                                {% if selected_project and selected_project.id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                                {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
+                            {{ p.name }}
+                        </option>
                     {% endfor %}
                 </select>
             </form>
@@ -43,7 +45,7 @@
              data-default-page-size="100"
              data-page-size-options="25,50,100,200"
              data-default-sort-key="name">
-            {{ include('partials/table_toolbar.twig') }}
+            {{ include("partials/table_toolbar.twig") }}
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -61,7 +63,7 @@
                         <tbody>
                             {% for stat in stats %}
                                 <tr data-sort-name="{{ (stat.last_name ~ ', ' ~ stat.first_name)|lower }}"
-                                    data-sort-voice="{{ (stat.voice_group_name|default('-'))|lower }}"
+                                    data-sort-voice="{{ (stat.voice_group_name|default("-"))|lower }}"
                                     data-sort-present="{{ stat.present_count|default(0) }}"
                                     data-sort-excused="{{ stat.excused_count|default(0) }}"
                                     data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
@@ -69,21 +71,14 @@
                                     <td data-label="Name">
                                         <strong>{{ stat.last_name }}, {{ stat.first_name }}</strong>
                                     </td>
-                                    <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
-                                    <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
-                                    <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
-                                    <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
+                                    <td data-label="Stimmgruppe">{{ stat.voice_group_name|default("-") }}</td>
+                                    <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default("0") }}</td>
+                                    <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default("0") }}</td>
+                                    <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default("0") }}</td>
                                     <td data-label="Quote" class="text-end">
                                         {% set bar_color = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
                                         <div class="d-flex align-items-center justify-content-end">
-                                            <span class="me-2 fw-bold
-                                                         {% if stat.percentage >= 75 %}
-                                                             text-success
-                                                         {% elseif stat.percentage >= 50 %}
-                                                             text-warning
-                                                         {% else %}
-                                                             text-danger
-                                                         {% endif %}">{{ stat.percentage }}%</span>
+                                            <span class="me-2 fw-bold {% if stat.percentage >= 75 %} text-success {% elseif stat.percentage >= 50 %} text-warning {% else %} text-danger {% endif %}">{{ stat.percentage }}%</span>
                                             <div class="progress progress-sm">
                                                 <div class="progress-bar progress-bar-dynamic {{ bar_color }}"
                                                      role="progressbar"

@@ -13,8 +13,13 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Role;
 use App\Middleware\RoleMiddleware;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Slim\Psr7\Factory\ServerRequestFactory;
+use Slim\Psr7\Response as SlimResponse;
 
 class TaskFeatureTest extends TestCase
 {
@@ -67,7 +72,119 @@ class TaskFeatureTest extends TestCase
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertStringContainsString("->add(new RoleMiddleware", $routesContent);
         // Verify requiresTaskManagement parameter (9th parameter, index 8)
-        $this->assertStringContainsString("new RoleMiddleware(false, 0, false, false, false, false, false, false, true)", $routesContent);
+        $taskMiddlewareSignature = "new RoleMiddleware(false, 0, false, false, false, false, false, false, true)";
+        $this->assertStringContainsString($taskMiddlewareSignature, $routesContent);
+        $this->assertGreaterThanOrEqual(2, substr_count($routesContent, $taskMiddlewareSignature));
+    }
+
+    public function testTaskControllerDoesNotGrantAccessByProjectMembershipAlone(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+
+        $this->assertStringNotContainsString("\$project->users()->where('users.id', \$userId)->exists()", $controllerContent);
+        $this->assertStringContainsString('return $canManageTasks;', $controllerContent);
+        $this->assertStringNotContainsString('can_manage_master_data', $controllerContent);
+        $this->assertStringNotContainsString('can_manage_users', $controllerContent);
+    }
+
+    public function testProjectsTemplateShowsPlanningLinkOnlyWithTaskRelatedPermissions(): void
+    {
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
+
+        $this->assertStringContainsString(
+            '{% if session.can_manage_tasks %}',
+            $templateContent
+        );
+        $this->assertStringNotContainsString('session.can_manage_master_data', $templateContent);
+        $this->assertStringNotContainsString('session.can_manage_users', $templateContent);
+        $this->assertStringNotContainsString('project.id in userProjectIds', $templateContent);
+    }
+
+    public function testRoleMiddlewareTaskCheckHasNoMasterDataBypass(): void
+    {
+        $middlewareContent = file_get_contents(dirname(__DIR__) . '/../src/Middleware/RoleMiddleware.php');
+
+        $this->assertStringContainsString(
+            'if ($this->requiresTaskManagement && !$canManageTasks) {',
+            $middlewareContent
+        );
+        $this->assertStringNotContainsString(
+            'if ($this->requiresTaskManagement && !$canManageTasks && !$canManageUsers) {',
+            $middlewareContent
+        );
+        $this->assertStringNotContainsString(
+            'if ($this->requiresTaskManagement && !$canManageTasks && !$canManageUsers && !$canManageMasterData) {',
+            $middlewareContent
+        );
+    }
+
+    public function testTaskMiddlewareDeniesAccessWithoutTaskPermission(): void
+    {
+        $_SESSION = [
+            'user_id' => 42,
+            'can_manage_tasks' => false,
+            'can_manage_users' => false,
+            'can_manage_master_data' => true,
+        ];
+
+        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, true);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new SlimResponse(200);
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertSame(403, $response->getStatusCode());
+    }
+
+    public function testTaskMiddlewareAllowsAccessWithTaskPermission(): void
+    {
+        $_SESSION = [
+            'user_id' => 42,
+            'can_manage_tasks' => true,
+            'can_manage_users' => false,
+            'can_manage_master_data' => false,
+        ];
+
+        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, true);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new SlimResponse(200);
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testTaskMiddlewareDeniesAccessForAdminWithoutTaskPermission(): void
+    {
+        $_SESSION = [
+            'user_id' => 42,
+            'can_manage_tasks' => false,
+            'can_manage_users' => true,
+            'can_manage_master_data' => false,
+        ];
+
+        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, true);
+        $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new SlimResponse(200);
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertSame(403, $response->getStatusCode());
     }
 
     /**

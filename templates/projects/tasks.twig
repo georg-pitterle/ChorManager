@@ -51,7 +51,7 @@
          data-default-page-size="100"
          data-page-size-options="25,50,100,200"
          data-default-sort-key="due_date">
-        {{ include('partials/table_toolbar.twig') }}
+        {{ include("partials/table_toolbar.twig") }}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -70,7 +70,7 @@
                         {% for task in tasks %}
                             <tr data-sort-task_title="{{ task.name|lower }}"
                                 data-sort-assignee_name="{{ task.assignee ? (task.assignee.first_name ~ ' ' ~ task.assignee.last_name)|lower : '' }}"
-                                data-sort-due_date="{{ task.end_date ? task.end_date|date('Y-m-d') : '9999-12-31' }}"
+                                data-sort-due_date="{{ task.end_date ? task.end_date|date("Y-m-d") : '9999-12-31' }}"
                                 data-sort-task_status="{{ task.status|lower }}">
                                 <td data-label="Titel">
                                     <strong>{{ task.name }}</strong>
@@ -91,7 +91,7 @@
                                         {% set due = task.end_date|date('Y-m-d') %}
                                         {% set today = 'now'|date('Y-m-d') %}
                                         <span class="{{ due < today and task.status != 'Abgeschlossen' ? 'text-danger fw-bold' : '' }}">
-                                            {{ task.end_date|date('d.m.Y') }}
+                                            {{ task.end_date|date("d.m.Y") }}
                                         </span>
                                     {% else %}
                                         -

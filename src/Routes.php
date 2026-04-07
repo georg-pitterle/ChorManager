@@ -203,12 +203,19 @@ return function (App $app) {
                         '/{id:[0-9]+}/members/{user_id:[0-9]+}/remove',
                         [ProjectController::class, 'removeMember']
                     );
-                    $projGroup->get('/{project_id:[0-9]+}/tasks', [TaskController::class, 'index']);
-                    $projGroup->post('/{project_id:[0-9]+}/tasks', [TaskController::class, 'create']);
                 }
             )->add(new RoleMiddleware(false, 0, false, true)); // requiresProjectMemberManagement
 
-            // Task Detail Routes (accessible by project members or task managers)
+            // Project task routes require task management permission
+            $group->group(
+                '/projects',
+                function (RouteCollectorProxy $projGroup) {
+                    $projGroup->get('/{project_id:[0-9]+}/tasks', [TaskController::class, 'index']);
+                    $projGroup->post('/{project_id:[0-9]+}/tasks', [TaskController::class, 'create']);
+                }
+            )->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, true));
+
+            // Task detail routes require task management permission
             $group->group(
                 '/tasks',
                 function (RouteCollectorProxy $taskGroup) {

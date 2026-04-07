@@ -26,9 +26,7 @@ class SessionAuthService
 
         foreach ($user->roles as $role) {
             if ($role->hierarchy_level >= 80) {
-                $canManageUsers = true;
                 $canEditUsers = true;
-                $canManageProjectMembers = true;
                 $canManageTasks = true;
             }
 

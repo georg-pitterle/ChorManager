@@ -82,7 +82,7 @@
          data-default-page-size="100"
          data-page-size-options="25,50,100,200"
          data-default-sort-key="sponsor_name">
-        {{ include('partials/table_toolbar.twig') }}
+        {{ include("partials/table_toolbar.twig") }}
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 table-responsive-cards"
                    id="sponsorsTable">
@@ -117,20 +117,20 @@
                             </td>
                             <td data-label="Status">
                                 {% set status_colors = {
-                                    prospect: 'secondary',
-                                    contacted: 'info',
-                                    negotiating: 'warning',
-                                    active: 'success',
-                                    paused: 'secondary',
-                                    closed: 'dark',
+                                    "prospect": "secondary",
+                                    "contacted": "info",
+                                    "negotiating": "warning",
+                                    "active": "success",
+                                    "paused": "secondary",
+                                    "closed": "dark"
                                 } %}
                                 {% set status_labels = {
-                                    prospect: 'Interessent',
-                                    contacted: 'Kontaktiert',
-                                    negotiating: 'Verhandlung',
-                                    active: 'Aktiv',
-                                    paused: 'Pausiert',
-                                    closed: 'Abgeschlossen',
+                                    "prospect": "Interessent",
+                                    "contacted": "Kontaktiert",
+                                    "negotiating": "Verhandlung",
+                                    "active": "Aktiv",
+                                    "paused": "Pausiert",
+                                    "closed": "Abgeschlossen"
                                 } %}
                                 <span class="badge bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
                             </td>

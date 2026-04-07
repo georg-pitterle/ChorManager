@@ -24,7 +24,7 @@
              data-page-size-options="25,50,100"
              data-default-sort-key="sent"
              data-default-sort-dir="desc">
-            {{ include('partials/table_toolbar.twig') }}
+            {{ include("partials/table_toolbar.twig") }}
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -44,9 +44,9 @@
                                 {% if newsletter %}
                                     {% set sender_name = (newsletter.createdBy.first_name|default('') ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim %}
                                     <tr data-sort-title="{{ newsletter.title|lower }}"
-                                        data-sort-project="{{ newsletter.project.name|default('')|lower }}"
+                                        data-sort-project="{{ newsletter.project.name|default("")|lower }}"
                                         data-sort-sender="{{ sender_name|lower }}"
-                                        data-sort-sent="{{ entry.sent_at|date('Y-m-d H:i:s') }}">
+                                        data-sort-sent="{{ entry.sent_at|date("Y-m-d H:i:s") }}">
                                         <td data-label="Titel">
                                             <strong>{{ newsletter.title }}</strong>
                                             {% if newsletter.event %}
@@ -54,9 +54,9 @@
                                                 <small class="text-muted">Event: {{ newsletter.event.title }}</small>
                                             {% endif %}
                                         </td>
-                                        <td data-label="Projekt">{{ newsletter.project.name|default('-') }}</td>
-                                        <td data-label="Erstellt von">{{ sender_name|default('-') }}</td>
-                                        <td data-label="Gesendet am">{{ entry.sent_at|date('d.m.Y H:i') }}</td>
+                                        <td data-label="Projekt">{{ newsletter.project.name|default("-") }}</td>
+                                        <td data-label="Erstellt von">{{ sender_name|default("-") }}</td>
+                                        <td data-label="Gesendet am">{{ entry.sent_at|date("d.m.Y H:i") }}</td>
                                         <td data-label="Aktionen" class="text-end">
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-secondary"

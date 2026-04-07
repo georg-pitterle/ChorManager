@@ -27,15 +27,8 @@ class TaskController
     private function hasTaskAccess(Project $project): bool
     {
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
-        $canManageMasterData = $_SESSION['can_manage_master_data'] ?? false;
-        $canManageUsers = $_SESSION['can_manage_users'] ?? false;
 
-        if ($canManageTasks || $canManageMasterData || $canManageUsers) {
-            return true;
-        }
-
-        $userId = $_SESSION['user_id'] ?? 0;
-        return $project->users()->where('users.id', $userId)->exists();
+        return $canManageTasks;
     }
 
     private function validateStatus(string $status): string

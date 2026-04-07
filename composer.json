@@ -51,8 +51,7 @@
             "@twigcs"
         ],
         "twig:fix": [
-            "@twig:reformat",
-            "@twigcbf"
+            "@twig:reformat"
         ],
         "twig:all": [
             "@twig:fix",

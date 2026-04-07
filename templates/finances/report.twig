@@ -282,7 +282,7 @@
                                 {% set current_balance = current_balance - item.amount %}
                             {% endif %}
                             <tr>
-                                <td>{{ item.invoice_date|date('d.m.Y') }}</td>
+                                <td>{{ item.invoice_date|date("d.m.Y") }}</td>
                                 <td class="text-muted">#{{ item.running_number }}</td>
                                 <td>{{ item.description }}</td>
                                 <td class="text-end text-success">

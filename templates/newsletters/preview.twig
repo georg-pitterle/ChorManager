@@ -30,7 +30,7 @@
                             <h5 class="mb-1">{{ newsletter.title }}</h5>
                             <small class="text-muted">
                                 Von: {{ newsletter.createdBy.first_name }} {{ newsletter.createdBy.last_name }}
-                                | Erstellt: {{ newsletter.created_at|date('d.m.Y H:i') }}
+                                | Erstellt: {{ newsletter.created_at|date("d.m.Y H:i") }}
                             </small>
                         </div>
                     </div>

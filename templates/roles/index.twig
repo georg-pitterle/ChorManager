@@ -45,134 +45,175 @@
     <div class="surface-card card border-0 table-shell"
          data-table-engine="true"
          data-table-id="roles.index"
-         data-default-view="auto"
+         data-default-view="table"
          data-default-page-size="100"
-         data-page-size-options="25,50,100,200"
-         data-default-sort-key="hierarchy_level"
-         data-default-sort-dir="desc">
-        {{ include('partials/table_toolbar.twig') }}
+         data-page-size-options="25,50,100,200">
+        {{ include("partials/table_toolbar.twig") }}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 table-responsive-cards"
                        id="rolesTable">
                     <thead class="table-dark">
                         <tr>
-                            <th data-sort-key="role_name" data-sort-type="text">Rollenname</th>
-                            <th data-sort-key="hierarchy_level" data-sort-type="number">Level</th>
-                            <th data-sort-key="permission_scope" data-sort-type="text">Admin-Rechte</th>
-                            <th>Edit-Rechte</th>
-                            <th>Projektmitglieder</th>
-                            <th>Stammdaten</th>
-                            <th>Finanzen (Kassa)</th>
-                            <th>Sponsoring</th>
-                            <th>Liedbibliothek</th>
-                            <th>Newsletter</th>
-                            <th>Aufgaben/Planung</th>
-                            <th class="text-end">Aktive Mitglieder</th>
-                            <th class="text-end">Aktionen</th>
+                            <th scope="col" class="text-nowrap">Berechtigung</th>
+                            {% for role in roles %}
+                                <th scope="col" class="text-nowrap">
+                                    <div class="fw-semibold">{{ role.name }}</div>
+                                    <small class="text-light">Level {{ role.hierarchy_level }}</small>
+                                </th>
+                            {% else %}
+                                <th scope="col">Rollen</th>
+                            {% endfor %}
                         </tr>
                     </thead>
                     <tbody>
-                        {% for role in roles %}
-                            <tr data-sort-role_name="{{ role.name|lower }}"
-                                data-sort-hierarchy_level="{{ role.hierarchy_level }}"
-                                data-sort-permission_scope="{{ role.can_manage_users ? 'ja' : 'nein' }}">
-                                <td data-label="Rollenname">
-                                    <strong>{{ role.name }}</strong>
-                                </td>
-                                <td data-label="Level">{{ role.hierarchy_level }}</td>
-                                <td data-label="Admin-Rechte">
-                                    {% if role.can_manage_users %}
-                                        <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Edit-Rechte">
-                                    {% if role.can_edit_users %}
-                                        <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Projektmitglieder">
-                                    {% if role.can_manage_project_members %}
-                                        <span class="badge bg-info"><i class="bi bi-people"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Stammdaten">
-                                    {% if role.can_manage_master_data %}
-                                        <span class="badge bg-primary"><i class="bi bi-database"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Finanzen (Kassa)">
-                                    {% if role.can_manage_finances %}
-                                        <span class="badge bg-success"><i class="bi bi-cash"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Sponsoring">
-                                    {% if role.can_manage_sponsoring %}
-                                        <span class="badge bg-info"><i class="bi bi-briefcase"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Liedbibliothek">
-                                    {% if role.can_manage_song_library %}
-                                        <span class="badge bg-primary"><i class="bi bi-music-note-list"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Newsletter">
-                                    {% if role.can_manage_newsletters %}
-                                        <span class="badge bg-success"><i class="bi bi-envelope-open"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Aufgaben/Planung">
-                                    {% if role.can_manage_tasks %}
-                                        <span class="badge bg-primary"><i class="bi bi-list-check"></i> Ja</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Aktive Mitglieder" class="text-end">
-                                    <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
-                                </td>
-                                <td data-label="Aktionen" class="text-end">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-secondary edit-role-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editRoleModal"
-                                            data-id="{{ role.id }}"
-                                            data-name="{{ role.name }}"
-                                            data-level="{{ role.hierarchy_level }}"
-                                            data-manage="{{ role.can_manage_users ? '1' : '0' }}"
-                                            data-edit="{{ role.can_edit_users ? '1' : '0' }}"
-                                            data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
-                                            data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
-                                            data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
-                                            data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
-                                            data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
-                                            data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
-                                            data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
-                                        <i class="bi bi-pencil"></i> Bearbeiten
-                                    </button>
-                                </td>
+                        {% if roles is not empty %}
+                            <tr>
+                                <th scope="row">Admin-Rechte</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_users %}
+                                            <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Edit-Rechte</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_edit_users %}
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Projektmitglieder</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_project_members %}
+                                            <span class="badge bg-info"><i class="bi bi-people"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Stammdaten</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_master_data %}
+                                            <span class="badge bg-primary"><i class="bi bi-database"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Finanzen (Kassa)</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_finances %}
+                                            <span class="badge bg-success"><i class="bi bi-cash"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Sponsoring</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_sponsoring %}
+                                            <span class="badge bg-info"><i class="bi bi-briefcase"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Liedbibliothek</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_song_library %}
+                                            <span class="badge bg-primary"><i class="bi bi-music-note-list"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Newsletter</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_newsletters %}
+                                            <span class="badge bg-success"><i class="bi bi-envelope-open"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Aufgaben/Planung</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_tasks %}
+                                            <span class="badge bg-primary"><i class="bi bi-list-check"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Aktive Mitglieder</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <th scope="row">Aktionen</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary edit-role-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editRoleModal"
+                                                data-id="{{ role.id }}"
+                                                data-name="{{ role.name }}"
+                                                data-level="{{ role.hierarchy_level }}"
+                                                data-manage="{{ role.can_manage_users ? '1' : '0' }}"
+                                                data-edit="{{ role.can_edit_users ? '1' : '0' }}"
+                                                data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
+                                                data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
+                                                data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
+                                                data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
+                                                data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
+                                                data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
+                                                data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
+                                            <i class="bi bi-pencil"></i> Bearbeiten
+                                        </button>
+                                    </td>
+                                {% endfor %}
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="12" class="text-center py-4 text-muted">Keine Rollen gefunden.</td>
+                                <td colspan="2" class="text-center py-4 text-muted">Keine Rollen gefunden.</td>
                             </tr>
-                        {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>

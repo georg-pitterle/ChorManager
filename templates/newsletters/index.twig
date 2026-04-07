@@ -32,7 +32,9 @@
                             class="form-select onchange-submit">
                         {% for selectable_project in projects %}
                             <option value="{{ selectable_project.id }}"
-                                    {% if selectable_project.id == project.id %}selected{% endif %}>{{ selectable_project.name }}</option>
+                                    {% if selectable_project.id == project.id %}selected{% endif %}>
+                                {{ selectable_project.name }}
+                            </option>
                         {% endfor %}
                     </select>
                     <input type="hidden" name="status" value="{{ status }}">
@@ -64,13 +66,11 @@
                 <ul class="nav nav-tabs mb-0">
                     <li class="nav-item">
                         {% set draft_project_id = project is defined and project ? project.id : (projects|first).id %}
-                        <a class="nav-link
-                                  {% if status == 'draft' %}active{% endif %}"
+                        <a class="nav-link {% if status == 'draft' %}active{% endif %}"
                            href="?project_id={{ draft_project_id }}&status=draft">Entwürfe</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link
-                                  {% if status == 'sent' %}active{% endif %}"
+                        <a class="nav-link {% if status == 'sent' %}active{% endif %}"
                            href="?status=sent">Versendet</a>
                     </li>
                 </ul>
@@ -85,7 +85,7 @@
                  data-page-size-options="25,50,100"
                  data-default-sort-key="created"
                  data-default-sort-dir="desc">
-                {{ include('partials/table_toolbar.twig') }}
+                {{ include("partials/table_toolbar.twig") }}
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -103,9 +103,9 @@
                             <tbody>
                                 {% for newsletter in newsletters %}
                                     <tr data-sort-title="{{ newsletter.title|lower }}"
-                                        data-sort-sender="{{ (newsletter.createdBy.first_name|default('') ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim|lower }}"
+                                        data-sort-sender="{{ (newsletter.createdBy.first_name|default("") ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim|lower }}"
                                         data-sort-recipients="{{ newsletter.recipient_count }}"
-                                        data-sort-created="{{ newsletter.created_at|date('Y-m-d H:i:s') }}"
+                                        data-sort-created="{{ newsletter.created_at|date("Y-m-d H:i:s") }}"
                                         data-sort-status="{{ newsletter.status|lower }}">
                                         <td data-label="Titel">
                                             <strong>{{ newsletter.title }}</strong>
@@ -115,12 +115,12 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Erstellt von">
-                                            {{ newsletter.createdBy.first_name|default('') }} {{ newsletter.createdBy.last_name|default('') }}
+                                            {{ newsletter.createdBy.first_name|default("") }} {{ newsletter.createdBy.last_name|default("") }}
                                         </td>
                                         <td data-label="Empfänger">
                                             <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
                                         </td>
-                                        <td data-label="Erstellt am">{{ newsletter.created_at|date('d.m.Y H:i') }}</td>
+                                        <td data-label="Erstellt am">{{ newsletter.created_at|date("d.m.Y H:i") }}</td>
                                         <td data-label="Status">
                                             {% if newsletter.status == 'draft' %}
                                                 <span class="badge bg-secondary">Entwurf</span>

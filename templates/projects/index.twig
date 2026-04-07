@@ -50,7 +50,7 @@
          data-page-size-options="25,50,100,200"
          data-default-sort-key="start_date"
          data-default-sort-dir="desc">
-        {{ include('partials/table_toolbar.twig') }}
+        {{ include("partials/table_toolbar.twig") }}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -67,17 +67,17 @@
                     <tbody>
                         {% for project in projects %}
                             <tr data-sort-project_name="{{ project.name|lower }}"
-                                data-sort-description="{{ project.description|default('')|lower }}"
-                                data-sort-start_date="{{ project.start_date|default('') }}"
-                                data-sort-end_date="{{ project.end_date|default('') }}">
+                                data-sort-description="{{ project.description|default("")|lower }}"
+                                data-sort-start_date="{{ project.start_date|default("") }}"
+                                data-sort-end_date="{{ project.end_date|default("") }}">
                                 <td data-label="Projektname">
                                     <strong>{{ project.name }}</strong>
                                 </td>
-                                <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
-                                <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>
-                                <td data-label="Enddatum">{{ project.end_date|default('-') }}</td>
+                                <td data-label="Beschreibung">{{ project.description|default("-") }}</td>
+                                <td data-label="Startdatum">{{ project.start_date|default("-") }}</td>
+                                <td data-label="Enddatum">{{ project.end_date|default("-") }}</td>
                                 <td data-label="Aktionen" class="text-end">
-                                    {% if session.can_manage_tasks or session.can_manage_master_data or session.can_manage_users or (project.id in userProjectIds) %}
+                                    {% if session.can_manage_tasks %}
                                         <a href="/projects/{{ project.id }}/tasks"
                                            class="btn btn-sm btn-outline-info">
                                             <i class="bi bi-list-check"></i> Planung

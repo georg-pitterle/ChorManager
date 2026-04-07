@@ -4,12 +4,12 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description"
-              content="{{ app_settings.app_description|default('Chor Manager – Verwaltung von Mitgliedern, Terminen und Projekten.') }}">
+              content="{{ app_settings.app_description|default("Chor Manager – Verwaltung von Mitgliedern, Terminen und Projekten.") }}">
         <meta name="keywords"
-              content="{{ app_settings.app_keywords|default('chor, chorverwaltung, mitglieder, termine, projekte, newsletter') }}">
+              content="{{ app_settings.app_keywords|default("chor, chorverwaltung, mitglieder, termine, projekte, newsletter") }}">
         <title>
             {% block title %}
-                {{ app_settings.app_name|default('Chor Manager') }}
+                {{ app_settings.app_name|default("Chor Manager") }}
             {% endblock title %}
         </title>
         <!-- Bootstrap CSS -->
@@ -37,7 +37,7 @@
                 <div class="container-fluid app-topbar__inner">
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
                         <img src="/logo" alt="Logo" class="me-2 navbar-logo">
-                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default('Chor Manager') }}</span></a>
+                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default("Chor Manager") }}</span></a>
                     <button class="navbar-toggler"
                             type="button"
                             data-bs-toggle="collapse"
@@ -53,33 +53,33 @@
                     <div class="collapse navbar-collapse" id="navbarsExampleDefault">
                         <ul class="navbar-nav me-auto mb-2 mb-md-0">
                             {{ include('partials/navigation/dashboard.twig', {
-                                                        is_dashboard_active: is_dashboard_active,
-                                                        }, false) }}
+                            is_dashboard_active: is_dashboard_active,
+                            }, false) }}
                             {{ include('partials/navigation/events.twig', {
-                                                        is_events_active: is_events_active,
-                                                        path: path,
-                                                        nav: nav,
-                                                        }, false) }}
+                            is_events_active: is_events_active,
+                            path: path,
+                            nav: nav,
+                            }, false) }}
                             {{ include('partials/navigation/areas.twig', {
-                                                        is_areas_active: is_areas_active,
-                                                        path: path,
-                                                        nav: nav,
-                                                        session: session,
-                                                        }, false) }}
+                            is_areas_active: is_areas_active,
+                            path: path,
+                            nav: nav,
+                            session: session,
+                            }, false) }}
                             {{ include('partials/navigation/evaluations.twig', {
-                                                        can_show_evaluations: can_show_evaluations,
-                                                        is_evaluations_active: is_evaluations_active,
-                                                        path: path,
-                                                        nav: nav,
-                                                        session: session,
-                                                        }, false) }}
+                            can_show_evaluations: can_show_evaluations,
+                            is_evaluations_active: is_evaluations_active,
+                            path: path,
+                            nav: nav,
+                            session: session,
+                            }, false) }}
                             {{ include('partials/navigation/admin.twig', {
-                                                        can_show_admin: can_show_admin,
-                                                        is_admin_active: is_admin_active,
-                                                        path: path,
-                                                        nav: nav,
-                                                        session: session,
-                                                        }, false) }}
+                            can_show_admin: can_show_admin,
+                            is_admin_active: is_admin_active,
+                            path: path,
+                            nav: nav,
+                            session: session,
+                            }, false) }}
                         </ul>
                         {{ include('partials/navigation/user_menu.twig', [], false) }}
 

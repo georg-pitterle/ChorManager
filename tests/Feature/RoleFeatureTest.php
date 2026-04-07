@@ -61,4 +61,12 @@ class RoleFeatureTest extends TestCase
         $this->assertRedirect($result, '/roles');
         $this->assertSame('Der Rollenname darf nicht leer sein.', $_SESSION['error']);
     }
+
+    public function testRolesTemplateProvidesDataLabelsForCardView(): void
+    {
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('<td data-label="{{ role.name }}">', $templateContent);
+    }
 }

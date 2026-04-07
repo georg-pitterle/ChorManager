@@ -99,7 +99,7 @@
              data-page-size-options="25,50,100,200"
              data-default-sort-key="event_date"
              data-default-sort-dir="desc">
-            {{ include('partials/table_toolbar.twig') }}
+            {{ include("partials/table_toolbar.twig") }}
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 table-responsive-cards"
                        id="eventsTable">
@@ -115,21 +115,21 @@
                     </thead>
                     <tbody>
                         {% for event in events %}
-                            <tr data-sort-event_date="{{ event.event_date|date('Y-m-d') }}"
+                            <tr data-sort-event_date="{{ event.event_date|date("Y-m-d") }}"
                                 data-sort-title="{{ event.title|lower }}"
-                                data-sort-location="{{ event.location|default('')|lower }}"
+                                data-sort-location="{{ event.location|default("")|lower }}"
                                 data-sort-type="{{ event.type_name|lower }}"
-                                data-sort-project_name="{{ event.project_name|default('')|lower }}">
+                                data-sort-project_name="{{ event.project_name|default("")|lower }}">
                                 <td data-label="Datum">
-                                    <strong>{{ event.event_date|date('d.m.Y') }}</strong>
+                                    <strong>{{ event.event_date|date("d.m.Y") }}</strong>
                                     {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
                                 </td>
                                 <td data-label="Titel">{{ event.title }}</td>
-                                <td data-label="Ort">{{ event.location|default('-') }}</td>
+                                <td data-label="Ort">{{ event.location|default("-") }}</td>
                                 <td data-label="Typ">
                                     <span class="badge bg-{{ event.type_color }}">{{ event.type_name }}</span>
                                 </td>
-                                <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
+                                <td data-label="Projekt">{{ event.project_name|default("-") }}</td>
                                 <td data-label="Aktionen" class="text-end">
                                     <div class="btn-group">
                                         <a href="/attendance/{{ event.id }}"
