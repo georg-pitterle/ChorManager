@@ -126,6 +126,7 @@ return function (App $app) {
                 function (RouteCollectorProxy $masterGroup) {
                     $masterGroup->get('/projects', [ProjectController::class, 'index']);
                     $masterGroup->post('/projects', [ProjectController::class, 'create']);
+                    $masterGroup->post('/projects/{id:[0-9]+}/update', [ProjectController::class, 'update']);
 
                     // Role Management
                     $masterGroup->get('/roles', [RoleController::class, 'index']);

@@ -47,7 +47,7 @@ class ProjectController
 
     public function create(Request $request, Response $response): Response
     {
-        $data = (array)$request->getParsedBody();
+        $data = (array) $request->getParsedBody();
         $name = trim($data['name'] ?? '');
         $description = trim($data['description'] ?? '');
         $startDate = $data['start_date'] ?? null;
@@ -66,6 +66,37 @@ class ProjectController
         $project->save();
 
         $_SESSION['success'] = 'Projekt erfolgreich angelegt.';
+        return $response->withHeader('Location', '/projects')->withStatus(302);
+    }
+
+    public function update(Request $request, Response $response, array $args): Response
+    {
+        $projectId = (int) $args['id'];
+        $data = (array) $request->getParsedBody();
+        $name = trim($data['name'] ?? '');
+        $description = trim($data['description'] ?? '');
+        $startDate = $data['start_date'] ?? null;
+        $endDate = $data['end_date'] ?? null;
+
+        if (!$name) {
+            $_SESSION['error'] = 'Geben Sie einen Namen für das Projekt ein.';
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
+        $project = Project::find($projectId);
+
+        if (!$project) {
+            $_SESSION['error'] = 'Projekt nicht gefunden.';
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
+        $project->name = $name;
+        $project->description = $description;
+        $project->start_date = $startDate ?: null;
+        $project->end_date = $endDate ?: null;
+        $project->save();
+
+        $_SESSION['success'] = 'Projekt erfolgreich aktualisiert.';
         return $response->withHeader('Location', '/projects')->withStatus(302);
     }
 
@@ -99,11 +130,11 @@ class ProjectController
             }
 
             return [
-            'id' => $user->id,
-            'first_name' => $user->first_name,
-            'last_name' => $user->last_name,
-            'email' => $user->email,
-            'voice_groups_display' => implode(', ', array_unique($vgDisplays))
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'voice_groups_display' => implode(', ', array_unique($vgDisplays))
             ];
         });
 

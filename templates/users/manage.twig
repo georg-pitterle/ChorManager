@@ -92,7 +92,9 @@
                             <th data-sort-key="role" data-sort-type="text">Rolle</th>
                             <th data-sort-key="voice" data-sort-type="text">Stimme</th>
                             {% if can_manage_project_members or can_edit_users %}
-                                <th data-sort-key="project_count" data-sort-type="number" data-sort-initial-dir="desc">Projekte</th>
+                                <th data-sort-key="project_count"
+                                    data-sort-type="number"
+                                    data-sort-initial-dir="desc">Projekte</th>
                             {% endif %}
                             <th class="text-end">Aktionen</th>
                         </tr>
@@ -486,7 +488,10 @@
                             <h5 class="modal-title" id="userProjectsModalLabel{{ user.id }}">
                                 Projekte von {{ user.first_name }} {{ user.last_name }}
                             </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Schließen"></button>
                         </div>
                         <div class="modal-body">
                             {% if user.project_participations|length > 0 %}

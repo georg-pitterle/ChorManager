@@ -77,25 +77,43 @@
                                 <td data-label="Startdatum">{{ project.start_date|default("-") }}</td>
                                 <td data-label="Enddatum">{{ project.end_date|default("-") }}</td>
                                 <td data-label="Aktionen" class="text-end">
-                                    {% if session.can_manage_tasks %}
-                                        <a href="/projects/{{ project.id }}/tasks"
-                                           class="btn btn-sm btn-outline-info">
-                                            <i class="bi bi-list-check"></i> Planung
-                                        </a>
-                                    {% endif %}
+                                    <div class="dropdown">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                data-bs-toggle="dropdown"
+                                                aria-expanded="false">Aktionen</button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <button type="button"
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editProjectModal{{ project.id }}">
+                                                    <i class="bi bi-pencil me-2"></i>Bearbeiten
+                                                </button>
+                                            </li>
 
-                                    {% if session.can_manage_project_members %}
-                                        <a href="/projects/{{ project.id }}/members"
-                                           class="btn btn-sm btn-outline-primary ms-1">
-                                            <i class="bi bi-people"></i> Mitglieder
-                                        </a>
-                                    {% endif %}
+                                            {% if session.can_manage_tasks %}
+                                                <li>
+                                                    <a href="/projects/{{ project.id }}/tasks" class="dropdown-item">
+                                                        <i class="bi bi-list-check me-2"></i>Planung
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+
+                                            {% if session.can_manage_project_members %}
+                                                <li>
+                                                    <a href="/projects/{{ project.id }}/members" class="dropdown-item">
+                                                        <i class="bi bi-people me-2"></i>Mitglieder
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
                                 </td>
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="{{ session.can_manage_project_members ? 5 : 4 }}"
-                                    class="text-center py-4 text-muted">Bisher wurden keine Projekte angelegt.</td>
+                                <td colspan="5" class="text-center py-4 text-muted">Bisher wurden keine Projekte angelegt.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -103,6 +121,68 @@
             </div>
         </div>
     </div>
+
+    {% for project in projects %}
+        <div class="modal fade"
+             id="editProjectModal{{ project.id }}"
+             tabindex="-1"
+             aria-labelledby="editProjectModalLabel{{ project.id }}"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="/projects/{{ project.id }}/update"
+                      method="post"
+                      class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editProjectModalLabel{{ project.id }}">Projekt bearbeiten</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_name_{{ project.id }}" class="form-label">Projektname *</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="edit_name_{{ project.id }}"
+                                   name="name"
+                                   value="{{ project.name }}"
+                                   required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description_{{ project.id }}" class="form-label">Beschreibung</label>
+                            <textarea class="form-control"
+                                      id="edit_description_{{ project.id }}"
+                                      name="description"
+                                      rows="3">{{ project.description|default('') }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_start_date_{{ project.id }}" class="form-label">Startdatum</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="edit_start_date_{{ project.id }}"
+                                       name="start_date"
+                                       value="{{ project.start_date|default('') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_end_date_{{ project.id }}" class="form-label">Enddatum</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="edit_end_date_{{ project.id }}"
+                                       name="end_date"
+                                       value="{{ project.end_date|default('') }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endfor %}
 
     <!-- Add Project Modal -->
     <div class="modal fade"
