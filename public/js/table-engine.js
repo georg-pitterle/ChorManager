@@ -955,6 +955,7 @@
                 }
 
                 const isShiftClick = Boolean(event && event.shiftKey);
+                const initialSortDir = normalizeSortDir(header.dataset.sortInitialDir);
 
                 if (isShiftClick) {
                     const nextSortColumns = normalizeSortColumns(state.sortColumns);
@@ -966,7 +967,7 @@
                         if (nextSortColumns.length >= 3) {
                             nextSortColumns.pop();
                         }
-                        nextSortColumns.push({ key: key, dir: 'asc' });
+                        nextSortColumns.push({ key: key, dir: initialSortDir });
                     } else if (existingIndex === 0) {
                         nextSortColumns[0] = {
                             key: key,
@@ -986,7 +987,7 @@
                     if (state.sortColumns.length === 1 && currentPrimary && currentPrimary.key === key) {
                         setSortColumns([{ key: key, dir: currentPrimary.dir === 'asc' ? 'desc' : 'asc' }]);
                     } else {
-                        setSortColumns([{ key: key, dir: 'asc' }]);
+                        setSortColumns([{ key: key, dir: initialSortDir }]);
                     }
                 }
 

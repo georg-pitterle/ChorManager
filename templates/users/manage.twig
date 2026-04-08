@@ -92,7 +92,7 @@
                             <th data-sort-key="role" data-sort-type="text">Rolle</th>
                             <th data-sort-key="voice" data-sort-type="text">Stimme</th>
                             {% if can_manage_project_members or can_edit_users %}
-                                <th data-sort-key="project" data-sort-type="text">Projekte</th>
+                                <th data-sort-key="project_count" data-sort-type="number" data-sort-initial-dir="desc">Projekte</th>
                             {% endif %}
                             <th class="text-end">Aktionen</th>
                         </tr>
@@ -126,7 +126,7 @@
                                 data-sort-email="{{ user.email|lower }}"
                                 data-sort-role="{{ role_filter|trim }}"
                                 data-sort-voice="{{ voice_filter|trim }}"
-                                data-sort-project="{{ project_filter|trim }}">
+                                data-sort-project_count="{{ user.project_count }}">
                                 {% if not show_archived %}
                                     <td data-label="Auswahl">
                                         <input type="checkbox"
@@ -165,13 +165,13 @@
                                 </td>
                                 {% if can_manage_project_members or can_edit_users %}
                                     <td data-label="Projekte">
-                                        {% for pid in user.project_ids %}
-                                            {% for p in projects %}
-                                                {% if p.id == pid %}<span class="badge bg-info me-1">{{ p.name }}</span>{% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endfor %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-info"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#userProjectsModal{{ user.id }}"
+                                                aria-label="Projektteilnahmen von {{ user.first_name }} {{ user.last_name }} anzeigen">
+                                            {{ user.project_count }}
+                                        </button>
                                     </td>
                                 {% endif %}
                                 <td data-label="Aktionen" class="text-end">
@@ -468,6 +468,43 @@
                             <button type="submit" class="btn btn-primary">Änderungen speichern</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if can_manage_project_members or can_edit_users %}
+        {% for user in users %}
+            <div class="modal fade"
+                 id="userProjectsModal{{ user.id }}"
+                 tabindex="-1"
+                 aria-labelledby="userProjectsModalLabel{{ user.id }}"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="userProjectsModalLabel{{ user.id }}">
+                                Projekte von {{ user.first_name }} {{ user.last_name }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                        </div>
+                        <div class="modal-body">
+                            {% if user.project_participations|length > 0 %}
+                                <ul class="list-group list-group-flush">
+                                    {% for participation in user.project_participations %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                                            <span>{{ participation.name }}</span>
+                                            <span class="badge {{ participation.is_archived ? 'bg-secondary' : 'bg-success' }}">
+                                                {{ participation.status_label }}
+                                            </span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted mb-0">Keine Projektteilnahmen vorhanden.</p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         {% endfor %}

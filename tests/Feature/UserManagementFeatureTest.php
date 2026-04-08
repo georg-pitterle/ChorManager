@@ -41,4 +41,22 @@ class UserManagementFeatureTest extends TestCase
         $this->assertStringContainsString('/users?archived=1', $twig);
         $this->assertStringContainsString('/users/restore/', $twig);
     }
+
+    public function testUserManagementBuildsProjectCountParticipationDataAndModalMarkup(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/UserController.php');
+        $query = file_get_contents(dirname(__DIR__) . '/../src/Queries/UserQuery.php');
+        $twig = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
+
+        $this->assertIsString($controller);
+        $this->assertIsString($query);
+        $this->assertIsString($twig);
+
+        $this->assertStringContainsString('$user->project_count = count($user->project_ids);', $controller);
+        $this->assertStringContainsString('$user->project_participations = $this->buildProjectParticipations($user);', $controller);
+        $this->assertStringContainsString("'status_label' => \$isArchived ? 'Archiviert' : 'Aktiv',", $controller);
+        $this->assertStringContainsString("User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])", $query);
+        $this->assertStringContainsString('user.project_participations', $twig);
+        $this->assertStringContainsString('participation.status_label', $twig);
+    }
 }

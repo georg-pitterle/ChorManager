@@ -77,6 +77,8 @@ class UserController
 
         foreach ($users as $user) {
             $user->project_ids = $user->projects->pluck('id')->toArray();
+            $user->project_count = count($user->project_ids);
+            $user->project_participations = $this->buildProjectParticipations($user);
             $user->voice_group_ids = $user->voiceGroups->pluck('id')->toArray();
             $pivots = [];
             foreach ($user->voiceGroups as $vg) {
@@ -394,5 +396,31 @@ class UserController
 
         $_SESSION['success'] = 'Mitglied wurde erfolgreich wiederhergestellt.';
         return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
+    }
+
+    private function buildProjectParticipations(User $user): array
+    {
+        return $user->projects
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->map(function (Project $project): array {
+                $isArchived = $this->isArchivedProject($project);
+
+                return [
+                    'name' => (string) $project->name,
+                    'is_archived' => $isArchived,
+                    'status_label' => $isArchived ? 'Archiviert' : 'Aktiv',
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function isArchivedProject(Project $project): bool
+    {
+        $endDate = $project->end_date;
+
+        return is_string($endDate)
+            && $endDate !== ''
+            && $endDate < date('Y-m-d');
     }
 }

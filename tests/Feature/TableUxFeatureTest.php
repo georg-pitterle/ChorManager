@@ -179,4 +179,31 @@ class TableUxFeatureTest extends TestCase
             $this->assertStringContainsString('data-default-sort-key=', $content, "Table engine in $template must declare a data-default-sort-key attribute");
         }
     }
+
+    public function testUsersManageTableUsesProjectCountSortAndModalTrigger(): void
+    {
+        $usersTemplate = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
+
+        $this->assertIsString($usersTemplate);
+        $this->assertStringContainsString(
+            'data-sort-key="project_count" data-sort-type="number" data-sort-initial-dir="desc">Projekte</th>',
+            $usersTemplate
+        );
+        $this->assertStringContainsString('data-sort-project_count="{{ user.project_count }}"', $usersTemplate);
+        $this->assertStringContainsString('data-bs-target="#userProjectsModal{{ user.id }}"', $usersTemplate);
+        $this->assertStringContainsString('Keine Projektteilnahmen vorhanden.', $usersTemplate);
+    }
+
+    public function testTableEngineSupportsPerColumnInitialSortDirection(): void
+    {
+        $engineContent = file_get_contents(dirname(__DIR__) . '/../public/js/table-engine.js');
+
+        $this->assertIsString($engineContent);
+        $this->assertStringContainsString(
+            'const initialSortDir = normalizeSortDir(header.dataset.sortInitialDir);',
+            $engineContent
+        );
+        $this->assertStringContainsString('nextSortColumns.push({ key: key, dir: initialSortDir });', $engineContent);
+        $this->assertStringContainsString('setSortColumns([{ key: key, dir: initialSortDir }]);', $engineContent);
+    }
 }

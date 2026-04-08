@@ -26,7 +26,7 @@ class UserQuery
 
     public function getAllUsers(): Collection
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
+        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
             ->where('is_active', 1)
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -35,7 +35,7 @@ class UserQuery
 
     public function getArchivedUsers(): Collection
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
+        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
             ->where('is_active', 0)
             ->orderBy('last_name')
             ->orderBy('first_name')
