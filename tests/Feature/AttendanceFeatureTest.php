@@ -21,5 +21,9 @@ class AttendanceFeatureTest extends TestCase
         $this->assertStringContainsString("'/attendance/{event_id:[0-9]+}'", $routesContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/attendance/show.twig'));
+
+        $attendanceTemplate = file_get_contents(dirname(__DIR__) . '/../templates/attendance/show.twig');
+        $this->assertIsString($attendanceTemplate);
+        $this->assertStringContainsString('attendance-status-group', $attendanceTemplate);
     }
 }
