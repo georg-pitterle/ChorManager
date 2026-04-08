@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Kassabuch - Chor Manager
@@ -83,7 +83,7 @@
         {{ include("partials/table_toolbar.twig") }}
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table"
                        id="financesTable">
                     <thead class="table-dark">
                         <tr>
@@ -93,10 +93,10 @@
                             <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
                             <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
                             <th data-sort-key="type" data-sort-type="text">Art</th>
-                            <th class="text-end" data-sort-key="amount" data-sort-type="number">Betrag</th>
+                            <th class="text-end finance-amount-column" data-sort-key="amount" data-sort-type="number">Betrag</th>
                             <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
                             <th>Anhänge</th>
-                            <th class="text-end">Aktionen</th>
+                            <th class="text-end finance-actions-column">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -132,7 +132,7 @@
                                     {% endif %}
                                 </td>
                                 <td data-label="Betrag"
-                                    class="text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
+                                    class="finance-amount-cell text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
                                     {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
                                 </td>
                                 <td data-label="Zahlungsart">
@@ -169,20 +169,22 @@
                                         <span class="text-muted small">—</span>
                                     {% endif %}
                                 </td>
-                                <td data-label="Aktionen" class="text-end">
-                                    <button class="btn btn-sm btn-outline-secondary me-1"
-                                            onclick="editFinance({{ item|json_encode() }})"
-                                            title="Bearbeiten">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <form action="/finances/{{ item.id }}/delete"
-                                          method="post"
-                                          class="d-inline"
-                                          onsubmit="return confirm('Eintrag {{ item.running_number }} wirklich löschen?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                            <i class="bi bi-trash"></i>
+                                <td data-label="Aktionen" class="finance-actions-cell text-end">
+                                    <div class="finance-actions">
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                onclick="editFinance({{ item|json_encode() }})"
+                                                title="Bearbeiten">
+                                            <i class="bi bi-pencil"></i>
                                         </button>
-                                    </form>
+                                        <form action="/finances/{{ item.id }}/delete"
+                                              method="post"
+                                              class="mb-0"
+                                              onsubmit="return confirm('Eintrag {{ item.running_number }} wirklich löschen?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         {% else %}

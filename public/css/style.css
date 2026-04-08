@@ -247,6 +247,30 @@ thead th {
     background-color: var(--listhead-bg, #eef1f5);
 }
 
+.finances-table .finance-amount-column,
+.finances-table .finance-actions-column,
+.finances-table .finance-amount-cell,
+.finances-table .finance-actions-cell {
+    white-space: nowrap;
+}
+
+.finances-table .finance-actions-column,
+.finances-table .finance-actions-cell {
+    width: 1%;
+}
+
+.finances-table .finance-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+}
+
+.finances-table .finance-actions form {
+    margin: 0;
+}
+
 /* =====================================================================
    Corporate Card Header
    Harmonized with listhead style. Semantic Bootstrap header colors
