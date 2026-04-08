@@ -451,7 +451,7 @@ a:hover {
     width: 100%;
 }
 
-.attendance-status-group > .btn {
+.attendance-status-group>.btn {
     flex: 1 1 0;
     min-width: 0;
     white-space: nowrap;
@@ -460,7 +460,7 @@ a:hover {
 }
 
 @media (max-width: 767.98px) {
-    .attendance-status-group > .btn {
+    .attendance-status-group>.btn {
         font-size: 0.95rem;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
@@ -468,13 +468,13 @@ a:hover {
 }
 
 @media (max-width: 420px) {
-    .attendance-status-group > .btn {
+    .attendance-status-group>.btn {
         font-size: 0.85rem;
         padding-left: 0.4rem;
         padding-right: 0.4rem;
     }
 
-    .attendance-status-group > .btn i {
+    .attendance-status-group>.btn i {
         margin-right: 0.2rem;
     }
 }
