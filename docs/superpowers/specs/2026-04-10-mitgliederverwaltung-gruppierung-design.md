@@ -20,7 +20,7 @@
 
 - Kein neuer API-Endpunkt oder Server-seitiger Code (außer einem neuen `data-sub-voice-options`-Attribut im Template).
 - Keine Änderung an `table-engine.js`.
-- Keine Persistierung des Akkordeon-Auf/Zu-Zustands.
+- Kein Server-seitiger Code für die Persistierung des Akkordeon-Auf/Zu-Zustands (rein `localStorage`).
 - Keine Gruppierung auf anderen Seiten.
 
 ## Gewählter Ansatz
@@ -53,9 +53,13 @@ Registriert sich als `usersGroup` via `ChorTableEngine.registerFilterPlugin`.
 
 **Zustand:**
 ```js
-let groupActive = false; // aus localStorage beim Mount geladen
+let groupActive = false;       // aus localStorage beim Mount geladen
+let openGroups = new Set();    // IDs aufgeklappter Stimmgruppen-Blocks
+let openSubGroups = new Set(); // IDs aufgeklappter Unterstimmen-Blocks
 ```
-`localStorage`-Key: `chorte.users.manage.groupByVoice`
+`localStorage`-Keys:
+- `chorte.users.manage.groupByVoice` — Toggle-Zustand (`"1"` / entfernt)
+- `chorte.users.manage.accordionOpen` — JSON-Array der aufgeklappten Block-IDs
 
 **Plugin-API:**
 ```js
@@ -64,7 +68,7 @@ let groupActive = false; // aus localStorage beim Mount geladen
   getPredicate() // gibt null zurück (kein eigener Row-Filter)
   getState()     // { groupActive: bool }
   setState()     // setzt groupActive aus persistiertem Zustand
-  reset()        // groupActive = false, localStorage-Key entfernen, Akkordeon abbauen
+  reset()        // groupActive = false, beide localStorage-Keys entfernen, Akkordeon abbauen
 }
 ```
 
@@ -81,8 +85,9 @@ let groupActive = false; // aus localStorage beim Mount geladen
 3. Zeilen nach Stimmgruppe gruppieren (via `data-voice`-Attribut der `<tr>`).
 4. Innerhalb jeder Stimmgruppe nach Unterstimme unterteilen (via Text-Match von `data-sort-voice` gegen bekannte Unterstimm-Namen).
 5. Bootstrap-Akkordeon-DOM generieren:
-   - Äußere Ebene: je Stimmgruppe ein `accordion-item` (standardmäßig zugeklappt).
-   - Innere Ebene: je Unterstimme ein verschachteltes `accordion-item` (standardmäßig zugeklappt).
+   - Äußere Ebene: je Stimmgruppe ein `accordion-item`; aufgeklappt wenn die Block-ID in `openGroups` enthalten ist.
+   - Innere Ebene: je Unterstimme ein verschachteltes `accordion-item`; aufgeklappt wenn die Block-ID in `openSubGroups` enthalten ist.
+   - Block-IDs werden als stabile Strings aus Stimmgruppen-ID / Unterstimmen-ID gebildet (z.B. `vg-1`, `sv-3`).
    - Inhalt je Sub-Item: Tabelle mit denselben Spalten wie die Haupt-Tabelle (Zeilen werden geklont).
    - Stimmgruppe/Unterstimme ohne sichtbare Mitglieder: `hidden`.
    - Mitglieder ohne Stimmgruppe: Block "Ohne Zuordnung" am Ende.
@@ -90,9 +95,13 @@ let groupActive = false; // aus localStorage beim Mount geladen
    - Alle Mitglieder weggefiltert: leere Meldung "Keine Mitglieder gefunden."
 6. Akkordeon direkt nach `<table>` ins DOM einfügen; `<tbody>` der Originaltabelle ausblenden.
 
+**Akkordeon-Auf/Zu-Persistierung:**
+Das Plugin lauscht auf Bootstrap `show.bs.collapse` / `hide.bs.collapse`-Events am Akkordeon-Element. Bei jedem Ereignis wird die Block-ID zur `openGroups`-/`openSubGroups`-Menge hinzugefügt oder entfernt, und der aktuelle Zustand wird als JSON-Array in `chorte.users.manage.accordionOpen` gespeichert. Beim Neuaufbau des Akkordeons (nach Filter-Änderung) wird der gespeicherte Zustand wiederhergestellt.
+
 **Akkordeon-Abbau (`destroyAccordion()`):**
 - Akkordeon-Element aus DOM entfernen.
 - `<tbody>` der Originaltabelle wieder einblenden.
+- `openGroups` und `openSubGroups` werden nicht geleert (Zustand bleibt für den nächsten Aufbau erhalten).
 
 **Reaktion auf Suche/Filter:**
 Das Plugin setzt beim Aktivieren des Gruppier-Modus einen `MutationObserver` auf den `<tbody>` der Originaltabelle. Da die Table-Engine `hidden`-Attribute auf `<tr>`-Zeilen setzt wenn Suche oder Filter sich ändern, löst jede solche Änderung eine MutationObserver-Callback aus. Das Plugin baut daraufhin das Akkordeon neu auf (debounced mit `requestAnimationFrame`, um Massen-Mutations zu einer einzigen Neuaufbau-Operation zusammenzufassen). Der Observer wird beim Deaktivieren des Gruppier-Modus disconnected.
@@ -135,8 +144,9 @@ Table-Engine applyRows() (Suche/Filter geändert)
   └── if groupActive → MutationObserver triggert → buildAccordion() neu aufbauen (rAF-debounced)
 
 plugin.reset()
-  ├── groupActive = false
-  ├── localStorage-Key entfernen
+  ├── groupActive = false, openGroups/openSubGroups leeren
+  ├── chorte.users.manage.groupByVoice entfernen
+  ├── chorte.users.manage.accordionOpen entfernen
   └── destroyAccordion()
 ```
 
@@ -150,7 +160,7 @@ plugin.reset()
 | Alle Mitglieder weggefiltert | Meldung "Keine Mitglieder gefunden." |
 | `data-sub-voice-options` fehlt im DOM | Nur 1-stufige Gruppierung nach Stimmgruppe, kein Absturz |
 | `show_archived=1` | Toggle-Button wird nicht gerendert |
-| Akkordeon-Auf/Zu-Zustand | Nicht persistiert, startet immer zugeklappt |
+| Akkordeon-Auf/Zu-Zustand | In `localStorage` persistiert; Reset-Button löscht ihn |
 
 ## Testing
 
@@ -169,6 +179,9 @@ Testfälle:
 10. Nach vollständiger Filterung (keine sichtbaren `<tr>`) erscheint Leermeldung.
 11. `data-sub-voice-options` fehlt → 1-stufige Gruppierung ohne Absturz.
 12. Akkordeon-Neuaufbau bei `hidden`-Attribut-Änderung auf `<tr>` (MutationObserver-Mechanismus).
+13. Aufklappen eines Blocks setzt den `localStorage`-Key `chorte.users.manage.accordionOpen`.
+14. Nach Neuaufbau des Akkordeons (Filter-Änderung) werden zuvor aufgeklappte Blocks wiederhergestellt.
+15. `plugin.reset()` entfernt auch `chorte.users.manage.accordionOpen` und alle Blocks starten zugeklappt.
 
 ## Betroffene Dateien
 
