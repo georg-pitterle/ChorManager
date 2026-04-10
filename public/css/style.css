@@ -259,6 +259,24 @@ thead th {
     width: 1%;
 }
 
+.task-description-html {
+    line-height: 1.5;
+}
+
+.task-description-html>:last-child {
+    margin-bottom: 0;
+}
+
+.task-description-html ul,
+.task-description-html ol {
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.task-description-html p {
+    margin-bottom: 0.75rem;
+}
+
 .finances-table .finance-actions {
     display: flex;
     align-items: center;

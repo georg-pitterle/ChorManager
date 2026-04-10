@@ -47,10 +47,12 @@ class UserManagementFeatureTest extends TestCase
         $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/UserController.php');
         $query = file_get_contents(dirname(__DIR__) . '/../src/Queries/UserQuery.php');
         $twig = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
+        $plugin = file_get_contents(dirname(__DIR__) . '/../public/js/table-plugins/users-manage-plugin.js');
 
         $this->assertIsString($controller);
         $this->assertIsString($query);
         $this->assertIsString($twig);
+        $this->assertIsString($plugin);
 
         $this->assertStringContainsString('$user->project_count = count($user->project_ids);', $controller);
         $this->assertStringContainsString('$user->project_participations = $this->buildProjectParticipations($user);', $controller);
@@ -60,7 +62,12 @@ class UserManagementFeatureTest extends TestCase
         $this->assertStringContainsString("User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])", $query);
         $this->assertStringContainsString('user.project_participations', $twig);
         $this->assertStringContainsString('participation.name', $twig);
+        $this->assertStringContainsString('data-role-options="{{ role_options_attr|replace({', $twig);
+        $this->assertStringContainsString('{% set role_filter_ids = "|" %}', $twig);
+        $this->assertStringContainsString('data-role="{{ role_filter_ids }}"', $twig);
         $this->assertStringNotContainsString('participation.status_label', $twig);
         $this->assertStringNotContainsString('participation.is_archived', $twig);
+        $this->assertStringContainsString("tableContainer.dataset.roleOptions", $plugin);
+        $this->assertStringContainsString("rowHasToken(row, 'role', state.role)", $plugin);
     }
 }

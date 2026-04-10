@@ -43,6 +43,25 @@ class TaskController
         return in_array($priority, $validPriorities, true) ? $priority : 'Mittel';
     }
 
+    private function sanitizeDescriptionHtml(?string $description): string
+    {
+        $html = trim((string) $description);
+
+        if ($html === '') {
+            return '';
+        }
+
+        $html = strip_tags(
+            $html,
+            '<p><br><strong><b><em><i><u><ul><ol><li><a><blockquote><h2><h3><h4><table><thead><tbody><tr><th><td>'
+        );
+
+        $html = preg_replace('/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? $html;
+        $html = preg_replace('/\s+(href|src)\s*=\s*("|\')\s*javascript:[^"\']*\2/i', '', $html) ?? $html;
+
+        return trim($html);
+    }
+
     public function index(Request $request, Response $response, array $args): Response
     {
         $projectId = (int) $args['project_id'];
@@ -60,13 +79,16 @@ class TaskController
             ->get();
 
         $projectUsers = $project->users()->orderBy('first_name')->get();
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'projects/tasks.twig', [
             'project'      => $project,
             'tasks'        => $tasks,
             'projectUsers' => $projectUsers,
-            'success'      => $_SESSION['success'] ?? null,
-            'error'        => $_SESSION['error'] ?? null,
+            'success'      => $success,
+            'error'        => $error,
         ]);
     }
 
@@ -81,12 +103,16 @@ class TaskController
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
 
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
         return $this->view->render($response, 'projects/task_detail.twig', [
             'task'    => $task,
             'project' => $task->project,
             'projectUsers' => $task->project->users()->orderBy('first_name')->get(),
-            'success' => $_SESSION['success'] ?? null,
-            'error'   => $_SESSION['error'] ?? null,
+            'success' => $success,
+            'error'   => $error,
         ]);
     }
 
@@ -101,11 +127,12 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
+        $description = $this->sanitizeDescriptionHtml($data['description'] ?? '');
 
         $task = Task::create([
             'project_id'       => $project->id,
             'name'             => trim($data['title'] ?? ''),
-            'description'      => trim($data['description'] ?? ''),
+            'description'      => $description,
             'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
             'created_by'       => $_SESSION['user_id'],
             'start_date'       => !empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null,
@@ -140,10 +167,13 @@ class TaskController
         $oldStatus = $task->status;
         $oldPriority = $task->priority;
         $oldAssigned = $task->assigned_to;
+        $oldDescription = trim((string) $task->description);
+        $descriptionInput = array_key_exists('description', $data) ? (string) $data['description'] : $task->description;
+        $description = $this->sanitizeDescriptionHtml($descriptionInput);
 
         $task->update([
             'name'             => trim($data['title'] ?? $task->name),
-            'description'      => trim($data['description'] ?? $task->description),
+            'description'      => $description,
             'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
             'start_date'       => !empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null,
             'end_date'         => !empty($data['due_date']) ? Carbon::parse($data['due_date'])->toDateString() : null,
@@ -162,6 +192,9 @@ class TaskController
         if ($oldAssigned !== $task->assigned_to) {
             $newUserName = $task->assigned_to ? User::find($task->assigned_to)->first_name : 'Niemanden';
             $changes[] = "Zugewiesen an: $newUserName";
+        }
+        if ($oldDescription !== $description) {
+            $changes[] = 'Beschreibung aktualisiert';
         }
 
         if (count($changes) > 0) {

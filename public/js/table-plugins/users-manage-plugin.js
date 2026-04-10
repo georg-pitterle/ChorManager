@@ -143,37 +143,32 @@
                 ? 'row g-3 align-items-end w-100 m-0'
                 : 'd-flex gap-2 align-items-center flex-wrap';
 
-            const roleControls = context.createSelectGroup([
-                { key: 'role', label: 'Rolle' }
-            ]);
-            roleControls.onChange(function (nextState) {
-                state.role = normalizeText(nextState.role);
-                context.onPluginStateChange();
-            });
-
+            const roleOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.roleOptions : '');
             const voiceOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.voiceOptions : '');
             const projectOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.projectOptions : '');
+            const roleSelectControl = createSelect('Rolle', roleOptions, 'role');
             const voiceSelectControl = createSelect('Stimme', voiceOptions, 'voice');
             const projectSelectControl = createSelect('Projekt', projectOptions, 'project');
-            const roleSelect = roleControls.root.querySelector('select');
 
             if (dedicatedSlot) {
+                const roleColumn = document.createElement('div');
                 const voiceColumn = document.createElement('div');
                 const projectColumn = document.createElement('div');
                 const resetControl = createResetControl();
 
-                applyDedicatedFieldLayout(roleControls.root, roleControls.root.firstElementChild);
+                applyDedicatedFieldLayout(roleColumn, roleSelectControl.group);
                 applyDedicatedFieldLayout(voiceColumn, voiceSelectControl.group);
                 applyDedicatedFieldLayout(projectColumn, projectSelectControl.group);
 
-                root.appendChild(roleControls.root);
+                roleColumn.appendChild(roleSelectControl.group);
+                root.appendChild(roleColumn);
                 voiceColumn.appendChild(voiceSelectControl.group);
                 projectColumn.appendChild(projectSelectControl.group);
                 root.appendChild(voiceColumn);
                 root.appendChild(projectColumn);
                 root.appendChild(resetControl.column);
             } else {
-                root.appendChild(roleControls.root);
+                root.appendChild(roleSelectControl.group);
                 root.appendChild(voiceSelectControl.group);
                 root.appendChild(projectSelectControl.group);
             }
@@ -181,18 +176,18 @@
 
             controls = {
                 root: root,
-                role: roleControls,
+                role: roleSelectControl.select,
                 voice: voiceSelectControl.select,
                 project: projectSelectControl.select,
                 reset: function () {
-                    roleControls.reset();
+                    roleSelectControl.select.value = '';
                     voiceSelectControl.select.value = '';
                     projectSelectControl.select.value = '';
                 }
             };
 
-            if (state.role && roleSelect) {
-                roleSelect.value = state.role;
+            if (state.role) {
+                roleSelectControl.select.value = state.role;
             }
             if (state.voice) {
                 voiceSelectControl.select.value = state.voice;
@@ -204,7 +199,7 @@
 
         function getPredicate() {
             return function (row) {
-                return context.matchCell(row, 'role', state.role)
+                return rowHasToken(row, 'role', state.role)
                     && rowHasToken(row, 'voice', state.voice)
                     && rowHasToken(row, 'project', state.project);
             };

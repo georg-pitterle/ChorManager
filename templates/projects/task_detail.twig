@@ -54,9 +54,9 @@
                 <div class="card-body">
                     <div class="mb-4">
                         <h6 class="text-muted text-uppercase small fw-bold mb-2">Beschreibung</h6>
-                        <div class="p-3 bg-light rounded-3">
+                        <div class="p-3 bg-light rounded-3 task-description-html">
                             {% if task.description %}
-                                {{ task.description|nl2br }}
+                                {{ task.description|raw }}
                             {% else %}
                                 <span class="text-muted fst-italic">Keine Beschreibung angegeben.</span>
                             {% endif %}
@@ -242,7 +242,7 @@
 
                     <div class="mb-3">
                         <label for="description" class="form-label">Beschreibung</label>
-                        <textarea class="form-control" id="description" name="description" rows="5">{{ task.description }}</textarea>
+                        <textarea class="form-control tinymce-editor" id="description" name="description" rows="5">{{ task.description|raw }}</textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

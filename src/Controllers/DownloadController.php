@@ -29,16 +29,28 @@ class DownloadController
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
 
-        $projects = Project::whereHas('users', function ($query) use ($userId) {
-            $query->where('users.id', $userId);
-        })->with([
-            'songs' => function ($query) {
-                $query->orderBy('title', 'asc');
-            },
-            'songs.attachments' => function ($query) {
-                $query->orderBy('original_name', 'asc');
-            }
-        ])->orderBy('name', 'asc')->get();
+        if ($userId <= 0) {
+            return $this->view->render($response, 'songs/downloads.twig', [
+                'projects' => [],
+                'active_nav' => 'downloads',
+            ]);
+        }
+
+        $projects = Project::query()
+            ->select('projects.*')
+            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+            ->where('project_users.user_id', $userId)
+            ->with([
+                'songs' => function ($query) {
+                    $query->orderBy('title', 'asc');
+                },
+                'songs.attachments' => function ($query) {
+                    $query->orderBy('original_name', 'asc');
+                }
+            ])
+            ->distinct()
+            ->orderBy('projects.name', 'asc')
+            ->get();
 
         return $this->view->render($response, 'songs/downloads.twig', [
             'projects' => $projects,
@@ -126,10 +138,15 @@ class DownloadController
             return null;
         }
 
-        return Attachment::where('id', $attachmentId)
+        return Attachment::query()
+            ->where('id', $attachmentId)
             ->where('entity_type', 'song')
-            ->whereHas('song.project.users', function ($query) use ($userId) {
-                $query->where('users.id', $userId);
+            ->whereExists(function ($query) use ($userId) {
+                $query->selectRaw('1')
+                    ->from('songs')
+                    ->join('project_users', 'project_users.project_id', '=', 'songs.project_id')
+                    ->whereColumn('songs.id', 'attachments.entity_id')
+                    ->where('project_users.user_id', $userId);
             })
             ->first();
     }
@@ -159,8 +176,23 @@ class DownloadController
             return null;
         }
 
-        $start = $matches[1] === '' ? 0 : (int) $matches[1];
-        $end = $matches[2] === '' ? $fileSize - 1 : (int) $matches[2];
+        $rawStart = $matches[1];
+        $rawEnd = $matches[2];
+
+        // RFC 7233 suffix-byte-range-spec: "bytes=-500" means the last 500 bytes.
+        if ($rawStart === '' && $rawEnd !== '') {
+            $suffixLength = (int) $rawEnd;
+            if ($suffixLength <= 0) {
+                return null;
+            }
+
+            $end = $fileSize - 1;
+            $start = max(0, $fileSize - $suffixLength);
+            return [$start, $end];
+        }
+
+        $start = $rawStart === '' ? 0 : (int) $rawStart;
+        $end = $rawEnd === '' ? $fileSize - 1 : (int) $rawEnd;
 
         if ($start < 0 || $end < $start || $start >= $fileSize || $end >= $fileSize) {
             return null;

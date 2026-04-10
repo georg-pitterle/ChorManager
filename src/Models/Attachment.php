@@ -22,4 +22,10 @@ class Attachment extends Model
         'file_content',
         'created_at'
     ];
+
+    public function song()
+    {
+        return $this->belongsTo(Song::class, 'entity_id', 'id')
+            ->where($this->getTable() . '.entity_type', 'song');
+    }
 }

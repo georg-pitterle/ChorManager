@@ -87,6 +87,32 @@ class TaskFeatureTest extends TestCase
         $this->assertStringNotContainsString('can_manage_users', $controllerContent);
     }
 
+    public function testTaskControllerSanitizesHtmlDescriptions(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('private function sanitizeDescriptionHtml(?string $description): string', $controllerContent);
+        $this->assertStringContainsString("strip_tags(", $controllerContent);
+        $this->assertStringContainsString("preg_replace('/\\s+on[a-z]+", $controllerContent);
+        $this->assertStringContainsString("preg_replace('/\\s+(href|src)", $controllerContent);
+        $this->assertGreaterThanOrEqual(2, substr_count($controllerContent, "'description'      => " . '$description'));
+        $this->assertStringContainsString('$oldDescription = trim((string) $task->description);', $controllerContent);
+        $this->assertStringContainsString("$" . "changes[] = 'Beschreibung aktualisiert';", $controllerContent);
+    }
+
+    public function testTaskControllerConsumesFlashMessagesInViews(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertGreaterThanOrEqual(2, substr_count($controllerContent, "unset(" . '$' . "_SESSION['success'], " . '$' . "_SESSION['error']);"));
+        $this->assertStringContainsString("'success'      => " . '$' . 'success,', $controllerContent);
+        $this->assertStringContainsString("'error'        => " . '$' . 'error,', $controllerContent);
+        $this->assertStringContainsString("'success' => " . '$' . 'success,', $controllerContent);
+        $this->assertStringContainsString("'error'   => " . '$' . 'error,', $controllerContent);
+    }
+
     public function testProjectsTemplateShowsPlanningLinkOnlyWithTaskRelatedPermissions(): void
     {
         $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
@@ -216,6 +242,20 @@ class TaskFeatureTest extends TestCase
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/comments.twig'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/attachments.twig'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/history.twig'));
+    }
+
+    public function testTaskTemplatesUseTinymceAndHtmlRenderingForDescription(): void
+    {
+        $tasksTemplate = file_get_contents(dirname(__DIR__) . '/../templates/projects/tasks.twig');
+        $detailTemplate = file_get_contents(dirname(__DIR__) . '/../templates/projects/task_detail.twig');
+
+        $this->assertIsString($tasksTemplate);
+        $this->assertIsString($detailTemplate);
+        $this->assertStringContainsString('class="form-control tinymce-editor" id="description"', $tasksTemplate);
+        $this->assertStringContainsString('class="form-control tinymce-editor" id="description"', $detailTemplate);
+        $this->assertStringContainsString('{{ task.description|raw }}', $detailTemplate);
+        $this->assertStringContainsString('task-description-html', $detailTemplate);
+        $this->assertStringNotContainsString('{{ task.description|nl2br }}', $detailTemplate);
     }
 
     /**
