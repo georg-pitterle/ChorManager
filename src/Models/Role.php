@@ -16,6 +16,7 @@ class Role extends Model
         'hierarchy_level',
         'can_manage_users',
         'can_edit_users',
+        'can_manage_attendance',
         'can_manage_project_members',
         'can_manage_finances',
         'can_manage_master_data',

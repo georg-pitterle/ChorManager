@@ -94,6 +94,18 @@
                                 {% endfor %}
                             </tr>
                             <tr>
+                                <th scope="row">Anwesenheit</th>
+                                {% for role in roles %}
+                                    <td data-label="{{ role.name }}">
+                                        {% if role.can_manage_attendance %}
+                                            <span class="badge bg-secondary"><i class="bi bi-check2-square"></i> Ja</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
                                 <th scope="row">Projektmitglieder</th>
                                 {% for role in roles %}
                                     <td data-label="{{ role.name }}">
@@ -198,6 +210,7 @@
                                                 data-level="{{ role.hierarchy_level }}"
                                                 data-manage="{{ role.can_manage_users ? '1' : '0' }}"
                                                 data-edit="{{ role.can_edit_users ? '1' : '0' }}"
+                                                data-attendance="{{ role.can_manage_attendance ? '1' : '0' }}"
                                                 data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
                                                 data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
                                                 data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
@@ -292,6 +305,18 @@
                                for="can_manage_project_members">Projektmitglieder verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
                     </div>
+
+                          <div class="form-check form-switch mb-3">
+                           <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_attendance"
+                               name="can_manage_attendance"
+                               value="1">
+                           <label class="form-check-label fw-bold text-secondary"
+                               for="can_manage_attendance">Anwesenheit eintragen</label>
+                           <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
+                          </div>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -451,6 +476,18 @@
                                for="edit_can_manage_project_members">Projektmitglieder verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
                     </div>
+
+                          <div class="form-check form-switch mb-3">
+                           <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_attendance"
+                               name="can_manage_attendance"
+                               value="1">
+                           <label class="form-check-label fw-bold text-secondary"
+                               for="edit_can_manage_attendance">Anwesenheit eintragen</label>
+                           <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
+                          </div>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"

@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('edit_hierarchy_level').value = this.getAttribute('data-level');
                 document.getElementById('edit_can_manage_users').checked = this.getAttribute('data-manage') === '1';
                 document.getElementById('edit_can_edit_users').checked = this.getAttribute('data-edit') === '1';
+                document.getElementById('edit_can_manage_attendance').checked = this.getAttribute('data-attendance') === '1';
                 document.getElementById('edit_can_manage_project_members').checked = this.getAttribute('data-project-members') === '1';
                 document.getElementById('edit_can_manage_finances').checked = this.getAttribute('data-finances') === '1';
                 document.getElementById('edit_can_manage_master_data').checked = this.getAttribute('data-master-data') === '1';

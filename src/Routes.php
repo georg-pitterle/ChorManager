@@ -92,9 +92,14 @@ return function (App $app) {
             $group->get('/events', [EventController::class, 'index']);
 
             // Attendance Routes
-            $group->get('/attendance', [AttendanceController::class, 'show']);
-            $group->get('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'show']);
-            $group->post('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'save']);
+            $group->group(
+                '',
+                function (RouteCollectorProxy $attendanceGroup) {
+                    $attendanceGroup->get('/attendance', [AttendanceController::class, 'show']);
+                    $attendanceGroup->get('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'show']);
+                    $attendanceGroup->post('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'save']);
+                }
+            )->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, false, true));
 
             // Download section for project members
             $group->get('/downloads', [DownloadController::class, 'index']);

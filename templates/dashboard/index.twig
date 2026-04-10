@@ -11,9 +11,13 @@
             <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default("Mitglied") }}</h1>
             <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
         </div>
-        <div class="page-actions">
-            <a href="/attendance" class="btn btn-primary">Zur Anwesenheit</a>
-        </div>
+        {% if can_manage_attendance or can_manage_users %}
+            <div class="page-actions">
+                <a href="/attendance" class="btn btn-outline-primary">
+                    <i class="bi bi-person-check"></i> Zur Anwesenheit
+                </a>
+            </div>
+        {% endif %}
     </section>
 {% endblock page_header %}
 
@@ -25,11 +29,27 @@
                     <h5 class="card-title text-primary">
                         <i class="bi bi-calendar-check-fill"></i> Nächste Probe
                     </h5>
-                    <p class="card-text">Hier siehst du geplante Termine und kannst deine Anwesenheit eintragen.</p>
-                    <a href="/attendance" class="btn btn-outline-primary">Zur Anwesenheitsliste</a>
+                    <p class="card-text">Hier siehst du geplante Termine auf einen Blick.</p>
+                    {% if can_manage_attendance or can_manage_users %}
+                        <a href="/attendance" class="btn btn-outline-primary">Zur Anwesenheitsliste</a>
+                    {% endif %}
                 </div>
             </div>
         </div>
+
+        {% if can_manage_attendance or can_manage_users %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">
+                            <i class="bi bi-person-check-fill"></i> Stimmvertretung
+                        </h5>
+                        <p class="card-text">Erfasse die Anwesenheit der Mitglieder für geplante Termine.</p>
+                        <a href="/attendance" class="btn btn-outline-warning">Anwesenheiten eintragen</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
 
         {% if can_manage_users %}
             <div class="col-md-4 mb-4">
@@ -51,19 +71,6 @@
                         </h5>
                         <p class="card-text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
                         <a href="/evaluations" class="btn btn-outline-info">Statistiken ansehen</a>
-                    </div>
-                </div>
-            </div>
-        {% elseif role_level >= 40 %}
-            {# Stimmvertretung/Ersatz #}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-warning">
-                    <div class="card-body">
-                        <h5 class="card-title text-warning">
-                            <i class="bi bi-person-lines-fill"></i> Meine Stimmgruppe
-                        </h5>
-                        <p class="card-text">Verwalte die Anwesenheiten der Mitglieder deiner Stimmgruppe.</p>
-                        <a href="/attendance" class="btn btn-outline-warning">Anwesenheiten eintragen</a>
                     </div>
                 </div>
             </div>

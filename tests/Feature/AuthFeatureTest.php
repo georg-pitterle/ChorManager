@@ -59,6 +59,7 @@ class AuthFeatureTest extends TestCase
                 'hierarchy_level' => 60,
                 'can_manage_users' => 0,
                 'can_edit_users' => 1,
+                'can_manage_attendance' => 1,
                 'can_manage_project_members' => 0,
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 0,
@@ -71,6 +72,7 @@ class AuthFeatureTest extends TestCase
                 'hierarchy_level' => 85,
                 'can_manage_users' => 0,
                 'can_edit_users' => 0,
+                'can_manage_attendance' => 0,
                 'can_manage_project_members' => 0,
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
@@ -95,12 +97,14 @@ class AuthFeatureTest extends TestCase
         $this->assertSame('Test User', $_SESSION['user_name']);
         $this->assertTrue($_SESSION['can_manage_users']);
         $this->assertTrue($_SESSION['can_edit_users']);
+        $this->assertTrue($_SESSION['can_manage_attendance']);
         $this->assertTrue($_SESSION['can_manage_project_members']);
         $this->assertTrue($_SESSION['can_manage_finances']);
         $this->assertTrue($_SESSION['can_manage_master_data']);
         $this->assertTrue($_SESSION['can_manage_sponsoring']);
         $this->assertTrue($_SESSION['can_manage_song_library']);
         $this->assertTrue($_SESSION['can_manage_newsletters']);
+        $this->assertTrue($_SESSION['can_manage_tasks']);
         $this->assertSame(85, $_SESSION['role_level']);
         $this->assertSame([2, 5], $_SESSION['voice_group_ids']);
     }

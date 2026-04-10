@@ -1,21 +1,21 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Event-Typen - Chor Manager
+    Termin-Typen - Chor Manager
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
             <p class="text-uppercase text-muted small mb-1">Verwaltung</p>
-            <h1 class="h2 mb-1">Event-Typen verwalten</h1>
-            <p class="text-muted mb-0">Event-Kategorien und Farbcodierung zentral definieren.</p>
+            <h1 class="h2 mb-1">Termin-Typen verwalten</h1>
+            <p class="text-muted mb-0">Termin-Typen und Farbcodierung zentral definieren.</p>
         </div>
         <div class="page-actions">
             <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createTypeModal">
-                <i class="bi bi-plus-lg"></i> Event-Typ hinzufügen
+                <i class="bi bi-plus-lg"></i> Termin-Typ hinzufügen
             </button>
         </div>
     </section>
@@ -131,7 +131,7 @@
             {% else %}
                 <div class="col-12 text-center py-5 text-muted">
                     <i class="bi bi-tag fs-1 d-block mb-3"></i>
-                    Keine Event-Typen konfiguriert.
+                    Keine Termin-Typen konfiguriert.
                 </div>
             {% endfor %}
         </div>

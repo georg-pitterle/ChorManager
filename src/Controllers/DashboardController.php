@@ -22,6 +22,7 @@ class DashboardController
         // Simple dashboard placeholder handling both admin and basic views
         $data = [
             'can_manage_users' => $_SESSION['can_manage_users'] ?? false,
+            'can_manage_attendance' => $_SESSION['can_manage_attendance'] ?? false,
             'role_level' => $_SESSION['role_level'] ?? 0,
             'voice_group_ids' => $_SESSION['voice_group_ids'] ?? []
         ];

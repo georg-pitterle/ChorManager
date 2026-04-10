@@ -40,12 +40,14 @@ class RoleFeatureTest extends TestCase
 
         $this->assertSame(1, $flags['can_manage_users']);
         $this->assertSame(0, $flags['can_edit_users']);
+        $this->assertSame(0, $flags['can_manage_attendance']);
         $this->assertSame(0, $flags['can_manage_project_members']);
         $this->assertSame(1, $flags['can_manage_finances']);
         $this->assertSame(0, $flags['can_manage_master_data']);
         $this->assertSame(0, $flags['can_manage_sponsoring']);
         $this->assertSame(0, $flags['can_manage_song_library']);
         $this->assertSame(0, $flags['can_manage_newsletters']);
+        $this->assertSame(0, $flags['can_manage_tasks']);
     }
 
     public function testCreateRejectsEmptyRoleNameBeforeDatabaseAccess(): void

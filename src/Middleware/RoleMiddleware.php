@@ -21,6 +21,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresSponsoringManagement;
     private bool $requiresSongLibraryManagement;
     private bool $requiresTaskManagement;
+    private bool $requiresAttendanceManagement;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -31,7 +32,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresMasterDataManagement = false,
         bool $requiresSponsoringManagement = false,
         bool $requiresSongLibraryManagement = false,
-        bool $requiresTaskManagement = false
+        bool $requiresTaskManagement = false,
+        bool $requiresAttendanceManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -42,6 +44,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresSponsoringManagement = $requiresSponsoringManagement;
         $this->requiresSongLibraryManagement = $requiresSongLibraryManagement;
         $this->requiresTaskManagement = $requiresTaskManagement;
+        $this->requiresAttendanceManagement = $requiresAttendanceManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -58,11 +61,18 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
         $canManageSongLibrary = $_SESSION['can_manage_song_library'] ?? false;
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
+        $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
 
         if ($this->requiresTaskManagement && !$canManageTasks) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->requiresAttendanceManagement && !$canManageAttendance && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.");
             return $response->withStatus(403);
         }
 
