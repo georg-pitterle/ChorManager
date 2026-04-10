@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Events (Termine) - Chor Manager
@@ -78,7 +78,7 @@
                                name="show_old_events"
                                value="1"
                                {% if filters.show_old_events %}checked{% endif %}>
-                        <label class="form-check-label small" for="show_old_events">Alte Termine anzeigen</label>
+                        <label class="form-check-label small" for="show_old_events">Vergangene Termine anzeigen</label>
                     </div>
                 </div>
                 <div class="col-12 col-md-2 d-flex align-items-end mb-2">

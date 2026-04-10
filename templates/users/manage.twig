@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Mitgliederverwaltung - Chor Manager
@@ -65,11 +65,30 @@
         </div>
     {% endif %}
 
+    {% set voice_options_attr %}
+        {% for g in voice_groups %}
+            {{ g.id }}::{{ g.name }}||
+        {% endfor %}
+    {% endset %}
+    {% set project_options_attr %}
+        {% for p in projects %}
+            {{ p.id }}::{{ p.name }}||
+        {% endfor %}
+    {% endset %}
+
+    <div class="surface-card card border-0 mb-4 filter-surface">
+        <div class="card-body">
+            <div class="row g-3 align-items-end" data-users-manage-filter-slot></div>
+        </div>
+    </div>
+
     <div class="surface-card card border-0 table-shell"
          data-table-engine="true"
          data-table-id="users.manage"
          data-default-view="auto"
          data-table-plugins="usersManage"
+         data-voice-options="{{ voice_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
+         data-project-options="{{ project_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
          data-default-page-size="100"
          data-page-size-options="25,50,100,200"
          data-default-sort-key="name">
@@ -104,9 +123,11 @@
                                 {% set role_filter = role_filter ~ ' ' ~ role.name|lower %}
                             {% endfor %}
                             {% set voice_filter = "" %}
+                            {% set voice_filter_ids = "|" %}
                             {% for group_id in user.voice_group_ids %}
                                 {% for g in voice_groups %}
                                     {% if g.id == group_id %}
+                                        {% set voice_filter_ids = voice_filter_ids ~ g.id ~ '|' %}
                                         {% set sv_id = user.voice_group_pivots[group_id] %}
                                         {% if sv_id %}
                                             {% for sv in sub_voices %}
@@ -121,7 +142,9 @@
                                 {% endfor %}
                             {% endfor %}
                             {% set project_filter = "" %}
+                            {% set project_filter_ids = "|" %}
                             {% for pid in user.project_ids %}
+                                {% set project_filter_ids = project_filter_ids ~ pid ~ '|' %}
                                 {% for p in projects %}
                                     {% if p.id == pid %}
                                         {% set project_filter = project_filter ~ ' ' ~ p.name|lower %}
@@ -129,8 +152,8 @@
                                 {% endfor %}
                             {% endfor %}
                             <tr data-role="{{ role_filter|trim }}"
-                                data-voice="{{ voice_filter|trim }}"
-                                data-project="{{ project_filter|trim }}"
+                                data-voice="{{ voice_filter_ids }}"
+                                data-project="{{ project_filter_ids }}"
                                 data-sort-name="{{ (user.first_name ~ ' ' ~ user.last_name)|lower }}"
                                 data-sort-email="{{ user.email|lower }}"
                                 data-sort-role="{{ role_filter|trim }}"
