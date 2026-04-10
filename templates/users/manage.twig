@@ -504,11 +504,8 @@
                             {% if user.project_participations|length > 0 %}
                                 <ul class="list-group list-group-flush">
                                     {% for participation in user.project_participations %}
-                                        <li class="list-group-item d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                                        <li class="list-group-item">
                                             <span>{{ participation.name }}</span>
-                                            <span class="badge {{ participation.is_archived ? 'bg-secondary' : 'bg-success' }}">
-                                                {{ participation.status_label }}
-                                            </span>
                                         </li>
                                     {% endfor %}
                                 </ul>
