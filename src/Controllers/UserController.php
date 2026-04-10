@@ -403,24 +403,11 @@ class UserController
         return $user->projects
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->map(function (Project $project): array {
-                $isArchived = $this->isArchivedProject($project);
-
                 return [
                     'name' => (string) $project->name,
-                    'is_archived' => $isArchived,
-                    'status_label' => $isArchived ? 'Archiviert' : 'Aktiv',
                 ];
             })
             ->values()
             ->all();
-    }
-
-    private function isArchivedProject(Project $project): bool
-    {
-        $endDate = $project->end_date;
-
-        return is_string($endDate)
-            && $endDate !== ''
-            && $endDate < date('Y-m-d');
     }
 }
