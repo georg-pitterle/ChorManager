@@ -10,10 +10,18 @@
         var groupActive = false;
         var stateRef = null;
         var hasExplicitState = false;
+        var toggleButtonEl = null;
         var openBlockIds = new Set();
         var accordionEl = null;
         var observer = null;
         var rafPending = false;
+
+        function syncToggleButtonLabel() {
+            if (!toggleButtonEl) {
+                return;
+            }
+            toggleButtonEl.textContent = groupActive ? 'Listenansicht' : 'Nach Stimme gruppieren';
+        }
 
         function readLocalStorage() {
             try {
@@ -133,21 +141,47 @@
             return findFirstByTag(root, tagName);
         }
 
+        function collectRowsFromTbody(tbody) {
+            if (!tbody) return [];
+            var rows = [];
+            var queue = [tbody];
+            while (queue.length > 0) {
+                var node = queue.shift();
+                if (!node || !node.children) continue;
+                for (var i = 0; i < node.children.length; i++) {
+                    var child = node.children[i];
+                    if (!child) continue;
+                    if (child.tagName === 'TR') {
+                        rows.push(child);
+                    }
+                    queue.push(child);
+                }
+            }
+            return rows;
+        }
+
         function getVisibleRows(tableShell) {
             var tbody = queryFirstOrTag(tableShell, 'tbody', 'tbody');
             if (!tbody) return [];
             var all = typeof tbody.querySelectorAll === 'function'
                 ? Array.prototype.slice.call(tbody.querySelectorAll('tr'))
                 : [];
+            if (all.length === 0) {
+                all = collectRowsFromTbody(tbody);
+            }
             return all.filter(function (r) { return !r.hidden; });
         }
 
         function getAllRows(tableShell) {
             var tbody = queryFirstOrTag(tableShell, 'tbody', 'tbody');
             if (!tbody) return [];
-            return typeof tbody.querySelectorAll === 'function'
+            var all = typeof tbody.querySelectorAll === 'function'
                 ? Array.prototype.slice.call(tbody.querySelectorAll('tr'))
                 : [];
+            if (all.length === 0) {
+                all = collectRowsFromTbody(tbody);
+            }
+            return all;
         }
 
         function matchSubVoice(row, subVoices) {
@@ -170,7 +204,7 @@
             return 'ug-' + prefix + '-' + id;
         }
 
-        function createAccordionItem(headerId, collapseId, title, contentEl, isOpen) {
+        function createAccordionItem(headerId, collapseId, title, contentEl, isOpen, memberCount) {
             var item = document.createElement('div');
             item.className = 'accordion-item';
 
@@ -186,7 +220,24 @@
             button.dataset['bsTarget'] = '#' + collapseId;
             button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             button.setAttribute('aria-controls', collapseId);
-            button.textContent = title;
+
+            var titleEl = document.createElement('span');
+            titleEl.textContent = title;
+            button.appendChild(titleEl);
+
+            if (typeof memberCount === 'number') {
+                var countBadge = document.createElement('span');
+                countBadge.className = 'badge text-bg-secondary';
+                countBadge.dataset = countBadge.dataset || {};
+                countBadge.dataset['usersGroupCountBadge'] = collapseId;
+                countBadge.textContent = String(memberCount);
+                // Keep count badge right next to the built-in chevron regardless of title width.
+                countBadge.style.position = 'absolute';
+                countBadge.style.right = '2.75rem';
+                countBadge.style.top = '50%';
+                countBadge.style.transform = 'translateY(-50%)';
+                button.appendChild(countBadge);
+            }
             header.appendChild(button);
 
             var collapseDiv = document.createElement('div');
@@ -285,7 +336,7 @@
                     var noSvItem = createAccordionItem(
                         'hdr-' + noSvId, noSvId,
                         subVoices.length > 0 ? 'Ohne Unterstimme' : vg.name,
-                        noSvContent, isNoSvOpen
+                        noSvContent, isNoSvOpen, unassignedRows.length
                     );
                     innerAccordion.appendChild(noSvItem);
                 }
@@ -302,7 +353,7 @@
                     var svContent = cloneTableForRows(originalTable, svRows);
                     var svItem = createAccordionItem(
                         'hdr-' + svCollapseId, svCollapseId,
-                        sv.name, svContent, isSvOpen
+                        sv.name, svContent, isSvOpen, svRows.length
                     );
                     innerAccordion.appendChild(svItem);
                 });
@@ -313,7 +364,7 @@
 
                 var vgItem = createAccordionItem(
                     'hdr-' + vgCollapseId, vgCollapseId,
-                    vg.name, vgContent, isVgOpen
+                    vg.name, vgContent, isVgOpen, vgRows.length
                 );
 
                 // If subVoices is empty AND unassigned rows filled it, add accordion directly
@@ -324,7 +375,7 @@
                     vgContent.appendChild(directContent);
                     vgItem = createAccordionItem(
                         'hdr-' + vgCollapseId, vgCollapseId,
-                        vg.name, vgContent, isVgOpen
+                        vg.name, vgContent, isVgOpen, unassignedRows.length
                     );
                 }
 
@@ -341,7 +392,7 @@
                 var ngId = 'ug-no-group';
                 var isNgOpen = openBlockIds.has(ngId);
                 var ngContent = cloneTableForRows(originalTable, noGroupRows);
-                var ngItem = createAccordionItem('hdr-' + ngId, ngId, 'Ohne Zuordnung', ngContent, isNgOpen);
+                var ngItem = createAccordionItem('hdr-' + ngId, ngId, 'Ohne Zuordnung', ngContent, isNgOpen, noGroupRows.length);
                 accordion.appendChild(ngItem);
             }
 
@@ -426,16 +477,13 @@
             btn.className = 'btn btn-sm btn-outline-secondary';
             btn.dataset = btn.dataset || {};
             btn.dataset['usersGroupToggle'] = '';
-
-            function updateButton() {
-                btn.textContent = groupActive ? 'Listenansicht' : 'Nach Stimme gruppieren';
-            }
-            updateButton();
+            toggleButtonEl = btn;
+            syncToggleButtonLabel();
 
             btn.addEventListener('click', function () {
                 groupActive = !groupActive;
                 persistGroupActive();
-                updateButton();
+                syncToggleButtonLabel();
                 if (groupActive) {
                     activateGroup(tableShell);
                 } else {
@@ -481,6 +529,7 @@
                     window.localStorage.removeItem(LS_GROUP_KEY);
                     window.localStorage.removeItem(LS_OPEN_KEY);
                 } catch (e) { /* ignore */ }
+                syncToggleButtonLabel();
                 if (tableShell) {
                     deactivateGroup(tableShell);
                 }

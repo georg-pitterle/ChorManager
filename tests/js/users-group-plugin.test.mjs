@@ -256,6 +256,30 @@ function loadPlugin(ctx) {
     return capturedFactory(pluginContext);
 }
 
+function getCountBadges(root) {
+    const out = [];
+    const queue = [root];
+
+    while (queue.length > 0) {
+        const node = queue.shift();
+        if (!node || !node.children) {
+            continue;
+        }
+
+        for (const child of node.children) {
+            if (child && child.dataset && child.dataset.usersGroupCountBadge) {
+                out.push({
+                    id: child.dataset.usersGroupCountBadge,
+                    count: child.textContent,
+                });
+            }
+            queue.push(child);
+        }
+    }
+
+    return out;
+}
+
 // --- Tests ---
 
 test('plugin registers itself as usersGroup', () => {
@@ -440,6 +464,33 @@ test('accordion rebuild after filter restores previously open blocks', () => {
     assert.doesNotThrow(() => plugin.mount(), 'Akkordeon-Neuaufbau mit gespeichertem Zustand soll nicht werfen');
 });
 
+test('grouped view shows member count badges for voice groups and sub-voices', () => {
+    const ctx = makeContext({
+        voiceOptions: '1::Sopran||2::Alt',
+        subVoiceOptions: '1:1::Sopran 1||1:2::Sopran 2||2:3::Alt 1',
+        rows: [
+            { voice: '|1|', sortVoice: 'sopran sopran 1', hidden: false },
+            { voice: '|1|', sortVoice: 'sopran sopran 2', hidden: false },
+            { voice: '|2|', sortVoice: 'alt alt 1', hidden: false },
+        ]
+    });
+
+    const plugin = loadPlugin(ctx);
+    plugin.setState({ groupActive: true });
+    plugin.mount();
+
+    const badges = getCountBadges(ctx.tableShell);
+    const byId = Object.fromEntries(badges.map(b => [b.id, b.count]));
+
+    assert.ok(Object.keys(byId).length > 0, `Keine Count-Badges gefunden: ${JSON.stringify(badges)}`);
+
+    assert.equal(byId['ug-vg-1'], '2', 'Stimmgruppe Sopran soll 2 Mitglieder anzeigen');
+    assert.equal(byId['ug-vg-2'], '1', 'Stimmgruppe Alt soll 1 Mitglied anzeigen');
+    assert.equal(byId['ug-sv-1'], '1', 'Unterstimme Sopran 1 soll 1 Mitglied anzeigen');
+    assert.equal(byId['ug-sv-2'], '1', 'Unterstimme Sopran 2 soll 1 Mitglied anzeigen');
+    assert.equal(byId['ug-sv-3'], '1', 'Unterstimme Alt 1 soll 1 Mitglied anzeigen');
+});
+
 test('reset removes accordionOpen key and clears sets', () => {
     const ctx = makeContext({});
     ctx.storage['chorte.users.manage.groupByVoice'] = '1';
@@ -450,4 +501,17 @@ test('reset removes accordionOpen key and clears sets', () => {
     assert.equal(ctx.storage['chorte.users.manage.accordionOpen'], undefined, 'accordionOpen soll entfernt werden');
     assert.equal(ctx.storage['chorte.users.manage.groupByVoice'], undefined, 'groupByVoice soll entfernt werden');
     assert.deepEqual(plugin.getState(), { groupActive: false });
+});
+
+test('reset updates toggle button label back to grouping mode', () => {
+    const ctx = makeContext({});
+    ctx.storage['chorte.users.manage.groupByVoice'] = '1';
+    const plugin = loadPlugin(ctx);
+    plugin.mount();
+
+    const btn = ctx.pluginSlot.children.find(c => c.dataset && 'usersGroupToggle' in c.dataset);
+    assert.equal(btn.textContent, 'Listenansicht', 'Bei aktivem Gruppenmodus muss der Button Listenansicht zeigen');
+
+    plugin.reset();
+    assert.equal(btn.textContent, 'Nach Stimme gruppieren', 'Nach Reset muss der Button wieder Nach Stimme gruppieren zeigen');
 });
