@@ -67,7 +67,7 @@ class TableUxFeatureTest extends TestCase
 
         $this->assertIsString($usersTemplate);
         $this->assertStringContainsString('data-users-manage-filter-slot', $usersTemplate);
-        $this->assertStringContainsString('data-table-plugins="usersManage"', $usersTemplate);
+        $this->assertStringContainsString('data-table-plugins="usersManage,usersGroup"', $usersTemplate);
         $this->assertStringContainsString('data-voice-options="{{ voice_options_attr|replace({\'\\n\': \'\', \'\\r\': \'\', \'\\t\': \' \'})|trim }}"', $usersTemplate);
         $this->assertStringContainsString('data-project-options="{{ project_options_attr|replace({\'\\n\': \'\', \'\\r\': \'\', \'\\t\': \' \'})|trim }}"', $usersTemplate);
         $this->assertStringContainsString('data-sort-key="name"', $usersTemplate);
@@ -208,5 +208,23 @@ class TableUxFeatureTest extends TestCase
         );
         $this->assertStringContainsString('nextSortColumns.push({ key: key, dir: initialSortDir });', $engineContent);
         $this->assertStringContainsString('setSortColumns([{ key: key, dir: initialSortDir }]);', $engineContent);
+    }
+
+    public function testUsersGroupPluginAssetIsLoadedFromLayout(): void
+    {
+        $layoutContent = file_get_contents(dirname(__DIR__) . '/../templates/layout.twig');
+
+        $this->assertIsString($layoutContent);
+        $this->assertStringContainsString('/js/table-plugins/users-group-plugin.js', $layoutContent);
+    }
+
+    public function testUsersManageTableDeclaresGroupPlugin(): void
+    {
+        $usersTemplate = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
+
+        $this->assertIsString($usersTemplate);
+        $this->assertStringContainsString('data-table-plugins="usersManage,usersGroup"', $usersTemplate);
+        $this->assertStringContainsString('data-sub-voice-options=', $usersTemplate);
+        $this->assertStringContainsString('data-show-archived=', $usersTemplate);
     }
 }
