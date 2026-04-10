@@ -54,9 +54,13 @@ class UserManagementFeatureTest extends TestCase
 
         $this->assertStringContainsString('$user->project_count = count($user->project_ids);', $controller);
         $this->assertStringContainsString('$user->project_participations = $this->buildProjectParticipations($user);', $controller);
-        $this->assertStringContainsString("'status_label' => \$isArchived ? 'Archiviert' : 'Aktiv',", $controller);
+        $this->assertStringNotContainsString("'status_label' => \$isArchived ? 'Archiviert' : 'Aktiv',", $controller);
+        $this->assertStringNotContainsString("'is_archived' => \$isArchived,", $controller);
+        $this->assertStringNotContainsString('private function isArchivedProject(Project $project): bool', $controller);
         $this->assertStringContainsString("User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])", $query);
         $this->assertStringContainsString('user.project_participations', $twig);
-        $this->assertStringContainsString('participation.status_label', $twig);
+        $this->assertStringContainsString('participation.name', $twig);
+        $this->assertStringNotContainsString('participation.status_label', $twig);
+        $this->assertStringNotContainsString('participation.is_archived', $twig);
     }
 }
