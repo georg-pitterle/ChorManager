@@ -223,7 +223,7 @@ function loadPlugin(ctx) {
             const el = ce(tag);
             return el;
         },
-        addEventListener() {},
+        addEventListener() { },
         querySelectorAll() { return []; },
     };
 
@@ -248,9 +248,9 @@ function loadPlugin(ctx) {
 
     const pluginContext = {
         pluginSlot: ctx.pluginSlot,
-        onPluginStateChange() {},
+        onPluginStateChange() { },
         matchCell() { return true; },
-        createSelectGroup() { return { root: { appendChild() {} }, onChange() {} }; },
+        createSelectGroup() { return { root: { appendChild() { } }, onChange() { } }; },
     };
 
     return capturedFactory(pluginContext);
@@ -271,7 +271,7 @@ test('plugin registers itself as usersGroup', () => {
         }
     };
     const context = vm.createContext({
-        window: mockWindow, document: { addEventListener() {}, querySelectorAll() { return []; } },
+        window: mockWindow, document: { addEventListener() { }, querySelectorAll() { return []; } },
         console, Set, Array, Object, Number, String, Boolean, Math, JSON,
     });
     new vm.Script(source, { filename: 'users-group-plugin.js' }).runInContext(context);
