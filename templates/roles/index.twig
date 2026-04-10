@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Rollen verwalten - Chor Manager
@@ -46,6 +46,7 @@
          data-table-engine="true"
          data-table-id="roles.index"
          data-default-view="table"
+         data-default-sort-key=""
          data-default-page-size="100"
          data-page-size-options="25,50,100,200">
         {{ include("partials/table_toolbar.twig") }}

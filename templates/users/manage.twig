@@ -92,9 +92,7 @@
                             <th data-sort-key="role" data-sort-type="text">Rolle</th>
                             <th data-sort-key="voice" data-sort-type="text">Stimme</th>
                             {% if can_manage_project_members or can_edit_users %}
-                                <th data-sort-key="project_count"
-                                    data-sort-type="number"
-                                    data-sort-initial-dir="desc">Projekte</th>
+                                <th data-sort-key="project_count" data-sort-type="number" data-sort-initial-dir="desc">Projekte</th>
                             {% endif %}
                             <th class="text-end">Aktionen</th>
                         </tr>
@@ -109,7 +107,16 @@
                             {% for group_id in user.voice_group_ids %}
                                 {% for g in voice_groups %}
                                     {% if g.id == group_id %}
-                                        {% set voice_filter = voice_filter ~ ' ' ~ g.name|lower %}
+                                        {% set sv_id = user.voice_group_pivots[group_id] %}
+                                        {% if sv_id %}
+                                            {% for sv in sub_voices %}
+                                                {% if sv.id == sv_id %}
+                                                    {% set voice_filter = voice_filter ~ ' ' ~ g.name|lower ~ ' ' ~ sv.name|lower %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            {% set voice_filter = voice_filter ~ ' ' ~ g.name|lower %}
+                                        {% endif %}
                                     {% endif %}
                                 {% endfor %}
                             {% endfor %}

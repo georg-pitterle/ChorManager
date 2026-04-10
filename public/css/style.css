@@ -260,7 +260,7 @@ thead th {
 }
 
 .finances-table .finance-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: flex-end;
     flex-wrap: nowrap;
