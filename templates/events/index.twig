@@ -133,7 +133,8 @@
                                 <td data-label="Aktionen" class="text-end">
                                     <div class="btn-group">
                                         {% if session.can_manage_attendance or session.can_manage_users %}
-                                            <a href="/attendance/{{ event.id }}" class="btn btn-sm btn-outline-primary">
+                                            <a href="/attendance/{{ event.id }}"
+                                               class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-person-check"></i> Anwesenheit
                                             </a>
                                         {% endif %}
