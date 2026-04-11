@@ -1,7 +1,7 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Events (Termine) - Chor Manager
+    Events (Termine) - {{ app_settings.app_name|default("Chor Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -98,7 +98,7 @@
              data-default-page-size="100"
              data-page-size-options="25,50,100,200"
              data-default-sort-key="event_date"
-             data-default-sort-dir="desc">
+             data-default-sort-dir="asc">
             {{ include("partials/table_toolbar.twig") }}
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 table-responsive-cards"

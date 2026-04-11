@@ -11,9 +11,6 @@
             <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default("Mitglied") }}</h1>
             <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
         </div>
-        <div class="page-actions">
-            <a href="/attendance" class="btn btn-primary">Zur Anwesenheit</a>
-        </div>
     </section>
 {% endblock page_header %}
 
@@ -25,13 +22,55 @@
                     <h5 class="card-title text-primary">
                         <i class="bi bi-calendar-check-fill"></i> Nächste Probe
                     </h5>
-                    <p class="card-text">Hier siehst du geplante Termine und kannst deine Anwesenheit eintragen.</p>
+                    <p class="card-text">Hier siehst du geplante Termine und kannst die Anwesenheit für berechtigte Stimmgruppen eintragen.</p>
                     <a href="/attendance" class="btn btn-outline-primary">Zur Anwesenheitsliste</a>
                 </div>
             </div>
         </div>
 
-        {% if can_manage_users %}
+         {% if session.can_manage_finances %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">
+                            <i class="bi bi-bank"></i> Kassa
+                        </h5>
+                        <p class="card-text">Gehe direkt zur Kassa</p>
+                        <a href="/finances" class="btn btn-outline-warning">Zur Kassa</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if session.can_manage_tasks and current_project %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">
+                            <i class="bi bi-list-check"></i> Aufgaben: {{ current_project.name }}
+                        </h5>
+                        <p class="card-text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
+                        <a href="/projects/{{ current_project.id }}/tasks" class="btn btn-outline-warning">Zur Aufgabenübersicht</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if session.can_manage_tasks and upcoming_project %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-secondary">
+                    <div class="card-body">
+                        <h5 class="card-title text-secondary">
+                            <i class="bi bi-list-check"></i> Aufgaben: {{ upcoming_project.name }}
+                        </h5>
+                        <p class="card-text">Kommendes Projekt – Planungsübersicht und Aufgaben bereits einsehen und vorbereiten.</p>
+                        <a href="/projects/{{ upcoming_project.id }}/tasks" class="btn btn-outline-secondary">Zur Aufgabenübersicht</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if session.can_manage_users %}
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-success">
                     <div class="card-body">
@@ -51,19 +90,6 @@
                         </h5>
                         <p class="card-text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
                         <a href="/evaluations" class="btn btn-outline-info">Statistiken ansehen</a>
-                    </div>
-                </div>
-            </div>
-        {% elseif role_level >= 40 %}
-            {# Stimmvertretung/Ersatz #}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-warning">
-                    <div class="card-body">
-                        <h5 class="card-title text-warning">
-                            <i class="bi bi-person-lines-fill"></i> Meine Stimmgruppe
-                        </h5>
-                        <p class="card-text">Verwalte die Anwesenheiten der Mitglieder deiner Stimmgruppe.</p>
-                        <a href="/attendance" class="btn btn-outline-warning">Anwesenheiten eintragen</a>
                     </div>
                 </div>
             </div>
