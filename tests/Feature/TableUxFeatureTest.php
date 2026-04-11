@@ -72,7 +72,7 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringContainsString('data-project-options="{{ project_options_attr|replace({\'\\n\': \'\', \'\\r\': \'\', \'\\t\': \' \'})|trim }}"', $usersTemplate);
         $this->assertStringContainsString('data-sort-key="name"', $usersTemplate);
         $this->assertStringContainsString('data-sort-key="email"', $usersTemplate);
-        $this->assertStringContainsString('data-role="{{ role_filter|trim }}"', $usersTemplate);
+        $this->assertStringContainsString('data-role="{{ role_filter_ids }}"', $usersTemplate);
         $this->assertStringContainsString('data-voice="{{ voice_filter_ids }}"', $usersTemplate);
         $this->assertStringContainsString('data-project="{{ project_filter_ids }}"', $usersTemplate);
     }
