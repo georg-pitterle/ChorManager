@@ -19,7 +19,6 @@ class NewsletterTemplateQuery
         return NewsletterTemplate::query()
             ->where('project_id', $projectId)
             ->orWhereNull('project_id')
-            ->orderBy('category')
             ->orderBy('name')
             ->get();
     }
@@ -35,7 +34,6 @@ class NewsletterTemplateQuery
                 }
                 $query->whereIn('project_id', $projectIds);
             })
-            ->orderBy('category')
             ->orderBy('name')
             ->get();
     }

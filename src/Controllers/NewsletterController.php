@@ -106,7 +106,6 @@ class NewsletterController
     private function validateTemplateInput(array $data): array
     {
         $name = trim((string) ($data['name'] ?? ''));
-        $category = trim((string) ($data['category'] ?? 'general'));
         $contentHtml = trim((string) ($data['content_html'] ?? ''));
         $description = trim((string) ($data['description'] ?? ''));
 
@@ -118,7 +117,6 @@ class NewsletterController
             'ok' => true,
             'payload' => [
                 'name' => $name,
-                'category' => $category,
                 'content_html' => $contentHtml,
                 'description' => $description,
             ],

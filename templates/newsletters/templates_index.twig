@@ -11,7 +11,6 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>Kategorie</th>
           <th>Kontext</th>
           <th class="text-end">Aktionen</th>
         </tr>
@@ -20,7 +19,6 @@
       {% for template in templates %}
         <tr>
           <td>{{ template.name }}</td>
-          <td>{{ template.category }}</td>
           <td>{{ template.project_id ? 'Projekt' : 'Global' }}</td>
           <td class="text-end">
             <a class="btn btn-sm btn-outline-primary" href="/newsletters/templates/{{ template.id }}/edit">Bearbeiten</a>

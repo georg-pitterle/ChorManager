@@ -20,7 +20,6 @@ class NewsletterTemplatePersistence
             'description' => (string) ($source->description ?? ''),
             'content_html' => $source->content_html,
             'project_id' => $source->project_id,
-            'category' => $source->category,
             'created_by' => $createdBy,
         ]);
     }

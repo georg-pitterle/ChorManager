@@ -94,7 +94,6 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $source->id = 44;
         $source->project_id = 9;
         $source->name = 'Projektvorlage';
-        $source->category = 'general';
         $source->content_html = '<p>Body</p>';
 
         $clone = $spy->cloneTemplate($source, 123);
