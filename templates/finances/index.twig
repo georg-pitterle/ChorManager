@@ -1,7 +1,7 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Kassabuch - Chor Manager
+    Kassabuch - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -93,7 +93,9 @@
                             <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
                             <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
                             <th data-sort-key="type" data-sort-type="text">Art</th>
-                            <th class="text-end finance-amount-column" data-sort-key="amount" data-sort-type="number">Betrag</th>
+                            <th class="text-end finance-amount-column"
+                                data-sort-key="amount"
+                                data-sort-type="number">Betrag</th>
                             <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
                             <th>Anhänge</th>
                             <th class="text-end finance-actions-column">Aktionen</th>

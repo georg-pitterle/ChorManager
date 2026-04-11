@@ -78,6 +78,8 @@ class NewsletterFeatureTest extends TestCase
             'edit.twig',
             'preview.twig',
             'locked.twig',
+            'templates_index.twig',
+            'templates_edit.twig',
         ];
 
         foreach ($templates as $template) {
@@ -156,6 +158,11 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'getTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'checkLock'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'deleteDraft'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'createTemplate'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'editTemplate'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
     }
 
     /**

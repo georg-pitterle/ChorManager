@@ -1,7 +1,7 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block title %}
-    Newsletter bearbeiten
+    Newsletter bearbeiten - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -137,15 +137,6 @@
                                        class="form-control"
                                        id="template_name"
                                        value="{{ newsletter.title }}">
-                            </div>
-                            <div class="mb-3">
-                                <label for="template_category" class="form-label">Kategorie</label>
-                                <select class="form-select" id="template_category">
-                                    <option value="general">Allgemein</option>
-                                    <option value="event">Event-Ankündigung</option>
-                                    <option value="update">Update</option>
-                                    <option value="report">Nachbericht</option>
-                                </select>
                             </div>
                             <div class="mb-3">
                                 <label for="template_description" class="form-label">Beschreibung</label>
@@ -356,7 +347,6 @@ document.getElementById('send-newsletter-btn').addEventListener('click', functio
 document.getElementById('save-template-btn').addEventListener('click', async function() {
     const formData = new FormData();
     formData.set('template_name', document.getElementById('template_name').value);
-    formData.set('template_category', document.getElementById('template_category').value);
     formData.set('template_description', document.getElementById('template_description').value);
 
     const response = await fetch('/newsletters/{{ newsletter.id }}/save-as-template', {

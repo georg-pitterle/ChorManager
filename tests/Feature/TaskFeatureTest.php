@@ -251,8 +251,10 @@ class TaskFeatureTest extends TestCase
 
         $this->assertIsString($tasksTemplate);
         $this->assertIsString($detailTemplate);
-        $this->assertStringContainsString('class="form-control tinymce-editor" id="description"', $tasksTemplate);
-        $this->assertStringContainsString('class="form-control tinymce-editor" id="description"', $detailTemplate);
+        $this->assertStringContainsString('tinymce-editor', $tasksTemplate);
+        $this->assertStringContainsString('id="description"', $tasksTemplate);
+        $this->assertStringContainsString('tinymce-editor', $detailTemplate);
+        $this->assertStringContainsString('id="description"', $detailTemplate);
         $this->assertStringContainsString('{{ task.description|raw }}', $detailTemplate);
         $this->assertStringContainsString('task-description-html', $detailTemplate);
         $this->assertStringNotContainsString('{{ task.description|nl2br }}', $detailTemplate);

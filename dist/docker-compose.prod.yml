@@ -12,7 +12,7 @@ x-app-environment: &app-environment
   SMTP_PASSWORD: ${SMTP_PASSWORD:?set in Portainer}
   SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
   SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:?set in Portainer}
-  SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Chor Manager}
+  SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Chor-Manager}
   REMEMBER_ME_DAYS: ${REMEMBER_ME_DAYS:-30}
   TZ: ${TZ:-Europe/Vienna}
 

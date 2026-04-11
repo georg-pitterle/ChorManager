@@ -82,7 +82,7 @@ class PasswordResetController
             'reset_link' => $resetLink
         ]);
 
-        $sent = $this->mailer->sendHtmlMail($email, 'Passwort zurücksetzen - Chor Manager', $htmlBody);
+        $sent = $this->mailer->sendHtmlMail($email, 'Passwort zurücksetzen - Chor-Manager', $htmlBody);
 
         if ($sent) {
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';

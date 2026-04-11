@@ -1,7 +1,7 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block title %}
-    Newsletter erstellen
+    Newsletter erstellen - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -74,9 +74,7 @@
                         <label for="template" class="form-label">Vorlage laden (optional)</label>
                         <select class="form-select" id="template" data-action="load-template">
                             <option value="">-- Keine Vorlage --</option>
-                            {% for template in templates %}
-                                <option value="{{ template.id }}">[{{ template.category|upper }}] {{ template.name }}</option>
-                            {% endfor %}
+                            {% for template in templates %}<option value="{{ template.id }}">{{ template.name }}</option>{% endfor %}
                         </select>
                     </div>
                 </div>

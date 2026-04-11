@@ -59,7 +59,7 @@ Required/available variables:
 - `SMTP_PASSWORD` (required in production)
 - `SMTP_ENCRYPTION` (`tls`, `ssl`, `none`; Dev default: `none`)
 - `SMTP_FROM_EMAIL` (Dev default: `noreply@chor.local`)
-- `SMTP_FROM_NAME` (Dev default: `Chor Manager`)
+- `SMTP_FROM_NAME` (Dev default: `Chor-Manager`)
 
 Example for local Mailhog setups:
 
@@ -69,7 +69,7 @@ SMTP_PORT=1025
 SMTP_AUTH=0
 SMTP_ENCRYPTION=none
 SMTP_FROM_EMAIL=noreply@chor.local
-SMTP_FROM_NAME="Chor Manager"
+SMTP_FROM_NAME="Chor-Manager"
 ```
 
 # Deployment
@@ -144,7 +144,7 @@ SMTP_USERNAME=smtp-user
 SMTP_PASSWORD=change_me
 SMTP_ENCRYPTION=tls
 SMTP_FROM_EMAIL=noreply@example.com
-SMTP_FROM_NAME=Chor Manager
+SMTP_FROM_NAME=Chor-Manager
 ```
 
 Note: The application should currently be able to reach the database via the default port `3306`.

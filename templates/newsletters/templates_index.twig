@@ -1,0 +1,97 @@
+{% extends 'layout.twig' %}
+
+{% block content %}
+    <div class="container py-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="h2 mb-0">Newsletter-Vorlagen</h1>
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="btn btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createTemplateModal">Vorlage erstellen</button>
+                <a href="/newsletters" class="btn btn-outline-secondary">Zurück zu Newslettern</a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Kontext</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in templates %}
+                        <tr>
+                            <td>{{ template.name }}</td>
+                            <td>{{ template.project_id ? 'Projekt' : 'Global' }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary"
+                                   href="/newsletters/templates/{{ template.id }}/edit">Bearbeiten</a>
+                                <form method="post"
+                                      action="/newsletters/templates/{{ template.id }}/clone"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Klonen</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="modal fade"
+             id="createTemplateModal"
+             tabindex="-1"
+             aria-labelledby="createTemplateModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <form method="post" action="/newsletters/templates">
+                        <div class="modal-header">
+                            <h2 class="modal-title h5" id="createTemplateModalLabel">Neue Vorlage erstellen</h2>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label" for="name">Name</label>
+                                    <input class="form-control" id="name" name="name" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="project_id">Kontext</label>
+                                    <select class="form-select" id="project_id" name="project_id">
+                                        <option value="">Global</option>
+                                        {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="description">Beschreibung</label>
+                                    <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="content_html">Inhalt</label>
+                                    <textarea class="form-control tinymce-editor"
+                                              id="content_html"
+                                              name="content_html"
+                                              required></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Vorlage erstellen</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

@@ -190,7 +190,7 @@ final class Initial extends AbstractMigration
             (8,'Bass 2',4);");
 
         $this->execute("INSERT INTO settings (setting_key, setting_value) VALUES
-            ('app_name','Chor Manager'),
+            ('app_name','Chor-Manager'),
             ('fiscal_year_start','01.10.');");
     }
 

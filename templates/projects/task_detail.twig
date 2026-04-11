@@ -1,7 +1,7 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Aufgabe: {{ task.name }} - Chor Manager
+    Aufgabe: {{ task.name }} - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -242,7 +242,10 @@
 
                     <div class="mb-3">
                         <label for="description" class="form-label">Beschreibung</label>
-                        <textarea class="form-control tinymce-editor" id="description" name="description" rows="5">{{ task.description|raw }}</textarea>
+                        <textarea class="form-control tinymce-editor"
+                                  id="description"
+                                  name="description"
+                                  rows="5">{{ task.description|raw }}</textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

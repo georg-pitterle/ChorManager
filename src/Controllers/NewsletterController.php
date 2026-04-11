@@ -16,6 +16,8 @@ use App\Models\User;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Queries\NewsletterTemplateQuery;
+use App\Persistence\NewsletterTemplatePersistence;
 
 class NewsletterController
 {
@@ -23,17 +25,23 @@ class NewsletterController
     private NewsletterService $newsletterService;
     private NewsletterLockingService $lockingService;
     private NewsletterRecipientService $recipientService;
+    private NewsletterTemplateQuery $templateQuery;
+    private NewsletterTemplatePersistence $templatePersistence;
 
     public function __construct(
         Twig $view,
         NewsletterService $newsletterService,
         NewsletterLockingService $lockingService,
-        NewsletterRecipientService $recipientService
+        NewsletterRecipientService $recipientService,
+        NewsletterTemplateQuery $templateQuery,
+        NewsletterTemplatePersistence $templatePersistence
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
         $this->lockingService = $lockingService;
         $this->recipientService = $recipientService;
+        $this->templateQuery = $templateQuery;
+        $this->templatePersistence = $templatePersistence;
     }
 
     /**
@@ -76,6 +84,43 @@ class NewsletterController
         }
 
         return $user->projects()->orderBy('name')->get();
+    }
+
+    protected function getAccessibleProjectIds(?int $userId): array
+    {
+        return $this->getAccessibleProjects($userId)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+    }
+
+    private function canAccessTemplateContext(?int $templateProjectId, array $accessibleProjectIds): bool
+    {
+        if ($templateProjectId === null) {
+            return true;
+        }
+
+        return in_array($templateProjectId, $accessibleProjectIds, true);
+    }
+
+    private function validateTemplateInput(array $data): array
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        $contentHtml = trim((string) ($data['content_html'] ?? ''));
+        $description = trim((string) ($data['description'] ?? ''));
+
+        if ($name === '' || mb_strlen($name) > 255 || $contentHtml === '') {
+            return ['ok' => false, 'payload' => []];
+        }
+
+        return [
+            'ok' => true,
+            'payload' => [
+                'name' => $name,
+                'content_html' => $contentHtml,
+                'description' => $description,
+            ],
+        ];
     }
 
     public function index(Request $request, Response $response): Response
@@ -200,7 +245,6 @@ class NewsletterController
             ->get();
         $templates = NewsletterTemplate::where('project_id', $projectId)
             ->orWhereNull('project_id')
-            ->orderBy('category')
             ->orderBy('name')
             ->get();
 
@@ -438,7 +482,6 @@ class NewsletterController
             'description' => $data['template_description'] ?? '',
             'content_html' => $newsletter->content_html,
             'project_id' => $newsletter->project_id,
-            'category' => $data['template_category'] ?? 'general',
             'created_by' => $userId,
         ]);
 
@@ -512,5 +555,122 @@ class NewsletterController
             "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
         )
             ->withStatus(302);
+    }
+
+    public function listTemplates(Request $request, Response $response): Response
+    {
+        $userId = $_SESSION['user_id'] ?? null;
+        $projects = $this->getAccessibleProjects($userId);
+        $templates = $this->templateQuery->getForAccessibleProjects($this->getAccessibleProjectIds($userId));
+
+        return $this->view->render($response, 'newsletters/templates_index.twig', [
+            'projects' => $projects,
+            'templates' => $templates,
+        ]);
+    }
+
+    public function createTemplate(Request $request, Response $response): Response
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return $response->withStatus(403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $validation = $this->validateTemplateInput($data);
+        if (!$validation['ok']) {
+            return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
+        }
+
+        $projectId = null;
+        if (($data['project_id'] ?? '') !== '') {
+            $projectId = (int) $data['project_id'];
+        }
+
+        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
+        if (!$this->canAccessTemplateContext($projectId, $accessibleProjectIds)) {
+            return $response->withStatus(403);
+        }
+
+        $template = $this->templatePersistence->createTemplate($validation['payload'], $userId, $projectId);
+
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'template_id' => $template->id,
+            'redirect' => '/newsletters/templates/' . $template->id . '/edit',
+        ], 201);
+    }
+
+    public function editTemplate(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $template = $this->templateQuery->findById($id);
+
+        if (!$template) {
+            return $response->withStatus(404);
+        }
+
+        $userId = $_SESSION['user_id'] ?? null;
+        if (!$this->canAccessTemplateContext($template->project_id, $this->getAccessibleProjectIds($userId))) {
+            return $response->withStatus(403);
+        }
+
+        return $this->view->render($response, 'newsletters/templates_edit.twig', [
+            'template' => $template,
+        ]);
+    }
+
+    public function updateTemplate(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $template = $this->templateQuery->findById($id);
+
+        if (!$template) {
+            return $response->withStatus(404);
+        }
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
+
+        if (!$this->canAccessTemplateContext($template->project_id, $accessibleProjectIds)) {
+            return $response->withStatus(403);
+        }
+
+        $validation = $this->validateTemplateInput((array) $request->getParsedBody());
+        if (!$validation['ok']) {
+            return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
+        }
+
+        $this->templatePersistence->updateTemplate($template, $validation['payload']);
+
+        return $this->jsonResponse($response, ['success' => true]);
+    }
+
+    public function cloneTemplate(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $template = $this->templateQuery->findById($id);
+
+        if (!$template) {
+            return $response->withStatus(404);
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return $response->withStatus(403);
+        }
+
+        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
+        if (!$this->canAccessTemplateContext($template->project_id, $accessibleProjectIds)) {
+            return $response->withStatus(403);
+        }
+
+        $clone = $this->templatePersistence->cloneTemplate($template, $userId);
+
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'template_id' => $clone->id,
+            'redirect' => '/newsletters/templates/' . $clone->id . '/edit',
+        ], 201);
     }
 }

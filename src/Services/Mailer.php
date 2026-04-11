@@ -25,7 +25,7 @@ class Mailer
         $this->mail->CharSet = 'UTF-8';
 
         $fromEmail = EnvHelper::read('SMTP_FROM_EMAIL', 'noreply@chor.local');
-        $fromName = EnvHelper::read('SMTP_FROM_NAME', 'Chor Manager');
+        $fromName = EnvHelper::read('SMTP_FROM_NAME', 'Chor-Manager');
         $this->mail->setFrom($fromEmail, $fromName);
 
         if ($this->hasSmtpConfig()) {

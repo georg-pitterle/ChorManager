@@ -1,7 +1,7 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    App-Einstellungen - Chor Manager
+    App-Einstellungen - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -48,7 +48,7 @@
                                    class="form-control"
                                    id="app_name"
                                    name="app_name"
-                                   value="{{ settings.app_name|default("Chor Manager") }}"
+                                   value="{{ settings.app_name|default("Chor-Manager") }}"
                                    required>
                             <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
                         </div>
