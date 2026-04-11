@@ -8,8 +8,10 @@ use Slim\Views\Twig;
 use Slim\Views\TwigMiddleware;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
+use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
+use App\Persistence\NewsletterTemplatePersistence;
 use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
@@ -37,6 +39,8 @@ return function (ContainerBuilder $containerBuilder) {
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
+        NewsletterTemplateQuery::class => \DI\autowire(),
+        NewsletterTemplatePersistence::class => \DI\autowire(),
         Mailer::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),

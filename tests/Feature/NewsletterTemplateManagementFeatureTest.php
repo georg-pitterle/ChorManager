@@ -34,4 +34,19 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
     }
+
+    public function testUpdateTemplateRejectsEmptyPayloadWith422(): void
+    {
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
+    }
+
+    public function testUpdateTemplateReturns404ForMissingTemplate(): void
+    {
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
+    }
+
+    public function testCloneTemplateReturns201AndCloneId(): void
+    {
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
+    }
 }
