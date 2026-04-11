@@ -49,4 +49,23 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
     {
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
     }
+
+    public function testTemplateIndexTemplateContainsEditAndCloneActions(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/templates_index.twig');
+
+        $this->assertIsString($content);
+        $this->assertStringContainsString('/newsletters/templates/{{ template.id }}/edit', $content);
+        $this->assertStringContainsString('/newsletters/templates/{{ template.id }}/clone', $content);
+        $this->assertStringContainsString('Newsletter-Vorlagen', $content);
+    }
+
+    public function testNewsletterIndexContainsEntryPointToTemplateManagement(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/index.twig');
+
+        $this->assertIsString($content);
+        $this->assertStringContainsString('/newsletters/templates', $content);
+        $this->assertStringContainsString('Vorlagen verwalten', $content);
+    }
 }

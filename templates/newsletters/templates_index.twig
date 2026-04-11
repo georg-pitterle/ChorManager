@@ -1,7 +1,38 @@
 {% extends 'layout.twig' %}
 {% block content %}
 <div class="container py-3">
-  <h1 class="h2">Newsletter-Vorlagen</h1>
-  <p class="text-muted">Vorlagen bearbeiten und klonen.</p>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h2 mb-0">Newsletter-Vorlagen</h1>
+    <a href="/newsletters" class="btn btn-outline-secondary">Zurueck zu Newslettern</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Kategorie</th>
+          <th>Kontext</th>
+          <th class="text-end">Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for template in templates %}
+        <tr>
+          <td>{{ template.name }}</td>
+          <td>{{ template.category }}</td>
+          <td>{{ template.project_id ? 'Projekt' : 'Global' }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="/newsletters/templates/{{ template.id }}/edit">Bearbeiten</a>
+            <form method="post" action="/newsletters/templates/{{ template.id }}/clone" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Klonen</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock content %}
+
