@@ -68,4 +68,39 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $this->assertStringContainsString('/newsletters/templates', $content);
         $this->assertStringContainsString('Vorlagen verwalten', $content);
     }
+
+    public function testCloneTemplateKeepsTemplateContext(): void
+    {
+        $spy = new class extends \App\Persistence\NewsletterTemplatePersistence {
+            public ?array $captured = null;
+
+            public function cloneTemplate(\App\Models\NewsletterTemplate $source, int $createdBy): \App\Models\NewsletterTemplate
+            {
+                $this->captured = [
+                    'project_id' => $source->project_id,
+                    'created_by' => $createdBy,
+                ];
+
+                $clone = new \App\Models\NewsletterTemplate();
+                $clone->id = 501;
+                $clone->project_id = $source->project_id;
+                $clone->created_by = $createdBy;
+
+                return $clone;
+            }
+        };
+
+        $source = new \App\Models\NewsletterTemplate();
+        $source->id = 44;
+        $source->project_id = 9;
+        $source->name = 'Projektvorlage';
+        $source->category = 'general';
+        $source->content_html = '<p>Body</p>';
+
+        $clone = $spy->cloneTemplate($source, 123);
+
+        $this->assertSame(9, $spy->captured['project_id']);
+        $this->assertSame(123, $spy->captured['created_by']);
+        $this->assertSame(9, $clone->project_id);
+    }
 }
