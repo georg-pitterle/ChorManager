@@ -48,7 +48,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `SMTP_PASSWORD` | SMTP password | - | **Yes** |
 | `SMTP_ENCRYPTION` | SMTP encryption (`tls`, `ssl`, `none`) | `tls` | No |
 | `SMTP_FROM_EMAIL` | Sender email address | - | **Yes** |
-| `SMTP_FROM_NAME` | Sender display name | `Chor Manager` | No |
+| `SMTP_FROM_NAME` | Sender display name | `Chor-Manager` | No |
 | `REMEMBER_ME_DAYS` | Remember-me cookie lifetime in days | `30` | No |
 | `TZ` | Container timezone | `Europe/Vienna` | No |
 

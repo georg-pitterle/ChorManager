@@ -1,0 +1,32 @@
+{
+    "id": "/",
+    "name": "Chor-Manager",
+    "short_name": "ChorManager",
+    "description": "Verwaltung von Mitgliedern, Terminen, Projekten und organisatorischen Bereichen.",
+    "lang": "de",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#f4f6f8",
+    "theme_color": "#1f3a5f",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/maskable-icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

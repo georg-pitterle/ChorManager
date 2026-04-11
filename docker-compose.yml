@@ -21,7 +21,7 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-none}
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@chor.local}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Chor Manager}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Chor-Manager}
     depends_on:
       - db
     networks:

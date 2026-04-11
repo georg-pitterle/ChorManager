@@ -358,7 +358,7 @@ class DevSeedService
     private function seedSettings(): void
     {
         $settings = [
-            ['setting_key' => 'app_name', 'setting_value' => 'Chor Manager (Dev Seed)'],
+            ['setting_key' => 'app_name', 'setting_value' => 'Chor-Manager (Dev Seed)'],
             ['setting_key' => 'fiscal_year_start', 'setting_value' => '01.09.'],
         ];
 
@@ -905,7 +905,7 @@ class DevSeedService
     private function seedAppSettings(): void
     {
         $settings = [
-            'app_name' => 'Chor Manager (Seed)',
+            'app_name' => 'Chor-Manager (Seed)',
         ];
 
         foreach ($settings as $key => $value) {

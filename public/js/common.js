@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', function () {
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').catch(function () {
+                // Ignore registration failures silently. The app remains usable without installation support.
+            });
+        });
+    }
+
     // Project selectors (onchange submit)
     document.querySelectorAll('select[name="project_id"].onchange-submit').forEach(select => {
         select.addEventListener('change', function () {
