@@ -8,6 +8,17 @@ use App\Models\NewsletterTemplate;
 
 class NewsletterTemplatePersistence
 {
+    public function createTemplate(array $data, int $createdBy, ?int $projectId): NewsletterTemplate
+    {
+        return NewsletterTemplate::create([
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'content_html' => $data['content_html'],
+            'project_id' => $projectId,
+            'created_by' => $createdBy,
+        ]);
+    }
+
     public function updateTemplate(NewsletterTemplate $template, array $data): void
     {
         $template->update($data);

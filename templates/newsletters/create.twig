@@ -74,9 +74,7 @@
                         <label for="template" class="form-label">Vorlage laden (optional)</label>
                         <select class="form-select" id="template" data-action="load-template">
                             <option value="">-- Keine Vorlage --</option>
-                            {% for template in templates %}
-                                <option value="{{ template.id }}">[{{ template.category|upper }}] {{ template.name }}</option>
-                            {% endfor %}
+                            {% for template in templates %}<option value="{{ template.id }}">{{ template.name }}</option>{% endfor %}
                         </select>
                     </div>
                 </div>

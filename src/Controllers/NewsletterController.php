@@ -245,7 +245,6 @@ class NewsletterController
             ->get();
         $templates = NewsletterTemplate::where('project_id', $projectId)
             ->orWhereNull('project_id')
-            ->orderBy('category')
             ->orderBy('name')
             ->get();
 
@@ -483,7 +482,6 @@ class NewsletterController
             'description' => $data['template_description'] ?? '',
             'content_html' => $newsletter->content_html,
             'project_id' => $newsletter->project_id,
-            'category' => $data['template_category'] ?? 'general',
             'created_by' => $userId,
         ]);
 
@@ -562,11 +560,45 @@ class NewsletterController
     public function listTemplates(Request $request, Response $response): Response
     {
         $userId = $_SESSION['user_id'] ?? null;
+        $projects = $this->getAccessibleProjects($userId);
         $templates = $this->templateQuery->getForAccessibleProjects($this->getAccessibleProjectIds($userId));
 
         return $this->view->render($response, 'newsletters/templates_index.twig', [
+            'projects' => $projects,
             'templates' => $templates,
         ]);
+    }
+
+    public function createTemplate(Request $request, Response $response): Response
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return $response->withStatus(403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $validation = $this->validateTemplateInput($data);
+        if (!$validation['ok']) {
+            return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
+        }
+
+        $projectId = null;
+        if (($data['project_id'] ?? '') !== '') {
+            $projectId = (int) $data['project_id'];
+        }
+
+        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
+        if (!$this->canAccessTemplateContext($projectId, $accessibleProjectIds)) {
+            return $response->withStatus(403);
+        }
+
+        $template = $this->templatePersistence->createTemplate($validation['payload'], $userId, $projectId);
+
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'template_id' => $template->id,
+            'redirect' => '/newsletters/templates/' . $template->id . '/edit',
+        ], 201);
     }
 
     public function editTemplate(Request $request, Response $response): Response

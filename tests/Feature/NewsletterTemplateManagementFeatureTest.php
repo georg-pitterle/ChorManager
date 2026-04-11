@@ -13,6 +13,7 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $routes = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
 
         $this->assertIsString($routes);
+        $this->assertStringContainsString("/newsletters/templates', [NewsletterController::class, 'createTemplate']", $routes);
         $this->assertStringContainsString('/newsletters/templates', $routes);
         $this->assertStringContainsString('/newsletters/templates/{id:[0-9]+}/edit', $routes);
         $this->assertStringContainsString('/newsletters/templates/{id:[0-9]+}', $routes);
@@ -30,6 +31,7 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
     public function testNewsletterControllerExposesTemplateManagementActions(): void
     {
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'createTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'editTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
@@ -55,6 +57,11 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $content = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/templates_index.twig');
 
         $this->assertIsString($content);
+        $this->assertStringContainsString('/newsletters/templates"', $content);
+        $this->assertStringContainsString('data-bs-target="#createTemplateModal"', $content);
+        $this->assertStringContainsString('id="createTemplateModal"', $content);
+        $this->assertStringContainsString('Vorlage erstellen', $content);
+        $this->assertStringContainsString('tinymce-editor', $content);
         $this->assertStringContainsString('/newsletters/templates/{{ template.id }}/edit', $content);
         $this->assertStringContainsString('/newsletters/templates/{{ template.id }}/clone', $content);
         $this->assertStringContainsString('Newsletter-Vorlagen', $content);

@@ -308,6 +308,7 @@ return function (App $app) {
 
             // Newsletter template management
             $group->get('/newsletters/templates', [NewsletterController::class, 'listTemplates']);
+            $group->post('/newsletters/templates', [NewsletterController::class, 'createTemplate']);
             $group->get('/newsletters/templates/{id:[0-9]+}/edit', [NewsletterController::class, 'editTemplate']);
             $group->post('/newsletters/templates/{id:[0-9]+}', [NewsletterController::class, 'updateTemplate']);
             $group->post('/newsletters/templates/{id:[0-9]+}/clone', [NewsletterController::class, 'cloneTemplate']);

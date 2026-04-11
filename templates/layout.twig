@@ -3,10 +3,10 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta name="theme-color" content="#1f3a5f">
-          <meta name="mobile-web-app-capable" content="yes">
-          <meta name="apple-mobile-web-app-capable" content="yes">
-          <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="theme-color" content="#1f3a5f">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="description"
               content="{{ app_settings.app_description|default("Chor-Manager – Verwaltung von Mitgliedern, Terminen und Projekten.") }}">
         <meta name="keywords"
@@ -16,9 +16,9 @@
                 {{ app_settings.app_name|default("Chor-Manager") }}
             {% endblock title %}
         </title>
-          <link rel="manifest" href="/manifest.webmanifest">
-          <link rel="icon" href="/favicon.ico" sizes="any">
-          <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+        <link rel="manifest" href="/manifest.webmanifest">
+        <link rel="icon" href="/favicon.ico" sizes="any">
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
         <!-- Bootstrap CSS -->
         <link rel="stylesheet" href="/vendor/bootstrap/dist/css/bootstrap.min.css">
         <!-- Bootstrap Icons -->
@@ -43,7 +43,11 @@
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top app-topbar">
                 <div class="container-fluid app-topbar__inner">
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
-                        <img src="/logo" alt="Logo" width="200" height="64" class="me-2 navbar-logo">
+                        <img src="/logo"
+                             alt="Logo"
+                             width="200"
+                             height="64"
+                             class="me-2 navbar-logo">
                         <span class="app-topbar__brand-name">{{ app_settings.app_name|default("Chor-Manager") }}</span></a>
                     <button class="navbar-toggler"
                             type="button"

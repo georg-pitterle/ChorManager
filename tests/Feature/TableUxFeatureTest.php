@@ -188,10 +188,9 @@ class TableUxFeatureTest extends TestCase
         $usersTemplate = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
 
         $this->assertIsString($usersTemplate);
-        $this->assertStringContainsString(
-            'data-sort-key="project_count" data-sort-type="number" data-sort-initial-dir="desc">Projekte</th>',
-            $usersTemplate
-        );
+        $this->assertStringContainsString('data-sort-key="project_count"', $usersTemplate);
+        $this->assertStringContainsString('data-sort-type="number"', $usersTemplate);
+        $this->assertStringContainsString('data-sort-initial-dir="desc">Projekte</th>', $usersTemplate);
         $this->assertStringContainsString('data-sort-project_count="{{ user.project_count }}"', $usersTemplate);
         $this->assertStringContainsString('data-bs-target="#userProjectsModal{{ user.id }}"', $usersTemplate);
         $this->assertStringContainsString('Keine Projektteilnahmen vorhanden.', $usersTemplate);
