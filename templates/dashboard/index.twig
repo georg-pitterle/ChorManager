@@ -18,12 +18,12 @@
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="surface-card card h-100 border-primary">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <h5 class="card-title text-primary">
                         <i class="bi bi-calendar-check-fill"></i> Nächste Probe
                     </h5>
                     <p class="card-text">Hier siehst du geplante Termine und kannst die Anwesenheit für berechtigte Stimmgruppen eintragen.</p>
-                    <a href="/attendance" class="btn btn-outline-primary">Zur Anwesenheitsliste</a>
+                    <a href="/attendance" class="btn btn-outline-primary mt-auto">Zur Anwesenheitsliste</a>
                 </div>
             </div>
         </div>
@@ -31,12 +31,12 @@
          {% if session.can_manage_finances %}
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-warning">
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title text-warning">
                             <i class="bi bi-bank"></i> Kassa
                         </h5>
                         <p class="card-text">Gehe direkt zur Kassa</p>
-                        <a href="/finances" class="btn btn-outline-warning">Zur Kassa</a>
+                        <a href="/finances" class="btn btn-outline-warning mt-auto">Zur Kassa</a>
                     </div>
                 </div>
             </div>
@@ -45,12 +45,12 @@
         {% if session.can_manage_tasks and current_project %}
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-warning">
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title text-warning">
                             <i class="bi bi-list-check"></i> Aufgaben: {{ current_project.name }}
                         </h5>
                         <p class="card-text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
-                        <a href="/projects/{{ current_project.id }}/tasks" class="btn btn-outline-warning">Zur Aufgabenübersicht</a>
+                        <a href="/projects/{{ current_project.id }}/tasks" class="btn btn-outline-warning mt-auto">Zur Aufgabenübersicht</a>
                     </div>
                 </div>
             </div>
@@ -59,12 +59,12 @@
         {% if session.can_manage_tasks and upcoming_project %}
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-secondary">
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title text-secondary">
                             <i class="bi bi-list-check"></i> Aufgaben: {{ upcoming_project.name }}
                         </h5>
                         <p class="card-text">Kommendes Projekt – Planungsübersicht und Aufgaben bereits einsehen und vorbereiten.</p>
-                        <a href="/projects/{{ upcoming_project.id }}/tasks" class="btn btn-outline-secondary">Zur Aufgabenübersicht</a>
+                        <a href="/projects/{{ upcoming_project.id }}/tasks" class="btn btn-outline-secondary mt-auto">Zur Aufgabenübersicht</a>
                     </div>
                 </div>
             </div>
@@ -73,23 +73,23 @@
         {% if session.can_manage_users %}
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-success">
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title text-success">
                             <i class="bi bi-people-fill"></i> Mitgliederverwaltung
                         </h5>
                         <p class="card-text">Füge neue Mitglieder hinzu oder bearbeite Rollen und Stimmgruppen.</p>
-                        <a href="/users" class="btn btn-outline-success">Mitglieder verwalten</a>
+                        <a href="/users" class="btn btn-outline-success mt-auto">Mitglieder verwalten</a>
                     </div>
                 </div>
             </div>
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-info">
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title text-info">
                             <i class="bi bi-bar-chart-fill"></i> Auswertungen
                         </h5>
                         <p class="card-text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
-                        <a href="/evaluations" class="btn btn-outline-info">Statistiken ansehen</a>
+                        <a href="/evaluations" class="btn btn-outline-info mt-auto">Statistiken ansehen</a>
                     </div>
                 </div>
             </div>
