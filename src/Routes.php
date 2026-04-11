@@ -306,6 +306,12 @@ return function (App $app) {
             $group->get('/newsletters/{id:[0-9]+}/check-lock', [NewsletterController::class, 'checkLock']);
             $group->post('/newsletters/{id:[0-9]+}/delete', [NewsletterController::class, 'deleteDraft']);
 
+            // Newsletter template management
+            $group->get('/newsletters/templates', [NewsletterController::class, 'listTemplates']);
+            $group->get('/newsletters/templates/{id:[0-9]+}/edit', [NewsletterController::class, 'editTemplate']);
+            $group->post('/newsletters/templates/{id:[0-9]+}', [NewsletterController::class, 'updateTemplate']);
+            $group->post('/newsletters/templates/{id:[0-9]+}/clone', [NewsletterController::class, 'cloneTemplate']);
+
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])
                 ->add(new RoleMiddleware(true));

@@ -513,4 +513,28 @@ class NewsletterController
         )
             ->withStatus(302);
     }
+
+    public function listTemplates(Request $request, Response $response): Response
+    {
+        return $this->view->render($response, 'newsletters/templates_index.twig', [
+            'templates' => [],
+        ]);
+    }
+
+    public function editTemplate(Request $request, Response $response): Response
+    {
+        return $this->view->render($response, 'newsletters/templates_edit.twig', [
+            'template' => null,
+        ]);
+    }
+
+    public function updateTemplate(Request $request, Response $response): Response
+    {
+        return $this->jsonResponse($response, ['success' => false], 501);
+    }
+
+    public function cloneTemplate(Request $request, Response $response): Response
+    {
+        return $this->jsonResponse($response, ['success' => false], 501);
+    }
 }
