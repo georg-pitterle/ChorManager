@@ -108,6 +108,14 @@
                     </a>
                 </div>
                 <div>
+                    <form method="post"
+                          action="/newsletters/{{ newsletter.id }}/delete"
+                          class="d-inline"
+                          data-confirm="Diesen Newsletter-Entwurf wirklich löschen?">
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="bi bi-trash"></i> Löschen
+                        </button>
+                    </form>
                     <button type="button" class="btn btn-outline-warning" id="save-draft-btn">
                         <i class="bi bi-floppy"></i> Speichern
                     </button>

@@ -291,7 +291,10 @@ class FinanceController
             $safeName = self::normalizeFileName((string) $attachment->filename);
             return $response
                 ->withHeader('Content-Type', $attachment->mime_type)
-                ->withHeader('Content-Disposition', 'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
+                ->withHeader(
+                    'Content-Disposition',
+                    'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
+                );
         } catch (\Exception $e) {
             return $response->withStatus(404);
         }

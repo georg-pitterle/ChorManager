@@ -68,8 +68,18 @@ class Mailer
         $this->mail->isSendmail();
     }
 
+    public function isMailSendDisabled(): bool
+    {
+        return EnvHelper::readBool('DISABLE_MAIL_SEND', true);
+    }
+
     public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
     {
+        if ($this->isMailSendDisabled()) {
+            error_log("Mailer: DISABLE_MAIL_SEND is active – skipping mail to {$to} (subject: {$subject})");
+            return true;
+        }
+
         try {
             $this->lastError = null;
             $this->mail->clearAddresses();

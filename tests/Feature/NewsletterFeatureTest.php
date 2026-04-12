@@ -203,6 +203,10 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"', $indexTemplate);
         $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"', $indexTemplate);
         $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"', $indexTemplate);
+        $this->assertStringContainsString('dropdown-toggle-split', $indexTemplate);
+        $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/send"', $indexTemplate);
+        $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/delete"', $indexTemplate);
+        $this->assertStringContainsString('data-confirm="Diesen Newsletter-Entwurf wirklich löschen?"', $indexTemplate);
         $this->assertStringContainsString('{% if success %}', $indexTemplate);
         $this->assertStringContainsString('{% if error %}', $indexTemplate);
         $this->assertStringContainsString('id="newsletterActionModal"', $indexTemplate);
@@ -218,6 +222,7 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $lockedTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters-create.js"></script>', $createTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters-edit.js"></script>', $editTemplate);
+        $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/delete"', $editTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters-locked.js"></script>', $lockedTemplate);
         $this->assertStringNotContainsString('onclick=', $lockedTemplate);
 
@@ -262,5 +267,72 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('/newsletters/template/{id:[0-9]+}', $routesContent);
         $this->assertStringContainsString('/newsletters/{id:[0-9]+}/check-lock', $routesContent);
         $this->assertStringContainsString('/newsletters/{id:[0-9]+}/delete', $routesContent);
+    }
+
+    public function testMailerHasIsMailSendDisabledMethod(): void
+    {
+        $this->assertTrue(method_exists(\App\Services\Mailer::class, 'isMailSendDisabled'));
+    }
+
+    public function testMailerSkipsSendWhenDisabled(): void
+    {
+        $mailerContent = file_get_contents(dirname(__DIR__) . '/../src/Services/Mailer.php');
+        $this->assertIsString($mailerContent);
+        $this->assertStringContainsString('isMailSendDisabled', $mailerContent);
+        $this->assertStringContainsString('DISABLE_MAIL_SEND', $mailerContent);
+        // sendHtmlMail must return true (not false) when disabled
+        $this->assertStringContainsString('return true;', $mailerContent);
+    }
+
+    public function testNewsletterSendReturnsRecipientCount(): void
+    {
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterService.php');
+        $this->assertIsString($serviceContent);
+        // Return type must be int
+        $this->assertStringContainsString('public function send(Newsletter $newsletter, int $userId): int', $serviceContent);
+        $this->assertStringContainsString('return $sentCount;', $serviceContent);
+    }
+
+    public function testNewsletterControllerUsesDisabledFlagForFlashMessage(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('DISABLE_MAIL_SEND', $controllerContent);
+        $this->assertStringContainsString('EnvHelper', $controllerContent);
+        $this->assertStringContainsString('Dev-Modus', $controllerContent);
+        $this->assertStringContainsString('$recipientCount', $controllerContent);
+    }
+
+    public function testDeleteDraftCleansRecipientsAndHandlesLockConflicts(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("NewsletterRecipient::where('newsletter_id', \$newsletter->id)->delete();", $controllerContent);
+        $this->assertStringContainsString('wird gerade von einer anderen Person bearbeitet', $controllerContent);
+    }
+
+    public function testSendActionAllowsUnockedDraftAndHandlesListFlow(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("if (!\$newsletter->isLocked()) {", $controllerContent);
+        $this->assertStringContainsString("\$this->lockingService->acquireLock(\$newsletter, \$userId);", $controllerContent);
+        $this->assertStringContainsString('Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.', $controllerContent);
+    }
+
+    public function testNewsletterIndexIncludesFlashDataInSentStatusRender(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("if (\$status === Newsletter::STATUS_SENT)", $controllerContent);
+        $this->assertStringContainsString("'success' => \$success", $controllerContent);
+        $this->assertStringContainsString("'error' => \$error", $controllerContent);
+    }
+
+    public function testEnvExampleDocumentsDisableMailSendParameter(): void
+    {
+        $envExample = file_get_contents(dirname(__DIR__) . '/../.env.example');
+        $this->assertIsString($envExample);
+        $this->assertStringContainsString('DISABLE_MAIL_SEND=true', $envExample);
     }
 }

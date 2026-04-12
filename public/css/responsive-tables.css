@@ -3,6 +3,23 @@
   overflow: visible;
 }
 
+/* Keep newsletter action dropdown above neighboring table rows. */
+#newslettersTable tbody tr {
+  position: relative;
+}
+
+#newslettersTable tbody tr.newsletter-dropdown-open {
+  z-index: 20;
+}
+
+#newslettersTable td[data-label="Aktionen"] {
+  overflow: visible;
+}
+
+#newslettersTable td[data-label="Aktionen"] .dropdown-menu {
+  z-index: 2000;
+}
+
 @media (max-width: 767.98px) {
   [data-table-engine="true"][data-active-view="table"] .table-responsive-cards thead {
     display: table-header-group;

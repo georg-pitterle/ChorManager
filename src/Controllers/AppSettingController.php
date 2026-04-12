@@ -202,7 +202,10 @@ class AppSettingController
             $safeName = self::normalizeFileName((string) $logo->setting_value);
             return $response
                 ->withHeader('Content-Type', $logo->mime_type)
-                ->withHeader('Content-Disposition', 'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
+                ->withHeader(
+                    'Content-Disposition',
+                    'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
+                );
         }
 
         // Return default logo if not found

@@ -27,10 +27,10 @@ class NewsletterService
      *
      * @param Newsletter $newsletter
      * @param int $userId User ID who triggered the send
-     * @return void
+     * @return int Number of recipients actually sent to (or that would have been sent to when disabled)
      * @throws Exception
      */
-    public function send(Newsletter $newsletter, int $userId): void
+    public function send(Newsletter $newsletter, int $userId): int
     {
         if (!$newsletter->isDraft()) {
             throw new Exception('Nur Entwürfe können versendet werden');
@@ -101,6 +101,8 @@ class NewsletterService
             'status' => Newsletter::STATUS_SENT,
             'sent_at' => Carbon::now(),
         ]);
+
+        return $sentCount;
     }
 
     /**

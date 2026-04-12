@@ -357,7 +357,10 @@ class TaskController
         $response->getBody()->write($attachment->file_content);
         return $response
             ->withHeader('Content-Type', $attachment->mime_type)
-            ->withHeader('Content-Disposition', 'attachment; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
+            );
     }
 
     private static function normalizeFileName(string $name): string

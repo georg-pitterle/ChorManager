@@ -185,6 +185,51 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function bindActionDropdownLayering() {
+        const table = document.getElementById('newslettersTable');
+        if (!table) {
+            return;
+        }
+
+        const toggles = table.querySelectorAll('[data-bs-toggle="dropdown"]');
+        toggles.forEach(function (toggle) {
+            if (!(toggle instanceof HTMLElement)) {
+                return;
+            }
+            if (toggle.getAttribute('data-newsletter-dropdown-init') === '1') {
+                return;
+            }
+
+            toggle.setAttribute('data-newsletter-dropdown-init', '1');
+
+            // Use fixed strategy so dropdowns are positioned against viewport and are not clipped by table wrappers.
+            new bootstrap.Dropdown(toggle, {
+                boundary: 'viewport',
+                popperConfig: function (defaultConfig) {
+                    return Object.assign({}, defaultConfig, {
+                        strategy: 'fixed',
+                    });
+                },
+            });
+        });
+
+        table.addEventListener('show.bs.dropdown', function (event) {
+            const dropdown = event.target instanceof Element ? event.target : null;
+            const row = dropdown ? dropdown.closest('tr') : null;
+            if (row) {
+                row.classList.add('newsletter-dropdown-open');
+            }
+        });
+
+        table.addEventListener('hide.bs.dropdown', function (event) {
+            const dropdown = event.target instanceof Element ? event.target : null;
+            const row = dropdown ? dropdown.closest('tr') : null;
+            if (row) {
+                row.classList.remove('newsletter-dropdown-open');
+            }
+        });
+    }
+
     function isNewsletterOverviewPath(pathname) {
         return pathname === '/newsletters'
             || pathname === '/newsletters/'
@@ -232,7 +277,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const action = form.getAttribute('action') || '';
-        if (!action.startsWith('/newsletters/templates/')) {
+        const isCreateForm = action === '/newsletters' || action === '/newsletters/';
+        const isTemplateForm = action.startsWith('/newsletters/templates/');
+        if (!isCreateForm && !isTemplateForm) {
             return;
         }
 
@@ -240,6 +287,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const method = (form.getAttribute('method') || 'POST').toUpperCase();
         const formData = new FormData(form);
+
+        // For the newsletter create form, pull content from TinyMCE before submitting
+        if (isCreateForm) {
+            const editor = typeof tinymce !== 'undefined' ? tinymce.get('content_html') : null;
+            if (editor) {
+                formData.set('content_html', editor.getContent());
+            }
+        }
+
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         if (csrfToken && !formData.has('_csrf')) {
@@ -265,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) {
                 const errorMessage = payload && payload.error
                     ? String(payload.error)
-                    : 'Vorlage konnte nicht gespeichert werden.';
+                    : 'Speichern fehlgeschlagen.';
                 showModalAlert('danger', errorMessage);
                 return;
             }
@@ -309,4 +365,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     bindTriggerButtons();
+    bindActionDropdownLayering();
 });

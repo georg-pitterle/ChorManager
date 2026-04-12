@@ -97,16 +97,16 @@
             </div>
 
             <!-- Newsletters List -->
-            <div class="surface-card card border-0 table-shell"
-                 data-table-engine="true"
-                 data-table-id="newsletters.index"
-                 data-default-view="auto"
-                 data-default-page-size="25"
-                 data-page-size-options="25,50,100"
-                 data-default-sort-key="created"
-                 data-default-sort-dir="desc">
-                {{ include("partials/table_toolbar.twig") }}
-                <div class="card-body p-0">
+            <div class="surface-card card border-0 table-shell">
+                <div class="card-body p-0"
+                     data-table-engine="true"
+                     data-table-id="newsletters.index"
+                     data-default-view="auto"
+                     data-default-page-size="25"
+                     data-page-size-options="25,50,100"
+                     data-default-sort-key="created"
+                     data-default-sort-dir="desc">
+                    {{ include("partials/table_toolbar.twig") }}
                     <div class="table-responsive">
                         <table class="table table-hover table-striped mb-0 table-responsive-cards"
                                id="newslettersTable">
@@ -149,20 +149,59 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Aktionen" class="text-end">
-                                            {% if newsletter.status == 'draft' %}
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-primary"
-                                                        data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"
-                                                        data-newsletter-modal-title="Newsletter bearbeiten">
-                                                    <i class="bi bi-pencil"></i> Bearbeiten
-                                                </button>
-                                            {% endif %}
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary"
-                                                    data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
-                                                    data-newsletter-modal-title="Newsletter Vorschau">
-                                                <i class="bi bi-eye"></i> Vorschau
-                                            </button>
+                                            <div class="btn-group">
+                                                {% if newsletter.status == 'draft' %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"
+                                                            data-newsletter-modal-title="Newsletter bearbeiten">
+                                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                            data-bs-toggle="dropdown"
+                                                            aria-expanded="false"
+                                                            data-bs-boundary="viewport">
+                                                        <span class="visually-hidden">Toggle Dropdown</span>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <form method="post"
+                                                                  action="/newsletters/{{ newsletter.id }}/send"
+                                                                  data-confirm="Newsletter jetzt versenden?">
+                                                                <button type="submit" class="dropdown-item text-success">
+                                                                    <i class="bi bi-send me-2"></i> Newsletter versenden
+                                                                </button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <button type="button"
+                                                                    class="dropdown-item"
+                                                                    data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
+                                                                    data-newsletter-modal-title="Newsletter Vorschau">
+                                                                <i class="bi bi-eye me-2"></i> Vorschau
+                                                            </button>
+                                                        </li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li>
+                                                            <form method="post"
+                                                                  action="/newsletters/{{ newsletter.id }}/delete"
+                                                                  data-confirm="Diesen Newsletter-Entwurf wirklich löschen?">
+                                                                <button type="submit" class="dropdown-item text-danger">
+                                                                    <i class="bi bi-trash me-2"></i> Entwurf löschen
+                                                                </button>
+                                                            </form>
+                                                        </li>
+                                                    </ul>
+                                                {% else %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
+                                                            data-newsletter-modal-title="Newsletter Vorschau">
+                                                        <i class="bi bi-eye"></i> Vorschau
+                                                    </button>
+                                                {% endif %}
+                                            </div>
                                         </td>
                                     </tr>
                                 {% else %}
@@ -184,8 +223,8 @@
                  tabindex="-1"
                  aria-labelledby="newsletterActionModalLabel"
                  aria-hidden="true">
-                <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
-                    <div class="modal-content border-0 shadow">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content border-0 shadow rounded-3">
                         <div class="modal-header">
                             <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
                             <button type="button"

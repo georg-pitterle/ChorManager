@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
+use App\Models\NewsletterRecipient;
 use App\Models\NewsletterTemplate;
 use App\Models\Project;
 use App\Models\Event;
@@ -18,6 +19,7 @@ use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\NewsletterTemplatePersistence;
+use App\Util\EnvHelper;
 
 class NewsletterController
 {
@@ -149,6 +151,10 @@ class NewsletterController
     {
         $queryParams = $request->getQueryParams();
         $userId = $_SESSION['user_id'] ?? null;
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
         $projects = $this->getAccessibleProjects($userId);
         $projectIds = $projects->pluck('id')->map(function ($id) {
             return (int) $id;
@@ -161,6 +167,8 @@ class NewsletterController
                 'projects' => $projects,
                 'status' => Newsletter::STATUS_DRAFT,
                 'user_id' => $userId,
+                'success' => $success,
+                'error' => $error,
             ]);
         }
 
@@ -187,6 +195,8 @@ class NewsletterController
                 'projects' => $projects,
                 'status' => $status,
                 'user_id' => $userId,
+                'success' => $success,
+                'error' => $error,
             ]);
         }
 
@@ -209,10 +219,6 @@ class NewsletterController
             ->with(['createdBy'])
             ->orderBy('created_at', 'desc')
             ->get();
-
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'newsletters/index.twig', [
             'newsletters' => $newsletters,
@@ -476,23 +482,62 @@ class NewsletterController
     {
         $id = (int)$request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
+        $expectsJson = $this->expectsJson($request);
 
         $newsletter = Newsletter::find($id);
         if (!$newsletter || !$newsletter->isDraft()) {
+            if (!$expectsJson) {
+                $_SESSION['error'] = 'Newsletter-Entwurf wurde nicht gefunden.';
+                return $response->withHeader('Location', '/newsletters?status=' . Newsletter::STATUS_DRAFT)
+                    ->withStatus(302);
+            }
+
             return $response->withStatus(404);
         }
 
-        if (!$this->lockingService->isLockedBy($newsletter, $userId)) {
+        if (!$this->canAccessNewsletterById($id, $userId)) {
             return $response->withStatus(403);
+        }
+
+        if ($newsletter->isLocked() && !$this->lockingService->isLockedBy($newsletter, $userId)) {
+            $message = 'Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.';
+            if (!$expectsJson) {
+                $_SESSION['error'] = $message;
+                return $response->withHeader(
+                    'Location',
+                    "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
+                )
+                    ->withStatus(302);
+            }
+
+            return $this->jsonResponse($response, ['error' => $message], 409);
+        }
+
+        if (!$newsletter->isLocked()) {
+            $this->lockingService->acquireLock($newsletter, $userId);
         }
 
         $this->lockingService->releaseLock($newsletter);
 
         try {
-            $this->newsletterService->send($newsletter, $userId);
-            $_SESSION['success'] = 'Newsletter versendet';
+            $recipientCount = $this->newsletterService->send($newsletter, $userId);
+            if (EnvHelper::readBool('DISABLE_MAIL_SEND', true)) {
+                $_SESSION['success'] = "[Dev-Modus] Mailversand deaktiviert – {$recipientCount} Mail(s) wären versendet worden.";
+            } else {
+                $_SESSION['success'] = 'Newsletter versendet';
+            }
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Versand: ' . $e->getMessage();
+            $message = 'Fehler beim Versand: ' . $e->getMessage();
+            if (!$expectsJson) {
+                $_SESSION['error'] = $message;
+                return $response->withHeader(
+                    'Location',
+                    "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
+                )
+                    ->withStatus(302);
+            }
+
+            $_SESSION['error'] = $message;
             return $response->withStatus(500);
         }
 
@@ -600,10 +645,21 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
-        if (!$this->lockingService->isLockedBy($newsletter, $userId)) {
+        if (!$this->canAccessNewsletterById($id, $userId)) {
             return $response->withStatus(403);
         }
 
+        if ($newsletter->isLocked() && (int) ($newsletter->locked_by ?? 0) !== (int) ($userId ?? 0)) {
+            $_SESSION['error'] =
+                'Newsletter-Entwurf wird gerade von einer anderen Person bearbeitet und kann derzeit nicht geloescht werden.';
+            return $response->withHeader(
+                'Location',
+                "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
+            )
+                ->withStatus(302);
+        }
+
+        NewsletterRecipient::where('newsletter_id', $newsletter->id)->delete();
         $newsletter->delete();
         $_SESSION['success'] = 'Newsletter-Entwurf gelöscht';
 
