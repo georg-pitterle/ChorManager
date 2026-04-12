@@ -25,4 +25,14 @@ class SongLibraryFeatureTest extends TestCase
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/songs/manage.twig'));
     }
+
+    public function testSongDeleteAlsoRemovesAttachments(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("Attachment::where('entity_type', 'song')", $controllerContent);
+        $this->assertStringContainsString("->where('entity_id', " . '$' . "songId)", $controllerContent);
+        $this->assertStringContainsString("->delete();", $controllerContent);
+    }
 }

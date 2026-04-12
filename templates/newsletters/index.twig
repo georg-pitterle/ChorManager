@@ -25,9 +25,7 @@
                       action="/newsletters"
                       class="d-flex align-items-center gap-2">
                     <label for="project_id" class="form-label mb-0">Projekt:</label>
-                    <select id="project_id"
-                            name="project_id"
-                            class="form-select onchange-submit">
+                    <select id="project_id" name="project_id" class="form-select onchange-submit">
                         {% for selectable_project in projects %}
                             <option value="{{ selectable_project.id }}"
                                     {% if selectable_project.id == project.id %}selected{% endif %}>
@@ -182,7 +180,9 @@
                                                                 <i class="bi bi-eye me-2"></i> Vorschau
                                                             </button>
                                                         </li>
-                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li>
+                                                            <hr class="dropdown-divider">
+                                                        </li>
                                                         <li>
                                                             <form method="post"
                                                                   action="/newsletters/{{ newsletter.id }}/delete"

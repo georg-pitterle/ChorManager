@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\AppSetting;
+use App\Util\UploadValidator;
 
 class AppSettingController
 {
@@ -76,14 +77,12 @@ class AppSettingController
                 $file = $uploadedFiles['app_logo'];
                 if ($file->getError() === UPLOAD_ERR_OK) {
                     $size = (int) $file->getSize();
-                    if ($size <= 0 || $size > self::MAX_LOGO_SIZE) {
-                        $_SESSION['error'] = 'Logo-Datei hat eine ungueltige Dateigroesse (max. 2 MB).';
-                        return $response->withHeader('Location', '/settings')->withStatus(302);
-                    }
-
                     $mimeType = trim((string) $file->getClientMediaType());
-                    if (!in_array($mimeType, self::ALLOWED_LOGO_MIME_TYPES, true)) {
-                        $_SESSION['error'] = 'Logo-Dateityp ist nicht erlaubt.';
+
+                    // Use validateImageSize() for 2MB image limit
+                    $validation = UploadValidator::validateImageSize($size, $mimeType);
+                    if (!$validation['valid']) {
+                        $_SESSION['error'] = $validation['error'];
                         return $response->withHeader('Location', '/settings')->withStatus(302);
                     }
 

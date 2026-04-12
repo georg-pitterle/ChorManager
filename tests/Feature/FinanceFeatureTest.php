@@ -43,6 +43,18 @@ class FinanceFeatureTest extends TestCase
     {
         $this->assertSame('12.50', FinanceController::normalizeAmountInput('12,50'));
         $this->assertSame('12.50', FinanceController::normalizeAmountInput(' 12,50 '));
-        $this->assertSame('12.50.75', FinanceController::normalizeAmountInput('12,50,75'));
+        $this->assertSame('1234.56', FinanceController::normalizeAmountInput('1.234,56'));
+        $this->assertSame('1234.56', FinanceController::normalizeAmountInput('1,234.56'));
+        $this->assertSame('1234567', FinanceController::normalizeAmountInput('1.234.567'));
+    }
+
+    public function testFinanceDeleteAlsoRemovesAttachments(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("Attachment::where('entity_type', 'finance')", $controllerContent);
+        $this->assertStringContainsString("->where('entity_id', " . '$' . "financeId)", $controllerContent);
+        $this->assertStringContainsString("->delete();", $controllerContent);
     }
 }

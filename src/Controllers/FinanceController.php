@@ -12,23 +12,11 @@ use App\Models\Attachment;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Psr\Http\Message\UploadedFileInterface;
+use App\Util\UploadValidator;
 
 class FinanceController
 {
     private Twig $view;
-    private int $maxAttachmentSize = 10485760; // 10 MB
-    /** @var array<int, string> */
-    private array $allowedAttachmentMimeTypes = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'text/plain',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
 
     public function __construct(Twig $view)
     {
@@ -72,7 +60,37 @@ class FinanceController
 
     public static function normalizeAmountInput(string $amount): string
     {
-        return str_replace(',', '.', trim($amount));
+        $normalized = preg_replace('/[\s\x{00A0}\']+/u', '', trim($amount)) ?? trim($amount);
+
+        $lastComma = strrpos($normalized, ',');
+        $lastDot = strrpos($normalized, '.');
+
+        if ($lastComma !== false && $lastDot !== false) {
+            // If both separators exist, treat the rightmost as decimal separator and the other as thousands separator.
+            $decimalSep = $lastComma > $lastDot ? ',' : '.';
+            $thousandsSep = $decimalSep === ',' ? '.' : ',';
+            $normalized = str_replace($thousandsSep, '', $normalized);
+            return $decimalSep === ',' ? str_replace(',', '.', $normalized) : $normalized;
+        }
+
+        if ($lastComma !== false) {
+            return str_replace(',', '.', $normalized);
+        }
+
+        if ($lastDot !== false && substr_count($normalized, '.') > 1) {
+            $parts = explode('.', $normalized);
+            $fraction = array_pop($parts);
+            $integerPart = implode('', $parts);
+
+            if (strlen($fraction) === 3) {
+                // Likely pure thousands grouping, e.g. 1.234.567
+                return $integerPart . $fraction;
+            }
+
+            return $integerPart . '.' . $fraction;
+        }
+
+        return $normalized;
     }
 
     private function buildAvailableYears(int $day, int $month): array
@@ -170,14 +188,12 @@ class FinanceController
                 foreach ($files as $file) {
                     if ($file->getError() === UPLOAD_ERR_OK) {
                         $size = (int) $file->getSize();
-                        if ($size <= 0 || $size > $this->maxAttachmentSize) {
-                            $_SESSION['error'] = 'Anhang hat eine ungueltige Dateigroesse (max. 10 MB).';
-                            continue;
-                        }
-
                         $mimeType = trim((string) $file->getClientMediaType());
-                        if (!in_array($mimeType, $this->allowedAttachmentMimeTypes, true)) {
-                            $_SESSION['error'] = 'Anhangstyp ist nicht erlaubt.';
+
+                        // Use centralized validation
+                        $validation = UploadValidator::validateFileSize($size, $mimeType);
+                        if (!$validation['valid']) {
+                            $_SESSION['error'] = $validation['error'];
                             continue;
                         }
 
@@ -203,7 +219,11 @@ class FinanceController
     public function delete(Request $request, Response $response, array $args): Response
     {
         try {
-            Finance::findOrFail((int) $args['id'])->delete();
+            $financeId = (int) $args['id'];
+            Attachment::where('entity_type', 'finance')
+                ->where('entity_id', $financeId)
+                ->delete();
+            Finance::findOrFail($financeId)->delete();
             $_SESSION['success'] = 'Eintrag erfolgreich gelöscht.';
         } catch (\Exception $e) {
             $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();

@@ -113,6 +113,16 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString("'error'   => " . '$' . 'error,', $controllerContent);
     }
 
+    public function testTaskDeleteAlsoRemovesAttachments(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("Attachment::where('entity_type', 'task')", $controllerContent);
+        $this->assertStringContainsString("->where('entity_id', " . '$' . "taskId)", $controllerContent);
+        $this->assertStringContainsString("->delete();", $controllerContent);
+    }
+
     public function testProjectsTemplateShowsPlanningLinkOnlyWithTaskRelatedPermissions(): void
     {
         $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');

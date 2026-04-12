@@ -41,7 +41,8 @@
                     <form action="/settings"
                           method="post"
                           enctype="multipart/form-data"
-                          autocomplete="off">
+                          autocomplete="off"
+                          id="app-logo-form">
                         <div class="mb-4">
                             <label for="app_name" class="form-label fw-bold">Name der App</label>
                             <input type="text"
@@ -96,4 +97,13 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('app-logo-form');
+            if (form && window.uploadHelper) {
+                window.uploadHelper.setupFormCompression(form);
+            }
+        });
+    </script>
 {% endblock content %}

@@ -23,7 +23,7 @@
                             <form action="{{ delete_url }}/{{ attachment.id }}/delete"
                                   method="post"
                                   class="d-inline"
-                                    data-confirm="Möchten Sie diesen Anhang wirklich löschen?">
+                                  data-confirm="Möchten Sie diesen Anhang wirklich löschen?">
                                 <button type="submit"
                                         class="btn btn-sm btn-link text-danger p-0"
                                         title="Löschen">
@@ -41,7 +41,8 @@
         <form action="{{ upload_url }}"
               method="post"
               enctype="multipart/form-data"
-              class="bg-light p-3 rounded-3">
+              class="bg-light p-3 rounded-3"
+              id="attachments-form">
             <label class="form-label small fw-bold mb-1">Neue Dateien hochladen</label>
             <div class="input-group input-group-sm">
                 <input type="file"
@@ -54,5 +55,14 @@
                 </button>
             </div>
         </form>
+
+        <script>
+          document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('attachments-form');
+            if (form && window.uploadHelper) {
+              window.uploadHelper.setupFormCompression(form);
+            }
+          });
+        </script>
     </div>
 </div>

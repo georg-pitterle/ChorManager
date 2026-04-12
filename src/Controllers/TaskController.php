@@ -10,6 +10,7 @@ use App\Models\Activity;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\User;
+use App\Util\UploadValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -222,6 +223,9 @@ class TaskController
         }
 
         $projectId = $task->project_id;
+        Attachment::where('entity_type', 'task')
+            ->where('entity_id', $taskId)
+            ->delete();
         $task->delete();
 
         $_SESSION['success'] = 'Aufgabe erfolgreich gelöscht.';
@@ -281,6 +285,15 @@ class TaskController
         $uploadedCount = 0;
         foreach ($files as $file) {
             if ($file->getError() === UPLOAD_ERR_OK) {
+                $size = (int) $file->getSize();
+                $mimeType = trim((string) $file->getClientMediaType());
+
+                $validation = UploadValidator::validateFileSize($size, $mimeType);
+                if (!$validation['valid']) {
+                    $_SESSION['error'] = $validation['error'];
+                    continue;
+                }
+
                 $contents = $file->getStream()->getContents();
                 Attachment::create([
                     'entity_type'   => 'task',

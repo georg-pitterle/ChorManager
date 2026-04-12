@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\Project;
 use App\Models\Song;
 use App\Models\Attachment;
+use App\Util\UploadValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -14,7 +15,6 @@ use Slim\Views\Twig;
 class SongLibraryController
 {
     private Twig $view;
-    private int $maxUploadSize = 26214400; // 25 MB
 
     public function __construct(Twig $view)
     {
@@ -112,6 +112,9 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library')->withStatus(302);
         }
 
+        Attachment::where('entity_type', 'song')
+            ->where('entity_id', $songId)
+            ->delete();
         $song->delete();
         $_SESSION['success'] = 'Lied erfolgreich geloescht.';
         return $response->withHeader('Location', '/song-library')->withStatus(302);
@@ -149,8 +152,9 @@ class SongLibraryController
                 return $response->withHeader('Location', '/song-library')->withStatus(302);
             }
 
-            if ($size > $this->maxUploadSize) {
-                $_SESSION['error'] = 'Datei zu gross. Maximal erlaubt sind 25 MB pro Datei.';
+            $validation = UploadValidator::validateFileSize($size, $mimeType);
+            if (!$validation['valid']) {
+                $_SESSION['error'] = $validation['error'];
                 return $response->withHeader('Location', '/song-library')->withStatus(302);
             }
 

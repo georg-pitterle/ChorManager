@@ -102,4 +102,14 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString('id="editContactModal{{ contact.id }}"', $templateContent);
         $this->assertStringContainsString('action="/sponsoring/contacts/{{ contact.id }}"', $templateContent);
     }
+
+    public function testSponsorshipDeleteAlsoRemovesAttachments(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SponsorshipController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("Attachment::where('entity_type', 'sponsorship')", $controllerContent);
+        $this->assertStringContainsString("->where('entity_id', " . '$' . "id)", $controllerContent);
+        $this->assertStringContainsString("->delete();", $controllerContent);
+    }
 }

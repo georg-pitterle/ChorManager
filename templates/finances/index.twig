@@ -19,8 +19,7 @@
                       action="/finances"
                       class="d-flex align-items-center gap-2">
                     <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
-                    <select name="year"
-                            class="form-select form-select-sm w-auto onchange-submit">
+                    <select name="year" class="form-select form-select-sm w-auto onchange-submit">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
                             </option>
@@ -170,11 +169,27 @@
                                         <span class="text-muted small">—</span>
                                     {% endif %}
                                 </td>
+                                {% set _item_atts = [] %}
+                                {% for _att in item.attachments %}
+                                    {% set _item_atts = _item_atts|merge([{id: _att.id, filename: _att.filename}]) %}
+                                {% endfor %}
+                                {% set _item_payload = {
+                                    id: item.id,
+                                    invoice_date: item.invoice_date,
+                                    payment_date: item.payment_date,
+                                    description: item.description,
+                                    group_name: item.group_name,
+                                    type: item.type,
+                                    payment_method: item.payment_method,
+                                    amount: item.amount,
+                                    running_number: item.running_number,
+                                    attachments: _item_atts
+                                } %}
                                 <td data-label="Aktionen" class="finance-actions-cell text-end">
                                     <div class="finance-actions">
                                         <button class="btn btn-sm btn-outline-secondary"
                                                 data-action="edit-finance"
-                                                data-finance-item="{{ item|json_encode|e("html_attr") }}"
+                                                data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
                                                 title="Bearbeiten">
                                             <i class="bi bi-pencil"></i>
                                         </button>
@@ -209,6 +224,7 @@
             <form action="/finances/save"
                   method="post"
                   enctype="multipart/form-data"
+                  id="finance-form"
                   class="modal-content border-0 shadow">
                 <div class="modal-header">
                     <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
@@ -251,8 +267,7 @@
                         <label class="form-label">
                             Gruppe <span class="text-muted small">(optional)</span>
                         </label>
-                        <select class="form-select"
-                            id="group_select">
+                        <select class="form-select" id="group_select">
                             <option value="">— Keine Gruppe —</option>
                             {% for g in groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
                             <option value="__new__">+ Neue Gruppe eingeben…</option>
@@ -364,6 +379,15 @@
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('finance-form');
+            if (form && window.uploadHelper) {
+                window.uploadHelper.setupFormCompression(form);
+            }
+        });
+    </script>
 
     {% block scripts %}
         <script src="/js/finances.js"></script>

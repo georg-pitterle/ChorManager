@@ -39,7 +39,8 @@
         </div>
     {% endif %}
 
-    <form id="createPackageForm" method="post" action="/sponsoring/packages"></form>
+    <form id="createPackageForm" method="post" action="/sponsoring/packages">
+    </form>
 
     <div class="surface-card table-shell">
         <div class="table-responsive">
@@ -113,7 +114,9 @@
                                    placeholder="0.00">
                         </td>
                         <td>
-                            <select name="color" form="createPackageForm" class="form-select form-select-sm">
+                            <select name="color"
+                                    form="createPackageForm"
+                                    class="form-select form-select-sm">
                                 {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
                                     <option value="{{ c }}">{{ c }}</option>
                                 {% endfor %}
@@ -173,7 +176,8 @@
                                 <label class="form-label">Farbe</label>
                                 <select name="color" class="form-select">
                                     {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
-                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}</option>
+                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}
+                                        </option>
                                     {% endfor %}
                                 </select>
                             </div>

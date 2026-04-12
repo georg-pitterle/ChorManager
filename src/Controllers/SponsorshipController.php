@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Sponsorship;
 use App\Models\Attachment;
+use App\Util\UploadValidator;
 
 class SponsorshipController
 {
@@ -33,6 +34,16 @@ class SponsorshipController
 
         foreach ($files as $file) {
             if ($file->getError() === UPLOAD_ERR_OK) {
+                $size = (int) $file->getSize();
+                $mimeType = trim((string) $file->getClientMediaType());
+
+                // Validate file size and type
+                $validation = UploadValidator::validateFileSize($size, $mimeType);
+                if (!$validation['valid']) {
+                    $_SESSION['error'] = $validation['error'];
+                    continue;
+                }
+
                 Attachment::create([
                     'entity_type'    => 'sponsorship',
                     'entity_id'      => $sponsorshipId,
@@ -124,6 +135,9 @@ class SponsorshipController
         try {
             $sponsorship = Sponsorship::findOrFail($id);
             $sponsorId   = $sponsorship->sponsor_id;
+            Attachment::where('entity_type', 'sponsorship')
+                ->where('entity_id', $id)
+                ->delete();
             $sponsorship->delete();
             $_SESSION['success'] = 'Vereinbarung erfolgreich gelöscht.';
         } catch (\Exception $e) {

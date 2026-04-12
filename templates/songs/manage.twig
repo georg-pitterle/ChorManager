@@ -117,7 +117,8 @@
                                         <form action="/song-library/songs/{{ song.id }}/attachments"
                                               method="post"
                                               enctype="multipart/form-data"
-                                              class="row g-2 align-items-center">
+                                              id="song-library-form-{{ song.id }}"
+                                              class="song-library-form row g-2 align-items-center">
                                             <div class="col-md-8">
                                                 <label class="form-label">Dateien anhaengen (mehrfach moeglich)</label>
                                                 <input type="file"
@@ -228,4 +229,15 @@
             </form>
         </div>
     </div>
+
+    <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('.song-library-form');
+    forms.forEach(form => {
+      if (form && window.uploadHelper) {
+        window.uploadHelper.setupFormCompression(form);
+      }
+    });
+  });
+    </script>
 {% endblock content %}

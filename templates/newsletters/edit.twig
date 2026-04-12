@@ -122,10 +122,7 @@
                     <button type="button"
                             class="btn btn-outline-info"
                             id="preview-btn"
-                            {% if not is_modal|default(false) %}
-                                data-bs-toggle="modal"
-                                data-bs-target="#previewModal"
-                            {% endif %}>
+                            {% if not is_modal|default(false) %}data-bs-toggle="modal" data-bs-target="#previewModal"{% endif %}>
                         <i class="bi bi-eye"></i> Vorschau
                     </button>
                     <button type="button" class="btn btn-success" id="send-newsletter-btn">
