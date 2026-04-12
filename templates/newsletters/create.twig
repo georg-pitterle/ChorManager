@@ -24,7 +24,10 @@
 
 {% block content %}
     <div class="container-fluid px-0">
-        <form id="create-newsletter-form" method="post" action="/newsletters">
+          <form id="create-newsletter-form"
+              method="post"
+              action="/newsletters"
+              data-is-modal="{{ is_modal|default(false) ? '1' : '0' }}">
             {% if is_modal|default(false) %}<input type="hidden" name="modal" value="1">{% endif %}
             <div class="surface-card form-surface card mb-4 border-0">
                 <div class="card-header bg-light">
@@ -101,63 +104,8 @@
         </form>
     </div>
 
-    <script>
-function filterEventsByProject() {
-    const projectId = document.getElementById('project_id').value;
-    const eventSelect = document.getElementById('event_id');
-    const options = eventSelect.querySelectorAll('option[data-project-id]');
-
-    options.forEach(option => {
-        const matches = option.getAttribute('data-project-id') === projectId;
-        option.hidden = !matches;
-        option.disabled = !matches;
-    });
-
-    const selectedOption = eventSelect.options[eventSelect.selectedIndex];
-    if (selectedOption && selectedOption.hasAttribute('data-project-id')
-        && selectedOption.getAttribute('data-project-id') !== projectId) {
-        eventSelect.value = '';
-    }
-}
-
-document.getElementById('project_id').addEventListener('change', filterEventsByProject);
-
-document.getElementById('template').addEventListener('change', async function() {
-    if (!this.value) return;
-
-    const response = await fetch(`/newsletters/template/${this.value}`);
-    if (!response.ok) return;
-
-    const data = await response.json();
-    tinymce.get('content_html').setContent(data.content_html);
-    document.getElementById('title').value = data.name;
-});
-
-document.getElementById('create-newsletter-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const formData = new FormData(this);
-    formData.set('content_html', tinymce.get('content_html').getContent());
-
-    const response = await fetch('/newsletters', {
-        method: 'POST',
-        body: formData
-    });
-
-    if (!response.ok) {
-        alert('Fehler beim Erstellen des Newsletters');
-        return;
-    }
-
-    const data = await response.json();
-    if ({{ is_modal|default(false) ? 'true' : 'false' }} && typeof window.newsletterModalNavigate === 'function') {
-        window.newsletterModalNavigate(data.redirect, 'Newsletter bearbeiten');
-        return;
-    }
-
-    window.location.href = data.redirect;
-});
-
-filterEventsByProject();
-    </script>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/newsletters-create.js"></script>
+{% endblock scripts %}

@@ -20,8 +20,7 @@
                       class="d-flex align-items-center gap-2">
                     <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
                     <select name="year"
-                            class="form-select form-select-sm w-auto"
-                            onchange="this.form.submit()">
+                            class="form-select form-select-sm w-auto onchange-submit">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
                             </option>
@@ -45,7 +44,7 @@
                     class="btn btn-primary btn-sm"
                     data-bs-toggle="modal"
                     data-bs-target="#financeModal"
-                    onclick="resetFinanceModal()">
+                    data-action="reset-finance-modal">
                 <i class="bi bi-plus-circle"></i> Neuer Eintrag
             </button>
         </div>
@@ -174,14 +173,15 @@
                                 <td data-label="Aktionen" class="finance-actions-cell text-end">
                                     <div class="finance-actions">
                                         <button class="btn btn-sm btn-outline-secondary"
-                                                onclick="editFinance({{ item|json_encode() }})"
+                                                data-action="edit-finance"
+                                                data-finance-item="{{ item|json_encode|e("html_attr") }}"
                                                 title="Bearbeiten">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <form action="/finances/{{ item.id }}/delete"
                                               method="post"
                                               class="mb-0"
-                                              onsubmit="return confirm('Eintrag {{ item.running_number }} wirklich löschen?');">
+                                              data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -252,8 +252,7 @@
                             Gruppe <span class="text-muted small">(optional)</span>
                         </label>
                         <select class="form-select"
-                                id="group_select"
-                                onchange="handleGroupSelect(this)">
+                            id="group_select">
                             <option value="">— Keine Gruppe —</option>
                             {% for g in groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
                             <option value="__new__">+ Neue Gruppe eingeben…</option>

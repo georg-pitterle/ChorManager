@@ -18,6 +18,7 @@ use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
+use App\Util\Csrf;
 
 return function (ContainerBuilder $containerBuilder) {
     $containerBuilder->addDefinitions([
@@ -56,6 +57,7 @@ return function (ContainerBuilder $containerBuilder) {
                 session_start();
             }
             $environment->addGlobal('session', $_SESSION);
+            $environment->addGlobal('csrf_token', Csrf::ensureToken());
 
             $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
             $currentPath = (string) parse_url($requestUri, PHP_URL_PATH);

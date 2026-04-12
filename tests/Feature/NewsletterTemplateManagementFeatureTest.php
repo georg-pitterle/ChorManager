@@ -52,6 +52,19 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
     }
 
+    public function testTemplateActionsSupportRedirectFallbackForNonAjaxRequests(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+
+        $this->assertIsString($controller);
+        $this->assertMatchesRegularExpression('/private function expectsJson\(Request \$request\): bool/', $controller);
+        $this->assertStringContainsString("getHeaderLine('X-Requested-With')", $controller);
+        $this->assertStringContainsString("getHeaderLine('Accept')", $controller);
+        $this->assertStringContainsString("withHeader('Location', '/newsletters/templates/'", $controller);
+        $this->assertStringContainsString('$_SESSION[\'success\'] = \'Vorlage gespeichert\';', $controller);
+        $this->assertStringContainsString('$_SESSION[\'success\'] = \'Vorlage geklont\';', $controller);
+    }
+
     public function testTemplateIndexTemplateContainsEditAndCloneActions(): void
     {
         $content = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/templates_index.twig');
@@ -62,9 +75,11 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $this->assertStringContainsString('id="createTemplateModal"', $content);
         $this->assertStringContainsString('Vorlage erstellen', $content);
         $this->assertStringContainsString('tinymce-editor', $content);
-        $this->assertStringContainsString('/newsletters/templates/{{ template.id }}/edit', $content);
+        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/templates/{{ template.id }}/edit?modal=1"', $content);
         $this->assertStringContainsString('/newsletters/templates/{{ template.id }}/clone', $content);
         $this->assertStringContainsString('Newsletter-Vorlagen', $content);
+        $this->assertStringContainsString('id="newsletterActionModal"', $content);
+        $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $content);
     }
 
     public function testNewsletterIndexContainsEntryPointToTemplateManagement(): void

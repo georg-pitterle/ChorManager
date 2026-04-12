@@ -353,9 +353,17 @@ class TaskController
             ->where('entity_id', $taskId)
             ->findOrFail($attachmentId);
 
+        $safeName = self::normalizeFileName((string) $attachment->original_name);
         $response->getBody()->write($attachment->file_content);
         return $response
             ->withHeader('Content-Type', $attachment->mime_type)
-            ->withHeader('Content-Disposition', 'attachment; filename="' . basename($attachment->original_name) . '"');
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
+    }
+
+    private static function normalizeFileName(string $name): string
+    {
+        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
+        $trimmed = trim($safe);
+        return $trimmed !== '' ? $trimmed : 'download';
     }
 }

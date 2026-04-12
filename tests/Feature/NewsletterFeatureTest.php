@@ -199,10 +199,12 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($scriptContent);
 
         $this->assertStringContainsString('action="/newsletters"', $indexTemplate);
-        $this->assertStringContainsString('onchange="this.form.submit()"', $indexTemplate);
+        $this->assertStringContainsString('class="form-select onchange-submit"', $indexTemplate);
         $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"', $indexTemplate);
         $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"', $indexTemplate);
         $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"', $indexTemplate);
+        $this->assertStringContainsString('{% if success %}', $indexTemplate);
+        $this->assertStringContainsString('{% if error %}', $indexTemplate);
         $this->assertStringContainsString('id="newsletterActionModal"', $indexTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $indexTemplate);
 
@@ -214,6 +216,10 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $editTemplate);
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $previewTemplate);
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $lockedTemplate);
+        $this->assertStringContainsString('<script src="/js/newsletters-create.js"></script>', $createTemplate);
+        $this->assertStringContainsString('<script src="/js/newsletters-edit.js"></script>', $editTemplate);
+        $this->assertStringContainsString('<script src="/js/newsletters-locked.js"></script>', $lockedTemplate);
+        $this->assertStringNotContainsString('onclick=', $lockedTemplate);
 
         $this->assertStringContainsString('data-newsletter-modal-url', $scriptContent);
         $this->assertStringContainsString('newsletterActionModal', $scriptContent);

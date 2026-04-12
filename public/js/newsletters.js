@@ -48,6 +48,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    async function executeExternalScripts(container) {
+        const scripts = Array.from(container.querySelectorAll('script[src]'));
+
+        for (const script of scripts) {
+            const src = script.getAttribute('src') || '';
+            script.remove();
+
+            if (!src) {
+                continue;
+            }
+
+            await new Promise(function (resolve) {
+                const dynamicScript = document.createElement('script');
+                dynamicScript.src = src;
+                dynamicScript.async = false;
+
+                const type = script.getAttribute('type');
+                if (type) {
+                    dynamicScript.type = type;
+                }
+
+                if (script.hasAttribute('nomodule')) {
+                    dynamicScript.setAttribute('nomodule', '');
+                }
+
+                dynamicScript.onload = function () {
+                    dynamicScript.remove();
+                    resolve();
+                };
+
+                dynamicScript.onerror = function () {
+                    console.error('Newsletter modal script load error:', src);
+                    dynamicScript.remove();
+                    resolve();
+                };
+
+                document.body.appendChild(dynamicScript);
+            });
+        }
+    }
+
     function initTinymceInModal() {
         if (typeof window.initTinymceEditors === 'function') {
             window.initTinymceEditors(contentElement);
@@ -66,6 +107,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 editor.remove();
             }
         });
+    }
+
+    function showModalAlert(type, message) {
+        if (!message) {
+            return;
+        }
+
+        contentElement.querySelectorAll('.newsletter-modal-alert').forEach(function (el) {
+            el.remove();
+        });
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'alert alert-' + type + ' alert-dismissible fade show newsletter-modal-alert m-2';
+        wrapper.setAttribute('role', 'alert');
+        wrapper.textContent = String(message);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close';
+        closeBtn.setAttribute('data-bs-dismiss', 'alert');
+        closeBtn.setAttribute('aria-label', 'Close');
+        wrapper.appendChild(closeBtn);
+
+        contentElement.prepend(wrapper);
     }
 
     async function loadModalContent(url, title) {
@@ -99,6 +164,7 @@ document.addEventListener('DOMContentLoaded', function () {
             cleanupTinymceInModal();
             contentElement.innerHTML = body ? body.innerHTML : html;
             executeInlineScripts(contentElement);
+            await executeExternalScripts(contentElement);
             initTinymceInModal();
         } catch (error) {
             contentElement.innerHTML = '<div class="alert alert-danger m-3 mb-0">Inhalt konnte nicht geladen werden.</div>';
@@ -120,7 +186,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isNewsletterOverviewPath(pathname) {
-        return pathname === '/newsletters' || pathname === '/newsletters/';
+        return pathname === '/newsletters'
+            || pathname === '/newsletters/'
+            || pathname === '/newsletters/templates'
+            || pathname === '/newsletters/templates/';
     }
 
     contentElement.addEventListener('click', function (event) {
@@ -153,6 +222,74 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             loadModalContent(href, titleElement.textContent);
+        }
+    });
+
+    contentElement.addEventListener('submit', async function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const action = form.getAttribute('action') || '';
+        if (!action.startsWith('/newsletters/templates/')) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const method = (form.getAttribute('method') || 'POST').toUpperCase();
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        if (csrfToken && !formData.has('_csrf')) {
+            formData.append('_csrf', csrfToken);
+        }
+
+        try {
+            const response = await fetch(action, {
+                method,
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+                },
+                credentials: 'same-origin',
+            });
+            const responseType = response.headers.get('Content-Type') || '';
+            let payload = null;
+            if (responseType.includes('application/json')) {
+                payload = await response.json();
+            }
+
+            if (!response.ok) {
+                const errorMessage = payload && payload.error
+                    ? String(payload.error)
+                    : 'Vorlage konnte nicht gespeichert werden.';
+                showModalAlert('danger', errorMessage);
+                return;
+            }
+
+            if (payload && payload.redirect) {
+                loadModalContent(payload.redirect, titleElement.textContent || 'Newsletter');
+                return;
+            }
+
+            if (!payload || !payload.success) {
+                const html = await response.text();
+                if (html && html.trim()) {
+                    contentElement.innerHTML = html;
+                    executeInlineScripts(contentElement);
+                    await executeExternalScripts(contentElement);
+                    initTinymceInModal();
+                    return;
+                }
+            }
+
+            window.newsletterModalCloseAndRefresh();
+        } catch (error) {
+            showModalAlert('danger', 'Vorlage konnte nicht gespeichert werden.');
+            console.error('Newsletter template modal submit error:', error);
         }
     });
 

@@ -16,6 +16,19 @@ use Psr\Http\Message\UploadedFileInterface;
 class FinanceController
 {
     private Twig $view;
+    private int $maxAttachmentSize = 10485760; // 10 MB
+    /** @var array<int, string> */
+    private array $allowedAttachmentMimeTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
 
     public function __construct(Twig $view)
     {
@@ -156,12 +169,26 @@ class FinanceController
 
                 foreach ($files as $file) {
                     if ($file->getError() === UPLOAD_ERR_OK) {
+                        $size = (int) $file->getSize();
+                        if ($size <= 0 || $size > $this->maxAttachmentSize) {
+                            $_SESSION['error'] = 'Anhang hat eine ungueltige Dateigroesse (max. 10 MB).';
+                            continue;
+                        }
+
+                        $mimeType = trim((string) $file->getClientMediaType());
+                        if (!in_array($mimeType, $this->allowedAttachmentMimeTypes, true)) {
+                            $_SESSION['error'] = 'Anhangstyp ist nicht erlaubt.';
+                            continue;
+                        }
+
+                        $safeName = self::normalizeFileName((string) $file->getClientFilename());
+
                         Attachment::create([
                             'entity_type' => 'finance',
                             'entity_id' => $finance->id,
-                            'filename' => $file->getClientFilename(),
-                            'original_name' => $file->getClientFilename(),
-                            'mime_type' => $file->getClientMediaType(),
+                            'filename' => $safeName,
+                            'original_name' => $safeName,
+                            'mime_type' => $mimeType,
                             'file_content' => $file->getStream()->getContents(),
                         ]);
                     }
@@ -261,9 +288,10 @@ class FinanceController
         try {
             $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
             $response->getBody()->write($attachment->file_content);
+            $safeName = self::normalizeFileName((string) $attachment->filename);
             return $response
                 ->withHeader('Content-Type', $attachment->mime_type)
-                ->withHeader('Content-Disposition', 'inline; filename="' . $attachment->filename . '"');
+                ->withHeader('Content-Disposition', 'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
         } catch (\Exception $e) {
             return $response->withStatus(404);
         }
@@ -279,5 +307,12 @@ class FinanceController
             $_SESSION['error'] = 'Fehler beim Löschen des Anhangs: ' . $e->getMessage();
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    private static function normalizeFileName(string $name): string
+    {
+        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
+        $trimmed = trim($safe);
+        return $trimmed !== '' ? $trimmed : 'download';
     }
 }

@@ -30,7 +30,7 @@
         <div class="page-actions">
             <form method="post"
                   action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-                  onsubmit="return confirm('Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.');">
+                  data-confirm="Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
                 <button type="submit" class="btn btn-outline-danger btn-sm">
                     <i class="bi bi-trash me-1"></i>Löschen
                 </button>
@@ -273,7 +273,7 @@
                                         <form method="post"
                                               action="/sponsoring/sponsorships/{{ sp.id }}/delete"
                                               class="d-inline"
-                                              onsubmit="return confirm('Vereinbarung löschen?');">
+                                              data-confirm="Vereinbarung löschen?">
                                             <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
                                                 <i class="bi bi-trash"></i>
@@ -295,7 +295,7 @@
                                                     <form method="post"
                                                           action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
                                                           class="d-inline"
-                                                          onsubmit="return confirm('Anhang löschen?');">
+                                                            data-confirm="Anhang löschen?">
                                                         <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                                                         <button type="submit"
                                                                 class="btn btn-link btn-sm text-danger p-0 ms-1"
@@ -593,7 +593,7 @@
                                         <form method="post"
                                               action="/sponsoring/contacts/{{ contact.id }}/delete"
                                               class="d-inline"
-                                              onsubmit="return confirm('Kontakt löschen?');">
+                                              data-confirm="Kontakt löschen?">
                                             <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
                                                 <i class="bi bi-trash"></i>

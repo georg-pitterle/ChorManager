@@ -156,19 +156,7 @@
                                 <form method="post"
                                       action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
                                       class="d-inline"
-                                      onsubmit="return confirm('Sponsor"
-                                      {{ sponsor.name }}
-                                      "
-                                      wirklich
-                                      löschen
-                                      Alle
-                                      verknüpften
-                                      Daten
-                                      werden
-                                      ebenfalls
-                                      gelöscht.
-                                      '
-                                      ">
+                                      data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
                                         <i class="bi bi-trash"></i>
                                     </button>

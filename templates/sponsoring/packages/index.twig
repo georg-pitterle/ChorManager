@@ -39,6 +39,8 @@
         </div>
     {% endif %}
 
+    <form id="createPackageForm" method="post" action="/sponsoring/packages"></form>
+
     <div class="surface-card table-shell">
         <div class="table-responsive">
             <table class="table table-hover align-middle">
@@ -68,121 +70,123 @@
                                         data-bs-target="#editPackageModal{{ pkg.id }}">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="post" action="/sponsoring/packages/{{ pkg.id }}/delete" class="d-inline"
-                                    onsubmit="return confirm('Paket „{{ pkg.name }}" löschen?');">
+                                <form method="post"
+                                      action="/sponsoring/packages/{{ pkg.id }}/delete"
+                                      class="d-inline"
+                                      data-confirm="Paket {{ pkg.name }} löschen?">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
                             </td>
                         </tr>
-
-                        {# Edit Modal #}
-                        <div class="modal fade"
-                             id="editPackageModal{{ pkg.id }}"
-                             tabindex="-1"
-                             aria-hidden="true">
-                            <div class="modal-dialog">
-                                <form method="post" action="/sponsoring/packages/{{ pkg.id }}">
-                                    <div class="modal-content border-0 shadow">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Paket bearbeiten</h5>
-                                            <button type="button"
-                                                    class="btn-close"
-                                                    data-bs-dismiss="modal"
-                                                    aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">
-                                                    Name <span class="text-danger">*</span>
-                                                </label>
-                                                <input type="text"
-                                                       name="name"
-                                                       class="form-control"
-                                                       value="{{ pkg.name }}"
-                                                       required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Beschreibung</label>
-                                                <textarea name="description" class="form-control" rows="2">{{ pkg.description }}</textarea>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Mindestbetrag (€)</label>
-                                                <input type="number"
-                                                       name="min_amount"
-                                                       class="form-control"
-                                                       step="0.01"
-                                                       min="0"
-                                                       value="{{ pkg.min_amount }}">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Farbe</label>
-                                                <select name="color" class="form-select">
-                                                    {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
-                                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}
-                                                        </option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-save me-1"></i>Speichern
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
                     {% else %}
                         <tr>
                             <td colspan="5" class="text-center text-muted py-4">Noch keine Pakete angelegt.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
-                {# Inline-Formular: Neues Paket #}
                 <tfoot>
                     <tr class="table-light">
-                        <form method="post" action="/sponsoring/packages">
-                            <td>
-                                <input type="text"
-                                       name="name"
-                                       class="form-control form-control-sm"
-                                       placeholder="Name *"
-                                       required>
-                            </td>
-                            <td>
-                                <input type="text"
-                                       name="description"
-                                       class="form-control form-control-sm"
-                                       placeholder="Beschreibung">
-                            </td>
-                            <td>
-                                <input type="number"
-                                       name="min_amount"
-                                       class="form-control form-control-sm"
-                                       step="0.01"
-                                       min="0"
-                                       placeholder="0.00">
-                            </td>
-                            <td>
-                                <select name="color" class="form-select form-select-sm">
-                                    {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
-                                        <option value="{{ c }}">{{ c }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td class="text-end">
-                                <button type="submit" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-plus-lg me-1"></i>Hinzufügen
-                                </button>
-                            </td>
-                        </form>
+                        <td>
+                            <input type="text"
+                                   name="name"
+                                   form="createPackageForm"
+                                   class="form-control form-control-sm"
+                                   placeholder="Name *"
+                                   required>
+                        </td>
+                        <td>
+                            <input type="text"
+                                   name="description"
+                                   form="createPackageForm"
+                                   class="form-control form-control-sm"
+                                   placeholder="Beschreibung">
+                        </td>
+                        <td>
+                            <input type="number"
+                                   name="min_amount"
+                                   form="createPackageForm"
+                                   class="form-control form-control-sm"
+                                   step="0.01"
+                                   min="0"
+                                   placeholder="0.00">
+                        </td>
+                        <td>
+                            <select name="color" form="createPackageForm" class="form-select form-select-sm">
+                                {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
+                                    <option value="{{ c }}">{{ c }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="text-end">
+                            <button type="submit" form="createPackageForm" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i>Hinzufügen
+                            </button>
+                        </td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
+
+    {% for pkg in packages %}
+        <div class="modal fade"
+             id="editPackageModal{{ pkg.id }}"
+             tabindex="-1"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form method="post" action="/sponsoring/packages/{{ pkg.id }}">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Paket bearbeiten</h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       name="name"
+                                       class="form-control"
+                                       value="{{ pkg.name }}"
+                                       required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Beschreibung</label>
+                                <textarea name="description" class="form-control" rows="2">{{ pkg.description }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Mindestbetrag (€)</label>
+                                <input type="number"
+                                       name="min_amount"
+                                       class="form-control"
+                                       step="0.01"
+                                       min="0"
+                                       value="{{ pkg.min_amount }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Farbe</label>
+                                <select name="color" class="form-select">
+                                    {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
+                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>Speichern
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endfor %}
 {% endblock content %}

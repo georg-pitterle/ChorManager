@@ -32,7 +32,9 @@
 
         <form id="edit-newsletter-form"
               method="post"
-              action="/newsletters/{{ newsletter.id }}">
+              action="/newsletters/{{ newsletter.id }}"
+              data-newsletter-id="{{ newsletter.id }}"
+              data-is-modal="{{ is_modal|default(false) ? '1' : '0' }}">
             <div class="surface-card form-surface card mb-4 border-0">
                 <div class="card-header bg-light">
                     <h5 class="mb-0">Newsletter-Einstellungen</h5>
@@ -112,8 +114,10 @@
                     <button type="button"
                             class="btn btn-outline-info"
                             id="preview-btn"
-                            data-bs-toggle="modal"
-                            data-bs-target="#previewModal">
+                            {% if not is_modal|default(false) %}
+                                data-bs-toggle="modal"
+                                data-bs-target="#previewModal"
+                            {% endif %}>
                         <i class="bi bi-eye"></i> Vorschau
                     </button>
                     <button type="button" class="btn btn-success" id="send-newsletter-btn">
@@ -197,186 +201,8 @@
               class="d-none">
         </form>
     </div>
-
-    <script>
-const editForm = document.getElementById('edit-newsletter-form');
-const newsletterUpdateUrl = '/newsletters/{{ newsletter.id }}';
-const isModalView = {{ is_modal|default(false) ? 'true' : 'false' }};
-let lastSavedSnapshot = null;
-let saveInProgress = false;
-
-function filterEventsByProject() {
-    const projectId = document.getElementById('project_id').value;
-    const eventSelect = document.getElementById('event_id');
-    const options = eventSelect.querySelectorAll('option[data-project-id]');
-
-    options.forEach(option => {
-        const matches = option.getAttribute('data-project-id') === projectId;
-        option.hidden = !matches;
-        option.disabled = !matches;
-    });
-
-    const selectedOption = eventSelect.options[eventSelect.selectedIndex];
-    if (selectedOption && selectedOption.hasAttribute('data-project-id')
-        && selectedOption.getAttribute('data-project-id') !== projectId) {
-        eventSelect.value = '';
-    }
-}
-
-function createSnapshot() {
-    const projectId = document.getElementById('project_id').value || '';
-    const title = document.getElementById('title').value || '';
-    const eventId = document.getElementById('event_id').value || '';
-    const editor = tinymce.get('content_html');
-    const contentHtml = editor ? editor.getContent() : '';
-
-    return JSON.stringify({
-        project_id: projectId,
-        title: title,
-        event_id: eventId,
-        content_html: contentHtml
-    });
-}
-
-async function saveNewsletter(showSuccessMessage = false) {
-    if (saveInProgress) {
-        return;
-    }
-
-    const currentSnapshot = createSnapshot();
-    if (lastSavedSnapshot !== null && currentSnapshot === lastSavedSnapshot) {
-        return;
-    }
-
-    saveInProgress = true;
-    const formData = new FormData(editForm);
-    const editor = tinymce.get('content_html');
-    formData.set('content_html', editor ? editor.getContent() : '');
-
-    try {
-        const response = await fetch(newsletterUpdateUrl, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        if (!response.ok) {
-            if (showSuccessMessage) {
-                alert('Fehler beim Speichern');
-            }
-            return;
-        }
-
-        lastSavedSnapshot = currentSnapshot;
-        if (showSuccessMessage) {
-            alert('Newsletter gespeichert');
-        }
-    } finally {
-        saveInProgress = false;
-    }
-}
-
-// Prevent default HTML form submit to avoid navigating to JSON response.
-editForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-    saveNewsletter(true);
-});
-
-// Initialize snapshot after editor has loaded.
-window.addEventListener('load', function () {
-    filterEventsByProject();
-    lastSavedSnapshot = createSnapshot();
-});
-
-document.getElementById('project_id').addEventListener('change', filterEventsByProject);
-
-// Auto-save every 30 seconds, but only when something changed.
-setInterval(function () {
-    saveNewsletter(false);
-}, 30000);
-
-// Save Draft
-document.getElementById('save-draft-btn').addEventListener('click', function () {
-    saveNewsletter(true);
-});
-
-// Preview
-document.getElementById('preview-btn').addEventListener('click', function() {
-    const selectedEvent = document.querySelector('#event_id option:checked');
-    document.getElementById('preview-modal-title').textContent = document.getElementById('title').value || 'Ohne Titel';
-    document.getElementById('preview-modal-project').textContent = document.querySelector('#project_id option:checked')?.textContent?.trim() || '';
-    document.getElementById('preview-modal-event').textContent = selectedEvent && selectedEvent.value
-        ? selectedEvent.textContent.trim()
-        : 'Kein Event';
-    document.getElementById('preview-modal-content').innerHTML = tinymce.get('content_html')?.getContent() || '';
-});
-
-document.getElementById('send-newsletter-btn').addEventListener('click', function () {
-    if (!confirm('Newsletter jetzt versenden?')) {
-        return;
-    }
-
-    if (isModalView) {
-        fetch('/newsletters/{{ newsletter.id }}/send', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        }).then(function (response) {
-            if (!response.ok) {
-                alert('Fehler beim Versenden des Newsletters');
-                return;
-            }
-
-            if (typeof window.newsletterModalCloseAndRefresh === 'function') {
-                window.newsletterModalCloseAndRefresh();
-                return;
-            }
-
-            window.location.reload();
-        });
-        return;
-    }
-
-    document.getElementById('send-form').submit();
-});
-
-// Save Template
-document.getElementById('save-template-btn').addEventListener('click', async function() {
-    const formData = new FormData();
-    formData.set('template_name', document.getElementById('template_name').value);
-    formData.set('template_description', document.getElementById('template_description').value);
-
-    const response = await fetch('/newsletters/{{ newsletter.id }}/save-as-template', {
-        method: 'POST',
-        body: formData
-    });
-
-    if (!response.ok) {
-        alert('Fehler beim Speichern der Vorlage');
-        return;
-    }
-
-    bootstrap.Modal.getInstance(document.getElementById('saveTemplateModal')).hide();
-    alert('Vorlage gespeichert');
-});
-
-// Lock Polling
-setInterval(async function() {
-    const response = await fetch('/newsletters/{{ newsletter.id }}/check-lock');
-    if (!response.ok) return;
-    const data = await response.json();
-    if (data.locked && !data.is_me) {
-        alert(`Newsletter wird jetzt von ${data.locked_by_user} bearbeitet`);
-        if (isModalView && typeof window.newsletterModalCloseAndRefresh === 'function') {
-            window.newsletterModalCloseAndRefresh();
-            return;
-        }
-
-        window.location.reload();
-    }
-}, 30000);
-    </script>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/newsletters-edit.js"></script>
+{% endblock scripts %}

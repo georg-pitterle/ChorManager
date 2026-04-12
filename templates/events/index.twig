@@ -155,7 +155,7 @@
                                                 <li>
                                                     <form action="/events/{{ event.id }}/delete"
                                                           method="post"
-                                                          onsubmit="return confirm('Diesen Termin wirklich löschen?');">
+                                                          data-confirm="Diesen Termin wirklich löschen?">
                                                         <button type="submit" class="dropdown-item text-danger">
                                                             <i class="bi bi-trash me-2"></i> Termin löschen
                                                         </button>
@@ -165,7 +165,7 @@
                                                     <li>
                                                         <form action="/events/{{ event.id }}/delete-series"
                                                               method="post"
-                                                              onsubmit="return confirm('Die gesamte Serie ab diesem Termin wirklich löschen?');">
+                                                              data-confirm="Die gesamte Serie ab diesem Termin wirklich löschen?">
                                                             <button type="submit" class="dropdown-item text-danger">
                                                                 <i class="bi bi-repeat me-2"></i> Serie löschen
                                                             </button>

@@ -12,6 +12,15 @@ use App\Models\AppSetting;
 class AppSettingController
 {
     public const DEFAULT_PRIMARY_COLOR = '#E8A817';
+    private const MAX_LOGO_SIZE = 2097152; // 2 MB
+    /** @var array<int, string> */
+    private const ALLOWED_LOGO_MIME_TYPES = [
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/svg+xml',
+        'image/gif',
+    ];
 
     private Twig $view;
 
@@ -66,12 +75,26 @@ class AppSettingController
             if (isset($uploadedFiles['app_logo'])) {
                 $file = $uploadedFiles['app_logo'];
                 if ($file->getError() === UPLOAD_ERR_OK) {
+                    $size = (int) $file->getSize();
+                    if ($size <= 0 || $size > self::MAX_LOGO_SIZE) {
+                        $_SESSION['error'] = 'Logo-Datei hat eine ungueltige Dateigroesse (max. 2 MB).';
+                        return $response->withHeader('Location', '/settings')->withStatus(302);
+                    }
+
+                    $mimeType = trim((string) $file->getClientMediaType());
+                    if (!in_array($mimeType, self::ALLOWED_LOGO_MIME_TYPES, true)) {
+                        $_SESSION['error'] = 'Logo-Dateityp ist nicht erlaubt.';
+                        return $response->withHeader('Location', '/settings')->withStatus(302);
+                    }
+
+                    $safeName = self::normalizeFileName((string) $file->getClientFilename());
+
                     AppSetting::updateOrCreate(
                         ['setting_key' => 'app_logo'],
                         [
                             'binary_content' => $file->getStream()->getContents(),
-                            'mime_type' => $file->getClientMediaType(),
-                            'setting_value' => $file->getClientFilename()
+                            'mime_type' => $mimeType,
+                            'setting_value' => $safeName
                         ]
                     );
                 }
@@ -164,14 +187,22 @@ class AppSettingController
         return sprintf('#%02X%02X%02X', $red, $green, $blue);
     }
 
+    private static function normalizeFileName(string $name): string
+    {
+        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
+        $trimmed = trim($safe);
+        return $trimmed !== '' ? $trimmed : 'download';
+    }
+
     public function logo(Request $request, Response $response): Response
     {
         $logo = AppSetting::find('app_logo');
         if ($logo && $logo->binary_content) {
             $response->getBody()->write($logo->binary_content);
+            $safeName = self::normalizeFileName((string) $logo->setting_value);
             return $response
                 ->withHeader('Content-Type', $logo->mime_type)
-                ->withHeader('Content-Disposition', 'inline; filename="' . $logo->setting_value . '"');
+                ->withHeader('Content-Disposition', 'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
         }
 
         // Return default logo if not found

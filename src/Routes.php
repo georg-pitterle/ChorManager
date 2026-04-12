@@ -36,7 +36,7 @@ return function (App $app) {
     // Auth Routes
     $app->get('/login', [AuthController::class, 'showLogin']);
     $app->post('/login', [AuthController::class, 'processLogin']);
-    $app->get('/logout', [AuthController::class, 'logout']);
+    $app->post('/logout', [AuthController::class, 'logout']);
     $app->get('/setup', [AuthController::class, 'showSetup']);
     $app->post('/setup', [AuthController::class, 'processSetup']);
     $app->get('/logo', [AppSettingController::class, 'logo']);

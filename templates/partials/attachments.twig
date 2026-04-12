@@ -23,7 +23,7 @@
                             <form action="{{ delete_url }}/{{ attachment.id }}/delete"
                                   method="post"
                                   class="d-inline"
-                                  onsubmit="return confirm('Möchten Sie diesen Anhang wirklich löschen?');">
+                                    data-confirm="Möchten Sie diesen Anhang wirklich löschen?">
                                 <button type="submit"
                                         class="btn btn-sm btn-link text-danger p-0"
                                         title="Löschen">

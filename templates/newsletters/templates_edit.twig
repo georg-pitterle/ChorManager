@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block content %}
     <div class="container py-3">

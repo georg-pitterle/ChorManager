@@ -10,6 +10,7 @@ use Slim\Views\Twig;
 use App\Models\User;
 use App\Models\PasswordReset;
 use App\Services\Mailer;
+use App\Util\EnvHelper;
 
 class PasswordResetController
 {
@@ -70,12 +71,7 @@ class PasswordResetController
             'created_at' => date('Y-m-d H:i:s')
         ]);
 
-        $resetLink = $request->getUri()->getScheme() . '://' . $request->getUri()->getHost();
-        $port = $request->getUri()->getPort();
-        if ($port && $port !== 80 && $port !== 443) {
-            $resetLink .= ':' . $port;
-        }
-        $resetLink .= '/reset-password?token=' . $token . '&email=' . urlencode($email);
+        $resetLink = $this->buildTrustedAppUrl() . '/reset-password?token=' . $token . '&email=' . urlencode($email);
 
         $htmlBody = $this->view->fetch('emails/password_reset.twig', [
             'user' => $user,
@@ -91,6 +87,21 @@ class PasswordResetController
         }
 
         return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+    }
+
+    private function buildTrustedAppUrl(): string
+    {
+        $configured = trim((string) EnvHelper::read('APP_URL', 'http://localhost'));
+
+        $parts = parse_url($configured);
+        $scheme = is_array($parts) ? ($parts['scheme'] ?? '') : '';
+        $host = is_array($parts) ? ($parts['host'] ?? '') : '';
+
+        if (($scheme === 'http' || $scheme === 'https') && is_string($host) && $host !== '') {
+            return rtrim($configured, '/');
+        }
+
+        return 'http://localhost';
     }
 
     public function showResetForm(Request $request, Response $response): Response

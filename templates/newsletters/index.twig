@@ -27,8 +27,6 @@
                     <label for="project_id" class="form-label mb-0">Projekt:</label>
                     <select id="project_id"
                             name="project_id"
-                            class="form-select onchange-submit"
-                            onchange="this.form.submit()"
                             class="form-select onchange-submit">
                         {% for selectable_project in projects %}
                             <option value="{{ selectable_project.id }}"
@@ -58,6 +56,25 @@
 
 {% block content %}
     <div class="container-fluid px-0">
+        {% if success %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ success }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endif %}
+        {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endif %}
+
         {% if projects|length == 0 %}
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle"></i>

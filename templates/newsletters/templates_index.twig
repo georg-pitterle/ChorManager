@@ -2,6 +2,25 @@
 
 {% block content %}
     <div class="container py-3">
+        {% if success %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ success }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endif %}
+        {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endif %}
+
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h2 mb-0">Newsletter-Vorlagen</h1>
             <div class="d-flex gap-2">
@@ -28,8 +47,12 @@
                             <td>{{ template.name }}</td>
                             <td>{{ template.project_id ? 'Projekt' : 'Global' }}</td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-outline-primary"
-                                   href="/newsletters/templates/{{ template.id }}/edit">Bearbeiten</a>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        data-newsletter-modal-url="/newsletters/templates/{{ template.id }}/edit?modal=1"
+                                        data-newsletter-modal-title="Vorlage bearbeiten">
+                                    Bearbeiten
+                                </button>
                                 <form method="post"
                                       action="/newsletters/templates/{{ template.id }}/clone"
                                       class="d-inline">
@@ -93,5 +116,30 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade"
+             id="newsletterActionModal"
+             tabindex="-1"
+             aria-labelledby="newsletterActionModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-2 p-md-3">
+                        <div id="newsletterActionContent" class="container-fluid px-0"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/newsletters.js"></script>
+{% endblock scripts %}

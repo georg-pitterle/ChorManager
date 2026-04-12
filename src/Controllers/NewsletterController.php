@@ -61,6 +61,17 @@ class NewsletterController
             ->withStatus($status);
     }
 
+    private function expectsJson(Request $request): bool
+    {
+        $xRequestedWith = strtolower(trim($request->getHeaderLine('X-Requested-With')));
+        if ($xRequestedWith === 'xmlhttprequest') {
+            return true;
+        }
+
+        $accept = strtolower($request->getHeaderLine('Accept'));
+        return str_contains($accept, 'application/json');
+    }
+
     /**
      * Resolve projects the current user is allowed to access.
      *
@@ -101,6 +112,17 @@ class NewsletterController
         }
 
         return in_array($templateProjectId, $accessibleProjectIds, true);
+    }
+
+    private function canAccessNewsletterById(int $newsletterId, ?int $userId): bool
+    {
+        $newsletter = Newsletter::query()->select(['id', 'project_id'])->find($newsletterId);
+        if (!$newsletter) {
+            return false;
+        }
+
+        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
+        return in_array((int) $newsletter->project_id, $accessibleProjectIds, true);
     }
 
     private function validateTemplateInput(array $data): array
@@ -188,12 +210,18 @@ class NewsletterController
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
         return $this->view->render($response, 'newsletters/index.twig', [
             'newsletters' => $newsletters,
             'project' => $project,
             'projects' => $projects,
             'status' => $status,
             'user_id' => $userId,
+            'success' => $success,
+            'error' => $error,
         ]);
     }
 
@@ -410,11 +438,14 @@ class NewsletterController
             return (int) $id;
         })->all());
 
-        $_SESSION['success'] = 'Newsletter aktualisiert';
+        $suppressFlash = ((string) ($data['suppress_flash'] ?? '0')) === '1';
+        if (!$suppressFlash) {
+            $_SESSION['success'] = 'Newsletter gespeichert';
+        }
 
         return $this->jsonResponse($response, [
             'success' => true,
-            'message' => 'Newsletter aktualisiert',
+            'message' => 'Newsletter gespeichert',
         ]);
     }
 
@@ -423,6 +454,12 @@ class NewsletterController
         $id = (int)$request->getAttribute('id');
         $queryParams = $request->getQueryParams();
         $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
+        $userId = $_SESSION['user_id'] ?? null;
+
+        if (!$this->canAccessNewsletterById($id, $userId)) {
+            return $response->withStatus(403);
+        }
+
         $newsletter = Newsletter::find($id);
 
         if (!$newsletter) {
@@ -472,6 +509,10 @@ class NewsletterController
         $data = $request->getParsedBody();
         $userId = $_SESSION['user_id'] ?? null;
 
+        if (!$this->canAccessNewsletterById($id, $userId)) {
+            return $response->withStatus(403);
+        }
+
         $newsletter = Newsletter::find($id);
         if (!$newsletter) {
             return $response->withStatus(404);
@@ -484,6 +525,13 @@ class NewsletterController
             'project_id' => $newsletter->project_id,
             'created_by' => $userId,
         ]);
+
+        if (!$this->expectsJson($request)) {
+            $_SESSION['success'] = 'Vorlage gespeichert';
+            return $response
+                ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
+                ->withStatus(302);
+        }
 
         return $this->jsonResponse($response, [
             'success' => true,
@@ -500,6 +548,11 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
+        $userId = $_SESSION['user_id'] ?? null;
+        if (!$this->canAccessTemplateContext($template->project_id, $this->getAccessibleProjectIds($userId))) {
+            return $response->withStatus(403);
+        }
+
         return $this->jsonResponse($response, [
             'id' => $template->id,
             'name' => $template->name,
@@ -511,6 +564,10 @@ class NewsletterController
     {
         $id = (int)$request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
+
+        if (!$this->canAccessNewsletterById($id, $userId)) {
+            return $response->withStatus(403);
+        }
 
         $newsletter = Newsletter::find($id);
         if (!$newsletter) {
@@ -562,10 +619,15 @@ class NewsletterController
         $userId = $_SESSION['user_id'] ?? null;
         $projects = $this->getAccessibleProjects($userId);
         $templates = $this->templateQuery->getForAccessibleProjects($this->getAccessibleProjectIds($userId));
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'newsletters/templates_index.twig', [
             'projects' => $projects,
             'templates' => $templates,
+            'success' => $success,
+            'error' => $error,
         ]);
     }
 
@@ -579,6 +641,13 @@ class NewsletterController
         $data = (array) $request->getParsedBody();
         $validation = $this->validateTemplateInput($data);
         if (!$validation['ok']) {
+            if (!$this->expectsJson($request)) {
+                $_SESSION['error'] = 'Ungueltige Vorlagendaten';
+                return $response
+                    ->withHeader('Location', '/newsletters/templates')
+                    ->withStatus(302);
+            }
+
             return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
         }
 
@@ -594,6 +663,13 @@ class NewsletterController
 
         $template = $this->templatePersistence->createTemplate($validation['payload'], $userId, $projectId);
 
+        if (!$this->expectsJson($request)) {
+            $_SESSION['success'] = 'Vorlage erstellt';
+            return $response
+                ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
+                ->withStatus(302);
+        }
+
         return $this->jsonResponse($response, [
             'success' => true,
             'template_id' => $template->id,
@@ -604,6 +680,8 @@ class NewsletterController
     public function editTemplate(Request $request, Response $response): Response
     {
         $id = (int) $request->getAttribute('id');
+        $queryParams = $request->getQueryParams();
+        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $template = $this->templateQuery->findById($id);
 
         if (!$template) {
@@ -617,6 +695,7 @@ class NewsletterController
 
         return $this->view->render($response, 'newsletters/templates_edit.twig', [
             'template' => $template,
+            'is_modal' => $isModal,
         ]);
     }
 
@@ -638,10 +717,24 @@ class NewsletterController
 
         $validation = $this->validateTemplateInput((array) $request->getParsedBody());
         if (!$validation['ok']) {
+            if (!$this->expectsJson($request)) {
+                $_SESSION['error'] = 'Ungueltige Vorlagendaten';
+                return $response
+                    ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
+                    ->withStatus(302);
+            }
+
             return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
         }
 
         $this->templatePersistence->updateTemplate($template, $validation['payload']);
+        $_SESSION['success'] = 'Vorlage gespeichert';
+
+        if (!$this->expectsJson($request)) {
+            return $response
+                ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
+                ->withStatus(302);
+        }
 
         return $this->jsonResponse($response, ['success' => true]);
     }
@@ -666,6 +759,13 @@ class NewsletterController
         }
 
         $clone = $this->templatePersistence->cloneTemplate($template, $userId);
+
+        if (!$this->expectsJson($request)) {
+            $_SESSION['success'] = 'Vorlage geklont';
+            return $response
+                ->withHeader('Location', '/newsletters/templates/' . $clone->id . '/edit')
+                ->withStatus(302);
+        }
 
         return $this->jsonResponse($response, [
             'success' => true,
