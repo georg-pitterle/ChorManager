@@ -805,7 +805,7 @@ class DevSeedService
         $descriptionsIncome = [
             'Mitgliedsbeitrag',
             'Konzertkarten',
-            'Foerderung Gemeinde',
+            'Förderung Gemeinde',
             'Spende Privatperson',
             'Sponsoring',
         ];
@@ -820,9 +820,9 @@ class DevSeedService
         ];
 
         $groups = [
-            'Mitgliedsbeitraege',
+            'Mitgliedsbeiträge',
             'Konzert',
-            'Foerderung',
+            'Förderung',
             'Notenmaterial',
             'Raummiete',
             'Technik',
@@ -869,8 +869,8 @@ class DevSeedService
                     'filename' => sprintf('beleg-%05d.txt', $finance->running_number),
                     'original_name' => sprintf('beleg-%05d.txt', $finance->running_number),
                     'mime_type' => 'text/plain',
-                    'file_size' => strlen('Automatisch generierter Testbeleg fuer Laufnummer ' . $finance->running_number),
-                    'file_content' => 'Automatisch generierter Testbeleg fuer Laufnummer ' . $finance->running_number,
+                    'file_size' => strlen('Automatisch generierter Testbeleg für Laufnummer ' . $finance->running_number),
+                    'file_content' => 'Automatisch generierter Testbeleg für Laufnummer ' . $finance->running_number,
                 ]);
                 $this->report['counts']['finance_attachments']++;
                 $attachmentsLeft--;
@@ -889,8 +889,8 @@ class DevSeedService
                 'filename' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
                 'original_name' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
                 'mime_type' => 'text/plain',
-                'file_size' => strlen('Zusatzbeleg fuer Testdaten.'),
-                'file_content' => 'Zusatzbeleg fuer Testdaten.',
+                'file_size' => strlen('Zusatzbeleg für Testdaten.'),
+                'file_content' => 'Zusatzbeleg für Testdaten.',
             ]);
             $this->report['counts']['finance_attachments']++;
             $attachmentsLeft--;
@@ -1629,7 +1629,7 @@ class DevSeedService
             $song = $songs[$attempt % count($songs)];
             $slot = (int) floor($attempt / count($songs)) + 1;
             $originalName = sprintf('notenblatt-%d-%02d.pdf', $song->id, $slot);
-            $content = 'PDF Testinhalt: Notenblatt fuer Song ' . $song->id . ' (Version ' . $slot . ').';
+            $content = 'PDF Testinhalt: Notenblatt für Song ' . $song->id . ' (Version ' . $slot . ').';
 
             $attachment = Attachment::firstOrCreate(
                 [
@@ -1662,11 +1662,11 @@ class DevSeedService
         }
 
         $taskTemplates = [
-            ['name' => 'Saalreservierung', 'description' => '<p>Reservierung fuer die Hauptprobe bestaetigen.</p>'],
+            ['name' => 'Saalreservierung', 'description' => '<p>Reservierung für die Hauptprobe bestätigen.</p>'],
             ['name' => 'Programmheft finalisieren', 'description' => '<p>Programmheft inklusive Sponsorlogos abstimmen.</p>'],
             ['name' => 'Notenmaterial verteilen', 'description' => '<p>Aktualisierte Stimmen als PDF bereitstellen.</p>'],
             ['name' => 'Generalprobe koordinieren', 'description' => '<p>Ablauf, Einsingzeit und Technikslot planen.</p>'],
-            ['name' => 'Social-Media-Ankuendigung', 'description' => '<p>Beitragsreihe fuer Konzertwoche vorbereiten.</p>'],
+            ['name' => 'Social-Media-Ankündigung', 'description' => '<p>Beitragsreihe für Konzertwoche vorbereiten.</p>'],
         ];
         $statuses = ['Offen', 'In Bearbeitung', 'Abgeschlossen', 'Blockiert'];
         $priorities = ['Niedrig', 'Mittel', 'Hoch'];
@@ -1725,7 +1725,7 @@ class DevSeedService
 
         $templates = [
             ['action' => 'created', 'description' => 'Aufgabe erstellt.'],
-            ['action' => 'updated', 'description' => 'Status und Prioritaet aktualisiert.'],
+            ['action' => 'updated', 'description' => 'Status und Priorität aktualisiert.'],
         ];
         $userCount = count($activeUsers);
 
@@ -1760,9 +1760,9 @@ class DevSeedService
         }
 
         $commentTexts = [
-            'Rueckfrage zur finalen Besetzung offen.',
+            'Rückfrage zur finalen Besetzung offen.',
             'Noten in aktualisierter Version hochgeladen.',
-            'Termin mit Technikteam wurde bestaetigt.',
+            'Termin mit Technikteam wurde bestätigt.',
             'Bitte Feedback bis Ende der Woche geben.',
         ];
         $userCount = count($activeUsers);
@@ -1809,7 +1809,7 @@ class DevSeedService
             $task = $tasks[$attempt % count($tasks)];
             $slot = (int) floor($attempt / count($tasks)) + 1;
             $originalName = sprintf('task-anhang-%d-%02d.txt', $task->id, $slot);
-            $content = 'Automatisch generierter Task-Anhang fuer Aufgabe ' . $task->id . '.';
+            $content = 'Automatisch generierter Task-Anhang für Aufgabe ' . $task->id . '.';
 
             $attachment = Attachment::firstOrCreate(
                 [
@@ -1840,7 +1840,7 @@ class DevSeedService
             'Pfarrsaal Zentrum',
             'Aula Musikschule',
             'Kulturhaus Saal 1',
-            'Stadthalle Probebuehne',
+            'Stadthalle Probebühne',
             'Pfarrkirche St. Martin',
         ];
 
@@ -2061,9 +2061,9 @@ class DevSeedService
         $springTitles = [
             'Luft und Liebe',
             'Kaffeekantate Reloaded',
-            'Ueber den Wolkenchor',
+            'Über den Wolkenchor',
             'Frische Noten auf Rezept',
-            'Singen bis der Fruehling klatscht',
+            'Singen bis der Frühling klatscht',
             'Tonleiter mit Aussicht',
         ];
 
@@ -2085,10 +2085,10 @@ class DevSeedService
     private function buildProjectDescription(string $semester): string
     {
         if ($semester === 'FS') {
-            return 'Semesterprojekt mit Konzertschwerpunkt, Registerarbeit und einer grossen Portion Fruehlingsenergie.';
+            return 'Semesterprojekt mit Konzertschwerpunkt, Registerarbeit und einer großen Portion Frühlingsenergie.';
         }
 
-        return 'Herbstprojekt mit Buehnenpraesenz, Adventsprogramm und charmantem Finale im Dezember.';
+        return 'Herbstprojekt mit Bühnenpräsenz, Adventsprogramm und charmantem Finale im Dezember.';
     }
 
     private function shuffled(array $items): array
