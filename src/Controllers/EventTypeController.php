@@ -50,7 +50,7 @@ class EventTypeController
             ]);
             $_SESSION['success'] = 'Event-Typ erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);
@@ -76,7 +76,7 @@ class EventTypeController
             ]);
             $_SESSION['success'] = 'Event-Typ erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);
@@ -91,7 +91,7 @@ class EventTypeController
             $eventType->delete();
             $_SESSION['success'] = 'Event-Typ erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);

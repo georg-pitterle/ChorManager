@@ -325,7 +325,8 @@
                     <form method="post"
                           action="/sponsoring/sponsorships"
                           enctype="multipart/form-data"
-                          id="sponsorship-new-form">
+                          id="sponsorship-new-form"
+                          data-upload-compress="true">
                         <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                         <div class="modal-content border-0 shadow">
                             <div class="modal-header">
@@ -416,7 +417,8 @@
                         <form method="post"
                               action="/sponsoring/sponsorships/{{ sp.id }}"
                               enctype="multipart/form-data"
-                              id="sponsorship-edit-form-{{ sp.id }}">
+                              id="sponsorship-edit-form-{{ sp.id }}"
+                              data-upload-compress="true">
                             <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                             <div class="modal-content border-0 shadow">
                                 <div class="modal-header">
@@ -516,25 +518,6 @@
                     </div>
                 </div>
             {% endfor %}
-
-            {# Upload compression initialization #}
-            <script src="/js/upload-helper.js"></script>
-            <script>
-              document.addEventListener('DOMContentLoaded', () => {
-                // Compress new sponsorship form if it exists
-                const newForm = document.getElementById('sponsorship-new-form');
-                if (newForm && window.uploadHelper) {
-                  window.uploadHelper.setupFormCompression(newForm);
-                }
-
-                // Compress all edit sponsorship forms if they exist
-                document.querySelectorAll('form[id^="sponsorship-edit-form-"]').forEach(form => {
-                  if (window.uploadHelper) {
-                    window.uploadHelper.setupFormCompression(form);
-                  }
-                });
-              });
-            </script>
         </div>
 
         {# ─── Tab 3: Kontakthistorie ─── #}

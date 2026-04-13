@@ -89,7 +89,7 @@ class RoleController
             if ($e->getCode() == 23000) {
                 $_SESSION['error'] = 'Eine Rolle mit diesem Namen existiert bereits.';
             } else {
-                $_SESSION['error'] = 'Datenbankfehler: ' . $e->getMessage();
+                $_SESSION['error'] = 'Datenbankfehler: ';
             }
         }
 
@@ -130,7 +130,7 @@ class RoleController
             if ($e->getCode() == 23000) {
                 $_SESSION['error'] = 'Eine andere Rolle mit diesem Namen existiert bereits.';
             } else {
-                $_SESSION['error'] = 'Datenbankfehler beim Aktualisieren: ' . $e->getMessage();
+                $_SESSION['error'] = 'Datenbankfehler beim Aktualisieren: ';
             }
         }
 

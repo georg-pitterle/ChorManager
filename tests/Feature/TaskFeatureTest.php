@@ -92,10 +92,9 @@ class TaskFeatureTest extends TestCase
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('private function sanitizeDescriptionHtml(?string $description): string', $controllerContent);
-        $this->assertStringContainsString("strip_tags(", $controllerContent);
-        $this->assertStringContainsString("preg_replace('/\\s+on[a-z]+", $controllerContent);
-        $this->assertStringContainsString("preg_replace('/\\s+(href|src)", $controllerContent);
+        $this->assertStringContainsString('use App\\Services\\HtmlSanitizer;', $controllerContent);
+        $this->assertStringContainsString('private HtmlSanitizer $htmlSanitizer;', $controllerContent);
+        $this->assertStringContainsString('$this->htmlSanitizer->sanitizeTaskHtml', $controllerContent);
         $this->assertGreaterThanOrEqual(2, substr_count($controllerContent, "'description'      => " . '$description'));
         $this->assertStringContainsString('$oldDescription = trim((string) $task->description);', $controllerContent);
         $this->assertStringContainsString("$" . "changes[] = 'Beschreibung aktualisiert';", $controllerContent);

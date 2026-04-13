@@ -16,7 +16,6 @@ class UploadValidator
         'image/png',
         'image/webp',
         'image/gif',
-        'image/svg+xml',
     ];
 
     // Non-image (document) MIME types allowed
@@ -35,6 +34,8 @@ class UploadValidator
      */
     public static function validateImageSize(int $sizeBytes, string $mimeType): array
     {
+        $mimeType = self::normalizeMimeType($mimeType);
+
         if (!self::isImageMimeType($mimeType)) {
             return [
                 'valid' => false,
@@ -68,10 +69,19 @@ class UploadValidator
      */
     public static function validateFileSize(int $sizeBytes, string $mimeType): array
     {
+        $mimeType = self::normalizeMimeType($mimeType);
+
         if ($sizeBytes < 0) {
             return [
                 'valid' => false,
                 'error' => 'Datei hat keine gültige Größe.',
+            ];
+        }
+
+        if (!self::isAllowedMimeType($mimeType)) {
+            return [
+                'valid' => false,
+                'error' => "MIME type '$mimeType' ist kein erlaubter Dateityp.",
             ];
         }
 
@@ -100,7 +110,17 @@ class UploadValidator
      */
     public static function isImageMimeType(string $mimeType): bool
     {
-        return in_array(trim(strtolower($mimeType)), self::$imageMimeTypes, true);
+        return in_array(self::normalizeMimeType($mimeType), self::$imageMimeTypes, true);
+    }
+
+    public static function isAllowedMimeType(string $mimeType): bool
+    {
+        return in_array(self::normalizeMimeType($mimeType), self::getAllowedMimeTypes(), true);
+    }
+
+    public static function normalizeMimeType(string $mimeType): string
+    {
+        return trim(strtolower($mimeType));
     }
 
     /**

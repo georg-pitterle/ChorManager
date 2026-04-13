@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\RememberLogin;
+use App\Util\ClientIpResolver;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 class RememberLoginService
@@ -161,9 +162,8 @@ class RememberLoginService
 
     private function getIpAddress(Request $request): ?string
     {
-        $serverParams = $request->getServerParams();
-        $ip = $serverParams['REMOTE_ADDR'] ?? null;
-        if (!$ip || !is_string($ip)) {
+        $ip = ClientIpResolver::resolve($request);
+        if ($ip === 'unknown') {
             return null;
         }
 

@@ -34,8 +34,9 @@ class SponsorshipController
 
         foreach ($files as $file) {
             if ($file->getError() === UPLOAD_ERR_OK) {
-                $size = (int) $file->getSize();
                 $mimeType = trim((string) $file->getClientMediaType());
+                $contents = $file->getStream()->getContents();
+                $size = strlen($contents);
 
                 // Validate file size and type
                 $validation = UploadValidator::validateFileSize($size, $mimeType);
@@ -49,8 +50,9 @@ class SponsorshipController
                     'entity_id'      => $sponsorshipId,
                     'filename'       => bin2hex(random_bytes(16)) . '_' . $file->getClientFilename(),
                     'original_name'  => $file->getClientFilename(),
-                    'mime_type'      => $file->getClientMediaType(),
-                    'file_content'   => $file->getStream()->getContents(),
+                    'mime_type'      => UploadValidator::normalizeMimeType($mimeType),
+                    'file_size'      => $size,
+                    'file_content'   => $contents,
                 ]);
             }
         }
@@ -84,7 +86,7 @@ class SponsorshipController
 
             $_SESSION['success'] = 'Vereinbarung erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -98,9 +100,9 @@ class SponsorshipController
         try {
             $sponsorship = Sponsorship::findOrFail($id);
             $sponsorId   = $sponsorship->sponsor_id;
+            $providedSponsorId = (int) ($data['sponsor_id'] ?? 0);
 
-            // IDOR-Schutz: Sponsorship muss zum Sponsor in der URL gehören
-            if (isset($args['sponsor_id']) && $sponsorship->sponsor_id !== (int) $args['sponsor_id']) {
+            if ($providedSponsorId > 0 && $providedSponsorId !== (int) $sponsorship->sponsor_id) {
                 $response->getBody()->write('Zugriff verweigert.');
                 return $response->withStatus(403);
             }
@@ -120,7 +122,7 @@ class SponsorshipController
 
             $_SESSION['success'] = 'Vereinbarung erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -135,13 +137,20 @@ class SponsorshipController
         try {
             $sponsorship = Sponsorship::findOrFail($id);
             $sponsorId   = $sponsorship->sponsor_id;
+            $providedSponsorId = (int) ($data['sponsor_id'] ?? 0);
+
+            if ($providedSponsorId > 0 && $providedSponsorId !== (int) $sponsorship->sponsor_id) {
+                $response->getBody()->write('Zugriff verweigert.');
+                return $response->withStatus(403);
+            }
+
             Attachment::where('entity_type', 'sponsorship')
                 ->where('entity_id', $id)
                 ->delete();
             $sponsorship->delete();
             $_SESSION['success'] = 'Vereinbarung erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -165,7 +174,12 @@ class SponsorshipController
 
         return $response
             ->withHeader('Content-Type', $attachment->mime_type)
-            ->withHeader('Content-Disposition', 'attachment; filename="' . addslashes($attachment->original_name) . '"');
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . self::normalizeFileName((string) $attachment->original_name)
+                    . '"; filename*=UTF-8\'\''
+                    . rawurlencode(self::normalizeFileName((string) $attachment->original_name))
+            );
     }
 
     public function deleteAttachment(Request $request, Response $response, array $args): Response
@@ -187,10 +201,17 @@ class SponsorshipController
             $attachment->delete();
             $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+    }
+
+    private static function normalizeFileName(string $name): string
+    {
+        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
+        $trimmed = trim($safe);
+        return $trimmed !== '' ? $trimmed : 'download';
     }
 }

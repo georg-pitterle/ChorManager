@@ -48,7 +48,7 @@ class VoiceGroupController
             VoiceGroup::create(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -70,7 +70,7 @@ class VoiceGroupController
             $group->update(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -85,7 +85,7 @@ class VoiceGroupController
             $group->delete();
             $_SESSION['success'] = 'Stimmgruppe erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -109,7 +109,7 @@ class VoiceGroupController
             ]);
             $_SESSION['success'] = 'Unterstimme erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -131,7 +131,7 @@ class VoiceGroupController
             $subVoice->update(['name' => $name]);
             $_SESSION['success'] = 'Unterstimme erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -146,7 +146,7 @@ class VoiceGroupController
             $subVoice->delete();
             $_SESSION['success'] = 'Unterstimme erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);

@@ -520,11 +520,41 @@ a:hover {
     top: 6px;
 }
 
+.timeline-item:last-child {
+    border-left-color: transparent !important;
+}
+
 /* Newsletter HTML-content preview area */
 .newsletter-content-preview {
     background-color: #f8f9fa;
     padding: 20px;
     border-radius: 4px;
+}
+
+.newsletter-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.newsletter-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.newsletter-content table,
+.newsletter-content th,
+.newsletter-content td {
+    border: 1px solid #ddd;
+}
+
+.newsletter-content th,
+.newsletter-content td {
+    padding: 12px;
+    text-align: left;
+}
+
+.newsletter-content th {
+    background-color: #f2f2f2;
 }
 
 /* Attendance status buttons: keep one row on small screens without overflow */

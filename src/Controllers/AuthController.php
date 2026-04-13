@@ -12,6 +12,10 @@ use App\Models\User;
 use App\Models\Role;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
+use App\Services\RateLimiterService;
+use App\Services\PasswordPolicyService;
+use App\Util\ClientIpResolver;
+use App\Util\InputValidator;
 
 class AuthController
 {
@@ -21,17 +25,23 @@ class AuthController
     private UserQuery $userQuery;
     private RememberLoginService $rememberLoginService;
     private SessionAuthService $sessionAuthService;
+    private RateLimiterService $rateLimiterService;
+    private PasswordPolicyService $passwordPolicyService;
 
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
         RememberLoginService $rememberLoginService,
-        SessionAuthService $sessionAuthService
+        SessionAuthService $sessionAuthService,
+        RateLimiterService $rateLimiterService,
+        PasswordPolicyService $passwordPolicyService
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
         $this->rememberLoginService = $rememberLoginService;
         $this->sessionAuthService = $sessionAuthService;
+        $this->rateLimiterService = $rateLimiterService;
+        $this->passwordPolicyService = $passwordPolicyService;
     }
 
     public function showLogin(Request $request, Response $response): Response
@@ -60,9 +70,22 @@ class AuthController
     public function processLogin(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $email = $data['email'] ?? '';
+        $email = InputValidator::validateEmail($data['email'] ?? null);
         $password = $data['password'] ?? '';
         $remember = isset($data['remember']) && $data['remember'] === '1';
+
+        // If email is invalid, return generic error (don't reveal if email exists)
+        if ($email === null) {
+            $_SESSION['error'] = 'Ungültige E-Mail-Adresse oder Passwort.';
+            return $response->withHeader('Location', '/login')->withStatus(302);
+        }
+
+        $clientIp = $this->resolveClientIp($request);
+        $limit = $this->rateLimiterService->hit('auth:login:' . $clientIp, 10, 900);
+        if (!$limit['allowed']) {
+            $_SESSION['error'] = 'Zu viele Anmeldeversuche. Bitte versuche es in wenigen Minuten erneut.';
+            return $response->withHeader('Location', '/login')->withStatus(302);
+        }
 
         $user = $this->userQuery->findByEmail($email);
 
@@ -81,6 +104,8 @@ class AuthController
                 }
                 $this->rememberLoginService->clearRememberCookie();
             }
+
+            $this->rateLimiterService->reset('auth:login:' . $clientIp);
 
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
@@ -112,13 +137,19 @@ class AuthController
         }
 
         $data = (array) $request->getParsedBody();
-        $firstName = trim($data['first_name'] ?? '');
-        $lastName = trim($data['last_name'] ?? '');
-        $email = trim($data['email'] ?? '');
+        $firstName = InputValidator::validateRequired($data['first_name'] ?? null, 255);
+        $lastName = InputValidator::validateRequired($data['last_name'] ?? null, 255);
+        $email = InputValidator::validateEmail($data['email'] ?? null);
         $password = $data['password'] ?? '';
 
-        if (!$firstName || !$lastName || !$email || !$password) {
+        if ($firstName === null || $lastName === null || $email === null || $password === '') {
             $_SESSION['error'] = 'Alle Felder sind Pflichtfelder.';
+            return $response->withHeader('Location', '/setup')->withStatus(302);
+        }
+
+        $passwordError = $this->passwordPolicyService->validate($password);
+        if ($passwordError !== null) {
+            $_SESSION['error'] = $passwordError;
             return $response->withHeader('Location', '/setup')->withStatus(302);
         }
 
@@ -153,7 +184,8 @@ class AuthController
             $_SESSION['success'] = 'Administratorkonto erfolgreich erstellt!';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Erstellen des Kontos: ' . $e->getMessage();
+            error_log((string) $e);
+            $_SESSION['error'] = 'Fehler beim Erstellen des Kontos.';
             return $response->withHeader('Location', '/setup')->withStatus(302);
         }
     }
@@ -199,5 +231,10 @@ class AuthController
         $this->rememberLoginService->setRememberCookie($rotatedToken);
 
         return true;
+    }
+
+    private function resolveClientIp(Request $request): string
+    {
+        return ClientIpResolver::resolve($request);
     }
 }

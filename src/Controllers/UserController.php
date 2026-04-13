@@ -16,6 +16,7 @@ use App\Models\Role;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Models\Project;
+use App\Services\PasswordPolicyService;
 
 class UserController
 {
@@ -24,19 +25,22 @@ class UserController
     private ProjectQuery $projectQuery;
     private UserPersistence $userPersistence;
     private ProjectPersistence $projectPersistence;
+    private PasswordPolicyService $passwordPolicyService;
 
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
         ProjectQuery $projectQuery,
         UserPersistence $userPersistence,
-        ProjectPersistence $projectPersistence
+        ProjectPersistence $projectPersistence,
+        PasswordPolicyService $passwordPolicyService
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
         $this->projectQuery = $projectQuery;
         $this->userPersistence = $userPersistence;
         $this->projectPersistence = $projectPersistence;
+        $this->passwordPolicyService = $passwordPolicyService;
     }
 
     public function index(Request $request, Response $response): Response
@@ -152,6 +156,12 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
+        $passwordError = $this->passwordPolicyService->validate($password);
+        if ($passwordError !== null) {
+            $_SESSION['error'] = $passwordError;
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
         try {
             $user = new User();
             $user->first_name = $firstName;
@@ -173,7 +183,8 @@ class UserController
 
             $_SESSION['success'] = 'Mitglied erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen des Mitglieds: ' . $e->getMessage();
+            error_log((string) $e);
+            $_SESSION['error'] = 'Fehler beim Anlegen des Mitglieds.';
         }
 
         return $response->withHeader('Location', '/users')->withStatus(302);
@@ -245,6 +256,14 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
+        if ($password !== '') {
+            $passwordError = $this->passwordPolicyService->validate($password);
+            if ($passwordError !== null) {
+                $_SESSION['error'] = $passwordError;
+                return $response->withHeader('Location', '/users')->withStatus(302);
+            }
+        }
+
         try {
             if ($password) {
                 $targetUser->password = password_hash($password, PASSWORD_DEFAULT);
@@ -289,7 +308,8 @@ class UserController
 
             $_SESSION['success'] = 'Mitglied erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ' . $e->getMessage();
+            error_log((string) $e);
+            $_SESSION['error'] = 'Fehler beim Speichern.';
         }
 
         return $response->withHeader('Location', '/users')->withStatus(302);
@@ -361,6 +381,11 @@ class UserController
                 continue;
             }
 
+            if (!$this->canDeactivateTargetUser($targetUser)) {
+                $failed[] = $id;
+                continue;
+            }
+
             $targetUser->is_active = 0;
             $this->userPersistence->save($targetUser);
             $processed++;
@@ -409,5 +434,20 @@ class UserController
             })
             ->values()
             ->all();
+    }
+
+    private function canDeactivateTargetUser(User $targetUser): bool
+    {
+        $canEditGlobal = (bool) ($_SESSION['can_edit_users'] ?? false);
+        if ($canEditGlobal) {
+            return true;
+        }
+
+        $userLevel = (int) ($_SESSION['role_level'] ?? 0);
+        $myVgs = $_SESSION['voice_group_ids'] ?? [];
+        $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
+        $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
+
+        return $userLevel >= 40 && $isInMyGroup;
     }
 }

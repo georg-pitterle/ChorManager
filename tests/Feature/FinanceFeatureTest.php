@@ -57,4 +57,17 @@ class FinanceFeatureTest extends TestCase
         $this->assertStringContainsString("->where('entity_id', " . '$' . "financeId)", $controllerContent);
         $this->assertStringContainsString("->delete();", $controllerContent);
     }
+
+    public function testFinanceAttachmentViewOnlyUsesInlineDispositionForSafeMimeTypes(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('private static function isInlineViewableMimeType', $controllerContent);
+        $this->assertStringContainsString("'application/pdf'", $controllerContent);
+        $this->assertStringContainsString("'text/plain'", $controllerContent);
+        $this->assertStringContainsString("'attachment'", $controllerContent);
+        $this->assertStringContainsString("'inline'", $controllerContent);
+        $this->assertStringContainsString("'file_size' => " . '$' . "size", $controllerContent);
+    }
 }

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\Project;
+use App\Models\User;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -54,7 +55,10 @@ class EventFeatureTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $_SESSION = [];
+        $_SESSION = [
+            'user_id' => 1,
+            'can_manage_users' => true,
+        ];
 
         self::$capsule?->connection()->beginTransaction();
     }
@@ -215,6 +219,49 @@ class EventFeatureTest extends TestCase
 
         $this->assertStringContainsString($oldEventInProject->title, (string) $result->getBody());
         $this->assertStringNotContainsString($oldEventOtherProject->title, (string) $result->getBody());
+    }
+
+    public function testNonAdminOnlySeesOwnProjectEventsAndGlobalEvents(): void
+    {
+        $memberProject = Project::create([
+            'name' => 'Member Project',
+            'description' => 'Own project',
+        ]);
+        $foreignProject = Project::create([
+            'name' => 'Foreign Project',
+            'description' => 'Other project',
+        ]);
+
+        $user = User::create([
+            'first_name' => 'Event',
+            'last_name' => 'Viewer',
+            'email' => 'event.viewer@example.test',
+            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+
+        self::$capsule?->table('project_users')->insert([
+            'project_id' => $memberProject->id,
+            'user_id' => $user->id,
+        ]);
+
+        $ownEvent = $this->createEvent('Own Project Event', '-2 days', $memberProject->id);
+        $foreignEvent = $this->createEvent('Foreign Project Event', '-2 days', $foreignProject->id);
+        $globalEvent = $this->createEvent('Global Event', '-2 days');
+
+        $_SESSION['user_id'] = (int) $user->id;
+        $_SESSION['can_manage_users'] = false;
+
+        $body = $this->renderEventsIndex();
+
+        $this->assertStringContainsString($ownEvent->title, $body);
+        $this->assertStringContainsString($globalEvent->title, $body);
+        $this->assertStringNotContainsString($foreignEvent->title, $body);
+
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EventController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('$hasUnauthorizedSeriesEvent = $eventsToUpdate->contains(function ($seriesEvent) {', $controllerContent);
+        $this->assertStringContainsString('$hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {', $controllerContent);
     }
 
     private function createTwig(): Twig

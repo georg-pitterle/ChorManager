@@ -146,7 +146,9 @@ class SongLibraryController
                 continue;
             }
 
-            $size = (int) $file->getSize();
+            $mimeType = trim((string) $file->getClientMediaType()) ?: 'application/octet-stream';
+            $contents = $file->getStream()->getContents();
+            $size = strlen($contents);
             if ($size <= 0) {
                 $_SESSION['error'] = 'Leere Dateien sind nicht erlaubt.';
                 return $response->withHeader('Location', '/song-library')->withStatus(302);
@@ -164,16 +166,14 @@ class SongLibraryController
                 return $response->withHeader('Location', '/song-library')->withStatus(302);
             }
 
-            $mimeType = trim((string) $file->getClientMediaType()) ?: 'application/octet-stream';
-
             Attachment::create([
                 'entity_type' => 'song',
                 'entity_id' => $songId,
                 'filename' => bin2hex(random_bytes(16)) . '_' . $originalName,
                 'original_name' => $originalName,
-                'mime_type' => $mimeType,
+                'mime_type' => UploadValidator::normalizeMimeType($mimeType),
                 'file_size' => $size,
-                'file_content' => $file->getStream()->getContents(),
+                'file_content' => $contents,
             ]);
         }
 

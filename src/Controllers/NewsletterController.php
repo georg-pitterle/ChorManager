@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Services\HtmlSanitizer;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Util\EnvHelper;
@@ -27,6 +28,7 @@ class NewsletterController
     private NewsletterService $newsletterService;
     private NewsletterLockingService $lockingService;
     private NewsletterRecipientService $recipientService;
+    private HtmlSanitizer $htmlSanitizer;
     private NewsletterTemplateQuery $templateQuery;
     private NewsletterTemplatePersistence $templatePersistence;
 
@@ -35,6 +37,7 @@ class NewsletterController
         NewsletterService $newsletterService,
         NewsletterLockingService $lockingService,
         NewsletterRecipientService $recipientService,
+        HtmlSanitizer $htmlSanitizer,
         NewsletterTemplateQuery $templateQuery,
         NewsletterTemplatePersistence $templatePersistence
     ) {
@@ -42,6 +45,7 @@ class NewsletterController
         $this->newsletterService = $newsletterService;
         $this->lockingService = $lockingService;
         $this->recipientService = $recipientService;
+        $this->htmlSanitizer = $htmlSanitizer;
         $this->templateQuery = $templateQuery;
         $this->templatePersistence = $templatePersistence;
     }
@@ -130,7 +134,7 @@ class NewsletterController
     private function validateTemplateInput(array $data): array
     {
         $name = trim((string) ($data['name'] ?? ''));
-        $contentHtml = trim((string) ($data['content_html'] ?? ''));
+        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
         $description = trim((string) ($data['description'] ?? ''));
 
         if ($name === '' || mb_strlen($name) > 255 || $contentHtml === '') {
@@ -331,7 +335,7 @@ class NewsletterController
             'project_id' => $projectId,
             'event_id' => $eventId,
             'title' => $data['title'] ?? 'Untitled Newsletter',
-            'content_html' => $data['content_html'] ?? '',
+            'content_html' => $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? ''),
             'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $userId,
         ]);
@@ -435,7 +439,7 @@ class NewsletterController
         $newsletter->update([
             'project_id' => $projectId,
             'title' => $data['title'] ?? $newsletter->title,
-            'content_html' => $data['content_html'] ?? $newsletter->content_html,
+            'content_html' => $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? $newsletter->content_html),
             'event_id' => $eventId,
         ]);
 
@@ -474,6 +478,7 @@ class NewsletterController
 
         return $this->view->render($response, 'newsletters/preview.twig', [
             'newsletter' => $newsletter,
+            'preview_content_html' => $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html),
             'is_modal' => $isModal,
         ]);
     }
@@ -527,7 +532,8 @@ class NewsletterController
                 $_SESSION['success'] = 'Newsletter versendet';
             }
         } catch (\Exception $e) {
-            $message = 'Fehler beim Versand: ' . $e->getMessage();
+            error_log((string) $e);
+            $message = 'Fehler beim Versand.';
             if (!$expectsJson) {
                 $_SESSION['error'] = $message;
                 return $response->withHeader(

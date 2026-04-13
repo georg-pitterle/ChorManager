@@ -19,7 +19,6 @@ class AppSettingController
         'image/png',
         'image/jpeg',
         'image/webp',
-        'image/svg+xml',
         'image/gif',
     ];
 
@@ -101,7 +100,7 @@ class AppSettingController
 
             $_SESSION['success'] = 'Einstellungen erfolgreich gespeichert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Speichern: ';
         }
 
         return $response->withHeader('Location', '/settings')->withStatus(302);

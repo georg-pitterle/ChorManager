@@ -57,6 +57,8 @@ class SecurityHardeningFeatureTest extends TestCase
         $layout = file_get_contents(dirname(__DIR__) . '/../templates/layout.twig');
         $layoutModal = file_get_contents(dirname(__DIR__) . '/../templates/layout_modal.twig');
         $commonJs = file_get_contents(dirname(__DIR__) . '/../public/js/common.js');
+        $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/HtmlFormCsrfInjectorMiddleware.php');
+        $pipeline = file_get_contents(dirname(__DIR__) . '/../src/Middleware.php');
         $login = file_get_contents(dirname(__DIR__) . '/../templates/auth/login.twig');
         $forgot = file_get_contents(dirname(__DIR__) . '/../templates/auth/forgot_password.twig');
         $reset = file_get_contents(dirname(__DIR__) . '/../templates/auth/reset_password.twig');
@@ -66,6 +68,8 @@ class SecurityHardeningFeatureTest extends TestCase
         $this->assertIsString($layout);
         $this->assertIsString($layoutModal);
         $this->assertIsString($commonJs);
+        $this->assertIsString($middleware);
+        $this->assertIsString($pipeline);
         $this->assertIsString($login);
         $this->assertIsString($forgot);
         $this->assertIsString($reset);
@@ -81,5 +85,21 @@ class SecurityHardeningFeatureTest extends TestCase
         $this->assertStringContainsString('input type="hidden" name="_csrf" value="{{ csrf_token }}"', $userMenu);
         $this->assertStringContainsString("meta[name=\"csrf-token\"]", $commonJs);
         $this->assertStringContainsString("form[method=\"post\"]", $commonJs);
+        $this->assertStringContainsString('class HtmlFormCsrfInjectorMiddleware', $middleware);
+        $this->assertStringContainsString('$app->add(HtmlFormCsrfInjectorMiddleware::class);', $pipeline);
+    }
+
+    public function testDebugDetailsDefaultToSafeEnvironmentHelper(): void
+    {
+        $settings = file_get_contents(dirname(__DIR__) . '/../src/Settings.php');
+        $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware.php');
+        $environment = file_get_contents(dirname(__DIR__) . '/../src/Util/AppEnvironment.php');
+
+        $this->assertIsString($settings);
+        $this->assertIsString($middleware);
+        $this->assertIsString($environment);
+        $this->assertStringContainsString('AppEnvironment::isDebugEnabled()', $settings);
+        $this->assertStringContainsString('AppEnvironment::isDebugEnabled()', $middleware);
+        $this->assertStringContainsString("EnvHelper::read('APP_ENV', 'production')", $environment);
     }
 }

@@ -56,6 +56,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Attach upload compression behavior to marked forms.
+    if (window.uploadHelper && typeof window.uploadHelper.setupFormCompression === 'function') {
+        document.querySelectorAll('form[data-upload-compress="true"]').forEach(form => {
+            if (!form.dataset.uploadCompressBound) {
+                window.uploadHelper.setupFormCompression(form);
+                form.dataset.uploadCompressBound = '1';
+            }
+        });
+    }
+
     // Attendance event selector (special case)
     const attendanceSelector = document.querySelector('select[name="event_id"].attendance-selector');
     if (attendanceSelector) {

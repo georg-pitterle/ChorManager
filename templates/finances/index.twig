@@ -174,17 +174,17 @@
                                     {% set _item_atts = _item_atts|merge([{id: _att.id, filename: _att.filename}]) %}
                                 {% endfor %}
                                 {% set _item_payload = {
-                                    id: item.id,
-                                    invoice_date: item.invoice_date,
-                                    payment_date: item.payment_date,
-                                    description: item.description,
-                                    group_name: item.group_name,
-                                    type: item.type,
-                                    payment_method: item.payment_method,
-                                    amount: item.amount,
-                                    running_number: item.running_number,
-                                    attachments: _item_atts
-                                } %}
+                                                                    id: item.id,
+                                                                    invoice_date: item.invoice_date,
+                                                                    payment_date: item.payment_date,
+                                                                    description: item.description,
+                                                                    group_name: item.group_name,
+                                                                    type: item.type,
+                                                                    payment_method: item.payment_method,
+                                                                    amount: item.amount,
+                                                                    running_number: item.running_number,
+                                                                    attachments: _item_atts
+                                                                } %}
                                 <td data-label="Aktionen" class="finance-actions-cell text-end">
                                     <div class="finance-actions">
                                         <button class="btn btn-sm btn-outline-secondary"
@@ -225,6 +225,7 @@
                   method="post"
                   enctype="multipart/form-data"
                   id="finance-form"
+                  data-upload-compress="true"
                   class="modal-content border-0 shadow">
                 <div class="modal-header">
                     <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
@@ -379,15 +380,6 @@
             </form>
         </div>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('finance-form');
-            if (form && window.uploadHelper) {
-                window.uploadHelper.setupFormCompression(form);
-            }
-        });
-    </script>
 
     {% block scripts %}
         <script src="/js/finances.js"></script>

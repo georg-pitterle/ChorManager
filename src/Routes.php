@@ -298,25 +298,44 @@ return function (App $app) {
             )->add(new RoleMiddleware(false, 0, false, false, false, false, false, true));
 
             // Newsletter management
-            $group->get('/newsletters', [NewsletterController::class, 'index']);
-            $group->get('/newsletters/archive', [NewsletterController::class, 'archive']);
-            $group->get('/newsletters/create', [NewsletterController::class, 'create']);
-            $group->post('/newsletters', [NewsletterController::class, 'store']);
-            $group->get('/newsletters/{id:[0-9]+}/edit', [NewsletterController::class, 'edit']);
-            $group->post('/newsletters/{id:[0-9]+}', [NewsletterController::class, 'update']);
-            $group->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
-            $group->post('/newsletters/{id:[0-9]+}/send', [NewsletterController::class, 'send']);
-            $group->post('/newsletters/{id:[0-9]+}/save-as-template', [NewsletterController::class, 'saveAsTemplate']);
-            $group->get('/newsletters/template/{id:[0-9]+}', [NewsletterController::class, 'getTemplate']);
-            $group->get('/newsletters/{id:[0-9]+}/check-lock', [NewsletterController::class, 'checkLock']);
-            $group->post('/newsletters/{id:[0-9]+}/delete', [NewsletterController::class, 'deleteDraft']);
+            $group->group(
+                '',
+                function (RouteCollectorProxy $newsletterGroup) {
+                    $newsletterGroup->get('/newsletters', [NewsletterController::class, 'index']);
+                    $newsletterGroup->get('/newsletters/archive', [NewsletterController::class, 'archive']);
+                    $newsletterGroup->get('/newsletters/create', [NewsletterController::class, 'create']);
+                    $newsletterGroup->post('/newsletters', [NewsletterController::class, 'store']);
+                    $newsletterGroup->get('/newsletters/{id:[0-9]+}/edit', [NewsletterController::class, 'edit']);
+                    $newsletterGroup->post('/newsletters/{id:[0-9]+}', [NewsletterController::class, 'update']);
+                    $newsletterGroup->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
+                    $newsletterGroup->post('/newsletters/{id:[0-9]+}/send', [NewsletterController::class, 'send']);
+                    $newsletterGroup->post(
+                        '/newsletters/{id:[0-9]+}/save-as-template',
+                        [NewsletterController::class, 'saveAsTemplate']
+                    );
+                    $newsletterGroup->get('/newsletters/template/{id:[0-9]+}', [NewsletterController::class, 'getTemplate']);
+                    $newsletterGroup->get('/newsletters/{id:[0-9]+}/check-lock', [NewsletterController::class, 'checkLock']);
+                    $newsletterGroup->post('/newsletters/{id:[0-9]+}/delete', [NewsletterController::class, 'deleteDraft']);
 
-            // Newsletter template management
-            $group->get('/newsletters/templates', [NewsletterController::class, 'listTemplates']);
-            $group->post('/newsletters/templates', [NewsletterController::class, 'createTemplate']);
-            $group->get('/newsletters/templates/{id:[0-9]+}/edit', [NewsletterController::class, 'editTemplate']);
-            $group->post('/newsletters/templates/{id:[0-9]+}', [NewsletterController::class, 'updateTemplate']);
-            $group->post('/newsletters/templates/{id:[0-9]+}/clone', [NewsletterController::class, 'cloneTemplate']);
+                    // Newsletter template management
+                    $newsletterGroup->get('/newsletters/templates', [NewsletterController::class, 'listTemplates']);
+                    $newsletterGroup->post('/newsletters/templates', [NewsletterController::class, 'createTemplate']);
+                    $newsletterGroup->get(
+                        '/newsletters/templates/{id:[0-9]+}/edit',
+                        [NewsletterController::class, 'editTemplate']
+                    );
+                    $newsletterGroup->post(
+                        '/newsletters/templates/{id:[0-9]+}',
+                        [NewsletterController::class, 'updateTemplate']
+                    );
+                    $newsletterGroup->post(
+                        '/newsletters/templates/{id:[0-9]+}/clone',
+                        [NewsletterController::class, 'cloneTemplate']
+                    );
+                }
+            )->add(
+                new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, true)
+            );
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])

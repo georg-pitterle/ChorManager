@@ -52,5 +52,13 @@ class AttendanceFeatureTest extends TestCase
         $this->assertIsString($migrationContent);
         $this->assertStringContainsString('ADD COLUMN can_manage_attendance', $migrationContent);
         $this->assertStringContainsString("UPDATE roles SET can_manage_attendance = 1", $migrationContent);
+
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/AttendanceController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('$event = Event::find($eventId);', $controllerContent);
+        $this->assertStringContainsString('if (!$this->canAccessAttendanceEvent($event)) {', $controllerContent);
+        $this->assertStringContainsString('$allowedUserIds = $this->getManageableUserIds();', $controllerContent);
+        $this->assertStringContainsString('private function getManageableUserIds(): array', $controllerContent);
+        $this->assertStringContainsString('private function canAccessAttendanceEvent(Event $event): bool', $controllerContent);
     }
 }

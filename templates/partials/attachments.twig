@@ -42,7 +42,8 @@
               method="post"
               enctype="multipart/form-data"
               class="bg-light p-3 rounded-3"
-              id="attachments-form">
+              id="attachments-form"
+              data-upload-compress="true">
             <label class="form-label small fw-bold mb-1">Neue Dateien hochladen</label>
             <div class="input-group input-group-sm">
                 <input type="file"
@@ -55,14 +56,5 @@
                 </button>
             </div>
         </form>
-
-        <script>
-          document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('attachments-form');
-            if (form && window.uploadHelper) {
-              window.uploadHelper.setupFormCompression(form);
-            }
-          });
-        </script>
     </div>
 </div>

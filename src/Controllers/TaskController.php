@@ -10,6 +10,7 @@ use App\Models\Activity;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\User;
+use App\Services\HtmlSanitizer;
 use App\Util\UploadValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -19,10 +20,12 @@ use Carbon\Carbon;
 class TaskController
 {
     private Twig $view;
+    private HtmlSanitizer $htmlSanitizer;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, HtmlSanitizer $htmlSanitizer)
     {
         $this->view = $view;
+        $this->htmlSanitizer = $htmlSanitizer;
     }
 
     private function hasTaskAccess(Project $project): bool
@@ -42,25 +45,6 @@ class TaskController
     {
         $validPriorities = ['Niedrig', 'Mittel', 'Hoch'];
         return in_array($priority, $validPriorities, true) ? $priority : 'Mittel';
-    }
-
-    private function sanitizeDescriptionHtml(?string $description): string
-    {
-        $html = trim((string) $description);
-
-        if ($html === '') {
-            return '';
-        }
-
-        $html = strip_tags(
-            $html,
-            '<p><br><strong><b><em><i><u><ul><ol><li><a><blockquote><h2><h3><h4><table><thead><tbody><tr><th><td>'
-        );
-
-        $html = preg_replace('/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? $html;
-        $html = preg_replace('/\s+(href|src)\s*=\s*("|\')\s*javascript:[^"\']*\2/i', '', $html) ?? $html;
-
-        return trim($html);
     }
 
     public function index(Request $request, Response $response, array $args): Response
@@ -107,6 +91,7 @@ class TaskController
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
+        $task->description = $this->htmlSanitizer->sanitizeTaskHtml((string) $task->description);
 
         return $this->view->render($response, 'projects/task_detail.twig', [
             'task'    => $task,
@@ -128,7 +113,7 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
-        $description = $this->sanitizeDescriptionHtml($data['description'] ?? '');
+        $description = $this->htmlSanitizer->sanitizeTaskHtml($data['description'] ?? '');
 
         $task = Task::create([
             'project_id'       => $project->id,
@@ -170,7 +155,7 @@ class TaskController
         $oldAssigned = $task->assigned_to;
         $oldDescription = trim((string) $task->description);
         $descriptionInput = array_key_exists('description', $data) ? (string) $data['description'] : $task->description;
-        $description = $this->sanitizeDescriptionHtml($descriptionInput);
+        $description = $this->htmlSanitizer->sanitizeTaskHtml($descriptionInput);
 
         $task->update([
             'name'             => trim($data['title'] ?? $task->name),
@@ -285,8 +270,9 @@ class TaskController
         $uploadedCount = 0;
         foreach ($files as $file) {
             if ($file->getError() === UPLOAD_ERR_OK) {
-                $size = (int) $file->getSize();
                 $mimeType = trim((string) $file->getClientMediaType());
+                $contents = $file->getStream()->getContents();
+                $size = strlen($contents);
 
                 $validation = UploadValidator::validateFileSize($size, $mimeType);
                 if (!$validation['valid']) {
@@ -294,14 +280,13 @@ class TaskController
                     continue;
                 }
 
-                $contents = $file->getStream()->getContents();
                 Attachment::create([
                     'entity_type'   => 'task',
                     'entity_id'     => $task->id,
                     'filename'      => bin2hex(random_bytes(16)) . '_' . $file->getClientFilename(),
                     'original_name' => $file->getClientFilename(),
-                    'mime_type'     => $file->getClientMediaType(),
-                    'file_size'     => strlen($contents),
+                    'mime_type'     => UploadValidator::normalizeMimeType($mimeType),
+                    'file_size'     => $size,
                     'file_content'  => $contents,
                 ]);
                 $uploadedCount++;

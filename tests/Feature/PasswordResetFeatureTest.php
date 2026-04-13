@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\PasswordResetController;
+use App\Services\PasswordPolicyService;
+use App\Services\RateLimiterService;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 
@@ -12,9 +14,31 @@ class PasswordResetFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    private string $rateLimitStoreDir;
+
     protected function setUp(): void
     {
         $_SESSION = [];
+        $this->rateLimitStoreDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cm_password_reset_test_' . uniqid('', true);
+        @mkdir($this->rateLimitStoreDir, 0755, true);
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ((array) glob($this->rateLimitStoreDir . DIRECTORY_SEPARATOR . '*') as $file) {
+            @unlink($file);
+        }
+        @rmdir($this->rateLimitStoreDir);
+    }
+
+    private function makeController(Twig $twig): PasswordResetController
+    {
+        return new PasswordResetController(
+            $twig,
+            null,
+            new RateLimiterService($this->rateLimitStoreDir),
+            new PasswordPolicyService()
+        );
     }
 
     public function testPasswordResetStructureExists(): void
@@ -38,7 +62,7 @@ class PasswordResetFeatureTest extends TestCase
     public function testSendResetLinkRejectsInvalidEmail(): void
     {
         $twig = $this->createMock(Twig::class);
-        $controller = new PasswordResetController($twig);
+        $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/forgot-password', ['email' => 'invalid-email']);
         $response = $this->makeResponse();
@@ -52,7 +76,7 @@ class PasswordResetFeatureTest extends TestCase
     public function testShowResetFormRejectsMissingTokenOrEmail(): void
     {
         $twig = $this->createMock(Twig::class);
-        $controller = new PasswordResetController($twig);
+        $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('GET', '/reset-password');
         $response = $this->makeResponse();
@@ -66,7 +90,7 @@ class PasswordResetFeatureTest extends TestCase
     public function testProcessResetRejectsMissingRequiredFields(): void
     {
         $twig = $this->createMock(Twig::class);
-        $controller = new PasswordResetController($twig);
+        $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [
             'token' => '',
@@ -85,7 +109,7 @@ class PasswordResetFeatureTest extends TestCase
     public function testProcessResetRejectsPasswordMismatch(): void
     {
         $twig = $this->createMock(Twig::class);
-        $controller = new PasswordResetController($twig);
+        $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [
             'token' => 'abc',
@@ -104,7 +128,7 @@ class PasswordResetFeatureTest extends TestCase
     public function testProcessResetRejectsTooShortPassword(): void
     {
         $twig = $this->createMock(Twig::class);
-        $controller = new PasswordResetController($twig);
+        $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [
             'token' => 'abc',
@@ -120,3 +144,4 @@ class PasswordResetFeatureTest extends TestCase
         $this->assertSame('Das Passwort muss mindestens 6 Zeichen lang sein.', $_SESSION['error']);
     }
 }
+

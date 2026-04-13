@@ -112,4 +112,17 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString("->where('entity_id', " . '$' . "id)", $controllerContent);
         $this->assertStringContainsString("->delete();", $controllerContent);
     }
+
+    public function testSponsorshipControllerBindsUpdatesAndDeletesToPostedSponsorId(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SponsorshipController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("$" . "providedSponsorId = (int) (" . '$' . "data['sponsor_id'] ?? 0);", $controllerContent);
+        $this->assertStringContainsString(
+            "if (" . '$' . "providedSponsorId > 0 && " . '$' . "providedSponsorId !== (int) " . '$' . "sponsorship->sponsor_id)",
+            $controllerContent
+        );
+        $this->assertStringContainsString("'file_size'      => " . '$' . "size", $controllerContent);
+    }
 }

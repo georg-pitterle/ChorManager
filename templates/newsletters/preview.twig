@@ -35,7 +35,7 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="newsletter-content newsletter-content-preview">{{ newsletter.content_html|raw }}</div>
+                        <div class="newsletter-content newsletter-content-preview">{{ preview_content_html|raw }}</div>
                     </div>
                     <div class="card-footer">
                         <div class="text-muted text-center">
@@ -49,29 +49,4 @@
             </div>
         </div>
     </div>
-
-    <style>
-    .newsletter-content img {
-        max-width: 100%;
-        height: auto;
-    }
-
-    .newsletter-content table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .newsletter-content table, .newsletter-content th, .newsletter-content td {
-        border: 1px solid #ddd;
-    }
-
-    .newsletter-content th, .newsletter-content td {
-        padding: 12px;
-        text-align: left;
-    }
-
-    .newsletter-content th {
-        background-color: #f2f2f2;
-    }
-    </style>
 {% endblock content %}

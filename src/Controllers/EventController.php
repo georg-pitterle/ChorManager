@@ -23,11 +23,20 @@ class EventController
     public function index(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $accessibleProjects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $accessibleProjectIds = $accessibleProjects->pluck('id')->map(static fn($id) => (int) $id)->all();
+
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $eventTypeId = !empty($queryParams['event_type_id']) ? (int)$queryParams['event_type_id'] : null;
         $sort = $queryParams['sort'] ?? 'event_date';
         $direction = $queryParams['direction'] ?? 'asc';
         $showOldEvents = !empty($queryParams['show_old_events']) ? (int)$queryParams['show_old_events'] : 0;
+
+        if ($projectId !== null && $projectId > 0 && !$canManageUsers && !in_array($projectId, $accessibleProjectIds, true)) {
+            return $response->withStatus(403);
+        }
 
         // Allowed sort columns
         $allowedSorts = ['event_date', 'title', 'type', 'project_name', 'location'];
@@ -36,6 +45,16 @@ class EventController
         }
 
         $query = Event::query();
+
+        if (!$canManageUsers) {
+            $query->where(function ($scopedQuery) use ($accessibleProjectIds) {
+                $scopedQuery->whereNull('project_id');
+
+                if (!empty($accessibleProjectIds)) {
+                    $scopedQuery->orWhereIn('project_id', $accessibleProjectIds);
+                }
+            });
+        }
 
         if ($projectId) {
             $query->where('project_id', $projectId);
@@ -51,12 +70,12 @@ class EventController
 
         if ($sort === 'project_name') {
             $query->leftJoin('projects', 'events.project_id', '=', 'projects.id')
-                  ->orderBy('projects.name', $direction)
-                  ->select('events.*');
+                ->orderBy('projects.name', $direction)
+                ->select('events.*');
         } elseif ($sort === 'type') {
             $query->leftJoin('event_types', 'events.event_type_id', '=', 'event_types.id')
-                  ->orderBy('event_types.name', $direction)
-                  ->select('events.*');
+                ->orderBy('event_types.name', $direction)
+                ->select('events.*');
         } else {
             $query->orderBy($sort, $direction);
         }
@@ -89,7 +108,7 @@ class EventController
             return $event;
         });
 
-        $projects = Project::orderBy('name')->get();
+        $projects = $accessibleProjects;
         $eventTypes = \App\Models\EventType::orderBy('name')->get();
 
         $success = $_SESSION['success'] ?? null;
@@ -112,6 +131,25 @@ class EventController
         ]);
     }
 
+    private function getAccessibleProjects(int $userId, bool $canManageUsers)
+    {
+        if ($canManageUsers) {
+            return Project::orderBy('name')->get();
+        }
+
+        if ($userId <= 0) {
+            return Project::query()->whereRaw('1 = 0')->get();
+        }
+
+        return Project::query()
+            ->select('projects.*')
+            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+            ->where('project_users.user_id', $userId)
+            ->distinct()
+            ->orderBy('projects.name')
+            ->get();
+    }
+
     public function create(Request $request, Response $response): Response
     {
         $data = (array)$request->getParsedBody();
@@ -120,6 +158,11 @@ class EventController
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $repeat = !empty($data['repeat']);
+
+        if (!$this->canAccessProjectId($projectId)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events')->withStatus(403);
+        }
 
         if (!$eventDateStr) {
             $_SESSION['error'] = 'Datum ist ein Pflichtfeld.';
@@ -233,7 +276,7 @@ class EventController
                 $_SESSION['success'] = "Serie erfolgreich angelegt ($count Termine).";
             }
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler: ';
         }
 
         return $response->withHeader('Location', '/events')->withStatus(302);
@@ -247,7 +290,13 @@ class EventController
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
 
-        $projects = Project::orderBy('name')->get();
+        if (!$this->canAccessEvent($event)) {
+            return $response->withStatus(403);
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $projects = $this->getAccessibleProjects($userId, $canManageUsers);
         $eventTypes = \App\Models\EventType::orderBy('name')->get();
 
         return $this->view->render($response, 'events/edit.twig', [
@@ -266,12 +315,22 @@ class EventController
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
 
+        if (!$this->canAccessEvent($event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events')->withStatus(403);
+        }
+
         $data = (array)$request->getParsedBody();
         $title = trim($data['title'] ?? '');
         $eventDateStr = $data['event_date'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $updateSeries = !empty($data['update_series']);
+
+        if (!$this->canAccessProjectId($projectId)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
+        }
 
         if (!$eventDateStr) {
             $_SESSION['error'] = 'Datum ist ein Pflichtfeld.';
@@ -299,8 +358,17 @@ class EventController
 
             if ($updateSeries && $event->series_id) {
                 $eventsToUpdate = Event::where('series_id', $event->series_id)
-                                        ->where('event_date', '>=', $event->event_date)
-                                        ->get();
+                    ->where('event_date', '>=', $event->event_date)
+                    ->get();
+
+                $hasUnauthorizedSeriesEvent = $eventsToUpdate->contains(function ($seriesEvent) {
+                    return !$this->canAccessEvent($seriesEvent);
+                });
+
+                if ($hasUnauthorizedSeriesEvent) {
+                    $_SESSION['error'] = 'Zugriff verweigert.';
+                    return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
+                }
 
                 foreach ($eventsToUpdate as $eventInSeries) {
                     $eventInSeries->update($updateData);
@@ -312,12 +380,12 @@ class EventController
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
             } else {
-                 $updateData['event_date'] = $eventDateStr;
-                 $event->update($updateData);
+                $updateData['event_date'] = $eventDateStr;
+                $event->update($updateData);
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
             }
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler: ';
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -328,9 +396,12 @@ class EventController
     {
         $id = $args['id'];
         $event = Event::find($id);
-        if ($event) {
+        if ($event && $this->canAccessEvent($event)) {
             $event->delete();
             $_SESSION['success'] = 'Termin gelöscht.';
+        } elseif ($event) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events')->withStatus(403);
         }
         return $response->withHeader('Location', '/events')->withStatus(302);
     }
@@ -339,15 +410,59 @@ class EventController
     {
         $id = $args['id'];
         $event = Event::find($id);
+        if ($event && !$this->canAccessEvent($event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events')->withStatus(403);
+        }
+
         if ($event && $event->series_id) {
             $seriesId = $event->series_id;
-            // Delete all future events of this series (including current)
-            Event::where('series_id', $seriesId)
+            $eventsToDelete = Event::where('series_id', $seriesId)
                 ->where('event_date', '>=', $event->event_date)
-                ->delete();
+                ->get();
+
+            $hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {
+                return !$this->canAccessEvent($seriesEvent);
+            });
+
+            if ($hasUnauthorizedSeriesEvent) {
+                $_SESSION['error'] = 'Zugriff verweigert.';
+                return $response->withHeader('Location', '/events')->withStatus(403);
+            }
+
+            // Delete all future events of this series (including current)
+            Event::whereIn('id', $eventsToDelete->pluck('id')->all())->delete();
 
             $_SESSION['success'] = 'Alle zukünftigen Termine der Serie wurden gelöscht.';
         }
         return $response->withHeader('Location', '/events')->withStatus(302);
+    }
+
+    private function canAccessEvent(Event $event): bool
+    {
+        return $this->canAccessProjectId($event->project_id !== null ? (int) $event->project_id : null);
+    }
+
+    private function canAccessProjectId(?int $projectId): bool
+    {
+        if ($projectId === null) {
+            return true;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        if ($canManageUsers) {
+            return true;
+        }
+
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return Project::query()
+            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+            ->where('project_users.user_id', $userId)
+            ->where('projects.id', $projectId)
+            ->exists();
     }
 }

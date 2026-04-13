@@ -142,10 +142,32 @@ class AttendanceController
         $attendances = $data['attendance'] ?? [];
         $notes = $data['note'] ?? [];
 
+        $event = Event::find($eventId);
+        if (!$event) {
+            $_SESSION['error'] = 'Event nicht gefunden.';
+            return $response->withHeader('Location', '/attendance')->withStatus(302);
+        }
+
+        if (!$this->canAccessAttendanceEvent($event)) {
+            $_SESSION['error'] = 'Zugriff verweigert: Keine Berechtigung für dieses Event.';
+            return $response->withHeader('Location', '/attendance/' . $eventId)->withStatus(403);
+        }
+
+        $allowedUserIds = $this->getManageableUserIds();
+        $submittedUserIds = array_values(array_unique(array_map('intval', array_keys((array) $attendances))));
+        $unauthorizedUserIds = array_diff($submittedUserIds, $allowedUserIds);
+
+        if (!empty($unauthorizedUserIds)) {
+            $_SESSION['error'] = 'Zugriff verweigert: Unzulässige Personen in der Anwesenheitsliste.';
+            return $response->withHeader('Location', '/attendance/' . $eventId)->withStatus(403);
+        }
+
         Capsule::beginTransaction();
 
         try {
             foreach ($attendances as $userId => $status) {
+                $userId = (int) $userId;
+
                 if (!in_array($status, ['present', 'excused', 'unexcused'])) {
                     continue;
                 }
@@ -163,7 +185,7 @@ class AttendanceController
             $_SESSION['success'] = 'Anwesenheiten erfolgreich gespeichert.';
         } catch (\Exception $e) {
             Capsule::rollBack();
-            $_SESSION['error'] = 'Fehler beim Speichern aufgetreten: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Speichern aufgetreten: ';
         }
 
         return $response->withHeader('Location', '/attendance/' . $eventId)->withStatus(302);
@@ -253,5 +275,57 @@ class AttendanceController
         }
 
         return [$previousEventId, $nextEventId];
+    }
+
+    /**
+     * @return array<int>
+     */
+    private function getManageableUserIds(): array
+    {
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
+        $roleLevel = (int) ($_SESSION['role_level'] ?? 0);
+
+        if (!$canManageUsers && $roleLevel < 80) {
+            if (empty($userVoiceGroupIds)) {
+                return [];
+            }
+
+            return User::whereHas('voiceGroups', function ($query) use ($userVoiceGroupIds) {
+                $query->whereIn('voice_group_id', $userVoiceGroupIds);
+            })
+                ->where('is_active', 1)
+                ->pluck('id')
+                ->map(static fn($id) => (int) $id)
+                ->all();
+        }
+
+        return User::where('is_active', 1)
+            ->pluck('id')
+            ->map(static fn($id) => (int) $id)
+            ->all();
+    }
+
+    private function canAccessAttendanceEvent(Event $event): bool
+    {
+        if ((bool) ($_SESSION['can_manage_users'] ?? false)) {
+            return true;
+        }
+
+        if ($event->project_id === null) {
+            return true;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return User::query()
+            ->where('users.id', $userId)
+            ->whereHas('projects', function ($projectQuery) use ($event) {
+                $projectQuery->where('projects.id', (int) $event->project_id);
+            })
+            ->exists();
     }
 }

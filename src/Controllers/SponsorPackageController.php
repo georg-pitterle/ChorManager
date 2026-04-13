@@ -52,7 +52,7 @@ class SponsorPackageController
             ]);
             $_SESSION['success'] = 'Paket erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
@@ -79,7 +79,7 @@ class SponsorPackageController
             ]);
             $_SESSION['success'] = 'Paket erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
@@ -98,7 +98,7 @@ class SponsorPackageController
             $package->delete();
             $_SESSION['success'] = 'Paket erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);

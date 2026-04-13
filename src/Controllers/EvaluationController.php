@@ -32,6 +32,9 @@ class EvaluationController
         );
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $projects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         if ($projectId <= 0 && $userId > 0) {
             $user = User::find($userId);
@@ -40,12 +43,15 @@ class EvaluationController
             }
         }
 
-        $projects = Project::orderBy('name')->get();
         $stats = [];
         $selectedProject = null;
         $totalEvents = 0;
 
         if ($projectId > 0) {
+            if (!in_array($projectId, $accessibleProjectIds, true)) {
+                return $response->withStatus(403);
+            }
+
             $selectedProject = Project::find($projectId);
 
             if ($selectedProject) {
@@ -63,6 +69,9 @@ class EvaluationController
                 if ($totalEvents > 0) {
                     // Get all active users, eager load their attendances for this specific project's events
                     $users = User::where('is_active', 1)
+                        ->whereHas('projects', function ($projectQuery) use ($projectId) {
+                            $projectQuery->where('projects.id', $projectId);
+                        })
                         ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
                             $q->whereHas('event', function ($sq) use ($projectId) {
                                 $sq->where('project_id', $projectId);
@@ -111,6 +120,9 @@ class EvaluationController
         $params = $request->getQueryParams();
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $projects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         if ($projectId <= 0 && $userId > 0) {
             $user = User::find($userId);
@@ -119,11 +131,14 @@ class EvaluationController
             }
         }
 
-        $projects = Project::orderBy('name')->get();
         $selectedProject = null;
         $groupedMembers = [];
 
         if ($projectId > 0) {
+            if (!in_array($projectId, $accessibleProjectIds, true)) {
+                return $response->withStatus(403);
+            }
+
             $selectedProject = Project::find($projectId);
             if ($selectedProject) {
                 $roleLevel = (int)($_SESSION['role_level'] ?? 0);
@@ -151,5 +166,24 @@ class EvaluationController
             'selected_project' => $selectedProject,
             'grouped_members' => $groupedMembers
         ]);
+    }
+
+    private function getAccessibleProjects(int $userId, bool $canManageUsers)
+    {
+        if ($canManageUsers) {
+            return Project::orderBy('name')->get();
+        }
+
+        if ($userId <= 0) {
+            return Project::query()->whereRaw('1 = 0')->get();
+        }
+
+        return Project::query()
+            ->select('projects.*')
+            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+            ->where('project_users.user_id', $userId)
+            ->distinct()
+            ->orderBy('projects.name')
+            ->get();
     }
 }

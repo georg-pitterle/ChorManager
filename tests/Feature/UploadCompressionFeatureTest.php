@@ -43,6 +43,20 @@ class UploadCompressionFeatureTest extends TestCase
         $this->assertTrue($result['valid']);
     }
 
+    public function testUnsupportedMimeTypeIsRejectedEvenWhenSizeIsSmall(): void
+    {
+        $result = UploadValidator::validateFileSize(1024, 'text/html');
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('kein erlaubter Dateityp', $result['error']);
+    }
+
+    public function testAllowedMimeCheckNormalizesCaseAndWhitespace(): void
+    {
+        $this->assertTrue(UploadValidator::isAllowedMimeType(' Application/PDF '));
+        $this->assertSame('application/pdf', UploadValidator::normalizeMimeType(' Application/PDF '));
+    }
+
     public function testGetImageMimeTypesReturnsCommonFormats(): void
     {
         $types = UploadValidator::getImageMimeTypes();

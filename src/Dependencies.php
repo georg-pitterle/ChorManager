@@ -49,7 +49,14 @@ return function (ContainerBuilder $containerBuilder) {
 
         Twig::class => function (ContainerInterface $c) {
             $settings = $c->get('settings')['view'];
-            $twig = Twig::create($settings['template_path'], ['cache' => $settings['cache_path']]);
+            // Explicitly enable autoescape for security (HTML context)
+            $twig = Twig::create(
+                $settings['template_path'],
+                [
+                    'cache' => $settings['cache_path'],
+                    'autoescape' => 'html',  // Explicit security: escape output context to HTML
+                ]
+            );
 
             // Add session to twig global environment
             $environment = $twig->getEnvironment();

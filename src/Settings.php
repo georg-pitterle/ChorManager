@@ -3,13 +3,14 @@
 declare(strict_types=1);
 
 use DI\ContainerBuilder;
+use App\Util\AppEnvironment;
 use App\Util\EnvHelper;
 
 return function (ContainerBuilder $containerBuilder) {
     // Global Settings Object
     $containerBuilder->addDefinitions([
         'settings' => [
-            'displayErrorDetails' => EnvHelper::read('APP_ENV', 'development') !== 'production', // Set to false in production
+            'displayErrorDetails' => AppEnvironment::isDebugEnabled(),
             'db' => [
                 'driver' => 'mysql',
                 'host' => EnvHelper::read('DB_HOST', 'db'),

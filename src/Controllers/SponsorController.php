@@ -92,7 +92,7 @@ class SponsorController
             ]);
             $_SESSION['success'] = 'Sponsor erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
@@ -154,7 +154,7 @@ class SponsorController
             ]);
             $_SESSION['success'] = 'Sponsor erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
@@ -168,7 +168,7 @@ class SponsorController
             Sponsor::findOrFail($id)->delete();
             $_SESSION['success'] = 'Sponsor erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);

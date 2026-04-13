@@ -48,7 +48,7 @@ class SponsoringContactController
             ]);
             $_SESSION['success'] = 'Kontakt erfolgreich protokolliert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Speichern: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -67,7 +67,7 @@ class SponsoringContactController
             $sponsorId = $contact->sponsor_id;
             $_SESSION['success'] = 'Wiedervorlage als erledigt markiert.';
         } catch (\Throwable $e) {
-            $_SESSION['error'] = 'Fehler: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler: ';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -131,7 +131,7 @@ class SponsoringContactController
 
             $_SESSION['success'] = 'Kontakt erfolgreich aktualisiert.';
         } catch (\Throwable $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -148,7 +148,7 @@ class SponsoringContactController
             $contact->delete();
             $_SESSION['success'] = 'Kontakt erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 

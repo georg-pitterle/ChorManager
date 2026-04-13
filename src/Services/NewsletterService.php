@@ -8,6 +8,7 @@ use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
 use App\Models\User;
+use App\Services\HtmlSanitizer;
 use Carbon\Carbon;
 use Exception;
 
@@ -15,11 +16,16 @@ class NewsletterService
 {
     private NewsletterRecipientService $recipientService;
     private Mailer $mailer;
+    private HtmlSanitizer $htmlSanitizer;
 
-    public function __construct(NewsletterRecipientService $recipientService, Mailer $mailer)
-    {
+    public function __construct(
+        NewsletterRecipientService $recipientService,
+        Mailer $mailer,
+        HtmlSanitizer $htmlSanitizer
+    ) {
         $this->recipientService = $recipientService;
         $this->mailer = $mailer;
+        $this->htmlSanitizer = $htmlSanitizer;
     }
 
     /**
@@ -122,7 +128,7 @@ class NewsletterService
         }
 
         $emailSubject = $newsletter->title;
-        $emailContent = $newsletter->content_html;
+        $emailContent = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
 
         $sent = $this->mailer->sendHtmlMail($toEmail, $emailSubject, $emailContent);
         if (!$sent) {

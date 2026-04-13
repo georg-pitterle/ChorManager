@@ -69,5 +69,7 @@ class UserManagementFeatureTest extends TestCase
         $this->assertStringNotContainsString('participation.is_archived', $twig);
         $this->assertStringContainsString("tableContainer.dataset.roleOptions", $plugin);
         $this->assertStringContainsString("rowHasToken(row, 'role', state.role)", $plugin);
+        $this->assertStringContainsString('if (!$this->canDeactivateTargetUser($targetUser)) {', $controller);
+        $this->assertStringContainsString('private function canDeactivateTargetUser(User $targetUser): bool', $controller);
     }
 }

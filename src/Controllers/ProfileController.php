@@ -9,16 +9,19 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Queries\UserQuery;
 use App\Models\User;
+use App\Services\PasswordPolicyService;
 
 class ProfileController
 {
     private Twig $view;
     private UserQuery $userQuery;
+    private PasswordPolicyService $passwordPolicyService;
 
-    public function __construct(Twig $view, UserQuery $userQuery)
+    public function __construct(Twig $view, UserQuery $userQuery, PasswordPolicyService $passwordPolicyService)
     {
         $this->view = $view;
         $this->userQuery = $userQuery;
+        $this->passwordPolicyService = $passwordPolicyService;
     }
 
     public function index(Request $request, Response $response): Response
@@ -69,7 +72,8 @@ class ProfileController
                 $_SESSION['user_name'] = $firstName;
             }
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ' . $e->getMessage();
+            error_log((string) $e);
+            $_SESSION['error'] = 'Fehler beim Speichern.';
         }
 
         return $response->withHeader('Location', '/profile')->withStatus(302);
@@ -91,6 +95,12 @@ class ProfileController
 
         if ($newPassword !== $newPasswordConfirm) {
             $_SESSION['error'] = 'Das neue Passwort und die Bestätigung stimmen nicht überein.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        $passwordError = $this->passwordPolicyService->validate($newPassword);
+        if ($passwordError !== null) {
+            $_SESSION['error'] = $passwordError;
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 

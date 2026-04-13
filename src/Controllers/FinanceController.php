@@ -187,8 +187,9 @@ class FinanceController
 
                 foreach ($files as $file) {
                     if ($file->getError() === UPLOAD_ERR_OK) {
-                        $size = (int) $file->getSize();
                         $mimeType = trim((string) $file->getClientMediaType());
+                        $contents = $file->getStream()->getContents();
+                        $size = strlen($contents);
 
                         // Use centralized validation
                         $validation = UploadValidator::validateFileSize($size, $mimeType);
@@ -204,14 +205,15 @@ class FinanceController
                             'entity_id' => $finance->id,
                             'filename' => $safeName,
                             'original_name' => $safeName,
-                            'mime_type' => $mimeType,
-                            'file_content' => $file->getStream()->getContents(),
+                            'mime_type' => UploadValidator::normalizeMimeType($mimeType),
+                            'file_size' => $size,
+                            'file_content' => $contents,
                         ]);
                     }
                 }
             }
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Speichern: ';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
@@ -226,7 +228,7 @@ class FinanceController
             Finance::findOrFail($financeId)->delete();
             $_SESSION['success'] = 'Eintrag erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen: ';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
@@ -309,11 +311,12 @@ class FinanceController
             $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
             $response->getBody()->write($attachment->file_content);
             $safeName = self::normalizeFileName((string) $attachment->filename);
+            $disposition = self::isInlineViewableMimeType((string) $attachment->mime_type) ? 'inline' : 'attachment';
             return $response
                 ->withHeader('Content-Type', $attachment->mime_type)
                 ->withHeader(
                     'Content-Disposition',
-                    'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
+                    $disposition . '; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
                 );
         } catch (\Exception $e) {
             return $response->withStatus(404);
@@ -327,7 +330,7 @@ class FinanceController
             $attachment->delete();
             $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen des Anhangs: ' . $e->getMessage();
+            $_SESSION['error'] = 'Fehler beim Löschen des Anhangs: ';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
@@ -337,5 +340,17 @@ class FinanceController
         $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
         $trimmed = trim($safe);
         return $trimmed !== '' ? $trimmed : 'download';
+    }
+
+    private static function isInlineViewableMimeType(string $mimeType): bool
+    {
+        return in_array(UploadValidator::normalizeMimeType($mimeType), [
+            'application/pdf',
+            'image/gif',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'text/plain',
+        ], true);
     }
 }
