@@ -475,5 +475,14 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString("'comments'", $seedContent);
         $this->assertStringContainsString("'activities'", $seedContent);
         $this->assertStringContainsString("'attachments'", $seedContent);
+
+        // Check task seed methods are wired in run flow
+        $this->assertStringContainsString("'task_activities' => 0", $seedContent);
+        $this->assertStringContainsString("'task_comments' => 0", $seedContent);
+        $this->assertStringContainsString("'task_attachments' => 0", $seedContent);
+        $this->assertStringContainsString('$tasks = $this->seedTasks($projects, $users[\'active\']);', $seedContent);
+        $this->assertStringContainsString('$this->seedTaskActivities($tasks, $users[\'active\']);', $seedContent);
+        $this->assertStringContainsString('$this->seedTaskComments($tasks, $users[\'active\']);', $seedContent);
+        $this->assertStringContainsString('$this->seedTaskAttachments($tasks, 40);', $seedContent);
     }
 }

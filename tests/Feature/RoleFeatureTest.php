@@ -71,4 +71,13 @@ class RoleFeatureTest extends TestCase
         $this->assertIsString($templateContent);
         $this->assertStringContainsString('<td data-label="{{ role.name }}">', $templateContent);
     }
+
+    public function testDevSeedServiceIncludesTaskRolePermissionDefaults(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString("'can_manage_tasks' => 1", $seedContent);
+        $this->assertStringContainsString("'can_manage_tasks' => 0", $seedContent);
+    }
 }

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\AppSetting;
+use App\Models\Activity;
 use App\Models\Attendance;
+use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\EventType;
@@ -20,11 +22,13 @@ use App\Models\Project;
 use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\Song;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
 use App\Models\SubVoice;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use DateTimeImmutable;
@@ -87,6 +91,12 @@ class DevSeedService
                 'user_voice_groups' => 0,
                 'projects' => 0,
                 'project_users' => 0,
+                'songs' => 0,
+                'song_attachments' => 0,
+                'tasks' => 0,
+                'task_activities' => 0,
+                'task_comments' => 0,
+                'task_attachments' => 0,
                 'event_types' => 0,
                 'event_series' => 0,
                 'events' => 0,
@@ -125,6 +135,12 @@ class DevSeedService
 
             $projects = $this->seedProjects($years);
             $projectMembers = $this->seedProjectMembers($projects, $users['active']);
+            $songs = $this->seedSongs($projects, $users['active']);
+            $this->seedSongAttachments($songs, 48);
+            $tasks = $this->seedTasks($projects, $users['active']);
+            $this->seedTaskActivities($tasks, $users['active']);
+            $this->seedTaskComments($tasks, $users['active']);
+            $this->seedTaskAttachments($tasks, 40);
 
             $projectEvents = $this->seedProjectEvents($projects, $eventTypes);
             $this->seedGlobalEvents($projects, $eventTypes, 12);
@@ -176,6 +192,7 @@ class DevSeedService
             'attachments',
             'comments',
             'tasks',
+            'songs',
             'remember_logins',
             'password_resets',
             'sponsoring_contacts',
@@ -224,6 +241,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
+                'can_manage_tasks' => 1,
             ],
             [
                 'name' => 'Vorstand',
@@ -237,6 +255,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
+                'can_manage_tasks' => 1,
             ],
             [
                 'name' => 'Chorleitung',
@@ -250,6 +269,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
+                'can_manage_tasks' => 1,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -263,6 +283,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_tasks' => 0,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -276,6 +297,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_tasks' => 0,
             ],
             [
                 'name' => 'Mitglied',
@@ -289,6 +311,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_tasks' => 0,
             ],
         ];
 
@@ -846,6 +869,7 @@ class DevSeedService
                     'filename' => sprintf('beleg-%05d.txt', $finance->running_number),
                     'original_name' => sprintf('beleg-%05d.txt', $finance->running_number),
                     'mime_type' => 'text/plain',
+                    'file_size' => strlen('Automatisch generierter Testbeleg fuer Laufnummer ' . $finance->running_number),
                     'file_content' => 'Automatisch generierter Testbeleg fuer Laufnummer ' . $finance->running_number,
                 ]);
                 $this->report['counts']['finance_attachments']++;
@@ -865,6 +889,7 @@ class DevSeedService
                 'filename' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
                 'original_name' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
                 'mime_type' => 'text/plain',
+                'file_size' => strlen('Zusatzbeleg fuer Testdaten.'),
                 'file_content' => 'Zusatzbeleg fuer Testdaten.',
             ]);
             $this->report['counts']['finance_attachments']++;
@@ -912,6 +937,7 @@ class DevSeedService
     {
         $settings = [
             'app_name' => 'Chor-Manager (Seed)',
+            'primary_color' => '#E8A817',
         ];
 
         foreach ($settings as $key => $value) {
@@ -1529,6 +1555,7 @@ class DevSeedService
                 [
                     'filename' => $storedFilename,
                     'mime_type' => $definition['mime_type'],
+                    'file_size' => strlen($definition['file_content']),
                     'file_content' => $definition['file_content'],
                 ]
             );
@@ -1536,6 +1563,274 @@ class DevSeedService
             if ($attachment->wasRecentlyCreated) {
                 $this->report['counts']['sponsor_attachments']++;
             }
+        }
+    }
+
+    private function seedSongs(array $projects, array $activeUsers): array
+    {
+        if (count($projects) === 0) {
+            $this->report['warnings'][] = 'No projects available for song library seed.';
+            return [];
+        }
+
+        $definitions = [
+            ['title' => 'Ave Verum', 'composer' => 'W. A. Mozart', 'arranger' => null, 'publisher' => 'Chor Verlag'],
+            ['title' => 'Dona Nobis Pacem', 'composer' => 'Traditional', 'arranger' => 'M. Leitner', 'publisher' => null],
+            ['title' => 'Cantate Domino', 'composer' => 'K. Jenkins', 'arranger' => null, 'publisher' => 'Musica Nova'],
+            ['title' => 'Hallelujah', 'composer' => 'L. Cohen', 'arranger' => 'A. Huber', 'publisher' => 'Harmony Print'],
+            ['title' => 'Gaudete', 'composer' => 'Traditional', 'arranger' => null, 'publisher' => null],
+            ['title' => 'Abendlied', 'composer' => 'J. Rheinberger', 'arranger' => null, 'publisher' => 'Edition Klang'],
+        ];
+
+        $songs = [];
+        $activeUserCount = count($activeUsers);
+
+        foreach ($projects as $projectIndex => $project) {
+            foreach ($definitions as $songIndex => $definition) {
+                $createdBy = $activeUserCount > 0
+                    ? $activeUsers[($projectIndex + $songIndex) % $activeUserCount]
+                    : null;
+
+                $song = Song::updateOrCreate(
+                    [
+                        'project_id' => $project->id,
+                        'title' => $definition['title'],
+                    ],
+                    [
+                        'composer' => $definition['composer'],
+                        'arranger' => $definition['arranger'],
+                        'publisher' => $definition['publisher'],
+                        'created_by_user_id' => $createdBy?->id,
+                    ]
+                );
+
+                if ($song->wasRecentlyCreated) {
+                    $this->report['counts']['songs']++;
+                }
+
+                $songs[] = $song;
+            }
+        }
+
+        return $songs;
+    }
+
+    private function seedSongAttachments(array $songs, int $targetCount): void
+    {
+        if (count($songs) === 0 || $targetCount <= 0) {
+            return;
+        }
+
+        $created = 0;
+        $attempt = 0;
+        $maxAttempts = ($targetCount * 5) + count($songs);
+
+        while ($created < $targetCount && $attempt < $maxAttempts) {
+            $song = $songs[$attempt % count($songs)];
+            $slot = (int) floor($attempt / count($songs)) + 1;
+            $originalName = sprintf('notenblatt-%d-%02d.pdf', $song->id, $slot);
+            $content = 'PDF Testinhalt: Notenblatt fuer Song ' . $song->id . ' (Version ' . $slot . ').';
+
+            $attachment = Attachment::firstOrCreate(
+                [
+                    'entity_type' => 'song',
+                    'entity_id' => $song->id,
+                    'original_name' => $originalName,
+                ],
+                [
+                    'filename' => sprintf('seed-song-%d-%02d.pdf', $song->id, $slot),
+                    'mime_type' => 'application/pdf',
+                    'file_size' => strlen($content),
+                    'file_content' => $content,
+                ]
+            );
+
+            if ($attachment->wasRecentlyCreated) {
+                $created++;
+                $this->report['counts']['song_attachments']++;
+            }
+
+            $attempt++;
+        }
+    }
+
+    private function seedTasks(array $projects, array $activeUsers): array
+    {
+        if (count($projects) === 0 || count($activeUsers) === 0) {
+            $this->report['warnings'][] = 'Missing projects or active users for task seed.';
+            return [];
+        }
+
+        $taskTemplates = [
+            ['name' => 'Saalreservierung', 'description' => '<p>Reservierung fuer die Hauptprobe bestaetigen.</p>'],
+            ['name' => 'Programmheft finalisieren', 'description' => '<p>Programmheft inklusive Sponsorlogos abstimmen.</p>'],
+            ['name' => 'Notenmaterial verteilen', 'description' => '<p>Aktualisierte Stimmen als PDF bereitstellen.</p>'],
+            ['name' => 'Generalprobe koordinieren', 'description' => '<p>Ablauf, Einsingzeit und Technikslot planen.</p>'],
+            ['name' => 'Social-Media-Ankuendigung', 'description' => '<p>Beitragsreihe fuer Konzertwoche vorbereiten.</p>'],
+        ];
+        $statuses = ['Offen', 'In Bearbeitung', 'Abgeschlossen', 'Blockiert'];
+        $priorities = ['Niedrig', 'Mittel', 'Hoch'];
+
+        $tasks = [];
+        $userCount = count($activeUsers);
+
+        foreach ($projects as $projectIndex => $project) {
+            $baseDate = $project->start_date
+                ? new DateTimeImmutable((string) $project->start_date)
+                : (new DateTimeImmutable())->modify('-30 days');
+
+            foreach ($taskTemplates as $templateIndex => $template) {
+                $creator = $activeUsers[($projectIndex + $templateIndex) % $userCount];
+                $assigned = (($templateIndex + $projectIndex) % 4 === 0)
+                    ? null
+                    : $activeUsers[($projectIndex + $templateIndex + 3) % $userCount];
+
+                $startDate = $baseDate->modify('+' . ($templateIndex * 5) . ' days')->format('Y-m-d');
+                $endDate = $baseDate->modify('+' . (($templateIndex * 5) + 14) . ' days')->format('Y-m-d');
+
+                $task = Task::updateOrCreate(
+                    [
+                        'project_id' => $project->id,
+                        'name' => $template['name'] . ' - ' . $project->name,
+                    ],
+                    [
+                        'description' => $template['description'],
+                        'assigned_to' => $assigned?->id,
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
+                        'status' => $statuses[($projectIndex + $templateIndex) % count($statuses)],
+                        'priority' => $priorities[($projectIndex + $templateIndex) % count($priorities)],
+                        'created_by' => $creator->id,
+                        'created_at' => $baseDate->modify('+' . $templateIndex . ' days')->format('Y-m-d H:i:s'),
+                        'updated_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+                    ]
+                );
+
+                if ($task->wasRecentlyCreated) {
+                    $this->report['counts']['tasks']++;
+                }
+
+                $tasks[] = $task;
+            }
+        }
+
+        return $tasks;
+    }
+
+    private function seedTaskActivities(array $tasks, array $activeUsers): void
+    {
+        if (count($tasks) === 0 || count($activeUsers) === 0) {
+            return;
+        }
+
+        $templates = [
+            ['action' => 'created', 'description' => 'Aufgabe erstellt.'],
+            ['action' => 'updated', 'description' => 'Status und Prioritaet aktualisiert.'],
+        ];
+        $userCount = count($activeUsers);
+
+        foreach ($tasks as $taskIndex => $task) {
+            foreach ($templates as $templateIndex => $template) {
+                $activity = Activity::updateOrCreate(
+                    [
+                        'entity_type' => 'task',
+                        'entity_id' => $task->id,
+                        'action' => $template['action'],
+                        'description' => $template['description'],
+                    ],
+                    [
+                        'user_id' => $activeUsers[($taskIndex + $templateIndex) % $userCount]->id,
+                        'created_at' => (new DateTimeImmutable())
+                            ->modify('-' . (($taskIndex % 6) + $templateIndex + 1) . ' days')
+                            ->format('Y-m-d H:i:s'),
+                    ]
+                );
+
+                if ($activity->wasRecentlyCreated) {
+                    $this->report['counts']['task_activities']++;
+                }
+            }
+        }
+    }
+
+    private function seedTaskComments(array $tasks, array $activeUsers): void
+    {
+        if (count($tasks) === 0 || count($activeUsers) === 0) {
+            return;
+        }
+
+        $commentTexts = [
+            'Rueckfrage zur finalen Besetzung offen.',
+            'Noten in aktualisierter Version hochgeladen.',
+            'Termin mit Technikteam wurde bestaetigt.',
+            'Bitte Feedback bis Ende der Woche geben.',
+        ];
+        $userCount = count($activeUsers);
+
+        foreach ($tasks as $taskIndex => $task) {
+            $commentCount = ($taskIndex % 3 === 0) ? 2 : 1;
+            for ($i = 0; $i < $commentCount; $i++) {
+                $text = $commentTexts[($taskIndex + $i) % count($commentTexts)];
+                $timestamp = (new DateTimeImmutable())
+                    ->modify('-' . (($taskIndex % 10) + $i + 1) . ' days')
+                    ->format('Y-m-d H:i:s');
+
+                $comment = Comment::updateOrCreate(
+                    [
+                        'entity_type' => 'task',
+                        'entity_id' => $task->id,
+                        'user_id' => $activeUsers[($taskIndex + $i + 2) % $userCount]->id,
+                        'comment' => $text,
+                    ],
+                    [
+                        'created_at' => $timestamp,
+                        'updated_at' => $timestamp,
+                    ]
+                );
+
+                if ($comment->wasRecentlyCreated) {
+                    $this->report['counts']['task_comments']++;
+                }
+            }
+        }
+    }
+
+    private function seedTaskAttachments(array $tasks, int $targetCount): void
+    {
+        if (count($tasks) === 0 || $targetCount <= 0) {
+            return;
+        }
+
+        $created = 0;
+        $attempt = 0;
+        $maxAttempts = ($targetCount * 5) + count($tasks);
+
+        while ($created < $targetCount && $attempt < $maxAttempts) {
+            $task = $tasks[$attempt % count($tasks)];
+            $slot = (int) floor($attempt / count($tasks)) + 1;
+            $originalName = sprintf('task-anhang-%d-%02d.txt', $task->id, $slot);
+            $content = 'Automatisch generierter Task-Anhang fuer Aufgabe ' . $task->id . '.';
+
+            $attachment = Attachment::firstOrCreate(
+                [
+                    'entity_type' => 'task',
+                    'entity_id' => $task->id,
+                    'original_name' => $originalName,
+                ],
+                [
+                    'filename' => sprintf('seed-task-%d-%02d.txt', $task->id, $slot),
+                    'mime_type' => 'text/plain',
+                    'file_size' => strlen($content),
+                    'file_content' => $content,
+                ]
+            );
+
+            if ($attachment->wasRecentlyCreated) {
+                $created++;
+                $this->report['counts']['task_attachments']++;
+            }
+
+            $attempt++;
         }
     }
 
@@ -1666,40 +1961,40 @@ class DevSeedService
         ];
 
         $lastNames = [
-            'Mayer',
-            'Huber',
-            'Wagner',
-            'Schmid',
-            'Hofer',
-            'Gruber',
-            'Leitner',
-            'Pichler',
-            'Steiner',
-            'Bauer',
-            'Berger',
-            'Schneider',
-            'Fischer',
-            'Kraus',
-            'Lindner',
-            'Winter',
-            'Sommer',
-            'Aigner',
-            'Reiter',
-            'Eder',
-            'Brandl',
-            'Holler',
-            'Kirchner',
-            'Falkner',
-            'Neumann',
-            'Kaiser',
-            'Schuster',
-            'Fink',
-            'Arnold',
-            'Koller',
-            'Freytag',
-            'Riedl',
-            'Lang',
-            'Kurz',
+            'Sopranelli',
+            'Altmann',
+            'Tenorini',
+            'Bassberger',
+            'Notenstein',
+            'Klanghofer',
+            'Taktler',
+            'Dirigentl',
+            'Stimmig',
+            'Chorwitz',
+            'Melodner',
+            'Harmonikus',
+            'Fortissimo',
+            'Pianissimo',
+            'Crescendo',
+            'Decrescendo',
+            'Vibratoff',
+            'Legato',
+            'Staccato',
+            'Partiturer',
+            'Einklang',
+            'Mehrstimm',
+            'Kanoner',
+            'Rhythmer',
+            'Notenschlag',
+            'Taktstock',
+            'Stimmenreich',
+            'Chorowski',
+            'Akkordl',
+            'Fermater',
+            'Finale',
+            'Zwischenton',
+            'Langklang',
+            'Kurznote',
             'Vogel',
             'Singer',
             'Saitenklang',

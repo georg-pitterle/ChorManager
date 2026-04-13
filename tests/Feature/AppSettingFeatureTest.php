@@ -64,4 +64,12 @@ class AppSettingFeatureTest extends TestCase
         $this->assertStringContainsString('--theme-primary-strong', $controllerContent);
         $this->assertStringContainsString('--bs-primary-rgb', $controllerContent);
     }
+
+    public function testDevSeedServiceSeedsPrimaryColorSetting(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString("'primary_color' => '#E8A817'", $seedContent);
+    }
 }

@@ -66,4 +66,16 @@ class SongLibraryFeatureTest extends TestCase
         );
         $this->assertStringContainsString("'file_size' => " . '$' . "size", $controllerContent);
     }
+
+    public function testDevSeedServiceSeedsSongsAndSongAttachments(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString("'songs'", $seedContent);
+        $this->assertStringContainsString("'songs' => 0", $seedContent);
+        $this->assertStringContainsString("'song_attachments' => 0", $seedContent);
+        $this->assertStringContainsString('$songs = $this->seedSongs($projects, $users[\'active\']);', $seedContent);
+        $this->assertStringContainsString('$this->seedSongAttachments($songs, 48);', $seedContent);
+    }
 }
