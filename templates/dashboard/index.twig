@@ -19,13 +19,13 @@
 
         {% if session.can_manage_attendance or session.can_manage_users %}
             <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-warning">
+                <div class="surface-card card h-100 border-primary">
                     <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-warning">
+                        <h5 class="card-title text-primary">
                             <i class="bi bi-person-check-fill"></i> Anwesenheiten
                         </h5>
                         <p class="card-text">Erfasse die Anwesenheit der Mitglieder für geplante Termine.</p>
-                        <a href="/attendance" class="btn btn-outline-warning mt-auto">Anwesenheiten eintragen</a>
+                        <a href="/attendance" class="btn btn-outline-primary mt-auto">Anwesenheiten eintragen</a>
                     </div>
                 </div>
             </div>
@@ -47,14 +47,14 @@
 
         {% if session.can_manage_tasks and current_project %}
             <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-warning">
+                <div class="surface-card card h-100 border-info">
                     <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-warning">
+                        <h5 class="card-title text-info">
                             <i class="bi bi-list-check"></i> Aufgaben: {{ current_project.name }}
                         </h5>
                         <p class="card-text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
                         <a href="/projects/{{ current_project.id }}/tasks"
-                           class="btn btn-outline-warning mt-auto">Zur Aufgabenübersicht</a>
+                           class="btn btn-outline-info mt-auto">Zur Aufgabenübersicht</a>
                     </div>
                 </div>
             </div>
@@ -88,17 +88,70 @@
                 </div>
             </div>
             <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-info">
+                <div class="surface-card card h-100 border-dark">
                     <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-info">
+                        <h5 class="card-title text-dark">
                             <i class="bi bi-bar-chart-fill"></i> Auswertungen
                         </h5>
                         <p class="card-text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
-                        <a href="/evaluations" class="btn btn-outline-info mt-auto">Statistiken ansehen</a>
+                        <a href="/evaluations" class="btn btn-outline-dark mt-auto">Statistiken ansehen</a>
                     </div>
                 </div>
             </div>
 
         {% endif %}
+
+        {% if latest_sent_newsletter %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 border-danger">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-danger">
+                            <i class="bi bi-envelope-paper-fill"></i> Zuletzt versendeter Newsletter
+                        </h5>
+                        <p class="card-text mb-1">
+                            <strong>{{ latest_sent_newsletter.title }}</strong>
+                        </p>
+                        <p class="card-text text-muted small mb-3">
+                            Projekt: {{ latest_sent_newsletter.project.name|default("-") }}
+                            {% if latest_sent_newsletter.sent_at %}
+                                <br>
+                                Gesendet am {{ latest_sent_newsletter.sent_at|date("d.m.Y H:i") }}
+                            {% endif %}
+                        </p>
+                        <button type="button"
+                                class="btn btn-outline-danger mt-auto"
+                                data-newsletter-modal-url="/newsletters/{{ latest_sent_newsletter.id }}/preview?modal=1"
+                                data-newsletter-modal-title="Newsletter Vorschau">
+                            Newsletter ansehen
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="modal fade"
+         id="newsletterActionModal"
+         tabindex="-1"
+         aria-labelledby="newsletterActionModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow rounded-3">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-2 p-md-3">
+                    <div id="newsletterActionContent" class="container-fluid px-0"></div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/newsletters.js"></script>
+{% endblock scripts %}
