@@ -70,6 +70,24 @@ class RoleFeatureTest extends TestCase
 
         $this->assertIsString($templateContent);
         $this->assertStringContainsString('<td data-label="{{ role.name }}">', $templateContent);
+        $this->assertStringContainsString('{{ role.active_users_count }}', $templateContent);
+        $this->assertStringContainsString('text-body-secondary', $templateContent);
+        $this->assertStringContainsString('class="text-center align-middle"', $templateContent);
+        $this->assertStringContainsString('badge rounded-pill bg-success', $templateContent);
+        $this->assertStringContainsString('badge rounded-pill bg-danger', $templateContent);
+        $this->assertStringContainsString('bi bi-check-lg text-white', $templateContent);
+        $this->assertStringContainsString('bi bi-x-lg text-white', $templateContent);
+        $this->assertStringNotContainsString('text-light">Level {{ role.hierarchy_level }}', $templateContent);
+        $this->assertStringNotContainsString('</i> Ja</span>', $templateContent);
+        $this->assertStringNotContainsString('</i> Nein</span>', $templateContent);
+    }
+
+    public function testIndexLoadsActiveUserCountAliasForRoles(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/RoleController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("'users as active_users_count'", $controllerContent);
     }
 
     public function testDevSeedServiceIncludesTaskRolePermissionDefaults(): void

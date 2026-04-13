@@ -39,9 +39,8 @@ class RoleController
 
     public function index(Request $request, Response $response): Response
     {
-        // Eloquent equivalent of the Raw query with user count
         $roles = Role::withCount([
-            'users' => function ($query) {
+            'users as active_users_count' => function ($query) {
                 $query->where('is_active', 1);
             }
         ])->orderBy('hierarchy_level', 'desc')->get();

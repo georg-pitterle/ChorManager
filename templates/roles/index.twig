@@ -59,8 +59,8 @@
                             <th scope="col" class="text-nowrap">Berechtigung</th>
                             {% for role in roles %}
                                 <th scope="col" class="text-nowrap">
-                                    <div class="fw-semibold">{{ role.name }}</div>
-                                    <small class="text-light">Level {{ role.hierarchy_level }}</small>
+                                    <div class="fw-semibold text-center align-middle">{{ role.name }}</div>
+                                    <small class="text-body-secondary d-block text-center">Level {{ role.hierarchy_level }}</small>
                                 </th>
                             {% else %}
                                 <th scope="col">Rollen</th>
@@ -72,11 +72,11 @@
                             <tr>
                                 <th scope="row">Admin-Rechte</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_users %}
-                                            <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -84,11 +84,11 @@
                             <tr>
                                 <th scope="row">Edit-Rechte</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_edit_users %}
-                                            <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -96,11 +96,11 @@
                             <tr>
                                 <th scope="row">Anwesenheit</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_attendance %}
-                                            <span class="badge bg-secondary"><i class="bi bi-check2-square"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -108,11 +108,11 @@
                             <tr>
                                 <th scope="row">Projektmitglieder</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_project_members %}
-                                            <span class="badge bg-info"><i class="bi bi-people"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -120,11 +120,11 @@
                             <tr>
                                 <th scope="row">Stammdaten</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_master_data %}
-                                            <span class="badge bg-primary"><i class="bi bi-database"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -132,11 +132,11 @@
                             <tr>
                                 <th scope="row">Finanzen (Kassa)</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_finances %}
-                                            <span class="badge bg-success"><i class="bi bi-cash"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -144,11 +144,11 @@
                             <tr>
                                 <th scope="row">Sponsoring</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_sponsoring %}
-                                            <span class="badge bg-info"><i class="bi bi-briefcase"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -156,11 +156,11 @@
                             <tr>
                                 <th scope="row">Liedbibliothek</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_song_library %}
-                                            <span class="badge bg-primary"><i class="bi bi-music-note-list"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -168,11 +168,11 @@
                             <tr>
                                 <th scope="row">Newsletter</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_newsletters %}
-                                            <span class="badge bg-success"><i class="bi bi-envelope-open"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -180,11 +180,11 @@
                             <tr>
                                 <th scope="row">Aufgaben/Planung</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_tasks %}
-                                            <span class="badge bg-primary"><i class="bi bi-list-check"></i> Ja</span>
+                                            <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Nein</span>
+                                            <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
@@ -192,15 +192,15 @@
                             <tr>
                                 <th scope="row">Aktive Mitglieder</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
-                                        <span class="badge bg-primary rounded-pill">{{ role.user_count }}</span>
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
+                                        <span class="badge bg-primary rounded-pill text-center">{{ role.active_users_count }}</span>
                                     </td>
                                 {% endfor %}
                             </tr>
                             <tr>
                                 <th scope="row">Aktionen</th>
                                 {% for role in roles %}
-                                    <td data-label="{{ role.name }}">
+                                    <td data-label="{{ role.name }}" class="text-center align-middle">
                                         <button type="button"
                                                 class="btn btn-sm btn-outline-secondary edit-role-btn"
                                                 data-bs-toggle="modal"
