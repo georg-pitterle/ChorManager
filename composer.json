@@ -47,6 +47,7 @@
         "twig:reformat": "djlint templates --profile=twig --extension=twig --reformat || true",
         "twig:check": "djlint templates --profile=twig --extension=twig --check",
         "twig:eol": "php bin/check_lf.php templates twig",
+        "eol:check": "php bin/check_lf_repo.php",
         "twig:lint": [
             "@twig:eol",
             "@twigcs"
@@ -60,7 +61,10 @@
         ],
         "migrate": "phinx migrate -e development",
         "seed:dev": "php bin/dev_seed.php",
-        "test": "php vendor/bin/phpunit",
+        "test": [
+            "@eol:check",
+            "php vendor/bin/phpunit"
+        ],
         "copy-assets": "@php bin/copy-assets.php"
     }
 }

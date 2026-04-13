@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+set -eu
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+if command -v php >/dev/null 2>&1; then
+	php bin/check_lf_repo.php
+	exit 0
+fi
+
+if command -v ddev >/dev/null 2>&1; then
+	ddev exec php bin/check_lf_repo.php
+	exit 0
+fi
+
+echo "Error: Neither 'php' nor 'ddev' is available in PATH. Cannot run line-ending guard." >&2
+exit 1
