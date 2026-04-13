@@ -1,40 +1,87 @@
 
+# ChorManager
 
-## Database Migration
-./vendor/bin/phinx migrate
+ChorManager ist eine webbasierte Verwaltungsplattform für Chöre und Vereine. Die Anwendung deckt zentrale
+Organisationsprozesse ab, von Mitglieder- und Rollenverwaltung bis zu Terminen, Anwesenheiten, Finanzen,
+Newslettern und auswertbaren Berichten.
 
-## Development Seed Data
+## Wichtigste Features
 
-For local development and feature validation, the project provides a Dev-only seed command.
+- Mitglieder-, Rollen- und Rechteverwaltung für typische Vereinsrollen.
+- Termin- und Veranstaltungsmanagement inklusive Anwesenheitserfassung.
+- Finanz- und Auswertungsfunktionen für den laufenden Vereinsbetrieb.
+- Newsletter- und Kommunikationsfunktionen für interne Abläufe.
+- Entwicklungsfreundliche Dev-Seed-Daten für reproduzierbare Testszenarien.
+- SMTP-Konfiguration über Umgebungsvariablen statt UI-Settings.
 
-### Security Guards
+## Schnellstart (DDEV empfohlen)
 
-- Seeding is only allowed when `APP_ENV` is set to `development`, `dev`, or `local`.
-- `ALLOW_DEV_SEED=1` must be set explicitly.
-- Without both conditions, the seed command aborts.
+1. DDEV starten:
 
-### Run Seed Data
+```bash
+ddev start
+```
 
-Recommended with DDEV:
+2. Abhängigkeiten installieren:
+
+```bash
+ddev npm ci --omit=dev
+ddev composer install
+ddev php bin/copy-assets.php
+```
+
+3. Konfiguration anlegen:
+
+```bash
+cp .env.example .env
+```
+
+4. Datenbank migrieren:
+
+```bash
+ddev php vendor/bin/phinx migrate
+```
+
+5. Anwendung im Browser öffnen (URL wird von DDEV ausgegeben).
+
+## Datenbank-Migration
+
+```bash
+ddev php vendor/bin/phinx migrate
+```
+
+## Entwicklungs-Seed-Daten
+
+Für lokale Entwicklung und Feature-Validierung gibt es einen Dev-only Seed-Befehl.
+
+### Sicherheitsregeln
+
+- Seeding ist nur erlaubt, wenn `APP_ENV` auf `development`, `dev` oder `local` steht.
+- `ALLOW_DEV_SEED=1` muss explizit gesetzt sein.
+- Fehlt eine der Bedingungen, wird der Seed-Lauf abgebrochen.
+
+### Seed ausführen
+
+Empfohlen mit DDEV:
 
 ```bash
 ddev exec APP_ENV=development ALLOW_DEV_SEED=1 php bin/dev_seed.php --mode=reset-and-seed --years=3 --seed=20260321
 ```
 
-Alternative (composer script):
+Alternative (Composer-Skript):
 
 ```bash
 ddev exec APP_ENV=development ALLOW_DEV_SEED=1 composer seed:dev -- --mode=append --years=3 --seed=20260321
 ```
 
-Available modes:
+Verfügbare Modi:
 
-- `append`: add additional seed data.
-- `reset-and-seed`: truncate seed-relevant tables and create a fresh dataset (Dev only).
+- `append`: fügt weitere Seed-Daten hinzu.
+- `reset-and-seed`: leert seed-relevante Tabellen und erzeugt einen frischen Datensatz (nur Dev).
 
-### Seed Report Credentials
+### Seed-Report-Zugangsdaten
 
-The seed report now includes `credentials_by_role` with one demo login per role:
+Der Seed-Report enthält `credentials_by_role` mit einem Demo-Login je Rolle:
 
 - Admin
 - Vorstand
@@ -43,61 +90,48 @@ The seed report now includes `credentials_by_role` with one demo login per role:
 - Ersatzvertretung
 - Mitglied
 
-Each entry contains `role`, `email`, `password_plain`, and `user_id`.
-These credentials are generated for Dev-only workflows and must never be used in production.
+Jeder Eintrag enthält `role`, `email`, `password_plain` und `user_id`.
+Diese Zugangsdaten sind ausschließlich für Dev-Workflows gedacht und dürfen nie in Produktion genutzt werden.
 
-## SMTP Configuration via ENV
+## SMTP-Konfiguration per ENV
 
-SMTP settings are configured via environment variables and are no longer managed in the Stammdaten/App-Einstellungen UI.
+SMTP-Einstellungen werden über Umgebungsvariablen gesetzt und nicht mehr in Stammdaten/App-Einstellungen gepflegt.
 
-Required/available variables:
+Verfügbare Variablen:
 
-- `SMTP_HOST` (Dev default: `mailhog`)
-- `SMTP_PORT` (Dev default: `1025`)
-- `SMTP_AUTH` (`1/0`, `true/false`; default `0` in Dev)
-- `SMTP_USERNAME` (typically required in production)
-- `SMTP_PASSWORD` (required in production)
-- `SMTP_ENCRYPTION` (`tls`, `ssl`, `none`; Dev default: `none`)
-- `SMTP_FROM_EMAIL` (Dev default: `noreply@chor.local`)
-- `SMTP_FROM_NAME` (Dev default: `Chor-Manager`)
+- `SMTP_HOST` (Dev-Standard: ``)
+- `SMTP_PORT` (Dev-Standard: ``)
+- `SMTP_AUTH` (`1/0`, `true/false`; in Dev standardmäßig `0`)
+- `SMTP_USERNAME` (in Produktion typischerweise erforderlich)
+- `SMTP_PASSWORD` (in Produktion erforderlich)
+- `SMTP_ENCRYPTION` (`tls`, `ssl`, `none`; Dev-Standard: `none`)
+- `SMTP_FROM_EMAIL` (Dev-Standard: `noreply@chor.local`)
+- `SMTP_FROM_NAME` (Dev-Standard: `Chor-Manager`)
 
-Example for local Mailhog setups:
+
+## Deployment
+
+### Docker
 
 ```bash
-SMTP_HOST=mailhog
-SMTP_PORT=1025
-SMTP_AUTH=0
-SMTP_ENCRYPTION=none
-SMTP_FROM_EMAIL=noreply@chor.local
-SMTP_FROM_NAME="Chor-Manager"
+docker-compose up --build
 ```
 
-# Deployment
+Danach ist die Anwendung unter http://localhost erreichbar.
 
-## Docker
+### Installation ohne Docker
 
-To deploy the application using Docker:
+Die Anwendung kann auch klassisch mit Nginx oder Apache betrieben werden.
 
-1. Build and run the containers:
-   ```bash
-   docker-compose up --build
-   ```
-
-2. The application will be available at http://localhost
-
-## Installation without Docker
-
-The application can be run as a traditional PHP application with Nginx or Apache.
-
-### Requirements
+#### Voraussetzungen
 
 - PHP 8.5
 - Composer 2
-- Node.js 24+ and npm
-- MySQL or MariaDB
-- Web server with PHP-FPM or Apache with rewrite support
+- Node.js 24+ und npm
+- MySQL oder MariaDB
+- Webserver mit PHP-FPM oder Apache (Rewrite-Unterstützung)
 
-Required PHP extensions:
+Erforderliche PHP-Erweiterungen:
 
 - mbstring
 - pdo_mysql
@@ -105,14 +139,14 @@ Required PHP extensions:
 - zip
 - bcmath
 
-### 1. Clone the project
+#### 1. Projekt klonen
 
 ```bash
 git clone <REPOSITORY-URL>
 cd ChorManager
 ```
 
-### 2. Install dependencies
+#### 2. Abhängigkeiten installieren
 
 ```bash
 npm ci --omit=dev
@@ -120,13 +154,13 @@ composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 php bin/copy-assets.php
 ```
 
-### 3. Create the configuration
+#### 3. Konfiguration anlegen
 
 ```bash
 cp .env.example .env
 ```
 
-Example of the most important values in `.env`:
+Beispiel für zentrale `.env`-Werte:
 
 ```dotenv
 APP_ENV=production
@@ -147,19 +181,19 @@ SMTP_FROM_EMAIL=noreply@example.com
 SMTP_FROM_NAME=Chor-Manager
 ```
 
-Note: The application should currently be able to reach the database via the default port `3306`.
+Hinweis: Standardmäßig wird Port `3306` für die Datenbank verwendet.
 
-### 4. Run database migrations
+#### 4. Datenbank migrieren
 
 ```bash
 php vendor/bin/phinx migrate
 ```
 
-### 5. Configure the web server
+#### 5. Webserver konfigurieren
 
-The web root must point to the `public` directory.
+Das Web-Root muss auf das Verzeichnis `public` zeigen.
 
-Example Nginx configuration:
+Beispiel für Nginx:
 
 ```nginx
 server {
@@ -180,18 +214,14 @@ server {
 }
 ```
 
-### 6. Create the first administrator account
+#### 6. Ersten Administrator anlegen
 
-After the first start, an administrator account can be created via `/setup`.
+Nach dem ersten Start kann unter `/setup` ein Administrator-Account erstellt werden.
 
-### Notes
+## Hinweise
 
-- For production use, the application should only be served over HTTPS.
-- Frontend assets from npm packages are copied to `public/vendor` via `bin/copy-assets.php`.
-- After `npm ci`, run `php bin/copy-assets.php` whenever frontend packages are updated.
-- If `composer install` is run with scripts enabled, no frontend assets are copied automatically:
-
-```bash
-php bin/copy-assets.php
-```
+- In Produktion sollte die Anwendung ausschließlich über HTTPS bereitgestellt werden.
+- Frontend-Assets aus npm-Paketen werden mit `bin/copy-assets.php` nach `public/vendor` kopiert.
+- Nach `npm ci` sollte bei Paket-Änderungen erneut `php bin/copy-assets.php` ausgeführt werden.
+- Wenn `composer install` mit aktivierten Scripts läuft, werden Frontend-Assets nicht automatisch kopiert.
 
