@@ -531,6 +531,13 @@ class NewsletterController
             } else {
                 $_SESSION['success'] = 'Newsletter versendet';
             }
+
+            if ($expectsJson) {
+                return $this->jsonResponse($response, [
+                    'success' => true,
+                    'redirect' => "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_SENT,
+                ]);
+            }
         } catch (\Exception $e) {
             error_log((string) $e);
             $message = 'Fehler beim Versand.';

@@ -212,10 +212,19 @@ function initNewsletterEdit() {
                     "X-Requested-With": "XMLHttpRequest",
                     ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
                 },
-            }).then(function (response) {
+            }).then(async function (response) {
                 if (!response.ok) {
                     alert("Fehler beim Versenden des Newsletters");
                     return;
+                }
+
+                const responseType = response.headers.get("Content-Type") || "";
+                if (responseType.includes("application/json")) {
+                    const payload = await response.json();
+                    if (payload && payload.redirect) {
+                        window.location.href = payload.redirect;
+                        return;
+                    }
                 }
 
                 if (typeof window.newsletterModalCloseAndRefresh === "function") {

@@ -189,6 +189,7 @@ class NewsletterFeatureTest extends TestCase
         $previewTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/preview.twig');
         $lockedTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/locked.twig');
         $scriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters.js');
+        $editScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-edit.js');
         $createScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-create.js');
         $tinymceInitContent = file_get_contents(dirname(__DIR__) . '/../public/js/tinymce-init.js');
         $styleContent = file_get_contents(dirname(__DIR__) . '/../public/css/style.css');
@@ -200,6 +201,7 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($previewTemplate);
         $this->assertIsString($lockedTemplate);
         $this->assertIsString($scriptContent);
+        $this->assertIsString($editScriptContent);
         $this->assertIsString($createScriptContent);
         $this->assertIsString($tinymceInitContent);
         $this->assertIsString($styleContent);
@@ -238,6 +240,9 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('cleanupTinymceInModal();', $scriptContent);
         $this->assertStringContainsString("target.id === 'content_html'", $scriptContent);
         $this->assertStringContainsString('tinymce.EditorManager.get', $scriptContent);
+
+        $this->assertStringContainsString('payload.redirect', $editScriptContent);
+        $this->assertStringContainsString('window.location.href = payload.redirect;', $editScriptContent);
 
         $this->assertStringContainsString('const textarea = document.getElementById("content_html")', $createScriptContent);
         $this->assertStringContainsString('textarea.value = data.content_html || "";', $createScriptContent);
@@ -349,6 +354,8 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('EnvHelper', $controllerContent);
         $this->assertStringContainsString('Dev-Modus', $controllerContent);
         $this->assertStringContainsString('$recipientCount', $controllerContent);
+        $this->assertStringContainsString("if (\$expectsJson)", $controllerContent);
+        $this->assertStringContainsString("'redirect' => \"/newsletters?project_id={\$newsletter->project_id}&status=\" . Newsletter::STATUS_SENT", $controllerContent);
     }
 
     public function testDeleteDraftCleansRecipientsAndHandlesLockConflicts(): void
