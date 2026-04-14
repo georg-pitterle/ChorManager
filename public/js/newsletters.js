@@ -10,6 +10,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const modal = new bootstrap.Modal(modalElement);
     let currentUrl = '';
     let isLoading = false;
+    const skippedModalScriptPaths = new Set([
+        '/vendor/bootstrap/dist/js/bootstrap.bundle.min.js',
+        '/js/common.js',
+        '/js/table-preferences.js',
+        '/js/table-engine.js',
+        '/vendor/tinymce/tinymce/tinymce.min.js',
+        '/js/tinymce-init.js',
+        '/js/newsletters.js',
+    ]);
 
     function withModalFlag(url) {
         try {
@@ -57,6 +66,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!src) {
                 continue;
+            }
+
+            let path = '';
+            try {
+                path = new URL(src, window.location.origin).pathname;
+            } catch (_error) {
+                path = '';
+            }
+
+            if (path) {
+                if (skippedModalScriptPaths.has(path) || path.startsWith('/js/table-plugins/')) {
+                    continue;
+                }
+
+                const alreadyOnPage = Array.from(document.scripts).some(function (existingScript) {
+                    if (!existingScript.src) {
+                        return false;
+                    }
+                    try {
+                        return new URL(existingScript.src, window.location.origin).pathname === path;
+                    } catch (_error) {
+                        return false;
+                    }
+                });
+
+                if (alreadyOnPage) {
+                    continue;
+                }
             }
 
             await new Promise(function (resolve) {
@@ -185,6 +222,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    let dropdownEventListenersAttached = false;
+
     function bindActionDropdownLayering() {
         const table = document.getElementById('newslettersTable');
         if (!table) {
@@ -196,11 +235,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!(toggle instanceof HTMLElement)) {
                 return;
             }
-            if (toggle.getAttribute('data-newsletter-dropdown-init') === '1') {
-                return;
-            }
 
-            toggle.setAttribute('data-newsletter-dropdown-init', '1');
+            // Dispose existing dropdown instance to allow reinitializing
+            const existingDropdown = bootstrap.Dropdown.getInstance(toggle);
+            if (existingDropdown) {
+                existingDropdown.dispose();
+            }
 
             // Use fixed strategy so dropdowns are positioned against viewport and are not clipped by table wrappers.
             new bootstrap.Dropdown(toggle, {
@@ -213,21 +253,26 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
-        table.addEventListener('show.bs.dropdown', function (event) {
-            const dropdown = event.target instanceof Element ? event.target : null;
-            const row = dropdown ? dropdown.closest('tr') : null;
-            if (row) {
-                row.classList.add('newsletter-dropdown-open');
-            }
-        });
+        // Attach event listeners only once
+        if (!dropdownEventListenersAttached) {
+            dropdownEventListenersAttached = true;
 
-        table.addEventListener('hide.bs.dropdown', function (event) {
-            const dropdown = event.target instanceof Element ? event.target : null;
-            const row = dropdown ? dropdown.closest('tr') : null;
-            if (row) {
-                row.classList.remove('newsletter-dropdown-open');
-            }
-        });
+            table.addEventListener('show.bs.dropdown', function (event) {
+                const dropdown = event.target instanceof Element ? event.target : null;
+                const row = dropdown ? dropdown.closest('tr') : null;
+                if (row) {
+                    row.classList.add('newsletter-dropdown-open');
+                }
+            });
+
+            table.addEventListener('hide.bs.dropdown', function (event) {
+                const dropdown = event.target instanceof Element ? event.target : null;
+                const row = dropdown ? dropdown.closest('tr') : null;
+                if (row) {
+                    row.classList.remove('newsletter-dropdown-open');
+                }
+            });
+        }
     }
 
     function isNewsletterOverviewPath(pathname) {
@@ -362,6 +407,14 @@ document.addEventListener('DOMContentLoaded', function () {
         cleanupTinymceInModal();
         currentUrl = '';
         contentElement.innerHTML = '';
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) {
+            backdrop.remove();
+        });
+        // Reinitialize dropdowns after modal is closed
+        bindActionDropdownLayering();
     });
 
     bindTriggerButtons();
