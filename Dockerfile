@@ -48,6 +48,10 @@ WORKDIR /var/www/html
 # Copy composer files
 COPY composer.json composer.lock* ./
 
+# Copy Composer patch definitions before install so patches can be applied
+COPY patches/ ./patches/
+COPY patches.lock.json ./
+
 # Copy npm manifest files and install frontend dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev --no-audit --no-fund
