@@ -69,7 +69,7 @@ class RoleFeatureTest extends TestCase
         $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
 
         $this->assertIsString($templateContent);
-        $this->assertStringContainsString('<td data-label="{{ role.name }}">', $templateContent);
+        $this->assertStringContainsString('data-label="{{ role.name }}"', $templateContent);
         $this->assertStringContainsString('{{ role.active_users_count }}', $templateContent);
         $this->assertStringContainsString('text-body-secondary', $templateContent);
         $this->assertStringContainsString('class="text-center align-middle"', $templateContent);

@@ -4,6 +4,7 @@ vendor/
 ChorManager.code-workspace
 .twig-cs-fixer.cache
 .superpowers/
+.playwright-mcp/
 .phpunit.result.cache
 node_modules/
 docs/

@@ -5,11 +5,13 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
 if command -v php >/dev/null 2>&1; then
+	php bin/normalize_lf_staged.php
 	php bin/check_lf_repo.php
 	exit 0
 fi
 
 if command -v ddev >/dev/null 2>&1; then
+	ddev exec php bin/normalize_lf_staged.php
 	ddev exec php bin/check_lf_repo.php
 	exit 0
 fi

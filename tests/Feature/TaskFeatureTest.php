@@ -23,6 +23,8 @@ use Slim\Psr7\Response as SlimResponse;
 
 class TaskFeatureTest extends TestCase
 {
+    private const INITIAL_MIGRATION_PATH = __DIR__ . '/../../db/migrations/20260314130000_initial.php';
+
     /**
      * Test task controller exists with all required methods
      */
@@ -331,7 +333,7 @@ class TaskFeatureTest extends TestCase
      */
     public function testDatabaseMigrationTablesAreCreated(): void
     {
-        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260330212600_create_project_planning_module.php');
+        $migrationContent = file_get_contents(self::INITIAL_MIGRATION_PATH);
 
         // Check attachment table
         $this->assertStringContainsString("CREATE TABLE IF NOT EXISTS attachments", $migrationContent);
@@ -357,7 +359,7 @@ class TaskFeatureTest extends TestCase
      */
     public function testDatabaseMigrationHasIndexes(): void
     {
-        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260330212600_create_project_planning_module.php');
+        $migrationContent = file_get_contents(self::INITIAL_MIGRATION_PATH);
 
         // Check attachment indexes
         $this->assertStringContainsString("KEY entity_idx (entity_type, entity_id)", $migrationContent);
@@ -374,13 +376,13 @@ class TaskFeatureTest extends TestCase
      */
     public function testTaskEnumConstraintsAreDefined(): void
     {
-        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260330212600_create_project_planning_module.php');
+        $migrationContent = file_get_contents(self::INITIAL_MIGRATION_PATH);
 
         // Check status enum
-        $this->assertStringContainsString("status ENUM('Offen', 'In Bearbeitung', 'Abgeschlossen', 'Blockiert')", $migrationContent);
+        $this->assertStringContainsString("status ENUM('Offen','In Bearbeitung','Abgeschlossen','Blockiert')", $migrationContent);
 
         // Check priority enum
-        $this->assertStringContainsString("priority ENUM('Niedrig', 'Mittel', 'Hoch')", $migrationContent);
+        $this->assertStringContainsString("priority ENUM('Niedrig','Mittel','Hoch')", $migrationContent);
     }
 
     /**
@@ -405,18 +407,12 @@ class TaskFeatureTest extends TestCase
      */
     public function testMigrationConsolidatesAttachmentTables(): void
     {
-        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260330212600_create_project_planning_module.php');
+        $migrationContent = file_get_contents(self::INITIAL_MIGRATION_PATH);
 
-        // Check migration from old tables
-        $this->assertStringContainsString("INSERT INTO attachments", $migrationContent);
-        $this->assertStringContainsString("FROM song_attachments", $migrationContent);
-        $this->assertStringContainsString("FROM finance_attachments", $migrationContent);
-        $this->assertStringContainsString("FROM sponsor_attachments", $migrationContent);
-
-        // Check old tables are dropped
-        $this->assertStringContainsString("DROP TABLE IF EXISTS song_attachments", $migrationContent);
-        $this->assertStringContainsString("DROP TABLE IF EXISTS finance_attachments", $migrationContent);
-        $this->assertStringContainsString("DROP TABLE IF EXISTS sponsor_attachments", $migrationContent);
+        // Initial migration should define generic attachments as consolidated target.
+        $this->assertStringContainsString("CREATE TABLE IF NOT EXISTS attachments", $migrationContent);
+        $this->assertStringContainsString("entity_type varchar(50) NOT NULL", $migrationContent);
+        $this->assertStringContainsString("entity_id int(11) NOT NULL", $migrationContent);
     }
 
     /**
@@ -424,11 +420,11 @@ class TaskFeatureTest extends TestCase
      */
     public function testRoleMigrationAddsCoreTaskPermissionField(): void
     {
-        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260330212600_create_project_planning_module.php');
+        $migrationContent = file_get_contents(self::INITIAL_MIGRATION_PATH);
 
-        // Check role permission added
-        $this->assertStringContainsString("ALTER TABLE roles ADD COLUMN can_manage_tasks", $migrationContent);
-        $this->assertStringContainsString("UPDATE roles SET can_manage_tasks = 1", $migrationContent);
+        // Check role permission is part of baseline schema and seeded roles.
+        $this->assertStringContainsString("can_manage_tasks tinyint(1) NOT NULL DEFAULT 0", $migrationContent);
+        $this->assertStringContainsString("(1,'Admin',          100, 1,1,1, 1,1, 1,1,1,1,1)", $migrationContent);
     }
 
     /**

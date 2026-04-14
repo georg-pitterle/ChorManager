@@ -46,12 +46,13 @@ class AttendanceFeatureTest extends TestCase
 
     public function testAttendancePermissionMigrationExists(): void
     {
-        $migrationPath = dirname(__DIR__) . '/../db/migrations/20260411103000_add_attendance_management_permission.php';
+        $migrationPath = dirname(__DIR__) . '/../db/migrations/20260314130000_initial.php';
         $migrationContent = file_get_contents($migrationPath);
 
         $this->assertIsString($migrationContent);
-        $this->assertStringContainsString('ADD COLUMN can_manage_attendance', $migrationContent);
-        $this->assertStringContainsString("UPDATE roles SET can_manage_attendance = 1", $migrationContent);
+        $this->assertStringContainsString('can_manage_attendance tinyint(1) NOT NULL DEFAULT 0', $migrationContent);
+        $this->assertStringContainsString("(4,'Stimmvertretung', 50, 0,0,1, 0,0, 0,0,0,0,1)", $migrationContent);
+        $this->assertStringContainsString("(6,'Mitglied',         0, 0,0,0, 0,0, 0,0,0,0,0)", $migrationContent);
 
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/AttendanceController.php');
         $this->assertIsString($controllerContent);
