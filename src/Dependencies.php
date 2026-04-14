@@ -49,6 +49,7 @@ return function (ContainerBuilder $containerBuilder) {
 
         Twig::class => function (ContainerInterface $c) {
             $settings = $c->get('settings')['view'];
+            $appTimezone = $c->get('settings')['timezone'] ?? 'Europe/Vienna';
             // Explicitly enable autoescape for security (HTML context)
             $twig = Twig::create(
                 $settings['template_path'],
@@ -60,6 +61,7 @@ return function (ContainerBuilder $containerBuilder) {
 
             // Add session to twig global environment
             $environment = $twig->getEnvironment();
+            $environment->getExtension(\Twig\Extension\CoreExtension::class)->setTimezone($appTimezone);
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }

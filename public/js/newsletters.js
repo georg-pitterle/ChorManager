@@ -127,20 +127,42 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function initTinymceInModal() {
+        cleanupTinymceInModal();
         if (typeof window.initTinymceEditors === 'function') {
             window.initTinymceEditors(contentElement);
         }
     }
 
     function cleanupTinymceInModal() {
-        if (typeof tinymce === 'undefined' || !tinymce.editors) {
+        if (typeof tinymce === 'undefined') {
             return;
         }
 
-        const editors = tinymce.editors.slice();
+        let editors = [];
+        if (tinymce.EditorManager && typeof tinymce.EditorManager.get === 'function') {
+            const managedEditors = tinymce.EditorManager.get();
+            editors = Array.isArray(managedEditors) ? managedEditors.slice() : [];
+        } else if (Array.isArray(tinymce.editors)) {
+            editors = tinymce.editors.slice();
+        }
+
+        if (!editors.length) {
+            const fallbackEditor = typeof tinymce.get === 'function' ? tinymce.get('content_html') : null;
+            if (fallbackEditor) {
+                editors = [fallbackEditor];
+            }
+        }
+
         editors.forEach(function (editor) {
             const target = editor && editor.targetElm;
-            if (target && contentElement.contains(target)) {
+            const targetInModal = !!(target && contentElement.contains(target));
+            const isNewsletterEditor = !!(target && (
+                target.id === 'content_html'
+                || (target.classList && target.classList.contains('tinymce-editor'))
+            ));
+            const targetDetached = !!(target && !document.body.contains(target));
+
+            if (targetInModal || isNewsletterEditor || targetDetached) {
                 editor.remove();
             }
         });

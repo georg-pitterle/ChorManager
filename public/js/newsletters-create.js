@@ -59,6 +59,11 @@ function initNewsletterCreate() {
             const editor = tinymce.get("content_html");
             if (editor) {
                 editor.setContent(data.content_html || "");
+            } else {
+                const textarea = document.getElementById("content_html");
+                if (textarea) {
+                    textarea.value = data.content_html || "";
+                }
             }
             if (titleInput) {
                 titleInput.value = data.name || "";

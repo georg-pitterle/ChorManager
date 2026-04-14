@@ -11,8 +11,15 @@ function initTinymceEditors(root) {
             textarea.id = 'tinymce-editor-' + Date.now() + '-' + index;
         }
 
-        if (tinymce.get(textarea.id)) {
-            return;
+        const existingEditor = tinymce.get(textarea.id);
+        if (existingEditor) {
+            // Reused IDs in modal workflows can point to a detached editor instance.
+            // Keep only the editor bound to this exact textarea element.
+            if (existingEditor.targetElm === textarea) {
+                return;
+            }
+
+            existingEditor.remove();
         }
 
         tinymce.init({

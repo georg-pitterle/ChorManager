@@ -3,6 +3,7 @@
 use DI\ContainerBuilder;
 use Slim\Factory\AppFactory;
 use Dotenv\Dotenv;
+use App\Util\Timezone;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -10,6 +11,8 @@ $envPath = __DIR__ . '/../.env';
 if (file_exists($envPath)) {
     Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 }
+
+date_default_timezone_set(Timezone::resolveAppTimezone());
 
 $secureSessionCookie = (getenv('APP_ENV') === 'production')
     || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');

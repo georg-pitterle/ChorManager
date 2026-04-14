@@ -23,6 +23,10 @@ class Attachment extends Model
         'created_at'
     ];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
     public function song()
     {
         return $this->belongsTo(Song::class, 'entity_id', 'id')

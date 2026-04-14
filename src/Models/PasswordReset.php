@@ -19,4 +19,8 @@ class PasswordReset extends Model
         'token',
         'created_at'
     ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
 }

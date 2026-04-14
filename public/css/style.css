@@ -557,6 +557,22 @@ a:hover {
     background-color: #f2f2f2;
 }
 
+/* Newsletter action modal: almost full width, but capped at 1200px */
+#newsletterActionModal {
+    --newsletter-modal-edge-gap: 1rem;
+}
+
+#newsletterActionModal .modal-dialog.modal-xl {
+    max-width: min(1200px, calc(100vw - (var(--newsletter-modal-edge-gap) * 2))) !important;
+    width: calc(100vw - (var(--newsletter-modal-edge-gap) * 2));
+}
+
+@media (max-width: 575.98px) {
+    #newsletterActionModal {
+        --newsletter-modal-edge-gap: 0.5rem;
+    }
+}
+
 /* Attendance status buttons: keep one row on small screens without overflow */
 .attendance-status-group {
     display: flex;

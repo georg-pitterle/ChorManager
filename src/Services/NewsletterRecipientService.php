@@ -59,7 +59,7 @@ class NewsletterRecipientService
         return User::query()
             ->whereHas('attendances', function ($query) use ($eventId) {
                 $query->where('event_id', $eventId)
-                    ->where('attended', 1);
+                    ->where('status', 'present');
             })
             ->where('is_active', 1)
             ->get();

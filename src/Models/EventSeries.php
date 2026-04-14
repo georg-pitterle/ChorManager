@@ -19,6 +19,10 @@ class EventSeries extends Model
         'end_date'
     ];
 
+    protected $casts = [
+        'end_date' => 'date',
+    ];
+
     public function events(): HasMany
     {
         return $this->hasMany(Event::class, 'series_id', 'id');

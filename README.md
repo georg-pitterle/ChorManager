@@ -164,6 +164,7 @@ Beispiel für zentrale `.env`-Werte:
 
 ```dotenv
 APP_ENV=production
+APP_TIMEZONE=Europe/Vienna
 
 DB_HOST=127.0.0.1
 DB_DATABASE=chormanager

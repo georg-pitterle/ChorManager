@@ -37,7 +37,7 @@ class NewsletterFeatureTest extends TestCase
     {
         $this->assertTrue(
             file_exists(
-                dirname(__DIR__) . '/../db/migrations/20260323150000_create_newsletters.php'
+                dirname(__DIR__) . '/../db/migrations/20260314130000_initial.php'
             )
         );
     }
@@ -189,6 +189,9 @@ class NewsletterFeatureTest extends TestCase
         $previewTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/preview.twig');
         $lockedTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/locked.twig');
         $scriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters.js');
+        $createScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-create.js');
+        $tinymceInitContent = file_get_contents(dirname(__DIR__) . '/../public/js/tinymce-init.js');
+        $styleContent = file_get_contents(dirname(__DIR__) . '/../public/css/style.css');
 
         $this->assertIsString($indexTemplate);
         $this->assertIsString($archiveTemplate);
@@ -197,6 +200,9 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($previewTemplate);
         $this->assertIsString($lockedTemplate);
         $this->assertIsString($scriptContent);
+        $this->assertIsString($createScriptContent);
+        $this->assertIsString($tinymceInitContent);
+        $this->assertIsString($styleContent);
 
         $this->assertStringContainsString('action="/newsletters"', $indexTemplate);
         $this->assertStringContainsString('class="form-select onchange-submit"', $indexTemplate);
@@ -229,6 +235,17 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('data-newsletter-modal-url', $scriptContent);
         $this->assertStringContainsString('newsletterActionModal', $scriptContent);
         $this->assertStringContainsString('window.location.reload()', $scriptContent);
+        $this->assertStringContainsString('cleanupTinymceInModal();', $scriptContent);
+        $this->assertStringContainsString("target.id === 'content_html'", $scriptContent);
+        $this->assertStringContainsString('tinymce.EditorManager.get', $scriptContent);
+
+        $this->assertStringContainsString('const textarea = document.getElementById("content_html")', $createScriptContent);
+        $this->assertStringContainsString('textarea.value = data.content_html || "";', $createScriptContent);
+        $this->assertStringContainsString('existingEditor.targetElm === textarea', $tinymceInitContent);
+        $this->assertStringContainsString('existingEditor.remove();', $tinymceInitContent);
+        $this->assertStringContainsString('#newsletterActionModal', $styleContent);
+        $this->assertStringContainsString('1200px', $styleContent);
+        $this->assertStringContainsString('--newsletter-modal-edge-gap', $styleContent);
     }
 
     /**
@@ -248,11 +265,42 @@ class NewsletterFeatureTest extends TestCase
      */
     public function testNewsletterMigrationOmitsLegacyStatuses(): void
     {
-        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260323150000_create_newsletters.php');
+        $migrationContent = file_get_contents(dirname(__DIR__) . '/../db/migrations/20260314130000_initial.php');
 
         $this->assertIsString($migrationContent);
-        $this->assertStringContainsString("status enum('draft', 'sent')", $migrationContent);
+        $this->assertStringContainsString("status enum('draft','sent')", $migrationContent);
         $this->assertStringNotContainsString("scheduled', 'sent', 'archived", $migrationContent);
+    }
+
+    public function testRecipientServiceUsesAttendanceStatusFieldForEventAttendees(): void
+    {
+        $recipientService = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterRecipientService.php');
+
+        $this->assertIsString($recipientService);
+        $this->assertStringContainsString("->where('status', 'present')", $recipientService);
+        $this->assertStringNotContainsString("->where('attended', 1)", $recipientService);
+    }
+
+    public function testGlobalTimezoneConfigurationIsWiredForAppDbAndTwig(): void
+    {
+        $timezoneUtil = file_get_contents(dirname(__DIR__) . '/../src/Util/Timezone.php');
+        $settings = file_get_contents(dirname(__DIR__) . '/../src/Settings.php');
+        $bootstrap = file_get_contents(dirname(__DIR__) . '/../public/index.php');
+        $dependencies = file_get_contents(dirname(__DIR__) . '/../src/Dependencies.php');
+
+        $this->assertIsString($timezoneUtil);
+        $this->assertIsString($settings);
+        $this->assertIsString($bootstrap);
+        $this->assertIsString($dependencies);
+
+        $this->assertStringContainsString('class Timezone', $timezoneUtil);
+        $this->assertStringContainsString('resolveAppTimezone', $timezoneUtil);
+        $this->assertStringContainsString('resolveDatabaseTimezoneOffset', $timezoneUtil);
+
+        $this->assertStringContainsString("'timezone' => \$appTimezone", $settings);
+        $this->assertStringContainsString("'timezone' => Timezone::resolveDatabaseTimezoneOffset()", $settings);
+        $this->assertStringContainsString('date_default_timezone_set(Timezone::resolveAppTimezone());', $bootstrap);
+        $this->assertStringContainsString('setTimezone($appTimezone);', $dependencies);
     }
 
     /**

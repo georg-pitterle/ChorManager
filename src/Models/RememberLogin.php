@@ -21,4 +21,10 @@ class RememberLogin extends Model
         'user_agent',
         'ip_address'
     ];
+
+    protected $casts = [
+        'expires_at' => 'datetime',
+        'created_at' => 'datetime',
+        'last_used_at' => 'datetime',
+    ];
 }
