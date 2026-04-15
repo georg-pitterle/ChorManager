@@ -21,6 +21,9 @@ Nutzer im Nur-Lesen-Modus sehen weiterhin alle Finanzinformationen, koennen jedo
 - Finanzrouten in Read- und Write-Aktionen mit passender Autorisierung absichern.
 - Rollenverwaltung (UI + Verarbeitung) um zwei getrennte Finanzrechte erweitern.
 - Session-Rechteaggregation um `can_read_finances` erweitern.
+- Standardrollen bei Initialisierung anpassen:
+  - neue Rolle "Kassier" mit Finanz-Lese- und Schreibrecht
+  - Rolle "Vorstand" nur mit Finanz-Leserecht
 - Nur-Lesen-UI im Finanzmodul so anpassen, dass Schreibaktionen nicht verfuegbar sind.
 - Tests fuer Rechte-Mapping, Session-Aggregation und Routing-Verhalten erweitern.
 
@@ -56,6 +59,13 @@ Nutzer im Nur-Lesen-Modus sehen weiterhin alle Finanzinformationen, koennen jedo
 - Dev-Seed-Definitionen um `can_read_finances` erweitern:
   - Rollen mit Finanzschreibrecht erhalten auch Leserecht.
   - Reine Lesefaelle koennen explizit gesetzt werden.
+
+### Standardrollen bei Initialisierung
+
+- Bei Initialisierung/Seed werden die Finanzrechte fuer Standardrollen wie folgt gesetzt:
+  - Rolle "Kassier": `can_read_finances = 1`, `can_manage_finances = 1`
+  - Rolle "Vorstand": `can_read_finances = 1`, `can_manage_finances = 0`
+- Falls bestehende Initialisierungslogik nur "Vorstand" mit Schreibrecht kennt, wird dies auf obiges Modell umgestellt.
 
 ### Session-Aggregation
 
@@ -144,6 +154,8 @@ Die UI blendet Schreibaktionen aus oder deaktiviert sie klar, ersetzt aber keine
 
 - Ein Nutzer mit nur `can_read_finances` kann alle Finanzinformationen sehen, aber keine Schreibaktion ausfuehren.
 - Ein Nutzer mit `can_manage_finances` kann weiterhin lesen und schreiben.
+- Nach Initialisierung existiert eine Standardrolle "Kassier" mit Finanz-Schreibrecht.
+- Nach Initialisierung hat die Standardrolle "Vorstand" im Finanzbereich nur Leserecht.
 - Ein Nutzer ohne Finanzrechte kann keine Finanzseiten aufrufen.
 - Direkte Schreibrequests ohne Schreibrecht liefern `403`.
 - Alle aktualisierten relevanten Tests laufen erfolgreich.
@@ -152,4 +164,7 @@ Die UI blendet Schreibaktionen aus oder deaktiviert sie klar, ersetzt aber keine
 
 - Migration ausfuehren, damit bestehende Rollen initial `can_read_finances = 0` erhalten.
 - Bestehende Rollen mit `can_manage_finances = 1` sollten in der Migrationslogik oder per Nachlaufskript auf `can_read_finances = 1` gesetzt werden, um bestehendes Verhalten nicht unbeabsichtigt einzuschraenken.
+- Fuer die Standardrollen wird im Initialisierungs-/Seed-Pfad explizit gesetzt:
+  - "Kassier" bekommt Finanz-Lese- und Schreibrecht.
+  - "Vorstand" wird auf Finanz-Leserecht ohne Schreibrecht gesetzt.
 - Danach reguliere Rechte fein granular ueber die Rollenverwaltung.
