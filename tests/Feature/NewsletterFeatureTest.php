@@ -322,6 +322,33 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('/newsletters/{id:[0-9]+}/delete', $routesContent);
     }
 
+    public function testArchiveAndPreviewRoutesAreExposedOutsideNewsletterManagementGroup(): void
+    {
+        $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
+
+        $this->assertIsString($routesContent);
+        $this->assertStringContainsString(
+            "\$group->get('/newsletters/archive', [NewsletterController::class, 'archive']);",
+            $routesContent
+        );
+        $this->assertStringContainsString(
+            "\$group->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);",
+            $routesContent
+        );
+    }
+
+    public function testPreviewAccessAllowsReceivedNewsletterArchiveEntries(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('private function canAccessReceivedNewsletterById', $controllerContent);
+        $this->assertStringContainsString('NewsletterArchive::query()', $controllerContent);
+        $this->assertStringContainsString("->where('newsletter_id', \$newsletterId)", $controllerContent);
+        $this->assertStringContainsString("->where('user_id', (int) \$userId)", $controllerContent);
+        $this->assertStringContainsString('&& !$this->canAccessReceivedNewsletterById($id, $userId)', $controllerContent);
+    }
+
     public function testMailerHasIsMailSendDisabledMethod(): void
     {
         $this->assertTrue(method_exists(\App\Services\Mailer::class, 'isMailSendDisabled'));

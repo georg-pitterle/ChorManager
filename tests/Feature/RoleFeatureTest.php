@@ -50,6 +50,23 @@ class RoleFeatureTest extends TestCase
         $this->assertSame(0, $flags['can_manage_tasks']);
     }
 
+    public function testBuildPermissionFlagsAddsFinanceReadFlagAndWriteImpliesRead(): void
+    {
+        $writeFlags = RoleController::buildPermissionFlags([
+            'can_manage_finances' => '1',
+        ]);
+
+        $this->assertSame(1, $writeFlags['can_read_finances']);
+        $this->assertSame(1, $writeFlags['can_manage_finances']);
+
+        $readFlags = RoleController::buildPermissionFlags([
+            'can_read_finances' => '1',
+        ]);
+
+        $this->assertSame(1, $readFlags['can_read_finances']);
+        $this->assertSame(0, $readFlags['can_manage_finances']);
+    }
+
     public function testCreateRejectsEmptyRoleNameBeforeDatabaseAccess(): void
     {
         $twig = $this->createMock(Twig::class);
@@ -97,5 +114,36 @@ class RoleFeatureTest extends TestCase
         $this->assertIsString($seedContent);
         $this->assertStringContainsString("'can_manage_tasks' => 1", $seedContent);
         $this->assertStringContainsString("'can_manage_tasks' => 0", $seedContent);
+    }
+
+    public function testRolesTemplateShowsSeparateFinanceReadAndWriteLabels(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString('Finanzen nur lesen', $template);
+        $this->assertStringContainsString('Finanzen lesen und schreiben', $template);
+        $this->assertStringContainsString('name="can_read_finances"', $template);
+        $this->assertStringContainsString('name="can_manage_finances"', $template);
+    }
+
+    public function testRolesScriptKeepsFinanceWriteCheckboxDependentOnFinanceRead(): void
+    {
+        $script = file_get_contents(dirname(__DIR__) . '/../public/js/roles.js');
+
+        $this->assertIsString($script);
+        $this->assertStringContainsString('function syncFinancePermissionPair', $script);
+        $this->assertStringContainsString('readCheckbox.checked = true;', $script);
+    }
+
+    public function testDevSeedServiceAddsKassierAndReadOnlyVorstandDefaults(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString("'name' => 'Kassier'", $seedContent);
+        $this->assertStringContainsString("'name' => 'Vorstand'", $seedContent);
+        $this->assertStringContainsString("'can_read_finances' => 1", $seedContent);
+        $this->assertStringContainsString("'can_manage_finances' => 0", $seedContent);
     }
 }

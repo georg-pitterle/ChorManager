@@ -23,11 +23,14 @@ class RoleController
      */
     public static function buildPermissionFlags(array $data): array
     {
+        $canReadFinances = isset($data['can_read_finances']) || isset($data['can_manage_finances']);
+
         return [
             'can_manage_users' => isset($data['can_manage_users']) ? 1 : 0,
             'can_edit_users' => isset($data['can_edit_users']) ? 1 : 0,
             'can_manage_attendance' => isset($data['can_manage_attendance']) ? 1 : 0,
             'can_manage_project_members' => isset($data['can_manage_project_members']) ? 1 : 0,
+            'can_read_finances' => $canReadFinances ? 1 : 0,
             'can_manage_finances' => isset($data['can_manage_finances']) ? 1 : 0,
             'can_manage_master_data' => isset($data['can_manage_master_data']) ? 1 : 0,
             'can_manage_sponsoring' => isset($data['can_manage_sponsoring']) ? 1 : 0,
@@ -76,6 +79,7 @@ class RoleController
                 'can_edit_users' => $permissions['can_edit_users'],
                 'can_manage_attendance' => $permissions['can_manage_attendance'],
                 'can_manage_project_members' => $permissions['can_manage_project_members'],
+                'can_read_finances' => $permissions['can_read_finances'],
                 'can_manage_finances' => $permissions['can_manage_finances'],
                 'can_manage_master_data' => $permissions['can_manage_master_data'],
                 'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
@@ -117,6 +121,7 @@ class RoleController
                 'can_edit_users' => $permissions['can_edit_users'],
                 'can_manage_attendance' => $permissions['can_manage_attendance'],
                 'can_manage_project_members' => $permissions['can_manage_project_members'],
+                'can_read_finances' => $permissions['can_read_finances'],
                 'can_manage_finances' => $permissions['can_manage_finances'],
                 'can_manage_master_data' => $permissions['can_manage_master_data'],
                 'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],

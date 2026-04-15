@@ -61,6 +61,7 @@ class AuthFeatureTest extends TestCase
                 'can_edit_users' => 1,
                 'can_manage_attendance' => 1,
                 'can_manage_project_members' => 0,
+                'can_read_finances' => 1,
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 1,
@@ -74,6 +75,7 @@ class AuthFeatureTest extends TestCase
                 'can_edit_users' => 0,
                 'can_manage_attendance' => 0,
                 'can_manage_project_members' => 0,
+                'can_read_finances' => 0,
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 0,
@@ -107,5 +109,47 @@ class AuthFeatureTest extends TestCase
         $this->assertTrue($_SESSION['can_manage_tasks']);
         $this->assertSame(85, $_SESSION['role_level']);
         $this->assertSame([2, 5], $_SESSION['voice_group_ids']);
+    }
+
+    public function testAuthSetupAdminRoleDefinitionIncludesFinanceReadPermission(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/AuthController.php');
+
+        $this->assertIsString($content);
+        $this->assertStringContainsString("'can_read_finances' => 1", $content);
+    }
+
+    public function testSessionAuthServiceSetsFinanceReadWhenRoleCanOnlyRead(): void
+    {
+        $service = new SessionAuthService();
+        $user = new User();
+        $user->id = 9;
+        $user->first_name = 'Read';
+        $user->last_name = 'Only';
+
+        $roles = new Collection([
+            (object) [
+                'hierarchy_level' => 10,
+                'can_manage_users' => 0,
+                'can_edit_users' => 0,
+                'can_manage_attendance' => 0,
+                'can_manage_project_members' => 0,
+                'can_read_finances' => 1,
+                'can_manage_finances' => 0,
+                'can_manage_master_data' => 0,
+                'can_manage_sponsoring' => 0,
+                'can_manage_song_library' => 0,
+                'can_manage_newsletters' => 0,
+                'can_manage_tasks' => 0,
+            ],
+        ]);
+
+        $user->setRelation('roles', $roles);
+        $user->setRelation('voiceGroups', new Collection());
+
+        $service->setAuthenticatedUser($user);
+
+        $this->assertTrue($_SESSION['can_read_finances']);
+        $this->assertFalse($_SESSION['can_manage_finances']);
     }
 }

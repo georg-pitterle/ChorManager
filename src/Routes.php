@@ -179,20 +179,27 @@ return function (App $app) {
             )->add(new RoleMiddleware(false, 0, false, false, false, true)); // requiresMasterDataManagement
 
 
-            // Finance (Kassa) Group - Needs can_manage_finances OR global manage
+            // Finance (Kassa) read routes - Need can_read_finances OR can_manage_finances OR global manage
             $group->group(
                 '',
-                function ($financeGroup) {
-                    $financeGroup->get('/finances', [FinanceController::class, 'index']);
-                    $financeGroup->post('/finances/save', [FinanceController::class, 'save']);
-                    $financeGroup->post('/finances/{id:[0-9]+}/delete', [FinanceController::class, 'delete']);
-                    $financeGroup->get('/finances/report', [FinanceController::class, 'report']);
-                    $financeGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
-                    $financeGroup->get(
+                function ($financeReadGroup) {
+                    $financeReadGroup->get('/finances', [FinanceController::class, 'index']);
+                    $financeReadGroup->get('/finances/report', [FinanceController::class, 'report']);
+                    $financeReadGroup->get(
                         '/finances/attachments/{id:[0-9]+}',
                         [FinanceController::class, 'viewAttachment']
                     );
-                    $financeGroup->post(
+                }
+            )->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true));
+
+            // Finance (Kassa) write routes - Need can_manage_finances OR global manage
+            $group->group(
+                '',
+                function ($financeWriteGroup) {
+                    $financeWriteGroup->post('/finances/save', [FinanceController::class, 'save']);
+                    $financeWriteGroup->post('/finances/{id:[0-9]+}/delete', [FinanceController::class, 'delete']);
+                    $financeWriteGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
+                    $financeWriteGroup->post(
                         '/finances/attachments/{id:[0-9]+}/delete',
                         [FinanceController::class, 'deleteAttachment']
                     );
@@ -297,17 +304,19 @@ return function (App $app) {
                 }
             )->add(new RoleMiddleware(false, 0, false, false, false, false, false, true));
 
+            // Authenticated users can access their own newsletter archive and previews.
+            $group->get('/newsletters/archive', [NewsletterController::class, 'archive']);
+            $group->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
+
             // Newsletter management
             $group->group(
                 '',
                 function (RouteCollectorProxy $newsletterGroup) {
                     $newsletterGroup->get('/newsletters', [NewsletterController::class, 'index']);
-                    $newsletterGroup->get('/newsletters/archive', [NewsletterController::class, 'archive']);
                     $newsletterGroup->get('/newsletters/create', [NewsletterController::class, 'create']);
                     $newsletterGroup->post('/newsletters', [NewsletterController::class, 'store']);
                     $newsletterGroup->get('/newsletters/{id:[0-9]+}/edit', [NewsletterController::class, 'edit']);
                     $newsletterGroup->post('/newsletters/{id:[0-9]+}', [NewsletterController::class, 'update']);
-                    $newsletterGroup->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
                     $newsletterGroup->post('/newsletters/{id:[0-9]+}/send', [NewsletterController::class, 'send']);
                     $newsletterGroup->post(
                         '/newsletters/{id:[0-9]+}/save-as-template',

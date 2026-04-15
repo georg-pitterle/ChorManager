@@ -10,7 +10,7 @@
                    href="/users"><i class="bi bi-people-fill me-2"></i> Mitgliederverwaltung</a>
             </li>
         {% endif %}
-        {% if session.can_manage_finances %}
+        {% if session.can_read_finances or session.can_manage_users %}
             <li>
                 <a class="dropdown-item {% if nav_active(path, nav, ['/finances'], ['finances']) %}active{% endif %}"
                    href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a>

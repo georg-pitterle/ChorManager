@@ -148,8 +148,11 @@ function editFinance(item) {
 }
 
 // Global exposure for potential onclick handlers if not yet refactored to addEventListener
-var myModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('financeModal'));
-window.resetFinanceModal = resetFinanceModal;
-window.editFinance = editFinance;
+const financeModalElement = document.getElementById('financeModal');
+if (financeModalElement) {
+    bootstrap.Modal.getOrCreateInstance(financeModalElement);
+    window.resetFinanceModal = resetFinanceModal;
+    window.editFinance = editFinance;
+}
 
 document.addEventListener('DOMContentLoaded', bindFinanceUiHandlers);

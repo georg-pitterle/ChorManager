@@ -31,7 +31,7 @@
             </div>
         {% endif %}
 
-        {% if session.can_manage_finances %}
+        {% if session.can_read_finances or session.can_manage_users %}
             <div class="col-md-4 mb-4">
                 <div class="surface-card card h-100 border-warning">
                     <div class="card-body d-flex flex-column">

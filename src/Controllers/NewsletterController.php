@@ -131,6 +131,18 @@ class NewsletterController
         return in_array((int) $newsletter->project_id, $accessibleProjectIds, true);
     }
 
+    private function canAccessReceivedNewsletterById(int $newsletterId, ?int $userId): bool
+    {
+        if (!$userId) {
+            return false;
+        }
+
+        return NewsletterArchive::query()
+            ->where('newsletter_id', $newsletterId)
+            ->where('user_id', (int) $userId)
+            ->exists();
+    }
+
     private function validateTemplateInput(array $data): array
     {
         $name = trim((string) ($data['name'] ?? ''));
@@ -466,7 +478,7 @@ class NewsletterController
         $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canAccessNewsletterById($id, $userId)) {
+        if (!$this->canAccessNewsletterById($id, $userId) && !$this->canAccessReceivedNewsletterById($id, $userId)) {
             return $response->withStatus(403);
         }
 

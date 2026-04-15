@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% set can_write_finances = session.can_manage_finances or session.can_manage_users %}
+
 {% block title %}
     Kassabuch - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -28,24 +30,28 @@
                 </form>
             {% endif %}
             <div class="btn-group w-100 w-sm-auto">
-                <button type="button"
-                        class="btn btn-outline-secondary btn-sm"
-                        data-bs-toggle="modal"
-                        data-bs-target="#settingsModal">
-                    <i class="bi bi-gear"></i> Konfiguration
-                </button>
+                {% if can_write_finances %}
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#settingsModal">
+                        <i class="bi bi-gear"></i> Konfiguration
+                    </button>
+                {% endif %}
                 <a href="/finances/report?year={{ selected_year }}"
                    class="btn btn-info text-white btn-sm">
                     <i class="bi bi-graph-up"></i> Auswertung
                 </a>
             </div>
-            <button type="button"
-                    class="btn btn-primary btn-sm"
-                    data-bs-toggle="modal"
-                    data-bs-target="#financeModal"
-                    data-action="reset-finance-modal">
-                <i class="bi bi-plus-circle"></i> Neuer Eintrag
-            </button>
+            {% if can_write_finances %}
+                <button type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#financeModal"
+                        data-action="reset-finance-modal">
+                    <i class="bi bi-plus-circle"></i> Neuer Eintrag
+                </button>
+            {% endif %}
         </div>
     </section>
 {% endblock page_header %}
@@ -96,7 +102,9 @@
                                 data-sort-type="number">Betrag</th>
                             <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
                             <th>Anhänge</th>
-                            <th class="text-end finance-actions-column">Aktionen</th>
+                            {% if can_write_finances %}
+                                <th class="text-end finance-actions-column">Aktionen</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -185,28 +193,30 @@
                                                                     running_number: item.running_number,
                                                                     attachments: _item_atts
                                                                 } %}
-                                <td data-label="Aktionen" class="finance-actions-cell text-end">
-                                    <div class="finance-actions">
-                                        <button class="btn btn-sm btn-outline-secondary"
-                                                data-action="edit-finance"
-                                                data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
-                                                title="Bearbeiten">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <form action="/finances/{{ item.id }}/delete"
-                                              method="post"
-                                              class="mb-0"
-                                              data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                                <i class="bi bi-trash"></i>
+                                {% if can_write_finances %}
+                                    <td data-label="Aktionen" class="finance-actions-cell text-end">
+                                        <div class="finance-actions">
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    data-action="edit-finance"
+                                                    data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
+                                                    title="Bearbeiten">
+                                                <i class="bi bi-pencil"></i>
                                             </button>
-                                        </form>
-                                    </div>
-                                </td>
+                                            <form action="/finances/{{ item.id }}/delete"
+                                                  method="post"
+                                                  class="mb-0"
+                                                  data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                {% endif %}
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">Keine Einträge in diesem Geschäftsjahr gefunden.</td>
+                                <td colspan="{{ can_write_finances ? 10 : 9 }}" class="text-center py-4 text-muted">Keine Einträge in diesem Geschäftsjahr gefunden.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -215,26 +225,27 @@
         </div>
     </div>
 
-    <div class="modal fade"
-         id="financeModal"
-         tabindex="-1"
-         aria-labelledby="financeModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog">
-            <form action="/finances/save"
-                  method="post"
-                  enctype="multipart/form-data"
-                  id="finance-form"
-                  data-upload-compress="true"
-                  class="modal-content border-0 shadow">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
+    {% if can_write_finances %}
+        <div class="modal fade"
+             id="financeModal"
+             tabindex="-1"
+             aria-labelledby="financeModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="/finances/save"
+                      method="post"
+                      enctype="multipart/form-data"
+                      id="finance-form"
+                      data-upload-compress="true"
+                      class="modal-content border-0 shadow">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
                     <input type="hidden" name="id" id="finance_id" value="">
 
                     <div class="mb-3">
@@ -331,55 +342,56 @@
                             <!-- Wird per JS befüllt -->
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer pb-0 border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="modal fade"
-         id="settingsModal"
-         tabindex="-1"
-         aria-hidden="true">
-        <div class="modal-dialog">
-            <form action="/finances/settings"
-                  method="post"
-                  class="modal-content border-0 shadow">
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title">Kassabuch Konfiguration</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info py-2 small">
-                        <i class="bi bi-info-circle me-1"></i> Das Geschäftsjahr berechnet sich automatisch vom eingestellten Startdatum bis zum Tag davor im Folgejahr.
                     </div>
-                    <div class="mb-3">
-                        <label for="fiscal_year_start" class="form-label">Beginn des Geschäftsjahres</label>
-                        <input type="text"
-                               class="form-control"
-                               id="fiscal_year_start"
-                               name="fiscal_year_start"
-                               value="{{ fiscal_setting }}"
-                               placeholder="DD.MM."
-                               required>
-                        <div class="form-text">
-                            Format: <b>DD.MM.</b> (z.B. "01.09." für 1. September)
+                    <div class="modal-footer pb-0 border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal fade"
+             id="settingsModal"
+             tabindex="-1"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="/finances/settings"
+                      method="post"
+                      class="modal-content border-0 shadow">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title">Kassabuch Konfiguration</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small">
+                            <i class="bi bi-info-circle me-1"></i> Das Geschäftsjahr berechnet sich automatisch vom eingestellten Startdatum bis zum Tag davor im Folgejahr.
+                        </div>
+                        <div class="mb-3">
+                            <label for="fiscal_year_start" class="form-label">Beginn des Geschäftsjahres</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="fiscal_year_start"
+                                   name="fiscal_year_start"
+                                   value="{{ fiscal_setting }}"
+                                   placeholder="DD.MM."
+                                   required>
+                            <div class="form-text">
+                                Format: <b>DD.MM.</b> (z.B. "01.09." für 1. September)
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
-                </div>
-            </form>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+    {% endif %}
 
     {% block scripts %}
         <script src="/js/finances.js"></script>

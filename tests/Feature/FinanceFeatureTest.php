@@ -70,4 +70,27 @@ class FinanceFeatureTest extends TestCase
         $this->assertStringContainsString("'inline'", $controllerContent);
         $this->assertStringContainsString("'file_size' => " . '$' . "size", $controllerContent);
     }
+
+    public function testFinanceTemplateUsesSeparateReadAndWriteVisibilityFlags(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/finances/index.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString(
+            '{% set can_write_finances = session.can_manage_finances or session.can_manage_users %}',
+            $template
+        );
+        $this->assertStringContainsString('{% if can_write_finances %}', $template);
+    }
+
+    public function testFinanceNavigationAndDashboardUseFinanceReadPermission(): void
+    {
+        $areas = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
+        $dashboard = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
+
+        $this->assertIsString($areas);
+        $this->assertIsString($dashboard);
+        $this->assertStringContainsString('session.can_read_finances or session.can_manage_users', $areas);
+        $this->assertStringContainsString('session.can_read_finances or session.can_manage_users', $dashboard);
+    }
 }

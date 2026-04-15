@@ -23,6 +23,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresNewsletterManagement;
     private bool $requiresTaskManagement;
     private bool $requiresAttendanceManagement;
+    private bool $requiresFinanceRead;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -35,7 +36,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresSongLibraryManagement = false,
         bool $requiresTaskManagement = false,
         bool $requiresAttendanceManagement = false,
-        bool $requiresNewsletterManagement = false
+        bool $requiresNewsletterManagement = false,
+        bool $requiresFinanceRead = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -48,6 +50,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresTaskManagement = $requiresTaskManagement;
         $this->requiresAttendanceManagement = $requiresAttendanceManagement;
         $this->requiresNewsletterManagement = $requiresNewsletterManagement;
+        $this->requiresFinanceRead = $requiresFinanceRead;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -59,6 +62,7 @@ class RoleMiddleware implements MiddlewareInterface
 
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
+        $canReadFinances = $_SESSION['can_read_finances'] ?? false;
         $canManageFinances = $_SESSION['can_manage_finances'] ?? false;
         $canManageMasterData = $_SESSION['can_manage_master_data'] ?? false;
         $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
@@ -101,6 +105,12 @@ class RoleMiddleware implements MiddlewareInterface
         if ($this->requiresMasterDataManagement && !$canManageMasterData && !$canManageUsers) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Stammdatenverwaltung.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->requiresFinanceRead && !$canReadFinances && !$canManageFinances && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Finanzansicht.");
             return $response->withStatus(403);
         }
 
