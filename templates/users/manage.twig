@@ -312,18 +312,6 @@
                         <input type="email" class="form-control" id="email" name="email" required>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Initiales Passwort *</label>
-                        <input type="password"
-                               class="form-control"
-                               id="password"
-                               name="password"
-                               required>
-                        <div class="form-text">Das Mitglied kann dieses Start-Passwort später ändern.</div>
-                    </div>
-
-                    <hr class="my-4">
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Rollen (Mehrfachauswahl) *</label>
@@ -505,6 +493,12 @@
                             {% endif %}
                         </div>
                         <div class="modal-footer">
+                            <button type="button"
+                                    class="btn btn-outline-secondary me-auto js-invite-btn"
+                                    data-invite-url="/users/{{ user.id }}/invite"
+                                    title="Einladungs-E-Mail senden">
+                                <i class="bi bi-envelope-fill me-1"></i>Einladungs-E-Mail
+                            </button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
                             <button type="submit" class="btn btn-primary">Änderungen speichern</button>
                         </div>
@@ -553,5 +547,36 @@
 
     {% block scripts %}
         <script src="/js/users.js"></script>
+        <script>
+        document.addEventListener("click", function (e) {
+            var btn = e.target.closest(".js-invite-btn");
+            if (!btn) { return; }
+            e.preventDefault();
+            var url = btn.dataset.inviteUrl;
+            if (!url) { return; }
+            btn.disabled = true;
+            btn.textContent = "Wird gesendet…";
+            fetch(url, { method: "POST", headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        btn.classList.remove("btn-outline-secondary");
+                        btn.classList.add("btn-outline-success");
+                        btn.innerHTML = "<i class=\"bi bi-check-circle-fill me-1\"></i>E-Mail gesendet";
+                    } else {
+                        btn.classList.remove("btn-outline-secondary");
+                        btn.classList.add("btn-outline-danger");
+                        btn.textContent = data.message || "Fehler";
+                        btn.disabled = false;
+                    }
+                })
+                .catch(function () {
+                    btn.classList.remove("btn-outline-secondary");
+                    btn.classList.add("btn-outline-danger");
+                    btn.textContent = "Fehler beim Senden";
+                    btn.disabled = false;
+                });
+        });
+        </script>
     {% endblock scripts %}
 {% endblock content %}
