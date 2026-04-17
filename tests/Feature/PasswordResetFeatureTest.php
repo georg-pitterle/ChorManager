@@ -141,7 +141,33 @@ class PasswordResetFeatureTest extends TestCase
         $result = $controller->processReset($request, $response);
 
         $this->assertRedirect($result, '/reset-password?token=abc&email=a%40b.com');
-        $this->assertSame('Das Passwort muss mindestens 6 Zeichen lang sein.', $_SESSION['error']);
+        $this->assertSame('Das Passwort muss mindestens 12 Zeichen lang sein.', $_SESSION['error']);
+    }
+
+    public function testProcessResetRejectsWeakPassword(): void
+    {
+        $twig = $this->createMock(Twig::class);
+        $controller = $this->makeController($twig);
+
+        $request = $this->makeRequest('POST', '/reset-password', [
+            'token' => 'abc',
+            'email' => 'a@b.com',
+            'password' => 'tooshort',
+            'password_confirm' => 'tooshort',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->processReset($request, $response);
+
+        $this->assertRedirect($result, '/reset-password?token=abc&email=a%40b.com');
+        $this->assertStringContainsString('12', $_SESSION['error']);
+    }
+
+    public function testPasswordResetControllerHasInvitationTokensSupport(): void
+    {
+        $controllerSource = file_get_contents(dirname(__DIR__) . '/../src/Controllers/PasswordResetController.php');
+        $this->assertIsString($controllerSource);
+        $this->assertStringContainsString('InvitationToken', $controllerSource);
+        $this->assertStringContainsString('token_hash', $controllerSource);
     }
 }
-

@@ -9,18 +9,29 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\User;
 use App\Models\PasswordReset;
+use App\Models\InvitationToken;
 use App\Services\Mailer;
+use App\Services\PasswordPolicyService;
+use App\Services\RateLimiterService;
 use App\Util\EnvHelper;
 
 class PasswordResetController
 {
     private Twig $view;
     private Mailer $mailer;
+    private ?RateLimiterService $rateLimiter;
+    private PasswordPolicyService $passwordPolicyService;
 
-    public function __construct(Twig $view, ?Mailer $mailer = null)
-    {
+    public function __construct(
+        Twig $view,
+        ?Mailer $mailer = null,
+        ?RateLimiterService $rateLimiter = null,
+        ?PasswordPolicyService $passwordPolicyService = null
+    ) {
         $this->view = $view;
         $this->mailer = $mailer ?? new Mailer();
+        $this->rateLimiter = $rateLimiter;
+        $this->passwordPolicyService = $passwordPolicyService ?? new PasswordPolicyService();
     }
 
     public function showForgotForm(Request $request, Response $response): Response
@@ -57,12 +68,8 @@ class PasswordResetController
             return $response->withHeader('Location', '/forgot-password')->withStatus(302);
         }
 
-        // Generate token and save to db
-        // We use bin2hex(random_bytes) to avoid dependency on Str::random if Illuminate/Support isn't fully loaded,
-        // but Laravel's helper is available because we use illuminate/database
         $token = bin2hex(random_bytes(32));
 
-        // delete old tokens
         PasswordReset::where('email', $email)->delete();
 
         PasswordReset::create([
@@ -145,38 +152,53 @@ class PasswordResetController
             return $response->withHeader('Location', $url)->withStatus(302);
         }
 
-        if (strlen($password) < 6) {
-            $_SESSION['error'] = 'Das Passwort muss mindestens 6 Zeichen lang sein.';
+        $policyError = $this->passwordPolicyService->validate($password);
+        if ($policyError !== null) {
+            $_SESSION['error'] = $policyError;
             $url = '/reset-password?token=' . urlencode($token) . '&email=' . urlencode($email);
             return $response->withHeader('Location', $url)->withStatus(302);
         }
 
+        // Try password_resets table first (forgot-password flow)
         $resetRecord = PasswordReset::where('email', $email)->first();
+        if ($resetRecord && password_verify($token, $resetRecord->token)) {
+            $createdAt = strtotime((string) $resetRecord->created_at);
+            if (time() - $createdAt > 7200) {
+                PasswordReset::where('email', $email)->delete();
+                $_SESSION['error'] = 'Dieser Passwort-Reset-Link ist abgelaufen. Bitte fordere einen neuen an.';
+                return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+            }
 
-        if (!$resetRecord || !password_verify($token, $resetRecord->token)) {
-            $_SESSION['error'] = 'Dieser Passwort-Reset-Link ist ungültig oder abgelaufen.';
-            return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+            $user = User::where('email', $email)->first();
+            if ($user) {
+                $user->password = password_hash($password, PASSWORD_DEFAULT);
+                $user->save();
+                PasswordReset::where('email', $email)->delete();
+                $_SESSION['success'] = 'Dein Passwort wurde erfolgreich gesetzt. Du kannst dich nun anmelden.';
+                return $response->withHeader('Location', '/login')->withStatus(302);
+            }
         }
 
-        // Check if token is older than 2 hours
-        $createdAt = strtotime($resetRecord->created_at);
-        if (time() - $createdAt > 7200) {
-            PasswordReset::where('email', $email)->delete();
-            $_SESSION['error'] = 'Dieser Passwort-Reset-Link ist abgelaufen. Bitte fordere einen neuen an.';
-            return $response->withHeader('Location', '/forgot-password')->withStatus(302);
-        }
-
+        // Try invitation_tokens table (invite flow)
         $user = User::where('email', $email)->first();
         if ($user) {
-            $user->password = password_hash($password, PASSWORD_DEFAULT);
-            $user->save();
-            PasswordReset::where('email', $email)->delete();
-            $_SESSION['success'] = 'Dein Passwort wurde erfolgreich geändert. Du kannst dich nun anmelden.';
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            $inviteRecord = InvitationToken::where('user_id', $user->id)->first();
+            if ($inviteRecord && password_verify($token, $inviteRecord->token_hash)) {
+                if (strtotime((string) $inviteRecord->expires_at) < time()) {
+                    InvitationToken::where('user_id', $user->id)->delete();
+                    $_SESSION['error'] = 'Dieser Einladungslink ist abgelaufen. Bitte fordere einen neuen an.';
+                    return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+                }
+
+                $user->password = password_hash($password, PASSWORD_DEFAULT);
+                $user->save();
+                InvitationToken::where('user_id', $user->id)->delete();
+                $_SESSION['success'] = 'Dein Passwort wurde erfolgreich gesetzt. Du kannst dich nun anmelden.';
+                return $response->withHeader('Location', '/login')->withStatus(302);
+            }
         }
 
-        $_SESSION['error'] = 'Benutzer nicht gefunden.';
-        $url = '/reset-password?token=' . urlencode($token) . '&email=' . urlencode($email);
-        return $response->withHeader('Location', $url)->withStatus(302);
+        $_SESSION['error'] = 'Dieser Link ist ungültig oder abgelaufen.';
+        return $response->withHeader('Location', '/forgot-password')->withStatus(302);
     }
 }
