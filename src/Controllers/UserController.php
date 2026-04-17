@@ -17,6 +17,9 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Models\Project;
 use App\Services\PasswordPolicyService;
+use App\Models\InvitationToken;
+use App\Services\Mailer;
+use App\Util\EnvHelper;
 
 class UserController
 {
@@ -125,7 +128,6 @@ class UserController
         $firstName = trim($data['first_name'] ?? '');
         $lastName = trim($data['last_name'] ?? '');
         $email = trim($data['email'] ?? '');
-        $password = $data['password'] ?? '';
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
@@ -146,7 +148,7 @@ class UserController
             }
         }
 
-        if (!$firstName || !$lastName || !$email || !$password || empty($roleIds)) {
+        if (!$firstName || !$lastName || !$email || empty($roleIds)) {
             $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).';
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
@@ -156,18 +158,12 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        $passwordError = $this->passwordPolicyService->validate($password);
-        if ($passwordError !== null) {
-            $_SESSION['error'] = $passwordError;
-            return $response->withHeader('Location', '/users')->withStatus(302);
-        }
-
         try {
             $user = new User();
             $user->first_name = $firstName;
             $user->last_name = $lastName;
             $user->email = $email;
-            $user->password = password_hash($password, PASSWORD_DEFAULT);
+            $user->password = null;
             $user->is_active = 1;
 
             $this->userPersistence->save($user);
@@ -449,5 +445,64 @@ class UserController
         $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
 
         return $userLevel >= 40 && $isInMyGroup;
+    }
+
+    public function invite(Request $request, Response $response, array $args): Response
+    {
+        $canManageUsers = $_SESSION['can_manage_users'] ?? false;
+        $userLevel = $_SESSION['role_level'] ?? 0;
+        $myVgs = $_SESSION['voice_group_ids'] ?? [];
+
+        $userId = (int) $args['id'];
+        $targetUser = $this->userQuery->findById($userId);
+
+        if (!$targetUser) {
+            $response->getBody()->write(json_encode(['success' => false, 'message' => 'Nutzer nicht gefunden.']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+        }
+
+        if (!$canManageUsers) {
+            $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
+            $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
+            if ($userLevel < 40 || !$isInMyGroup) {
+                $response->getBody()->write(json_encode(['success' => false, 'message' => 'Keine Berechtigung.']));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }
+
+        $token = bin2hex(random_bytes(32));
+
+        InvitationToken::where('user_id', $targetUser->id)->delete();
+
+        InvitationToken::create([
+            'user_id'    => $targetUser->id,
+            'selector'   => bin2hex(random_bytes(9)),
+            'token_hash' => password_hash($token, PASSWORD_DEFAULT),
+            'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $appUrl = rtrim((string) EnvHelper::read('APP_URL', 'http://localhost'), '/');
+        $inviteLink = $appUrl . '/reset-password?token=' . $token . '&email=' . urlencode($targetUser->email);
+
+        $mailer = new Mailer();
+        $htmlBody = $this->view->fetch('emails/invitation.twig', [
+            'user'        => $targetUser,
+            'invite_link' => $inviteLink,
+        ]);
+
+        $sent = $mailer->sendHtmlMail(
+            $targetUser->email,
+            'Einladung zum Chor-Manager',
+            $htmlBody
+        );
+
+        if (!$sent) {
+            $response->getBody()->write(json_encode(['success' => false, 'message' => 'Fehler beim Senden der E-Mail.']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        $response->getBody()->write(json_encode(['success' => true, 'message' => 'Einladungs-E-Mail wurde gesendet.']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
     }
 }

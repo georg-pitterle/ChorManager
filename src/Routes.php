@@ -85,6 +85,7 @@ return function (App $app) {
                     $userGroup->post('/deactivate/{id:[0-9]+}', [UserController::class, 'deactivate']);
                     $userGroup->post('/bulk-deactivate', [UserController::class, 'bulkDeactivate']);
                     $userGroup->post('/restore/{id:[0-9]+}', [UserController::class, 'restore']);
+                    $userGroup->post('/{id:[0-9]+}/invite', [UserController::class, 'invite']);
                 }
             )->add(new RoleMiddleware(false, 0, true)); // allow manage_users OR userLevel >= 40
 
