@@ -1,7 +1,7 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
-    Anwesenheitsliste - {{ app_settings.app_name|default('Chor-Manager') }}
+    Anwesenheitsliste - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -13,13 +13,11 @@
         </div>
         <div class="page-actions d-flex flex-column flex-md-row gap-2">
             <div class="btn-group" role="group" aria-label="Termin Navigation">
-                <a href="{% if previous_event_id %}/attendance/{{ previous_event_id }}{% else %}#{% endif %}"
-                   class="btn btn-outline-secondary {% if not previous_event_id %}disabled{% endif %}"
+                <a href="{%- if previous_event_id -%}/attendance/{{ previous_event_id }}{%- else -%}#{%- endif -%}" class="btn btn-outline-secondary {% if not previous_event_id %}disabled{% endif %}"
                    {% if not previous_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
                     <i class="bi bi-chevron-left"></i> Vorheriger Termin
                 </a>
-                <a href="{% if next_event_id %}/attendance/{{ next_event_id }}{% else %}#{% endif %}"
-                   class="btn btn-outline-secondary {% if not next_event_id %}disabled{% endif %}"
+                <a href="{%- if next_event_id -%}/attendance/{{ next_event_id }}{%- else -%}#{%- endif -%}" class="btn btn-outline-secondary {% if not next_event_id %}disabled{% endif %}"
                    {% if not next_event_id %}aria-disabled="true" tabindex="-1"{% endif %}>
                     Nächster Termin <i class="bi bi-chevron-right"></i>
                 </a>
