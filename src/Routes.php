@@ -27,6 +27,7 @@ use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SongLibraryController;
 use App\Controllers\NewsletterController;
+use App\Controllers\MailQueueController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
@@ -345,6 +346,19 @@ return function (App $app) {
                 }
             )->add(
                 new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, true)
+            );
+
+            // Mail Queue Management
+            $group->group(
+                '',
+                function (RouteCollectorProxy $mailQueueGroup) {
+                    $mailQueueGroup->get('/mail-queue', [MailQueueController::class, 'index']);
+                    $mailQueueGroup->get('/mail-queue/{id:[0-9]+}', [MailQueueController::class, 'show']);
+                    $mailQueueGroup->post('/mail-queue/{id:[0-9]+}/retry', [MailQueueController::class, 'retrySingle']);
+                    $mailQueueGroup->post('/mail-queue/retry-all-dead', [MailQueueController::class, 'retryAllDead']);
+                }
+            )->add(
+                new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true)
             );
 
             // Dev-only seed endpoint, still protected by admin permission.
