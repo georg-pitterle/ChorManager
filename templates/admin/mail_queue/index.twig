@@ -1,0 +1,174 @@
+{% extends "layout.twig" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Mailversand Verwaltung</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Queued</h5>
+                    <p class="card-text">{{ stats.queued }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Sending</h5>
+                    <p class="card-text">{{ stats.sending }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Sent</h5>
+                    <p class="card-text">{{ stats.sent }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Failed</h5>
+                    <p class="card-text">{{ stats.failed }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Dead</h5>
+                    <p class="card-text">{{ stats.dead }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if stats.dead > 0 %}
+    <div class="mb-3">
+        <form method="post" action="/admin/mail-queue/retry-all-dead" style="display:inline;">
+            <button type="submit" class="btn btn-warning" onclick="return confirm('Retry all {{ stats.dead }} dead entries?');">
+                Retry All Dead Entries
+            </button>
+        </form>
+    </div>
+    {% endif %}
+    
+    <div class="card">
+        <div class="card-header">
+            <h5>Queue Einträge</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <select name="status" class="form-control">
+                            <option value="">-- Alle Status --</option>
+                            <option value="queued" {% if filters.status == 'queued' %}selected{% endif %}>Queued</option>
+                            <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                            <option value="dead" {% if filters.status == 'dead' %}selected{% endif %}>Dead</option>
+                            <option value="sent" {% if filters.status == 'sent' %}selected{% endif %}>Sent</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="mail_type" class="form-control">
+                            <option value="">-- Alle Typen --</option>
+                            <option value="newsletter" {% if filters.mail_type == 'newsletter' %}selected{% endif %}>Newsletter</option>
+                            <option value="invitation" {% if filters.mail_type == 'invitation' %}selected{% endif %}>Invitation</option>
+                            <option value="password_reset" {% if filters.mail_type == 'password_reset' %}selected{% endif %}>Password Reset</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ filters.search ?? '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+            
+            {% if entries.count() > 0 %}
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Recipient</th>
+                        <th>Status</th>
+                        <th>Attempts</th>
+                        <th>Last Error</th>
+                        <th>Next Attempt</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.id }}</td>
+                        <td><span class="badge badge-info">{{ entry.mail_type }}</span></td>
+                        <td>{{ entry.recipient_email }}</td>
+                        <td>
+                            <span class="badge
+                                {% if entry.status == 'sent' %}badge-success
+                                {% elseif entry.status == 'dead' %}badge-danger
+                                {% elseif entry.status == 'failed' %}badge-warning
+                                {% else %}badge-secondary{% endif %}">
+                                {{ entry.status }}
+                            </span>
+                        </td>
+                        <td>{{ entry.attempts }}/{{ entry.max_attempts }}</td>
+                        <td>
+                            {% if entry.error_code %}
+                            <a href="/admin/mail-queue/{{ entry.id }}" title="{{ entry.error_message|slice(0, 100) }}">
+                                {{ entry.error_code }}
+                            </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.next_attempt_at %}
+                            {{ entry.next_attempt_at.format('Y-m-d H:i') }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.status == 'dead' %}
+                            <form method="post" action="/admin/mail-queue/{{ entry.id }}/retry" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-warning">Retry</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No entries found.</p>
+            {% endif %}
+            
+            {% if entries.hasPages() %}
+            <nav>
+                <ul class="pagination">
+                    {% if entries.onFirstPage() == false %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ entries.previousPageUrl() }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    {% for num in entries.getUrlRange(1, entries.lastPage()) %}
+                    <li class="page-item {% if num == entries.currentPage() %}active{% endif %}">
+                        <a class="page-link" href="{{ entries.url(num) }}">{{ num }}</a>
+                    </li>
+                    {% endfor %}
+                    {% if entries.hasMorePages() %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ entries.nextPageUrl() }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
