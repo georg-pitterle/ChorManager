@@ -17,9 +17,10 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Models\Project;
 use App\Services\PasswordPolicyService;
+use App\Models\AppSetting;
 use App\Models\InvitationToken;
 use App\Services\Mailer;
-use App\Util\EnvHelper;
+use App\Util\AppUrlResolver;
 
 class UserController
 {
@@ -124,6 +125,7 @@ class UserController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
+        $submitAction = (string) ($data['submit_action'] ?? 'save');
 
         $firstName = trim($data['first_name'] ?? '');
         $lastName = trim($data['last_name'] ?? '');
@@ -163,7 +165,9 @@ class UserController
             $user->first_name = $firstName;
             $user->last_name = $lastName;
             $user->email = $email;
-            $user->password = null;
+            // users.password is NOT NULL in the current schema; generate an internal one-time placeholder hash
+            $temporaryPassword = bin2hex(random_bytes(32));
+            $user->password = password_hash($temporaryPassword, PASSWORD_DEFAULT);
             $user->is_active = 1;
 
             $this->userPersistence->save($user);
@@ -177,7 +181,17 @@ class UserController
             }
             $this->userPersistence->syncVoiceGroups($user, $vgData);
 
-            $_SESSION['success'] = 'Mitglied erfolgreich angelegt.';
+            if ($submitAction === 'save_and_invite') {
+                $inviteResult = $this->sendInvitationEmail($user, $request);
+                if ($inviteResult['success']) {
+                    $_SESSION['success'] = 'Mitglied erfolgreich angelegt und Einladungs-E-Mail gesendet.';
+                } else {
+                    $_SESSION['success'] = 'Mitglied erfolgreich angelegt.';
+                    $_SESSION['error'] = $inviteResult['message'] ?? 'Einladungs-E-Mail konnte nicht gesendet werden.';
+                }
+            } else {
+                $_SESSION['success'] = 'Mitglied erfolgreich angelegt.';
+            }
         } catch (\Exception $e) {
             error_log((string) $e);
             $_SESSION['error'] = 'Fehler beim Anlegen des Mitglieds.';
@@ -470,39 +484,134 @@ class UserController
             }
         }
 
-        $token = bin2hex(random_bytes(32));
-
-        InvitationToken::where('user_id', $targetUser->id)->delete();
-
-        InvitationToken::create([
-            'user_id'    => $targetUser->id,
-            'selector'   => bin2hex(random_bytes(9)),
-            'token_hash' => password_hash($token, PASSWORD_DEFAULT),
-            'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        $appUrl = rtrim((string) EnvHelper::read('APP_URL', 'http://localhost'), '/');
-        $inviteLink = $appUrl . '/reset-password?token=' . $token . '&email=' . urlencode($targetUser->email);
-
-        $mailer = new Mailer();
-        $htmlBody = $this->view->fetch('emails/invitation.twig', [
-            'user'        => $targetUser,
-            'invite_link' => $inviteLink,
-        ]);
-
-        $sent = $mailer->sendHtmlMail(
-            $targetUser->email,
-            'Einladung zum Chor-Manager',
-            $htmlBody
-        );
-
-        if (!$sent) {
-            $response->getBody()->write(json_encode(['success' => false, 'message' => 'Fehler beim Senden der E-Mail.']));
+        $inviteResult = $this->sendInvitationEmail($targetUser, $request);
+        if (!$inviteResult['success']) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'message' => $inviteResult['message'] ?? 'Fehler beim Senden der E-Mail.',
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
 
-        $response->getBody()->write(json_encode(['success' => true, 'message' => 'Einladungs-E-Mail wurde gesendet.']));
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Einladungs-E-Mail wurde gesendet.',
+        ]));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    }
+
+    private function sendInvitationEmail(User $targetUser, Request $request): array
+    {
+        try {
+            $token = bin2hex(random_bytes(32));
+
+            InvitationToken::where('user_id', $targetUser->id)->delete();
+
+            InvitationToken::create([
+                'user_id'    => $targetUser->id,
+                'selector'   => bin2hex(random_bytes(9)),
+                'token_hash' => password_hash($token, PASSWORD_DEFAULT),
+                'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            $appUrl = AppUrlResolver::resolveBaseUrl($request);
+            $inviteLink = $appUrl . '/reset-password?token=' . $token . '&email=' . urlencode($targetUser->email);
+            $branding = $this->resolveInvitationBranding();
+
+            $mailer = new Mailer();
+            $htmlBody = $this->view->fetch('emails/invitation.twig', [
+                'user'        => $targetUser,
+                'invite_link' => $inviteLink,
+                'app_name' => $branding['app_name'],
+                'primary_color' => $branding['primary_color'],
+                'logo_src' => $branding['logo_src'],
+            ]);
+
+            $sent = $mailer->sendHtmlMail(
+                $targetUser->email,
+                'Einladung zu ' . $branding['app_name'],
+                $htmlBody
+            );
+
+            if (!$sent) {
+                return [
+                    'success' => false,
+                    'message' => 'Fehler beim Senden der E-Mail.',
+                ];
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Einladungs-E-Mail wurde gesendet.',
+            ];
+        } catch (\Throwable $e) {
+            error_log((string) $e);
+            return [
+                'success' => false,
+                'message' => 'Fehler beim Senden der E-Mail.',
+            ];
+        }
+    }
+
+    /**
+     * @return array{app_name: string, primary_color: string, logo_src: string}
+     */
+    private function resolveInvitationBranding(): array
+    {
+        $appName = 'Chor-Manager';
+        $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
+        $logoSrc = $this->buildDefaultInvitationLogoDataUri();
+
+        try {
+            $settings = AppSetting::query()
+                ->whereIn('setting_key', ['app_name', 'primary_color'])
+                ->pluck('setting_value', 'setting_key')
+                ->toArray();
+
+            $configuredAppName = trim((string) ($settings['app_name'] ?? ''));
+            if ($configuredAppName !== '') {
+                $appName = $configuredAppName;
+            }
+
+            $primaryColor = AppSettingController::normalizePrimaryColor($settings['primary_color'] ?? null);
+        } catch (\Throwable $e) {
+            $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
+        }
+
+        try {
+            $logo = AppSetting::query()->find('app_logo');
+            if ($logo instanceof AppSetting && $logo->binary_content !== '') {
+                $mimeType = trim((string) $logo->mime_type);
+                if ($mimeType === '') {
+                    $mimeType = 'image/png';
+                }
+
+                $logoSrc = 'data:' . $mimeType . ';base64,' . base64_encode($logo->binary_content);
+            }
+        } catch (\Throwable $e) {
+            $logoSrc = $this->buildDefaultInvitationLogoDataUri();
+        }
+
+        return [
+            'app_name' => $appName,
+            'primary_color' => $primaryColor,
+            'logo_src' => $logoSrc,
+        ];
+    }
+
+    private function buildDefaultInvitationLogoDataUri(): string
+    {
+        $defaultLogoPath = __DIR__ . '/../../public/img/logo.png';
+        if (!is_file($defaultLogoPath)) {
+            return '';
+        }
+
+        $binaryContent = file_get_contents($defaultLogoPath);
+        if ($binaryContent === false || $binaryContent === '') {
+            return '';
+        }
+
+        return 'data:image/png;base64,' . base64_encode($binaryContent);
     }
 }

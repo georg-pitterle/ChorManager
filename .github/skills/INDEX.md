@@ -10,6 +10,8 @@ Route by intent keywords. Load one or more matching skills.
   - .github/skills/phinx-migration-enforcer/SKILL.md
 - dev-seed-completeness -> seed, DevSeedService, test data, new table seed
   - .github/skills/dev-seed-completeness/SKILL.md
+- premium-frontend-ui -> premium ui, immersive ui, landing page, awwwards, polished frontend
+  - .github/skills/premium-frontend-ui/SKILL.md
 - php-style-and-quality-gate -> PSR-12, phpcs, phpcbf, format php
   - .github/skills/php-style-and-quality-gate/SKILL.md
 - template-hygiene-responsive-ui -> twig, inline js, inline css, responsive
@@ -22,6 +24,7 @@ Route by intent keywords. Load one or more matching skills.
 ## Common Combos
 
 - schema feature: phinx-migration-enforcer + dev-seed-completeness + change-reporting-standard
+- premium frontend change: premium-frontend-ui + template-hygiene-responsive-ui + change-reporting-standard
 - php refactor: php-style-and-quality-gate + change-reporting-standard
 - frontend change: template-hygiene-responsive-ui + change-reporting-standard
 - auth/security change: security-baseline-reviewer + php-style-and-quality-gate + change-reporting-standard

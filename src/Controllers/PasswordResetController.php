@@ -13,7 +13,7 @@ use App\Models\InvitationToken;
 use App\Services\Mailer;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
-use App\Util\EnvHelper;
+use App\Util\AppUrlResolver;
 
 class PasswordResetController
 {
@@ -78,7 +78,7 @@ class PasswordResetController
             'created_at' => date('Y-m-d H:i:s')
         ]);
 
-        $resetLink = $this->buildTrustedAppUrl() . '/reset-password?token=' . $token . '&email=' . urlencode($email);
+        $resetLink = AppUrlResolver::resolveBaseUrl($request) . '/reset-password?token=' . $token . '&email=' . urlencode($email);
 
         $htmlBody = $this->view->fetch('emails/password_reset.twig', [
             'user' => $user,
@@ -94,21 +94,6 @@ class PasswordResetController
         }
 
         return $response->withHeader('Location', '/forgot-password')->withStatus(302);
-    }
-
-    private function buildTrustedAppUrl(): string
-    {
-        $configured = trim((string) EnvHelper::read('APP_URL', 'http://localhost'));
-
-        $parts = parse_url($configured);
-        $scheme = is_array($parts) ? ($parts['scheme'] ?? '') : '';
-        $host = is_array($parts) ? ($parts['host'] ?? '') : '';
-
-        if (($scheme === 'http' || $scheme === 'https') && is_string($host) && $host !== '') {
-            return rtrim($configured, '/');
-        }
-
-        return 'http://localhost';
     }
 
     public function showResetForm(Request $request, Response $response): Response

@@ -30,11 +30,14 @@ class SecurityHardeningFeatureTest extends TestCase
     public function testPasswordResetBuildsLinkFromTrustedAppUrl(): void
     {
         $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/PasswordResetController.php');
+        $resolverContent = file_get_contents(dirname(__DIR__) . '/../src/Util/AppUrlResolver.php');
 
         $this->assertIsString($content);
-        $this->assertStringContainsString('buildTrustedAppUrl()', $content);
-        $this->assertStringContainsString("EnvHelper::read('APP_URL'", $content);
-        $this->assertStringNotContainsString('$request->getUri()->getHost()', $content);
+        $this->assertIsString($resolverContent);
+        $this->assertStringContainsString('AppUrlResolver::resolveBaseUrl($request)', $content);
+        $this->assertStringContainsString("EnvHelper::read('APP_URL'", $resolverContent);
+        $this->assertStringContainsString("X-Forwarded-Host", $resolverContent);
+        $this->assertStringContainsString("X-Forwarded-Proto", $resolverContent);
     }
 
     public function testFileNameSanitizationForContentDispositionExists(): void
