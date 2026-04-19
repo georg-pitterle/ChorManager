@@ -13,6 +13,7 @@ use App\Models\InvitationToken;
 use App\Services\Mailer;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
+use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
 
 class PasswordResetController
@@ -21,17 +22,20 @@ class PasswordResetController
     private Mailer $mailer;
     private ?RateLimiterService $rateLimiter;
     private PasswordPolicyService $passwordPolicyService;
+    private MailQueueService $mailQueueService;
 
     public function __construct(
         Twig $view,
         ?Mailer $mailer = null,
         ?RateLimiterService $rateLimiter = null,
-        ?PasswordPolicyService $passwordPolicyService = null
+        ?PasswordPolicyService $passwordPolicyService = null,
+        ?MailQueueService $mailQueueService = null
     ) {
         $this->view = $view;
         $this->mailer = $mailer ?? new Mailer();
         $this->rateLimiter = $rateLimiter;
         $this->passwordPolicyService = $passwordPolicyService ?? new PasswordPolicyService();
+        $this->mailQueueService = $mailQueueService ?? new MailQueueService();
     }
 
     public function showForgotForm(Request $request, Response $response): Response
@@ -85,12 +89,18 @@ class PasswordResetController
             'reset_link' => $resetLink
         ]);
 
-        $sent = $this->mailer->sendHtmlMail($email, 'Passwort zurücksetzen - Chor-Manager', $htmlBody);
-
-        if ($sent) {
+        try {
+            $this->mailQueueService->enqueuePasswordResetMail(
+                recipientEmail: $email,
+                subject: 'Passwort zurücksetzen - Chor-Manager',
+                bodyHtml: $htmlBody,
+                userId: (int) $user->id,
+                resetToken: $token
+            );
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
-        } else {
-            $_SESSION['error'] = 'Fehler beim Senden der E-Mail. Bitte kontaktiere den Administrator.';
+        } catch (\Exception $e) {
+            error_log('Failed to enqueue password reset mail: ' . $e->getMessage());
+            $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
         }
 
         return $response->withHeader('Location', '/forgot-password')->withStatus(302);
