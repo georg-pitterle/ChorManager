@@ -20,6 +20,7 @@ use App\Services\PasswordPolicyService;
 use App\Models\AppSetting;
 use App\Models\InvitationToken;
 use App\Services\Mailer;
+use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
 
 class UserController
@@ -30,6 +31,7 @@ class UserController
     private UserPersistence $userPersistence;
     private ProjectPersistence $projectPersistence;
     private PasswordPolicyService $passwordPolicyService;
+    private MailQueueService $mailQueueService;
 
     public function __construct(
         Twig $view,
@@ -37,7 +39,8 @@ class UserController
         ProjectQuery $projectQuery,
         UserPersistence $userPersistence,
         ProjectPersistence $projectPersistence,
-        PasswordPolicyService $passwordPolicyService
+        PasswordPolicyService $passwordPolicyService,
+        MailQueueService $mailQueueService
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
@@ -45,6 +48,7 @@ class UserController
         $this->userPersistence = $userPersistence;
         $this->projectPersistence = $projectPersistence;
         $this->passwordPolicyService = $passwordPolicyService;
+        $this->mailQueueService = $mailQueueService;
     }
 
     public function index(Request $request, Response $response): Response
@@ -519,7 +523,6 @@ class UserController
             $inviteLink = $appUrl . '/reset-password?token=' . $token . '&email=' . urlencode($targetUser->email);
             $branding = $this->resolveInvitationBranding();
 
-            $mailer = new Mailer();
             $htmlBody = $this->view->fetch('emails/invitation.twig', [
                 'user'        => $targetUser,
                 'invite_link' => $inviteLink,
@@ -528,22 +531,17 @@ class UserController
                 'logo_src' => $branding['logo_src'],
             ]);
 
-            $sent = $mailer->sendHtmlMail(
-                $targetUser->email,
-                'Einladung zu ' . $branding['app_name'],
-                $htmlBody
+            $this->mailQueueService->enqueueInvitationMail(
+                recipientEmail: $targetUser->email,
+                subject: 'Einladung zu ' . $branding['app_name'],
+                bodyHtml: $htmlBody,
+                userId: (int) $targetUser->id,
+                invitationToken: $token
             );
-
-            if (!$sent) {
-                return [
-                    'success' => false,
-                    'message' => 'Fehler beim Senden der E-Mail.',
-                ];
-            }
 
             return [
                 'success' => true,
-                'message' => 'Einladungs-E-Mail wurde gesendet.',
+                'message' => 'Einladungs-E-Mail wurde zur Queue hinzugefügt.',
             ];
         } catch (\Throwable $e) {
             error_log((string) $e);
