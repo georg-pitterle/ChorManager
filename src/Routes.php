@@ -345,7 +345,7 @@ return function (App $app) {
                     );
                 }
             )->add(
-                new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, true)
+                new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, true, false, false)
             );
 
             // Mail Queue Management
@@ -358,7 +358,7 @@ return function (App $app) {
                     $mailQueueGroup->post('/mail-queue/retry-all-dead', [MailQueueController::class, 'retryAllDead']);
                 }
             )->add(
-                new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true)
+                new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true, false)
             );
 
             // Dev-only seed endpoint, still protected by admin permission.
