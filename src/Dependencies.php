@@ -16,6 +16,9 @@ use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Services\MailQueueService;
+use App\Services\MailDeliveryService;
+use App\Services\MailQueueAdminService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
 use App\Util\Csrf;
@@ -43,6 +46,9 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterTemplateQuery::class => \DI\autowire(),
         NewsletterTemplatePersistence::class => \DI\autowire(),
         Mailer::class => \DI\autowire(),
+        MailQueueService::class => \DI\autowire(),
+        MailDeliveryService::class => \DI\autowire(),
+        MailQueueAdminService::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
