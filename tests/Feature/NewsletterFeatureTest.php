@@ -254,15 +254,16 @@ class NewsletterFeatureTest extends TestCase
     }
 
     /**
-     * Test send flow still archives delivered newsletters per recipient
+     * Test send flow enqueues mails and marks status as SENT
      */
-    public function testSendFlowStillPersistsNewsletterArchiveEntries(): void
+    public function testSendFlowEnqueuesMails(): void
     {
         $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterService.php');
 
         $this->assertIsString($serviceContent);
-        $this->assertStringContainsString("NewsletterArchive::create([", $serviceContent);
+        $this->assertStringContainsString('mailQueueService->enqueueNewsletterMail(', $serviceContent);
         $this->assertStringContainsString("'status' => Newsletter::STATUS_SENT", $serviceContent);
+        $this->assertStringContainsString("'status' => 'queued'", $serviceContent);
     }
 
     /**
