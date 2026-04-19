@@ -1,15 +1,15 @@
 <?php
 
-namespace ChorManager\Models;
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
 class MailQueue extends Model
 {
     public $timestamps = true;
-    
+
     protected $table = 'mail_queue';
-    
+
     protected $fillable = [
         'mail_type',
         'recipient_email',
@@ -26,7 +26,7 @@ class MailQueue extends Model
         'error_message',
         'is_retryable',
     ];
-    
+
     protected $casts = [
         'is_retryable' => 'boolean',
         'created_at' => 'datetime',
@@ -36,28 +36,28 @@ class MailQueue extends Model
         'sent_at' => 'datetime',
         'payload_json' => 'array',
     ];
-    
+
     // Scopes
     public function scopeQueued($query)
     {
         return $query->where('status', 'queued');
     }
-    
+
     public function scopeFailed($query)
     {
         return $query->where('status', 'failed');
     }
-    
+
     public function scopeDead($query)
     {
         return $query->where('status', 'dead');
     }
-    
+
     public function scopeSent($query)
     {
         return $query->where('status', 'sent');
     }
-    
+
     public function scopeDueSoon($query)
     {
         return $query->whereIn('status', ['queued', 'failed'])
@@ -66,18 +66,18 @@ class MailQueue extends Model
                     ->orWhere('next_attempt_at', '<=', now());
             });
     }
-    
+
     // Helpers
     public function isDelivered(): bool
     {
         return $this->status === 'sent';
     }
-    
+
     public function isDeadLetter(): bool
     {
         return $this->status === 'dead';
     }
-    
+
     public function canRetry(): bool
     {
         return $this->status === 'dead' && $this->attempts > 0;
