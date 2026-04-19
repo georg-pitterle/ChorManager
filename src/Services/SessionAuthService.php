@@ -23,6 +23,7 @@ class SessionAuthService
         $canManageSponsoring = false;
         $canManageSongLibrary = false;
         $canManageNewsletters = false;
+        $canManageMailQueue = false;
         $canManageTasks = false;
         $maxRoleLevel = 0;
 
@@ -65,6 +66,9 @@ class SessionAuthService
             if ($role->can_manage_newsletters) {
                 $canManageNewsletters = true;
             }
+            if ($role->can_manage_mail_queue) {
+                $canManageMailQueue = true;
+            }
             if ($role->can_manage_tasks) {
                 $canManageTasks = true;
             }
@@ -84,6 +88,7 @@ class SessionAuthService
         $_SESSION['can_manage_sponsoring'] = $canManageSponsoring;
         $_SESSION['can_manage_song_library'] = $canManageSongLibrary;
         $_SESSION['can_manage_newsletters'] = $canManageNewsletters;
+        $_SESSION['can_manage_mail_queue'] = $canManageMailQueue;
         $_SESSION['can_manage_tasks'] = $canManageTasks;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
