@@ -1,7 +1,7 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}
-    Newsletter-Übersicht - {{ app_settings.app_name|default("Chor-Manager") }}
+    Newsletter-Übersicht - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -104,7 +104,7 @@
                      data-page-size-options="25,50,100"
                      data-default-sort-key="created"
                      data-default-sort-dir="desc">
-                    {{ include("partials/table_toolbar.twig") }}
+                    {{ include('partials/table_toolbar.twig') }}
                     <div class="table-responsive">
                         <table class="table table-hover table-striped mb-0 table-responsive-cards"
                                id="newslettersTable">
@@ -121,9 +121,9 @@
                             <tbody>
                                 {% for newsletter in newsletters %}
                                     <tr data-sort-title="{{ newsletter.title|lower }}"
-                                        data-sort-sender="{{ (newsletter.createdBy.first_name|default("") ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim|lower }}"
+                                        data-sort-sender="{{ (newsletter.createdBy.first_name|default('') ~ ' ' ~ newsletter.createdBy.last_name|default(''))|trim|lower }}"
                                         data-sort-recipients="{{ newsletter.recipient_count }}"
-                                        data-sort-created="{{ newsletter.created_at|date("Y-m-d H:i:s") }}"
+                                        data-sort-created="{{ newsletter.created_at|date('Y-m-d H:i:s') }}"
                                         data-sort-status="{{ newsletter.status|lower }}">
                                         <td data-label="Titel">
                                             <strong>{{ newsletter.title }}</strong>
@@ -133,7 +133,7 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Erstellt von">
-                                            {{ newsletter.createdBy.first_name|default("") }} {{ newsletter.createdBy.last_name|default("") }}
+                                            {{ newsletter.createdBy.first_name|default('') }} {{ newsletter.createdBy.last_name|default('') }}
                                         </td>
                                         <td data-label="Empfänger">
                                             <span class="badge bg-info">{{ newsletter.recipient_count }}</span>

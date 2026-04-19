@@ -3,19 +3,21 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="Einladung zur Kontoaktivierung in {{ app_name|default("Chor-Manager") }}.">
-        <meta name="keywords" content="Einladung, Kontoaktivierung, {{ app_name|default("Chor-Manager") }}">
-        <title>Einladung zu {{ app_name|default("Chor-Manager") }}</title>
+        <meta name="description"
+              content="Einladung zur Kontoaktivierung in {{ app_name|default('Chor-Manager') }}.">
+        <meta name="keywords"
+              content="Einladung, Kontoaktivierung, {{ app_name|default('Chor-Manager') }}">
+        <title>Einladung zu {{ app_name|default('Chor-Manager') }}</title>
         <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
         .email-container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .email-header { background-color: {{ primary_color|default("#E8A817") }}; color: #ffffff; padding: 30px; text-align: center; }
+        .email-header { background-color: {{ primary_color|default('#E8A817') }}; color: #ffffff; padding: 30px; text-align: center; }
         .email-header img { display: block; margin: 0 auto 16px auto; max-width: 72px; height: auto; }
         .email-header h1 { margin: 0; font-size: 22px; }
         .email-body { padding: 30px 40px; color: #333333; line-height: 1.6; }
         .email-body p { margin: 0 0 16px 0; }
         .email-actions { text-align: center; }
-        .btn-invite { display: inline-block; margin: 20px 0; padding: 14px 28px; background-color: {{ primary_color|default("#E8A817") }}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
+        .btn-invite { display: inline-block; margin: 20px 0; padding: 14px 28px; background-color: {{ primary_color|default('#E8A817') }}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
         .email-footer { padding: 20px 40px; background-color: #f9f9f9; border-top: 1px solid #eeeeee; font-size: 12px; color: #999999; text-align: center; }
         .url-fallback { word-break: break-all; color: #666666; font-size: 13px; }
         </style>
@@ -24,15 +26,18 @@
         <div class="email-container">
             <div class="email-header">
                 {% if logo_src is defined and logo_src is not empty %}
-                    <img src="{{ logo_src }}" alt="{{ app_name|default("Chor-Manager") }} Logo" width="72" height="72">
+                    <img src="{{ logo_src }}"
+                         alt="{{ app_name|default('Chor-Manager') }} Logo"
+                         width="72"
+                         height="72">
                 {% endif %}
-                <h1>🎵 Einladung zu {{ app_name|default("Chor-Manager") }}</h1>
+                <h1>🎵 Einladung zu {{ app_name|default('Chor-Manager') }}</h1>
             </div>
             <div class="email-body">
                 <p>Hallo {{ user.first_name }},</p>
 
                 <p>
-                    du wurdest eingeladen, <strong>{{ app_name|default("Chor-Manager") }}</strong> beizutreten.
+                    du wurdest eingeladen, <strong>{{ app_name|default('Chor-Manager') }}</strong> beizutreten.
                     Klicke auf den folgenden Button, um dein Passwort festzulegen und dein Konto zu aktivieren:
                 </p>
 
@@ -41,7 +46,7 @@
                        class="btn-invite"
                        style="display:inline-block;
                               padding:14px 28px;
-                                        background-color:{{ primary_color|default("#E8A817") }};
+                              background-color:{{ primary_color|default('#E8A817') }};
                               color:#ffffff !important;
                               text-decoration:none;
                               border-radius:6px;
@@ -59,7 +64,7 @@
                 <p>
                     Mit freundlichen Grüßen,
                     <br>
-                    Dein {{ app_name|default("Chor-Manager") }} Team
+                    Dein {{ app_name|default('Chor-Manager') }} Team
                 </p>
             </div>
             <div class="email-footer">Diese E-Mail wurde automatisch generiert. Bitte antworte nicht auf diese Nachricht.</div>

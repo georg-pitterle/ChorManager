@@ -9,9 +9,9 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="csrf-token" content="{{ csrf_token }}">
         <meta name="description"
-              content="{{ app_settings.app_description|default("Chor-Manager – Verwaltung von Mitgliedern, Terminen und Projekten.") }}">
+              content="{{ app_settings.app_description|default('Chor-Manager – Verwaltung von Mitgliedern, Terminen und Projekten.') }}">
         <meta name="keywords"
-              content="{{ app_settings.app_keywords|default("chor, chorverwaltung, mitglieder, termine, projekte, newsletter") }}">
+              content="{{ app_settings.app_keywords|default('chor, chorverwaltung, mitglieder, termine, projekte, newsletter') }}">
         <title>
             {% block title %}
                 app_settings.app_name|default("Chor-Manager")

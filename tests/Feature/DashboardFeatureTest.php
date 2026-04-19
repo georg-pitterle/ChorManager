@@ -21,30 +21,44 @@ class DashboardFeatureTest extends TestCase
         $this->assertStringContainsString("->with(['project', 'event'])", $controller);
     }
 
-    public function testDashboardTemplateContainsLatestNewsletterCardAndDistinctCardColors(): void
+    public function testDashboardTemplateContainsStructuredSectionsAndCommunicationAnchors(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
 
         $this->assertIsString($template);
 
+        $this->assertStringContainsString('class="dashboard-shell"', $template);
+        $this->assertStringContainsString('Schnellzugriff', $template);
+        $this->assertStringContainsString('Projektkontext', $template);
+        $this->assertStringContainsString('Kommunikation', $template);
+        $this->assertStringContainsString('dashboard-action-grid', $template);
+        $this->assertStringContainsString('dashboard-context-grid', $template);
+        $this->assertStringContainsString('dashboard-communication-grid', $template);
+
         $this->assertStringContainsString('Zuletzt versendeter Newsletter', $template);
         $this->assertStringContainsString('Mail-Queue', $template);
-        $this->assertStringContainsString('dead_mail_count', $template);
         $this->assertStringContainsString('href="/admin/mail-queue"', $template);
-        $this->assertStringContainsString('latest_sent_newsletter', $template);
         $this->assertStringContainsString(
             'data-newsletter-modal-url="/newsletters/{{ latest_sent_newsletter.id }}/preview?modal=1"',
             $template
         );
         $this->assertStringContainsString('id="newsletterActionModal"', $template);
         $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $template);
+    }
 
-        $this->assertStringContainsString('border-primary', $template);
-        $this->assertStringContainsString('border-warning', $template);
-        $this->assertStringContainsString('border-info', $template);
-        $this->assertStringContainsString('border-secondary', $template);
-        $this->assertStringContainsString('border-success', $template);
-        $this->assertStringContainsString('border-dark', $template);
-        $this->assertStringContainsString('border-danger', $template);
+    public function testDashboardTemplateContainsPermissionAndEmptyStateGuards(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
+
+        $this->assertIsString($template);
+
+        $this->assertStringContainsString('{% if session.can_manage_attendance or session.can_manage_users %}', $template);
+        $this->assertStringContainsString('{% if session.can_read_finances or session.can_manage_users %}', $template);
+        $this->assertStringContainsString('{% if session.can_manage_users %}', $template);
+        $this->assertStringContainsString('{% if session.can_manage_tasks and current_project %}', $template);
+        $this->assertStringContainsString('{% if session.can_manage_tasks and upcoming_project %}', $template);
+        $this->assertStringContainsString('{% if dead_mail_count is not null %}', $template);
+        $this->assertStringContainsString('Keine projektbezogenen Aufgabenbereiche verfügbar.', $template);
+        $this->assertStringContainsString('Aktuell stehen für dich keine Kommunikationskarten bereit.', $template);
     }
 }

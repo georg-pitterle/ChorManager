@@ -1,7 +1,7 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block title %}
-    Newsletter erstellen - {{ app_settings.app_name|default("Chor-Manager") }}
+    Newsletter erstellen - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -66,7 +66,7 @@
                             <option value="">-- Keine Auswahl --</option>
                             {% for event in events %}
                                 <option value="{{ event.id }}" data-project-id="{{ event.project_id }}">
-                                    {{ event.title }} ({{ event.event_date|date("d.m.Y") }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>

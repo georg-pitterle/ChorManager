@@ -1,14 +1,18 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}
-    Ersteinrichtung - {{ app_settings.app_name|default("Chor-Manager") }}
+    Ersteinrichtung - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block content %}
     <section class="auth-shell">
         <div class="auth-card surface-card">
             <div class="auth-brand-panel">
-                <img src="/logo" alt="App Logo" class="auth-logo mb-3" width="64" height="64">
+                <img src="/logo"
+                     alt="App Logo"
+                     class="auth-logo mb-3"
+                     width="64"
+                     height="64">
                 <h1 class="h4 mb-2">Ersteinrichtung</h1>
                 <p class="mb-0">Erstelle den ersten Administrator-Account.</p>
             </div>
@@ -56,7 +60,7 @@
                                minlength="12">
                         <label for="passwordInput">Passwort</label>
                     </div>
-                    {{ include("partials/password_strength.twig") }}
+                    {{ include('partials/password_strength.twig') }}
                     <button class="btn btn-primary btn-lg w-100" type="submit">Setup abschließen</button>
                 </form>
             </div>

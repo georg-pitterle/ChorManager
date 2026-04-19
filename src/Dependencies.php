@@ -5,7 +5,6 @@ declare(strict_types=1);
 use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
 use Slim\Views\Twig;
-use Slim\Views\TwigMiddleware;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Queries\NewsletterTemplateQuery;

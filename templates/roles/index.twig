@@ -1,7 +1,7 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}
-    Rollen verwalten - {{ app_settings.app_name|default("Chor-Manager") }}
+    Rollen verwalten - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -49,7 +49,7 @@
          data-default-sort-key=""
          data-default-page-size="100"
          data-page-size-options="25,50,100,200">
-        {{ include("partials/table_toolbar.twig") }}
+        {{ include('partials/table_toolbar.twig') }}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -365,13 +365,14 @@
                                id="can_read_finances"
                                name="can_read_finances"
                                value="1">
-                           <label class="form-check-label fw-bold text-success"
-                               for="can_read_finances">Finanzen nur lesen</label>
-                           <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.</div>
-                          </div>
+                        <label class="form-check-label fw-bold text-success" for="can_read_finances">Finanzen nur lesen</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.
+                        </div>
+                    </div>
 
-                          <div class="form-check form-switch mb-3">
-                           <input class="form-check-input"
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
                                type="checkbox"
                                role="switch"
                                id="can_manage_finances"
@@ -379,7 +380,7 @@
                                value="1">
                         <label class="form-check-label fw-bold text-success"
                                for="can_manage_finances">Finanzen lesen und schreiben</label>
-                           <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
+                        <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
                     </div>
 
                     <div class="form-check form-switch mb-3">
@@ -420,17 +421,17 @@
                         <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
                     </div>
 
-                          <div class="form-check form-switch mb-3">
-                           <input class="form-check-input"
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
                                type="checkbox"
                                role="switch"
                                id="can_manage_mail_queue"
                                name="can_manage_mail_queue"
                                value="1">
-                           <label class="form-check-label fw-bold text-primary"
+                        <label class="form-check-label fw-bold text-primary"
                                for="can_manage_mail_queue">Mailversand verwalten</label>
-                           <div class="form-text">Wenn aktiv, darf diese Person die Mail-Queue einsehen und Dead-Letter erneut senden.</div>
-                          </div>
+                        <div class="form-text">Wenn aktiv, darf diese Person die Mail-Queue einsehen und Dead-Letter erneut senden.</div>
+                    </div>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -560,13 +561,15 @@
                                id="edit_can_read_finances"
                                name="can_read_finances"
                                value="1">
-                           <label class="form-check-label fw-bold text-success"
+                        <label class="form-check-label fw-bold text-success"
                                for="edit_can_read_finances">Finanzen nur lesen</label>
-                           <div class="form-text">Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.</div>
-                          </div>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.
+                        </div>
+                    </div>
 
-                          <div class="form-check form-switch mb-3">
-                           <input class="form-check-input"
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
                                type="checkbox"
                                role="switch"
                                id="edit_can_manage_finances"
@@ -574,7 +577,7 @@
                                value="1">
                         <label class="form-check-label fw-bold text-success"
                                for="edit_can_manage_finances">Finanzen lesen und schreiben</label>
-                           <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
+                        <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
                     </div>
 
                     <div class="form-check form-switch mb-3">
@@ -615,17 +618,17 @@
                         <div class="form-text">Wenn aktiv, darf diese Person Newsletter erstellen, bearbeiten und verschicken.</div>
                     </div>
 
-                          <div class="form-check form-switch mb-3">
-                           <input class="form-check-input"
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
                                type="checkbox"
                                role="switch"
                                id="edit_can_manage_mail_queue"
                                name="can_manage_mail_queue"
                                value="1">
-                           <label class="form-check-label fw-bold text-primary"
+                        <label class="form-check-label fw-bold text-primary"
                                for="edit_can_manage_mail_queue">Mailversand verwalten</label>
-                           <div class="form-text">Wenn aktiv, darf diese Person die Mail-Queue einsehen und Dead-Letter erneut senden.</div>
-                          </div>
+                        <div class="form-text">Wenn aktiv, darf diese Person die Mail-Queue einsehen und Dead-Letter erneut senden.</div>
+                    </div>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"

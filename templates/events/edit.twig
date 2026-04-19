@@ -1,7 +1,7 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}
-    Termin bearbeiten - {{ app_settings.app_name|default("Chor-Manager") }}
+    Termin bearbeiten - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block content %}
@@ -50,7 +50,7 @@
                                        class="form-control"
                                        id="event_date"
                                        name="event_date"
-                                       value="{{ event.event_date|date("Y-m-d") }}"
+                                       value="{{ event.event_date|date('Y-m-d') }}"
                                        required>
                             </div>
                             <div class="col-md-6 mb-3">

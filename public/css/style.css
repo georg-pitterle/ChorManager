@@ -157,6 +157,129 @@ body.app-shell {
     display: block;
 }
 
+.dashboard-shell {
+    display: grid;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-section {
+    border: 1px solid rgba(24, 33, 43, 0.1);
+    border-radius: 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 253, 0.95) 100%);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
+    padding: 1.1rem;
+}
+
+.dashboard-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 0.65rem;
+    padding-bottom: 0.9rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(24, 33, 43, 0.1);
+}
+
+.dashboard-section-title {
+    margin: 0;
+    font-size: clamp(1.05rem, 1.45vw, 1.35rem);
+    letter-spacing: 0.02em;
+    font-weight: 700;
+    color: #1d2633;
+}
+
+.dashboard-section-lead {
+    margin: 0;
+    max-width: 54ch;
+    color: var(--theme-text-muted);
+    font-size: 0.95rem;
+}
+
+.dashboard-action-grid,
+.dashboard-context-grid,
+.dashboard-communication-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.9rem;
+}
+
+.dashboard-panel {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1rem;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(24, 33, 43, 0.12);
+    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+}
+
+.dashboard-panel__body {
+    display: grid;
+    gap: 0.55rem;
+    margin-bottom: 0.95rem;
+}
+
+.dashboard-panel__eyebrow {
+    margin: 0;
+    color: #566173;
+    font-size: 0.74rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.dashboard-panel__title {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dashboard-panel__text {
+    margin: 0;
+    color: #4a5565;
+    line-height: 1.5;
+}
+
+.dashboard-panel .btn {
+    align-self: flex-start;
+}
+
+.dashboard-panel--critical {
+    background: linear-gradient(180deg, #dc3545 0%, #c52d3d 100%);
+    border-color: rgba(197, 45, 61, 0.78);
+}
+
+.dashboard-panel--critical .dashboard-panel__eyebrow,
+.dashboard-panel--critical .dashboard-panel__title,
+.dashboard-panel--critical .dashboard-panel__text {
+    color: #ffffff;
+}
+
+.dashboard-panel--empty {
+    border-style: dashed;
+    border-color: rgba(102, 112, 133, 0.4);
+    background: linear-gradient(180deg, #ffffff 0%, #f2f5f9 100%);
+}
+
+.dashboard-section--actions {
+    border-top: 3px solid #2f5e9e;
+}
+
+.dashboard-section--context {
+    border-top: 3px solid #425776;
+}
+
+.dashboard-section--communication {
+    border-top: 3px solid #8a3240;
+}
+
 @media (max-width: 767.98px) {
     .mail-queue-stat-card {
         min-height: auto;
@@ -167,6 +290,24 @@ body.app-shell {
     }
 
     .mail-queue-overview-actions .btn {
+        width: 100%;
+    }
+
+    .dashboard-section {
+        padding: 0.9rem;
+    }
+
+    .dashboard-section-head {
+        align-items: stretch;
+    }
+
+    .dashboard-action-grid,
+    .dashboard-context-grid,
+    .dashboard-communication-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-panel .btn {
         width: 100%;
     }
 }

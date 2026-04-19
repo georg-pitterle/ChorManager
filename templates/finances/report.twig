@@ -1,7 +1,7 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% block title %}
-    Finanzauswertung - {{ app_settings.app_name|default("Chor-Manager") }}
+    Finanzauswertung - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -305,7 +305,7 @@
                                     {% set current_balance = current_balance - item.amount %}
                                 {% endif %}
                                 <tr>
-                                    <td class="finance-report-date-cell">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                    <td class="finance-report-date-cell">{{ item.invoice_date|date('d.m.Y') }}</td>
                                     <td class="text-muted finance-report-number-cell">#{{ item.running_number }}</td>
                                     <td class="finance-report-description-cell">{{ item.description }}</td>
                                     <td class="text-end text-success finance-report-amount-cell">

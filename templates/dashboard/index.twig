@@ -15,138 +15,198 @@
 {% endblock page_header %}
 
 {% block content %}
-    <div class="row">
-
-        {% if session.can_manage_attendance or session.can_manage_users %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-primary">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-primary">
-                            <i class="bi bi-person-check-fill"></i> Anwesenheiten
-                        </h5>
-                        <p class="card-text">Erfasse die Anwesenheit der Mitglieder für geplante Termine.</p>
-                        <a href="/attendance" class="btn btn-outline-primary mt-auto">Anwesenheiten eintragen</a>
-                    </div>
-                </div>
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--actions"
+                 aria-labelledby="dashboard-actions-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="dashboard-actions-title">Schnellzugriff</h2>
+                <p class="dashboard-section-lead mb-0">
+                    Die wichtigsten Bereiche für deinen Tagesablauf, direkt aus dem Dashboard heraus.
+                </p>
             </div>
+
+            <div class="dashboard-action-grid">
+                {% if session.can_manage_attendance or session.can_manage_users %}
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Organisation</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-person-check-fill"></i>
+                                Anwesenheiten
+                            </h3>
+                            <p class="dashboard-panel__text">Erfasse die Anwesenheit der Mitglieder für geplante Termine.</p>
+                        </div>
+                        <a href="/attendance" class="btn btn-outline-primary">Anwesenheiten eintragen</a>
+                    </article>
+                {% endif %}
+
+                {% if session.can_read_finances or session.can_manage_users %}
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Finanzen</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-bank"></i>
+                                Kassa
+                            </h3>
+                            <p class="dashboard-panel__text">Gehe direkt zur Kassa und prüfe aktuelle Buchungen.</p>
+                        </div>
+                        <a href="/finances" class="btn btn-outline-warning">Zur Kassa</a>
+                    </article>
+                {% endif %}
+
+                {% if session.can_manage_users %}
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Mitglieder</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-people-fill"></i>
+                                Mitgliederverwaltung
+                            </h3>
+                            <p class="dashboard-panel__text">Füge neue Mitglieder hinzu oder bearbeite Rollen und Stimmgruppen.</p>
+                        </div>
+                        <a href="/users" class="btn btn-outline-success">Mitglieder verwalten</a>
+                    </article>
+
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Auswertung</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-bar-chart-fill"></i>
+                                Auswertungen
+                            </h3>
+                            <p class="dashboard-panel__text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
+                        </div>
+                        <a href="/evaluations" class="btn btn-outline-dark">Statistiken ansehen</a>
+                    </article>
+                {% endif %}
+
+                {% if not (session.can_manage_attendance or session.can_read_finances or session.can_manage_users) %}
+                    <article class="surface-card dashboard-panel dashboard-panel--empty">
+                        <div class="dashboard-panel__body">
+                            <h3 class="dashboard-panel__title">Keine Schnellzugriffe verfügbar</h3>
+                            <p class="dashboard-panel__text mb-0">
+                                Für deinen aktuellen Berechtigungsumfang sind momentan keine direkten Bereiche hinterlegt.
+                            </p>
+                        </div>
+                    </article>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if session.can_manage_tasks %}
+            <section class="dashboard-section dashboard-section--context"
+                     aria-labelledby="dashboard-context-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="dashboard-context-title">Projektkontext</h2>
+                    <p class="dashboard-section-lead mb-0">Aktuelle und kommende Projekte mit direktem Einstieg in die Aufgabenplanung.</p>
+                </div>
+
+                <div class="dashboard-context-grid">
+                    {% if session.can_manage_tasks and current_project %}
+                        <article class="surface-card dashboard-panel dashboard-panel--context">
+                            <div class="dashboard-panel__body">
+                                <p class="dashboard-panel__eyebrow">Laufendes Projekt</p>
+                                <h3 class="dashboard-panel__title">
+                                    <i class="bi bi-list-check"></i>
+                                    Aufgaben: {{ current_project.name }}
+                                </h3>
+                                <p class="dashboard-panel__text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
+                            </div>
+                            <a href="/projects/{{ current_project.id }}/tasks"
+                               class="btn btn-outline-info">Zur Aufgabenübersicht</a>
+                        </article>
+                    {% endif %}
+
+                    {% if session.can_manage_tasks and upcoming_project %}
+                        <article class="surface-card dashboard-panel dashboard-panel--context">
+                            <div class="dashboard-panel__body">
+                                <p class="dashboard-panel__eyebrow">Kommendes Projekt</p>
+                                <h3 class="dashboard-panel__title">
+                                    <i class="bi bi-calendar2-week"></i>
+                                    Aufgaben: {{ upcoming_project.name }}
+                                </h3>
+                                <p class="dashboard-panel__text">Bereite das nächste Projekt frühzeitig vor und plane Aufgaben im Team.</p>
+                            </div>
+                            <a href="/projects/{{ upcoming_project.id }}/tasks"
+                               class="btn btn-outline-secondary">Zur Aufgabenübersicht</a>
+                        </article>
+                    {% endif %}
+
+                    {% if session.can_manage_tasks and not current_project and not upcoming_project %}
+                        <article class="surface-card dashboard-panel dashboard-panel--empty">
+                            <div class="dashboard-panel__body">
+                                <h3 class="dashboard-panel__title">Keine projektbezogenen Aufgabenbereiche verfügbar.</h3>
+                                <p class="dashboard-panel__text mb-0">
+                                    Lege ein neues Projekt an, um Aufgaben und Planungsinformationen hier anzuzeigen.
+                                </p>
+                            </div>
+                        </article>
+                    {% endif %}
+                </div>
+            </section>
         {% endif %}
 
-        {% if session.can_read_finances or session.can_manage_users %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-warning">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-warning">
-                            <i class="bi bi-bank"></i> Kassa
-                        </h5>
-                        <p class="card-text">Gehe direkt zur Kassa</p>
-                        <a href="/finances" class="btn btn-outline-warning mt-auto">Zur Kassa</a>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if session.can_manage_tasks and current_project %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-info">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-info">
-                            <i class="bi bi-list-check"></i> Aufgaben: {{ current_project.name }}
-                        </h5>
-                        <p class="card-text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
-                        <a href="/projects/{{ current_project.id }}/tasks"
-                           class="btn btn-outline-info mt-auto">Zur Aufgabenübersicht</a>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if session.can_manage_tasks and upcoming_project %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-secondary">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-secondary">
-                            <i class="bi bi-list-check"></i> Aufgaben: {{ upcoming_project.name }}
-                        </h5>
-                        <p class="card-text">Kommendes Projekt – Planungsübersicht und Aufgaben bereits einsehen und vorbereiten.</p>
-                        <a href="/projects/{{ upcoming_project.id }}/tasks"
-                           class="btn btn-outline-secondary mt-auto">Zur Aufgabenübersicht</a>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if session.can_manage_users %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-success">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-success">
-                            <i class="bi bi-people-fill"></i> Mitgliederverwaltung
-                        </h5>
-                        <p class="card-text">Füge neue Mitglieder hinzu oder bearbeite Rollen und Stimmgruppen.</p>
-                        <a href="/users" class="btn btn-outline-success mt-auto">Mitglieder verwalten</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-dark">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-dark">
-                            <i class="bi bi-bar-chart-fill"></i> Auswertungen
-                        </h5>
-                        <p class="card-text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
-                        <a href="/evaluations" class="btn btn-outline-dark mt-auto">Statistiken ansehen</a>
-                    </div>
-                </div>
+        <section class="dashboard-section dashboard-section--communication"
+                 aria-labelledby="dashboard-communication-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="dashboard-communication-title">Kommunikation</h2>
+                <p class="dashboard-section-lead mb-0">Newsletter und Mailversand im Blick behalten, inklusive offener Dead-Letter.</p>
             </div>
 
-        {% endif %}
-
-        {% if latest_sent_newsletter %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 border-danger">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-danger">
-                            <i class="bi bi-envelope-paper-fill"></i> Zuletzt versendeter Newsletter
-                        </h5>
-                        <p class="card-text mb-1">
-                            <strong>{{ latest_sent_newsletter.title }}</strong>
-                        </p>
-                        <p class="card-text text-muted small mb-3">
-                            Projekt: {{ latest_sent_newsletter.project.name|default("-") }}
-                            {% if latest_sent_newsletter.sent_at %}
-                                <br>
-                                Gesendet am {{ latest_sent_newsletter.sent_at|date("d.m.Y H:i") }}
-                            {% endif %}
-                        </p>
+            <div class="dashboard-communication-grid">
+                {% if latest_sent_newsletter %}
+                    <article class="surface-card dashboard-panel dashboard-panel--communication">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Zuletzt versendeter Newsletter</p>
+                            <h3 class="dashboard-panel__title">{{ latest_sent_newsletter.title }}</h3>
+                            <p class="dashboard-panel__text">
+                                Projekt: {{ latest_sent_newsletter.project.name|default("-") }}
+                                {% if latest_sent_newsletter.sent_at %}
+                                    <br>
+                                    Gesendet am {{ latest_sent_newsletter.sent_at|date("d.m.Y H:i") }}
+                                {% endif %}
+                            </p>
+                        </div>
                         <button type="button"
-                                class="btn btn-outline-danger mt-auto"
+                                class="btn btn-outline-danger"
                                 data-newsletter-modal-url="/newsletters/{{ latest_sent_newsletter.id }}/preview?modal=1"
                                 data-newsletter-modal-title="Newsletter Vorschau">Newsletter ansehen</button>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
+                    </article>
+                {% endif %}
 
-        {% if dead_mail_count is not null %}
-            <div class="col-md-4 mb-4">
-                <div class="surface-card card h-100 {% if dead_mail_count > 0 %}border-danger{% else %}border-success{% endif %}">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title {% if dead_mail_count > 0 %}text-danger{% else %}text-success{% endif %}">
-                            <i class="bi bi-envelope-exclamation-fill"></i> Mail-Queue
-                        </h5>
-                        <p class="card-text mb-1">
-                            {% if dead_mail_count > 0 %}
-                                <strong>{{ dead_mail_count }} Dead-Letter warten auf Bearbeitung.</strong>
-                            {% else %}
-                                <strong>Keine Dead-Letter vorhanden.</strong>
-                            {% endif %}
-                        </p>
-                        <p class="card-text text-muted small mb-3">Direkter Einstieg in die Mailversand-Verwaltung.</p>
-                        <a href="/admin/mail-queue" class="btn {% if dead_mail_count > 0 %}btn-outline-danger{% else %}btn-outline-success{% endif %} mt-auto">Mailversand öffnen</a>
-                    </div>
-                </div>
+                {% if dead_mail_count is not null %}
+                    <article class="surface-card dashboard-panel {% if dead_mail_count > 0 %}dashboard-panel--critical{% else %}dashboard-panel--communication{% endif %}">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Mail-Queue</p>
+                            <h3 class="dashboard-panel__title">Mail-Queue</h3>
+                            <p class="dashboard-panel__text">
+                                {% if dead_mail_count > 0 %}
+                                    <strong>{{ dead_mail_count }} Dead-Letter warten auf Bearbeitung.</strong>
+                                {% else %}
+                                    <strong>Keine Dead-Letter vorhanden.</strong>
+                                {% endif %}
+                            </p>
+                            <p class="dashboard-panel__text mb-0">Direkter Einstieg in die Mailversand-Verwaltung.</p>
+                        </div>
+                        <a href="/admin/mail-queue"
+                           class="btn {% if dead_mail_count > 0 %}btn-danger{% else %}btn-outline-success{% endif %}">
+                            Mailversand öffnen
+                        </a>
+                    </article>
+                {% endif %}
+
+                {% if not latest_sent_newsletter and dead_mail_count is null %}
+                    <article class="surface-card dashboard-panel dashboard-panel--empty">
+                        <div class="dashboard-panel__body">
+                            <h3 class="dashboard-panel__title">Aktuell stehen für dich keine Kommunikationskarten bereit.</h3>
+                            <p class="dashboard-panel__text mb-0">
+                                Sobald Newsletter-Rechte oder Mail-Queue-Zugriff verfügbar sind, erscheinen die Bereiche hier.
+                            </p>
+                        </div>
+                    </article>
+                {% endif %}
             </div>
-        {% endif %}
+        </section>
     </div>
 
     <div class="modal fade"

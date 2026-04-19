@@ -7,7 +7,6 @@ namespace App\Controllers;
 use App\Models\Newsletter;
 use App\Models\Project;
 use App\Models\User;
-use App\Services\MailQueueAdminService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -15,9 +14,9 @@ use Slim\Views\Twig;
 class DashboardController
 {
     private Twig $view;
-    private MailQueueAdminService $mailQueueAdminService;
+    private \App\Services\MailQueueAdminService $mailQueueAdminService;
 
-    public function __construct(Twig $view, MailQueueAdminService $mailQueueAdminService)
+    public function __construct(Twig $view, \App\Services\MailQueueAdminService $mailQueueAdminService)
     {
         $this->view = $view;
         $this->mailQueueAdminService = $mailQueueAdminService;

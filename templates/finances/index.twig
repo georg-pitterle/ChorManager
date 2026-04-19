@@ -1,9 +1,9 @@
-{% extends "layout.twig" %}
+{% extends 'layout.twig' %}
 
 {% set can_write_finances = session.can_manage_finances or session.can_manage_users %}
 
 {% block title %}
-    Kassabuch - {{ app_settings.app_name|default("Chor-Manager") }}
+    Kassabuch - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -84,7 +84,7 @@
          data-page-size-options="25,50,100,200"
          data-default-sort-key="running_number"
          data-default-sort-dir="desc">
-        {{ include("partials/table_toolbar.twig") }}
+        {{ include('partials/table_toolbar.twig') }}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table"
@@ -102,27 +102,25 @@
                                 data-sort-type="number">Betrag</th>
                             <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
                             <th>Anhänge</th>
-                            {% if can_write_finances %}
-                                <th class="text-end finance-actions-column">Aktionen</th>
-                            {% endif %}
+                            {% if can_write_finances %}<th class="text-end finance-actions-column">Aktionen</th>{% endif %}
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in finances %}
                             <tr data-sort-running_number="{{ item.running_number }}"
-                                data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
-                                data-sort-payment_date="{{ item.payment_date ? item.payment_date|date("Y-m-d") : '9999-12-31' }}"
+                                data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
+                                data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
                                 data-sort-description="{{ item.description|lower }}"
-                                data-sort-group_name="{{ item.group_name|default("")|lower }}"
+                                data-sort-group_name="{{ item.group_name|default('')|lower }}"
                                 data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
                                 data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
                                 data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
                                 <td data-label="Lfd. Nr.">
                                     <strong>{{ item.running_number }}</strong>
                                 </td>
-                                <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
                                 <td data-label="Zahldatum">
-                                    {{ item.payment_date ? item.payment_date|date("d.m.Y") : '<span class="text-danger small">Offen</span>'|raw }}
+                                    {{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}
                                 </td>
                                 <td data-label="Beschreibung">{{ item.description }}</td>
                                 <td data-label="Gruppe">
@@ -191,7 +189,7 @@
                                                                     payment_method: item.payment_method,
                                                                     amount: item.amount,
                                                                     running_number: item.running_number,
-                                                                    attachments: _item_atts
+                                                                    attachments: _item_atts,
                                                                 } %}
                                 {% if can_write_finances %}
                                     <td data-label="Aktionen" class="finance-actions-cell text-end">
@@ -216,7 +214,10 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="{{ can_write_finances ? 10 : 9 }}" class="text-center py-4 text-muted">Keine Einträge in diesem Geschäftsjahr gefunden.</td>
+                                <td colspan="{{ can_write_finances ? 10 : 9 }}"
+                                    class="text-center py-4 text-muted">
+                                    Keine Einträge in diesem Geschäftsjahr gefunden.
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -246,102 +247,102 @@
                                 aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                    <input type="hidden" name="id" id="finance_id" value="">
+                        <input type="hidden" name="id" id="finance_id" value="">
 
-                    <div class="mb-3">
-                        <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
-                        <input type="date"
-                               class="form-control"
-                               id="invoice_date"
-                               name="invoice_date"
-                               required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="payment_date" class="form-label">Zahldatum</label>
-                        <input type="date"
-                               class="form-control"
-                               id="payment_date"
-                               name="payment_date">
-                        <div class="form-text">Leer lassen, wenn die Rechnung noch offen ist.</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Beschreibung *</label>
-                        <input type="text"
-                               class="form-control"
-                               id="description"
-                               name="description"
-                               required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">
-                            Gruppe <span class="text-muted small">(optional)</span>
-                        </label>
-                        <select class="form-select" id="group_select">
-                            <option value="">— Keine Gruppe —</option>
-                            {% for g in groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
-                            <option value="__new__">+ Neue Gruppe eingeben…</option>
-                        </select>
-                        <input type="text"
-                               class="form-control mt-2 d-none"
-                               id="group_name"
-                               name="group_name"
-                               placeholder="Name der neuen Gruppe"
-                               autocomplete="off">
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="type" class="form-label">Ein-/Ausgang *</label>
-                            <select class="form-select" id="type" name="type" required>
-                                <option value="income">Einnahme</option>
-                                <option value="expense" selected>Ausgabe</option>
-                            </select>
+                        <div class="mb-3">
+                            <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="invoice_date"
+                                   name="invoice_date"
+                                   required>
                         </div>
-                        <div class="col-md-6">
-                            <label for="payment_method" class="form-label">Zahlungsart *</label>
-                            <select class="form-select"
-                                    id="payment_method"
-                                    name="payment_method"
-                                    required>
-                                <option value="bank_transfer" selected>Überweisung</option>
-                                <option value="cash">Bar</option>
-                            </select>
-                        </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label for="amount" class="form-label">Betrag (€) *</label>
-                        <div class="input-group">
+                        <div class="mb-3">
+                            <label for="payment_date" class="form-label">Zahldatum</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="payment_date"
+                                   name="payment_date">
+                            <div class="form-text">Leer lassen, wenn die Rechnung noch offen ist.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Beschreibung *</label>
                             <input type="text"
                                    class="form-control"
-                                   id="amount"
-                                   name="amount"
-                                   placeholder="0,00"
+                                   id="description"
+                                   name="description"
                                    required>
-                            <span class="input-group-text">€</span>
                         </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label for="attachments" class="form-label">Anhänge hochladen</label>
-                        <input type="file"
-                               class="form-control"
-                               id="attachments"
-                               name="attachments[]"
-                               multiple>
-                        <div class="form-text">Bilder oder PDFs zur Belegung (mehrere möglich).</div>
-                    </div>
-
-                    <div id="existing_attachments_section" class="mb-3 d-none">
-                        <label class="form-label">Vorhandene Anhänge</label>
-                        <div id="existing_attachments_list"
-                             class="list-group list-group-flush border rounded">
-                            <!-- Wird per JS befüllt -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Gruppe <span class="text-muted small">(optional)</span>
+                            </label>
+                            <select class="form-select" id="group_select">
+                                <option value="">— Keine Gruppe —</option>
+                                {% for g in groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+                                <option value="__new__">+ Neue Gruppe eingeben…</option>
+                            </select>
+                            <input type="text"
+                                   class="form-control mt-2 d-none"
+                                   id="group_name"
+                                   name="group_name"
+                                   placeholder="Name der neuen Gruppe"
+                                   autocomplete="off">
                         </div>
-                    </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="type" class="form-label">Ein-/Ausgang *</label>
+                                <select class="form-select" id="type" name="type" required>
+                                    <option value="income">Einnahme</option>
+                                    <option value="expense" selected>Ausgabe</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="payment_method" class="form-label">Zahlungsart *</label>
+                                <select class="form-select"
+                                        id="payment_method"
+                                        name="payment_method"
+                                        required>
+                                    <option value="bank_transfer" selected>Überweisung</option>
+                                    <option value="cash">Bar</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Betrag (€) *</label>
+                            <div class="input-group">
+                                <input type="text"
+                                       class="form-control"
+                                       id="amount"
+                                       name="amount"
+                                       placeholder="0,00"
+                                       required>
+                                <span class="input-group-text">€</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="attachments" class="form-label">Anhänge hochladen</label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="attachments"
+                                   name="attachments[]"
+                                   multiple>
+                            <div class="form-text">Bilder oder PDFs zur Belegung (mehrere möglich).</div>
+                        </div>
+
+                        <div id="existing_attachments_section" class="mb-3 d-none">
+                            <label class="form-label">Vorhandene Anhänge</label>
+                            <div id="existing_attachments_list"
+                                 class="list-group list-group-flush border rounded">
+                                <!-- Wird per JS befüllt -->
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
