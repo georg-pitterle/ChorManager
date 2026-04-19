@@ -67,6 +67,7 @@ class AuthFeatureTest extends TestCase
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 1,
+                'can_manage_mail_queue' => 1,
                 'can_manage_tasks' => 0,
             ],
             (object) [
@@ -81,6 +82,7 @@ class AuthFeatureTest extends TestCase
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 0,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 1,
             ],
         ]);
@@ -106,6 +108,7 @@ class AuthFeatureTest extends TestCase
         $this->assertTrue($_SESSION['can_manage_sponsoring']);
         $this->assertTrue($_SESSION['can_manage_song_library']);
         $this->assertTrue($_SESSION['can_manage_newsletters']);
+        $this->assertTrue($_SESSION['can_manage_mail_queue']);
         $this->assertTrue($_SESSION['can_manage_tasks']);
         $this->assertSame(85, $_SESSION['role_level']);
         $this->assertSame([2, 5], $_SESSION['voice_group_ids']);
@@ -140,6 +143,7 @@ class AuthFeatureTest extends TestCase
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
             ],
         ]);

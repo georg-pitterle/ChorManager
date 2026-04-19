@@ -21,5 +21,19 @@ php vendor/bin/phinx migrate
 # Ensure public vendor assets are present for static delivery
 php bin/copy-assets.php
 
-# Start PHP-FPM
-php-fpm
+MAIL_QUEUE_WORKER_INTERVAL="${MAIL_QUEUE_WORKER_INTERVAL:-20}"
+
+/usr/local/bin/mail-queue-worker.sh &
+mail_queue_worker_pid=$!
+
+php-fpm -F &
+php_fpm_pid=$!
+
+shutdown() {
+  kill "${mail_queue_worker_pid}" 2>/dev/null || true
+  kill "${php_fpm_pid}" 2>/dev/null || true
+}
+
+trap shutdown INT TERM
+
+wait "${php_fpm_pid}"

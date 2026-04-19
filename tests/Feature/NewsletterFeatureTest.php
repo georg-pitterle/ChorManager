@@ -266,6 +266,18 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString("'status' => 'queued'", $serviceContent);
     }
 
+    public function testMigrationAddsQueuedNewsletterRecipientStatusForQueueWorkflow(): void
+    {
+        $migrationPath = dirname(__DIR__) . '/../db/migrations/20260419223000_add_queued_status_to_newsletter_recipients.php';
+
+        $this->assertFileExists($migrationPath);
+
+        $migrationContent = file_get_contents($migrationPath);
+        $this->assertIsString($migrationContent);
+        $this->assertStringContainsString("enum('pending','queued','sent','failed')", $migrationContent);
+        $this->assertStringContainsString('ALTER TABLE newsletter_recipients', $migrationContent);
+    }
+
     /**
      * Test newsletter schema does not expose removed legacy statuses
      */
@@ -285,6 +297,17 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($recipientService);
         $this->assertStringContainsString("->where('status', 'present')", $recipientService);
         $this->assertStringNotContainsString("->where('attended', 1)", $recipientService);
+    }
+
+    public function testRecipientServiceReturnsNewsletterRecipientModelsWithLoadedUserForSending(): void
+    {
+        $recipientService = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterRecipientService.php');
+
+        $this->assertIsString($recipientService);
+        $this->assertStringContainsString('NewsletterRecipient::query()', $recipientService);
+        $this->assertStringContainsString("->with('user')", $recipientService);
+        $this->assertStringContainsString("->where('newsletter_id', \$newsletterId)", $recipientService);
+        $this->assertStringNotContainsString("User::query()\n            ->whereHas('newsletterRecipients'", $recipientService);
     }
 
     public function testGlobalTimezoneConfigurationIsWiredForAppDbAndTwig(): void

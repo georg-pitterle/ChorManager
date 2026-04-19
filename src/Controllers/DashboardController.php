@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\Newsletter;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\MailQueueAdminService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -14,10 +15,12 @@ use Slim\Views\Twig;
 class DashboardController
 {
     private Twig $view;
+    private MailQueueAdminService $mailQueueAdminService;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, MailQueueAdminService $mailQueueAdminService)
     {
         $this->view = $view;
+        $this->mailQueueAdminService = $mailQueueAdminService;
     }
 
     public function index(Request $request, Response $response): Response
@@ -37,6 +40,7 @@ class DashboardController
             ->first();
 
         $latestSentNewsletter = null;
+        $deadMailCount = null;
 
         if ($canViewNewsletterArea && $userId > 0) {
             $user = User::find($userId);
@@ -69,6 +73,10 @@ class DashboardController
             }
         }
 
+        if ((bool) ($_SESSION['can_manage_mail_queue'] ?? false) || (bool) ($_SESSION['can_manage_users'] ?? false)) {
+            $deadMailCount = $this->mailQueueAdminService->countDeadLetters();
+        }
+
         // Simple dashboard placeholder handling both admin and basic views
         $data = [
             'can_manage_users' => $_SESSION['can_manage_users'] ?? false,
@@ -78,6 +86,7 @@ class DashboardController
             'current_project' => $currentProject,
             'upcoming_project' => $upcomingProject,
             'latest_sent_newsletter' => $latestSentNewsletter,
+            'dead_mail_count' => $deadMailCount,
         ];
 
         return $this->view->render($response, 'dashboard/index.twig', $data);

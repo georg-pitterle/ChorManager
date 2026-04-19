@@ -1,8 +1,28 @@
 {% extends "layout.twig" %}
 
 {% block content %}
+{% set status_labels = {
+    'queued': 'In Warteschlange',
+    'sending': 'Wird gesendet',
+    'sent': 'Versendet',
+    'failed': 'Fehlgeschlagen',
+    'dead': 'Endgültig fehlgeschlagen'
+} %}
+{% set status_badges = {
+    'queued': 'bg-secondary',
+    'sending': 'bg-primary',
+    'sent': 'bg-success',
+    'failed': 'bg-warning text-dark',
+    'dead': 'bg-danger'
+} %}
+{% set type_labels = {
+    'newsletter': 'Newsletter',
+    'invitation': 'Einladung',
+    'password_reset': 'Passwort zurücksetzen'
+} %}
+
 <div class="container mt-5">
-    <h1>Mail Queue Entry #{{ entry.id }}</h1>
+    <h1>Mail-Queue-Eintrag #{{ entry.id }}</h1>
     
     <div class="row">
         <div class="col-md-8">
@@ -12,56 +32,52 @@
                 </div>
                 <div class="card-body">
                     <dl class="row">
-                        <dt class="col-sm-3">Mail Type:</dt>
-                        <dd class="col-sm-9"><span class="badge badge-info">{{ entry.mail_type }}</span></dd>
+                        <dt class="col-sm-3">Typ:</dt>
+                        <dd class="col-sm-9"><span class="badge bg-info text-dark">{{ type_labels[entry.mail_type]|default(entry.mail_type|default('Unbekannt')) }}</span></dd>
                         
-                        <dt class="col-sm-3">Recipient:</dt>
+                        <dt class="col-sm-3">Empfänger:</dt>
                         <dd class="col-sm-9">{{ entry.recipient_email }}</dd>
                         
                         <dt class="col-sm-3">Status:</dt>
                         <dd class="col-sm-9">
-                            <span class="badge
-                                {% if entry.status == 'sent' %}badge-success
-                                {% elseif entry.status == 'dead' %}badge-danger
-                                {% elseif entry.status == 'failed' %}badge-warning
-                                {% else %}badge-secondary{% endif %}">
-                                {{ entry.status }}
+                            <span class="badge {{ status_badges[entry.status]|default('bg-dark') }}">
+                                {{ status_labels[entry.status]|default(entry.status|default('Unbekannt')) }}
                             </span>
                         </dd>
                         
-                        <dt class="col-sm-3">Subject:</dt>
+                        <dt class="col-sm-3">Betreff:</dt>
                         <dd class="col-sm-9">{{ entry.subject }}</dd>
                         
-                        <dt class="col-sm-3">Attempts:</dt>
+                        <dt class="col-sm-3">Versuche:</dt>
                         <dd class="col-sm-9">{{ entry.attempts }}/{{ entry.max_attempts }}</dd>
                         
-                        <dt class="col-sm-3">Created:</dt>
-                        <dd class="col-sm-9">{{ entry.created_at.format('Y-m-d H:i:s') }}</dd>
+                        <dt class="col-sm-3">Erstellt:</dt>
+                        <dd class="col-sm-9">{{ entry.created_at.format('d.m.Y H:i:s') }}</dd>
                         
-                        <dt class="col-sm-3">Last Attempt:</dt>
+                        <dt class="col-sm-3">Letzter Versuch:</dt>
                         <dd class="col-sm-9">
                             {% if entry.last_attempt_at %}
-                            {{ entry.last_attempt_at.format('Y-m-d H:i:s') }}
+                            {{ entry.last_attempt_at.format('d.m.Y H:i:s') }}
                             {% else %}
-                            <em>Never</em>
+                            <em>Nie</em>
                             {% endif %}
                         </dd>
                         
-                        <dt class="col-sm-3">Sent At:</dt>
+                        <dt class="col-sm-3">Versendet am:</dt>
                         <dd class="col-sm-9">
                             {% if entry.sent_at %}
-                            {{ entry.sent_at.format('Y-m-d H:i:s') }}
+                            {{ entry.sent_at.format('d.m.Y H:i:s') }}
                             {% else %}
-                            <em>Not sent</em>
+                            <em>Noch nicht versendet</em>
                             {% endif %}
                         </dd>
                         
-                        <dt class="col-sm-3">Next Attempt:</dt>
+                        <dt class="col-sm-3">Nächster Versuch:</dt>
                         <dd class="col-sm-9">
                             {% if entry.next_attempt_at %}
-                            {{ entry.next_attempt_at.format('Y-m-d H:i:s') }}
+                            {{ entry.next_attempt_at.format('d.m.Y H:i:s') }}
                             {% else %}
-                            <em>Not scheduled</em>
+                            <em>Nicht geplant</em>
                             {% endif %}
                         </dd>
                     </dl>
@@ -71,11 +87,11 @@
             {% if entry.error_code %}
             <div class="card mb-3 border-danger">
                 <div class="card-header bg-danger text-white">
-                    <h5>Error Details</h5>
+                    <h5>Fehlerdetails</h5>
                 </div>
                 <div class="card-body">
-                    <p><strong>Error Code:</strong> {{ entry.error_code }}</p>
-                    <p><strong>Error Message:</strong></p>
+                    <p><strong>Fehlercode:</strong> {{ entry.error_code }}</p>
+                    <p><strong>Fehlermeldung:</strong></p>
                     <pre>{{ entry.error_message }}</pre>
                 </div>
             </div>
@@ -83,7 +99,7 @@
             
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5>Email Body</h5>
+                    <h5>E-Mail-Inhalt</h5>
                 </div>
                 <div class="card-body">
                     <iframe srcdoc="{{ entry.body_html|escape('html_attr') }}" style="width:100%; height:400px; border:1px solid #ccc;"></iframe>
@@ -94,16 +110,16 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <h5>Actions</h5>
+                    <h5>Aktionen</h5>
                 </div>
                 <div class="card-body">
                     {% if entry.status == 'dead' %}
                     <form method="post" action="/admin/mail-queue/{{ entry.id }}/retry" style="margin-bottom: 10px;">
-                        <button type="submit" class="btn btn-warning btn-block">Retry This Entry</button>
+                        <button type="submit" class="btn btn-warning btn-block">Eintrag erneut einreihen</button>
                     </form>
                     {% endif %}
                     
-                    <a href="/admin/mail-queue" class="btn btn-secondary btn-block">Back to List</a>
+                    <a href="/admin/mail-queue" class="btn btn-secondary btn-block">Zur Übersicht</a>
                 </div>
             </div>
         </div>

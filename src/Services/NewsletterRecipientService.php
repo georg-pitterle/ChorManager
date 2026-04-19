@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\Newsletter;
 use App\Models\Event;
+use App\Models\Newsletter;
+use App\Models\NewsletterRecipient;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 
 class NewsletterRecipientService
@@ -69,14 +70,13 @@ class NewsletterRecipientService
      * Get stored recipients for a newsletter
      *
      * @param int $newsletterId
-     * @return Collection<int, User>
+     * @return Collection<int, NewsletterRecipient>
      */
     public function getRecipients(int $newsletterId): Collection
     {
-        return User::query()
-            ->whereHas('newsletterRecipients', function ($query) use ($newsletterId) {
-                $query->where('newsletter_id', $newsletterId);
-            })
+        return NewsletterRecipient::query()
+            ->with('user')
+            ->where('newsletter_id', $newsletterId)
             ->get();
     }
 

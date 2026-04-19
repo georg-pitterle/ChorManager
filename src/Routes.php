@@ -352,6 +352,13 @@ return function (App $app) {
             $group->group(
                 '',
                 function (RouteCollectorProxy $mailQueueGroup) {
+                    // Canonical admin URLs
+                    $mailQueueGroup->get('/admin/mail-queue', [MailQueueController::class, 'index']);
+                    $mailQueueGroup->get('/admin/mail-queue/{id:[0-9]+}', [MailQueueController::class, 'show']);
+                    $mailQueueGroup->post('/admin/mail-queue/{id:[0-9]+}/retry', [MailQueueController::class, 'retrySingle']);
+                    $mailQueueGroup->post('/admin/mail-queue/retry-all-dead', [MailQueueController::class, 'retryAllDead']);
+
+                    // Backward-compatible aliases
                     $mailQueueGroup->get('/mail-queue', [MailQueueController::class, 'index']);
                     $mailQueueGroup->get('/mail-queue/{id:[0-9]+}', [MailQueueController::class, 'show']);
                     $mailQueueGroup->post('/mail-queue/{id:[0-9]+}/retry', [MailQueueController::class, 'retrySingle']);

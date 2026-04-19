@@ -89,6 +89,44 @@
                             <div class="form-text">Hex-Farbwert, zum Beispiel #E8A817. Leer oder ungültig fällt auf das Standardgelb zurück.</div>
                         </div>
 
+                        <hr class="my-4">
+
+                        <h2 class="h5 mb-3">Mail-Queue</h2>
+
+                        <div class="mb-4">
+                            <label for="mailqueue_trigger_mode" class="form-label fw-bold">Trigger-Modus</label>
+                            <select class="form-select"
+                                    id="mailqueue_trigger_mode"
+                                    name="mailqueue_trigger_mode">
+                                <option value="hybrid" {% if settings.mailqueue_trigger_mode|default('hybrid') == 'hybrid' %}selected{% endif %}>Hybrid</option>
+                                <option value="cron" {% if settings.mailqueue_trigger_mode|default('hybrid') == 'cron' %}selected{% endif %}>Nur Cron</option>
+                                <option value="opportunistic" {% if settings.mailqueue_trigger_mode|default('hybrid') == 'opportunistic' %}selected{% endif %}>Nur opportunistisch</option>
+                            </select>
+                            <div class="form-text">Steuert, ob die Queue per Cron, opportunistisch oder gemischt verarbeitet werden soll.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="mailqueue_opportunistic_rate_limit" class="form-label fw-bold">Opportunistisches Rate-Limit pro Minute</label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="mailqueue_opportunistic_rate_limit"
+                                   name="mailqueue_opportunistic_rate_limit"
+                                   min="1"
+                                   value="{{ settings.mailqueue_opportunistic_rate_limit|default('10') }}">
+                            <div class="form-text">Maximale Anzahl opportunistischer Queue-Trigger pro Minute.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="mailqueue_batch_size" class="form-label fw-bold">Batch-Größe</label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="mailqueue_batch_size"
+                                   name="mailqueue_batch_size"
+                                   min="1"
+                                   value="{{ settings.mailqueue_batch_size|default('50') }}">
+                            <div class="form-text">Wie viele Queue-Einträge pro Lauf verarbeitet werden.</div>
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
                             <button type="submit" class="btn btn-primary">

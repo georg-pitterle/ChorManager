@@ -37,7 +37,7 @@ class MailQueueService
             ]
         );
     }
-    
+
     /**
      * Enqueue an invitation mail.
      *
@@ -67,7 +67,7 @@ class MailQueueService
             ]
         );
     }
-    
+
     /**
      * Enqueue a password reset mail.
      *
@@ -97,7 +97,7 @@ class MailQueueService
             ]
         );
     }
-    
+
     /**
      * Generic enqueue logic.
      *
@@ -119,7 +119,7 @@ class MailQueueService
         if (!filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
             throw new Exception("Invalid email address: {$recipientEmail}");
         }
-        
+
         $entry = MailQueue::create([
             'mail_type' => $mailType,
             'recipient_email' => $recipientEmail,
@@ -130,9 +130,9 @@ class MailQueueService
             'attempts' => 0,
             'max_attempts' => 3,
             'is_retryable' => false,
-            'next_attempt_at' => now(),
+            'next_attempt_at' => Carbon::now(),
         ]);
-        
+
         return $entry;
     }
 }

@@ -75,4 +75,27 @@ class AppSettingFeatureTest extends TestCase
         $this->assertIsString($seedContent);
         $this->assertStringContainsString("'primary_color' => '#E8A817'", $seedContent);
     }
+
+    public function testSettingsTemplateShowsMailQueueSettings(): void
+    {
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/settings/index.twig');
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('Mail-Queue', $templateContent);
+        $this->assertStringContainsString('name="mailqueue_trigger_mode"', $templateContent);
+        $this->assertStringContainsString('name="mailqueue_opportunistic_rate_limit"', $templateContent);
+        $this->assertStringContainsString('name="mailqueue_batch_size"', $templateContent);
+    }
+
+    public function testAppSettingControllerPersistsMailQueueSettings(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/AppSettingController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("'mailqueue_trigger_mode'", $controllerContent);
+        $this->assertStringContainsString("'mailqueue_opportunistic_rate_limit'", $controllerContent);
+        $this->assertStringContainsString("'mailqueue_batch_size'", $controllerContent);
+        $this->assertStringContainsString('normalizeMailQueueTriggerMode', $controllerContent);
+        $this->assertStringContainsString('normalizePositiveInteger', $controllerContent);
+    }
 }

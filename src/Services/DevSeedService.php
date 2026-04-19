@@ -13,6 +13,7 @@ use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Finance;
 use App\Models\Attachment;
+use App\Models\MailQueue;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
 use App\Models\NewsletterArchive;
@@ -117,6 +118,7 @@ class DevSeedService
                 'newsletters' => 0,
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
+                'mail_queue' => 0,
             ],
         ];
 
@@ -154,6 +156,7 @@ class DevSeedService
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
             $this->seedSponsorAttachments($sponsorships);
             $this->seedNewsletters($projects, $users['active']);
+            $this->seedMailQueue($users['active']);
             $this->seedAuthData($users['all']);
             $this->seedAppSettings();
         });
@@ -204,6 +207,7 @@ class DevSeedService
             'newsletter_archive',
             'newsletters',
             'newsletter_templates',
+            'mail_queue',
             'project_users',
             'user_voice_groups',
             'user_roles',
@@ -243,6 +247,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
+                'can_manage_mail_queue' => 1,
                 'can_manage_tasks' => 1,
             ],
             [
@@ -258,6 +263,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
+                'can_manage_mail_queue' => 1,
                 'can_manage_tasks' => 1,
             ],
             [
@@ -273,6 +279,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
             ],
             [
@@ -288,6 +295,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 1,
             ],
             [
@@ -303,6 +311,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
             ],
             [
@@ -318,6 +327,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
             ],
             [
@@ -333,6 +343,7 @@ class DevSeedService
                 'can_manage_sponsoring' => 0,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
+                'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
             ],
         ];
@@ -961,6 +972,9 @@ class DevSeedService
         $settings = [
             'app_name' => 'Chor-Manager (Seed)',
             'primary_color' => '#E8A817',
+            'mailqueue_trigger_mode' => 'hybrid',
+            'mailqueue_opportunistic_rate_limit' => '10',
+            'mailqueue_batch_size' => '50',
         ];
 
         foreach ($settings as $key => $value) {
@@ -975,6 +989,126 @@ class DevSeedService
 
             if ($model->wasRecentlyCreated) {
                 $this->report['counts']['app_settings']++;
+            }
+        }
+    }
+
+    private function seedMailQueue(array $activeUsers): void
+    {
+        $draftNewsletter = Newsletter::query()
+            ->where('status', Newsletter::STATUS_DRAFT)
+            ->with('project')
+            ->orderByDesc('id')
+            ->first();
+
+        $sentNewsletter = Newsletter::query()
+            ->where('status', Newsletter::STATUS_SENT)
+            ->with('project')
+            ->orderByDesc('sent_at')
+            ->first();
+
+        $newsletterRecipient = null;
+        if ($draftNewsletter !== null) {
+            $newsletterRecipient = NewsletterRecipient::query()
+                ->where('newsletter_id', $draftNewsletter->id)
+                ->orderBy('id')
+                ->first();
+        }
+
+        $sampleUser = $activeUsers[0] ?? null;
+        if ($sampleUser === null) {
+            return;
+        }
+
+        $entries = [];
+
+        if ($newsletterRecipient !== null) {
+            $entries[] = [
+                'mail_type' => 'newsletter',
+                'recipient_email' => $sampleUser->email,
+                'subject' => 'Queue: ' . ($draftNewsletter->title ?? 'Newsletter'),
+                'body_html' => '<p>Seeded queued newsletter.</p>',
+                'payload_json' => [
+                    'newsletter_id' => $draftNewsletter->id,
+                    'recipient_id' => $newsletterRecipient->id,
+                ],
+                'status' => 'queued',
+                'attempts' => 0,
+                'max_attempts' => 3,
+                'next_attempt_at' => null,
+                'last_attempt_at' => null,
+                'sent_at' => null,
+                'error_code' => null,
+                'error_message' => null,
+                'is_retryable' => false,
+            ];
+        }
+
+        if ($sentNewsletter !== null) {
+            $entries[] = [
+                'mail_type' => 'newsletter',
+                'recipient_email' => $sampleUser->email,
+                'subject' => 'Queue: Sent sample',
+                'body_html' => '<p>Seeded sent newsletter queue entry.</p>',
+                'payload_json' => [
+                    'newsletter_id' => $sentNewsletter->id,
+                ],
+                'status' => 'sent',
+                'attempts' => 1,
+                'max_attempts' => 3,
+                'next_attempt_at' => null,
+                'last_attempt_at' => (new DateTimeImmutable('-2 hours'))->format('Y-m-d H:i:s'),
+                'sent_at' => (new DateTimeImmutable('-2 hours'))->format('Y-m-d H:i:s'),
+                'error_code' => null,
+                'error_message' => null,
+                'is_retryable' => false,
+            ];
+        }
+
+        $entries[] = [
+            'mail_type' => 'password_reset',
+            'recipient_email' => $sampleUser->email,
+            'subject' => 'Queue: Passwort zuruecksetzen',
+            'body_html' => '<p>Seeded failed password reset mail.</p>',
+            'payload_json' => [
+                'user_id' => $sampleUser->id,
+                'reset_token' => 'seed-reset-token',
+            ],
+            'status' => 'failed',
+            'attempts' => 1,
+            'max_attempts' => 3,
+            'next_attempt_at' => (new DateTimeImmutable('+15 minutes'))->format('Y-m-d H:i:s'),
+            'last_attempt_at' => (new DateTimeImmutable('-5 minutes'))->format('Y-m-d H:i:s'),
+            'sent_at' => null,
+            'error_code' => 'smtp_421',
+            'error_message' => 'Temporary SMTP error, retry scheduled.',
+            'is_retryable' => true,
+        ];
+
+        $entries[] = [
+            'mail_type' => 'invitation',
+            'recipient_email' => 'invalid-seed-address',
+            'subject' => 'Queue: Einladung',
+            'body_html' => '<p>Seeded dead-letter invitation.</p>',
+            'payload_json' => [
+                'user_id' => $sampleUser->id,
+                'invitation_token' => 'seed-invite-token',
+            ],
+            'status' => 'dead',
+            'attempts' => 3,
+            'max_attempts' => 3,
+            'next_attempt_at' => null,
+            'last_attempt_at' => (new DateTimeImmutable('-1 day'))->format('Y-m-d H:i:s'),
+            'sent_at' => null,
+            'error_code' => 'invalid_email',
+            'error_message' => 'Permanent failure for invalid recipient address.',
+            'is_retryable' => false,
+        ];
+
+        foreach ($entries as $entry) {
+            $model = MailQueue::create($entry);
+            if ($model->exists) {
+                $this->report['counts']['mail_queue']++;
             }
         }
     }

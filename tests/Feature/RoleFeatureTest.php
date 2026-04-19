@@ -47,6 +47,7 @@ class RoleFeatureTest extends TestCase
         $this->assertSame(0, $flags['can_manage_sponsoring']);
         $this->assertSame(0, $flags['can_manage_song_library']);
         $this->assertSame(0, $flags['can_manage_newsletters']);
+        $this->assertSame(0, $flags['can_manage_mail_queue']);
         $this->assertSame(0, $flags['can_manage_tasks']);
     }
 
@@ -136,6 +137,24 @@ class RoleFeatureTest extends TestCase
         $this->assertStringContainsString('readCheckbox.checked = true;', $script);
     }
 
+    public function testRolesSupportMailQueuePermission(): void
+    {
+        $flags = RoleController::buildPermissionFlags([
+            'can_manage_mail_queue' => '1',
+        ]);
+
+        $this->assertSame(1, $flags['can_manage_mail_queue']);
+
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+        $this->assertIsString($template);
+        $this->assertStringContainsString('Mailversand verwalten', $template);
+        $this->assertStringContainsString('name="can_manage_mail_queue"', $template);
+
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/RoleController.php');
+        $this->assertIsString($controller);
+        $this->assertStringContainsString("'can_manage_mail_queue'", $controller);
+    }
+
     public function testDevSeedServiceAddsKassierAndReadOnlyVorstandDefaults(): void
     {
         $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
@@ -145,5 +164,7 @@ class RoleFeatureTest extends TestCase
         $this->assertStringContainsString("'name' => 'Vorstand'", $seedContent);
         $this->assertStringContainsString("'can_read_finances' => 1", $seedContent);
         $this->assertStringContainsString("'can_manage_finances' => 0", $seedContent);
+        $this->assertStringContainsString("'can_manage_mail_queue' => 1", $seedContent);
+        $this->assertStringContainsString("'can_manage_mail_queue' => 0", $seedContent);
     }
 }

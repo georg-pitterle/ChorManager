@@ -49,6 +49,9 @@ class AppSettingController
         $data = (array) $request->getParsedBody();
         $appName = trim($data['app_name'] ?? '');
         $primaryColor = self::normalizePrimaryColor($data['primary_color'] ?? null);
+        $mailQueueTriggerMode = self::normalizeMailQueueTriggerMode($data['mailqueue_trigger_mode'] ?? null);
+        $mailQueueOpportunisticRateLimit = self::normalizePositiveInteger($data['mailqueue_opportunistic_rate_limit'] ?? null, 10);
+        $mailQueueBatchSize = self::normalizePositiveInteger($data['mailqueue_batch_size'] ?? null, 50);
 
         try {
             if ($appName) {
@@ -66,6 +69,33 @@ class AppSettingController
                 ['setting_key' => 'primary_color'],
                 [
                     'setting_value' => $primaryColor,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'mailqueue_trigger_mode'],
+                [
+                    'setting_value' => $mailQueueTriggerMode,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'mailqueue_opportunistic_rate_limit'],
+                [
+                    'setting_value' => (string) $mailQueueOpportunisticRateLimit,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'mailqueue_batch_size'],
+                [
+                    'setting_value' => (string) $mailQueueBatchSize,
                     'binary_content' => '',
                     'mime_type' => 'text/plain',
                 ]
@@ -214,5 +244,20 @@ class AppSettingController
         }
 
         return $response->withStatus(404);
+    }
+
+    private static function normalizeMailQueueTriggerMode(?string $value): string
+    {
+        $candidate = strtolower(trim((string) $value));
+        $allowed = ['cron', 'opportunistic', 'hybrid'];
+
+        return in_array($candidate, $allowed, true) ? $candidate : 'hybrid';
+    }
+
+    private static function normalizePositiveInteger(?string $value, int $default): int
+    {
+        $parsed = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        return $parsed !== false ? (int) $parsed : $default;
     }
 }

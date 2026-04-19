@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use App\Util\AppEnvironment;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
+use App\Middleware\MailQueueProcessingMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
 
 return function (App $app): void {
@@ -16,5 +17,6 @@ return function (App $app): void {
     $app->addErrorMiddleware($displayErrorDetails, true, true);
     $app->add(HtmlFormCsrfInjectorMiddleware::class);
     $app->add(CsrfMiddleware::class);
+    $app->add(MailQueueProcessingMiddleware::class);
     $app->add(SecurityHeadersMiddleware::class);
 };

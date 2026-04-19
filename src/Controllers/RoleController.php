@@ -36,6 +36,7 @@ class RoleController
             'can_manage_sponsoring' => isset($data['can_manage_sponsoring']) ? 1 : 0,
             'can_manage_song_library' => isset($data['can_manage_song_library']) ? 1 : 0,
             'can_manage_newsletters' => isset($data['can_manage_newsletters']) ? 1 : 0,
+            'can_manage_mail_queue' => isset($data['can_manage_mail_queue']) ? 1 : 0,
             'can_manage_tasks' => isset($data['can_manage_tasks']) ? 1 : 0,
         ];
     }
@@ -85,6 +86,7 @@ class RoleController
                 'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
                 'can_manage_song_library' => $permissions['can_manage_song_library'],
                 'can_manage_newsletters' => $permissions['can_manage_newsletters'],
+                'can_manage_mail_queue' => $permissions['can_manage_mail_queue'],
                 'can_manage_tasks' => $permissions['can_manage_tasks']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
@@ -127,6 +129,7 @@ class RoleController
                 'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
                 'can_manage_song_library' => $permissions['can_manage_song_library'],
                 'can_manage_newsletters' => $permissions['can_manage_newsletters'],
+                'can_manage_mail_queue' => $permissions['can_manage_mail_queue'],
                 'can_manage_tasks' => $permissions['can_manage_tasks']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';

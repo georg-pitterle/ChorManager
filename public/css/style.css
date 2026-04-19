@@ -76,6 +76,101 @@ body.app-shell {
     box-shadow: var(--theme-shadow);
 }
 
+.mail-queue-page-header {
+    margin-bottom: 1.25rem;
+}
+
+.mail-queue-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.mail-queue-stat-card {
+    min-height: 9.5rem;
+    padding: 1.2rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.mail-queue-stat-card--critical {
+    background: linear-gradient(180deg, #dc3545 0%, #c92a3a 100%);
+    border-color: rgba(201, 42, 58, 0.55);
+    color: #ffffff;
+}
+
+.mail-queue-stat-card__label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--theme-text-muted);
+}
+
+.mail-queue-stat-card--critical .mail-queue-stat-card__label,
+.mail-queue-stat-card--critical .mail-queue-stat-card__meta {
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.mail-queue-stat-card__value {
+    display: block;
+    margin: 0.35rem 0;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    line-height: 1;
+    font-weight: 800;
+    color: var(--theme-text);
+}
+
+.mail-queue-stat-card--critical .mail-queue-stat-card__value {
+    color: #ffffff;
+}
+
+.mail-queue-stat-card__meta {
+    display: block;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: var(--theme-text-muted);
+}
+
+.mail-queue-overview-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    border: 1px solid rgba(var(--theme-primary-rgb), 0.25);
+    border-radius: 1rem;
+    background: linear-gradient(180deg, rgba(232, 168, 23, 0.12) 0%, rgba(232, 168, 23, 0.06) 100%);
+}
+
+.mail-queue-overview-actions__hint {
+    color: var(--theme-text-muted);
+    font-size: 0.95rem;
+}
+
+.mail-queue-content-shell {
+    display: block;
+}
+
+@media (max-width: 767.98px) {
+    .mail-queue-stat-card {
+        min-height: auto;
+    }
+
+    .mail-queue-overview-actions {
+        align-items: stretch;
+    }
+
+    .mail-queue-overview-actions .btn {
+        width: 100%;
+    }
+}
+
 /* Navbar Styling */
 .navbar.bg-dark.app-topbar {
     background: linear-gradient(135deg, rgba(36, 50, 68, 0.97) 0%, rgba(24, 33, 43, 0.97) 100%) !important;

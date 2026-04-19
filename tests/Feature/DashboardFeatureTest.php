@@ -14,7 +14,9 @@ class DashboardFeatureTest extends TestCase
 
         $this->assertIsString($controller);
         $this->assertStringContainsString("'latest_sent_newsletter' => " . '$latestSentNewsletter', $controller);
+        $this->assertStringContainsString("'dead_mail_count' => " . '$deadMailCount', $controller);
         $this->assertStringContainsString('Newsletter::STATUS_SENT', $controller);
+        $this->assertStringContainsString('countDeadLetters()', $controller);
         $this->assertStringContainsString("->orderBy('sent_at', 'desc')", $controller);
         $this->assertStringContainsString("->with(['project', 'event'])", $controller);
     }
@@ -26,6 +28,9 @@ class DashboardFeatureTest extends TestCase
         $this->assertIsString($template);
 
         $this->assertStringContainsString('Zuletzt versendeter Newsletter', $template);
+        $this->assertStringContainsString('Mail-Queue', $template);
+        $this->assertStringContainsString('dead_mail_count', $template);
+        $this->assertStringContainsString('href="/admin/mail-queue"', $template);
         $this->assertStringContainsString('latest_sent_newsletter', $template);
         $this->assertStringContainsString(
             'data-newsletter-modal-url="/newsletters/{{ latest_sent_newsletter.id }}/preview?modal=1"',

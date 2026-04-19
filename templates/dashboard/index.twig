@@ -126,6 +126,27 @@
                 </div>
             </div>
         {% endif %}
+
+        {% if dead_mail_count is not null %}
+            <div class="col-md-4 mb-4">
+                <div class="surface-card card h-100 {% if dead_mail_count > 0 %}border-danger{% else %}border-success{% endif %}">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title {% if dead_mail_count > 0 %}text-danger{% else %}text-success{% endif %}">
+                            <i class="bi bi-envelope-exclamation-fill"></i> Mail-Queue
+                        </h5>
+                        <p class="card-text mb-1">
+                            {% if dead_mail_count > 0 %}
+                                <strong>{{ dead_mail_count }} Dead-Letter warten auf Bearbeitung.</strong>
+                            {% else %}
+                                <strong>Keine Dead-Letter vorhanden.</strong>
+                            {% endif %}
+                        </p>
+                        <p class="card-text text-muted small mb-3">Direkter Einstieg in die Mailversand-Verwaltung.</p>
+                        <a href="/admin/mail-queue" class="btn {% if dead_mail_count > 0 %}btn-outline-danger{% else %}btn-outline-success{% endif %} mt-auto">Mailversand öffnen</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     </div>
 
     <div class="modal fade"

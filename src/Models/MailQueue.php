@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class MailQueue extends Model
@@ -63,7 +64,7 @@ class MailQueue extends Model
         return $query->whereIn('status', ['queued', 'failed'])
             ->where(function ($q) {
                 $q->whereNull('next_attempt_at')
-                    ->orWhere('next_attempt_at', '<=', now());
+                    ->orWhere('next_attempt_at', '<=', Carbon::now());
             });
     }
 
