@@ -98,9 +98,13 @@ Liefert Verwaltungsdaten und Retry-Funktionen.
 - retryAllDead()
 - getStats()
 
-### 4.4 Mail Queue Verarbeiter (CLI)
+### 4.4 Mail Queue Verarbeiter
 
-Ein CLI-Aufruf (ueber ddev php) verarbeitet Queue-Eintraege regelmaessig.
+Der Verarbeiter wird hybrid betrieben:
+- periodisch per Cron im DDEV-Container,
+- opportunistisch bei Requests (mit Schutzmechanismen).
+
+Die Trigger-Strategie ist ueber App-Einstellungen steuerbar.
 
 ## 5. Ablauf / Data Flow
 
@@ -120,7 +124,18 @@ Ein CLI-Aufruf (ueber ddev php) verarbeitet Queue-Eintraege regelmaessig.
 6. Retry-faehig: failed + next_attempt_at mit Backoff.
 7. Nicht retry-faehig oder max_attempts erreicht: dead.
 
-### 5.3 Synchronisation NewsletterRecipient
+### 5.3 Triggering des Verarbeiters
+
+Der Trigger ist hybrid und in App-Einstellungen konfigurierbar:
+- Primaermodus: cron, opportunistisch oder hybrid.
+- Request-Rate-Limit: begrenzt opportunistische Trigger pro Zeiteinheit.
+- Batch-Groesse: maximale Anzahl Queue-Eintraege pro Lauf.
+
+Verarbeitungsschutz:
+- Opportunistische Trigger laufen nur, wenn das Rate-Limit es erlaubt.
+- Jede Verarbeitung arbeitet mit begrenzter Batch-Groesse, um Request-Latenzen kontrolliert zu halten.
+
+### 5.4 Synchronisation NewsletterRecipient
 
 Nach erfolgreichem oder final fehlgeschlagenem Versand wird der entsprechende NewsletterRecipient-Eintrag aktualisiert.
 
@@ -163,7 +178,14 @@ Anforderungen:
 
 ## 8. UI und Navigation
 
-### 8.1 Neuer Bereich in Verwaltung
+### 8.1 App-Einstellungen fuer Queue-Trigger
+
+Neue steuerbare Parameter in App-Einstellungen:
+- Mailqueue Trigger-Modus (cron, opportunistisch, hybrid)
+- Mailqueue Opportunistic Rate Limit
+- Mailqueue Batch-Groesse
+
+### 8.2 Neuer Bereich in Verwaltung
 
 Neuer Verwaltungseintrag:
 - Mailversand
@@ -176,7 +198,7 @@ Neue Seite mit:
   - Einzel-Retry,
   - Global-Retry fuer alle dead-Eintraege.
 
-### 8.2 Dashboard
+### 8.3 Dashboard
 
 Neue Uebersichtskachel/Kennzahl:
 - Nicht zugestellte Mails.
@@ -217,23 +239,29 @@ Pflicht: Feature-Tests fuer neues Verhalten.
 - Zugriff auf Mailversand-Seite nur mit neuem Recht.
 - Retry-Endpunkte nur mit neuem Recht.
 
-### 11.2 Queue-Verhalten
+### 11.2 Trigger-Konfiguration
+
+- Verarbeitung laeuft gemaess eingestelltem Trigger-Modus.
+- Opportunistische Trigger beachten das konfigurierte Rate-Limit.
+- Pro Lauf wird die konfigurierte Batch-Groesse eingehalten.
+
+### 11.3 Queue-Verhalten
 
 - queued -> sent bei erfolgreichem Versand.
 - queued -> failed mit naechstem Versuch bei retry-faehigem Fehler.
 - queued/failed -> dead bei permanentem Fehler oder Ausschopfen von max_attempts.
 
-### 11.3 Retry-Aktionen
+### 11.4 Retry-Aktionen
 
 - Einzel-Retry setzt Eintrag korrekt zurueck.
 - Global-Retry betrifft nur final fehlgeschlagene Eintraege.
 
-### 11.4 Dashboard
+### 11.5 Dashboard
 
 - Zaehler nutzt ausschliesslich dead-Eintraege.
 - Sichtbarkeit gemaess Recht.
 
-### 11.5 Newsletter-Konsistenz
+### 11.6 Newsletter-Konsistenz
 
 - Queue-Ergebnis wird korrekt auf NewsletterRecipient.status gespiegelt.
 
