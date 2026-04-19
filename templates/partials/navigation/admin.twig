@@ -30,6 +30,15 @@
                        href="/settings"><i class="bi bi-sliders me-2"></i> App-Einstellungen</a>
                 </li>
             {% endif %}
+            {% if session.can_manage_mail_queue or session.can_manage_users %}
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li>
+                    <a class="dropdown-item {% if nav_active(path, nav, ['/mail-queue'], ['mail_queue']) %}active{% endif %}"
+                       href="/admin/mail-queue"><i class="bi bi-envelope me-2"></i> Mailversand</a>
+                </li>
+            {% endif %}
         </ul>
     </li>
 {% endif %}
