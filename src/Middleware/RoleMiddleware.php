@@ -21,6 +21,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresSponsoringManagement;
     private bool $requiresSongLibraryManagement;
     private bool $requiresNewsletterManagement;
+    private bool $requiresMailQueueManagement;
     private bool $requiresTaskManagement;
     private bool $requiresAttendanceManagement;
     private bool $requiresFinanceRead;
@@ -37,6 +38,7 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresTaskManagement = false,
         bool $requiresAttendanceManagement = false,
         bool $requiresNewsletterManagement = false,
+        bool $requiresMailQueueManagement = false,
         bool $requiresFinanceRead = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
@@ -50,6 +52,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresTaskManagement = $requiresTaskManagement;
         $this->requiresAttendanceManagement = $requiresAttendanceManagement;
         $this->requiresNewsletterManagement = $requiresNewsletterManagement;
+        $this->requiresMailQueueManagement = $requiresMailQueueManagement;
         $this->requiresFinanceRead = $requiresFinanceRead;
     }
 
@@ -68,6 +71,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
         $canManageSongLibrary = $_SESSION['can_manage_song_library'] ?? false;
         $canManageNewsletters = $_SESSION['can_manage_newsletters'] ?? false;
+        $canManageMailQueue = $_SESSION['can_manage_mail_queue'] ?? false;
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
@@ -93,6 +97,12 @@ class RoleMiddleware implements MiddlewareInterface
         if ($this->requiresNewsletterManagement && !$canManageNewsletters && !$canManageUsers) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Newsletter-Verwaltung.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->requiresMailQueueManagement && !$canManageMailQueue && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Mailversand-Verwaltung.");
             return $response->withStatus(403);
         }
 
