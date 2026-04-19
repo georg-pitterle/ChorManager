@@ -1,8 +1,8 @@
 <?php
 
-namespace ChorManager\Services;
+namespace App\Services;
 
-use ChorManager\Models\MailQueue;
+use App\Models\MailQueue;
 use Carbon\Carbon;
 use Exception;
 
