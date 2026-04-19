@@ -17,15 +17,18 @@ class NewsletterService
     private NewsletterRecipientService $recipientService;
     private Mailer $mailer;
     private HtmlSanitizer $htmlSanitizer;
+    private MailQueueService $mailQueueService;
 
     public function __construct(
         NewsletterRecipientService $recipientService,
         Mailer $mailer,
-        HtmlSanitizer $htmlSanitizer
+        HtmlSanitizer $htmlSanitizer,
+        MailQueueService $mailQueueService
     ) {
         $this->recipientService = $recipientService;
         $this->mailer = $mailer;
         $this->htmlSanitizer = $htmlSanitizer;
+        $this->mailQueueService = $mailQueueService;
     }
 
     /**
@@ -66,41 +69,40 @@ class NewsletterService
         }
 
         $sentCount = 0;
-        $failedCount = 0;
-        $firstFailureMessage = null;
+        $emailContent = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
 
-        foreach ($recipients as $user) {
+        // Enqueue newsletter for each recipient
+        foreach ($recipients as $recipient) {
+            $toEmail = trim((string) $recipient->user->email);
+            if ($toEmail === '' || filter_var($toEmail, FILTER_VALIDATE_EMAIL) === false) {
+                continue;
+            }
+
             try {
-                $this->sendToUser($newsletter, $user);
+                $this->mailQueueService->enqueueNewsletterMail(
+                    recipientEmail: $toEmail,
+                    subject: $newsletter->title,
+                    bodyHtml: $emailContent,
+                    newsletterId: (int) $newsletter->id,
+                    recipientId: (int) $recipient->id
+                );
+
+                // Mark as queued initially
+                NewsletterRecipient::where('newsletter_id', $newsletter->id)
+                    ->where('user_id', $recipient->user->id)
+                    ->update(['status' => 'queued']);
+
                 $sentCount++;
-
-                NewsletterRecipient::where('newsletter_id', $newsletter->id)
-                    ->where('user_id', $user->id)
-                    ->update(['status' => 'sent']);
-
-                NewsletterArchive::create([
-                    'newsletter_id' => $newsletter->id,
-                    'user_id' => $user->id,
-                    'email' => $user->email,
-                    'sent_at' => Carbon::now(),
-                ]);
             } catch (Exception $e) {
-                $failedCount++;
-                if ($firstFailureMessage === null) {
-                    $firstFailureMessage = $e->getMessage();
-                }
-
+                error_log('Failed to enqueue newsletter: ' . $e->getMessage());
                 NewsletterRecipient::where('newsletter_id', $newsletter->id)
-                    ->where('user_id', $user->id)
+                    ->where('user_id', $recipient->user->id)
                     ->update(['status' => 'failed']);
             }
         }
 
-        if ($sentCount === 0 && $failedCount > 0) {
-            throw new Exception(
-                'Newsletter konnte nicht versendet werden: '
-                    . ($firstFailureMessage ?? 'alle Zustellungen sind fehlgeschlagen')
-            );
+        if ($sentCount === 0) {
+            throw new Exception('Newsletter konnte nicht in Queue eingereiht werden');
         }
 
         $newsletter->update([
@@ -111,30 +113,7 @@ class NewsletterService
         return $sentCount;
     }
 
-    /**
-     * Send email to individual user
-     * (Integration mit E-Mail-Service würde hier erfolgen)
-     *
-     * @param Newsletter $newsletter
-     * @param User $user
-     * @return void
-     * @throws Exception
-     */
-    private function sendToUser(Newsletter $newsletter, User $user): void
-    {
-        $toEmail = trim((string) $user->email);
-        if ($toEmail === '' || filter_var($toEmail, FILTER_VALIDATE_EMAIL) === false) {
-            throw new Exception('Ungültige Empfänger-E-Mail-Adresse');
-        }
 
-        $emailSubject = $newsletter->title;
-        $emailContent = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
-
-        $sent = $this->mailer->sendHtmlMail($toEmail, $emailSubject, $emailContent);
-        if (!$sent) {
-            throw new Exception($this->mailer->getLastError() ?? 'Unbekannter Fehler beim E-Mail-Versand');
-        }
-    }
 
     /**
      * Check if newsletter can be sent (validation)
