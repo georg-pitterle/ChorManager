@@ -384,8 +384,8 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($mailerContent);
         $this->assertStringContainsString('isMailSendDisabled', $mailerContent);
         $this->assertStringContainsString('DISABLE_MAIL_SEND', $mailerContent);
-        // sendHtmlMail must return true (not false) when disabled
-        $this->assertStringContainsString('return true;', $mailerContent);
+        $this->assertStringContainsString("'success' => true", $mailerContent);
+        $this->assertStringContainsString("'skipped' => true", $mailerContent);
     }
 
     public function testNewsletterSendReturnsRecipientCount(): void

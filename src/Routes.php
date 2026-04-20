@@ -28,6 +28,8 @@ use App\Controllers\SponsorPackageController;
 use App\Controllers\SongLibraryController;
 use App\Controllers\NewsletterController;
 use App\Controllers\MailQueueController;
+use App\Controllers\MailDeliveryWebhookController;
+use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
@@ -63,6 +65,10 @@ return function (App $app) {
         $response->getBody()->write('OK');
         return $response->withHeader('Content-Type', 'text/plain');
     });
+
+    // Provider feedback ingest endpoints (public, verified/trusted channels)
+    $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
+    $app->post('/mail/delivery/dsn', [MailDeliveryDsnController::class, 'ingest']);
 
 
     // Protected Routes

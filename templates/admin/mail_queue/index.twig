@@ -19,6 +19,7 @@
         "queued": "In Warteschlange",
         "sending": "Wird gesendet",
         "sent": "Versendet",
+        "skipped": "Übersprungen",
         "failed": "Fehlgeschlagen",
         "dead": "Endgültig fehlgeschlagen"
     } %}
@@ -26,6 +27,7 @@
         "queued": "bg-secondary",
         "sending": "bg-primary",
         "sent": "bg-success",
+        "skipped": "bg-info text-dark",
         "failed": "bg-warning text-dark",
         "dead": "bg-danger"
     } %}
@@ -46,7 +48,12 @@
         <article class="surface-card mail-queue-stat-card">
             <span class="mail-queue-stat-card__label">Versendet</span>
             <strong class="mail-queue-stat-card__value">{{ stats.sent }}</strong>
-            <span class="mail-queue-stat-card__meta">Erfolgreich zugestellte Mails</span>
+            <span class="mail-queue-stat-card__meta">Vom Provider akzeptierte Mails</span>
+        </article>
+        <article class="surface-card mail-queue-stat-card">
+            <span class="mail-queue-stat-card__label">Übersprungen</span>
+            <strong class="mail-queue-stat-card__value">{{ stats.skipped }}</strong>
+            <span class="mail-queue-stat-card__meta">Absichtlich nicht versendete Mails</span>
         </article>
         <article class="surface-card mail-queue-stat-card">
             <span class="mail-queue-stat-card__label">Fehlgeschlagen</span>

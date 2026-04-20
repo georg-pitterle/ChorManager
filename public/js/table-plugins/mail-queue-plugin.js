@@ -53,9 +53,10 @@
             var statusControl = createSelect('Status', [
                 { value: 'queued', label: 'In Warteschlange' },
                 { value: 'sending', label: 'Wird gesendet' },
+                { value: 'sent', label: 'Versendet' },
+                { value: 'skipped', label: 'Uebersprungen' },
                 { value: 'failed', label: 'Fehlgeschlagen' },
-                { value: 'dead', label: 'Endgültig fehlgeschlagen' },
-                { value: 'sent', label: 'Versendet' }
+                { value: 'dead', label: 'Endgueltig fehlgeschlagen' }
             ], 'status');
             var typeControl = createSelect('Typ', [
                 { value: 'newsletter', label: 'Newsletter' },

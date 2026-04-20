@@ -20,11 +20,20 @@ class MailQueue extends Model
         'body_html',
         'payload_json',
         'status',
+        'delivery_status',
+        'provider_name',
+        'provider_message_id',
         'attempts',
         'max_attempts',
         'next_attempt_at',
         'last_attempt_at',
         'sent_at',
+        'accepted_at',
+        'delivered_at',
+        'bounced_at',
+        'complained_at',
+        'last_event_at',
+        'last_event_type',
         'error_code',
         'error_message',
         'is_retryable',
@@ -37,6 +46,11 @@ class MailQueue extends Model
         'next_attempt_at' => 'datetime',
         'last_attempt_at' => 'datetime',
         'sent_at' => 'datetime',
+        'accepted_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'bounced_at' => 'datetime',
+        'complained_at' => 'datetime',
+        'last_event_at' => 'datetime',
         'payload_json' => 'array',
     ];
 
@@ -73,7 +87,7 @@ class MailQueue extends Model
     // Helpers
     public function isDelivered(): bool
     {
-        return $this->status === 'sent';
+        return $this->delivery_status === 'delivered';
     }
 
     public function isDeadLetter(): bool

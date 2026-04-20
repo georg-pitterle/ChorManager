@@ -37,9 +37,13 @@ class ProcessMailQueueCommand extends Command
         $output->writeln('Processing mail queue with batch size: ' . $batchSize);
 
         try {
+            $repairedCount = $this->deliveryService->repairStaleSendingEntries();
+            $output->writeln('Watchdog repaired stale sending entries: ' . $repairedCount);
+
             $stats = $this->deliveryService->processDueEntries($batchSize);
 
             $output->writeln('Sent: ' . $stats['sent']);
+            $output->writeln('Skipped: ' . $stats['skipped']);
             $output->writeln('Failed: ' . $stats['failed']);
             $output->writeln('Dead: ' . $stats['dead']);
 

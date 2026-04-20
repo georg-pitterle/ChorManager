@@ -73,11 +73,24 @@ class Mailer
         return EnvHelper::readBool('DISABLE_MAIL_SEND', true);
     }
 
-    public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
+    /**
+     * Send a HTML mail and return delivery metadata for queue lifecycle handling.
+     *
+     * @return array{success: bool, skipped: bool, provider_name: string, provider_message_id: ?string}
+     */
+    public function sendHtmlMailDetailed(string $to, string $subject, string $htmlBody): array
     {
+        $providerName = $this->useSmtp ? 'smtp' : 'sendmail';
+
         if ($this->isMailSendDisabled()) {
-            error_log("Mailer: DISABLE_MAIL_SEND is active – skipping mail to {$to} (subject: {$subject})");
-            return true;
+            error_log('Mailer: DISABLE_MAIL_SEND is active - skipping outbound mail.');
+
+            return [
+                'success' => true,
+                'skipped' => true,
+                'provider_name' => 'disabled',
+                'provider_message_id' => null,
+            ];
         }
 
         try {
@@ -95,14 +108,42 @@ class Mailer
             if ($result) {
                 $mode = $this->useSmtp ? 'SMTP' : 'sendmail';
                 error_log("Newsletter: Mail sent successfully via {$mode} to {$to}");
+
+                $providerMessageId = trim((string) $this->mail->getLastMessageID());
+
+                return [
+                    'success' => true,
+                    'skipped' => false,
+                    'provider_name' => $providerName,
+                    'provider_message_id' => $providerMessageId !== '' ? $providerMessageId : null,
+                ];
             }
-            return $result;
+
+            return [
+                'success' => false,
+                'skipped' => false,
+                'provider_name' => $providerName,
+                'provider_message_id' => null,
+            ];
         } catch (Exception $e) {
             $this->lastError = $this->mail->ErrorInfo !== '' ? $this->mail->ErrorInfo : $e->getMessage();
             $mode = $this->useSmtp ? 'SMTP' : 'sendmail';
             error_log("Newsletter: Message could not be sent via {$mode}. Error: {$this->lastError}");
-            return false;
+
+            return [
+                'success' => false,
+                'skipped' => false,
+                'provider_name' => $providerName,
+                'provider_message_id' => null,
+            ];
         }
+    }
+
+    public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
+    {
+        $result = $this->sendHtmlMailDetailed($to, $subject, $htmlBody);
+
+        return (bool) ($result['success'] ?? false);
     }
 
     public function getLastError(): ?string

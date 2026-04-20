@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\MailQueue;
@@ -19,7 +21,7 @@ class MailDeliveryService
      * Process all due mail queue entries.
      *
      * @param int $batchSize
-     * @return array ['sent' => int, 'failed' => int, 'dead' => int]
+     * @return array ['sent' => int, 'skipped' => int, 'failed' => int, 'dead' => int]
      */
     public function processDueEntries(int $batchSize = 50): array
     {
@@ -27,18 +29,92 @@ class MailDeliveryService
             ->limit($batchSize)
             ->get();
 
-        $stats = ['sent' => 0, 'failed' => 0, 'dead' => 0];
+        $stats = ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'dead' => 0];
 
         foreach ($entries as $entry) {
             try {
                 $this->sendEntry($entry);
-                $stats['sent']++;
             } catch (Exception $e) {
+                $stats['failed']++;
+                continue;
+            }
+
+            $entry->refresh();
+
+            if ($entry->status === 'sent') {
+                if ($entry->delivery_status === 'skipped') {
+                    $stats['skipped']++;
+                    continue;
+                }
+
+                $stats['sent']++;
+                continue;
+            }
+
+            if ($entry->status === 'skipped') {
+                $stats['skipped']++;
+                continue;
+            }
+
+            if ($entry->status === 'dead') {
+                $stats['dead']++;
+                continue;
+            }
+
+            if ($entry->status === 'failed') {
                 $stats['failed']++;
             }
         }
 
         return $stats;
+    }
+
+    /**
+     * Repair entries that are stuck in sending state.
+     */
+    public function repairStaleSendingEntries(int $minutes = 15): int
+    {
+        $now = Carbon::now();
+        $threshold = $now->copy()->subMinutes($minutes);
+
+        $staleEntries = MailQueue::query()
+            ->where('status', 'sending')
+            ->where('updated_at', '<=', $threshold)
+            ->get();
+
+        $repaired = 0;
+
+        foreach ($staleEntries as $entry) {
+            $newAttempts = (int) $entry->attempts + 1;
+            $maxAttempts = (int) $entry->max_attempts;
+            $isDead = $newAttempts >= $maxAttempts;
+
+            $affected = MailQueue::query()
+                ->where('id', $entry->id)
+                ->where('status', 'sending')
+                ->where('updated_at', '<=', $threshold)
+                ->update([
+                    'status' => $isDead ? 'dead' : 'failed',
+                    'is_retryable' => !$isDead,
+                    'next_attempt_at' => $isDead ? null : $now,
+                    'last_attempt_at' => $now,
+                    'attempts' => $newAttempts,
+                    'error_code' => 'stale_sending_timeout',
+                    'error_message' => sprintf('Watchdog recovered stale sending entry after %d minutes.', $minutes),
+                ]);
+
+            if ($affected !== 1) {
+                continue;
+            }
+
+            if ($isDead && $entry->mail_type === 'newsletter') {
+                $this->syncNewsletterRecipient($entry, 'failed');
+            }
+
+            $repaired++;
+        }
+
+        return $repaired;
     }
 
     /**
@@ -50,9 +126,13 @@ class MailDeliveryService
     public function sendEntry(MailQueue $entry): void
     {
         // Prevent double-send: set to 'sending' atomically
+        $claimTimestamp = Carbon::now();
         $updated = MailQueue::where('id', $entry->id)
             ->where('status', $entry->status)
-            ->update(['status' => 'sending']);
+            ->update([
+                'status' => 'sending',
+                'updated_at' => $claimTimestamp,
+            ]);
 
         if (!$updated) {
             throw new Exception("Entry already being processed or status changed");
@@ -63,18 +143,52 @@ class MailDeliveryService
 
         try {
             // Attempt to send via Mailer
-            $success = $this->mailer->sendHtmlMail(
+            $result = $this->mailer->sendHtmlMailDetailed(
                 $entry->recipient_email,
                 $entry->subject,
                 $entry->body_html
             );
 
-            if ($success) {
+            $success = (bool) ($result['success'] ?? false);
+            $isSkipped = (bool) ($result['skipped'] ?? false);
+
+            if ($success && $isSkipped) {
                 $entry->update([
-                    'status' => 'sent',
-                    'sent_at' => Carbon::now(),
+                    'status' => 'skipped',
+                    'delivery_status' => 'skipped',
+                    'provider_name' => (string) ($result['provider_name'] ?? 'disabled'),
+                    'provider_message_id' => null,
+                    'accepted_at' => null,
                     'last_attempt_at' => Carbon::now(),
                     'attempts' => $entry->attempts + 1,
+                    'error_code' => null,
+                    'error_message' => null,
+                ]);
+
+                if ($entry->mail_type === 'newsletter') {
+                    $this->syncNewsletterRecipient($entry, 'sent');
+                }
+
+                return;
+            }
+
+            if ($success) {
+                $now = Carbon::now();
+
+                $entry->update([
+                    'status' => 'sent',
+                    'delivery_status' => 'accepted',
+                    'provider_name' => (string) (
+                        $result['provider_name']
+                        ?? ($this->mailer->isUsingSmtp() ? 'smtp' : 'sendmail')
+                    ),
+                    'provider_message_id' => $result['provider_message_id'] ?? null,
+                    'sent_at' => $now,
+                    'accepted_at' => $now,
+                    'last_attempt_at' => $now,
+                    'attempts' => $entry->attempts + 1,
+                    'error_code' => null,
+                    'error_message' => null,
                 ]);
 
                 // Sync to NewsletterRecipient if applicable

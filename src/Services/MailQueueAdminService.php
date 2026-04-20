@@ -13,7 +13,8 @@ class MailQueueAdminService
     /**
      * List queue entries with filters.
      *
-     * @param array $filters ['status' => '...', 'mail_type' => '...', 'search' => '...', 'from_date' => '...', 'to_date' => '...']
+     * @param array $filters ['status' => '...', 'mail_type' => '...', 'search' => '...',
+     *     'from_date' => '...', 'to_date' => '...']
      * @return \Illuminate\Support\Collection<int, MailQueue>
      */
     public function listEntries(array $filters = [])
@@ -112,7 +113,8 @@ class MailQueueAdminService
     /**
      * Get queue statistics.
      *
-     * @return array ['queued' => int, 'sending' => int, 'sent' => int, 'failed' => int, 'dead' => int, 'total' => int]
+     * @return array ['queued' => int, 'sending' => int, 'sent' => int, 'skipped' => int,
+     *     'failed' => int, 'dead' => int, 'total' => int]
      */
     public function getStats(): array
     {
@@ -125,6 +127,7 @@ class MailQueueAdminService
             'queued' => $stats['queued'] ?? 0,
             'sending' => $stats['sending'] ?? 0,
             'sent' => $stats['sent'] ?? 0,
+            'skipped' => $stats['skipped'] ?? 0,
             'failed' => $stats['failed'] ?? 0,
             'dead' => $stats['dead'] ?? 0,
             'total' => array_sum($stats),

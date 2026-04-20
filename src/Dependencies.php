@@ -18,6 +18,10 @@ use App\Services\NewsletterRecipientService;
 use App\Services\MailQueueService;
 use App\Services\MailDeliveryService;
 use App\Services\MailQueueAdminService;
+use App\Services\MailEventMapperService;
+use App\Services\ProviderWebhookVerifier;
+use App\Controllers\MailDeliveryWebhookController;
+use App\Controllers\MailDeliveryDsnController;
 use App\Commands\ProcessMailQueueCommand;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
@@ -49,6 +53,10 @@ return function (ContainerBuilder $containerBuilder) {
         MailQueueService::class => \DI\autowire(),
         MailDeliveryService::class => \DI\autowire(),
         MailQueueAdminService::class => \DI\autowire(),
+        MailEventMapperService::class => \DI\autowire(),
+        ProviderWebhookVerifier::class => \DI\autowire(),
+        MailDeliveryWebhookController::class => \DI\autowire(),
+        MailDeliveryDsnController::class => \DI\autowire(),
         ProcessMailQueueCommand::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),

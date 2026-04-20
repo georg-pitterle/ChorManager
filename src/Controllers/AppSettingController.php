@@ -50,7 +50,10 @@ class AppSettingController
         $appName = trim($data['app_name'] ?? '');
         $primaryColor = self::normalizePrimaryColor($data['primary_color'] ?? null);
         $mailQueueTriggerMode = self::normalizeMailQueueTriggerMode($data['mailqueue_trigger_mode'] ?? null);
-        $mailQueueOpportunisticRateLimit = self::normalizePositiveInteger($data['mailqueue_opportunistic_rate_limit'] ?? null, 10);
+        $mailQueueOpportunisticRateLimit = self::normalizePositiveInteger(
+            $data['mailqueue_opportunistic_rate_limit'] ?? null,
+            10
+        );
         $mailQueueBatchSize = self::normalizePositiveInteger($data['mailqueue_batch_size'] ?? null, 50);
 
         try {
