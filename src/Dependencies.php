@@ -98,6 +98,28 @@ return function (ContainerBuilder $containerBuilder) {
             }
             $environment->addGlobal('app_settings', $appSettings);
 
+            $publicRoot = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public';
+
+            $environment->addFunction(new TwigFunction(
+                'asset_path',
+                static function (string $path) use ($publicRoot): string {
+                    if ($path === '') {
+                        return $path;
+                    }
+
+                    $normalizedPath = str_starts_with($path, '/') ? $path : '/' . $path;
+                    $filePath = $publicRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($normalizedPath, '/'));
+
+                    if (!is_file($filePath)) {
+                        return $normalizedPath;
+                    }
+
+                    $separator = str_contains($normalizedPath, '?') ? '&' : '?';
+
+                    return $normalizedPath . $separator . 'v=' . (string) filemtime($filePath);
+                }
+            ));
+
             $environment->addFunction(new TwigFunction(
                 'nav_active',
                 function (

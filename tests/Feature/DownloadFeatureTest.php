@@ -29,7 +29,7 @@ class DownloadFeatureTest extends TestCase
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString("->join('project_users', 'project_users.project_id', '=', 'projects.id')", $controllerContent);
         $this->assertStringContainsString("->where('project_users.user_id', \$userId)", $controllerContent);
-        $this->assertStringContainsString("->join('project_users', 'project_users.project_id', '=', 'songs.project_id')", $controllerContent);
+        $this->assertStringContainsString("->join('project_users', 'project_users.project_id', '=', 'project_song_assignments.project_id')", $controllerContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/songs/downloads.twig'));
     }

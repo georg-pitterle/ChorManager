@@ -71,11 +71,21 @@
         return 'auto';
     }
 
+    function readAutoCardsMaxWidth(container) {
+        if (!container || !container.dataset) {
+            return null;
+        }
+
+        const value = Number.parseInt(container.dataset.autoCardsMaxWidth || '', 10);
+        if (!Number.isFinite(value) || value <= 0) {
+            return null;
+        }
+
+        return value;
+    }
+
     function resolveAutoView(overflowDelta, currentView, useHysteresis) {
         if (currentView === 'cards') {
-            if (useHysteresis) {
-                return overflowDelta < -AUTO_VIEW_HYSTERESIS_PX ? 'table' : 'cards';
-            }
             return overflowDelta > 1 ? 'cards' : 'table';
         }
 
@@ -798,7 +808,6 @@
             container.dataset.activeView = 'table';
 
             const requiredWidth = Math.max(
-                viewportElement.scrollWidth || 0,
                 table.scrollWidth || 0,
                 table.clientWidth || 0
             );
@@ -842,6 +851,11 @@
         function getEffectiveView(activeMode, currentView, options) {
             if (activeMode !== 'auto') {
                 return activeMode;
+            }
+
+            const autoCardsMaxWidth = readAutoCardsMaxWidth(container);
+            if (autoCardsMaxWidth !== null && window.innerWidth <= autoCardsMaxWidth) {
+                return 'cards';
             }
 
             return getAutoView(currentView, !(options && options.disableAutoHysteresis));
@@ -915,7 +929,7 @@
 
         window.addEventListener('resize', function () {
             if (mode === 'auto') {
-                const nextView = getAutoView(container.dataset.activeView);
+                const nextView = getEffectiveView(mode, container.dataset.activeView);
                 if (container.dataset.activeView !== nextView) {
                     applyEffectiveView(mode);
                 }
@@ -925,7 +939,7 @@
         if (typeof window.ResizeObserver === 'function') {
             const resizeObserver = new window.ResizeObserver(function () {
                 if (mode === 'auto') {
-                    const nextView = getAutoView(container.dataset.activeView);
+                    const nextView = getEffectiveView(mode, container.dataset.activeView);
                     if (container.dataset.activeView !== nextView) {
                         applyEffectiveView(mode);
                     }
@@ -937,6 +951,23 @@
             if (viewportElement) {
                 resizeObserver.observe(viewportElement);
             }
+        }
+
+        // Re-evaluate auto view when a Bootstrap accordion/collapse panel that
+        // contains this table becomes visible. Tables inside collapsed panels
+        // have zero dimensions at init time, so the initial measurement fails.
+        var collapseParent = typeof container.closest === 'function'
+            ? container.closest('.accordion-collapse, .collapse')
+            : null;
+        if (collapseParent) {
+            collapseParent.addEventListener('shown.bs.collapse', function () {
+                if (mode === 'auto') {
+                    // Force a fresh measurement – reset the cached width so
+                    // that getOverflowDelta does not reuse a stale value.
+                    lastMeasuredTableWidth = 0;
+                    applyMode(mode, false, { disableAutoHysteresis: true });
+                }
+            });
         }
 
         if (searchInput) {

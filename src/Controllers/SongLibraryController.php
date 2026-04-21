@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Models\Category;
 use App\Models\Project;
 use App\Models\Song;
 use App\Models\Attachment;
@@ -23,11 +24,42 @@ class SongLibraryController
 
     public function index(Request $request, Response $response): Response
     {
+        $queryParams = $request->getQueryParams();
+        $search = trim((string) ($queryParams['search'] ?? ''));
+        $categoryId = (int) ($queryParams['category'] ?? 0);
+
+        $songQuery = Song::with([
+            'categories',
+            'attachments' => function ($query) {
+                $query->orderBy('original_name', 'asc');
+            },
+            'projectAssignments.project',
+        ])->orderBy('title', 'asc');
+
+        if ($search !== '') {
+            $songQuery->where(function ($query) use ($search) {
+                $query->where('title', 'like', '%' . $search . '%')
+                    ->orWhere('composer', 'like', '%' . $search . '%')
+                    ->orWhere('arranger', 'like', '%' . $search . '%')
+                    ->orWhere('publisher', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($categoryId > 0) {
+            $songQuery->whereHas('categories', function ($query) use ($categoryId) {
+                $query->where('repertoire_categories.id', $categoryId);
+            });
+        }
+
+        $songs = $songQuery->get();
+        $categories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
+
+        // Keep old view data available until templates are migrated in later tasks.
         $projects = Project::with([
-            'songs' => function ($query) {
+            'assignedSongs' => function ($query) {
                 $query->orderBy('title', 'asc');
             },
-            'songs.attachments' => function ($query) {
+            'assignedSongs.attachments' => function ($query) {
                 $query->orderBy('original_name', 'asc');
             }
         ])->orderBy('name', 'asc')->get();
@@ -37,7 +69,48 @@ class SongLibraryController
         unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'songs/manage.twig', [
+            'songs' => $songs,
+            'categories' => $categories,
+            'search' => $search,
+            'selected_category_id' => $categoryId,
             'projects' => $projects,
+            'success' => $success,
+            'error' => $error,
+            'active_nav' => 'song_library',
+        ]);
+    }
+
+    public function show(Request $request, Response $response, array $args): Response
+    {
+        $songId = (int) ($args['id'] ?? 0);
+        $song = Song::with([
+            'categories' => function ($query) {
+                $query->orderBy('sort_order', 'asc')->orderBy('name', 'asc');
+            },
+            'attachments' => function ($query) {
+                $query->orderBy('original_name', 'asc');
+            },
+            'projectAssignments.project',
+        ])->find($songId);
+
+        if (!$song) {
+            $_SESSION['error'] = 'Lied nicht gefunden.';
+            return $response->withHeader('Location', '/song-library')->withStatus(302);
+        }
+
+        $allCategories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
+        $allProjects = Project::orderBy('name', 'asc')->get();
+        $assignedProjectIds = $song->projectAssignments->pluck('project_id')->toArray();
+
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
+        return $this->view->render($response, 'songs/detail.twig', [
+            'song' => $song,
+            'all_categories' => $allCategories,
+            'all_projects' => $allProjects,
+            'assigned_project_ids' => $assignedProjectIds,
             'success' => $success,
             'error' => $error,
             'active_nav' => 'song_library',
@@ -47,13 +120,7 @@ class SongLibraryController
     public function createSong(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $projectId = (int) ($data['project_id'] ?? 0);
         $title = trim($data['title'] ?? '');
-
-        if ($projectId <= 0 || !Project::find($projectId)) {
-            $_SESSION['error'] = 'Bitte ein gueltiges Projekt auswaehlen.';
-            return $response->withHeader('Location', '/song-library')->withStatus(302);
-        }
 
         if ($title === '') {
             $_SESSION['error'] = 'Der Liedtitel ist ein Pflichtfeld.';
@@ -61,7 +128,6 @@ class SongLibraryController
         }
 
         Song::create([
-            'project_id' => $projectId,
             'title' => $title,
             'composer' => trim($data['composer'] ?? '') ?: null,
             'arranger' => trim($data['arranger'] ?? '') ?: null,
@@ -88,7 +154,7 @@ class SongLibraryController
 
         if ($title === '') {
             $_SESSION['error'] = 'Der Liedtitel ist ein Pflichtfeld.';
-            return $response->withHeader('Location', '/song-library')->withStatus(302);
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
         $song->update([
@@ -99,7 +165,7 @@ class SongLibraryController
         ]);
 
         $_SESSION['success'] = 'Lied erfolgreich aktualisiert.';
-        return $response->withHeader('Location', '/song-library')->withStatus(302);
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }
 
     public function deleteSong(Request $request, Response $response, array $args): Response
@@ -120,6 +186,28 @@ class SongLibraryController
         return $response->withHeader('Location', '/song-library')->withStatus(302);
     }
 
+    public function syncCategories(Request $request, Response $response, array $args): Response
+    {
+        $songId = (int) ($args['id'] ?? 0);
+        $song = Song::find($songId);
+
+        if (!$song) {
+            $_SESSION['error'] = 'Lied nicht gefunden.';
+            return $response->withHeader('Location', '/song-library')->withStatus(302);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) ($data['category_ids'] ?? [])),
+            static fn($id) => $id > 0
+        )));
+
+        $song->categories()->sync($categoryIds);
+
+        $_SESSION['success'] = 'Kategorien erfolgreich aktualisiert.';
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
+
     public function uploadAttachments(Request $request, Response $response, array $args): Response
     {
         $songId = (int) ($args['id'] ?? 0);
@@ -133,7 +221,7 @@ class SongLibraryController
         $uploadedFiles = $request->getUploadedFiles();
         if (!isset($uploadedFiles['attachments'])) {
             $_SESSION['error'] = 'Keine Dateien uebergeben.';
-            return $response->withHeader('Location', '/song-library')->withStatus(302);
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
         $files = $uploadedFiles['attachments'];
@@ -151,19 +239,19 @@ class SongLibraryController
             $size = strlen($contents);
             if ($size <= 0) {
                 $_SESSION['error'] = 'Leere Dateien sind nicht erlaubt.';
-                return $response->withHeader('Location', '/song-library')->withStatus(302);
+                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
             }
 
             $validation = UploadValidator::validateFileSize($size, $mimeType);
             if (!$validation['valid']) {
                 $_SESSION['error'] = $validation['error'];
-                return $response->withHeader('Location', '/song-library')->withStatus(302);
+                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
             }
 
             $originalName = trim((string) $file->getClientFilename());
             if ($originalName === '') {
                 $_SESSION['error'] = 'Dateiname fehlt.';
-                return $response->withHeader('Location', '/song-library')->withStatus(302);
+                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
             }
 
             Attachment::create([
@@ -178,7 +266,7 @@ class SongLibraryController
         }
 
         $_SESSION['success'] = 'Dateien erfolgreich hochgeladen.';
-        return $response->withHeader('Location', '/song-library')->withStatus(302);
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }
 
     public function deleteAttachment(Request $request, Response $response, array $args): Response
@@ -189,11 +277,11 @@ class SongLibraryController
         $attachment = Attachment::where('entity_type', 'song')->find($attachmentId);
         if (!$attachment || $attachment->entity_id !== $songId) {
             $_SESSION['error'] = 'Anhang nicht gefunden.';
-            return $response->withHeader('Location', '/song-library')->withStatus(302);
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
         $attachment->delete();
         $_SESSION['success'] = 'Anhang erfolgreich geloescht.';
-        return $response->withHeader('Location', '/song-library')->withStatus(302);
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }
 }

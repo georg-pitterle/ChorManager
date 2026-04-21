@@ -29,4 +29,19 @@ class Song extends Model
     {
         return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'song');
     }
+
+    public function categories()
+    {
+        return $this->belongsToMany(
+            Category::class,
+            'song_category_assignments',
+            'song_id',
+            'repertoire_category_id'
+        );
+    }
+
+    public function projectAssignments()
+    {
+        return $this->hasMany(ProjectSongAssignment::class, 'song_id', 'id');
+    }
 }

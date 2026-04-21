@@ -23,17 +23,17 @@
         <link rel="stylesheet" href="/vendor/bootstrap/dist/css/bootstrap.min.css">
         <link rel="stylesheet"
               href="/vendor/bootstrap-icons/font/bootstrap-icons.css">
-        <link rel="stylesheet" href="/css/style.css">
-        <link rel="stylesheet" href="/theme.css">
+        <link rel="stylesheet" href="{{ asset_path('/css/style.css') }}">
+        <link rel="stylesheet" href="{{ asset_path('/theme.css') }}">
     </head>
     <body class="p-3">
         {% block content %}
         {% endblock content %}
 
         <script src="/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="/js/common.js"></script>
+        <script src="{{ asset_path('/js/common.js') }}"></script>
         <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
-        <script src="/js/tinymce-init.js"></script>
+        <script src="{{ asset_path('/js/tinymce-init.js') }}"></script>
         {% block scripts %}
         {% endblock scripts %}
     </body>

@@ -41,10 +41,10 @@ class DownloadController
             ->join('project_users', 'project_users.project_id', '=', 'projects.id')
             ->where('project_users.user_id', $userId)
             ->with([
-                'songs' => function ($query) {
+                'assignedSongs' => function ($query) {
                     $query->orderBy('title', 'asc');
                 },
-                'songs.attachments' => function ($query) {
+                'assignedSongs.attachments' => function ($query) {
                     $query->orderBy('original_name', 'asc');
                 }
             ])
@@ -143,9 +143,9 @@ class DownloadController
             ->where('entity_type', 'song')
             ->whereExists(function ($query) use ($userId) {
                 $query->selectRaw('1')
-                    ->from('songs')
-                    ->join('project_users', 'project_users.project_id', '=', 'songs.project_id')
-                    ->whereColumn('songs.id', 'attachments.entity_id')
+                    ->from('project_song_assignments')
+                    ->join('project_users', 'project_users.project_id', '=', 'project_song_assignments.project_id')
+                    ->whereColumn('project_song_assignments.song_id', 'attachments.entity_id')
                     ->where('project_users.user_id', $userId);
             })
             ->first();

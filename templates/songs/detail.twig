@@ -1,0 +1,353 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    {{ song.title }} - Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item">
+                        <a href="/song-library">Repertoire</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ song.title }}</li>
+                </ol>
+            </nav>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-music-note-beamed me-2"></i>{{ song.title }}
+            </h1>
+            {% if song.composer or song.arranger or song.publisher %}
+                <p class="text-muted mb-0">
+                    {% if song.composer %}{{ song.composer }}{% endif %}
+                    {% if song.arranger %}· Arr. {{ song.arranger }}{% endif %}
+                    {% if song.publisher %}· {{ song.publisher }}{% endif %}
+                </p>
+            {% endif %}
+        </div>
+        <div class="page-actions">
+            <a href="/song-library" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Zurück
+            </a>
+            <button type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteSongModal">
+                <i class="bi bi-trash me-1"></i>Löschen
+            </button>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--actions"
+                 aria-labelledby="song-master-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="song-master-title">Stammdaten</h2>
+                <p class="dashboard-section-lead mb-0">Pflege Titel und Metadaten dieses Liedes.</p>
+            </div>
+
+            <form method="post" action="/song-library/songs/{{ song.id }}/update">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="title" class="form-label fw-semibold">
+                            Titel <span class="text-danger">*</span>
+                        </label>
+                        <input type="text"
+                               id="title"
+                               name="title"
+                               class="form-control"
+                               value="{{ song.title }}"
+                               required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="composer" class="form-label fw-semibold">Komponist</label>
+                        <input type="text"
+                               id="composer"
+                               name="composer"
+                               class="form-control"
+                               value="{{ song.composer }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="arranger" class="form-label fw-semibold">Arrangeur</label>
+                        <input type="text"
+                               id="arranger"
+                               name="arranger"
+                               class="form-control"
+                               value="{{ song.arranger }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="publisher" class="form-label fw-semibold">Verlag</label>
+                        <input type="text"
+                               id="publisher"
+                               name="publisher"
+                               class="form-control"
+                               value="{{ song.publisher }}">
+                    </div>
+                </div>
+                <div class="mt-3 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-floppy me-1"></i>Speichern
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="song-meta-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="song-meta-title">Kategorien und Anhänge</h2>
+                <p class="dashboard-section-lead mb-0">Ordne das Lied ein und verwalte alle zugehörigen Dateien.</p>
+            </div>
+
+            <div class="dashboard-context-grid">
+                <article class="surface-card dashboard-panel dashboard-panel--context">
+                    <div class="dashboard-panel__body">
+                        <p class="dashboard-panel__eyebrow">Kategorisierung</p>
+                        <h3 class="dashboard-panel__title">
+                            <i class="bi bi-tags"></i>Kategorien
+                        </h3>
+
+                        {% if song.categories|length > 0 %}
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                {% for cat in song.categories %}
+                                    <span class="badge fs-6 bg-primary-subtle text-primary-emphasis">{{ cat.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="dashboard-panel__text mb-1">Keine Kategorien zugewiesen.</p>
+                        {% endif %}
+
+                        <form method="post" action="/song-library/songs/{{ song.id }}/categories">
+                            <label class="form-label fw-semibold">Kategorien bearbeiten</label>
+                            <div class="row row-cols-1 row-cols-sm-2 g-2 mb-3">
+                                {% for cat in all_categories %}
+                                    <div class="col">
+                                        <div class="form-check">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   name="category_ids[]"
+                                                   id="cat_{{ cat.id }}"
+                                                   value="{{ cat.id }}"
+                                                   {% if cat.id in song.categories|map(c => c.id) %}checked{% endif %}>
+                                            <label class="form-check-label" for="cat_{{ cat.id }}">{{ cat.name }}</label>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="col-12">
+                                        <p class="text-muted small mb-0">Noch keine Kategorien angelegt.</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% if all_categories|length > 0 %}
+                                <button type="submit" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-check2 me-1"></i>Kategorien speichern
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </article>
+
+                <article class="surface-card dashboard-panel dashboard-panel--context">
+                    <div class="dashboard-panel__body">
+                        <p class="dashboard-panel__eyebrow">Dateien</p>
+                        <h3 class="dashboard-panel__title">
+                            <i class="bi bi-paperclip"></i>Anhänge
+                        </h3>
+
+                        {% if song.attachments|length > 0 %}
+                            <ul class="list-group list-group-flush mb-3">
+                                {% for attachment in song.attachments %}
+                                    <li class="list-group-item px-0 d-flex align-items-center gap-2">
+                                        <i class="bi bi-file-earmark text-muted"></i>
+                                        <span class="flex-grow-1 text-truncate"
+                                              title="{{ attachment.original_name }}">{{ attachment.original_name }}</span>
+                                        <span class="text-muted small text-nowrap">{{ (attachment.file_size / 1024)|round(1) }}KB</span>
+                                        <a href="/downloads/attachments/{{ attachment.id }}/download"
+                                           class="btn btn-outline-secondary btn-sm"
+                                           title="Herunterladen">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        <form method="post"
+                                              action="/song-library/songs/{{ song.id }}/attachments/{{ attachment.id }}/delete"
+                                              data-confirm="Anhang '{{ attachment.original_name }}' wirklich löschen?">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="dashboard-panel__text mb-2">Keine Anhänge vorhanden.</p>
+                        {% endif %}
+
+                        <form method="post"
+                              action="/song-library/songs/{{ song.id }}/attachments"
+                              enctype="multipart/form-data">
+                            <label for="attachments" class="form-label fw-semibold">Dateien hochladen</label>
+                            <input type="file"
+                                   id="attachments"
+                                   name="attachments[]"
+                                   class="form-control mb-2"
+                                   multiple>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-upload me-1"></i>Hochladen
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="dashboard-section dashboard-section--communication"
+                 aria-labelledby="song-assignment-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="song-assignment-title">Projektzuordnungen</h2>
+                <p class="dashboard-section-lead mb-0">Lege fest, in welchen Projekten das Lied verwendet wird.</p>
+            </div>
+
+            {% if song.projectAssignments|length > 0 %}
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Projekt</th>
+                                <th>Notiz</th>
+                                <th class="text-end">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for assignment in song.projectAssignments %}
+                                <tr>
+                                    <td>
+                                        {% if assignment.project %}
+                                            {{ assignment.project.name }}
+                                        {% else %}
+                                            <span class="text-muted fst-italic">Unbekannt</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="post"
+                                              action="/song-library/assignments/{{ assignment.id }}/update"
+                                              class="d-flex gap-2 align-items-center">
+                                            <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
+                                            <input type="text"
+                                                   name="note"
+                                                   class="form-control form-control-sm"
+                                                   placeholder="Notiz (optional)"
+                                                   value="{{ assignment.note }}">
+                                            <button type="submit"
+                                                    class="btn btn-outline-secondary btn-sm text-nowrap"
+                                                    title="Notiz speichern">
+                                                <i class="bi bi-floppy"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post"
+                                              action="/song-library/assignments/{{ assignment.id }}/delete"
+                                              data-confirm="Zuordnung zum Projekt '{{ assignment.project.name ?? 'Unbekannt' }}' wirklich entfernen?">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-4">Diesem Lied ist noch kein Projekt zugeordnet.</p>
+            {% endif %}
+
+            {% set unassigned_projects = all_projects|filter(p => p.id not in assigned_project_ids) %}
+            {% if unassigned_projects|length > 0 %}
+                <form method="post"
+                      action="/song-library/assignments"
+                      class="row g-2 align-items-end">
+                    <input type="hidden" name="song_id" value="{{ song.id }}">
+                    <div class="col-md-5">
+                        <label for="project_id" class="form-label fw-semibold">Projekt hinzufügen</label>
+                        <select id="project_id" name="project_id" class="form-select form-select-sm">
+                            <option value="">Projekt wählen …</option>
+                            {% for project in unassigned_projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="new_note" class="form-label fw-semibold">Notiz (optional)</label>
+                        <input type="text"
+                               id="new_note"
+                               name="note"
+                               class="form-control form-control-sm"
+                               placeholder="z.B. Stimmgruppe, Besonderheiten …">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-plus-lg me-1"></i>Zuordnen
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-check-circle text-success me-1"></i>Lied ist bereits allen Projekten zugeordnet.
+                </p>
+            {% endif %}
+        </section>
+    </div>
+
+    {# ── Delete Song Modal ───────────────────────────────────────────────── #}
+    <div class="modal fade"
+         id="deleteSongModal"
+         tabindex="-1"
+         aria-labelledby="deleteSongModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteSongModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Lied löschen
+                    </h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    Soll das Lied <strong>{{ song.title }}</strong> wirklich gelöscht werden?
+                    Alle Anhänge und Projektzuordnungen werden dabei ebenfalls entfernt.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <form method="post" action="/song-library/songs/{{ song.id }}/delete">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i>Endgültig löschen
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

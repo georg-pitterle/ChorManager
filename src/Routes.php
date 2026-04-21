@@ -26,6 +26,8 @@ use App\Controllers\SponsorshipController;
 use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SongLibraryController;
+use App\Controllers\CategoryController;
+use App\Controllers\ProjectSongAssignmentController;
 use App\Controllers\NewsletterController;
 use App\Controllers\MailQueueController;
 use App\Controllers\MailDeliveryWebhookController;
@@ -301,6 +303,7 @@ return function (App $app) {
                 '/song-library',
                 function (RouteCollectorProxy $songsGroup) {
                     $songsGroup->get('', [SongLibraryController::class, 'index']);
+                    $songsGroup->get('/{id:[0-9]+}', [SongLibraryController::class, 'show']);
                     $songsGroup->post('/songs', [SongLibraryController::class, 'createSong']);
                     $songsGroup->post('/songs/{id:[0-9]+}/update', [SongLibraryController::class, 'updateSong']);
                     $songsGroup->post('/songs/{id:[0-9]+}/delete', [SongLibraryController::class, 'deleteSong']);
@@ -308,6 +311,29 @@ return function (App $app) {
                     $songsGroup->post(
                         '/songs/{song_id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                         [SongLibraryController::class, 'deleteAttachment']
+                    );
+                    $songsGroup->post('/songs/{id:[0-9]+}/categories', [SongLibraryController::class, 'syncCategories']);
+
+                    // Category management
+                    $songsGroup->post('/categories', [CategoryController::class, 'create']);
+                    $songsGroup->post(
+                        '/categories/{id:[0-9]+}/update',
+                        [CategoryController::class, 'update']
+                    );
+                    $songsGroup->post(
+                        '/categories/{id:[0-9]+}/delete',
+                        [CategoryController::class, 'delete']
+                    );
+
+                    // Project-song assignment management
+                    $songsGroup->post('/assignments', [ProjectSongAssignmentController::class, 'create']);
+                    $songsGroup->post(
+                        '/assignments/{id:[0-9]+}/update',
+                        [ProjectSongAssignmentController::class, 'update']
+                    );
+                    $songsGroup->post(
+                        '/assignments/{id:[0-9]+}/delete',
+                        [ProjectSongAssignmentController::class, 'delete']
                     );
                 }
             )->add(new RoleMiddleware(false, 0, false, false, false, false, false, true));

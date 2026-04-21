@@ -25,11 +25,11 @@
         <!-- Bootstrap Icons -->
         <link rel="stylesheet"
               href="/vendor/bootstrap-icons/font/bootstrap-icons.css">
+        <link rel="stylesheet" href="{{ asset_path('/css/style.css') }}">
+        <link rel="stylesheet" href="{{ asset_path('/theme.css') }}">
+        <link rel="stylesheet" href="{{ asset_path('/css/table-engine.css') }}">
         <link rel="stylesheet"
-              href="/css/style.css?v=20260414-newsletter-modal-width">
-        <link rel="stylesheet" href="/theme.css">
-        <link rel="stylesheet" href="/css/table-engine.css">
-        <link rel="stylesheet" href="/css/responsive-tables.css">
+              href="{{ asset_path('/css/responsive-tables.css') }}">
     </head>
     <body class="app-shell">
         {% if session.user_id %}
@@ -110,14 +110,14 @@
         </main>
         <!-- Bootstrap JS Bundle -->
         <script src="/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="/js/table-preferences.js"></script>
-        <script src="/js/table-engine.js"></script>
-        <script src="/js/table-plugins/users-manage-plugin.js"></script>
-        <script src="/js/table-plugins/users-group-plugin.js"></script>
-        <script src="/js/common.js"></script>
-        <script src="/js/upload-helper.js"></script>
+        <script src="{{ asset_path('/js/table-preferences.js') }}"></script>
+        <script src="{{ asset_path('/js/table-engine.js') }}"></script>
+        <script src="{{ asset_path('/js/table-plugins/users-manage-plugin.js') }}"></script>
+        <script src="{{ asset_path('/js/table-plugins/users-group-plugin.js') }}"></script>
+        <script src="{{ asset_path('/js/common.js') }}"></script>
+        <script src="{{ asset_path('/js/upload-helper.js') }}"></script>
         <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
-        <script src="/js/tinymce-init.js"></script>
+        <script src="{{ asset_path('/js/tinymce-init.js') }}"></script>
         {% block scripts %}
         {% endblock scripts %}
     </body>

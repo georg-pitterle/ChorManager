@@ -1,17 +1,23 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
-    Liedbibliothek - {{ app_settings.app_name|default('Chor-Manager') }}
+    Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
             <p class="text-uppercase text-muted small mb-1">Bereiche</p>
-            <h1 class="h2 mb-1">Liedbibliothek verwalten</h1>
-            <p class="text-muted mb-0">Lieder und Anhänge je Projekt strukturiert verwalten.</p>
+            <h1 class="h2 mb-1">Repertoire</h1>
+            <p class="text-muted mb-0">Alle Lieder zentral verwalten und Projekten zuweisen.</p>
         </div>
         <div class="page-actions">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#manageCategoriesModal">
+                <i class="bi bi-tags"></i> Kategorien
+            </button>
             <button type="button"
                     class="btn btn-primary"
                     data-bs-toggle="modal"
@@ -42,148 +48,117 @@
         </div>
     {% endif %}
 
-    <section class="surface-card form-surface p-4 mb-4">
-        <div class="accordion" id="projectSongsAccordion">
-            {% for project in projects %}
-                <div class="accordion-item mb-3 border-0 shadow-sm">
-                    <h2 class="accordion-header" id="heading-{{ project.id }}">
-                        <button class="accordion-button collapsed"
-                                type="button"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#collapse-{{ project.id }}"
-                                aria-expanded="false"
-                                aria-controls="collapse-{{ project.id }}">
-                            <span class="fw-semibold">{{ project.name }}</span>
-                            <span class="badge bg-secondary ms-3">{{ project.songs|length }} Lieder</span>
-                        </button>
-                    </h2>
-                    <div id="collapse-{{ project.id }}"
-                         class="accordion-collapse collapse"
-                         aria-labelledby="heading-{{ project.id }}"
-                         data-bs-parent="#projectSongsAccordion">
-                        <div class="accordion-body">
-                            {% if project.songs|length == 0 %}<p class="text-muted mb-0">Noch keine Lieder fuer dieses Projekt.</p>{% endif %}
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--actions"
+                 aria-labelledby="repertoire-filter-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="repertoire-filter-title">Lieder finden</h2>
+                <p class="dashboard-section-lead mb-0">Durchsuche das gesamte Repertoire oder filtere nach Kategorie.</p>
+            </div>
 
-                            {% for song in project.songs %}
-                                <div class="card mb-3 border">
-                                    <div class="card-body">
-                                        <form action="/song-library/songs/{{ song.id }}/update"
-                                              method="post"
-                                              class="row g-2 align-items-end">
-                                            <div class="col-md-3">
-                                                <label class="form-label">Titel *</label>
-                                                <input type="text"
-                                                       name="title"
-                                                       class="form-control"
-                                                       value="{{ song.title }}"
-                                                       required>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">Komponist</label>
-                                                <input type="text"
-                                                       name="composer"
-                                                       class="form-control"
-                                                       value="{{ song.composer|default('') }}">
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label">Arrangeur</label>
-                                                <input type="text"
-                                                       name="arranger"
-                                                       class="form-control"
-                                                       value="{{ song.arranger|default('') }}">
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label">Verlag</label>
-                                                <input type="text"
-                                                       name="publisher"
-                                                       class="form-control"
-                                                       value="{{ song.publisher|default('') }}">
-                                            </div>
-                                            <div class="col-md-2 d-flex gap-2">
-                                                <button type="submit" class="btn btn-outline-primary w-100">
-                                                    <i class="bi bi-save"></i>
-                                                </button>
-                                                <button type="submit"
-                                                        formaction="/song-library/songs/{{ song.id }}/delete"
-                                                        class="btn btn-outline-danger w-100"
-                                                        data-confirm="Lied '{{ song.title }}' wirklich loeschen?">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </form>
-
-                                        <hr>
-
-                                        <form action="/song-library/songs/{{ song.id }}/attachments"
-                                              method="post"
-                                              enctype="multipart/form-data"
-                                              id="song-library-form-{{ song.id }}"
-                                              class="song-library-form row g-2 align-items-center"
-                                              data-upload-compress="true">
-                                            <div class="col-md-8">
-                                                <label class="form-label">Dateien anhaengen (mehrfach moeglich)</label>
-                                                <input type="file"
-                                                       name="attachments[]"
-                                                       class="form-control"
-                                                       multiple
-                                                       required>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <button type="submit" class="btn btn-success mt-4">
-                                                    <i class="bi bi-upload"></i> Hochladen
-                                                </button>
-                                            </div>
-                                        </form>
-
-                                        <div class="table-responsive mt-3">
-                                            <table class="table table-sm align-middle mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Dateiname</th>
-                                                        <th>MIME</th>
-                                                        <th>Groesse</th>
-                                                        <th class="text-end">Aktion</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for attachment in song.attachments %}
-                                                        <tr>
-                                                            <td>{{ attachment.original_name }}</td>
-                                                            <td>
-                                                                <small>{{ attachment.mime_type }}</small>
-                                                            </td>
-                                                            <td>{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
-                                                            <td class="text-end">
-                                                                <form action="/song-library/songs/{{ song.id }}/attachments/{{ attachment.id }}/delete"
-                                                                      method="post"
-                                                                      class="d-inline"
-                                                                      data-confirm="Anhang wirklich loeschen?">
-                                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                        <i class="bi bi-trash"></i>
-                                                                    </button>
-                                                                </form>
-                                                            </td>
-                                                        </tr>
-                                                    {% else %}
-                                                        <tr>
-                                                            <td colspan="4" class="text-muted">Noch keine Dateien vorhanden.</td>
-                                                        </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
+            <form class="row g-2" method="get" action="/song-library">
+                <div class="col-md-6">
+                    <input type="text"
+                           name="search"
+                           class="form-control"
+                           placeholder="Titel, Komponist, Arrangeur..."
+                           value="{{ search }}">
                 </div>
-            {% else %}
-                <div class="alert alert-info">Es sind keine Projekte vorhanden.</div>
-            {% endfor %}
-        </div>
-    </section>
+                <div class="col-md-4">
+                    <select name="category" class="form-select">
+                        <option value="">Alle Kategorien</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}"
+                                    {% if selected_category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary flex-grow-1">
+                        <i class="bi bi-search me-1"></i>Filtern
+                    </button>
+                    {% if search or selected_category_id %}
+                        <a href="/song-library"
+                           class="btn btn-outline-secondary"
+                           aria-label="Filter zurücksetzen">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
 
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="repertoire-list-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="repertoire-list-title">Repertoireübersicht</h2>
+                <p class="dashboard-section-lead mb-0">{{ songs|length }} Lieder im aktuellen Ergebnis.</p>
+            </div>
+
+            <div class="dashboard-action-grid">
+                {% for song in songs %}
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-music-note-beamed"></i>
+                                {{ song.title }}
+                            </h3>
+                            <p class="dashboard-panel__text">
+                                {% if song.composer %}
+                                    {{ song.composer }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                                {% if song.arranger %}| Arr. {{ song.arranger }}{% endif %}
+                                {% if song.publisher %}| {{ song.publisher }}{% endif %}
+                            </p>
+                            <p class="dashboard-panel__text mb-0">
+                                {{ song.attachments|length }} Dateien | {{ song.projectAssignments|length }} Projekte
+                            </p>
+                            {% if song.categories|length > 0 %}
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for cat in song.categories %}
+                                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ cat.name }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="/song-library/{{ song.id }}"
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil-square me-1"></i>Details
+                            </a>
+                            <form action="/song-library/songs/{{ song.id }}/delete"
+                                  method="post"
+                                  class="d-inline"
+                                  data-confirm="Lied '{{ song.title }}' wirklich loeschen? Alle Anhaenge und Projektzuweisungen werden entfernt.">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash me-1"></i>Löschen
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                {% else %}
+                    <article class="surface-card dashboard-panel dashboard-panel--empty">
+                        <div class="dashboard-panel__body">
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-search"></i>Keine Lieder gefunden
+                            </h3>
+                            <p class="dashboard-panel__text mb-0">
+                                {% if search or selected_category_id %}
+                                    Für den aktuellen Filter gibt es keine Treffer. <a href="/song-library">Filter zurücksetzen</a>.
+                                {% else %}
+                                    Das Repertoire ist noch leer. Lege das erste Lied an.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    {# ===== Add song modal ===== #}
     <div class="modal fade"
          id="addSongModal"
          tabindex="-1"
@@ -200,27 +175,20 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="project_id" class="form-label">Projekt *</label>
-                        <select id="project_id" name="project_id" class="form-select" required>
-                            <option value="">-- Projekt auswaehlen --</option>
-                            {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
-                        </select>
+                        <label for="add_title" class="form-label">Titel *</label>
+                        <input type="text" id="add_title" name="title" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label for="title" class="form-label">Titel *</label>
-                        <input type="text" id="title" name="title" class="form-control" required>
+                        <label for="add_composer" class="form-label">Komponist</label>
+                        <input type="text" id="add_composer" name="composer" class="form-control">
                     </div>
                     <div class="mb-3">
-                        <label for="composer" class="form-label">Komponist</label>
-                        <input type="text" id="composer" name="composer" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label for="arranger" class="form-label">Arrangeur</label>
-                        <input type="text" id="arranger" name="arranger" class="form-control">
+                        <label for="add_arranger" class="form-label">Arrangeur</label>
+                        <input type="text" id="add_arranger" name="arranger" class="form-control">
                     </div>
                     <div class="mb-0">
-                        <label for="publisher" class="form-label">Verlag</label>
-                        <input type="text" id="publisher" name="publisher" class="form-control">
+                        <label for="add_publisher" class="form-label">Verlag</label>
+                        <input type="text" id="add_publisher" name="publisher" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -231,4 +199,84 @@
         </div>
     </div>
 
+    {# ===== Manage categories modal ===== #}
+    <div class="modal fade"
+         id="manageCategoriesModal"
+         tabindex="-1"
+         aria-labelledby="manageCategoriesModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageCategoriesModalLabel">Kategorien verwalten</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="/song-library/categories" method="post" class="row g-2 mb-4">
+                        <div class="col-md-8">
+                            <input type="text"
+                                   name="name"
+                                   class="form-control"
+                                   placeholder="Neue Kategorie..."
+                                   required>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-plus"></i> Anlegen
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if categories|length > 0 %}
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="text-end">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cat in categories %}
+                                    <tr>
+                                        <td>
+                                            <form action="/song-library/categories/{{ cat.id }}/update"
+                                                  method="post"
+                                                  class="d-flex gap-2 align-items-center">
+                                                <input type="text"
+                                                       name="name"
+                                                       class="form-control form-control-sm"
+                                                       value="{{ cat.name }}"
+                                                       required>
+                                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-check"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                        <td class="text-end">
+                                            <form action="/song-library/categories/{{ cat.id }}/delete"
+                                                  method="post"
+                                                  class="d-inline"
+                                                  data-confirm="Kategorie '{{ cat.name }}' wirklich loeschen?">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted mb-0">Noch keine Kategorien vorhanden.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock content %}

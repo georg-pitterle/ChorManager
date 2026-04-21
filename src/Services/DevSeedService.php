@@ -18,8 +18,10 @@ use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
+use App\Models\Category;
 use App\Models\PasswordReset;
 use App\Models\Project;
+use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Models\Setting;
@@ -95,6 +97,9 @@ class DevSeedService
                 'project_users' => 0,
                 'songs' => 0,
                 'song_attachments' => 0,
+                'repertoire_categories' => 0,
+                'song_category_assignments' => 0,
+                'project_song_assignments' => 0,
                 'tasks' => 0,
                 'task_activities' => 0,
                 'task_comments' => 0,
@@ -138,7 +143,10 @@ class DevSeedService
 
             $projects = $this->seedProjects($years);
             $projectMembers = $this->seedProjectMembers($projects, $users['active']);
-            $songs = $this->seedSongs($projects, $users['active']);
+            $categories = $this->seedCategories();
+            $songs = $this->seedSongs($users['active']);
+            $this->seedSongCategoryAssignments($songs, $categories);
+            $this->seedProjectSongAssignments($songs, $projects);
             $this->seedSongAttachments($songs, 48);
             $tasks = $this->seedTasks($projects, $users['active']);
             $this->seedTaskActivities($tasks, $users['active']);
@@ -196,7 +204,10 @@ class DevSeedService
             'attachments',
             'comments',
             'tasks',
+            'project_song_assignments',
+            'song_category_assignments',
             'songs',
+            'repertoire_categories',
             'remember_logins',
             'password_resets',
             'sponsoring_contacts',
@@ -1723,13 +1734,8 @@ class DevSeedService
         }
     }
 
-    private function seedSongs(array $projects, array $activeUsers): array
+    private function seedSongs(array $activeUsers): array
     {
-        if (count($projects) === 0) {
-            $this->report['warnings'][] = 'No projects available for song library seed.';
-            return [];
-        }
-
         $definitions = [
             ['title' => 'Ave Verum', 'composer' => 'W. A. Mozart', 'arranger' => null, 'publisher' => 'Chor Verlag'],
             ['title' => 'Dona Nobis Pacem', 'composer' => 'Traditional', 'arranger' => 'M. Leitner', 'publisher' => null],
@@ -1737,39 +1743,117 @@ class DevSeedService
             ['title' => 'Hallelujah', 'composer' => 'L. Cohen', 'arranger' => 'A. Huber', 'publisher' => 'Harmony Print'],
             ['title' => 'Gaudete', 'composer' => 'Traditional', 'arranger' => null, 'publisher' => null],
             ['title' => 'Abendlied', 'composer' => 'J. Rheinberger', 'arranger' => null, 'publisher' => 'Edition Klang'],
+            [
+                'title' => 'O Magnum Mysterium',
+                'composer' => 'T. L. de Victoria',
+                'arranger' => null,
+                'publisher' => 'Chor Verlag'
+            ],
+            ['title' => 'Shenandoah', 'composer' => 'Traditional', 'arranger' => 'B. Eder', 'publisher' => null],
         ];
 
         $songs = [];
         $activeUserCount = count($activeUsers);
 
-        foreach ($projects as $projectIndex => $project) {
-            foreach ($definitions as $songIndex => $definition) {
-                $createdBy = $activeUserCount > 0
-                    ? $activeUsers[($projectIndex + $songIndex) % $activeUserCount]
-                    : null;
+        foreach ($definitions as $index => $definition) {
+            $createdBy = $activeUserCount > 0 ? $activeUsers[$index % $activeUserCount] : null;
 
-                $song = Song::updateOrCreate(
-                    [
-                        'project_id' => $project->id,
-                        'title' => $definition['title'],
-                    ],
-                    [
-                        'composer' => $definition['composer'],
-                        'arranger' => $definition['arranger'],
-                        'publisher' => $definition['publisher'],
-                        'created_by_user_id' => $createdBy?->id,
-                    ]
-                );
+            $song = Song::firstOrCreate(
+                ['title' => $definition['title']],
+                [
+                    'composer' => $definition['composer'],
+                    'arranger' => $definition['arranger'],
+                    'publisher' => $definition['publisher'],
+                    'created_by_user_id' => $createdBy?->id,
+                ]
+            );
 
-                if ($song->wasRecentlyCreated) {
-                    $this->report['counts']['songs']++;
-                }
-
-                $songs[] = $song;
+            if ($song->wasRecentlyCreated) {
+                $this->report['counts']['songs']++;
             }
+
+            $songs[] = $song;
         }
 
         return $songs;
+    }
+
+    private function seedCategories(): array
+    {
+        $definitions = [
+            ['name' => 'Sakral', 'sort_order' => 1],
+            ['name' => 'Klassik', 'sort_order' => 2],
+            ['name' => 'Volksmusik', 'sort_order' => 3],
+            ['name' => 'Pop / Rock', 'sort_order' => 4],
+            ['name' => 'Weihnachten', 'sort_order' => 5],
+            ['name' => 'Weltlich', 'sort_order' => 6],
+        ];
+
+        $categories = [];
+        foreach ($definitions as $definition) {
+            $category = Category::firstOrCreate(
+                ['name' => $definition['name']],
+                ['sort_order' => $definition['sort_order']]
+            );
+            if ($category->wasRecentlyCreated) {
+                $this->report['counts']['repertoire_categories']++;
+            }
+            $categories[$category->name] = $category;
+        }
+
+        return $categories;
+    }
+
+    private function seedSongCategoryAssignments(array $songs, array $categories): void
+    {
+        $map = [
+            'Ave Verum'          => ['Sakral', 'Klassik'],
+            'Dona Nobis Pacem'   => ['Sakral'],
+            'Cantate Domino'     => ['Sakral', 'Klassik'],
+            'Hallelujah'         => ['Pop / Rock', 'Weltlich'],
+            'Gaudete'            => ['Sakral', 'Weihnachten'],
+            'Abendlied'          => ['Klassik', 'Weltlich'],
+            'O Magnum Mysterium' => ['Sakral', 'Weihnachten', 'Klassik'],
+            'Shenandoah'         => ['Volksmusik', 'Weltlich'],
+        ];
+
+        foreach ($songs as $song) {
+            $catNames = $map[$song->title] ?? [];
+            $catIds = array_values(array_filter(array_map(
+                fn(string $n) => isset($categories[$n]) ? (int) $categories[$n]->id : null,
+                $catNames
+            )));
+            if (count($catIds) > 0) {
+                $result = $song->categories()->syncWithoutDetaching($catIds);
+                $this->report['counts']['song_category_assignments'] += count($result['attached'] ?? []);
+            }
+        }
+    }
+
+    private function seedProjectSongAssignments(array $songs, array $projects): void
+    {
+        if (count($songs) === 0 || count($projects) === 0) {
+            return;
+        }
+
+        $songCount = count($songs);
+
+        foreach ($projects as $projectIndex => $project) {
+            $assignCount = max(3, (int) round($songCount * (0.6 + ($projectIndex % 3) * 0.05)));
+            $assignCount = min($assignCount, $songCount);
+            $subset = array_slice($songs, $projectIndex % $songCount, $assignCount);
+
+            foreach ($subset as $song) {
+                if (!ProjectSongAssignment::where('project_id', $project->id)->where('song_id', $song->id)->exists()) {
+                    ProjectSongAssignment::create([
+                        'project_id' => $project->id,
+                        'song_id' => $song->id,
+                        'note' => null,
+                    ]);
+                    $this->report['counts']['project_song_assignments']++;
+                }
+            }
+        }
     }
 
     private function seedSongAttachments(array $songs, int $targetCount): void

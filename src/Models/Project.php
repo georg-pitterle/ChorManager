@@ -38,6 +38,16 @@ class Project extends Model
         return $this->hasMany(Song::class, 'project_id', 'id');
     }
 
+    public function assignedSongs()
+    {
+        return $this->belongsToMany(
+            Song::class,
+            'project_song_assignments',
+            'project_id',
+            'song_id'
+        )->withPivot('note', 'created_at');
+    }
+
     public function tasks()
     {
         return $this->hasMany(Task::class, 'project_id', 'id');
