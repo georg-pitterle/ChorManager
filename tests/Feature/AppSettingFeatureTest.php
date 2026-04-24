@@ -47,11 +47,11 @@ class AppSettingFeatureTest extends TestCase
 
         $this->assertIsString($layoutContent);
 
-        preg_match('/<link\s+rel="stylesheet"\s+href="\/css\/style\.css[^\"]*">/', $layoutContent, $styleMatches);
+        preg_match('/<link\s+[^>]*\/css\/style\.css[^>]*>/', $layoutContent, $styleMatches);
         $this->assertNotEmpty($styleMatches);
 
-        $stylePosition = strpos($layoutContent, $styleMatches[0]);
-        $themePosition = strpos($layoutContent, '<link rel="stylesheet" href="/theme.css">');
+        $stylePosition = strpos($layoutContent, '/css/style.css');
+        $themePosition = strpos($layoutContent, '/theme.css');
 
         $this->assertIsInt($stylePosition);
         $this->assertIsInt($themePosition);

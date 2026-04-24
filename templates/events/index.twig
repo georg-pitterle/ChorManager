@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Events (Termine) - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -34,7 +34,7 @@
                     aria-label="Close"></button>
         </div>
     {% endif %}
-    {% if error %}
+    {% if error and event_modal_error is empty %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
             <button type="button"
@@ -97,7 +97,7 @@
              data-default-view="auto"
              data-default-page-size="100"
              data-page-size-options="25,50,100,200"
-             data-default-sort-key="event_date"
+             data-default-sort-key="starts_at"
              data-default-sort-dir="asc">
             {{ include('partials/table_toolbar.twig') }}
             <div class="table-responsive">
@@ -105,7 +105,7 @@
                        id="eventsTable">
                     <thead class="table-dark">
                         <tr>
-                            <th data-sort-key="event_date" data-sort-type="date">Datum</th>
+                            <th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>
                             <th data-sort-key="title" data-sort-type="text">Titel</th>
                             <th data-sort-key="location" data-sort-type="text">Ort</th>
                             <th data-sort-key="type" data-sort-type="text">Typ</th>
@@ -115,13 +115,15 @@
                     </thead>
                     <tbody>
                         {% for event in events %}
-                            <tr data-sort-event_date="{{ event.event_date|date('Y-m-d') }}"
+                            <tr data-sort-starts_at="{{ event.starts_at|date('Y-m-d') }}"
                                 data-sort-title="{{ event.title|lower }}"
                                 data-sort-location="{{ event.location|default('')|lower }}"
                                 data-sort-type="{{ event.type_name|lower }}"
                                 data-sort-project_name="{{ event.project_name|default('')|lower }}">
-                                <td data-label="Datum">
-                                    <strong>{{ event.event_date|date('d.m.Y') }}</strong>
+                                <td data-label="Datum / Zeit">
+                                    <strong>{{ event.starts_at|date('d.m.Y') }}</strong>
+                                    <br>
+                                    <span class="text-muted small">{{ event.starts_at|date('H:i') }} - {{ event.ends_at|date('H:i') }}</span>
                                     {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
                                 </td>
                                 <td data-label="Titel">{{ event.title }}</td>
@@ -192,6 +194,7 @@
         <!-- Add Event Modal -->
         <div class="modal fade"
              id="addEventModal"
+             data-open-create-modal="{{ create_form.open_modal ? '1' : '0' }}"
              tabindex="-1"
              aria-labelledby="addEventModalLabel"
              aria-hidden="true">
@@ -205,35 +208,83 @@
                                 aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        {% if error and event_modal_error == "create" %}
+                            <div class="alert alert-danger" role="alert">{{ error }}</div>
+                        {% endif %}
+
                         <div class="mb-3">
                             <label for="title" class="form-label">Titel *</label>
-                            <input type="text" class="form-control" id="title" name="title" required>
+                            <input type="text"
+                                   class="form-control"
+                                   id="title"
+                                   name="title"
+                                   value="{{ create_form.title|default('') }}"
+                                   required>
                         </div>
+
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="event_date" class="form-label">Datum *</label>
+                                <label for="starts_at" class="form-label">Datum *</label>
                                 <input type="date"
                                        class="form-control"
-                                       id="event_date"
-                                       name="event_date"
+                                       id="starts_at"
+                                       name="starts_at"
+                                       value="{{ create_form.starts_at|default('') }}"
                                        required>
                             </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="start_time" class="form-label">Von *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       id="start_time"
+                                       name="start_time"
+                                       value="{{ create_form.start_time|default('') }}"
+                                       required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="end_time" class="form-label">Bis *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       id="end_time"
+                                       name="end_time"
+                                       value="{{ create_form.end_time|default('') }}"
+                                       required>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="event_type_id" class="form-label">Typ *</label>
                                 <select class="form-select" id="event_type_id" name="event_type_id" required>
-                                    {% for et in event_types %}<option value="{{ et.id }}">{{ et.name }}</option>{% endfor %}
+                                    {% for et in event_types %}
+                                        <option value="{{ et.id }}"
+                                                {% if create_form.event_type_id is not empty and create_form.event_type_id == et.id %}selected{% endif %}>
+                                            {{ et.name }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
+
                         <div class="mb-3">
                             <label for="location" class="form-label">Ort (Optional)</label>
-                            <input type="text" class="form-control" id="location" name="location">
+                            <input type="text"
+                                   class="form-control"
+                                   id="location"
+                                   name="location"
+                                   value="{{ create_form.location|default('') }}">
                         </div>
+
                         <div class="mb-3">
                             <label for="project_id" class="form-label">Projekt (Optional)</label>
                             <select class="form-select" id="project_id" name="project_id">
                                 <option value="">Keinem Projekt zuordnen</option>
-                                {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+                                {% for project in projects %}
+                                    <option value="{{ project.id }}"
+                                            {% if create_form.project_id is not empty and create_form.project_id == project.id %}selected{% endif %}>
+                                        {{ project.name }}
+                                    </option>
+                                {% endfor %}
                             </select>
                         </div>
 
@@ -244,32 +295,48 @@
                                    type="checkbox"
                                    id="repeat_event"
                                    name="repeat"
-                                   value="1">
+                                   value="1"
+                                   {% if create_form.repeat %}checked{% endif %}>
                             <label class="form-check-label fw-bold" for="repeat_event">Termin wiederholen</label>
                         </div>
 
-                        <div id="recurrence_options" class="d-none">
+                        <div id="recurrence_options"
+                             {% if not create_form.repeat %}style="display:none;"{% endif %}>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted">Wiederhole jeden</label>
                                     <input type="number"
                                            class="form-control"
                                            name="recurrence_interval"
-                                           value="1"
+                                           value="{{ create_form.recurrence_interval|default('1') }}"
                                            min="1">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted"></label>
                                     <select class="form-select" name="frequency" id="frequency">
-                                        <option value="daily">Tag</option>
-                                        <option value="weekly" selected>Woche</option>
-                                        <option value="monthly">Monat</option>
-                                        <option value="yearly">Jahr</option>
+                                        <option value="daily"
+                                                {% if create_form.frequency == 'daily' %}selected{% endif %}>
+                                            Tag
+                                        </option>
+                                        <option value="weekly"
+                                                {% if create_form.frequency == 'weekly' %}selected{% endif %}>
+                                            Woche
+                                        </option>
+                                        <option value="monthly"
+                                                {% if create_form.frequency == 'monthly' %}selected{% endif %}>
+                                            Monat
+                                        </option>
+                                        <option value="yearly"
+                                                {% if create_form.frequency == 'yearly' %}selected{% endif %}>
+                                            Jahr
+                                        </option>
                                     </select>
                                 </div>
                             </div>
 
-                            <div id="weekday_selector" class="mb-3">
+                            <div id="weekday_selector"
+                                 class="mb-3"
+                                 {% if create_form.frequency != 'weekly' %}style="display:none;"{% endif %}>
                                 <label class="form-label small text-muted">am</label>
                                 <div class="d-flex flex-wrap gap-1">
                                     {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
@@ -278,7 +345,7 @@
                                                id="day_{{ loop.index }}"
                                                name="weekdays[]"
                                                value="{{ loop.index }}"
-                                               {% if loop.index == 1 %}checked{% endif %}>
+                                               {% if loop.index in create_form.weekdays|default([1]) %}checked{% endif %}>
                                         <label class="btn btn-outline-primary btn-sm px-3"
                                                for="day_{{ loop.index }}">{{ day }}</label>
                                     {% endfor %}
@@ -290,7 +357,9 @@
                                 <input type="date"
                                        class="form-control"
                                        id="series_end_date"
-                                       name="series_end_date">
+                                       name="series_end_date"
+                                       value="{{ create_form.series_end_date|default('') }}"
+                                       {% if create_form.repeat %}required{% endif %}>
                             </div>
                         </div>
                     </div>
@@ -302,8 +371,8 @@
             </div>
         </div>
     {% endif %}
-
-    {% block scripts %}
-        <script src="/js/events.js"></script>
-    {% endblock scripts %}
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/events.js"></script>
+{% endblock scripts %}

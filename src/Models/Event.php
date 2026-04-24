@@ -14,7 +14,8 @@ class Event extends Model
     protected $fillable = [
         'title',
         'project_id',
-        'event_date',
+        'starts_at',
+        'ends_at',
         'event_type_id',
         'series_id',
         'type',
@@ -22,7 +23,8 @@ class Event extends Model
     ];
 
     protected $casts = [
-        'event_date' => 'datetime',
+        'starts_at' => 'datetime',
+        'ends_at' => 'datetime',
         'project_id' => 'integer',
         'event_type_id' => 'integer',
         'series_id' => 'integer',

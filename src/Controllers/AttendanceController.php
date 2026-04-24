@@ -31,7 +31,7 @@ class AttendanceController
             ? (int) $queryParams['event_id']
             : null;
 
-        $events = Event::orderBy('event_date', 'asc')->get();
+        $events = Event::orderBy('starts_at', 'asc')->get();
 
         $eventId = $this->resolveSelectedEventId($routeEventId, $queryEventId, $events);
         if ($eventId !== null) {
@@ -226,7 +226,7 @@ class AttendanceController
         $bestIsFuture = false;
 
         foreach ($events as $event) {
-            $eventDate = $event->event_date;
+            $eventDate = $event->starts_at;
             if (!$eventDate instanceof \DateTimeInterface) {
                 $eventDate = new \DateTimeImmutable((string) $eventDate);
             }

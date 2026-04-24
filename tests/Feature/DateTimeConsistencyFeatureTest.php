@@ -31,7 +31,7 @@ class DateTimeConsistencyFeatureTest extends TestCase
             'Activity' => ["'created_at' => 'datetime'"],
             'Attachment' => ["'created_at' => 'datetime'"],
             'Comment' => ["'created_at' => 'datetime'", "'updated_at' => 'datetime'"],
-            'Event' => ["'event_date' => 'datetime'"],
+            'Event' => ["'starts_at' => 'datetime'", "'ends_at' => 'datetime'"],
             'EventSeries' => ["'end_date' => 'date'"],
             'Finance' => ["'invoice_date' => 'date'", "'payment_date' => 'date'"],
             'Newsletter' => ["'created_at' => 'datetime'", "'updated_at' => 'datetime'", "'locked_at' => 'datetime'", "'sent_at' => 'datetime'"],

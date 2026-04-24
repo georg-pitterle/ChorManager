@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use Carbon\Carbon;
+use DateTime;
+use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Event;
+use App\Models\EventSeries;
+use App\Models\EventType;
 use App\Models\Project;
 
 class EventController
@@ -30,7 +34,7 @@ class EventController
 
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $eventTypeId = !empty($queryParams['event_type_id']) ? (int)$queryParams['event_type_id'] : null;
-        $sort = $queryParams['sort'] ?? 'event_date';
+        $sort = $queryParams['sort'] ?? 'starts_at';
         $direction = $queryParams['direction'] ?? 'asc';
         $showOldEvents = !empty($queryParams['show_old_events']) ? (int)$queryParams['show_old_events'] : 0;
 
@@ -39,9 +43,9 @@ class EventController
         }
 
         // Allowed sort columns
-        $allowedSorts = ['event_date', 'title', 'type', 'project_name', 'location'];
+        $allowedSorts = ['starts_at', 'title', 'type', 'project_name', 'location'];
         if (!in_array($sort, $allowedSorts)) {
-            $sort = 'event_date';
+            $sort = 'starts_at';
         }
 
         $query = Event::query();
@@ -65,7 +69,7 @@ class EventController
 
         // Filter out old events (older than 14 days) unless show_old_events=1
         if (!$showOldEvents) {
-            $query->whereDate('event_date', '>=', Carbon::now()->subDays(14));
+            $query->whereDate('starts_at', '>=', Carbon::now()->subDays(14));
         }
 
         if ($sort === 'project_name') {
@@ -88,8 +92,8 @@ class EventController
         $seriesIds = $events->pluck('series_id')->filter()->unique()->toArray();
 
         $projectsMap = Project::whereIn('id', $projectIds)->get()->keyBy('id');
-        $eventTypesMap = \App\Models\EventType::whereIn('id', $eventTypeIds)->get()->keyBy('id');
-        $seriesMap = \App\Models\EventSeries::whereIn('id', $seriesIds)->get()->keyBy('id');
+        $eventTypesMap = EventType::whereIn('id', $eventTypeIds)->get()->keyBy('id');
+        $seriesMap = EventSeries::whereIn('id', $seriesIds)->get()->keyBy('id');
 
         $events->map(function ($event) use ($projectsMap, $eventTypesMap, $seriesMap) {
             $project = !is_null($event->project_id) ? $projectsMap->get($event->project_id) : null;
@@ -109,11 +113,32 @@ class EventController
         });
 
         $projects = $accessibleProjects;
-        $eventTypes = \App\Models\EventType::orderBy('name')->get();
+        $eventTypes = EventType::orderBy('name')->get();
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
+        $eventModalError = $_SESSION['event_modal_error'] ?? null;
+        $createForm = $_SESSION['event_create_form'] ?? [];
+        $openCreateModal = !empty($_SESSION['event_create_open_modal']);
         unset($_SESSION['success'], $_SESSION['error']);
+        unset($_SESSION['event_create_form'], $_SESSION['event_create_open_modal'], $_SESSION['event_modal_error']);
+
+        $createForm = array_merge([
+            'title' => '',
+            'starts_at' => '',
+            'start_time' => '',
+            'end_time' => '',
+            'event_type_id' => '',
+            'project_id' => '',
+            'location' => '',
+            'repeat' => false,
+            'recurrence_interval' => '1',
+            'frequency' => 'weekly',
+            'weekdays' => [1],
+            'series_end_date' => '',
+            'open_modal' => false,
+        ], is_array($createForm) ? $createForm : []);
+        $createForm['open_modal'] = $openCreateModal;
 
         return $this->view->render($response, 'events/index.twig', [
             'events' => $events,
@@ -127,7 +152,9 @@ class EventController
                 'direction' => $direction
             ],
             'success' => $success,
-            'error' => $error
+            'error' => $error,
+            'event_modal_error' => $eventModalError,
+            'create_form' => $createForm,
         ]);
     }
 
@@ -154,25 +181,53 @@ class EventController
     {
         $data = (array)$request->getParsedBody();
         $title = trim($data['title'] ?? '');
-        $eventDateStr = $data['event_date'] ?? '';
+        $startsAtDate = $data['starts_at'] ?? '';
+        $startTime = $data['start_time'] ?? '';
+        $endTime = $data['end_time'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $repeat = !empty($data['repeat']);
 
         if (!$this->canAccessProjectId($projectId)) {
+            $this->rememberCreateFormInput($data);
+            $_SESSION['event_modal_error'] = 'create';
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/events')->withStatus(403);
         }
 
-        if (!$eventDateStr) {
-            $_SESSION['error'] = 'Datum ist ein Pflichtfeld.';
+        if (!$startsAtDate || !$startTime || !$endTime) {
+            $this->rememberCreateFormInput($data);
+            $_SESSION['event_modal_error'] = 'create';
+            $_SESSION['error'] = 'Datum, Startzeit und Endzeit sind Pflichtfelder.';
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
 
         try {
+            $parsedStart = Carbon::createFromFormat('Y-m-d H:i', $startsAtDate . ' ' . $startTime);
+            $parsedEnd   = Carbon::createFromFormat('Y-m-d H:i', $startsAtDate . ' ' . $endTime);
+        } catch (Exception $e) {
+            $parsedStart = false;
+            $parsedEnd   = false;
+        }
+        if (!$parsedStart || !$parsedEnd) {
+            $this->rememberCreateFormInput($data);
+            $_SESSION['event_modal_error'] = 'create';
+            $_SESSION['error'] = 'Ungültiges Datum oder Zeitformat.';
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
+        if (!$parsedEnd->greaterThan($parsedStart)) {
+            $this->rememberCreateFormInput($data);
+            $_SESSION['event_modal_error'] = 'create';
+            $_SESSION['error'] = 'Endzeit muss nach der Startzeit liegen.';
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
+        $startsAt = $parsedStart->format('Y-m-d H:i:s');
+        $endsAt   = $parsedEnd->format('Y-m-d H:i:s');
+
+        try {
             $eventType = null;
             if ($eventTypeId) {
-                $eventType = \App\Models\EventType::find($eventTypeId);
+                $eventType = EventType::find($eventTypeId);
             }
             $typeName = $eventType ? $eventType->name : 'Probe';
 
@@ -184,13 +239,15 @@ class EventController
                 // Single event
                 Event::create([
                     'title' => $title,
-                    'event_date' => $eventDateStr,
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
                     'event_type_id' => $eventTypeId,
                     'project_id' => $projectId,
                     'type' => $typeName,
                     'location' => trim($data['location'] ?? '')
                 ]);
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
+                unset($_SESSION['event_create_form'], $_SESSION['event_create_open_modal'], $_SESSION['event_modal_error']);
             } else {
                 // Series
                 $frequency = $data['frequency'] ?? 'weekly';
@@ -199,18 +256,18 @@ class EventController
                 $weekdays = $data['weekdays'] ?? []; // 1 (Mo) - 7 (So)
 
                 if (!$endDateStr) {
-                    throw new \Exception('Enddatum für die Serie ist erforderlich.');
+                    throw new Exception('Enddatum für die Serie ist erforderlich.');
                 }
 
-                $series = \App\Models\EventSeries::create([
+                $series = EventSeries::create([
                     'frequency' => $frequency,
                     'recurrence_interval' => $interval,
                     'weekdays' => !empty($weekdays) ? implode(',', $weekdays) : null,
                     'end_date' => $endDateStr
                 ]);
 
-                $startDate = new \DateTime($eventDateStr);
-                $endDate = new \DateTime($endDateStr);
+                $startDate = new DateTime($startsAtDate);
+                $endDate = new DateTime($endDateStr);
                 $endDate->setTime(23, 59, 59);
 
                 $currentDate = clone $startDate;
@@ -235,7 +292,8 @@ class EventController
                     if ($shouldCreate) {
                         Event::create([
                             'title' => $title,
-                            'event_date' => $currentDate->format('Y-m-d H:i:s'),
+                            'starts_at' => $currentDate->format('Y-m-d') . ' ' . $startTime . ':00',
+                            'ends_at' => $currentDate->format('Y-m-d') . ' ' . $endTime . ':00',
                             'event_type_id' => $eventTypeId,
                             'project_id' => $projectId,
                             'type' => $typeName,
@@ -274,9 +332,12 @@ class EventController
                 }
 
                 $_SESSION['success'] = "Serie erfolgreich angelegt ($count Termine).";
+                unset($_SESSION['event_create_form'], $_SESSION['event_create_open_modal'], $_SESSION['event_modal_error']);
             }
-        } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler: ';
+        } catch (Exception $e) {
+            $this->rememberCreateFormInput($data);
+            $_SESSION['event_modal_error'] = 'create';
+            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
         }
 
         return $response->withHeader('Location', '/events')->withStatus(302);
@@ -297,12 +358,36 @@ class EventController
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
         $projects = $this->getAccessibleProjects($userId, $canManageUsers);
-        $eventTypes = \App\Models\EventType::orderBy('name')->get();
+        $eventTypes = EventType::orderBy('name')->get();
+        $error = $_SESSION['error'] ?? null;
+        $oldEditForms = $_SESSION['event_edit_forms'] ?? [];
+        $editForm = [];
+        if (is_array($oldEditForms) && isset($oldEditForms[$id]) && is_array($oldEditForms[$id])) {
+            $editForm = $oldEditForms[$id];
+            unset($_SESSION['event_edit_forms'][$id]);
+            if (isset($_SESSION['event_edit_forms']) && is_array($_SESSION['event_edit_forms']) && $_SESSION['event_edit_forms'] === []) {
+                unset($_SESSION['event_edit_forms']);
+            }
+        }
+        unset($_SESSION['error']);
+
+        $editForm = array_merge([
+            'title' => (string) $event->title,
+            'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
+            'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
+            'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
+            'event_type_id' => $event->event_type_id !== null ? (string) $event->event_type_id : '',
+            'project_id' => $event->project_id !== null ? (string) $event->project_id : '',
+            'location' => (string) ($event->location ?? ''),
+            'update_series' => false,
+        ], $editForm);
 
         return $this->view->render($response, 'events/edit.twig', [
             'event' => $event,
             'projects' => $projects,
-            'event_types' => $eventTypes
+            'event_types' => $eventTypes,
+            'error' => $error,
+            'edit_form' => $editForm,
         ]);
     }
 
@@ -322,25 +407,49 @@ class EventController
 
         $data = (array)$request->getParsedBody();
         $title = trim($data['title'] ?? '');
-        $eventDateStr = $data['event_date'] ?? '';
+        $startsAtDate = $data['starts_at'] ?? '';
+        $startTime = $data['start_time'] ?? '';
+        $endTime = $data['end_time'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $updateSeries = !empty($data['update_series']);
 
         if (!$this->canAccessProjectId($projectId)) {
+            $this->rememberEditFormInput($id, $data);
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
         }
 
-        if (!$eventDateStr) {
-            $_SESSION['error'] = 'Datum ist ein Pflichtfeld.';
+        if (!$startsAtDate || !$startTime || !$endTime) {
+            $this->rememberEditFormInput($id, $data);
+            $_SESSION['error'] = 'Datum, Startzeit und Endzeit sind Pflichtfelder.';
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
         try {
+            $parsedStart = Carbon::createFromFormat('Y-m-d H:i', $startsAtDate . ' ' . $startTime);
+            $parsedEnd   = Carbon::createFromFormat('Y-m-d H:i', $startsAtDate . ' ' . $endTime);
+        } catch (Exception $e) {
+            $parsedStart = false;
+            $parsedEnd   = false;
+        }
+        if (!$parsedStart || !$parsedEnd) {
+            $this->rememberEditFormInput($id, $data);
+            $_SESSION['error'] = 'Ungültiges Datum oder Zeitformat.';
+            return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
+        }
+        if (!$parsedEnd->greaterThan($parsedStart)) {
+            $this->rememberEditFormInput($id, $data);
+            $_SESSION['error'] = 'Endzeit muss nach der Startzeit liegen.';
+            return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
+        }
+        $startsAt = $parsedStart->format('Y-m-d H:i:s');
+        $endsAt   = $parsedEnd->format('Y-m-d H:i:s');
+
+        try {
             $eventType = null;
             if ($eventTypeId) {
-                $eventType = \App\Models\EventType::find($eventTypeId);
+                $eventType = EventType::find($eventTypeId);
             }
             $typeName = $eventType ? $eventType->name : $event->type;
 
@@ -358,7 +467,7 @@ class EventController
 
             if ($updateSeries && $event->series_id) {
                 $eventsToUpdate = Event::where('series_id', $event->series_id)
-                    ->where('event_date', '>=', $event->event_date)
+                    ->where('starts_at', '>=', $event->starts_at)
                     ->get();
 
                 $hasUnauthorizedSeriesEvent = $eventsToUpdate->contains(function ($seriesEvent) {
@@ -366,26 +475,33 @@ class EventController
                 });
 
                 if ($hasUnauthorizedSeriesEvent) {
+                    $this->rememberEditFormInput($id, $data);
                     $_SESSION['error'] = 'Zugriff verweigert.';
                     return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
                 }
 
+                $newStartTime = Carbon::parse($startsAt)->format('H:i');
+                $newEndTime = Carbon::parse($endsAt)->format('H:i');
+
                 foreach ($eventsToUpdate as $eventInSeries) {
-                    $eventInSeries->update($updateData);
+                    $eventInSeries->update(array_merge($updateData, [
+                        'starts_at' => Carbon::parse($eventInSeries->starts_at)->setTimeFromTimeString($newStartTime),
+                        'ends_at' => Carbon::parse($eventInSeries->ends_at)->setTimeFromTimeString($newEndTime),
+                    ]));
                 }
 
-                $event->update([
-                    'event_date' => $eventDateStr,
-                ]);
-
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
+                unset($_SESSION['event_edit_forms'][$id]);
             } else {
-                $updateData['event_date'] = $eventDateStr;
+                $updateData['starts_at'] = $startsAt;
+                $updateData['ends_at'] = $endsAt;
                 $event->update($updateData);
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
+                unset($_SESSION['event_edit_forms'][$id]);
             }
-        } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler: ';
+        } catch (Exception $e) {
+            $this->rememberEditFormInput($id, $data);
+            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -418,7 +534,7 @@ class EventController
         if ($event && $event->series_id) {
             $seriesId = $event->series_id;
             $eventsToDelete = Event::where('series_id', $seriesId)
-                ->where('event_date', '>=', $event->event_date)
+                ->where('starts_at', '>=', $event->starts_at)
                 ->get();
 
             $hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {
@@ -464,5 +580,42 @@ class EventController
             ->where('project_users.user_id', $userId)
             ->where('projects.id', $projectId)
             ->exists();
+    }
+
+    private function rememberCreateFormInput(array $data): void
+    {
+        $_SESSION['event_create_form'] = [
+            'title' => trim((string) ($data['title'] ?? '')),
+            'starts_at' => trim((string) ($data['starts_at'] ?? '')),
+            'start_time' => trim((string) ($data['start_time'] ?? '')),
+            'end_time' => trim((string) ($data['end_time'] ?? '')),
+            'event_type_id' => trim((string) ($data['event_type_id'] ?? '')),
+            'project_id' => trim((string) ($data['project_id'] ?? '')),
+            'location' => trim((string) ($data['location'] ?? '')),
+            'repeat' => !empty($data['repeat']),
+            'recurrence_interval' => trim((string) ($data['recurrence_interval'] ?? '1')),
+            'frequency' => trim((string) ($data['frequency'] ?? 'weekly')),
+            'weekdays' => array_values(array_map('intval', (array) ($data['weekdays'] ?? [1]))),
+            'series_end_date' => trim((string) ($data['series_end_date'] ?? '')),
+        ];
+        $_SESSION['event_create_open_modal'] = true;
+    }
+
+    private function rememberEditFormInput(int $eventId, array $data): void
+    {
+        if (!isset($_SESSION['event_edit_forms']) || !is_array($_SESSION['event_edit_forms'])) {
+            $_SESSION['event_edit_forms'] = [];
+        }
+
+        $_SESSION['event_edit_forms'][$eventId] = [
+            'title' => trim((string) ($data['title'] ?? '')),
+            'starts_at' => trim((string) ($data['starts_at'] ?? '')),
+            'start_time' => trim((string) ($data['start_time'] ?? '')),
+            'end_time' => trim((string) ($data['end_time'] ?? '')),
+            'event_type_id' => trim((string) ($data['event_type_id'] ?? '')),
+            'project_id' => trim((string) ($data['project_id'] ?? '')),
+            'location' => trim((string) ($data['location'] ?? '')),
+            'update_series' => !empty($data['update_series']),
+        ];
     }
 }

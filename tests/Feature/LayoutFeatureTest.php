@@ -207,7 +207,7 @@ class LayoutFeatureTest extends TestCase
         $this->assertIsString($eventsTemplateContent);
         $this->assertStringNotContainsString('text-white text-decoration-none', $eventsTemplateContent);
         $this->assertStringNotContainsString('/events?{{', $eventsTemplateContent);
-        $this->assertStringContainsString('<th data-sort-key="event_date" data-sort-type="date">Datum</th>', $eventsTemplateContent);
+        $this->assertStringContainsString('<th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>', $eventsTemplateContent);
     }
 
     public function testLayoutUsesNavbarLogoClassWithoutFixedHeightAttribute(): void

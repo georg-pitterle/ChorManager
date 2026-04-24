@@ -74,7 +74,7 @@
                                 <option value="{{ event.id }}"
                                         data-project-id="{{ event.project_id }}"
                                         {% if newsletter.event_id == event.id %}selected{% endif %}>
-                                    {{ event.title }} ({{ event.event_date|date('d.m.Y') }}) - {{ event.project.name }}
+                                    {{ event.title }} ({{ event.starts_at|date('d.m.Y') }}) - {{ event.project.name }}
                                 </option>
                             {% endfor %}
                         </select>

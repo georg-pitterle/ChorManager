@@ -1103,22 +1103,22 @@ git commit -m "feat: update dev seed to use starts_at/ends_at for all event crea
 
 ### Spec Coverage
 
-| Spec requirement | Task |
-|---|---|
-| Replace `event_date` with `starts_at`/`ends_at` | Tasks 2–5 |
-| Both fields required | Task 3 (controller validation) |
-| `ends_at > starts_at` validation | Task 3 (controller validation) |
-| Existing events migrated to 19:00–21:00 | Task 2 (migration backfill) |
-| Recurring generation keeps same clock times | Task 3 (series loop uses `$startTimeStr`/`$endTimeStr`) |
-| Series update propagates clock times to future events | Task 3 (`update()` series branch) |
-| Time shown in display views (index, edit breadcrumb, attendance header) | Tasks 3–4 |
-| Compact selectors stay date-only | Task 4 (attendance/show.twig selector, newsletter templates) |
-| Sorting by `starts_at` | Task 3 (controller + index.twig) |
-| Old-event filter uses `starts_at` | Task 3 (controller `whereDate`) |
-| Prev/next attendance navigation via `starts_at` ordering | Task 4 (AttendanceController) |
-| Model casts `starts_at`/`ends_at` as datetime | Task 3 (Event.php) |
-| Tests: all requirements from §10 | Tasks 1 + 3 |
-| Dev seed covers new fields | Task 5 |
+| Spec requirement                                                        | Task                                                         |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Replace `event_date` with `starts_at`/`ends_at`                         | Tasks 2–5                                                    |
+| Both fields required                                                    | Task 3 (controller validation)                               |
+| `ends_at > starts_at` validation                                        | Task 3 (controller validation)                               |
+| Existing events migrated to 19:00–21:00                                 | Task 2 (migration backfill)                                  |
+| Recurring generation keeps same clock times                             | Task 3 (series loop uses `$startTimeStr`/`$endTimeStr`)      |
+| Series update propagates clock times to future events                   | Task 3 (`update()` series branch)                            |
+| Time shown in display views (index, edit breadcrumb, attendance header) | Tasks 3–4                                                    |
+| Compact selectors stay date-only                                        | Task 4 (attendance/show.twig selector, newsletter templates) |
+| Sorting by `starts_at`                                                  | Task 3 (controller + index.twig)                             |
+| Old-event filter uses `starts_at`                                       | Task 3 (controller `whereDate`)                              |
+| Prev/next attendance navigation via `starts_at` ordering                | Task 4 (AttendanceController)                                |
+| Model casts `starts_at`/`ends_at` as datetime                           | Task 3 (Event.php)                                           |
+| Tests: all requirements from §10                                        | Tasks 1 + 3                                                  |
+| Dev seed covers new fields                                              | Task 5                                                       |
 
 All spec requirements are covered. No gaps found.
 

@@ -709,7 +709,8 @@ class DevSeedService
                     $event = Event::create([
                         'title' => $seriesDef['title'] . ' - ' . $project->name,
                         'project_id' => $project->id,
-                        'event_date' => $cursor->format('Y-m-d H:i:s'),
+                        'starts_at' => $cursor->format('Y-m-d') . ' 19:00:00',
+                        'ends_at' => $cursor->format('Y-m-d') . ' 21:00:00',
                         'event_type_id' => $eventTypes[$seriesDef['type']]->id,
                         'series_id' => $series->id,
                         'type' => $seriesDef['type'],
@@ -735,7 +736,8 @@ class DevSeedService
                 $event = Event::create([
                     'title' => $singleDef['title'] . ' - ' . $project->name,
                     'project_id' => $project->id,
-                    'event_date' => $eventDate->format('Y-m-d H:i:s'),
+                    'starts_at' => $eventDate->format('Y-m-d') . ' 19:00:00',
+                    'ends_at' => $eventDate->format('Y-m-d') . ' 21:00:00',
                     'event_type_id' => $eventTypes[$singleDef['type']]->id,
                     'series_id' => null,
                     'type' => $singleDef['type'],
@@ -757,7 +759,8 @@ class DevSeedService
                 $event = Event::create([
                     'title' => 'Zusatzprobe - ' . $project->name,
                     'project_id' => $project->id,
-                    'event_date' => $paddingDate->format('Y-m-d H:i:s'),
+                    'starts_at' => $paddingDate->format('Y-m-d') . ' 19:00:00',
+                    'ends_at' => $paddingDate->format('Y-m-d') . ' 21:00:00',
                     'event_type_id' => $eventTypes['Probe']->id,
                     'series_id' => null,
                     'type' => 'Probe',
@@ -796,7 +799,8 @@ class DevSeedService
             Event::create([
                 'title' => 'Vereinssitzung ' . ($i + 1),
                 'project_id' => null,
-                'event_date' => $eventDate->format('Y-m-d H:i:s'),
+                'starts_at' => $eventDate->format('Y-m-d') . ' 19:00:00',
+                'ends_at' => $eventDate->format('Y-m-d') . ' 21:00:00',
                 'event_type_id' => $eventTypes['Sitzung']->id,
                 'series_id' => null,
                 'type' => 'Sitzung',
@@ -2356,7 +2360,7 @@ class DevSeedService
                 'content_html' => '<h2>Kommender Auftritt</h2>' .
                     '<p>Liebe Sängerinnen und Sänger,</p>' .
                     '<p>wir heißen euch herzlich zu unserem kommenden Konzert willkommen!</p>' .
-                    '<p><strong>Datum: [EVENT_DATE]</strong><br>' .
+                    '<p><strong>Datum: [EVENT_STARTS_AT]</strong><br>' .
                     '<strong>Uhrzeit: [EVENT_TIME]</strong><br>' .
                     '<strong>Ort: [EVENT_LOCATION]</strong></p>' .
                     '<p>Wir freuen uns auf euer Erscheinen!</p>',

@@ -1,10 +1,11 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Termin bearbeiten - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block content %}
+    {% set form = edit_form|default({}) %}
     <div class="row mt-4">
         <div class="col-12 mb-4">
             <h1>Termin bearbeiten</h1>
@@ -40,17 +41,35 @@
                                    class="form-control"
                                    id="title"
                                    name="title"
-                                   value="{{ event.title }}"
+                                   value="{{ form.title|default(event.title) }}"
                                    required>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="event_date" class="form-label">Datum *</label>
+                                <label for="starts_at" class="form-label">Datum *</label>
                                 <input type="date"
                                        class="form-control"
-                                       id="event_date"
-                                       name="event_date"
-                                       value="{{ event.event_date|date('Y-m-d') }}"
+                                       id="starts_at"
+                                       name="starts_at"
+                                       value="{{ form.starts_at|default(event.starts_at|date('Y-m-d')) }}"
+                                       required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="start_time" class="form-label">Von *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       id="start_time"
+                                       name="start_time"
+                                       value="{{ form.start_time|default(event.starts_at|date('H:i')) }}"
+                                       required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="end_time" class="form-label">Bis *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       id="end_time"
+                                       name="end_time"
+                                       value="{{ form.end_time|default(event.ends_at|date('H:i')) }}"
                                        required>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -58,7 +77,7 @@
                                 <select class="form-select" id="event_type_id" name="event_type_id" required>
                                     {% for et in event_types %}
                                         <option value="{{ et.id }}"
-                                                {% if event.event_type_id == et.id %}selected{% endif %}>
+                                                {% if form.event_type_id|default(event.event_type_id) == et.id %}selected{% endif %}>
                                             {{ et.name }}
                                         </option>
                                     {% endfor %}
@@ -71,7 +90,7 @@
                                    class="form-control"
                                    id="location"
                                    name="location"
-                                   value="{{ event.location }}">
+                                   value="{{ form.location|default(event.location) }}">
                         </div>
                         <div class="mb-3">
                             <label for="project_id" class="form-label">Projekt (Optional)</label>
@@ -79,7 +98,7 @@
                                 <option value="">Keinem Projekt zuordnen</option>
                                 {% for project in projects %}
                                     <option value="{{ project.id }}"
-                                            {% if event.project_id == project.id %}selected{% endif %}>
+                                            {% if form.project_id|default(event.project_id) == project.id %}selected{% endif %}>
                                         {{ project.name }}
                                     </option>
                                 {% endfor %}
@@ -92,7 +111,8 @@
                                        class="form-check-input"
                                        id="update_series"
                                        name="update_series"
-                                       value="1">
+                                       value="1"
+                                       {% if form.update_series|default(false) %}checked{% endif %}>
                                 <label class="form-check-label" for="update_series">Änderungen auf zukünftige Termine der Serie anwenden?</label>
                             </div>
                         {% endif %}

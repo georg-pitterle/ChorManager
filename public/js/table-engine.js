@@ -85,12 +85,10 @@
     }
 
     function resolveAutoView(overflowDelta, currentView, useHysteresis) {
-        if (currentView === 'cards') {
-            return overflowDelta > 1 ? 'cards' : 'table';
-        }
-
-        if (currentView === 'table') {
-            return overflowDelta > 1 ? 'cards' : 'table';
+        if (currentView === 'cards' && useHysteresis) {
+            // Require AUTO_VIEW_HYSTERESIS_PX of free space before switching back to table
+            // to avoid rapid toggling near the threshold.
+            return overflowDelta > -AUTO_VIEW_HYSTERESIS_PX ? 'cards' : 'table';
         }
 
         return overflowDelta > 1 ? 'cards' : 'table';
@@ -809,7 +807,8 @@
 
             const requiredWidth = Math.max(
                 table.scrollWidth || 0,
-                table.clientWidth || 0
+                table.clientWidth || 0,
+                viewportElement ? (viewportElement.scrollWidth || 0) : 0
             );
 
             if (hadActiveView) {

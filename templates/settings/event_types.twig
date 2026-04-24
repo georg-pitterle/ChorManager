@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Termin-Typen - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -23,7 +23,11 @@
 
 {% block content %}
     {% if success %}<div class="alert alert-success mt-3">{{ success }}</div>{% endif %}
-    {% if error %}<div class="alert alert-danger mt-3">{{ error }}</div>{% endif %}
+    {% if error and modal_error is empty %}<div class="alert alert-danger mt-3">{{ error }}</div>{% endif %}
+
+    <input type="hidden"
+           id="eventTypeOpenEditModalId"
+           value="{{ open_edit_modal_id|default(0) }}">
 
     <section class="surface-card form-surface p-4 mb-4">
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
@@ -52,6 +56,8 @@
                     <!-- Edit Type Modal -->
                     <div class="modal fade"
                          id="editTypeModal{{ type.id }}"
+                         data-modal-type="edit"
+                         data-type-id="{{ type.id }}"
                          tabindex="-1"
                          aria-hidden="true">
                         <div class="modal-dialog">
@@ -65,27 +71,50 @@
                                                 aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
+                                        {% if error and modal_error and modal_error.scope == "edit" and modal_error.id == type.id %}
+                                            <div class="alert alert-danger" role="alert">{{ error }}</div>
+                                        {% endif %}
+
                                         <div class="mb-3">
                                             <label class="form-label">Name</label>
+                                            {% set edit_form = edit_forms[type.id]|default({}) %}
                                             <input type="text"
                                                    name="name"
                                                    class="form-control"
-                                                   value="{{ type.name }}"
+                                                   value="{{ edit_form.name|default(type.name) }}"
                                                    required>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Farbe (Bootstrap Klasse)</label>
                                             <select name="color" class="form-select">
-                                                <option value="primary" {% if type.color == 'primary' %}selected{% endif %}>Blau (Primary)</option>
+                                                <option value="primary"
+                                                        {% if edit_form.color|default(type.color) == 'primary' %}selected{% endif %}>
+                                                    Blau (Primary)
+                                                </option>
                                                 <option value="secondary"
-                                                        {% if type.color == 'secondary' %}selected{% endif %}>
+                                                        {% if edit_form.color|default(type.color) == 'secondary' %}selected{% endif %}>
                                                     Grau (Secondary)
                                                 </option>
-                                                <option value="success" {% if type.color == 'success' %}selected{% endif %}>Grün (Success)</option>
-                                                <option value="danger" {% if type.color == 'danger' %}selected{% endif %}>Rot (Danger)</option>
-                                                <option value="warning" {% if type.color == 'warning' %}selected{% endif %}>Gelb (Warning)</option>
-                                                <option value="info" {% if type.color == 'info' %}selected{% endif %}>Hellblau (Info)</option>
-                                                <option value="dark" {% if type.color == 'dark' %}selected{% endif %}>Schwarz (Dark)</option>
+                                                <option value="success"
+                                                        {% if edit_form.color|default(type.color) == 'success' %}selected{% endif %}>
+                                                    Grün (Success)
+                                                </option>
+                                                <option value="danger"
+                                                        {% if edit_form.color|default(type.color) == 'danger' %}selected{% endif %}>
+                                                    Rot (Danger)
+                                                </option>
+                                                <option value="warning"
+                                                        {% if edit_form.color|default(type.color) == 'warning' %}selected{% endif %}>
+                                                    Gelb (Warning)
+                                                </option>
+                                                <option value="info"
+                                                        {% if edit_form.color|default(type.color) == 'info' %}selected{% endif %}>
+                                                    Hellblau (Info)
+                                                </option>
+                                                <option value="dark"
+                                                        {% if edit_form.color|default(type.color) == 'dark' %}selected{% endif %}>
+                                                    Schwarz (Dark)
+                                                </option>
                                             </select>
                                         </div>
                                     </div>
@@ -140,6 +169,7 @@
     <!-- Create Type Modal -->
     <div class="modal fade"
          id="createTypeModal"
+         data-open-create-modal="{{ open_create_modal ? '1' : '0' }}"
          tabindex="-1"
          aria-hidden="true">
         <div class="modal-dialog">
@@ -153,24 +183,50 @@
                                 aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        {% if error and modal_error and modal_error.scope == "create" %}
+                            <div class="alert alert-danger" role="alert">{{ error }}</div>
+                        {% endif %}
+
                         <div class="mb-3">
                             <label class="form-label">Name (z.B. Probe, Auftritt)</label>
                             <input type="text"
                                    name="name"
                                    class="form-control"
                                    required
+                                   value="{{ create_form.name|default('') }}"
                                    placeholder="Name des Typs...">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Farbe (Bootstrap Klasse)</label>
                             <select name="color" class="form-select">
-                                <option value="primary">Blau (Primary)</option>
-                                <option value="secondary">Grau (Secondary)</option>
-                                <option value="success">Grün (Success)</option>
-                                <option value="danger">Rot (Danger)</option>
-                                <option value="warning">Gelb (Warning)</option>
-                                <option value="info" selected>Hellblau (Info)</option>
-                                <option value="dark">Schwarz (Dark)</option>
+                                <option value="primary"
+                                        {% if create_form.color|default('info') == 'primary' %}selected{% endif %}>
+                                    Blau (Primary)
+                                </option>
+                                <option value="secondary"
+                                        {% if create_form.color|default('info') == 'secondary' %}selected{% endif %}>
+                                    Grau (Secondary)
+                                </option>
+                                <option value="success"
+                                        {% if create_form.color|default('info') == 'success' %}selected{% endif %}>
+                                    Grün (Success)
+                                </option>
+                                <option value="danger"
+                                        {% if create_form.color|default('info') == 'danger' %}selected{% endif %}>
+                                    Rot (Danger)
+                                </option>
+                                <option value="warning"
+                                        {% if create_form.color|default('info') == 'warning' %}selected{% endif %}>
+                                    Gelb (Warning)
+                                </option>
+                                <option value="info"
+                                        {% if create_form.color|default('info') == 'info' %}selected{% endif %}>
+                                    Hellblau (Info)
+                                </option>
+                                <option value="dark"
+                                        {% if create_form.color|default('info') == 'dark' %}selected{% endif %}>
+                                    Schwarz (Dark)
+                                </option>
                             </select>
                         </div>
                     </div>
@@ -182,4 +238,9 @@
             </form>
         </div>
     </div>
+
+    {% block scripts %}
+        {{ parent() }}
+        <script src="/js/event-types.js"></script>
+    {% endblock scripts %}
 {% endblock content %}

@@ -25,12 +25,17 @@ class VoiceGroupController
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
+        $modalError = $_SESSION['voice_group_modal_error'] ?? null;
+        $openModal = $_SESSION['voice_group_open_modal'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
+        unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
 
         return $this->view->render($response, 'voice_groups/index.twig', [
             'voice_groups' => $voiceGroups,
             'success' => $success,
-            'error' => $error
+            'error' => $error,
+            'modal_error' => is_array($modalError) ? $modalError : null,
+            'open_modal' => is_array($openModal) ? $openModal : null,
         ]);
     }
 
@@ -40,14 +45,19 @@ class VoiceGroupController
         $name = trim($data['name'] ?? '');
 
         if (!$name) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_group'];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_group'];
             $_SESSION['error'] = 'Der Name der Stimmgruppe darf nicht leer sein.';
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
         try {
             VoiceGroup::create(['name' => $name]);
+            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich angelegt.';
         } catch (\Exception $e) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_group'];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_group'];
             $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
@@ -61,6 +71,8 @@ class VoiceGroupController
         $name = trim($data['name'] ?? '');
 
         if (!$name) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_group', 'group_id' => $id];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_group', 'group_id' => $id];
             $_SESSION['error'] = 'Der Name darf nicht leer sein.';
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
@@ -68,8 +80,11 @@ class VoiceGroupController
         try {
             $group = VoiceGroup::findOrFail($id);
             $group->update(['name' => $name]);
+            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich aktualisiert.';
         } catch (\Exception $e) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_group', 'group_id' => $id];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_group', 'group_id' => $id];
             $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 
@@ -98,6 +113,8 @@ class VoiceGroupController
         $name = trim($data['name'] ?? '');
 
         if (!$name) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_sub', 'group_id' => $groupId];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_sub', 'group_id' => $groupId];
             $_SESSION['error'] = 'Der Name der Unterstimme darf nicht leer sein.';
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
@@ -107,8 +124,11 @@ class VoiceGroupController
                 'name' => $name,
                 'voice_group_id' => $groupId
             ]);
+            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Unterstimme erfolgreich angelegt.';
         } catch (\Exception $e) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_sub', 'group_id' => $groupId];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_sub', 'group_id' => $groupId];
             $_SESSION['error'] = 'Fehler beim Anlegen: ';
         }
 
@@ -122,6 +142,8 @@ class VoiceGroupController
         $name = trim($data['name'] ?? '');
 
         if (!$name) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
             $_SESSION['error'] = 'Der Name darf nicht leer sein.';
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
@@ -129,8 +151,11 @@ class VoiceGroupController
         try {
             $subVoice = SubVoice::findOrFail($subId);
             $subVoice->update(['name' => $name]);
+            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Unterstimme erfolgreich aktualisiert.';
         } catch (\Exception $e) {
+            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
+            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
             $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
         }
 

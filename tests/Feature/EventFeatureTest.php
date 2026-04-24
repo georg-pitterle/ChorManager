@@ -154,7 +154,8 @@ class EventFeatureTest extends TestCase
     {
         $oldEvent = Event::create([
             'title' => 'Old Event',
-            'event_date' => Carbon::now()->subDays(20)->format('Y-m-d H:i:s'),
+            'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
+            'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
             'type' => 'Probe',
             'location' => null,
         ]);
@@ -187,7 +188,8 @@ class EventFeatureTest extends TestCase
 
         $oldEventInProject = Event::create([
             'title' => 'Old Event in Project',
-            'event_date' => Carbon::now()->subDays(20)->format('Y-m-d H:i:s'),
+            'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
+            'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
             'project_id' => $project->id,
             'event_type_id' => $eventType->id,
             'type' => 'Probe',
@@ -196,7 +198,8 @@ class EventFeatureTest extends TestCase
 
         $oldEventOtherProject = Event::create([
             'title' => 'Old Event Other Project',
-            'event_date' => Carbon::now()->subDays(20)->format('Y-m-d H:i:s'),
+            'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
+            'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
             'project_id' => null,
             'event_type_id' => $eventType->id,
             'type' => 'Probe',
@@ -264,6 +267,228 @@ class EventFeatureTest extends TestCase
         $this->assertStringContainsString('$hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {', $controllerContent);
     }
 
+    public function testCreateEventRequiresAllTimeFields(): void
+    {
+        $controller = new EventController($this->createTwig());
+        unset($_SESSION['error']);
+        $request = $this->makeRequest('POST', '/events', [
+            'title' => 'Missing Time',
+            'starts_at' => '2026-05-01',
+            // start_time and end_time intentionally omitted
+        ]);
+        $response = $this->makeResponse();
+        $controller->create($request, $response);
+
+        $this->assertEquals('Datum, Startzeit und Endzeit sind Pflichtfelder.', $_SESSION['error'] ?? null);
+        $this->assertNull(Event::where('title', 'Missing Time')->first());
+    }
+
+    public function testCreateEventRejectsInvertedTimeRange(): void
+    {
+        $controller = new EventController($this->createTwig());
+        unset($_SESSION['error']);
+        $request = $this->makeRequest('POST', '/events', [
+            'title' => 'Bad Times',
+            'starts_at' => '2026-05-01',
+            'start_time' => '21:00',
+            'end_time'   => '19:00',
+        ]);
+        $response = $this->makeResponse();
+        $controller->create($request, $response);
+
+        $this->assertEquals('Endzeit muss nach der Startzeit liegen.', $_SESSION['error'] ?? null);
+        $this->assertNull(Event::where('title', 'Bad Times')->first());
+    }
+
+    public function testCreateEventValidationErrorKeepsEnteredModalValues(): void
+    {
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest('POST', '/events', [
+            'title' => 'Probe Dienstag',
+            'starts_at' => '2026-06-10',
+            'start_time' => '21:00',
+            'end_time' => '19:00',
+            'location' => 'Gemeindehaus',
+            'repeat' => '1',
+            'recurrence_interval' => '2',
+            'frequency' => 'weekly',
+            'weekdays' => ['2', '4'],
+            'series_end_date' => '2026-09-01',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->create($request, $response);
+
+        $this->assertRedirect($result, '/events');
+        $this->assertSame('Endzeit muss nach der Startzeit liegen.', $_SESSION['error'] ?? null);
+
+        $body = $this->renderEventsIndex();
+        $this->assertStringContainsString('data-open-create-modal="1"', $body);
+        $this->assertStringContainsString('value="Probe Dienstag"', $body);
+        $this->assertStringContainsString('value="2026-06-10"', $body);
+        $this->assertStringContainsString('value="21:00"', $body);
+        $this->assertStringContainsString('value="19:00"', $body);
+        $this->assertStringContainsString('value="Gemeindehaus"', $body);
+        $this->assertStringContainsString('name="repeat"', $body);
+        $this->assertStringContainsString('name="series_end_date"', $body);
+        $this->assertStringContainsString('value="2026-09-01"', $body);
+    }
+
+    public function testCreateEventStoresTimeRange(): void
+    {
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest('POST', '/events', [
+            'title' => 'Probe Montag',
+            'starts_at' => '2026-05-01',
+            'start_time' => '19:00',
+            'end_time'   => '21:00',
+        ]);
+        $response = $this->makeResponse();
+        $controller->create($request, $response);
+
+        $event = Event::where('title', 'Probe Montag')->first();
+        $this->assertNotNull($event);
+        $this->assertEquals('2026-05-01 19:00:00', $event->starts_at->format('Y-m-d H:i:s'));
+        $this->assertEquals('2026-05-01 21:00:00', $event->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function testUpdateEventStoresTimeRange(): void
+    {
+        $event = Event::create([
+            'title' => 'Old Probe',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at'   => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
+            'title' => 'New Probe',
+            'starts_at' => '2026-05-08',
+            'start_time' => '18:00',
+            'end_time'   => '20:00',
+        ]);
+        $response = $this->makeResponse();
+        $controller->update($request, $response, ['id' => (string) $event->id]);
+
+        $event->refresh();
+        $this->assertEquals('2026-05-08 18:00:00', $event->starts_at->format('Y-m-d H:i:s'));
+        $this->assertEquals('2026-05-08 20:00:00', $event->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function testUpdateEventValidationErrorKeepsEnteredFormValues(): void
+    {
+        $event = Event::create([
+            'title' => 'Original Probe',
+            'starts_at' => '2026-06-01 19:00:00',
+            'ends_at' => '2026-06-01 21:00:00',
+            'type' => 'Probe',
+            'location' => 'Saal',
+        ]);
+
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
+            'title' => 'Neue Probe',
+            'starts_at' => '2026-06-10',
+            'start_time' => '20:30',
+            'end_time' => '19:00',
+            'location' => 'Aula',
+            'update_series' => '1',
+        ]);
+        $response = $this->makeResponse();
+        $result = $controller->update($request, $response, ['id' => (string) $event->id]);
+
+        $this->assertRedirect($result, '/events/' . $event->id . '/edit');
+        $this->assertSame('Endzeit muss nach der Startzeit liegen.', $_SESSION['error'] ?? null);
+
+        $editResponse = $controller->edit(
+            $this->makeRequest('GET', '/events/' . $event->id . '/edit'),
+            $this->makeResponse(),
+            ['id' => (string) $event->id]
+        );
+        $body = (string) $editResponse->getBody();
+
+        $this->assertStringContainsString('Endzeit muss nach der Startzeit liegen.', $body);
+        $this->assertStringContainsString('value="Neue Probe"', $body);
+        $this->assertStringContainsString('value="2026-06-10"', $body);
+        $this->assertStringContainsString('value="20:30"', $body);
+        $this->assertStringContainsString('value="19:00"', $body);
+        $this->assertStringContainsString('value="Aula"', $body);
+    }
+
+    public function testUpdateSeriesAppliesClockTimesToFutureEvents(): void
+    {
+        $series = \App\Models\EventSeries::create([
+            'frequency' => 'weekly',
+            'recurrence_interval' => 1,
+            'weekdays' => '1',
+            'end_date' => '2026-07-01',
+        ]);
+
+        $event1 = Event::create([
+            'title' => 'Probe',
+            'starts_at' => '2026-05-05 19:00:00',
+            'ends_at'   => '2026-05-05 21:00:00',
+            'series_id' => $series->id,
+            'type' => 'Probe',
+        ]);
+        $event2 = Event::create([
+            'title' => 'Probe',
+            'starts_at' => '2026-05-12 19:00:00',
+            'ends_at'   => '2026-05-12 21:00:00',
+            'series_id' => $series->id,
+            'type' => 'Probe',
+        ]);
+        $event3 = Event::create([
+            'title' => 'Probe',
+            'starts_at' => '2026-05-19 19:00:00',
+            'ends_at'   => '2026-05-19 21:00:00',
+            'series_id' => $series->id,
+            'type' => 'Probe',
+        ]);
+
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest('POST', '/events/' . $event1->id . '/update', [
+            'title' => 'Probe',
+            'starts_at' => '2026-05-05',
+            'start_time' => '18:30',
+            'end_time'   => '20:30',
+            'update_series' => '1',
+        ]);
+        $response = $this->makeResponse();
+        $controller->update($request, $response, ['id' => (string) $event1->id]);
+
+        $event1->refresh();
+        $event2->refresh();
+        $event3->refresh();
+
+        $this->assertEquals('2026-05-05', $event1->starts_at->format('Y-m-d'));
+        $this->assertEquals('18:30', $event1->starts_at->format('H:i'));
+        $this->assertEquals('20:30', $event1->ends_at->format('H:i'));
+        $this->assertEquals('2026-05-12', $event2->starts_at->format('Y-m-d'));
+        $this->assertEquals('18:30', $event2->starts_at->format('H:i'));
+        $this->assertEquals('20:30', $event2->ends_at->format('H:i'));
+        $this->assertEquals('2026-05-19', $event3->starts_at->format('Y-m-d'));
+        $this->assertEquals('18:30', $event3->starts_at->format('H:i'));
+        $this->assertEquals('20:30', $event3->ends_at->format('H:i'));
+    }
+
+    public function testEventsIndexRendersTimeRange(): void
+    {
+        Event::create([
+            'title' => 'Timed Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at'   => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $body = $this->renderEventsIndex(['show_old_events' => '1']);
+
+        $this->assertStringContainsString('Timed Event', $body);
+        $this->assertStringContainsString('19:00', $body);
+        $this->assertStringContainsString('21:00', $body);
+    }
+
     private function createTwig(): Twig
     {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
@@ -271,6 +496,13 @@ class EventFeatureTest extends TestCase
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('current_path', '/events');
         $environment->addGlobal('app_settings', []);
+        $environment->addFunction(new TwigFunction(
+            'asset_path',
+            static function (string $path): string {
+                return $path;
+            }
+        ));
+
         $environment->addFunction(new TwigFunction(
             'nav_active',
             static function (
@@ -313,10 +545,13 @@ class EventFeatureTest extends TestCase
 
     private function createEvent(string $title, string $relativeDate, ?int $projectId = null): Event
     {
+        $date = (new \DateTimeImmutable($relativeDate . ' 12:00:00'))->format('Y-m-d');
+
         return Event::create([
             'title' => $title,
             'project_id' => $projectId,
-            'event_date' => (new \DateTimeImmutable($relativeDate . ' 12:00:00'))->format('Y-m-d H:i:s'),
+            'starts_at' => $date . ' 12:00:00',
+            'ends_at' => $date . ' 14:00:00',
             'type' => 'Probe',
             'location' => 'Test Location',
         ]);

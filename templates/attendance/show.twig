@@ -29,7 +29,7 @@
                     {% for e in events %}
                         <option value="{{ e.id }}"
                                 {% if current_event and current_event.id == e.id %}selected{% endif %}>
-                            {{ e.event_date|date('d.m.Y') }} - {{ e.title }} ({{ e.type }})
+                            {{ e.starts_at|date('d.m.Y') }} - {{ e.title }} ({{ e.type }})
                         </option>
                     {% endfor %}
                 </select>
@@ -64,7 +64,7 @@
                 <div class="card-body">
                     <h5 class="card-title text-primary">{{ current_event.title }}</h5>
                     <h6 class="card-subtitle mb-2 text-muted">
-                        {{ current_event.event_date|date('d.m.Y') }}
+                        {{ current_event.starts_at|date('d.m.Y H:i') }} – {{ current_event.ends_at|date('H:i') }}
                         {% if current_event.location %}| <i class="bi bi-geo-alt"></i> {{ current_event.location }}{% endif %}
                         | Typ: {{ current_event.type }}
                     </h6>
