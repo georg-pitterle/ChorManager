@@ -230,8 +230,10 @@ class SongLibraryController
         }
 
         foreach ($files as $file) {
-            if ($file->getError() !== UPLOAD_ERR_OK) {
-                continue;
+            $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Datei');
+            if ($uploadError !== null) {
+                $_SESSION['error'] = $uploadError;
+                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
             }
 
             $mimeType = trim((string) $file->getClientMediaType()) ?: 'application/octet-stream';

@@ -33,6 +33,12 @@ class SponsorshipController
         }
 
         foreach ($files as $file) {
+            $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Anhang');
+            if ($uploadError !== null) {
+                $_SESSION['error'] = $uploadError;
+                continue;
+            }
+
             if ($file->getError() === UPLOAD_ERR_OK) {
                 $mimeType = trim((string) $file->getClientMediaType());
                 $contents = $file->getStream()->getContents();

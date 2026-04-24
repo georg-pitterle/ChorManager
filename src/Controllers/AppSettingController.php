@@ -107,6 +107,12 @@ class AppSettingController
             $uploadedFiles = $request->getUploadedFiles();
             if (isset($uploadedFiles['app_logo'])) {
                 $file = $uploadedFiles['app_logo'];
+                $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Logo-Datei');
+                if ($uploadError !== null) {
+                    $_SESSION['error'] = $uploadError;
+                    return $response->withHeader('Location', '/settings')->withStatus(302);
+                }
+
                 if ($file->getError() === UPLOAD_ERR_OK) {
                     $size = (int) $file->getSize();
                     $mimeType = trim((string) $file->getClientMediaType());

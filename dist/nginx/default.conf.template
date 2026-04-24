@@ -1,9 +1,17 @@
 server {
     listen 80;
     server_name localhost;
-    client_max_body_size 100m;
     root /var/www/html/public;
     index index.php;
+
+    client_max_body_size ${CLIENT_MAX_BODY_SIZE};
+    error_page 413 /upload-too-large;
+
+    location = /upload-too-large {
+        internal;
+        default_type text/plain;
+        return 413 "Upload zu gross. Maximal erlaubt: ${CLIENT_MAX_BODY_SIZE}. Bitte Datei verkleinern und erneut hochladen.";
+    }
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;

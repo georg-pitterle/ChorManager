@@ -124,6 +124,28 @@ class UploadValidator
     }
 
     /**
+     * Translate PHP upload error code to a user-friendly error message.
+     * Returns null when there is no actionable error for the user.
+     */
+    public static function getUploadErrorMessage(int $errorCode, string $fileLabel = 'Datei'): ?string
+    {
+        $label = trim($fileLabel) !== '' ? trim($fileLabel) : 'Datei';
+
+        return match ($errorCode) {
+            UPLOAD_ERR_OK, UPLOAD_ERR_NO_FILE => null,
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => sprintf(
+                '%s ist zu gross und ueberschreitet das Upload-Limit. Bitte Datei verkleinern und erneut hochladen.',
+                $label
+            ),
+            UPLOAD_ERR_PARTIAL => sprintf('%s wurde nur teilweise hochgeladen. Bitte erneut versuchen.', $label),
+            UPLOAD_ERR_NO_TMP_DIR => 'Upload temporaer nicht verfuegbar (Temp-Verzeichnis fehlt).',
+            UPLOAD_ERR_CANT_WRITE => 'Upload fehlgeschlagen (Datei konnte nicht gespeichert werden).',
+            UPLOAD_ERR_EXTENSION => 'Upload wurde durch eine Server-Erweiterung abgebrochen.',
+            default => 'Beim Upload ist ein unbekannter Fehler aufgetreten.',
+        };
+    }
+
+    /**
      * Get list of allowed image MIME types.
      */
     public static function getImageMimeTypes(): array

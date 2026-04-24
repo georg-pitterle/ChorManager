@@ -15,8 +15,14 @@
 window.uploadHelper = (() => {
     // Constants
     const TARGET_SIZE = 2 * 1024 * 1024; // 2 MB
+    const HARD_UPLOAD_LIMIT = 100 * 1024 * 1024; // 100 MB request budget
     const MIN_WIDTH = 320; // Minimum dimension
     const MIN_HEIGHT = 240;
+
+    const bytesToMbString = (bytes) => {
+        const mb = bytes / (1024 * 1024);
+        return (Math.round(mb * 10) / 10).toString();
+    };
 
     /**
      * Load image file into a Canvas element
@@ -167,6 +173,11 @@ window.uploadHelper = (() => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const hardLimitFromData = Number.parseInt(form.dataset.uploadHardLimitBytes || '', 10);
+            const hardLimitBytes = Number.isFinite(hardLimitFromData) && hardLimitFromData > 0
+                ? hardLimitFromData
+                : HARD_UPLOAD_LIMIT;
+
             // Find all file inputs in the form
             const fileInputs = form.querySelectorAll('input[type="file"]');
 
@@ -179,7 +190,29 @@ window.uploadHelper = (() => {
             for (const input of fileInputs) {
                 if (input.files.length > 0) {
                     try {
+                        // Non-images cannot be compressed, so reject above hard limit before submit.
+                        const tooLargeNonImages = Array.from(input.files).filter(file => {
+                            return !file.type.startsWith('image/') && file.size > hardLimitBytes;
+                        });
+
+                        if (tooLargeNonImages.length > 0) {
+                            alert(
+                                `Mindestens eine Datei ueberschreitet das Upload-Limit von ${bytesToMbString(hardLimitBytes)} MB. ` +
+                                'Bitte Datei verkleinern oder komprimieren und erneut versuchen.'
+                            );
+                            return;
+                        }
+
                         const processedFiles = await batchProcess(input.files, targetSize);
+
+                        const stillTooLarge = processedFiles.filter(file => file.size > hardLimitBytes);
+                        if (stillTooLarge.length > 0) {
+                            alert(
+                                `Mindestens eine Datei ist nach der Verarbeitung noch groesser als ${bytesToMbString(hardLimitBytes)} MB. ` +
+                                'Bitte Datei weiter verkleinern und erneut versuchen.'
+                            );
+                            return;
+                        }
 
                         // Replace FileList with processed files (via DataTransfer)
                         const dt = new DataTransfer();
@@ -190,6 +223,20 @@ window.uploadHelper = (() => {
                         // Continue with original files on error
                     }
                 }
+            }
+
+            const totalUploadSize = Array.from(fileInputs).reduce((sum, input) => {
+                const files = Array.from(input.files || []);
+                const inputSum = files.reduce((acc, file) => acc + file.size, 0);
+                return sum + inputSum;
+            }, 0);
+
+            if (totalUploadSize > hardLimitBytes) {
+                alert(
+                    `Die gesamte Upload-Groesse (${bytesToMbString(totalUploadSize)} MB) ueberschreitet das Limit von ` +
+                    `${bytesToMbString(hardLimitBytes)} MB. Bitte weniger oder kleinere Dateien hochladen.`
+                );
+                return;
             }
 
             // Submit form with processed files
@@ -203,6 +250,7 @@ window.uploadHelper = (() => {
         batchProcess,
         setupFormCompression,
         TARGET_SIZE,
+        HARD_UPLOAD_LIMIT,
         MIN_WIDTH,
         MIN_HEIGHT
     };

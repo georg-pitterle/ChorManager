@@ -33,24 +33,25 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 
 ## Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `APP_IMAGE_TAG` | Image tag from GHCR | `latest` | No |
-| `DB_DATABASE` | MySQL database name | `choir_db` | No |
-| `DB_USERNAME` | MySQL user | `choir_user` | No |
-| `DB_PASSWORD` | MySQL password | - | **Yes** |
-| `DB_PORT` | Database port used by the app config | `3306` | No |
-| `MYSQL_ROOT_PASSWORD` | MySQL root password | - | **Yes** |
-| `SMTP_HOST` | SMTP server host | - | **Yes** |
-| `SMTP_PORT` | SMTP server port | `587` | No |
-| `SMTP_AUTH` | SMTP authentication enabled (`1/0`) | `1` | No |
-| `SMTP_USERNAME` | SMTP username | - | **Yes** |
-| `SMTP_PASSWORD` | SMTP password | - | **Yes** |
-| `SMTP_ENCRYPTION` | SMTP encryption (`tls`, `ssl`, `none`) | `tls` | No |
-| `SMTP_FROM_EMAIL` | Sender email address | - | **Yes** |
-| `SMTP_FROM_NAME` | Sender display name | `Chor-Manager` | No |
-| `REMEMBER_ME_DAYS` | Remember-me cookie lifetime in days | `30` | No |
-| `TZ` | Container timezone | `Europe/Vienna` | No |
+| Variable               | Description                            | Default         | Required |
+| ---------------------- | -------------------------------------- | --------------- | -------- |
+| `APP_IMAGE_TAG`        | Image tag from GHCR                    | `latest`        | No       |
+| `DB_DATABASE`          | MySQL database name                    | `choir_db`      | No       |
+| `DB_USERNAME`          | MySQL user                             | `choir_user`    | No       |
+| `DB_PASSWORD`          | MySQL password                         | -               | **Yes**  |
+| `DB_PORT`              | Database port used by the app config   | `3306`          | No       |
+| `MYSQL_ROOT_PASSWORD`  | MySQL root password                    | -               | **Yes**  |
+| `SMTP_HOST`            | SMTP server host                       | -               | **Yes**  |
+| `SMTP_PORT`            | SMTP server port                       | `587`           | No       |
+| `SMTP_AUTH`            | SMTP authentication enabled (`1/0`)    | `1`             | No       |
+| `SMTP_USERNAME`        | SMTP username                          | -               | **Yes**  |
+| `SMTP_PASSWORD`        | SMTP password                          | -               | **Yes**  |
+| `SMTP_ENCRYPTION`      | SMTP encryption (`tls`, `ssl`, `none`) | `tls`           | No       |
+| `SMTP_FROM_EMAIL`      | Sender email address                   | -               | **Yes**  |
+| `SMTP_FROM_NAME`       | Sender display name                    | `Chor-Manager`  | No       |
+| `REMEMBER_ME_DAYS`     | Remember-me cookie lifetime in days    | `30`            | No       |
+| `CLIENT_MAX_BODY_SIZE` | Nginx request body limit for uploads   | `100m`          | No       |
+| `TZ`                   | Container timezone                     | `Europe/Vienna` | No       |
 
 SMTP is configured exclusively via environment variables. It is no longer managed in the application UI.
 
@@ -67,7 +68,7 @@ server {
 
     include /config/nginx/ssl.conf;
 
-    client_max_body_size 26m;
+    client_max_body_size 100m;
 
     location / {
         include /config/nginx/proxy.conf;
@@ -81,6 +82,9 @@ server {
 ```
 
 Adjust `server_name` to your real hostname and reload SWAG afterwards.
+
+If you set `CLIENT_MAX_BODY_SIZE` in this stack, keep the SWAG `client_max_body_size` at least as high.
+The effective upload limit is the smallest limit in the proxy chain.
 
 ## Operational Notes
 
