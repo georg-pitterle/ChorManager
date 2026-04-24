@@ -108,7 +108,8 @@ return function (ContainerBuilder $containerBuilder) {
                     }
 
                     $normalizedPath = str_starts_with($path, '/') ? $path : '/' . $path;
-                    $filePath = $publicRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($normalizedPath, '/'));
+                    $filePath = $publicRoot . DIRECTORY_SEPARATOR
+                        . str_replace('/', DIRECTORY_SEPARATOR, ltrim($normalizedPath, '/'));
 
                     if (!is_file($filePath)) {
                         return $normalizedPath;

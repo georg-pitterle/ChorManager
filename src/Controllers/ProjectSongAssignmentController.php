@@ -20,16 +20,22 @@ class ProjectSongAssignmentController
         $projectId = (int) ($data['project_id'] ?? 0);
         $note = $this->normalizeNote($data['note'] ?? null);
 
+        $returnTo = $this->resolveReturnTo($data['return_to'] ?? null, $songId > 0 ? $songId : null);
+
         if ($songId <= 0 || !Song::find($songId)) {
-            return $this->redirectError($response, 'Lied nicht gefunden.');
+            return $this->redirectError($response, 'Lied nicht gefunden.', $returnTo);
         }
 
-        if ($projectId <= 0 || !Project::find($projectId)) {
-            return $this->redirectError($response, 'Projekt nicht gefunden.');
+        if ($projectId <= 0) {
+            return $this->redirectError($response, 'Bitte ein Projekt auswählen.', $returnTo);
+        }
+
+        if (!Project::find($projectId)) {
+            return $this->redirectError($response, 'Projekt nicht gefunden.', $returnTo);
         }
 
         if (ProjectSongAssignment::where('song_id', $songId)->where('project_id', $projectId)->exists()) {
-            return $this->redirectError($response, 'Zuordnung existiert bereits.');
+            return $this->redirectError($response, 'Zuordnung existiert bereits.', $returnTo);
         }
 
         try {
@@ -39,10 +45,10 @@ class ProjectSongAssignmentController
                 'note' => $note,
             ]);
         } catch (QueryException $exception) {
-            return $this->redirectError($response, 'Zuordnung existiert bereits.');
+            return $this->redirectError($response, 'Zuordnung existiert bereits.', $returnTo);
         }
 
-        return $this->redirectSuccess($response, 'Zuordnung erfolgreich angelegt.');
+        return $this->redirectSuccess($response, 'Zuordnung erfolgreich angelegt.', $returnTo);
     }
 
     public function update(Request $request, Response $response, array $args): Response
@@ -50,12 +56,14 @@ class ProjectSongAssignmentController
         $id = (int) ($args['id'] ?? 0);
         $data = (array) $request->getParsedBody();
         if ($id <= 0) {
-            return $this->redirectError($response, 'Zuordnung nicht gefunden.', $this->resolveReturnTo($data['return_to'] ?? null));
+            $target = $this->resolveReturnTo($data['return_to'] ?? null);
+            return $this->redirectError($response, 'Zuordnung nicht gefunden.', $target);
         }
 
         $model = ProjectSongAssignment::find($id);
         if (!$model) {
-            return $this->redirectError($response, 'Zuordnung nicht gefunden.', $this->resolveReturnTo($data['return_to'] ?? null));
+            $target = $this->resolveReturnTo($data['return_to'] ?? null);
+            return $this->redirectError($response, 'Zuordnung nicht gefunden.', $target);
         }
 
         $model->update([
@@ -72,18 +80,33 @@ class ProjectSongAssignmentController
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id = (int) ($args['id'] ?? 0);
+        $data = (array) $request->getParsedBody();
+
         if ($id <= 0) {
-            return $this->redirectError($response, 'Zuordnung nicht gefunden.');
+            return $this->redirectError(
+                $response,
+                'Zuordnung nicht gefunden.',
+                $this->resolveReturnTo($data['return_to'] ?? null)
+            );
         }
 
         $model = ProjectSongAssignment::find($id);
         if (!$model) {
-            return $this->redirectError($response, 'Zuordnung nicht gefunden.');
+            return $this->redirectError(
+                $response,
+                'Zuordnung nicht gefunden.',
+                $this->resolveReturnTo($data['return_to'] ?? null)
+            );
         }
 
+        $songId = (int) $model->song_id;
         $model->delete();
 
-        return $this->redirectSuccess($response, 'Zuordnung erfolgreich geloescht.');
+        return $this->redirectSuccess(
+            $response,
+            'Zuordnung erfolgreich geloescht.',
+            $this->resolveReturnTo($data['return_to'] ?? null, $songId)
+        );
     }
 
     private function normalizeNote(mixed $value): ?string

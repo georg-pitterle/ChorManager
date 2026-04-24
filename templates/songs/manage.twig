@@ -18,12 +18,9 @@
                     data-bs-target="#manageCategoriesModal">
                 <i class="bi bi-tags"></i> Kategorien
             </button>
-            <button type="button"
-                    class="btn btn-primary"
-                    data-bs-toggle="modal"
-                    data-bs-target="#addSongModal">
+            <a href="/song-library/create" class="btn btn-primary">
                 <i class="bi bi-music-note-list"></i> Neues Lied
-            </button>
+            </a>
         </div>
     </section>
 {% endblock page_header %}
@@ -156,47 +153,6 @@
                 {% endfor %}
             </div>
         </section>
-    </div>
-
-    {# ===== Add song modal ===== #}
-    <div class="modal fade"
-         id="addSongModal"
-         tabindex="-1"
-         aria-labelledby="addSongModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog">
-            <form action="/song-library/songs" method="post" class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addSongModalLabel">Neues Lied anlegen</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="add_title" class="form-label">Titel *</label>
-                        <input type="text" id="add_title" name="title" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="add_composer" class="form-label">Komponist</label>
-                        <input type="text" id="add_composer" name="composer" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label for="add_arranger" class="form-label">Arrangeur</label>
-                        <input type="text" id="add_arranger" name="arranger" class="form-control">
-                    </div>
-                    <div class="mb-0">
-                        <label for="add_publisher" class="form-label">Verlag</label>
-                        <input type="text" id="add_publisher" name="publisher" class="form-control">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
-                </div>
-            </form>
-        </div>
     </div>
 
     {# ===== Manage categories modal ===== #}

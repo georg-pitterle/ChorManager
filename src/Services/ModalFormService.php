@@ -6,13 +6,13 @@ namespace App\Services;
 
 /**
  * Standardisierter Service für Modal-Formularfehlerbehandlung und Datenpersistierung.
- * 
+ *
  * Pattern:
  * - scope: eindeutige ID (z.B. "user_create", "event_type_edit", "voice_group_sub_create")
  * - Session-Keys: {scope}_form (Formulardaten), {scope}_error (Error-Info), {scope}_open_modal
- * 
+ *
  * Verwendungsbeispiel im Controller:
- * 
+ *
  *   $service = new ModalFormService('user_create');
  *   if (!$data['email']) {
  *       $service->setError('E-Mail erforderlich.', ['first_name' => $data['first_name']]);
@@ -40,7 +40,7 @@ class ModalFormService
 
     /**
      * Setzt Fehler und speichert optional Formulardaten
-     * 
+     *
      * @param string $errorMessage Die Fehlermeldung
      * @param array $formData Optional: Formulardaten zum Speichern
      * @param array $errorMeta Optional: Zusätzliche Fehler-Metadaten (z.B. ['id' => 5])

@@ -303,6 +303,7 @@ return function (App $app) {
                 '/song-library',
                 function (RouteCollectorProxy $songsGroup) {
                     $songsGroup->get('', [SongLibraryController::class, 'index']);
+                    $songsGroup->get('/create', [SongLibraryController::class, 'create']);
                     $songsGroup->get('/{id:[0-9]+}', [SongLibraryController::class, 'show']);
                     $songsGroup->post('/songs', [SongLibraryController::class, 'createSong']);
                     $songsGroup->post('/songs/{id:[0-9]+}/update', [SongLibraryController::class, 'updateSong']);

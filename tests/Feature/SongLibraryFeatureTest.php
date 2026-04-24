@@ -82,4 +82,64 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertStringContainsString('$this->seedProjectSongAssignments($songs, $projects);', $seedContent);
         $this->assertStringContainsString('$this->seedSongAttachments($songs, 48);', $seedContent);
     }
+
+    public function testCreateRouteAndMethodExist(): void
+    {
+        $this->assertTrue(method_exists(\App\Controllers\SongLibraryController::class, 'create'));
+
+        $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
+        $this->assertIsString($routesContent);
+        $this->assertStringContainsString("'/create'", $routesContent);
+        $this->assertStringContainsString("[SongLibraryController::class, 'create']", $routesContent);
+    }
+
+    public function testCreateTwigTemplateExists(): void
+    {
+        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/songs/create.twig'));
+    }
+
+    public function testCreateSongRedirectsToDetailPageOnSuccess(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("'/song-library/' . \$song->id", $controllerContent);
+    }
+
+    public function testCreateSongHandlesCategoryIdsOnCreation(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("'category_ids'", $controllerContent);
+        $this->assertStringContainsString('$song->categories()->sync($categoryIds)', $controllerContent);
+    }
+
+    public function testCreateSongHandlesAttachmentsOnCreation(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('$this->persistAttachments((int) $song->id,', $controllerContent);
+    }
+
+    public function testCreateSongErrorRedirectsToCreatePage(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("'/song-library/create'", $controllerContent);
+    }
+
+    public function testManageTwigNoLongerContainsAddSongModal(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/songs/manage.twig');
+        $this->assertIsString($content);
+        $this->assertStringNotContainsString('addSongModal', $content);
+        $this->assertStringNotContainsString('id="addSongModal"', $content);
+    }
+
+    public function testUploadAttachmentsUsesSharedPersistMethod(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('private function persistAttachments(int $songId, array $files): ?string', $controllerContent);
+        $this->assertStringContainsString('$this->persistAttachments($songId, $files)', $controllerContent);
+    }
 }

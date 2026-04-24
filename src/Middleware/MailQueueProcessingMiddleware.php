@@ -14,7 +14,9 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 class MailQueueProcessingMiddleware implements MiddlewareInterface
 {
-    public function __construct(private readonly MailDeliveryService $deliveryService) {}
+    public function __construct(private readonly MailDeliveryService $deliveryService)
+    {
+    }
 
     public function process(Request $request, RequestHandler $handler): Response
     {

@@ -310,7 +310,7 @@ class RepertoireFeatureTest extends TestCase
 
         $result = $controller->delete($request, $response, ['id' => (string) $id]);
 
-        $this->assertRedirect($result, '/song-library');
+        $this->assertRedirect($result, '/song-library/222');
         $this->assertSame('Zuordnung erfolgreich geloescht.', $_SESSION['success']);
         $this->assertSame(0, Capsule::table('project_song_assignments')->where('id', $id)->count());
     }

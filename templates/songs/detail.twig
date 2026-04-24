@@ -269,6 +269,7 @@
                                         <form method="post"
                                               action="/song-library/assignments/{{ assignment.id }}/delete"
                                               data-confirm="Zuordnung zum Projekt '{{ assignment.project.name ?? 'Unbekannt' }}' wirklich entfernen?">
+                                            <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
@@ -289,6 +290,7 @@
                       action="/song-library/assignments"
                       class="row g-2 align-items-end">
                     <input type="hidden" name="song_id" value="{{ song.id }}">
+                    <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
                     <div class="col-md-5">
                         <label for="project_id" class="form-label fw-semibold">Projekt hinzufügen</label>
                         <select id="project_id" name="project_id" class="form-select form-select-sm">

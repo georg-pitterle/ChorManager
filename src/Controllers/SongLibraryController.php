@@ -117,6 +117,22 @@ class SongLibraryController
         ]);
     }
 
+    public function create(Request $request, Response $response): Response
+    {
+        $allCategories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
+
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
+        return $this->view->render($response, 'songs/create.twig', [
+            'all_categories' => $allCategories,
+            'success' => $success,
+            'error' => $error,
+            'active_nav' => 'song_library',
+        ]);
+    }
+
     public function createSong(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
@@ -124,10 +140,10 @@ class SongLibraryController
 
         if ($title === '') {
             $_SESSION['error'] = 'Der Liedtitel ist ein Pflichtfeld.';
-            return $response->withHeader('Location', '/song-library')->withStatus(302);
+            return $response->withHeader('Location', '/song-library/create')->withStatus(302);
         }
 
-        Song::create([
+        $song = Song::create([
             'title' => $title,
             'composer' => trim($data['composer'] ?? '') ?: null,
             'arranger' => trim($data['arranger'] ?? '') ?: null,
@@ -135,8 +151,34 @@ class SongLibraryController
             'created_by_user_id' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
         ]);
 
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) ($data['category_ids'] ?? [])),
+            static fn($id) => $id > 0
+        )));
+        if ($categoryIds !== []) {
+            $song->categories()->sync($categoryIds);
+        }
+
+        $uploadedFiles = $request->getUploadedFiles();
+        $files = $uploadedFiles['attachments'] ?? [];
+        if (!is_array($files)) {
+            $files = [$files];
+        }
+        $files = array_values(array_filter(
+            $files,
+            static fn($f) => $f->getError() !== UPLOAD_ERR_NO_FILE
+        ));
+
+        if ($files !== []) {
+            $uploadError = $this->persistAttachments((int) $song->id, $files);
+            if ($uploadError !== null) {
+                $_SESSION['error'] = $uploadError;
+                return $response->withHeader('Location', '/song-library/' . $song->id)->withStatus(302);
+            }
+        }
+
         $_SESSION['success'] = 'Lied erfolgreich angelegt.';
-        return $response->withHeader('Location', '/song-library')->withStatus(302);
+        return $response->withHeader('Location', '/song-library/' . $song->id)->withStatus(302);
     }
 
     public function updateSong(Request $request, Response $response, array $args): Response
@@ -229,31 +271,43 @@ class SongLibraryController
             $files = [$files];
         }
 
+        $uploadError = $this->persistAttachments($songId, $files);
+        if ($uploadError !== null) {
+            $_SESSION['error'] = $uploadError;
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        }
+
+        $_SESSION['success'] = 'Dateien erfolgreich hochgeladen.';
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
+
+    private function persistAttachments(int $songId, array $files): ?string
+    {
         foreach ($files as $file) {
+            if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
             $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Datei');
             if ($uploadError !== null) {
-                $_SESSION['error'] = $uploadError;
-                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+                return $uploadError;
             }
 
             $mimeType = trim((string) $file->getClientMediaType()) ?: 'application/octet-stream';
             $contents = $file->getStream()->getContents();
             $size = strlen($contents);
             if ($size <= 0) {
-                $_SESSION['error'] = 'Leere Dateien sind nicht erlaubt.';
-                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+                return 'Leere Dateien sind nicht erlaubt.';
             }
 
             $validation = UploadValidator::validateFileSize($size, $mimeType);
             if (!$validation['valid']) {
-                $_SESSION['error'] = $validation['error'];
-                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+                return $validation['error'];
             }
 
             $originalName = trim((string) $file->getClientFilename());
             if ($originalName === '') {
-                $_SESSION['error'] = 'Dateiname fehlt.';
-                return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+                return 'Dateiname fehlt.';
             }
 
             Attachment::create([
@@ -267,8 +321,7 @@ class SongLibraryController
             ]);
         }
 
-        $_SESSION['success'] = 'Dateien erfolgreich hochgeladen.';
-        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        return null;
     }
 
     public function deleteAttachment(Request $request, Response $response, array $args): Response
