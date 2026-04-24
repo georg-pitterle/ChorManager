@@ -1,5 +1,7 @@
 {% extends 'layout.twig' %}
 
+{% import 'macros/modal_form.twig' as modal %}
+
 {% block title %}
     Mitgliederverwaltung - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -55,7 +57,7 @@
                     aria-label="Close"></button>
         </div>
     {% endif %}
-    {% if error %}
+    {% if error and not has_modal_error %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
             <button type="button"
@@ -272,6 +274,7 @@
     <!-- Add User Modal -->
     <div class="modal fade"
          id="addUserModal"
+         data-open-create-modal="{{ modal_form_create.open_modal ? '1' : '0' }}"
          tabindex="-1"
          aria-labelledby="addUserModalLabel"
          aria-hidden="true">
@@ -288,6 +291,7 @@
                             aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    {{ modal.show_modal_error(error, modal_form_create.error, 'user_create') }}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="first_name" class="form-label">Vorname *</label>
@@ -295,6 +299,7 @@
                                    class="form-control"
                                    id="first_name"
                                    name="first_name"
+                                   value="{{ modal_form_create.form.first_name|default('') }}"
                                    required>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -303,13 +308,19 @@
                                    class="form-control"
                                    id="last_name"
                                    name="last_name"
+                                   value="{{ modal_form_create.form.last_name|default('') }}"
                                    required>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="email" class="form-label">E-Mail-Adresse *</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                        <input type="email"
+                               class="form-control"
+                               id="email"
+                               name="email"
+                               value="{{ modal_form_create.form.email|default('') }}"
+                               required>
                     </div>
 
                     <div class="row">
@@ -322,7 +333,8 @@
                                            type="checkbox"
                                            name="roles[]"
                                            value="{{ role.id }}"
-                                           id="role_add_{{ role.id }}">
+                                           id="role_add_{{ role.id }}"
+                                           {% if role.id in modal_form_create.form.roles|default([]) %}checked{% endif %}>
                                     <label class="form-check-label" for="role_add_{{ role.id }}">{{ role.name }}</label>
                                 </div>
                             {% endfor %}
@@ -337,14 +349,16 @@
                                                type="checkbox"
                                                name="voice_groups[]"
                                                value="{{ group.id }}"
-                                               id="vg_add_{{ group.id }}">
+                                               id="vg_add_{{ group.id }}"
+                                               {% if group.id in modal_form_create.form.voice_groups|default([]) %}checked{% endif %}>
                                         <label class="form-check-label fw-bold" for="vg_add_{{ group.id }}">{{ group.name }}</label>
                                     </div>
-                                    <div class="mt-1 ps-4 collapse-sv d-none">
+                                    <div class="mt-1 ps-4 collapse-sv{% if group.id not in modal_form_create.form.voice_groups|default([]) %} d-none{% endif %}">
                                         <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
                                             <option value="">(Keine Teilstimme)</option>
                                             {% for sv in sub_voices %}
-                                                {% if sv.voice_group_id == group.id %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endif %}
+                                                {% if sv.voice_group_id == group.id %}<option value="{{ sv.id }}"
+                                                    {% if sv.id == modal_form_create.form.sub_voices[group.id]|default(null) %}selected{% endif %}>{{ sv.name }}</option>{% endif %}
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -376,6 +390,7 @@
             <!-- Edit User Modal -->
             <div class="modal fade"
                  id="editUserModal{{ user.id }}"
+                 data-open-edit-modal="{{ modal_form_edits[user.id].open_modal ? '1' : '0' }}"
                  tabindex="-1"
                  aria-labelledby="editUserModalLabel{{ user.id }}"
                  aria-hidden="true">
@@ -392,13 +407,15 @@
                                     aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
+                            {{ modal.show_modal_error(error, modal_form_edits[user.id].error, 'user_edit_' ~ user.id) }}
+                            {% set edit_form = modal_form_edits[user.id].form ?? {} %}
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Vorname *</label>
                                     <input type="text"
                                            class="form-control"
                                            name="first_name"
-                                           value="{{ user.first_name }}"
+                                           value="{{ edit_form.first_name|default(user.first_name) }}"
                                            required>
                                 </div>
                                 <div class="col-md-6 mb-3">
@@ -406,7 +423,7 @@
                                     <input type="text"
                                            class="form-control"
                                            name="last_name"
-                                           value="{{ user.last_name }}"
+                                           value="{{ edit_form.last_name|default(user.last_name) }}"
                                            required>
                                 </div>
                             </div>
@@ -415,7 +432,7 @@
                                 <input type="email"
                                        class="form-control"
                                        name="email"
-                                       value="{{ user.email }}"
+                                       value="{{ edit_form.email|default(user.email) }}"
                                        required>
                             </div>
                             <div class="mb-3">
@@ -434,13 +451,14 @@
                                                 {% set has_role = true %}
                                             {% endif %}
                                         {% endfor %}
+                                        {% set form_has_role = role.id in edit_form.roles|default([]) %}
                                         <div class="form-check form-check-inline">
                                             <input class="form-check-input"
                                                    type="checkbox"
                                                    name="roles[]"
                                                    value="{{ role.id }}"
                                                    id="role_{{ user.id }}_{{ role.id }}"
-                                                   {% if has_role %}checked{% endif %}>
+                                                   {% if edit_form.roles|default([]) is not empty ? form_has_role : has_role %}checked{% endif %}>
                                             <label class="form-check-label" for="role_{{ user.id }}_{{ role.id }}">{{ role.name }}</label>
                                         </div>
                                     {% endfor %}
@@ -451,6 +469,8 @@
                                     {% for group in voice_groups %}
                                         {% set has_group = group.id in user.voice_group_ids %}
                                         {% set current_subvoice = user.voice_group_pivots[group.id] ?? null %}
+                                        {% set form_has_group = group.id in edit_form.voice_groups|default([]) %}
+                                        {% set form_subvoice = edit_form.sub_voices[group.id]|default(null) %}
                                         <div class="mb-2 p-2 border rounded bg-light">
                                             <div class="form-check">
                                                 <input class="form-check-input vg-checkbox"
@@ -458,17 +478,17 @@
                                                        name="voice_groups[]"
                                                        value="{{ group.id }}"
                                                        id="vg_{{ user.id }}_{{ group.id }}"
-                                                       {% if has_group %}checked{% endif %}>
+                                                       {% if edit_form.voice_groups|default([]) is not empty ? form_has_group : has_group %}checked{% endif %}>
                                                 <label class="form-check-label fw-bold"
                                                        for="vg_{{ user.id }}_{{ group.id }}">{{ group.name }}</label>
                                             </div>
-                                            <div class="mt-1 ps-4 collapse-sv{% if not has_group %} d-none{% endif %}">
+                                            <div class="mt-1 ps-4 collapse-sv{% if edit_form.voice_groups|default([]) is not empty ? (not form_has_group) : (not has_group) %} d-none{% endif %}">
                                                 <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
                                                     <option value="">(Keine Teilstimme)</option>
                                                     {% for sv in sub_voices %}
                                                         {% if sv.voice_group_id == group.id %}
                                                             <option value="{{ sv.id }}"
-                                                                    {% if current_subvoice == sv.id %}selected{% endif %}>
+                                                                    {% if edit_form.sub_voices|default([]) is not empty ? (form_subvoice == sv.id) : (current_subvoice == sv.id) %}selected{% endif %}>
                                                                 {{ sv.name }}
                                                             </option>
                                                         {% endif %}
@@ -487,13 +507,14 @@
                                     <div class="d-flex flex-wrap gap-2">
                                         {% for p in projects %}
                                             {% set in_project = p.id in user.project_ids %}
+                                            {% set form_in_project = p.id in edit_form.projects|default([]) %}
                                             <div class="form-check">
                                                 <input class="form-check-input"
                                                        type="checkbox"
                                                        name="projects[]"
                                                        value="{{ p.id }}"
                                                        id="proj_{{ user.id }}_{{ p.id }}"
-                                                       {% if in_project %}checked{% endif %}>
+                                                       {% if edit_form.projects|default([]) is not empty ? form_in_project : in_project %}checked{% endif %}>
                                                 <label class="form-check-label" for="proj_{{ user.id }}_{{ p.id }}">{{ p.name }}</label>
                                             </div>
                                         {% endfor %}

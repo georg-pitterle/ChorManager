@@ -9,6 +9,8 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Queries\UserQuery;
 use App\Models\User;
+use App\Models\VoiceGroup;
+use App\Models\SubVoice;
 use App\Services\PasswordPolicyService;
 
 class ProfileController
@@ -29,14 +31,27 @@ class ProfileController
         $userId = (int)$_SESSION['user_id'];
         $user = $this->userQuery->findById($userId);
 
+        // Prepare voice group data for template
+        $user->voice_group_ids = $user->voiceGroups->pluck('id')->toArray();
+        $pivots = [];
+        foreach ($user->voiceGroups as $vg) {
+            $pivots[$vg->id] = $vg->pivot->sub_voice_id;
+        }
+        $user->voice_group_pivots = $pivots;
+
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        $voiceGroups = VoiceGroup::orderBy('id')->get();
+        $subVoices = SubVoice::orderBy('id')->get();
+
         return $this->view->render($response, 'profile/index.twig', [
             'user' => $user,
             'success' => $success,
-            'error' => $error
+            'error' => $error,
+            'voice_groups' => $voiceGroups,
+            'sub_voices' => $subVoices
         ]);
     }
 

@@ -17,6 +17,7 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Models\Project;
 use App\Services\PasswordPolicyService;
+use App\Services\ModalFormService;
 use App\Models\AppSetting;
 use App\Models\InvitationToken;
 use App\Services\Mailer;
@@ -112,6 +113,22 @@ class UserController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        // Get create form state
+        $createService = new ModalFormService('user_create');
+        $createState = $createService->getState();
+        $createService->clear();
+
+        // Get all edit form states
+        $editStates = [];
+        foreach ($users as $user) {
+            $editService = new ModalFormService('user_edit_' . $user->id);
+            $editStates[$user->id] = $editService->getState();
+            $editService->clear();
+        }
+
+        $hasModalError = $createState['open_modal']
+            || !empty(array_filter($editStates, fn($s) => $s['open_modal']));
+
         return $this->view->render($response, 'users/manage.twig', [
             'users' => $users,
             'roles' => $roles,
@@ -122,7 +139,10 @@ class UserController
             'can_manage_project_members' => $canManageProjectMembers,
             'show_archived' => $showArchived,
             'success' => $success,
-            'error' => $error
+            'error' => $error,
+            'has_modal_error' => $hasModalError,
+            'modal_form_create' => $createState,
+            'modal_form_edits' => $editStates
         ]);
     }
 
@@ -143,24 +163,36 @@ class UserController
         $userLevel = $_SESSION['role_level'] ?? 0;
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
+        $formData = [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'roles' => array_map('intval', (array) $roleIds),
+            'voice_groups' => array_map('intval', (array) $voiceGroupIds),
+            'sub_voices' => array_map('intval', (array) ($subVoices ?? [])),
+        ];
+
         if (!$canManageUsers) {
             $allowedRoles = Role::where('hierarchy_level', '<', $userLevel)->pluck('id')->toArray();
             $roleIds = array_intersect((array) $roleIds, $allowedRoles);
 
             $voiceGroupIds = array_intersect((array) $voiceGroupIds, $myVgs);
             if (empty($voiceGroupIds)) {
-                $_SESSION['error'] = 'Du musst mindestens eine deiner Stimmgruppen zuweisen.';
+                $createService = new ModalFormService('user_create');
+                $createService->setError('Du musst mindestens eine deiner Stimmgruppen zuweisen.', $formData);
                 return $response->withHeader('Location', '/users')->withStatus(302);
             }
         }
 
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
-            $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).';
+            $createService = new ModalFormService('user_create');
+            $createService->setError('Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
         if (User::where('email', $email)->exists()) {
-            $_SESSION['error'] = 'Diese E-Mail-Adresse wird bereits verwendet.';
+            $createService = new ModalFormService('user_create');
+            $createService->setError('Diese E-Mail-Adresse wird bereits verwendet.', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
@@ -198,7 +230,8 @@ class UserController
             }
         } catch (\Exception $e) {
             error_log((string) $e);
-            $_SESSION['error'] = 'Fehler beim Anlegen des Mitglieds.';
+            $createService = new ModalFormService('user_create');
+            $createService->setError('Fehler beim Anlegen des Mitglieds.', $formData);
         }
 
         return $response->withHeader('Location', '/users')->withStatus(302);
@@ -241,6 +274,15 @@ class UserController
         $subVoices = $data['sub_voices'] ?? [];
         $projectIds = array_filter((array) ($data['projects'] ?? []), fn($id) => (int) $id > 0);
 
+        $formData = [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'roles' => array_map('intval', (array) $roleIds),
+            'voice_groups' => array_map('intval', (array) $voiceGroupIds),
+            'sub_voices' => array_map('intval', (array) ($subVoices ?? [])),
+        ];
+
         if (!$canManageUsers) {
             $allowedRoles = Role::where('hierarchy_level', '<', $userLevel)->pluck('id')->toArray();
 
@@ -260,20 +302,23 @@ class UserController
         }
 
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
-            $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).';
+            $editService = new ModalFormService('user_edit_' . $userId);
+            $editService->setError('Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
         // Email uniqueness check (excluding self)
         if (User::where('email', $email)->where('id', '!=', $userId)->exists()) {
-            $_SESSION['error'] = 'Diese E-Mail-Adresse wird bereits verwendet.';
+            $editService = new ModalFormService('user_edit_' . $userId);
+            $editService->setError('Diese E-Mail-Adresse wird bereits verwendet.', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
         if ($password !== '') {
             $passwordError = $this->passwordPolicyService->validate($password);
             if ($passwordError !== null) {
-                $_SESSION['error'] = $passwordError;
+                $editService = new ModalFormService('user_edit_' . $userId);
+                $editService->setError($passwordError, $formData);
                 return $response->withHeader('Location', '/users')->withStatus(302);
             }
         }
@@ -323,7 +368,8 @@ class UserController
             $_SESSION['success'] = 'Mitglied erfolgreich aktualisiert.';
         } catch (\Exception $e) {
             error_log((string) $e);
-            $_SESSION['error'] = 'Fehler beim Speichern.';
+            $editService = new ModalFormService('user_edit_' . $userId);
+            $editService->setError('Fehler beim Speichern.', $formData);
         }
 
         return $response->withHeader('Location', '/users')->withStatus(302);

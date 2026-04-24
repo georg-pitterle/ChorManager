@@ -42,7 +42,7 @@ class EventTypeFeatureTest extends TestCase
         $this->assertRedirect($result, '/event-types');
         $this->assertSame('Name ist ein Pflichtfeld.', $_SESSION['error'] ?? null);
         $this->assertSame('danger', $_SESSION['event_type_create_form']['color'] ?? null);
-        $this->assertTrue((bool) ($_SESSION['event_type_open_create_modal'] ?? false));
+        $this->assertTrue((bool) ($_SESSION['event_type_create_open_modal'] ?? false));
     }
 
     public function testUpdateValidationStoresOldFormValuesForModal(): void
@@ -58,8 +58,8 @@ class EventTypeFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/event-types');
         $this->assertSame('Name ist ein Pflichtfeld.', $_SESSION['error'] ?? null);
-        $this->assertSame('warning', $_SESSION['event_type_edit_forms'][42]['color'] ?? null);
-        $this->assertSame(42, (int) ($_SESSION['event_type_open_edit_modal_id'] ?? 0));
+        $this->assertSame('warning', $_SESSION['event_type_edit_42_form']['color'] ?? null);
+        $this->assertTrue((bool) ($_SESSION['event_type_edit_42_open_modal'] ?? false));
     }
 
     private function createTwig(): Twig

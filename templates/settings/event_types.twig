@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import 'macros/modal_form.twig' as modal %}
+
 {% block title %}
     Termin-Typen - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -23,11 +25,8 @@
 
 {% block content %}
     {% if success %}<div class="alert alert-success mt-3">{{ success }}</div>{% endif %}
-    {% if error and modal_error is empty %}<div class="alert alert-danger mt-3">{{ error }}</div>{% endif %}
 
-    <input type="hidden"
-           id="eventTypeOpenEditModalId"
-           value="{{ open_edit_modal_id|default(0) }}">
+    <input type="hidden" id="eventTypeOpenEditModalId" value="0">
 
     <section class="surface-card form-surface p-4 mb-4">
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
@@ -56,8 +55,7 @@
                     <!-- Edit Type Modal -->
                     <div class="modal fade"
                          id="editTypeModal{{ type.id }}"
-                         data-modal-type="edit"
-                         data-type-id="{{ type.id }}"
+                         data-open-edit-modal="{{ modal_form_edits[type.id].open_modal ? '1' : '0' }}"
                          tabindex="-1"
                          aria-hidden="true">
                         <div class="modal-dialog">
@@ -71,13 +69,11 @@
                                                 aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
-                                        {% if error and modal_error and modal_error.scope == "edit" and modal_error.id == type.id %}
-                                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                                        {% endif %}
+                                        {{ modal.show_modal_error(error, modal_form_edits[type.id].error, 'event_type_edit_' ~ type.id) }}
 
                                         <div class="mb-3">
                                             <label class="form-label">Name</label>
-                                            {% set edit_form = edit_forms[type.id]|default({}) %}
+                                            {% set edit_form = modal_form_edits[type.id].form|default({}) %}
                                             <input type="text"
                                                    name="name"
                                                    class="form-control"
@@ -169,7 +165,7 @@
     <!-- Create Type Modal -->
     <div class="modal fade"
          id="createTypeModal"
-         data-open-create-modal="{{ open_create_modal ? '1' : '0' }}"
+         data-open-create-modal="{{ modal_form_create.open_modal ? '1' : '0' }}"
          tabindex="-1"
          aria-hidden="true">
         <div class="modal-dialog">
@@ -183,9 +179,7 @@
                                 aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        {% if error and modal_error and modal_error.scope == "create" %}
-                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                        {% endif %}
+                        {{ modal.show_modal_error(error, modal_form_create.error, 'event_type_create') }}
 
                         <div class="mb-3">
                             <label class="form-label">Name (z.B. Probe, Auftritt)</label>
@@ -193,38 +187,38 @@
                                    name="name"
                                    class="form-control"
                                    required
-                                   value="{{ create_form.name|default('') }}"
+                                   value="{{ modal_form_create.form.name|default('') }}"
                                    placeholder="Name des Typs...">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Farbe (Bootstrap Klasse)</label>
                             <select name="color" class="form-select">
                                 <option value="primary"
-                                        {% if create_form.color|default('info') == 'primary' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'primary' %}selected{% endif %}>
                                     Blau (Primary)
                                 </option>
                                 <option value="secondary"
-                                        {% if create_form.color|default('info') == 'secondary' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'secondary' %}selected{% endif %}>
                                     Grau (Secondary)
                                 </option>
                                 <option value="success"
-                                        {% if create_form.color|default('info') == 'success' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'success' %}selected{% endif %}>
                                     Grün (Success)
                                 </option>
                                 <option value="danger"
-                                        {% if create_form.color|default('info') == 'danger' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'danger' %}selected{% endif %}>
                                     Rot (Danger)
                                 </option>
                                 <option value="warning"
-                                        {% if create_form.color|default('info') == 'warning' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'warning' %}selected{% endif %}>
                                     Gelb (Warning)
                                 </option>
                                 <option value="info"
-                                        {% if create_form.color|default('info') == 'info' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'info' %}selected{% endif %}>
                                     Hellblau (Info)
                                 </option>
                                 <option value="dark"
-                                        {% if create_form.color|default('info') == 'dark' %}selected{% endif %}>
+                                        {% if modal_form_create.form.color|default('info') == 'dark' %}selected{% endif %}>
                                     Schwarz (Dark)
                                 </option>
                             </select>

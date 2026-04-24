@@ -1,5 +1,7 @@
 {% extends 'layout.twig' %}
 
+{% import 'macros/modal_form.twig' as modal %}
+
 {% block title %}
     Stimmgruppen - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -23,17 +25,9 @@
 
 {% block content %}
     {% if success %}<div class="alert alert-success mt-3">{{ success }}</div>{% endif %}
-    {% if error and modal_error is empty %}<div class="alert alert-danger mt-3">{{ error }}</div>{% endif %}
-
-    <input type="hidden"
-           id="voiceGroupOpenModalScope"
-           value="{{ open_modal.scope|default('') }}">
-    <input type="hidden"
-           id="voiceGroupOpenModalGroupId"
-           value="{{ open_modal.group_id|default('') }}">
-    <input type="hidden"
-           id="voiceGroupOpenModalSubId"
-           value="{{ open_modal.sub_id|default('') }}">
+    {% if error and not has_modal_error %}
+        <div class="alert alert-danger mt-3">{{ error }}</div>
+    {% endif %}
 
     <section class="surface-card form-surface p-4 mb-4">
         <div class="row row-cols-1 row-cols-md-2 g-4">
@@ -82,33 +76,30 @@
                                     <!-- Edit SubVoice Modal -->
                                     <div class="modal fade"
                                          id="editSubVoiceModal{{ sub_voice.id }}"
-                                         tabindex="-1"
-                                         aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <form method="post"
-                                                  action="/voice-groups/{{ group.id }}/sub/{{ sub_voice.id }}/update">
-                                                <div class="modal-content border-0 shadow">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Unterstimme bearbeiten</h5>
-                                                        <button type="button"
-                                                                class="btn-close"
-                                                                data-bs-dismiss="modal"
-                                                                aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        {% if error and modal_error and modal_error.scope == "edit_sub" and modal_error.sub_id == sub_voice.id %}
-                                                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                                                        {% endif %}
+                         data-open-edit-sub-modal="{{ modal_form_edit_subs[sub_voice.id].open_modal ? '1' : '0' }}"
+                         tabindex="-1"
+                         aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form method="post"
+                                  action="/voice-groups/{{ group.id }}/sub/{{ sub_voice.id }}/update">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Unterstimme bearbeiten</h5>
+                                        <button type="button"
+                                                class="btn-close"
+                                                data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {{ modal.show_modal_error(error, modal_form_edit_subs[sub_voice.id].error, 'voice_sub_edit_' ~ sub_voice.id) }}
 
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Name</label>
-                                                            <input type="text"
-                                                                   name="name"
-                                                                   class="form-control"
-                                                                   value="{{ sub_voice.name }}"
-                                                                   required>
-                                                        </div>
-                                                    </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Name</label>
+                                            {% set edit_sub_form = modal_form_edit_subs[sub_voice.id].form|default({}) %}
+                                            <input type="text"
+                                                   name="name"
+                                                   class="form-control"
+                                                   value="{{ edit_sub_form.name|default(sub_voice.name) }}"
                                                     <div class="modal-footer pb-0 border-0">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                         <button type="submit" class="btn btn-primary">Speichern</button>
@@ -163,6 +154,7 @@
                     <!-- Edit Group Modal -->
                     <div class="modal fade"
                          id="editGroupModal{{ group.id }}"
+                         data-open-edit-group-modal="{{ modal_form_edit_groups[group.id].open_modal ? '1' : '0' }}"
                          tabindex="-1"
                          aria-hidden="true">
                         <div class="modal-dialog">
@@ -176,16 +168,15 @@
                                                 aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
-                                        {% if error and modal_error and modal_error.scope == "edit_group" and modal_error.group_id == group.id %}
-                                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                                        {% endif %}
+                                        {{ modal.show_modal_error(error, modal_form_edit_groups[group.id].error, 'voice_group_edit_' ~ group.id) }}
 
                                         <div class="mb-3">
                                             <label class="form-label">Name</label>
+                                            {% set edit_group_form = modal_form_edit_groups[group.id].form|default({}) %}
                                             <input type="text"
                                                    name="name"
                                                    class="form-control"
-                                                   value="{{ group.name }}"
+                                                   value="{{ edit_group_form.name|default(group.name) }}"
                                                    required>
                                         </div>
                                     </div>
@@ -228,6 +219,7 @@
                     <!-- Create SubVoice Modal -->
                     <div class="modal fade"
                          id="createSubVoiceModal{{ group.id }}"
+                         data-open-create-sub-modal="{{ modal_form_create_subs[group.id].open_modal ? '1' : '0' }}"
                          tabindex="-1"
                          aria-hidden="true">
                         <div class="modal-dialog">
@@ -241,13 +233,16 @@
                                                 aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
-                                        {% if error and modal_error and modal_error.scope == "create_sub" and modal_error.group_id == group.id %}
-                                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                                        {% endif %}
+                                        {{ modal.show_modal_error(error, modal_form_create_subs[group.id].error, 'voice_sub_create_' ~ group.id) }}
 
                                         <div class="mb-3">
                                             <label class="form-label">Name der Unterstimme (z.B. Sopran 1)</label>
-                                            <input type="text" name="name" class="form-control" required>
+                                            {% set create_sub_form = modal_form_create_subs[group.id].form|default({}) %}
+                                            <input type="text"
+                                                   name="name"
+                                                   class="form-control"
+                                                   value="{{ create_sub_form.name|default('') }}"
+                                                   required>
                                         </div>
                                     </div>
                                     <div class="modal-footer pb-0 border-0">
@@ -266,6 +261,7 @@
     <!-- Create Group Modal -->
     <div class="modal fade"
          id="createGroupModal"
+         data-open-create-group-modal="{{ modal_form_create_group.open_modal ? '1' : '0' }}"
          tabindex="-1"
          aria-hidden="true">
         <div class="modal-dialog">
@@ -279,13 +275,15 @@
                                 aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        {% if error and modal_error and modal_error.scope == "create_group" %}
-                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                        {% endif %}
+                        {{ modal.show_modal_error(error, modal_form_create_group.error, 'voice_group_create') }}
 
                         <div class="mb-3">
                             <label class="form-label">Name der Stimmgruppe (z.B. Tenor)</label>
-                            <input type="text" name="name" class="form-control" required>
+                            <input type="text"
+                                   name="name"
+                                   class="form-control"
+                                   value="{{ modal_form_create_group.form.name|default('') }}"
+                                   required>
                         </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">

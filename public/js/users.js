@@ -143,4 +143,18 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     syncBulkSelection();
+
+    // Auto-open modals when validation errors occur
+    const addUserModal = document.getElementById('addUserModal');
+    if (addUserModal && addUserModal.dataset.openCreateModal === '1' && window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(addUserModal).show();
+    }
+
+    // Auto-open edit modals for users with validation errors
+    const editModals = document.querySelectorAll('[id^="editUserModal"][data-open-edit-modal="1"]');
+    if (window.bootstrap && window.bootstrap.Modal) {
+        editModals.forEach(function (modal) {
+            window.bootstrap.Modal.getOrCreateInstance(modal).show();
+        });
+    }
 });

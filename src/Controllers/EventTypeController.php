@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\EventType;
+use App\Services\ModalFormService;
 
 class EventTypeController
 {
@@ -23,34 +24,27 @@ class EventTypeController
         $eventTypes = EventType::orderBy('name')->get();
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
-        $modalError = $_SESSION['event_type_modal_error'] ?? null;
-        $createForm = $_SESSION['event_type_create_form'] ?? [];
-        $editForms = $_SESSION['event_type_edit_forms'] ?? [];
-        $openCreateModal = !empty($_SESSION['event_type_open_create_modal']);
-        $openEditModalId = (int) ($_SESSION['event_type_open_edit_modal_id'] ?? 0);
         unset($_SESSION['success'], $_SESSION['error']);
-        unset(
-            $_SESSION['event_type_create_form'],
-            $_SESSION['event_type_edit_forms'],
-            $_SESSION['event_type_open_create_modal'],
-            $_SESSION['event_type_open_edit_modal_id'],
-            $_SESSION['event_type_modal_error']
-        );
 
-        $createForm = array_merge([
-            'name' => '',
-            'color' => 'info',
-        ], is_array($createForm) ? $createForm : []);
+        // Get create form state
+        $createService = new ModalFormService('event_type_create');
+        $createState = $createService->getState();
+        $createService->clear();
+
+        // Get all edit form states
+        $editStates = [];
+        foreach ($eventTypes as $type) {
+            $editService = new ModalFormService('event_type_edit_' . $type->id);
+            $editStates[$type->id] = $editService->getState();
+            $editService->clear();
+        }
 
         return $this->view->render($response, 'settings/event_types.twig', [
             'event_types' => $eventTypes,
             'success' => $success,
             'error' => $error,
-            'create_form' => $createForm,
-            'edit_forms' => is_array($editForms) ? $editForms : [],
-            'open_create_modal' => $openCreateModal,
-            'open_edit_modal_id' => $openEditModalId,
-            'modal_error' => is_array($modalError) ? $modalError : null,
+            'modal_form_create' => $createState,
+            'modal_form_edits' => $editStates,
         ]);
     }
 
@@ -60,14 +54,14 @@ class EventTypeController
         $name = trim($data['name'] ?? '');
         $color = $data['color'] ?? 'info';
 
+        $formData = [
+            'name' => $name,
+            'color' => $color,
+        ];
+
         if (!$name) {
-            $_SESSION['event_type_create_form'] = [
-                'name' => $name,
-                'color' => $color,
-            ];
-            $_SESSION['event_type_open_create_modal'] = true;
-            $_SESSION['event_type_modal_error'] = ['scope' => 'create'];
-            $_SESSION['error'] = 'Name ist ein Pflichtfeld.';
+            $createService = new ModalFormService('event_type_create');
+            $createService->setError('Name ist ein Pflichtfeld.', $formData);
             return $response->withHeader('Location', '/event-types')->withStatus(302);
         }
 
@@ -76,17 +70,10 @@ class EventTypeController
                 'name' => $name,
                 'color' => $color
             ]);
-            unset($_SESSION['event_type_create_form'], $_SESSION['event_type_open_create_modal']);
-            unset($_SESSION['event_type_modal_error']);
             $_SESSION['success'] = 'Event-Typ erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['event_type_create_form'] = [
-                'name' => $name,
-                'color' => $color,
-            ];
-            $_SESSION['event_type_open_create_modal'] = true;
-            $_SESSION['event_type_modal_error'] = ['scope' => 'create'];
-            $_SESSION['error'] = 'Fehler beim Anlegen: ';
+            $createService = new ModalFormService('event_type_create');
+            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);
@@ -99,17 +86,14 @@ class EventTypeController
         $name = trim($data['name'] ?? '');
         $color = $data['color'] ?? 'info';
 
+        $formData = [
+            'name' => $name,
+            'color' => $color,
+        ];
+
         if (!$name) {
-            if (!isset($_SESSION['event_type_edit_forms']) || !is_array($_SESSION['event_type_edit_forms'])) {
-                $_SESSION['event_type_edit_forms'] = [];
-            }
-            $_SESSION['event_type_edit_forms'][$id] = [
-                'name' => $name,
-                'color' => $color,
-            ];
-            $_SESSION['event_type_open_edit_modal_id'] = $id;
-            $_SESSION['event_type_modal_error'] = ['scope' => 'edit', 'id' => $id];
-            $_SESSION['error'] = 'Name ist ein Pflichtfeld.';
+            $editService = new ModalFormService('event_type_edit_' . $id);
+            $editService->setError('Name ist ein Pflichtfeld.', $formData);
             return $response->withHeader('Location', '/event-types')->withStatus(302);
         }
 
@@ -119,22 +103,10 @@ class EventTypeController
                 'name' => $name,
                 'color' => $color
             ]);
-            if (isset($_SESSION['event_type_edit_forms']) && is_array($_SESSION['event_type_edit_forms'])) {
-                unset($_SESSION['event_type_edit_forms'][$id]);
-            }
-            unset($_SESSION['event_type_modal_error']);
             $_SESSION['success'] = 'Event-Typ erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            if (!isset($_SESSION['event_type_edit_forms']) || !is_array($_SESSION['event_type_edit_forms'])) {
-                $_SESSION['event_type_edit_forms'] = [];
-            }
-            $_SESSION['event_type_edit_forms'][$id] = [
-                'name' => $name,
-                'color' => $color,
-            ];
-            $_SESSION['event_type_open_edit_modal_id'] = $id;
-            $_SESSION['event_type_modal_error'] = ['scope' => 'edit', 'id' => $id];
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
+            $editService = new ModalFormService('event_type_edit_' . $id);
+            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);

@@ -95,14 +95,26 @@
                         <div class="col-6 mb-3">
                             <label class="text-muted small fw-bold text-uppercase">Stimmgruppe(n)</label>
                             <p class="fs-5 mb-0">
-                                {% for vg in user.voice_groups %}
-                                    <span class="d-inline-block border p-1 rounded mb-1 text-nowrap fs-6">
-                                        {{ vg.voice_group_name }}
-                                        {% if vg.sub_voice_name %}<small class="text-muted">({{ vg.sub_voice_name }})</small>{% endif %}
-                                    </span>
+                                {% if user.voice_group_ids|length > 0 %}
+                                    {% for group_id in user.voice_group_ids %}
+                                        {% for g in voice_groups %}
+                                            {% if g.id == group_id %}
+                                                <span class="d-inline-block border p-1 rounded mb-1 text-nowrap fs-6">
+                                                    {{ g.name }}
+                                                    {% set sv_id = user.voice_group_pivots[group_id] %}
+                                                    {% if sv_id %}
+                                                        {% for sv in sub_voices %}
+                                                            {% if sv.id == sv_id %}<small class="text-muted">({{ sv.name }})</small>{% endif %}
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </span>
+                                                <br>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
                                 {% else %}
                                     -
-                                {% endfor %}
+                                {% endif %}
                             </p>
                         </div>
                     </div>

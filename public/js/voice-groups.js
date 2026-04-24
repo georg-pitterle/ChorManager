@@ -3,34 +3,25 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const scopeInput = document.getElementById('voiceGroupOpenModalScope');
-    if (!scopeInput) {
+    // Auto-open create group modal
+    const createGroupModal = document.getElementById('createGroupModal');
+    if (createGroupModal && createGroupModal.dataset.openCreateGroupModal === '1') {
+        window.bootstrap.Modal.getOrCreateInstance(createGroupModal).show();
         return;
     }
 
-    const scope = scopeInput.value || '';
-    const groupId = document.getElementById('voiceGroupOpenModalGroupId')?.value || '';
-    const subId = document.getElementById('voiceGroupOpenModalSubId')?.value || '';
+    // Auto-open edit group modals
+    document.querySelectorAll('[id^="editGroupModal"][data-open-edit-group-modal="1"]').forEach(function (modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modal).show();
+    });
 
-    let modalId = '';
-    if (scope === 'create_group') {
-        modalId = 'createGroupModal';
-    } else if (scope === 'edit_group' && groupId !== '') {
-        modalId = 'editGroupModal' + groupId;
-    } else if (scope === 'create_sub' && groupId !== '') {
-        modalId = 'createSubVoiceModal' + groupId;
-    } else if (scope === 'edit_sub' && subId !== '') {
-        modalId = 'editSubVoiceModal' + subId;
-    }
+    // Auto-open create sub-voice modals
+    document.querySelectorAll('[id^="createSubVoiceModal"][data-open-create-sub-modal="1"]').forEach(function (modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modal).show();
+    });
 
-    if (modalId === '') {
-        return;
-    }
-
-    const modalElement = document.getElementById(modalId);
-    if (!modalElement) {
-        return;
-    }
-
-    window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    // Auto-open edit sub-voice modals
+    document.querySelectorAll('[id^="editSubVoiceModal"][data-open-edit-sub-modal="1"]').forEach(function (modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modal).show();
+    });
 });

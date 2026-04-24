@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import 'macros/modal_form.twig' as modal %}
+
 {% block title %}
     Events (Termine) - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -34,7 +36,7 @@
                     aria-label="Close"></button>
         </div>
     {% endif %}
-    {% if error and event_modal_error is empty %}
+    {% if error and not create_form.open_modal %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
             <button type="button"
@@ -208,9 +210,7 @@
                                 aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        {% if error and event_modal_error == "create" %}
-                            <div class="alert alert-danger" role="alert">{{ error }}</div>
-                        {% endif %}
+                        {{ modal.show_modal_error(error, create_form.error, 'event_create') }}
 
                         <div class="mb-3">
                             <label for="title" class="form-label">Titel *</label>
@@ -218,7 +218,7 @@
                                    class="form-control"
                                    id="title"
                                    name="title"
-                                   value="{{ create_form.title|default('') }}"
+                                   value="{{ create_form.form.title|default('') }}"
                                    required>
                         </div>
 
@@ -229,7 +229,7 @@
                                        class="form-control"
                                        id="starts_at"
                                        name="starts_at"
-                                       value="{{ create_form.starts_at|default('') }}"
+                                       value="{{ create_form.form.starts_at|default('') }}"
                                        required>
                             </div>
                             <div class="col-md-3 mb-3">
@@ -238,7 +238,7 @@
                                        class="form-control"
                                        id="start_time"
                                        name="start_time"
-                                       value="{{ create_form.start_time|default('') }}"
+                                       value="{{ create_form.form.start_time|default('') }}"
                                        required>
                             </div>
                             <div class="col-md-3 mb-3">
@@ -247,7 +247,7 @@
                                        class="form-control"
                                        id="end_time"
                                        name="end_time"
-                                       value="{{ create_form.end_time|default('') }}"
+                                       value="{{ create_form.form.end_time|default('') }}"
                                        required>
                             </div>
                         </div>
@@ -258,7 +258,7 @@
                                 <select class="form-select" id="event_type_id" name="event_type_id" required>
                                     {% for et in event_types %}
                                         <option value="{{ et.id }}"
-                                                {% if create_form.event_type_id is not empty and create_form.event_type_id == et.id %}selected{% endif %}>
+                                                {% if create_form.form.event_type_id is not empty and create_form.form.event_type_id == et.id %}selected{% endif %}>
                                             {{ et.name }}
                                         </option>
                                     {% endfor %}
@@ -272,7 +272,7 @@
                                    class="form-control"
                                    id="location"
                                    name="location"
-                                   value="{{ create_form.location|default('') }}">
+                                   value="{{ create_form.form.location|default('') }}">
                         </div>
 
                         <div class="mb-3">
@@ -281,7 +281,7 @@
                                 <option value="">Keinem Projekt zuordnen</option>
                                 {% for project in projects %}
                                     <option value="{{ project.id }}"
-                                            {% if create_form.project_id is not empty and create_form.project_id == project.id %}selected{% endif %}>
+                                            {% if create_form.form.project_id is not empty and create_form.form.project_id == project.id %}selected{% endif %}>
                                         {{ project.name }}
                                     </option>
                                 {% endfor %}
@@ -296,38 +296,38 @@
                                    id="repeat_event"
                                    name="repeat"
                                    value="1"
-                                   {% if create_form.repeat %}checked{% endif %}>
+                                   {% if create_form.form.repeat %}checked{% endif %}>
                             <label class="form-check-label fw-bold" for="repeat_event">Termin wiederholen</label>
                         </div>
 
                         <div id="recurrence_options"
-                             {% if not create_form.repeat %}style="display:none;"{% endif %}>
+                             {% if not create_form.form.repeat %}style="display:none;"{% endif %}>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted">Wiederhole jeden</label>
                                     <input type="number"
                                            class="form-control"
                                            name="recurrence_interval"
-                                           value="{{ create_form.recurrence_interval|default('1') }}"
+                                           value="{{ create_form.form.recurrence_interval|default('1') }}"
                                            min="1">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted"></label>
                                     <select class="form-select" name="frequency" id="frequency">
                                         <option value="daily"
-                                                {% if create_form.frequency == 'daily' %}selected{% endif %}>
+                                                {% if create_form.form.frequency == 'daily' %}selected{% endif %}>
                                             Tag
                                         </option>
                                         <option value="weekly"
-                                                {% if create_form.frequency == 'weekly' %}selected{% endif %}>
+                                                {% if create_form.form.frequency == 'weekly' %}selected{% endif %}>
                                             Woche
                                         </option>
                                         <option value="monthly"
-                                                {% if create_form.frequency == 'monthly' %}selected{% endif %}>
+                                                {% if create_form.form.frequency == 'monthly' %}selected{% endif %}>
                                             Monat
                                         </option>
                                         <option value="yearly"
-                                                {% if create_form.frequency == 'yearly' %}selected{% endif %}>
+                                                {% if create_form.form.frequency == 'yearly' %}selected{% endif %}>
                                             Jahr
                                         </option>
                                     </select>
@@ -336,7 +336,7 @@
 
                             <div id="weekday_selector"
                                  class="mb-3"
-                                 {% if create_form.frequency != 'weekly' %}style="display:none;"{% endif %}>
+                                 {% if create_form.form.frequency != 'weekly' %}style="display:none;"{% endif %}>
                                 <label class="form-label small text-muted">am</label>
                                 <div class="d-flex flex-wrap gap-1">
                                     {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
@@ -345,7 +345,7 @@
                                                id="day_{{ loop.index }}"
                                                name="weekdays[]"
                                                value="{{ loop.index }}"
-                                               {% if loop.index in create_form.weekdays|default([1]) %}checked{% endif %}>
+                                               {% if loop.index in create_form.form.weekdays|default([1]) %}checked{% endif %}>
                                         <label class="btn btn-outline-primary btn-sm px-3"
                                                for="day_{{ loop.index }}">{{ day }}</label>
                                     {% endfor %}
@@ -358,8 +358,8 @@
                                        class="form-control"
                                        id="series_end_date"
                                        name="series_end_date"
-                                       value="{{ create_form.series_end_date|default('') }}"
-                                       {% if create_form.repeat %}required{% endif %}>
+                                       value="{{ create_form.form.series_end_date|default('') }}"
+                                       {% if create_form.form.repeat %}required{% endif %}>
                             </div>
                         </div>
                     </div>

@@ -14,6 +14,7 @@ use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Project;
+use App\Services\ModalFormService;
 
 class EventController
 {
@@ -117,28 +118,10 @@ class EventController
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
-        $eventModalError = $_SESSION['event_modal_error'] ?? null;
-        $createForm = $_SESSION['event_create_form'] ?? [];
-        $openCreateModal = !empty($_SESSION['event_create_open_modal']);
         unset($_SESSION['success'], $_SESSION['error']);
-        unset($_SESSION['event_create_form'], $_SESSION['event_create_open_modal'], $_SESSION['event_modal_error']);
-
-        $createForm = array_merge([
-            'title' => '',
-            'starts_at' => '',
-            'start_time' => '',
-            'end_time' => '',
-            'event_type_id' => '',
-            'project_id' => '',
-            'location' => '',
-            'repeat' => false,
-            'recurrence_interval' => '1',
-            'frequency' => 'weekly',
-            'weekdays' => [1],
-            'series_end_date' => '',
-            'open_modal' => false,
-        ], is_array($createForm) ? $createForm : []);
-        $createForm['open_modal'] = $openCreateModal;
+        $createService = new ModalFormService('event_create');
+        $createState = $createService->getState();
+        $createService->clear();
 
         return $this->view->render($response, 'events/index.twig', [
             'events' => $events,
@@ -153,8 +136,7 @@ class EventController
             ],
             'success' => $success,
             'error' => $error,
-            'event_modal_error' => $eventModalError,
-            'create_form' => $createForm,
+            'create_form' => $createState,
         ]);
     }
 
@@ -188,17 +170,30 @@ class EventController
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $repeat = !empty($data['repeat']);
 
+        $formData = [
+            'title' => $title,
+            'starts_at' => $startsAtDate,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'event_type_id' => $eventTypeId ?? '',
+            'project_id' => $projectId ?? '',
+            'location' => trim($data['location'] ?? ''),
+            'repeat' => $repeat,
+            'recurrence_interval' => trim((string) ($data['recurrence_interval'] ?? '1')),
+            'frequency' => trim((string) ($data['frequency'] ?? 'weekly')),
+            'weekdays' => array_values(array_map('intval', (array) ($data['weekdays'] ?? [1]))),
+            'series_end_date' => trim((string) ($data['series_end_date'] ?? '')),
+        ];
+
         if (!$this->canAccessProjectId($projectId)) {
-            $this->rememberCreateFormInput($data);
-            $_SESSION['event_modal_error'] = 'create';
-            $_SESSION['error'] = 'Zugriff verweigert.';
+            $createService = new ModalFormService('event_create');
+            $createService->setError('Zugriff verweigert.', $formData);
             return $response->withHeader('Location', '/events')->withStatus(403);
         }
 
         if (!$startsAtDate || !$startTime || !$endTime) {
-            $this->rememberCreateFormInput($data);
-            $_SESSION['event_modal_error'] = 'create';
-            $_SESSION['error'] = 'Datum, Startzeit und Endzeit sind Pflichtfelder.';
+            $createService = new ModalFormService('event_create');
+            $createService->setError('Datum, Startzeit und Endzeit sind Pflichtfelder.', $formData);
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
 
@@ -210,15 +205,13 @@ class EventController
             $parsedEnd   = false;
         }
         if (!$parsedStart || !$parsedEnd) {
-            $this->rememberCreateFormInput($data);
-            $_SESSION['event_modal_error'] = 'create';
-            $_SESSION['error'] = 'Ungültiges Datum oder Zeitformat.';
+            $createService = new ModalFormService('event_create');
+            $createService->setError('Ungültiges Datum oder Zeitformat.', $formData);
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
         if (!$parsedEnd->greaterThan($parsedStart)) {
-            $this->rememberCreateFormInput($data);
-            $_SESSION['event_modal_error'] = 'create';
-            $_SESSION['error'] = 'Endzeit muss nach der Startzeit liegen.';
+            $createService = new ModalFormService('event_create');
+            $createService->setError('Endzeit muss nach der Startzeit liegen.', $formData);
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
         $startsAt = $parsedStart->format('Y-m-d H:i:s');
@@ -247,7 +240,6 @@ class EventController
                     'location' => trim($data['location'] ?? '')
                 ]);
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
-                unset($_SESSION['event_create_form'], $_SESSION['event_create_open_modal'], $_SESSION['event_modal_error']);
             } else {
                 // Series
                 $frequency = $data['frequency'] ?? 'weekly';
@@ -332,12 +324,10 @@ class EventController
                 }
 
                 $_SESSION['success'] = "Serie erfolgreich angelegt ($count Termine).";
-                unset($_SESSION['event_create_form'], $_SESSION['event_create_open_modal'], $_SESSION['event_modal_error']);
             }
         } catch (Exception $e) {
-            $this->rememberCreateFormInput($data);
-            $_SESSION['event_modal_error'] = 'create';
-            $_SESSION['error'] = 'Fehler beim Anlegen: ' . $e->getMessage();
+            $createService = new ModalFormService('event_create');
+            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/events')->withStatus(302);
@@ -359,28 +349,28 @@ class EventController
         $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
         $projects = $this->getAccessibleProjects($userId, $canManageUsers);
         $eventTypes = EventType::orderBy('name')->get();
-        $error = $_SESSION['error'] ?? null;
-        $oldEditForms = $_SESSION['event_edit_forms'] ?? [];
-        $editForm = [];
-        if (is_array($oldEditForms) && isset($oldEditForms[$id]) && is_array($oldEditForms[$id])) {
-            $editForm = $oldEditForms[$id];
-            unset($_SESSION['event_edit_forms'][$id]);
-            if (isset($_SESSION['event_edit_forms']) && is_array($_SESSION['event_edit_forms']) && $_SESSION['event_edit_forms'] === []) {
-                unset($_SESSION['event_edit_forms']);
-            }
-        }
-        unset($_SESSION['error']);
 
-        $editForm = array_merge([
-            'title' => (string) $event->title,
-            'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
-            'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
-            'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
-            'event_type_id' => $event->event_type_id !== null ? (string) $event->event_type_id : '',
-            'project_id' => $event->project_id !== null ? (string) $event->project_id : '',
-            'location' => (string) ($event->location ?? ''),
-            'update_series' => false,
-        ], $editForm);
+        // Get error and form data from ModalFormService
+        $editService = new ModalFormService('event_edit');
+        $state = $editService->getState();
+        $error = $state['open_modal'] ? ($_SESSION['error'] ?? null) : null;
+        unset($_SESSION['error']);
+        $editForm = $state['form'] ?? [];
+        $editService->clear();
+
+        // If no form data from service, build from event
+        if (empty($editForm)) {
+            $editForm = [
+                'title' => (string) $event->title,
+                'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
+                'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
+                'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
+                'event_type_id' => $event->event_type_id !== null ? (string) $event->event_type_id : '',
+                'project_id' => $event->project_id !== null ? (string) $event->project_id : '',
+                'location' => (string) ($event->location ?? ''),
+                'update_series' => false,
+            ];
+        }
 
         return $this->view->render($response, 'events/edit.twig', [
             'event' => $event,
@@ -414,15 +404,26 @@ class EventController
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $updateSeries = !empty($data['update_series']);
 
+        $formData = [
+            'title' => $title,
+            'starts_at' => $startsAtDate,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'event_type_id' => $eventTypeId ?? '',
+            'project_id' => $projectId ?? '',
+            'location' => trim($data['location'] ?? ''),
+            'update_series' => $updateSeries,
+        ];
+
         if (!$this->canAccessProjectId($projectId)) {
-            $this->rememberEditFormInput($id, $data);
-            $_SESSION['error'] = 'Zugriff verweigert.';
+            $editService = new ModalFormService('event_edit');
+            $editService->setError('Zugriff verweigert.', $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
         }
 
         if (!$startsAtDate || !$startTime || !$endTime) {
-            $this->rememberEditFormInput($id, $data);
-            $_SESSION['error'] = 'Datum, Startzeit und Endzeit sind Pflichtfelder.';
+            $editService = new ModalFormService('event_edit');
+            $editService->setError('Datum, Startzeit und Endzeit sind Pflichtfelder.', $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -434,13 +435,13 @@ class EventController
             $parsedEnd   = false;
         }
         if (!$parsedStart || !$parsedEnd) {
-            $this->rememberEditFormInput($id, $data);
-            $_SESSION['error'] = 'Ungültiges Datum oder Zeitformat.';
+            $editService = new ModalFormService('event_edit');
+            $editService->setError('Ungültiges Datum oder Zeitformat.', $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
         if (!$parsedEnd->greaterThan($parsedStart)) {
-            $this->rememberEditFormInput($id, $data);
-            $_SESSION['error'] = 'Endzeit muss nach der Startzeit liegen.';
+            $editService = new ModalFormService('event_edit');
+            $editService->setError('Endzeit muss nach der Startzeit liegen.', $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
         $startsAt = $parsedStart->format('Y-m-d H:i:s');
@@ -475,8 +476,8 @@ class EventController
                 });
 
                 if ($hasUnauthorizedSeriesEvent) {
-                    $this->rememberEditFormInput($id, $data);
-                    $_SESSION['error'] = 'Zugriff verweigert.';
+                    $editService = new ModalFormService('event_edit');
+                    $editService->setError('Zugriff verweigert.', $formData);
                     return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
                 }
 
@@ -491,17 +492,15 @@ class EventController
                 }
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
-                unset($_SESSION['event_edit_forms'][$id]);
             } else {
                 $updateData['starts_at'] = $startsAt;
                 $updateData['ends_at'] = $endsAt;
                 $event->update($updateData);
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
-                unset($_SESSION['event_edit_forms'][$id]);
             }
         } catch (Exception $e) {
-            $this->rememberEditFormInput($id, $data);
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ' . $e->getMessage();
+            $editService = new ModalFormService('event_edit');
+            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -580,42 +579,5 @@ class EventController
             ->where('project_users.user_id', $userId)
             ->where('projects.id', $projectId)
             ->exists();
-    }
-
-    private function rememberCreateFormInput(array $data): void
-    {
-        $_SESSION['event_create_form'] = [
-            'title' => trim((string) ($data['title'] ?? '')),
-            'starts_at' => trim((string) ($data['starts_at'] ?? '')),
-            'start_time' => trim((string) ($data['start_time'] ?? '')),
-            'end_time' => trim((string) ($data['end_time'] ?? '')),
-            'event_type_id' => trim((string) ($data['event_type_id'] ?? '')),
-            'project_id' => trim((string) ($data['project_id'] ?? '')),
-            'location' => trim((string) ($data['location'] ?? '')),
-            'repeat' => !empty($data['repeat']),
-            'recurrence_interval' => trim((string) ($data['recurrence_interval'] ?? '1')),
-            'frequency' => trim((string) ($data['frequency'] ?? 'weekly')),
-            'weekdays' => array_values(array_map('intval', (array) ($data['weekdays'] ?? [1]))),
-            'series_end_date' => trim((string) ($data['series_end_date'] ?? '')),
-        ];
-        $_SESSION['event_create_open_modal'] = true;
-    }
-
-    private function rememberEditFormInput(int $eventId, array $data): void
-    {
-        if (!isset($_SESSION['event_edit_forms']) || !is_array($_SESSION['event_edit_forms'])) {
-            $_SESSION['event_edit_forms'] = [];
-        }
-
-        $_SESSION['event_edit_forms'][$eventId] = [
-            'title' => trim((string) ($data['title'] ?? '')),
-            'starts_at' => trim((string) ($data['starts_at'] ?? '')),
-            'start_time' => trim((string) ($data['start_time'] ?? '')),
-            'end_time' => trim((string) ($data['end_time'] ?? '')),
-            'event_type_id' => trim((string) ($data['event_type_id'] ?? '')),
-            'project_id' => trim((string) ($data['project_id'] ?? '')),
-            'location' => trim((string) ($data['location'] ?? '')),
-            'update_series' => !empty($data['update_series']),
-        ];
     }
 }

@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
+use App\Services\ModalFormService;
 
 class VoiceGroupController
 {
@@ -25,17 +26,51 @@ class VoiceGroupController
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
-        $modalError = $_SESSION['voice_group_modal_error'] ?? null;
-        $openModal = $_SESSION['voice_group_open_modal'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
-        unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
+
+        // Get create group form state
+        $createGroupService = new ModalFormService('voice_group_create');
+        $createGroupState = $createGroupService->getState();
+        $createGroupService->clear();
+
+        // Get edit group form states
+        $editGroupStates = [];
+        foreach ($voiceGroups as $group) {
+            $editGroupService = new ModalFormService('voice_group_edit_' . $group->id);
+            $editGroupStates[$group->id] = $editGroupService->getState();
+            $editGroupService->clear();
+        }
+
+        // Get create subvoice form states
+        $createSubStates = [];
+        foreach ($voiceGroups as $group) {
+            $createSubService = new ModalFormService('voice_sub_create_' . $group->id);
+            $createSubStates[$group->id] = $createSubService->getState();
+            $createSubService->clear();
+        }
+
+        // Get edit subvoice form states
+        $editSubStates = [];
+        foreach ($voiceGroups as $group) {
+            foreach ($group->subVoices as $subVoice) {
+                $editSubService = new ModalFormService('voice_sub_edit_' . $subVoice->id);
+                $editSubStates[$subVoice->id] = $editSubService->getState();
+                $editSubService->clear();
+            }
+        }
 
         return $this->view->render($response, 'voice_groups/index.twig', [
             'voice_groups' => $voiceGroups,
             'success' => $success,
             'error' => $error,
-            'modal_error' => is_array($modalError) ? $modalError : null,
-            'open_modal' => is_array($openModal) ? $openModal : null,
+            'modal_form_create_group' => $createGroupState,
+            'modal_form_edit_groups' => $editGroupStates,
+            'modal_form_create_subs' => $createSubStates,
+            'modal_form_edit_subs' => $editSubStates,
+            'has_modal_error' => $createGroupState['open_modal']
+                || !empty(array_filter($editGroupStates, fn($s) => $s['open_modal']))
+                || !empty(array_filter($createSubStates, fn($s) => $s['open_modal']))
+                || !empty(array_filter($editSubStates, fn($s) => $s['open_modal'])),
         ]);
     }
 
@@ -44,21 +79,20 @@ class VoiceGroupController
         $data = (array)$request->getParsedBody();
         $name = trim($data['name'] ?? '');
 
+        $formData = ['name' => $name];
+
         if (!$name) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_group'];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_group'];
-            $_SESSION['error'] = 'Der Name der Stimmgruppe darf nicht leer sein.';
+            $createService = new ModalFormService('voice_group_create');
+            $createService->setError('Der Name der Stimmgruppe darf nicht leer sein.', $formData);
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
         try {
             VoiceGroup::create(['name' => $name]);
-            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_group'];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_group'];
-            $_SESSION['error'] = 'Fehler beim Anlegen: ';
+            $createService = new ModalFormService('voice_group_create');
+            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -70,22 +104,21 @@ class VoiceGroupController
         $data = (array)$request->getParsedBody();
         $name = trim($data['name'] ?? '');
 
+        $formData = ['name' => $name];
+
         if (!$name) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_group', 'group_id' => $id];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_group', 'group_id' => $id];
-            $_SESSION['error'] = 'Der Name darf nicht leer sein.';
+            $editService = new ModalFormService('voice_group_edit_' . $id);
+            $editService->setError('Der Name darf nicht leer sein.', $formData);
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
         try {
             $group = VoiceGroup::findOrFail($id);
             $group->update(['name' => $name]);
-            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_group', 'group_id' => $id];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_group', 'group_id' => $id];
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
+            $editService = new ModalFormService('voice_group_edit_' . $id);
+            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -112,10 +145,11 @@ class VoiceGroupController
         $data = (array)$request->getParsedBody();
         $name = trim($data['name'] ?? '');
 
+        $formData = ['name' => $name];
+
         if (!$name) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_sub', 'group_id' => $groupId];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_sub', 'group_id' => $groupId];
-            $_SESSION['error'] = 'Der Name der Unterstimme darf nicht leer sein.';
+            $createService = new ModalFormService('voice_sub_create_' . $groupId);
+            $createService->setError('Der Name der Unterstimme darf nicht leer sein.', $formData);
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
@@ -124,12 +158,10 @@ class VoiceGroupController
                 'name' => $name,
                 'voice_group_id' => $groupId
             ]);
-            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Unterstimme erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'create_sub', 'group_id' => $groupId];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'create_sub', 'group_id' => $groupId];
-            $_SESSION['error'] = 'Fehler beim Anlegen: ';
+            $createService = new ModalFormService('voice_sub_create_' . $groupId);
+            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -141,22 +173,21 @@ class VoiceGroupController
         $data = (array)$request->getParsedBody();
         $name = trim($data['name'] ?? '');
 
+        $formData = ['name' => $name];
+
         if (!$name) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
-            $_SESSION['error'] = 'Der Name darf nicht leer sein.';
+            $editService = new ModalFormService('voice_sub_edit_' . $subId);
+            $editService->setError('Der Name darf nicht leer sein.', $formData);
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
         try {
             $subVoice = SubVoice::findOrFail($subId);
             $subVoice->update(['name' => $name]);
-            unset($_SESSION['voice_group_modal_error'], $_SESSION['voice_group_open_modal']);
             $_SESSION['success'] = 'Unterstimme erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            $_SESSION['voice_group_modal_error'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
-            $_SESSION['voice_group_open_modal'] = ['scope' => 'edit_sub', 'sub_id' => $subId];
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
+            $editService = new ModalFormService('voice_sub_edit_' . $subId);
+            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
