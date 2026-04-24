@@ -70,6 +70,19 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY bin/mail-queue-worker.sh /usr/local/bin/mail-queue-worker.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/mail-queue-worker.sh
 
+# PHP upload limits are set to unlimited (0) because the Nginx layer already
+# enforces the effective request body size limit via client_max_body_size.
+# Keeping a separate hardcoded limit here would require manual sync with the
+# Nginx configuration whenever the operator changes CLIENT_MAX_BODY_SIZE.
+# memory_limit is raised to 512M so GD can decode large smartphone JPEGs in RAM.
+# max_execution_time and max_input_time are raised to match the Nginx
+# fastcgi_read_timeout of 120s for slow mobile connections.
+RUN echo "upload_max_filesize = 0" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "post_max_size = 0" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "max_execution_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "max_input_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
