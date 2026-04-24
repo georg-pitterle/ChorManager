@@ -357,8 +357,12 @@
                                         <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
                                             <option value="">(Keine Teilstimme)</option>
                                             {% for sv in sub_voices %}
-                                                {% if sv.voice_group_id == group.id %}<option value="{{ sv.id }}"
-                                                    {% if sv.id == modal_form_create.form.sub_voices[group.id]|default(null) %}selected{% endif %}>{{ sv.name }}</option>{% endif %}
+                                                {% if sv.voice_group_id == group.id %}
+                                                    <option value="{{ sv.id }}"
+                                                            {% if sv.id == modal_form_create.form.sub_voices[group.id]|default(null) %}selected{% endif %}>
+                                                        {{ sv.name }}
+                                                    </option>
+                                                {% endif %}
                                             {% endfor %}
                                         </select>
                                     </div>

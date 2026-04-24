@@ -5,44 +5,57 @@
     {% if error and not modal_error %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
     {% endif %}
 {% endmacro %}
 
 {# Zeigt Error Alert innerhalb eines Modals #}
-{% macro show_modal_error(error, modal_error, modal_scope, match_id = null) %}
+{% macro show_modal_error(error, modal_error, modal_scope, match_id=null) %}
     {% if error and modal_error and modal_error == modal_scope %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
     {% elseif error and modal_error and modal_error.scope and modal_error.scope == modal_scope %}
         {# Scoped error (for multi-modal patterns with IDs) #}
-        {% set matches = (match_id is null) or
-                        (modal_error.id is defined and modal_error.id == match_id) or
-                        (modal_error.group_id is defined and modal_error.group_id == match_id) or
-                        (modal_error.sub_id is defined and modal_error.sub_id == match_id) or
-                        (modal_error.user_id is defined and modal_error.user_id == match_id) %}
+        {% set _m_id = modal_error.id is defined and modal_error.id == match_id %}
+        {% set _m_group = modal_error.group_id is defined and modal_error.group_id == match_id %}
+        {% set _m_sub = modal_error.sub_id is defined and modal_error.sub_id == match_id %}
+        {% set _m_user = modal_error.user_id is defined and modal_error.user_id == match_id %}
+        {% set matches = match_id is null or _m_id or _m_group or _m_sub or _m_user %}
         {% if matches %}
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 {{ error }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
             </div>
         {% endif %}
     {% endif %}
 {% endmacro %}
 
 {# Returns data attribute value für Modal Auto-Opening #}
-{% macro modal_open_attr(modal_error, modal_scope, match_id = null) %}
+{% macro modal_open_attr(modal_error, modal_scope, match_id=null) %}
     {% if modal_error %}
-        {% if (modal_error == modal_scope) or 
-               (modal_error.scope and modal_error.scope == modal_scope and 
-                ((match_id is null) or 
-                 (modal_error.id is defined and modal_error.id == match_id) or
-                 (modal_error.group_id is defined and modal_error.group_id == match_id) or
-                 (modal_error.sub_id is defined and modal_error.sub_id == match_id) or
-                 (modal_error.user_id is defined and modal_error.user_id == match_id)))
-            %}1{% else %}0{% endif %}
-        {%- else %}0{% endif %}
+        {% set _scope_ok = modal_error.scope is defined and modal_error.scope == modal_scope %}
+        {% set _mid = modal_error.id is defined and modal_error.id == match_id %}
+        {% set _mgid = modal_error.group_id is defined and modal_error.group_id == match_id %}
+        {% set _msid = modal_error.sub_id is defined and modal_error.sub_id == match_id %}
+        {% set _muid = modal_error.user_id is defined and modal_error.user_id == match_id %}
+        {% set _id_ok = match_id is null or _mid or _mgid or _msid or _muid %}
+        {% if modal_error == modal_scope or (_scope_ok and _id_ok) %}
+            1
+        {% else %}
+            0
+        {% endif %}
+    {%- else %}0
+    {% endif %}
 {% endmacro %}
