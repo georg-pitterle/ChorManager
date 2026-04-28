@@ -1,0 +1,104 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Termin-Details - {{ app_settings.app_name|default('Chor-Manager') }}
+{% endblock title %}
+
+{% block content %}
+    <div class="row mt-4">
+        <div class="col-12 mb-4 d-flex justify-content-between align-items-start gap-3 flex-wrap">
+            <div>
+                <h1 class="h3 mb-1">{{ event.title }}</h1>
+                <p class="text-muted mb-0">
+                    {{ event.starts_at|date('d.m.Y H:i') }} - {{ event.ends_at|date('H:i') }}
+                    {% if event.location %} | {{ event.location }}{% endif %}
+                </p>
+            </div>
+            <a href="/events" class="btn btn-outline-secondary">Zur Liste</a>
+        </div>
+    </div>
+
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white pb-0 border-bottom-0">
+            <h5 class="mb-0"><i class="bi bi-card-text text-primary me-2"></i>Bemerkungen</h5>
+        </div>
+        <div class="card-body">
+            <div class="vstack gap-3 mb-4">
+                {% for note in event.comments %}
+                    <div class="border rounded-3 p-3 bg-light-subtle">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ note.user.first_name }} {{ note.user.last_name }}</div>
+                                <span class="badge {% if note.is_private %}text-bg-warning{% else %}text-bg-info{% endif %}">
+                                    {{ note.is_private ? 'Privat' : 'Öffentlich' }}
+                                </span>
+                            </div>
+                            <small class="text-muted">{{ note.created_at|date('d.m.Y H:i') }}</small>
+                        </div>
+
+                        <p class="mb-2">{{ note.comment|nl2br }}</p>
+
+                                                {% set can_edit_private_note = note.is_private and note.user_id == session.user_id %}
+                                                {% set can_edit_public_note = (not note.is_private) and session.can_manage_users %}
+
+                                                {% if can_edit_private_note or can_edit_public_note %}
+                            <form action="/events/{{ event.id }}/notes/{{ note.id }}/update" method="post" class="mb-2">
+                                                                <label class="visually-hidden" for="event-note-edit-{{ note.id }}">Bemerkung bearbeiten</label>
+                                <textarea class="form-control form-control-sm mb-2"
+                                          id="event-note-edit-{{ note.id }}"
+                                          name="content"
+                                          rows="2"
+                                          required>{{ note.comment }}</textarea>
+                                                                <button type="submit" class="btn btn-sm btn-outline-primary">Bemerkung speichern</button>
+                            </form>
+                            <form action="/events/{{ event.id }}/notes/{{ note.id }}/delete"
+                                  method="post"
+                                                                    data-confirm="Diese Bemerkung wirklich löschen?">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger">Bemerkung löschen</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Noch keine Bemerkungen vorhanden.</p>
+                {% endfor %}
+            </div>
+
+            <form action="/events/{{ event.id }}/notes" method="post">
+                <div class="mb-2">
+                    <label class="visually-hidden" for="event-note-new">Neue Bemerkung</label>
+                    <textarea class="form-control"
+                              id="event-note-new"
+                              name="content"
+                              rows="3"
+                              placeholder="Neue Bemerkung hinzufügen..."
+                              required></textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="event-note-private"
+                               name="is_private"
+                               value="1">
+                        <label class="form-check-label" for="event-note-private">Privat</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Bemerkung speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock content %}
