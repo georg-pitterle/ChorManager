@@ -109,6 +109,7 @@
                         <tr>
                             <th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>
                             <th data-sort-key="title" data-sort-type="text">Titel</th>
+                            <th data-sort-key="has_note" data-sort-type="text">Bemerkung</th>
                             <th data-sort-key="location" data-sort-type="text">Ort</th>
                             <th data-sort-key="type" data-sort-type="text">Typ</th>
                             <th data-sort-key="project_name" data-sort-type="text">Projekt</th>
@@ -117,8 +118,11 @@
                     </thead>
                     <tbody>
                         {% for event in events %}
+                            {% set public_notes_count = event.comments|filter(note => not note.is_private)|length %}
+                            {% set private_notes_count = event.comments|filter(note => note.is_private)|length %}
                             <tr data-sort-starts_at="{{ event.starts_at|date('Y-m-d') }}"
                                 data-sort-title="{{ event.title|lower }}"
+                                data-sort-has_note="{{ event.comments|length > 0 ? 'ja' : 'nein' }}"
                                 data-sort-location="{{ event.location|default('')|lower }}"
                                 data-sort-type="{{ event.type_name|lower }}"
                                 data-sort-project_name="{{ event.project_name|default('')|lower }}">
@@ -129,6 +133,13 @@
                                     {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
                                 </td>
                                 <td data-label="Titel">{{ event.title }}</td>
+                                <td data-label="Bemerkung" data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
+                                    {% if event.comments|length > 0 %}
+                                        <span class="badge text-bg-success">Ja</span>
+                                    {% else %}
+                                        <span class="badge text-bg-secondary">Nein</span>
+                                    {% endif %}
+                                </td>
                                 <td data-label="Ort">{{ event.location|default('-') }}</td>
                                 <td data-label="Typ">
                                     <span class="badge bg-{{ event.type_color }}">{{ event.type_name }}</span>
@@ -136,6 +147,10 @@
                                 <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
                                 <td data-label="Aktionen" class="text-end">
                                     <div class="btn-group">
+                                        <a href="/events/{{ event.id }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-chat-left-text"></i>
+                                            Bemerkungen ({{ public_notes_count }}/{{ private_notes_count }})
+                                        </a>
                                         {% if session.can_manage_attendance or session.can_manage_users %}
                                             <a href="/attendance/{{ event.id }}"
                                                class="btn btn-sm btn-outline-primary">
@@ -183,7 +198,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">Keine Termine geplant.</td>
+                                <td colspan="7" class="text-center py-4 text-muted">Keine Termine geplant.</td>
                             </tr>
                         {% endfor %}
                     </tbody>

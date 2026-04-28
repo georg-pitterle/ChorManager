@@ -10,6 +10,7 @@ use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\EventType;
@@ -113,6 +114,8 @@ class EventController
             return $event;
         });
 
+        $this->hydrateVisibleComments($events, $userId);
+
         $projects = $accessibleProjects;
         $eventTypes = EventType::orderBy('name')->get();
 
@@ -138,6 +141,131 @@ class EventController
             'error' => $error,
             'create_form' => $createState,
         ]);
+    }
+
+    public function detail(Request $request, Response $response, array $args): Response
+    {
+        $event = Event::find((int) $args['id']);
+        if (!$event) {
+            $_SESSION['error'] = 'Termin nicht gefunden.';
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
+
+        if (!$this->canAccessEvent($event)) {
+            return $response->withStatus(403);
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $event->setRelation('comments', $this->getVisibleEventComments($event->id, $userId));
+
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
+        return $this->view->render($response, 'events/detail.twig', [
+            'event' => $event,
+            'success' => $success,
+            'error' => $error,
+        ]);
+    }
+
+    public function addNote(Request $request, Response $response, array $args): Response
+    {
+        $event = Event::find((int) $args['id']);
+        if (!$event) {
+            $_SESSION['error'] = 'Termin nicht gefunden.';
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
+
+        if (!$this->canAccessEvent($event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            $_SESSION['error'] = 'Bemerkung darf nicht leer sein.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
+        }
+
+        Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => (int) ($_SESSION['user_id'] ?? 0),
+            'comment' => $content,
+            'is_private' => !empty($data['is_private']),
+        ]);
+
+        $_SESSION['success'] = 'Bemerkung hinzugefügt.';
+        return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
+    }
+
+    public function updateNote(Request $request, Response $response, array $args): Response
+    {
+        $event = Event::find((int) $args['id']);
+        if (!$event) {
+            $_SESSION['error'] = 'Termin nicht gefunden.';
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
+
+        if (!$this->canAccessEvent($event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+        }
+
+        $note = $this->findEventNote($event->id, (int) $args['note_id']);
+        if (!$note) {
+            $_SESSION['error'] = 'Bemerkung nicht gefunden.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
+        }
+
+        if (!$this->canManageEventNote($note, $event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            $_SESSION['error'] = 'Bemerkung darf nicht leer sein.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
+        }
+
+        $note->update(['comment' => $content]);
+
+        $_SESSION['success'] = 'Private Bemerkung aktualisiert.';
+        return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
+    }
+
+    public function deleteNote(Request $request, Response $response, array $args): Response
+    {
+        $event = Event::find((int) $args['id']);
+        if (!$event) {
+            $_SESSION['error'] = 'Termin nicht gefunden.';
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
+
+        if (!$this->canAccessEvent($event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+        }
+
+        $note = $this->findEventNote($event->id, (int) $args['note_id']);
+        if (!$note) {
+            $_SESSION['error'] = 'Bemerkung nicht gefunden.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
+        }
+
+        if (!$this->canManageEventNote($note, $event)) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+        }
+
+        $note->delete();
+
+        $_SESSION['success'] = 'Private Bemerkung gelöscht.';
+        return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
 
     private function getAccessibleProjects(int $userId, bool $canManageUsers)
@@ -556,6 +684,69 @@ class EventController
     private function canAccessEvent(Event $event): bool
     {
         return $this->canAccessProjectId($event->project_id !== null ? (int) $event->project_id : null);
+    }
+
+    private function hydrateVisibleComments($events, int $userId): void
+    {
+        $eventIds = $events->pluck('id')->map(static fn($id) => (int) $id)->all();
+        if ($eventIds === []) {
+            return;
+        }
+
+        $comments = Comment::with('user')
+            ->where('entity_type', 'event')
+            ->whereIn('entity_id', $eventIds)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->filter(function (Comment $comment) use ($userId): bool {
+                return !$comment->is_private || (int) $comment->user_id === $userId;
+            })
+            ->groupBy('entity_id');
+
+        foreach ($events as $event) {
+            $event->setRelation('comments', $comments->get($event->id) ?? collect());
+        }
+    }
+
+    private function getVisibleEventComments(int $eventId, int $userId)
+    {
+        return Comment::with('user')
+            ->where('entity_type', 'event')
+            ->where('entity_id', $eventId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->filter(function (Comment $comment) use ($userId): bool {
+                return !$comment->is_private || (int) $comment->user_id === $userId;
+            })
+            ->values();
+    }
+
+    private function findEventNote(int $eventId, int $noteId): ?Comment
+    {
+        return Comment::query()
+            ->where('id', $noteId)
+            ->where('entity_type', 'event')
+            ->where('entity_id', $eventId)
+            ->first();
+    }
+
+    private function canManageEventNote(Comment $note, Event $event): bool
+    {
+        if ($note->entity_type !== 'event') {
+            return false;
+        }
+
+        if ((bool) $note->is_private) {
+            return (int) $note->user_id === (int) ($_SESSION['user_id'] ?? 0);
+        }
+
+        return $this->canEditEvent($event);
+    }
+
+    private function canEditEvent(Event $event): bool
+    {
+        return (bool) ($_SESSION['can_manage_users'] ?? false)
+            && $this->canAccessEvent($event);
     }
 
     private function canAccessProjectId(?int $projectId): bool

@@ -49,4 +49,11 @@ class Event extends Model
     {
         return $this->hasMany(Attendance::class, 'event_id', 'id');
     }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'entity_id', 'id')
+            ->where('entity_type', 'event')
+            ->orderBy('created_at', 'desc');
+    }
 }

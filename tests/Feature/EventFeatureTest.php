@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\EventController;
+use App\Models\Comment;
 use App\Models\Event;
 use App\Models\Project;
 use App\Models\User;
@@ -263,8 +264,14 @@ class EventFeatureTest extends TestCase
 
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EventController.php');
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('$hasUnauthorizedSeriesEvent = $eventsToUpdate->contains(function ($seriesEvent) {', $controllerContent);
-        $this->assertStringContainsString('$hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {', $controllerContent);
+        $this->assertStringContainsString(
+            '$hasUnauthorizedSeriesEvent = $eventsToUpdate->contains(function ($seriesEvent) {',
+            $controllerContent
+        );
+        $this->assertStringContainsString(
+            '$hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {',
+            $controllerContent
+        );
     }
 
     public function testCreateEventRequiresAllTimeFields(): void
@@ -489,6 +496,299 @@ class EventFeatureTest extends TestCase
         $this->assertStringContainsString('21:00', $body);
     }
 
+    public function testEventDetailShowsPublicNotesToAllAndPrivateNotesOnlyToTheirCreator(): void
+    {
+        $event = Event::create([
+            'title' => 'Event With Notes',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $creator = $this->createUser('creator');
+        $otherUser = $this->createUser('other');
+
+        Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $creator->id,
+            'comment' => 'Öffentliche Bemerkung',
+            'is_private' => false,
+        ]);
+
+        Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $creator->id,
+            'comment' => 'Meine private Bemerkung',
+            'is_private' => true,
+        ]);
+
+        Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $otherUser->id,
+            'comment' => 'Fremde private Bemerkung',
+            'is_private' => true,
+        ]);
+
+        $_SESSION['user_id'] = (int) $creator->id;
+        $_SESSION['can_manage_users'] = false;
+
+        $creatorIndexBody = $this->renderEventsIndex(['show_old_events' => '1']);
+        $creatorBody = $this->renderEventDetail($event->id);
+
+        $this->assertStringContainsString('data-label="Bemerkung"', $creatorIndexBody);
+        $this->assertStringContainsString('data-has-note="1"', $creatorIndexBody);
+        $this->assertStringNotContainsString('Öffentliche Bemerkung', $creatorIndexBody);
+        $this->assertStringNotContainsString('Meine private Bemerkung', $creatorIndexBody);
+        $this->assertStringNotContainsString('Fremde private Bemerkung', $creatorIndexBody);
+
+        $this->assertStringContainsString('Öffentliche Bemerkung', $creatorBody);
+        $this->assertStringContainsString('Meine private Bemerkung', $creatorBody);
+        $this->assertStringNotContainsString('Fremde private Bemerkung', $creatorBody);
+        $this->assertStringContainsString('name="is_private"', $creatorBody);
+        $this->assertStringContainsString('/events/' . $event->id . '/notes/', $creatorBody);
+
+        $_SESSION['user_id'] = (int) $otherUser->id;
+
+        $otherBody = $this->renderEventDetail($event->id);
+
+        $this->assertStringContainsString('Öffentliche Bemerkung', $otherBody);
+        $this->assertStringContainsString('Fremde private Bemerkung', $otherBody);
+        $this->assertStringNotContainsString('Meine private Bemerkung', $otherBody);
+    }
+
+    public function testAddEventNoteStoresCreatorAndPrivacyFlag(): void
+    {
+        $event = Event::create([
+            'title' => 'Event For New Note',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $user = $this->createUser('note-author');
+        $_SESSION['user_id'] = (int) $user->id;
+        $_SESSION['can_manage_users'] = false;
+
+        $controller = new EventController($this->createTwig());
+        $request = $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
+            'content' => 'Neue private Bemerkung',
+            'is_private' => '1',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->addNote($request, $response, ['id' => (string) $event->id]);
+
+        $this->assertRedirect($result, '/events/' . $event->id);
+
+        $note = Comment::where('entity_type', 'event')
+            ->where('entity_id', $event->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        $this->assertNotNull($note);
+        $this->assertSame('Neue private Bemerkung', $note->comment);
+        $this->assertTrue((bool) $note->is_private);
+    }
+
+    public function testPrivateEventNoteCanBeUpdatedAndDeletedByCreator(): void
+    {
+        $user = $this->createUser('private-owner');
+        $_SESSION['user_id'] = (int) $user->id;
+        $_SESSION['can_manage_users'] = false;
+
+        $event = Event::create([
+            'title' => 'Event For Private Note',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $note = Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $user->id,
+            'comment' => 'Alte private Bemerkung',
+            'is_private' => true,
+        ]);
+
+        $controller = new EventController($this->createTwig());
+        $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+            'content' => 'Aktualisierte private Bemerkung',
+        ]);
+        $updateResponse = $this->makeResponse();
+
+        $updateResult = $controller->updateNote(
+            $updateRequest,
+            $updateResponse,
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertRedirect($updateResult, '/events/' . $event->id);
+
+        $note->refresh();
+        $this->assertSame('Aktualisierte private Bemerkung', $note->comment);
+
+        $deleteRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete');
+        $deleteResponse = $this->makeResponse();
+
+        $deleteResult = $controller->deleteNote(
+            $deleteRequest,
+            $deleteResponse,
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertRedirect($deleteResult, '/events/' . $event->id);
+        $this->assertNull(Comment::find($note->id));
+    }
+
+    public function testPrivateEventNoteCannotBeUpdatedOrDeletedByOtherUsers(): void
+    {
+        $owner = $this->createUser('private-owner-2');
+        $otherUser = $this->createUser('private-other-2');
+        $event = Event::create([
+            'title' => 'Protected Private Note Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $note = Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $owner->id,
+            'comment' => 'Nicht anfassbar',
+            'is_private' => true,
+        ]);
+
+        $_SESSION['user_id'] = (int) $otherUser->id;
+        $_SESSION['can_manage_users'] = false;
+
+        $controller = new EventController($this->createTwig());
+        $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+            'content' => 'Manipulationsversuch',
+        ]);
+        $updateResult = $controller->updateNote(
+            $updateRequest,
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $updateResult->getStatusCode());
+
+        $deleteRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete');
+        $deleteResult = $controller->deleteNote(
+            $deleteRequest,
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $deleteResult->getStatusCode());
+
+        $note->refresh();
+        $this->assertSame('Nicht anfassbar', $note->comment);
+        $this->assertNotNull(Comment::find($note->id));
+    }
+
+    public function testPublicEventNoteCannotBeUpdatedOrDeleted(): void
+    {
+        $user = $this->createUser('public-owner');
+        $_SESSION['user_id'] = (int) $user->id;
+        $_SESSION['can_manage_users'] = false;
+
+        $event = Event::create([
+            'title' => 'Public Note Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $note = Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $user->id,
+            'comment' => 'Öffentlich und fix',
+            'is_private' => false,
+        ]);
+
+        $controller = new EventController($this->createTwig());
+        $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+            'content' => 'Sollte nie gespeichert werden',
+        ]);
+        $updateResult = $controller->updateNote(
+            $updateRequest,
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $updateResult->getStatusCode());
+
+        $deleteRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete');
+        $deleteResult = $controller->deleteNote(
+            $deleteRequest,
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $deleteResult->getStatusCode());
+
+        $note->refresh();
+        $this->assertSame('Öffentlich und fix', $note->comment);
+        $this->assertNotNull(Comment::find($note->id));
+    }
+
+    public function testPublicEventNoteCanBeUpdatedOrDeletedByEventEditors(): void
+    {
+        $author = $this->createUser('public-author');
+        $editor = $this->createUser('public-editor');
+
+        $event = Event::create([
+            'title' => 'Editable Public Note Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $note = Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $author->id,
+            'comment' => 'Öffentliche Notiz vom Autor',
+            'is_private' => false,
+        ]);
+
+        $_SESSION['user_id'] = (int) $editor->id;
+        $_SESSION['can_manage_users'] = true;
+
+        $controller = new EventController($this->createTwig());
+        $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+            'content' => 'Von Bearbeiter aktualisiert',
+        ]);
+
+        $updateResult = $controller->updateNote(
+            $updateRequest,
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertRedirect($updateResult, '/events/' . $event->id);
+
+        $note->refresh();
+        $this->assertSame('Von Bearbeiter aktualisiert', $note->comment);
+
+        $deleteRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete');
+        $deleteResult = $controller->deleteNote(
+            $deleteRequest,
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertRedirect($deleteResult, '/events/' . $event->id);
+        $this->assertNull(Comment::find($note->id));
+    }
+
     private function createTwig(): Twig
     {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
@@ -543,6 +843,17 @@ class EventFeatureTest extends TestCase
         return $twig;
     }
 
+    private function createUser(string $suffix): User
+    {
+        return User::create([
+            'first_name' => 'Event',
+            'last_name' => 'User ' . $suffix,
+            'email' => 'event-' . $suffix . '@example.test',
+            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+    }
+
     private function createEvent(string $title, string $relativeDate, ?int $projectId = null): Event
     {
         $date = (new \DateTimeImmutable($relativeDate . ' 12:00:00'))->format('Y-m-d');
@@ -568,6 +879,20 @@ class EventFeatureTest extends TestCase
         $response = $this->makeResponse();
 
         $result = $controller->index($request, $response);
+
+        return (string) $result->getBody();
+    }
+
+    private function renderEventDetail(int $eventId): string
+    {
+        $_SERVER['REQUEST_URI'] = '/events/' . $eventId;
+
+        $twig = $this->createTwig();
+        $controller = new EventController($twig);
+        $request = $this->makeRequest('GET', '/events/' . $eventId);
+        $response = $this->makeResponse();
+
+        $result = $controller->detail($request, $response, ['id' => (string) $eventId]);
 
         return (string) $result->getBody();
     }

@@ -16,11 +16,13 @@ class Comment extends Model
         'entity_id',
         'user_id',
         'comment',
+        'is_private',
         'created_at',
         'updated_at'
     ];
 
     protected $casts = [
+        'is_private' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

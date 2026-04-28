@@ -103,6 +103,7 @@ class DevSeedService
                 'tasks' => 0,
                 'task_activities' => 0,
                 'task_comments' => 0,
+                'event_notes' => 0,
                 'task_attachments' => 0,
                 'event_types' => 0,
                 'event_series' => 0,
@@ -155,6 +156,7 @@ class DevSeedService
 
             $projectEvents = $this->seedProjectEvents($projects, $eventTypes);
             $this->seedGlobalEvents($projects, $eventTypes, 12);
+            $this->seedEventNotes($users['active']);
 
             $this->seedAttendance($projectMembers, $projectEvents);
             $this->seedFinances($projects, 320, 40);
@@ -807,6 +809,50 @@ class DevSeedService
                 'location' => $this->pickLocation(),
             ]);
             $this->report['counts']['events']++;
+        }
+    }
+
+    private function seedEventNotes(array $activeUsers): void
+    {
+        if ($activeUsers === []) {
+            return;
+        }
+
+        $eventIds = Event::query()->orderBy('id')->pluck('id')->all();
+        if ($eventIds === []) {
+            return;
+        }
+
+        $definitions = [
+            ['comment' => 'Bitte 15 Minuten vor Beginn da sein.', 'is_private' => false],
+            ['comment' => 'Raumschlüssel liegt beim Portier bereit.', 'is_private' => false],
+            ['comment' => 'Eigene Anfahrt mit dem Vorstand abstimmen.', 'is_private' => true],
+            ['comment' => 'Nach dem Termin kurzes Nachgespräch mit der Chorleitung.', 'is_private' => true],
+        ];
+
+        $targetIds = array_slice($eventIds, 0, min(count($eventIds), 36));
+        foreach ($targetIds as $index => $eventId) {
+            $noteCount = ($index % 3 === 0) ? 2 : 1;
+            for ($slot = 0; $slot < $noteCount; $slot++) {
+                $definition = $definitions[($index + $slot) % count($definitions)];
+                $author = $activeUsers[($index + $slot) % count($activeUsers)];
+
+                $note = Comment::updateOrCreate(
+                    [
+                        'entity_type' => 'event',
+                        'entity_id' => $eventId,
+                        'user_id' => $author->id,
+                        'comment' => $definition['comment'],
+                    ],
+                    [
+                        'is_private' => $definition['is_private'],
+                    ]
+                );
+
+                if ($note->wasRecentlyCreated) {
+                    $this->report['counts']['event_notes']++;
+                }
+            }
         }
     }
 
