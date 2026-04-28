@@ -21,6 +21,7 @@ use App\Services\HtmlSanitizer;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Util\EnvHelper;
+use Psr\Log\LoggerInterface;
 
 class NewsletterController
 {
@@ -31,6 +32,7 @@ class NewsletterController
     private HtmlSanitizer $htmlSanitizer;
     private NewsletterTemplateQuery $templateQuery;
     private NewsletterTemplatePersistence $templatePersistence;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
@@ -39,7 +41,8 @@ class NewsletterController
         NewsletterRecipientService $recipientService,
         HtmlSanitizer $htmlSanitizer,
         NewsletterTemplateQuery $templateQuery,
-        NewsletterTemplatePersistence $templatePersistence
+        NewsletterTemplatePersistence $templatePersistence,
+        LoggerInterface $logger
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -48,6 +51,7 @@ class NewsletterController
         $this->htmlSanitizer = $htmlSanitizer;
         $this->templateQuery = $templateQuery;
         $this->templatePersistence = $templatePersistence;
+        $this->logger = $logger;
     }
 
     /**
@@ -388,11 +392,11 @@ class NewsletterController
 
         if (!$canEdit) {
             $lockedByUser = User::find($newsletter->locked_by);
-            return $this->view->render($response, 'newsletters/locked.twig', [
+            return $this->view->render($response->withStatus(423), 'newsletters/locked.twig', [
                 'newsletter' => $newsletter,
                 'locked_by_user' => $lockedByUser,
                 'is_modal' => $isModal,
-            ], null, 423);
+            ]);
         }
 
         $this->lockingService->acquireLock($newsletter, $userId);
@@ -551,7 +555,15 @@ class NewsletterController
                 ]);
             }
         } catch (\Exception $e) {
-            error_log((string) $e);
+            $this->logger->error(
+                'Newsletter send failed.',
+                [
+                    'event' => 'newsletter.send.failed',
+                    'newsletter_id' => $id,
+                    'user_id' => is_numeric($userId) ? (int) $userId : null,
+                    'exception' => $e,
+                ]
+            );
             $message = 'Fehler beim Versand.';
             if (!$expectsJson) {
                 $_SESSION['error'] = $message;

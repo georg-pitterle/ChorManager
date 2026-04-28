@@ -158,6 +158,7 @@ class MailQueueFeatureTest extends TestCase
         $this->assertIsString($seedService);
         $this->assertStringContainsString('mail:process-queue', $command);
         $this->assertStringContainsString("'mailqueue_batch_size'", $command);
+        $this->assertStringNotContainsString('writeln(', $command);
         $this->assertStringContainsString('addCommand', $runner);
         $this->assertStringContainsString('setDefaultCommand', $runner);
         $this->assertStringContainsString("'mailqueue_trigger_mode' => 'hybrid'", $seedService);

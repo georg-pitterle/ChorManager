@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use DI\ContainerBuilder;
+use App\Logging\AppLoggerFactory;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
@@ -42,6 +44,12 @@ return function (ContainerBuilder $containerBuilder) {
             $capsule->bootEloquent();
 
             return $capsule;
+        },
+        LoggerInterface::class => function (ContainerInterface $c): LoggerInterface {
+            $settings = $c->get('settings');
+            $loggingSettings = is_array($settings['logging'] ?? null) ? $settings['logging'] : [];
+
+            return AppLoggerFactory::create($loggingSettings);
         },
         UserQuery::class => \DI\autowire(),
         UserPersistence::class => \DI\autowire(),

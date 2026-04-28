@@ -12,18 +12,25 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\PasswordPolicyService;
+use Psr\Log\LoggerInterface;
 
 class ProfileController
 {
     private Twig $view;
     private UserQuery $userQuery;
     private PasswordPolicyService $passwordPolicyService;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view, UserQuery $userQuery, PasswordPolicyService $passwordPolicyService)
-    {
+    public function __construct(
+        Twig $view,
+        UserQuery $userQuery,
+        PasswordPolicyService $passwordPolicyService,
+        LoggerInterface $logger
+    ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
         $this->passwordPolicyService = $passwordPolicyService;
+        $this->logger = $logger;
     }
 
     public function index(Request $request, Response $response): Response
@@ -87,7 +94,14 @@ class ProfileController
                 $_SESSION['user_name'] = $firstName;
             }
         } catch (\Exception $e) {
-            error_log((string) $e);
+            $this->logger->error(
+                'Profile update failed.',
+                [
+                    'event' => 'profile.update.failed',
+                    'user_id' => $userId,
+                    'exception' => $e,
+                ]
+            );
             $_SESSION['error'] = 'Fehler beim Speichern.';
         }
 

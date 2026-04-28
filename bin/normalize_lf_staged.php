@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Util\CliBootstrap;
+
+require __DIR__ . '/bootstrap_cli.php';
+
+$logger = CliBootstrap::logger();
+
 $root = dirname(__DIR__);
 $allowCrLfExtensions = ['bat', 'cmd', 'ps1'];
 
@@ -10,7 +16,14 @@ $exitCode = 0;
 exec('git -C ' . escapeshellarg($root) . ' diff --cached --name-only --diff-filter=ACMR', $output, $exitCode);
 
 if ($exitCode !== 0) {
-    fwrite(STDERR, "Could not list staged files via git.\n");
+    $logger->error(
+        'Could not list staged files via git.',
+        [
+            'event' => 'lf_normalize.git_list_failed',
+            'root' => str_replace('\\', '/', $root),
+            'exit_code' => $exitCode,
+        ]
+    );
     exit(2);
 }
 
@@ -36,7 +49,13 @@ foreach ($output as $relativePath) {
 
     $content = file_get_contents($absolutePath);
     if ($content === false) {
-        fwrite(STDERR, "Could not read file: {$normalizedPath}\n");
+        $logger->error(
+            'Could not read staged file during LF normalization.',
+            [
+                'event' => 'lf_normalize.file_read_failed',
+                'path' => $normalizedPath,
+            ]
+        );
         exit(2);
     }
 
@@ -56,7 +75,13 @@ foreach ($output as $relativePath) {
 
     $writeOk = file_put_contents($absolutePath, $lfContent);
     if ($writeOk === false) {
-        fwrite(STDERR, "Could not write file: {$normalizedPath}\n");
+        $logger->error(
+            'Could not write staged file during LF normalization.',
+            [
+                'event' => 'lf_normalize.file_write_failed',
+                'path' => $normalizedPath,
+            ]
+        );
         exit(2);
     }
 
@@ -71,16 +96,31 @@ if ($normalized !== []) {
     $reAddExitCode = 0;
     exec($command, $reAddOutput, $reAddExitCode);
     if ($reAddExitCode !== 0) {
-        fwrite(STDERR, "Could not re-stage normalized files.\n");
+        $logger->error(
+            'Could not re-stage normalized files.',
+            [
+                'event' => 'lf_normalize.git_add_failed',
+                'paths' => $normalized,
+                'exit_code' => $reAddExitCode,
+            ]
+        );
         exit(2);
     }
 
-    fwrite(STDOUT, "Normalized to LF and re-staged:\n");
-    foreach ($normalized as $path) {
-        fwrite(STDOUT, " - {$path}\n");
-    }
+    $logger->info(
+        'Normalized staged files to LF and re-staged them.',
+        [
+            'event' => 'lf_normalize.completed',
+            'paths' => $normalized,
+        ]
+    );
     exit(0);
 }
 
-fwrite(STDOUT, "No staged text files required LF normalization.\n");
+$logger->info(
+    'No staged text files required LF normalization.',
+    [
+        'event' => 'lf_normalize.no_changes',
+    ]
+);
 exit(0);

@@ -15,6 +15,8 @@ use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class PasswordResetController
 {
@@ -23,19 +25,22 @@ class PasswordResetController
     private ?RateLimiterService $rateLimiter;
     private PasswordPolicyService $passwordPolicyService;
     private MailQueueService $mailQueueService;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
         ?Mailer $mailer = null,
         ?RateLimiterService $rateLimiter = null,
         ?PasswordPolicyService $passwordPolicyService = null,
-        ?MailQueueService $mailQueueService = null
+        ?MailQueueService $mailQueueService = null,
+        ?LoggerInterface $logger = null
     ) {
         $this->view = $view;
         $this->mailer = $mailer ?? new Mailer();
         $this->rateLimiter = $rateLimiter;
         $this->passwordPolicyService = $passwordPolicyService ?? new PasswordPolicyService();
         $this->mailQueueService = $mailQueueService ?? new MailQueueService();
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function showForgotForm(Request $request, Response $response): Response
@@ -99,7 +104,15 @@ class PasswordResetController
             );
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
         } catch (\Exception $e) {
-            error_log('Failed to enqueue password reset mail: ' . $e->getMessage());
+            $this->logger->error(
+                'Failed to enqueue password reset mail.',
+                [
+                    'event' => 'password_reset.enqueue.failed',
+                    'user_id' => (int) $user->id,
+                    'recipient_email' => $email,
+                    'exception' => $e,
+                ]
+            );
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
         }
 

@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Util\CliBootstrap;
+
+require __DIR__ . '/bootstrap_cli.php';
+
+$logger = CliBootstrap::logger();
+
 $root = dirname(__DIR__);
 $allowCrLfExtensions = ['bat', 'cmd', 'ps1'];
 
@@ -10,7 +16,14 @@ $exitCode = 0;
 exec('git -C ' . escapeshellarg($root) . ' ls-files', $output, $exitCode);
 
 if ($exitCode !== 0) {
-    fwrite(STDERR, "Could not list tracked files via git.\n");
+    $logger->error(
+        'Could not list tracked files via git.',
+        [
+            'event' => 'lf_repo_check.git_list_failed',
+            'root' => str_replace('\\', '/', $root),
+            'exit_code' => $exitCode,
+        ]
+    );
     exit(2);
 }
 
@@ -36,7 +49,13 @@ foreach ($output as $relativePath) {
 
     $content = file_get_contents($absolutePath);
     if ($content === false) {
-        fwrite(STDERR, "Could not read file: {$normalizedPath}\n");
+        $logger->error(
+            'Could not read tracked file during LF verification.',
+            [
+                'event' => 'lf_repo_check.file_read_failed',
+                'path' => $normalizedPath,
+            ]
+        );
         exit(2);
     }
 
@@ -51,12 +70,21 @@ foreach ($output as $relativePath) {
 }
 
 if ($violations !== []) {
-    fwrite(STDERR, "CRLF detected in tracked files that must be LF:\n");
-    foreach ($violations as $path) {
-        fwrite(STDERR, " - {$path}\n");
-    }
+    $logger->error(
+        'CRLF detected in tracked files that must use LF.',
+        [
+            'event' => 'lf_repo_check.crlf_detected',
+            'paths' => $violations,
+        ]
+    );
     exit(1);
 }
 
-fwrite(STDOUT, "OK: LF endings verified for all tracked text files (except .bat/.cmd/.ps1).\n");
+$logger->info(
+    'LF endings verified for tracked text files.',
+    [
+        'event' => 'lf_repo_check.completed',
+        'excluded_extensions' => $allowCrLfExtensions,
+    ]
+);
 exit(0);

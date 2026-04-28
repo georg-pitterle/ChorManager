@@ -1,5 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Util\CliBootstrap;
+
+require __DIR__ . '/bootstrap_cli.php';
+
 function copyRecursive(string $source, string $destination): void
 {
     if (is_dir($source)) {
@@ -70,7 +76,19 @@ function copyAssets(): void
 
 try {
     copyAssets();
-} catch (Exception $e) {
-    fwrite(STDERR, "Asset copy failed: " . $e->getMessage() . PHP_EOL);
+    CliBootstrap::logger()->info(
+        'Asset copy completed.',
+        [
+            'event' => 'assets.copy.completed',
+        ]
+    );
+} catch (Throwable $e) {
+    CliBootstrap::logger()->error(
+        'Asset copy failed.',
+        [
+            'event' => 'assets.copy.failed',
+            'exception' => $e,
+        ]
+    );
     exit(1);
 }

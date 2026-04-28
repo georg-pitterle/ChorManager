@@ -7,15 +7,19 @@ namespace App\Services;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use App\Util\EnvHelper;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class Mailer
 {
     private PHPMailer $mail;
     private ?string $lastError = null;
     private bool $useSmtp = false;
+    private LoggerInterface $logger;
 
-    public function __construct()
+    public function __construct(?LoggerInterface $logger = null)
     {
+        $this->logger = $logger ?? new NullLogger();
         $this->mail = new PHPMailer(true);
         $this->configure();
     }
@@ -83,7 +87,14 @@ class Mailer
         $providerName = $this->useSmtp ? 'smtp' : 'sendmail';
 
         if ($this->isMailSendDisabled()) {
-            error_log('Mailer: DISABLE_MAIL_SEND is active - skipping outbound mail.');
+            $this->logger->info(
+                'Outbound mail skipped because DISABLE_MAIL_SEND is active.',
+                [
+                    'event' => 'mail.send.skipped',
+                    'provider_name' => 'disabled',
+                    'recipient_email' => $to,
+                ]
+            );
 
             return [
                 'success' => true,
@@ -107,7 +118,15 @@ class Mailer
             $result = $this->mail->send();
             if ($result) {
                 $mode = $this->useSmtp ? 'SMTP' : 'sendmail';
-                error_log("Newsletter: Mail sent successfully via {$mode} to {$to}");
+                $this->logger->info(
+                    'Mail sent successfully.',
+                    [
+                        'event' => 'mail.send.success',
+                        'mode' => $mode,
+                        'provider_name' => $providerName,
+                        'recipient_email' => $to,
+                    ]
+                );
 
                 $providerMessageId = trim((string) $this->mail->getLastMessageID());
 
@@ -128,7 +147,17 @@ class Mailer
         } catch (Exception $e) {
             $this->lastError = $this->mail->ErrorInfo !== '' ? $this->mail->ErrorInfo : $e->getMessage();
             $mode = $this->useSmtp ? 'SMTP' : 'sendmail';
-            error_log("Newsletter: Message could not be sent via {$mode}. Error: {$this->lastError}");
+            $this->logger->error(
+                'Mail send failed.',
+                [
+                    'event' => 'mail.send.failed',
+                    'mode' => $mode,
+                    'provider_name' => $providerName,
+                    'recipient_email' => $to,
+                    'error' => $this->lastError,
+                    'exception' => $e,
+                ]
+            );
 
             return [
                 'success' => false,

@@ -3,16 +3,10 @@
 declare(strict_types=1);
 
 use App\Services\DevSeedService;
-use DI\ContainerBuilder;
-use Dotenv\Dotenv;
+use App\Util\CliBootstrap;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
-require __DIR__ . '/../vendor/autoload.php';
-
-$envPath = __DIR__ . '/../.env';
-if (file_exists($envPath)) {
-    Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
-}
+require __DIR__ . '/bootstrap_cli.php';
 
 $options = [
     'mode' => 'append',
@@ -34,14 +28,8 @@ foreach ($argv as $arg) {
     }
 }
 
-$containerBuilder = new ContainerBuilder();
-$settings = require __DIR__ . '/../src/Settings.php';
-$settings($containerBuilder);
-
-$dependencies = require __DIR__ . '/../src/Dependencies.php';
-$dependencies($containerBuilder);
-
-$container = $containerBuilder->build();
+$logger = CliBootstrap::logger();
+$container = CliBootstrap::container();
 $container->get(Capsule::class);
 
 /** @var DevSeedService $service */
@@ -49,9 +37,27 @@ $service = $container->get(DevSeedService::class);
 
 try {
     $report = $service->run($options['mode'], $options['years'], $options['seed']);
-    echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . PHP_EOL;
+    $logger->info(
+        'Development seed completed.',
+        [
+            'event' => 'dev_seed.completed',
+            'mode' => $options['mode'],
+            'years' => $options['years'],
+            'seed' => $options['seed'],
+            'report' => $report,
+        ]
+    );
     exit(0);
 } catch (Throwable $e) {
-    fwrite(STDERR, 'Seed failed: ' . $e->getMessage() . PHP_EOL);
+    $logger->error(
+        'Development seed failed.',
+        [
+            'event' => 'dev_seed.failed',
+            'mode' => $options['mode'],
+            'years' => $options['years'],
+            'seed' => $options['seed'],
+            'exception' => $e,
+        ]
+    );
     exit(1);
 }

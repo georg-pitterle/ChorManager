@@ -30,6 +30,13 @@ return function (ContainerBuilder $containerBuilder) {
                 'template_path' => __DIR__ . '/../templates',
                 'cache_path' => false, // __DIR__ . '/../var/cache' for production
             ],
+            'logging' => [
+                'channel' => 'chormanager',
+                'service' => 'chormanager',
+                'environment' => AppEnvironment::current(),
+                'stream' => EnvHelper::read('APP_LOG_STREAM', 'php://stderr'),
+                'level' => strtoupper(EnvHelper::read('APP_LOG_LEVEL', 'INFO')),
+            ],
         ],
     ]);
 };

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\HtmlSanitizer;
 use Carbon\Carbon;
 use Exception;
+use Psr\Log\LoggerInterface;
 
 class NewsletterService
 {
@@ -18,17 +19,20 @@ class NewsletterService
     private Mailer $mailer;
     private HtmlSanitizer $htmlSanitizer;
     private MailQueueService $mailQueueService;
+    private LoggerInterface $logger;
 
     public function __construct(
         NewsletterRecipientService $recipientService,
         Mailer $mailer,
         HtmlSanitizer $htmlSanitizer,
-        MailQueueService $mailQueueService
+        MailQueueService $mailQueueService,
+        LoggerInterface $logger
     ) {
         $this->recipientService = $recipientService;
         $this->mailer = $mailer;
         $this->htmlSanitizer = $htmlSanitizer;
         $this->mailQueueService = $mailQueueService;
+        $this->logger = $logger;
     }
 
     /**
@@ -94,7 +98,16 @@ class NewsletterService
 
                 $sentCount++;
             } catch (Exception $e) {
-                error_log('Failed to enqueue newsletter: ' . $e->getMessage());
+                $this->logger->error(
+                    'Failed to enqueue newsletter recipient.',
+                    [
+                        'event' => 'newsletter.enqueue.failed',
+                        'newsletter_id' => (int) $newsletter->id,
+                        'recipient_id' => (int) $recipient->id,
+                        'recipient_email' => $toEmail,
+                        'exception' => $e,
+                    ]
+                );
                 NewsletterRecipient::where('newsletter_id', $newsletter->id)
                     ->where('user_id', $recipient->user->id)
                     ->update(['status' => 'failed']);

@@ -9,14 +9,16 @@ use App\Services\MailDeliveryService;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 class MailQueueProcessingMiddleware implements MiddlewareInterface
 {
-    public function __construct(private readonly MailDeliveryService $deliveryService)
-    {
-    }
+    public function __construct(
+        private readonly MailDeliveryService $deliveryService,
+        private readonly LoggerInterface $logger
+    ) {}
 
     public function process(Request $request, RequestHandler $handler): Response
     {
@@ -56,7 +58,13 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
 
             $this->deliveryService->processDueEntries($batchSize);
         } catch (\Throwable $exception) {
-            error_log('MailQueue opportunistic processing failed: ' . $exception->getMessage());
+            $this->logger->error(
+                'Opportunistic mail queue processing failed.',
+                [
+                    'event' => 'mail_queue.opportunistic.failed',
+                    'exception' => $exception,
+                ]
+            );
         }
     }
 

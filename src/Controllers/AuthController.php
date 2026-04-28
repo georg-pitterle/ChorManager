@@ -16,6 +16,7 @@ use App\Services\RateLimiterService;
 use App\Services\PasswordPolicyService;
 use App\Util\ClientIpResolver;
 use App\Util\InputValidator;
+use Psr\Log\LoggerInterface;
 
 class AuthController
 {
@@ -27,6 +28,7 @@ class AuthController
     private SessionAuthService $sessionAuthService;
     private RateLimiterService $rateLimiterService;
     private PasswordPolicyService $passwordPolicyService;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
@@ -34,7 +36,8 @@ class AuthController
         RememberLoginService $rememberLoginService,
         SessionAuthService $sessionAuthService,
         RateLimiterService $rateLimiterService,
-        PasswordPolicyService $passwordPolicyService
+        PasswordPolicyService $passwordPolicyService,
+        LoggerInterface $logger
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
@@ -42,6 +45,7 @@ class AuthController
         $this->sessionAuthService = $sessionAuthService;
         $this->rateLimiterService = $rateLimiterService;
         $this->passwordPolicyService = $passwordPolicyService;
+        $this->logger = $logger;
     }
 
     public function showLogin(Request $request, Response $response): Response
@@ -185,7 +189,14 @@ class AuthController
             $_SESSION['success'] = 'Administratorkonto erfolgreich erstellt!';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         } catch (\Exception $e) {
-            error_log((string) $e);
+            $this->logger->error(
+                'Initial setup failed while creating first admin account.',
+                [
+                    'event' => 'auth.setup.failed',
+                    'email' => $email,
+                    'exception' => $e,
+                ]
+            );
             $_SESSION['error'] = 'Fehler beim Erstellen des Kontos.';
             return $response->withHeader('Location', '/setup')->withStatus(302);
         }

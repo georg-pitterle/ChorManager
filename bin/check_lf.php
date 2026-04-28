@@ -2,8 +2,20 @@
 
 declare(strict_types=1);
 
+use App\Util\CliBootstrap;
+
+require __DIR__ . '/bootstrap_cli.php';
+
+$logger = CliBootstrap::logger();
+
 if ($argc < 3) {
-    fwrite(STDERR, "Usage: php bin/check_lf.php <directory> <extension>\n");
+    $logger->error(
+        'LF check requires directory and extension arguments.',
+        [
+            'event' => 'lf_check.invalid_arguments',
+            'argument_count' => $argc,
+        ]
+    );
     exit(2);
 }
 
@@ -11,7 +23,13 @@ $directory = $argv[1];
 $extension = ltrim($argv[2], '.');
 
 if (!is_dir($directory)) {
-    fwrite(STDERR, "Directory not found: {$directory}\n");
+    $logger->error(
+        'LF check directory not found.',
+        [
+            'event' => 'lf_check.directory_not_found',
+            'directory' => $directory,
+        ]
+    );
     exit(2);
 }
 
@@ -32,7 +50,13 @@ foreach ($iterator as $file) {
 
     $content = file_get_contents($file->getPathname());
     if ($content === false) {
-        fwrite(STDERR, "Could not read file: {$file->getPathname()}\n");
+        $logger->error(
+            'LF check could not read file.',
+            [
+                'event' => 'lf_check.file_read_failed',
+                'path' => str_replace('\\', '/', $file->getPathname()),
+            ]
+        );
         exit(2);
     }
 
@@ -42,12 +66,24 @@ foreach ($iterator as $file) {
 }
 
 if ($violations !== []) {
-    fwrite(STDERR, "CRLF detected in files that must use LF:\n");
-    foreach ($violations as $path) {
-        fwrite(STDERR, " - {$path}\n");
-    }
+    $logger->error(
+        'CRLF detected in files that must use LF.',
+        [
+            'event' => 'lf_check.crlf_detected',
+            'directory' => str_replace('\\', '/', $directory),
+            'extension' => $extension,
+            'paths' => $violations,
+        ]
+    );
     exit(1);
 }
 
-fwrite(STDOUT, "OK: LF endings verified for *.{$extension} in {$directory}\n");
+$logger->info(
+    'LF endings verified successfully.',
+    [
+        'event' => 'lf_check.completed',
+        'directory' => str_replace('\\', '/', $directory),
+        'extension' => $extension,
+    ]
+);
 exit(0);

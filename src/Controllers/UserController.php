@@ -23,6 +23,7 @@ use App\Models\InvitationToken;
 use App\Services\Mailer;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
+use Psr\Log\LoggerInterface;
 
 class UserController
 {
@@ -33,6 +34,7 @@ class UserController
     private ProjectPersistence $projectPersistence;
     private PasswordPolicyService $passwordPolicyService;
     private MailQueueService $mailQueueService;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
@@ -41,7 +43,8 @@ class UserController
         UserPersistence $userPersistence,
         ProjectPersistence $projectPersistence,
         PasswordPolicyService $passwordPolicyService,
-        MailQueueService $mailQueueService
+        MailQueueService $mailQueueService,
+        LoggerInterface $logger
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
@@ -50,6 +53,7 @@ class UserController
         $this->projectPersistence = $projectPersistence;
         $this->passwordPolicyService = $passwordPolicyService;
         $this->mailQueueService = $mailQueueService;
+        $this->logger = $logger;
     }
 
     public function index(Request $request, Response $response): Response
@@ -229,7 +233,14 @@ class UserController
                 $_SESSION['success'] = 'Mitglied erfolgreich angelegt.';
             }
         } catch (\Exception $e) {
-            error_log((string) $e);
+            $this->logger->error(
+                'User creation failed.',
+                [
+                    'event' => 'user.create.failed',
+                    'email' => $email,
+                    'exception' => $e,
+                ]
+            );
             $createService = new ModalFormService('user_create');
             $createService->setError('Fehler beim Anlegen des Mitglieds.', $formData);
         }
@@ -367,7 +378,14 @@ class UserController
 
             $_SESSION['success'] = 'Mitglied erfolgreich aktualisiert.';
         } catch (\Exception $e) {
-            error_log((string) $e);
+            $this->logger->error(
+                'User update failed.',
+                [
+                    'event' => 'user.update.failed',
+                    'user_id' => $userId,
+                    'exception' => $e,
+                ]
+            );
             $editService = new ModalFormService('user_edit_' . $userId);
             $editService->setError('Fehler beim Speichern.', $formData);
         }
@@ -590,7 +608,15 @@ class UserController
                 'message' => 'Einladungs-E-Mail wurde zur Queue hinzugefügt.',
             ];
         } catch (\Throwable $e) {
-            error_log((string) $e);
+            $this->logger->error(
+                'Invitation email enqueue failed.',
+                [
+                    'event' => 'user.invitation.failed',
+                    'user_id' => (int) $targetUser->id,
+                    'recipient_email' => (string) $targetUser->email,
+                    'exception' => $e,
+                ]
+            );
             return [
                 'success' => false,
                 'message' => 'Fehler beim Senden der E-Mail.',

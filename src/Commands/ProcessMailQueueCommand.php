@@ -6,16 +6,19 @@ namespace App\Commands;
 
 use App\Models\AppSetting;
 use App\Services\MailDeliveryService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ProcessMailQueueCommand extends Command
 {
-    protected static $defaultName = 'mail:process-queue';
+    protected static string $defaultName = 'mail:process-queue';
 
-    public function __construct(private readonly MailDeliveryService $deliveryService)
-    {
+    public function __construct(
+        private readonly MailDeliveryService $deliveryService,
+        private readonly LoggerInterface $logger
+    ) {
         parent::__construct();
     }
 
@@ -26,7 +29,7 @@ class ProcessMailQueueCommand extends Command
         $this->setHelp('Processes due mail queue entries with the configured batch size.');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $_output): int
     {
         $batchSize = (int) (AppSetting::query()
             ->where('setting_key', 'mailqueue_batch_size')
@@ -34,22 +37,48 @@ class ProcessMailQueueCommand extends Command
 
         $batchSize = max(1, $batchSize);
 
-        $output->writeln('Processing mail queue with batch size: ' . $batchSize);
+        $this->logger->debug(
+            'Starting mail queue processing.',
+            [
+                'event' => 'mail_queue.process.start',
+                'batch_size' => $batchSize,
+            ]
+        );
 
         try {
             $repairedCount = $this->deliveryService->repairStaleSendingEntries();
-            $output->writeln('Watchdog repaired stale sending entries: ' . $repairedCount);
+            $this->logger->debug(
+                'Stale sending entries repaired by watchdog.',
+                [
+                    'event' => 'mail_queue.watchdog.repaired',
+                    'repaired_count' => $repairedCount,
+                ]
+            );
 
             $stats = $this->deliveryService->processDueEntries($batchSize);
 
-            $output->writeln('Sent: ' . $stats['sent']);
-            $output->writeln('Skipped: ' . $stats['skipped']);
-            $output->writeln('Failed: ' . $stats['failed']);
-            $output->writeln('Dead: ' . $stats['dead']);
+            $this->logger->debug(
+                'Mail queue processing completed.',
+                [
+                    'event' => 'mail_queue.process.completed',
+                    'batch_size' => $batchSize,
+                    'sent' => (int) ($stats['sent'] ?? 0),
+                    'skipped' => (int) ($stats['skipped'] ?? 0),
+                    'failed' => (int) ($stats['failed'] ?? 0),
+                    'dead' => (int) ($stats['dead'] ?? 0),
+                ]
+            );
 
             return Command::SUCCESS;
         } catch (\Throwable $exception) {
-            $output->writeln('<error>Error processing queue: ' . $exception->getMessage() . '</error>');
+            $this->logger->error(
+                'Mail queue processing failed.',
+                [
+                    'event' => 'mail_queue.process.failed',
+                    'batch_size' => $batchSize,
+                    'exception' => $exception,
+                ]
+            );
 
             return Command::FAILURE;
         }

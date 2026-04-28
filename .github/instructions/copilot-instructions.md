@@ -22,3 +22,11 @@ VS Code reserved commands are replaced with these Superpowers equivalents:
 All skill definitions are available at `./.superpowers/skills/` (workspace-resident).
 This path keeps all Superpowers content within your workspace, preventing permission prompts.
 <!-- SUPERPOWERS-END -->
+
+# Structured Logging Rule
+
+- Use Monolog through `Psr\Log\LoggerInterface` for all runtime logs in `src/`.
+- Avoid direct `error_log()` calls in runtime application code.
+- Logs must be emitted as single-line JSON records to `php://stderr`.
+- Include an `event` field in log context for machine-readable filtering.
+- For caught exceptions, include the throwable in context as `exception`.
