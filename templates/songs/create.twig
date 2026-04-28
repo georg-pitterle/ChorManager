@@ -1,0 +1,152 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Neues Lied - Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item">
+                        <a href="/song-library">Repertoire</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Neues Lied</li>
+                </ol>
+            </nav>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-music-note-list me-2"></i>Neues Lied anlegen
+            </h1>
+            <p class="text-muted mb-0">Alle Felder direkt beim Anlegen befüllen.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/song-library" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Zurück
+            </a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <form method="post" action="/song-library/songs" enctype="multipart/form-data">
+        <div class="dashboard-shell">
+            <section class="dashboard-section dashboard-section--actions"
+                     aria-labelledby="song-create-master-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="song-create-master-title">Stammdaten</h2>
+                    <p class="dashboard-section-lead mb-0">Titel und Metadaten des neuen Liedes.</p>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="title" class="form-label fw-semibold">
+                            Titel <span class="text-danger">*</span>
+                        </label>
+                        <input type="text"
+                               id="title"
+                               name="title"
+                               class="form-control"
+                               required
+                               autofocus>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="composer" class="form-label fw-semibold">Komponist</label>
+                        <input type="text"
+                               id="composer"
+                               name="composer"
+                               class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="arranger" class="form-label fw-semibold">Arrangeur</label>
+                        <input type="text"
+                               id="arranger"
+                               name="arranger"
+                               class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="publisher" class="form-label fw-semibold">Verlag</label>
+                        <input type="text"
+                               id="publisher"
+                               name="publisher"
+                               class="form-control">
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-section dashboard-section--context"
+                     aria-labelledby="song-create-meta-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="song-create-meta-title">Kategorien und Anhänge</h2>
+                    <p class="dashboard-section-lead mb-0">Optional: Kategorien zuweisen und Dateien hochladen.</p>
+                </div>
+
+                <div class="dashboard-context-grid">
+                    <article class="surface-card dashboard-panel dashboard-panel--context">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Kategorisierung</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-tags"></i>Kategorien
+                            </h3>
+                            {% if all_categories|length > 0 %}
+                                <div class="row row-cols-1 row-cols-sm-2 g-2">
+                                    {% for cat in all_categories %}
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       name="category_ids[]"
+                                                       id="cat_{{ cat.id }}"
+                                                       value="{{ cat.id }}">
+                                                <label class="form-check-label" for="cat_{{ cat.id }}">{{ cat.name }}</label>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small mb-0">Noch keine Kategorien angelegt.</p>
+                            {% endif %}
+                        </div>
+                    </article>
+
+                    <article class="surface-card dashboard-panel dashboard-panel--context">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Dateien</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-paperclip"></i>Anhänge
+                            </h3>
+                            <p class="dashboard-panel__text mb-2">Dateien können direkt beim Anlegen hochgeladen werden.</p>
+
+                            <label for="attachments" class="form-label fw-semibold">Dateien hochladen (optional)</label>
+                            <input type="file"
+                                   id="attachments"
+                                   name="attachments[]"
+                                   class="form-control"
+                                   multiple>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <div class="d-flex gap-2 justify-content-end">
+                <a href="/song-library" class="btn btn-outline-secondary">Abbrechen</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-floppy me-1"></i>Lied anlegen
+                </button>
+            </div>
+        </div>
+    </form>
+{% endblock content %}

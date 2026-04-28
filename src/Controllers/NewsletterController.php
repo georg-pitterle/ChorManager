@@ -291,7 +291,7 @@ class NewsletterController
 
         $events = Event::with('project')
             ->whereIn('project_id', $projects->pluck('id')->toArray())
-            ->orderBy('event_date', 'desc')
+            ->orderBy('starts_at', 'desc')
             ->get();
         $templates = NewsletterTemplate::where('project_id', $projectId)
             ->orWhereNull('project_id')
@@ -400,7 +400,7 @@ class NewsletterController
         $project = $newsletter->project;
         $events = Event::with('project')
             ->whereIn('project_id', $projects->pluck('id')->toArray())
-            ->orderBy('event_date', 'desc')
+            ->orderBy('starts_at', 'desc')
             ->get();
 
         return $this->view->render($response, 'newsletters/edit.twig', [

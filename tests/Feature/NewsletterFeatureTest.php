@@ -417,6 +417,15 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('wird gerade von einer anderen Person bearbeitet', $controllerContent);
     }
 
+    public function testNewsletterCreateAndEditOrderEventsByStartsAt(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("->orderBy('starts_at', 'desc')", $controllerContent);
+        $this->assertStringNotContainsString("->orderBy('event_date', 'desc')", $controllerContent);
+    }
+
     public function testSendActionAllowsUnockedDraftAndHandlesListFlow(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
