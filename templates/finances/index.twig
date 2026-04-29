@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% set can_write_finances = session.can_manage_finances or session.can_manage_users %}
 
@@ -181,8 +181,8 @@
                                 {% endfor %}
                                 {% set _item_payload = {
                                                                     id: item.id,
-                                                                    invoice_date: item.invoice_date,
-                                                                    payment_date: item.payment_date,
+                                                                    invoice_date: item.invoice_date|date("Y-m-d"),
+                                                                    payment_date: item.payment_date ? item.payment_date|date("Y-m-d") : null,
                                                                     description: item.description,
                                                                     group_name: item.group_name,
                                                                     type: item.type,
@@ -394,7 +394,8 @@
         </div>
     {% endif %}
 
-    {% block scripts %}
-        <script src="/js/finances.js"></script>
-    {% endblock scripts %}
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/finances.js"></script>
+{% endblock scripts %}

@@ -152,9 +152,7 @@
                                                                    target="_blank"
                                                                    rel="noopener noreferrer"
                                                                    class="fw-semibold text-decoration-none">{{ resource.title }}</a>
-                                                                {% if resource.description %}
-                                                                    <p class="text-muted small mb-0 mt-1">{{ resource.description }}</p>
-                                                                {% endif %}
+                                                                {% if resource.description %}<p class="text-muted small mb-0 mt-1">{{ resource.description }}</p>{% endif %}
                                                             </div>
                                                         {% endfor %}
                                                     </div>

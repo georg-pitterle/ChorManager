@@ -11,7 +11,7 @@
                 <h1 class="h3 mb-1">{{ event.title }}</h1>
                 <p class="text-muted mb-0">
                     {{ event.starts_at|date('d.m.Y H:i') }} - {{ event.ends_at|date('H:i') }}
-                    {% if event.location %} | {{ event.location }}{% endif %}
+                    {% if event.location %}| {{ event.location }}{% endif %}
                 </p>
             </div>
             <a href="/events" class="btn btn-outline-secondary">Zur Liste</a>
@@ -21,20 +21,28 @@
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
     {% endif %}
 
     {% if error %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
     {% endif %}
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white pb-0 border-bottom-0">
-            <h5 class="mb-0"><i class="bi bi-card-text text-primary me-2"></i>Bemerkungen</h5>
+            <h5 class="mb-0">
+                <i class="bi bi-card-text text-primary me-2"></i>Bemerkungen
+            </h5>
         </div>
         <div class="card-body">
             <div class="vstack gap-3 mb-4">
@@ -52,23 +60,25 @@
 
                         <p class="mb-2">{{ note.comment|nl2br }}</p>
 
-                                                {% set can_edit_private_note = note.is_private and note.user_id == session.user_id %}
-                                                {% set can_edit_public_note = (not note.is_private) and session.can_manage_users %}
+                        {% set can_edit_private_note = note.is_private and note.user_id == session.user_id %}
+                        {% set can_edit_public_note = (not note.is_private) and session.can_manage_users %}
 
-                                                {% if can_edit_private_note or can_edit_public_note %}
-                            <form action="/events/{{ event.id }}/notes/{{ note.id }}/update" method="post" class="mb-2">
-                                                                <label class="visually-hidden" for="event-note-edit-{{ note.id }}">Bemerkung bearbeiten</label>
+                        {% if can_edit_private_note or can_edit_public_note %}
+                            <form action="/events/{{ event.id }}/notes/{{ note.id }}/update"
+                                  method="post"
+                                  class="mb-2">
+                                <label class="visually-hidden" for="event-note-edit-{{ note.id }}">Bemerkung bearbeiten</label>
                                 <textarea class="form-control form-control-sm mb-2"
                                           id="event-note-edit-{{ note.id }}"
                                           name="content"
                                           rows="2"
                                           required>{{ note.comment }}</textarea>
-                                                                <button type="submit" class="btn btn-sm btn-outline-primary">Bemerkung speichern</button>
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Bemerkung speichern</button>
                             </form>
                             <form action="/events/{{ event.id }}/notes/{{ note.id }}/delete"
                                   method="post"
-                                                                    data-confirm="Diese Bemerkung wirklich löschen?">
-                                                                <button type="submit" class="btn btn-sm btn-outline-danger">Bemerkung löschen</button>
+                                  data-confirm="Diese Bemerkung wirklich löschen?">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Bemerkung löschen</button>
                             </form>
                         {% endif %}
                     </div>

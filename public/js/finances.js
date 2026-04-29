@@ -26,20 +26,41 @@ function bindFinanceUiHandlers() {
         });
     });
 
-    document.querySelectorAll('[data-action="edit-finance"]').forEach(button => {
-        button.addEventListener('click', function () {
-            const payload = button.getAttribute('data-finance-item') || '';
-            if (!payload) {
-                return;
-            }
+    document.addEventListener('click', handleEditFinanceClick);
+}
 
-            try {
-                editFinance(JSON.parse(payload));
-            } catch (_error) {
-                // Ignore malformed payloads silently.
-            }
-        });
-    });
+function normalizeFinanceDate(value) {
+    if (!value) {
+        return '';
+    }
+
+    if (typeof value === 'string') {
+        return value.split('T')[0].split(' ')[0];
+    }
+
+    if (typeof value === 'object' && typeof value.date === 'string') {
+        return value.date.split('T')[0].split(' ')[0];
+    }
+
+    return '';
+}
+
+function handleEditFinanceClick(event) {
+    const button = event.target.closest('[data-action="edit-finance"]');
+    if (!button) {
+        return;
+    }
+
+    const payload = button.getAttribute('data-finance-item') || '';
+    if (!payload) {
+        return;
+    }
+
+    try {
+        editFinance(JSON.parse(payload));
+    } catch (_error) {
+        // Ignore malformed payloads silently.
+    }
 }
 
 function resetFinanceModal() {
@@ -89,8 +110,8 @@ function resetFinanceModal() {
 
 function editFinance(item) {
     document.getElementById('finance_id').value = item.id;
-    document.getElementById('invoice_date').value = item.invoice_date.split('T')[0];
-    document.getElementById('payment_date').value = item.payment_date ? item.payment_date.split('T')[0] : '';
+    document.getElementById('invoice_date').value = normalizeFinanceDate(item.invoice_date);
+    document.getElementById('payment_date').value = normalizeFinanceDate(item.payment_date);
     document.getElementById('description').value = item.description;
 
     const sel = document.getElementById('group_select');
@@ -143,14 +164,19 @@ function editFinance(item) {
 
     document.getElementById('financeModalLabel').innerText = 'Eintrag ' + item.running_number + ' bearbeiten';
 
-    var myModal = new bootstrap.Modal(document.getElementById('financeModal'));
-    myModal.show();
+    if (window.bootstrap && window.bootstrap.Modal) {
+        var myModal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('financeModal'));
+        myModal.show();
+    }
 }
 
 // Global exposure for potential onclick handlers if not yet refactored to addEventListener
-const financeModalElement = document.getElementById('financeModal');
+var financeModalElement = document.getElementById('financeModal');
+if (financeModalElement && window.bootstrap && window.bootstrap.Modal) {
+    window.bootstrap.Modal.getOrCreateInstance(financeModalElement);
+}
+
 if (financeModalElement) {
-    bootstrap.Modal.getOrCreateInstance(financeModalElement);
     window.resetFinanceModal = resetFinanceModal;
     window.editFinance = editFinance;
 }

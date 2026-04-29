@@ -32,17 +32,25 @@
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
     {% endif %}
     {% if error %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
         </div>
     {% endif %}
 
-    <form method="post" action="/song-library/songs" enctype="multipart/form-data">
+    <form method="post"
+          action="/song-library/songs"
+          enctype="multipart/form-data">
         <div class="dashboard-shell">
             <section class="dashboard-section dashboard-section--actions"
                      aria-labelledby="song-create-master-title">
@@ -65,24 +73,15 @@
                     </div>
                     <div class="col-md-6">
                         <label for="composer" class="form-label fw-semibold">Komponist</label>
-                        <input type="text"
-                               id="composer"
-                               name="composer"
-                               class="form-control">
+                        <input type="text" id="composer" name="composer" class="form-control">
                     </div>
                     <div class="col-md-6">
                         <label for="arranger" class="form-label fw-semibold">Arrangeur</label>
-                        <input type="text"
-                               id="arranger"
-                               name="arranger"
-                               class="form-control">
+                        <input type="text" id="arranger" name="arranger" class="form-control">
                     </div>
                     <div class="col-md-6">
                         <label for="publisher" class="form-label fw-semibold">Verlag</label>
-                        <input type="text"
-                               id="publisher"
-                               name="publisher"
-                               class="form-control">
+                        <input type="text" id="publisher" name="publisher" class="form-control">
                     </div>
                 </div>
             </section>

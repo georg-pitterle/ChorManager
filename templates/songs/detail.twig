@@ -231,8 +231,16 @@
                                 <form method="post"
                                       action="/song-library/songs/{{ song.id }}/resources/links/{{ resource.id }}/update"
                                       class="border rounded p-3 mb-3">
-                                    <input type="text" name="title" class="form-control mb-2" value="{{ resource.title }}" required>
-                                    <input type="url" name="url" class="form-control mb-2" value="{{ resource.url }}" required>
+                                    <input type="text"
+                                           name="title"
+                                           class="form-control mb-2"
+                                           value="{{ resource.title }}"
+                                           required>
+                                    <input type="url"
+                                           name="url"
+                                           class="form-control mb-2"
+                                           value="{{ resource.url }}"
+                                           required>
                                     <textarea name="description" class="form-control mb-2" rows="2">{{ resource.description }}</textarea>
                                     <div class="d-flex justify-content-between gap-2">
                                         <button type="submit" class="btn btn-outline-primary btn-sm">Speichern</button>
@@ -246,9 +254,18 @@
                             <p class="dashboard-panel__text mb-2">Noch keine Links vorhanden.</p>
                         {% endif %}
 
-                        <form method="post" action="/song-library/songs/{{ song.id }}/resources/links">
-                            <input type="text" name="title" class="form-control mb-2" placeholder="Linktitel" required>
-                            <input type="url" name="url" class="form-control mb-2" placeholder="https://…" required>
+                        <form method="post"
+                              action="/song-library/songs/{{ song.id }}/resources/links">
+                            <input type="text"
+                                   name="title"
+                                   class="form-control mb-2"
+                                   placeholder="Linktitel"
+                                   required>
+                            <input type="url"
+                                   name="url"
+                                   class="form-control mb-2"
+                                   placeholder="https://…"
+                                   required>
                             <textarea name="description"
                                       class="form-control mb-2"
                                       rows="2"

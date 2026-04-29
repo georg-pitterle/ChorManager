@@ -133,7 +133,8 @@
                                     {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
                                 </td>
                                 <td data-label="Titel">{{ event.title }}</td>
-                                <td data-label="Bemerkung" data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
+                                <td data-label="Bemerkung"
+                                    data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
                                     {% if event.comments|length > 0 %}
                                         <span class="badge text-bg-success">Ja</span>
                                     {% else %}
@@ -147,7 +148,8 @@
                                 <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
                                 <td data-label="Aktionen" class="text-end">
                                     <div class="btn-group">
-                                        <a href="/events/{{ event.id }}" class="btn btn-sm btn-outline-secondary">
+                                        <a href="/events/{{ event.id }}"
+                                           class="btn btn-sm btn-outline-secondary">
                                             <i class="bi bi-chat-left-text"></i>
                                             Bemerkungen ({{ public_notes_count }}/{{ private_notes_count }})
                                         </a>
