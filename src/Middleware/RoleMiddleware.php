@@ -90,7 +90,7 @@ class RoleMiddleware implements MiddlewareInterface
 
         if ($this->requiresSongLibraryManagement && !$canManageSongLibrary && !$canManageUsers) {
             $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Liedbibliothek-Verwaltung.");
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Repertoire-Verwaltung.");
             return $response->withStatus(403);
         }
 

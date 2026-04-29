@@ -128,6 +128,15 @@ class RoleFeatureTest extends TestCase
         $this->assertStringContainsString('name="can_manage_finances"', $template);
     }
 
+    public function testRolesTemplateUsesRepertoirePermissionLabels(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString('Repertoire verwalten', $template);
+        $this->assertStringNotContainsString('Liedbibliothek verwalten', $template);
+    }
+
     public function testRolesScriptKeepsFinanceWriteCheckboxDependentOnFinanceRead(): void
     {
         $script = file_get_contents(dirname(__DIR__) . '/../public/js/roles.js');

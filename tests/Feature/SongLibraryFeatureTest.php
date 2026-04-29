@@ -145,6 +145,15 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertStringNotContainsString('id="addSongModal"', $content);
     }
 
+    public function testAreasNavigationUsesRepertoireLabel(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
+
+        $this->assertIsString($content);
+        $this->assertStringContainsString('> Repertoire</a>', $content);
+        $this->assertStringNotContainsString('Liedbibliothek', $content);
+    }
+
     public function testUploadAttachmentsUsesSharedPersistMethod(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');

@@ -1,8 +1,8 @@
-# Design: Liedbibliothek-Links und Download-Anzeige
+# Design: Repertoire-Links und Download-Anzeige
 
 ## Ziel
 
-In der Liedbibliothek soll es moeglich sein, pro Lied mehrere externe Links zu hinterlegen. Diese Links sollen nicht nur in der Verwaltungsansicht sichtbar und pflegbar sein, sondern auch im Download-Bereich fuer Projektmitglieder als klickbare Eintraege erscheinen.
+Im Repertoire soll es moeglich sein, pro Lied mehrere externe Links zu hinterlegen. Diese Links sollen nicht nur in der Verwaltungsansicht sichtbar und pflegbar sein, sondern auch im Download-Bereich fuer Projektmitglieder als klickbare Eintraege erscheinen.
 
 ## Ergebnisrahmen
 
@@ -19,7 +19,7 @@ In der Liedbibliothek soll es moeglich sein, pro Lied mehrere externe Links zu h
 
 Fuer Lieder wird eine allgemeine Ressourcen-Ebene eingefuehrt, die sowohl bestehende Dateien als auch neue externe Links fachlich unter dem Lied buendelt. Ressourcen haben mindestens die Typen `file` und `link`.
 
-Der Scope bleibt bewusst auf die Liedbibliothek begrenzt. Es wird keine moduluebergreifende Ressourcenplattform gebaut. Die Verallgemeinerung dient nur dazu, Dateien und Links innerhalb eines Liedes sauber unter einer gemeinsamen Fachlogik abzubilden.
+Der Scope bleibt bewusst auf das Repertoire begrenzt. Es wird keine moduluebergreifende Ressourcenplattform gebaut. Die Verallgemeinerung dient nur dazu, Dateien und Links innerhalb eines Liedes sauber unter einer gemeinsamen Fachlogik abzubilden.
 
 Die bestehende Datei-Funktionalitaet im Repertoire und im Download-Bereich bleibt erhalten. Fuer die erste Ausbaustufe werden externe Links als neue Ressourcenart ergaenzt, ohne bestehende Download- und Streaming-Pfade fuer Dateien zu ersetzen.
 
@@ -55,7 +55,7 @@ Die Standardsortierung fuer Links erfolgt alphabetisch nach `title`.
 - Links erhalten keinen Download-Endpunkt.
 - Externe Ziele werden nicht serverseitig auf Erreichbarkeit vorab geprueft.
 
-## Liedbibliothek
+## Repertoire
 
 In der Lied-Detailansicht wird der bestehende Bereich fuer Dateien um einen eigenen Bereich fuer Link-Ressourcen ergaenzt.
 
@@ -84,7 +84,7 @@ Wenn ein Lied keine Links besitzt, wird ein knapper Leerzustand angezeigt, damit
 
 ## Datenfluss
 
-Beim Laden der Liedbibliothek werden Lieddaten, Dateianhaenge und Link-Ressourcen gemeinsam fuer die Detaildarstellung bereitgestellt.
+Beim Laden des Repertoires werden Lieddaten, Dateianhaenge und Link-Ressourcen gemeinsam fuer die Detaildarstellung bereitgestellt.
 
 Beim Laden des Download-Bereichs werden fuer die dem Benutzer zugeordneten Projekte weiterhin die zugewiesenen Lieder und deren Dateien geladen. Zusaetzlich werden die Link-Ressourcen pro Lied geladen und unterhalb der Dateitabelle dargestellt.
 
@@ -95,7 +95,7 @@ Dateien behalten ihre bisherigen Download- und Streaming-Pfade. Links werden dir
 - Leerer Titel bei einem Link fuehrt zu einer Validierungsfehlermeldung.
 - Fehlende oder ungueltige URL fuehrt zu einer Validierungsfehlermeldung.
 - Nicht erlaubte Schemas fuehren zu einer Validierungsfehlermeldung.
-- Nicht gefundene Link-Ressourcen beim Bearbeiten oder Loeschen verhalten sich konsistent zur bestehenden Liedbibliothek: Redirect mit Fehlermeldung.
+- Nicht gefundene Link-Ressourcen beim Bearbeiten oder Loeschen verhalten sich konsistent zum bestehenden Repertoire: Redirect mit Fehlermeldung.
 - Es gibt kein stilles Scheitern bei fehlgeschlagenen Aenderungen.
 
 ## Sicherheit
@@ -112,7 +112,7 @@ Die Umsetzung ist erst vollstaendig, wenn automatisierte Tests mindestens folgen
 - Strukturtest fuer die neue Lied-Ressourcen- oder Link-Logik
 - Validierung erlaubter Schemas (`http`, `https`)
 - Ablehnung ungueltiger oder unerwuenschter Schemas
-- Anzeige der Links in der Liedbibliothek
+- Anzeige der Links im Repertoire
 - Anzeige der Links im Download-Bereich unterhalb der Dateitabelle
 - Bearbeiten bestehender Links
 - Loeschen bestehender Links
@@ -127,4 +127,4 @@ Die Umsetzung ist erst vollstaendig, wenn automatisierte Tests mindestens folgen
 
 ## Offene Umsetzungsleitlinie
 
-Die Architektur ist absichtlich allgemein genug fuer Lied-Ressourcen, die konkrete erste Fachfunktion ist aber ausschliesslich die Pflege und Anzeige externer Links in der Liedbibliothek und im Download-Bereich.
+Die Architektur ist absichtlich allgemein genug fuer Lied-Ressourcen, die konkrete erste Fachfunktion ist aber ausschliesslich die Pflege und Anzeige externer Links im Repertoire und im Download-Bereich.

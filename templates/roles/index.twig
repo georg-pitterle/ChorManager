@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Rollen verwalten - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -166,7 +166,7 @@
                                 {% endfor %}
                             </tr>
                             <tr>
-                                <th scope="row">Liedbibliothek</th>
+                                <th scope="row">Repertoire</th>
                                 {% for role in roles %}
                                     <td data-label="{{ role.name }}" class="text-center align-middle">
                                         {% if role.can_manage_song_library %}
@@ -405,7 +405,7 @@
                                name="can_manage_song_library"
                                value="1">
                         <label class="form-check-label fw-bold text-primary"
-                               for="can_manage_song_library">Liedbibliothek verwalten</label>
+                               for="can_manage_song_library">Repertoire verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
                     </div>
 
@@ -602,7 +602,7 @@
                                name="can_manage_song_library"
                                value="1">
                         <label class="form-check-label fw-bold text-primary"
-                               for="edit_can_manage_song_library">Liedbibliothek verwalten</label>
+                               for="edit_can_manage_song_library">Repertoire verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Lieder und zugehoerige Dateien pro Projekt verwalten.</div>
                     </div>
 
