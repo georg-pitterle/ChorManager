@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Project;
 use App\Models\Song;
 use App\Models\Attachment;
+use App\Models\SongResource;
 use App\Util\UploadValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -89,6 +90,9 @@ class SongLibraryController
             },
             'attachments' => function ($query) {
                 $query->orderBy('original_name', 'asc');
+            },
+            'linkResources' => function ($query) {
+                $query->where('resource_type', 'link')->orderBy('title', 'asc');
             },
             'projectAssignments.project',
         ])->find($songId);
@@ -279,6 +283,105 @@ class SongLibraryController
 
         $_SESSION['success'] = 'Dateien erfolgreich hochgeladen.';
         return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
+
+    public function createLinkResource(Request $request, Response $response, array $args): Response
+    {
+        $songId = (int) ($args['id'] ?? 0);
+        $song = Song::find($songId);
+
+        if (!$song) {
+            $_SESSION['error'] = 'Lied nicht gefunden.';
+            return $response->withHeader('Location', '/song-library')->withStatus(302);
+        }
+
+        [$payload, $error] = $this->validateLinkResourcePayload((array) $request->getParsedBody());
+        if ($error !== null) {
+            $_SESSION['error'] = $error;
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        }
+
+        SongResource::create([
+            'song_id' => $songId,
+            'resource_type' => 'link',
+            'title' => $payload['title'],
+            'description' => $payload['description'],
+            'url' => $payload['url'],
+        ]);
+
+        $_SESSION['success'] = 'Link erfolgreich hinzugefügt.';
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
+
+    public function updateLinkResource(Request $request, Response $response, array $args): Response
+    {
+        $songId = (int) ($args['song_id'] ?? 0);
+        $resourceId = (int) ($args['resource_id'] ?? 0);
+
+        $resource = SongResource::find($resourceId);
+        if (!$resource || (int) $resource->song_id !== $songId || $resource->resource_type !== 'link') {
+            $_SESSION['error'] = 'Link nicht gefunden.';
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        }
+
+        [$payload, $error] = $this->validateLinkResourcePayload((array) $request->getParsedBody());
+        if ($error !== null) {
+            $_SESSION['error'] = $error;
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        }
+
+        $resource->update([
+            'title' => $payload['title'],
+            'description' => $payload['description'],
+            'url' => $payload['url'],
+        ]);
+
+        $_SESSION['success'] = 'Link erfolgreich aktualisiert.';
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
+
+    public function deleteLinkResource(Request $request, Response $response, array $args): Response
+    {
+        $songId = (int) ($args['song_id'] ?? 0);
+        $resourceId = (int) ($args['resource_id'] ?? 0);
+
+        $resource = SongResource::find($resourceId);
+        if (!$resource || (int) $resource->song_id !== $songId || $resource->resource_type !== 'link') {
+            $_SESSION['error'] = 'Link nicht gefunden.';
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        }
+
+        $resource->delete();
+        $_SESSION['success'] = 'Link erfolgreich gelöscht.';
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
+
+    /**
+     * @return array{0:array{title:string,url:string,description:?string},1:?string}
+     */
+    private function validateLinkResourcePayload(array $data): array
+    {
+        $title = trim((string) ($data['title'] ?? ''));
+        $url = trim((string) ($data['url'] ?? ''));
+        $description = trim((string) ($data['description'] ?? ''));
+
+        if ($title === '') {
+            return [[], 'Der Linktitel ist ein Pflichtfeld.'];
+        }
+
+        if ($url === '') {
+            return [[], 'Die Link-URL ist ein Pflichtfeld.'];
+        }
+
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            return [[], 'Link-URLs müssen mit http:// oder https:// beginnen.'];
+        }
+
+        return [[
+            'title' => $title,
+            'url' => $url,
+            'description' => $description !== '' ? $description : null,
+        ], null];
     }
 
     private function persistAttachments(int $songId, array $files): ?string

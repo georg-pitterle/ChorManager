@@ -44,4 +44,16 @@ class Song extends Model
     {
         return $this->hasMany(ProjectSongAssignment::class, 'song_id', 'id');
     }
+
+    public function resources()
+    {
+        return $this->hasMany(SongResource::class, 'song_id', 'id');
+    }
+
+    public function linkResources()
+    {
+        return $this->hasMany(SongResource::class, 'song_id', 'id')
+            ->where('resource_type', 'link')
+            ->orderBy('title', 'asc');
+    }
 }

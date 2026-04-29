@@ -83,6 +83,16 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertStringContainsString('$this->seedSongAttachments($songs, 48);', $seedContent);
     }
 
+    public function testDevSeedServiceSeedsSongLinkResources(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString("'song_link_resources' => 0", $seedContent);
+        $this->assertStringContainsString("'song_resources'", $seedContent);
+        $this->assertStringContainsString('$this->seedSongLinkResources($songs, 24);', $seedContent);
+    }
+
     public function testCreateRouteAndMethodExist(): void
     {
         $this->assertTrue(method_exists(\App\Controllers\SongLibraryController::class, 'create'));
@@ -139,7 +149,10 @@ class SongLibraryFeatureTest extends TestCase
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('private function persistAttachments(int $songId, array $files): ?string', $controllerContent);
+        $this->assertStringContainsString(
+            'private function persistAttachments(int $songId, array $files): ?string',
+            $controllerContent
+        );
         $this->assertStringContainsString('$this->persistAttachments($songId, $files)', $controllerContent);
     }
 }

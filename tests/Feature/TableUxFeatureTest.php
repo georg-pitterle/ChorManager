@@ -226,4 +226,14 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringContainsString('data-sub-voice-options=', $usersTemplate);
         $this->assertStringContainsString('data-show-archived=', $usersTemplate);
     }
+
+    public function testDownloadsTemplateKeepsFileTableDefaultSortWhenLinksBlockIsAdded(): void
+    {
+        $downloadsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/songs/downloads.twig');
+
+        $this->assertIsString($downloadsTemplate);
+        $this->assertStringContainsString('data-default-sort-key="file_name"', $downloadsTemplate);
+        $this->assertStringContainsString('downloadsSongTable', $downloadsTemplate);
+        $this->assertStringContainsString('downloads-song-links', $downloadsTemplate);
+    }
 }

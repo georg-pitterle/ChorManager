@@ -218,6 +218,45 @@
                         </form>
                     </div>
                 </article>
+
+                <article class="surface-card dashboard-panel dashboard-panel--context">
+                    <div class="dashboard-panel__body">
+                        <p class="dashboard-panel__eyebrow">Ressourcen</p>
+                        <h3 class="dashboard-panel__title">
+                            <i class="bi bi-link-45deg"></i>Links
+                        </h3>
+
+                        {% if song.linkResources|length > 0 %}
+                            {% for resource in song.linkResources %}
+                                <form method="post"
+                                      action="/song-library/songs/{{ song.id }}/resources/links/{{ resource.id }}/update"
+                                      class="border rounded p-3 mb-3">
+                                    <input type="text" name="title" class="form-control mb-2" value="{{ resource.title }}" required>
+                                    <input type="url" name="url" class="form-control mb-2" value="{{ resource.url }}" required>
+                                    <textarea name="description" class="form-control mb-2" rows="2">{{ resource.description }}</textarea>
+                                    <div class="d-flex justify-content-between gap-2">
+                                        <button type="submit" class="btn btn-outline-primary btn-sm">Speichern</button>
+                                        <button type="submit"
+                                                formaction="/song-library/songs/{{ song.id }}/resources/links/{{ resource.id }}/delete"
+                                                class="btn btn-outline-danger btn-sm">Löschen</button>
+                                    </div>
+                                </form>
+                            {% endfor %}
+                        {% else %}
+                            <p class="dashboard-panel__text mb-2">Noch keine Links vorhanden.</p>
+                        {% endif %}
+
+                        <form method="post" action="/song-library/songs/{{ song.id }}/resources/links">
+                            <input type="text" name="title" class="form-control mb-2" placeholder="Linktitel" required>
+                            <input type="url" name="url" class="form-control mb-2" placeholder="https://…" required>
+                            <textarea name="description"
+                                      class="form-control mb-2"
+                                      rows="2"
+                                      placeholder="Beschreibung (optional)"></textarea>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">Link hinzufügen</button>
+                        </form>
+                    </div>
+                </article>
             </div>
         </section>
 

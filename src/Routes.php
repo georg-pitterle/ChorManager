@@ -317,6 +317,18 @@ return function (App $app) {
                         '/songs/{song_id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                         [SongLibraryController::class, 'deleteAttachment']
                     );
+                    $songsGroup->post(
+                        '/songs/{id:[0-9]+}/resources/links',
+                        [SongLibraryController::class, 'createLinkResource']
+                    );
+                    $songsGroup->post(
+                        '/songs/{song_id:[0-9]+}/resources/links/{resource_id:[0-9]+}/update',
+                        [SongLibraryController::class, 'updateLinkResource']
+                    );
+                    $songsGroup->post(
+                        '/songs/{song_id:[0-9]+}/resources/links/{resource_id:[0-9]+}/delete',
+                        [SongLibraryController::class, 'deleteLinkResource']
+                    );
                     $songsGroup->post('/songs/{id:[0-9]+}/categories', [SongLibraryController::class, 'syncCategories']);
 
                     // Category management

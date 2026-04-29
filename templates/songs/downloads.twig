@@ -141,6 +141,27 @@
                                                     </table>
                                                 </div>
                                             </div>
+
+                                            <div class="downloads-song-links mt-3">
+                                                <h4 class="h6 mb-2">Links</h4>
+                                                {% if song.linkResources|length > 0 %}
+                                                    <div class="list-group list-group-flush">
+                                                        {% for resource in song.linkResources %}
+                                                            <div class="list-group-item px-0">
+                                                                <a href="{{ resource.url }}"
+                                                                   target="_blank"
+                                                                   rel="noopener noreferrer"
+                                                                   class="fw-semibold text-decoration-none">{{ resource.title }}</a>
+                                                                {% if resource.description %}
+                                                                    <p class="text-muted small mb-0 mt-1">{{ resource.description }}</p>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                {% else %}
+                                                    <p class="text-muted small mb-0">Keine Links zu diesem Lied vorhanden.</p>
+                                                {% endif %}
+                                            </div>
                                         </article>
                                     {% endfor %}
                                 </div>

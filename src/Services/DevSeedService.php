@@ -26,6 +26,7 @@ use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Song;
+use App\Models\SongResource;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\SponsoringContact;
@@ -97,6 +98,7 @@ class DevSeedService
                 'project_users' => 0,
                 'songs' => 0,
                 'song_attachments' => 0,
+                'song_link_resources' => 0,
                 'repertoire_categories' => 0,
                 'song_category_assignments' => 0,
                 'project_song_assignments' => 0,
@@ -149,6 +151,7 @@ class DevSeedService
             $this->seedSongCategoryAssignments($songs, $categories);
             $this->seedProjectSongAssignments($songs, $projects);
             $this->seedSongAttachments($songs, 48);
+            $this->seedSongLinkResources($songs, 24);
             $tasks = $this->seedTasks($projects, $users['active']);
             $this->seedTaskActivities($tasks, $users['active']);
             $this->seedTaskComments($tasks, $users['active']);
@@ -208,6 +211,7 @@ class DevSeedService
             'tasks',
             'project_song_assignments',
             'song_category_assignments',
+            'song_resources',
             'songs',
             'repertoire_categories',
             'remember_logins',
@@ -1939,6 +1943,60 @@ class DevSeedService
             if ($attachment->wasRecentlyCreated) {
                 $created++;
                 $this->report['counts']['song_attachments']++;
+            }
+
+            $attempt++;
+        }
+    }
+
+    private function seedSongLinkResources(array $songs, int $targetCount): void
+    {
+        if (count($songs) === 0 || $targetCount <= 0) {
+            return;
+        }
+
+        $catalog = [
+            [
+                'title' => 'Übe-Track',
+                'description' => 'Audio-Probe für zu Hause',
+                'url' => 'https://example.test/audio',
+            ],
+            [
+                'title' => 'MIDI-Referenz',
+                'description' => 'MIDI-Link für Einsinghilfe',
+                'url' => 'https://example.test/midi',
+            ],
+            [
+                'title' => 'Aufführungsvideo',
+                'description' => 'Video einer früheren Aufführung',
+                'url' => 'https://example.test/video',
+            ],
+        ];
+
+        $created = 0;
+        $attempt = 0;
+        $maxAttempts = ($targetCount * 5) + count($songs);
+
+        while ($created < $targetCount && $attempt < $maxAttempts) {
+            $song = $songs[$attempt % count($songs)];
+            $entry = $catalog[$attempt % count($catalog)];
+            $slot = (int) floor($attempt / count($songs)) + 1;
+
+            $resource = SongResource::firstOrCreate(
+                [
+                    'song_id' => $song->id,
+                    'resource_type' => 'link',
+                    'title' => $entry['title'] . ' ' . $song->title . ' ' . $slot,
+                ],
+                [
+                    'description' => $entry['description'],
+                    'url' => $entry['url'] . '/' . $song->id . '/' . $slot,
+                ]
+            );
+
+            if ($resource->wasRecentlyCreated) {
+                $created++;
+                $this->report['counts']['song_link_resources']++;
             }
 
             $attempt++;

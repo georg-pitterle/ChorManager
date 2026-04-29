@@ -46,6 +46,9 @@ class DownloadController
                 },
                 'assignedSongs.attachments' => function ($query) {
                     $query->orderBy('original_name', 'asc');
+                },
+                'assignedSongs.linkResources' => function ($query) {
+                    $query->where('resource_type', 'link')->orderBy('title', 'asc');
                 }
             ])
             ->distinct()

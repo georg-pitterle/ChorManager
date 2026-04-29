@@ -66,4 +66,24 @@ class DownloadFeatureTest extends TestCase
         $this->assertNull(DownloadController::parseRangeHeader('invalid', 100));
         $this->assertNull(DownloadController::parseRangeHeader('bytes=0-0', 0));
     }
+
+    public function testDownloadTemplateRendersSeparateSongLinksSection(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/songs/downloads.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString('song.linkResources', $template);
+        $this->assertStringContainsString('target="_blank"', $template);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $template);
+        $this->assertStringContainsString('Links', $template);
+    }
+
+    public function testDownloadControllerLoadsSongLinkResources(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DownloadController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString("'assignedSongs.linkResources' => function (" . '$' . "query)", $controllerContent);
+        $this->assertStringContainsString("$" . "query->where('resource_type', 'link')", $controllerContent);
+    }
 }
