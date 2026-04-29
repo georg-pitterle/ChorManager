@@ -145,6 +145,19 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertStringNotContainsString('id="addSongModal"', $content);
     }
 
+    public function testManageTwigRendersRepertoireAsTableEngineList(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/songs/manage.twig');
+
+        $this->assertIsString($content);
+        $this->assertStringContainsString('data-table-engine="true"', $content);
+        $this->assertStringContainsString('data-table-id="songs.manage"', $content);
+        $this->assertStringContainsString('id="songsTable"', $content);
+        $this->assertStringContainsString("include('partials/table_toolbar.twig')", $content);
+        $this->assertStringNotContainsString('dashboard-action-grid', $content);
+        $this->assertStringNotContainsString('dashboard-panel--action', $content);
+    }
+
     public function testAreasNavigationUsesRepertoireLabel(): void
     {
         $content = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');

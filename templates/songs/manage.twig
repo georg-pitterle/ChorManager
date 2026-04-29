@@ -92,65 +92,104 @@
                 <p class="dashboard-section-lead mb-0">{{ songs|length }} Lieder im aktuellen Ergebnis.</p>
             </div>
 
-            <div class="dashboard-action-grid">
-                {% for song in songs %}
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-music-note-beamed"></i>
-                                {{ song.title }}
-                            </h3>
-                            <p class="dashboard-panel__text">
-                                {% if song.composer %}
-                                    {{ song.composer }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                                {% if song.arranger %}| Arr. {{ song.arranger }}{% endif %}
-                                {% if song.publisher %}| {{ song.publisher }}{% endif %}
-                            </p>
-                            <p class="dashboard-panel__text mb-0">
-                                {{ song.attachments|length }} Dateien | {{ song.projectAssignments|length }} Projekte
-                            </p>
-                            {% if song.categories|length > 0 %}
-                                <div class="d-flex flex-wrap gap-1 mt-1">
+            <div class="surface-card card border-0 table-shell"
+                 data-table-engine="true"
+                 data-table-id="songs.manage"
+                 data-default-view="auto"
+                 data-default-page-size="100"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="title">
+                {{ include('partials/table_toolbar.twig') }}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                               id="songsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th data-sort-key="title" data-sort-type="text">Titel</th>
+                                    <th data-sort-key="meta" data-sort-type="text">Details</th>
+                                    <th data-sort-key="categories" data-sort-type="text">Kategorien</th>
+                                    <th data-sort-key="attachments" data-sort-type="number">Dateien</th>
+                                    <th data-sort-key="projects" data-sort-type="number">Projekte</th>
+                                    <th class="text-end">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for song in songs %}
+                                    {% set meta_parts = [] %}
+                                    {% if song.composer %}
+                                        {% set meta_parts = meta_parts|merge([song.composer]) %}
+                                    {% endif %}
+                                    {% if song.arranger %}
+                                        {% set meta_parts = meta_parts|merge(['Arr. ' ~ song.arranger]) %}
+                                    {% endif %}
+                                    {% if song.publisher %}
+                                        {% set meta_parts = meta_parts|merge([song.publisher]) %}
+                                    {% endif %}
+                                    {% set categories_sort = '' %}
                                     {% for cat in song.categories %}
-                                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ cat.name }}</span>
+                                        {% set categories_sort = categories_sort ~ ' ' ~ cat.name|lower %}
                                     {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <a href="/song-library/{{ song.id }}"
-                               class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-pencil-square me-1"></i>Details
-                            </a>
-                            <form action="/song-library/songs/{{ song.id }}/delete"
-                                  method="post"
-                                  class="d-inline"
-                                  data-confirm="Lied '{{ song.title }}' wirklich loeschen? Alle Anhaenge und Projektzuweisungen werden entfernt.">
-                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                    <i class="bi bi-trash me-1"></i>Löschen
-                                </button>
-                            </form>
-                        </div>
-                    </article>
-                {% else %}
-                    <article class="surface-card dashboard-panel dashboard-panel--empty">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-search"></i>Keine Lieder gefunden
-                            </h3>
-                            <p class="dashboard-panel__text mb-0">
-                                {% if search or selected_category_id %}
-                                    Für den aktuellen Filter gibt es keine Treffer. <a href="/song-library">Filter zurücksetzen</a>.
+                                    <tr data-sort-title="{{ song.title|lower }}"
+                                        data-sort-meta="{{ meta_parts|join(' | ')|lower }}"
+                                        data-sort-categories="{{ categories_sort|trim }}"
+                                        data-sort-attachments="{{ song.attachments|length }}"
+                                        data-sort-projects="{{ song.projectAssignments|length }}">
+                                        <td data-label="Titel">
+                                            <span class="fw-semibold">{{ song.title }}</span>
+                                        </td>
+                                        <td data-label="Details">
+                                            {% if meta_parts|length > 0 %}
+                                                {{ meta_parts|join(' | ') }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Kategorien">
+                                            {% if song.categories|length > 0 %}
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    {% for cat in song.categories %}
+                                                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ cat.name }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Dateien">{{ song.attachments|length }}</td>
+                                        <td data-label="Projekte">{{ song.projectAssignments|length }}</td>
+                                        <td data-label="Aktionen" class="text-end">
+                                            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                                                <a href="/song-library/{{ song.id }}"
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    <i class="bi bi-pencil-square me-1"></i>Details
+                                                </a>
+                                                <form action="/song-library/songs/{{ song.id }}/delete"
+                                                      method="post"
+                                                      class="d-inline"
+                                                      data-confirm="Lied '{{ song.title }}' wirklich loeschen? Alle Anhaenge und Projektzuweisungen werden entfernt.">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                        <i class="bi bi-trash me-1"></i>Löschen
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 {% else %}
-                                    Das Repertoire ist noch leer. Lege das erste Lied an.
-                                {% endif %}
-                            </p>
-                        </div>
-                    </article>
-                {% endfor %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">
+                                            {% if search or selected_category_id %}
+                                                Für den aktuellen Filter gibt es keine Treffer. <a href="/song-library">Filter zurücksetzen</a>.
+                                            {% else %}
+                                                Das Repertoire ist noch leer. Lege das erste Lied an.
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </section>
     </div>
