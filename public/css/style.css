@@ -157,6 +157,14 @@ body.app-shell {
     display: block;
 }
 
+.mail-queue-preview-frame {
+    width: 100%;
+    min-height: 400px;
+    border: 1px solid var(--theme-border);
+    border-radius: 0.75rem;
+    background: #ffffff;
+}
+
 .dashboard-shell {
     display: grid;
     gap: 1.25rem;
@@ -278,6 +286,26 @@ body.app-shell {
 
 .dashboard-section--communication {
     border-top: 3px solid #8a3240;
+}
+
+.form-surface,
+.filter-surface {
+    border: 1px solid rgba(24, 33, 43, 0.1);
+    border-top: 3px solid #2f5e9e;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 253, 0.96) 100%);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
+}
+
+.table-shell {
+    border: 1px solid rgba(24, 33, 43, 0.1);
+    border-top: 3px solid #425776;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.table-shell .table {
+    margin-bottom: 0;
 }
 
 .downloads-section .accordion-button {
@@ -832,6 +860,25 @@ a:hover {
     object-fit: contain;
 }
 
+.settings-form-shell {
+    width: min(100%, 980px);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.settings-logo-row {
+    align-items: stretch;
+}
+
+.settings-logo-preview {
+    min-width: 220px;
+}
+
+.settings-logo-input {
+    display: grid;
+    align-content: center;
+}
+
 .auth-form-panel {
     background: #fff;
 }
@@ -844,6 +891,10 @@ a:hover {
     .auth-brand-panel {
         padding: 1.5rem;
     }
+
+    .settings-logo-preview {
+        min-width: 100%;
+    }
 }
 
 /* =====================================================================
@@ -854,6 +905,34 @@ a:hover {
 .progress-sm {
     width: 60px;
     height: 8px;
+}
+
+.projects-table-shell {
+    overflow: visible;
+}
+
+.projects-table-shell .projects-table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-bottom: 12rem;
+}
+
+.projects-table-shell .dropdown-menu {
+    z-index: 2000;
+}
+
+.projects-table-shell #projectsTable tbody tr {
+    position: relative;
+}
+
+.projects-table-shell #projectsTable td[data-label="Aktionen"] {
+    overflow: visible;
+}
+
+@media (max-width: 767.98px) {
+    .projects-table-shell .projects-table-responsive {
+        padding-bottom: 14rem;
+    }
 }
 
 /* Dynamic progress bar value via CSS custom property.

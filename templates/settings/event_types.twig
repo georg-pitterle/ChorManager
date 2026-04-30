@@ -28,139 +28,149 @@
 
     <input type="hidden" id="eventTypeOpenEditModalId" value="0">
 
-    <section class="surface-card form-surface p-4 mb-4">
-        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-            {% for type in event_types %}
-                <div class="col">
-                    <div class="card h-100 shadow-sm border-0">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                            <span class="badge bg-{{ type.color }} fs-6">{{ type.name }}</span>
-                            <div>
-                                <button class="btn btn-sm btn-outline-secondary"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editTypeModal{{ type.id }}"
-                                        title="Bearbeiten">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#deleteTypeModal{{ type.id }}"
-                                        title="Löschen">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="event-types-list-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="event-types-list-title">Termin-Typenübersicht</h2>
+                <p class="dashboard-section-lead mb-0">Farbcodierte Typen für Proben, Auftritte und weitere Termine.</p>
+            </div>
+
+            <div class="surface-card form-surface p-4">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                    {% for type in event_types %}
+                        <div class="col">
+                            <div class="card h-100 shadow-sm border-0">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-{{ type.color }} fs-6">{{ type.name }}</span>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editTypeModal{{ type.id }}"
+                                                title="Bearbeiten">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#deleteTypeModal{{ type.id }}"
+                                                title="Löschen">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Edit Type Modal -->
+                            <div class="modal fade"
+                                 id="editTypeModal{{ type.id }}"
+                                 data-open-edit-modal="{{ modal_form_edits[type.id].open_modal ? '1' : '0' }}"
+                                 tabindex="-1"
+                                 aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" action="/event-types/{{ type.id }}/update">
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Event-Typ bearbeiten</h5>
+                                                <button type="button"
+                                                        class="btn-close"
+                                                        data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                {{ modal.show_modal_error(error, modal_form_edits[type.id].error, 'event_type_edit_' ~ type.id) }}
+
+                                                <div class="mb-3">
+                                                    <label class="form-label">Name</label>
+                                                    {% set edit_form = modal_form_edits[type.id].form|default({}) %}
+                                                    <input type="text"
+                                                           name="name"
+                                                           class="form-control"
+                                                           value="{{ edit_form.name|default(type.name) }}"
+                                                           required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Farbe (Bootstrap Klasse)</label>
+                                                    <select name="color" class="form-select">
+                                                        <option value="primary"
+                                                                {% if edit_form.color|default(type.color) == 'primary' %}selected{% endif %}>
+                                                            Blau (Primary)
+                                                        </option>
+                                                        <option value="secondary"
+                                                                {% if edit_form.color|default(type.color) == 'secondary' %}selected{% endif %}>
+                                                            Grau (Secondary)
+                                                        </option>
+                                                        <option value="success"
+                                                                {% if edit_form.color|default(type.color) == 'success' %}selected{% endif %}>
+                                                            Grün (Success)
+                                                        </option>
+                                                        <option value="danger"
+                                                                {% if edit_form.color|default(type.color) == 'danger' %}selected{% endif %}>
+                                                            Rot (Danger)
+                                                        </option>
+                                                        <option value="warning"
+                                                                {% if edit_form.color|default(type.color) == 'warning' %}selected{% endif %}>
+                                                            Gelb (Warning)
+                                                        </option>
+                                                        <option value="info"
+                                                                {% if edit_form.color|default(type.color) == 'info' %}selected{% endif %}>
+                                                            Hellblau (Info)
+                                                        </option>
+                                                        <option value="dark"
+                                                                {% if edit_form.color|default(type.color) == 'dark' %}selected{% endif %}>
+                                                            Schwarz (Dark)
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer pb-0 border-0">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="submit" class="btn btn-primary">Speichern</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Delete Type Modal -->
+                            <div class="modal fade"
+                                 id="deleteTypeModal{{ type.id }}"
+                                 tabindex="-1"
+                                 aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" action="/event-types/{{ type.id }}/delete">
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header bg-danger text-white">
+                                                <h5 class="modal-title">Event-Typ löschen</h5>
+                                                <button type="button"
+                                                        class="btn-close btn-close-white"
+                                                        data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen?
+                                                <p class="text-danger mt-2 small">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i> Bestehende Events mit diesem Typ werden auf "null" gesetzt!
+                                                </p>
+                                            </div>
+                                            <div class="modal-footer border-0">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="submit" class="btn btn-danger">Löschen</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Edit Type Modal -->
-                    <div class="modal fade"
-                         id="editTypeModal{{ type.id }}"
-                         data-open-edit-modal="{{ modal_form_edits[type.id].open_modal ? '1' : '0' }}"
-                         tabindex="-1"
-                         aria-hidden="true">
-                        <div class="modal-dialog">
-                            <form method="post" action="/event-types/{{ type.id }}/update">
-                                <div class="modal-content border-0 shadow">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Event-Typ bearbeiten</h5>
-                                        <button type="button"
-                                                class="btn-close"
-                                                data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        {{ modal.show_modal_error(error, modal_form_edits[type.id].error, 'event_type_edit_' ~ type.id) }}
-
-                                        <div class="mb-3">
-                                            <label class="form-label">Name</label>
-                                            {% set edit_form = modal_form_edits[type.id].form|default({}) %}
-                                            <input type="text"
-                                                   name="name"
-                                                   class="form-control"
-                                                   value="{{ edit_form.name|default(type.name) }}"
-                                                   required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Farbe (Bootstrap Klasse)</label>
-                                            <select name="color" class="form-select">
-                                                <option value="primary"
-                                                        {% if edit_form.color|default(type.color) == 'primary' %}selected{% endif %}>
-                                                    Blau (Primary)
-                                                </option>
-                                                <option value="secondary"
-                                                        {% if edit_form.color|default(type.color) == 'secondary' %}selected{% endif %}>
-                                                    Grau (Secondary)
-                                                </option>
-                                                <option value="success"
-                                                        {% if edit_form.color|default(type.color) == 'success' %}selected{% endif %}>
-                                                    Grün (Success)
-                                                </option>
-                                                <option value="danger"
-                                                        {% if edit_form.color|default(type.color) == 'danger' %}selected{% endif %}>
-                                                    Rot (Danger)
-                                                </option>
-                                                <option value="warning"
-                                                        {% if edit_form.color|default(type.color) == 'warning' %}selected{% endif %}>
-                                                    Gelb (Warning)
-                                                </option>
-                                                <option value="info"
-                                                        {% if edit_form.color|default(type.color) == 'info' %}selected{% endif %}>
-                                                    Hellblau (Info)
-                                                </option>
-                                                <option value="dark"
-                                                        {% if edit_form.color|default(type.color) == 'dark' %}selected{% endif %}>
-                                                    Schwarz (Dark)
-                                                </option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer pb-0 border-0">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                        <button type="submit" class="btn btn-primary">Speichern</button>
-                                    </div>
-                                </div>
-                            </form>
+                    {% else %}
+                        <div class="col-12 text-center py-5 text-muted">
+                            <i class="bi bi-tag fs-1 d-block mb-3"></i>
+                            Keine Termin-Typen konfiguriert.
                         </div>
-                    </div>
-
-                    <!-- Delete Type Modal -->
-                    <div class="modal fade"
-                         id="deleteTypeModal{{ type.id }}"
-                         tabindex="-1"
-                         aria-hidden="true">
-                        <div class="modal-dialog">
-                            <form method="post" action="/event-types/{{ type.id }}/delete">
-                                <div class="modal-content border-0 shadow">
-                                    <div class="modal-header bg-danger text-white">
-                                        <h5 class="modal-title">Event-Typ löschen</h5>
-                                        <button type="button"
-                                                class="btn-close btn-close-white"
-                                                data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen?
-                                        <p class="text-danger mt-2 small">
-                                            <i class="bi bi-exclamation-triangle-fill"></i> Bestehende Events mit diesem Typ werden auf "null" gesetzt!
-                                        </p>
-                                    </div>
-                                    <div class="modal-footer border-0">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                        <button type="submit" class="btn btn-danger">Löschen</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
-            {% else %}
-                <div class="col-12 text-center py-5 text-muted">
-                    <i class="bi bi-tag fs-1 d-block mb-3"></i>
-                    Keine Termin-Typen konfiguriert.
-                </div>
-            {% endfor %}
-        </div>
-    </section>
+            </div>
+        </section>
+    </div>
 
     <!-- Create Type Modal -->
     <div class="modal fade"

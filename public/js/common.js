@@ -42,17 +42,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Project selectors (onchange submit)
-    document.querySelectorAll('select[name="project_id"].onchange-submit').forEach(select => {
+    // Generic auto-submit for selects marked with onchange-submit.
+    // This keeps project/year behavior and also supports status switches like newsletters.
+    document.querySelectorAll('select.onchange-submit').forEach(select => {
         select.addEventListener('change', function () {
-            this.form.submit();
-        });
-    });
-
-    // Fiscal year selector in finance report
-    document.querySelectorAll('select[name="year"].onchange-submit').forEach(select => {
-        select.addEventListener('change', function () {
-            this.form.submit();
+            if (this.form) {
+                this.form.submit();
+            }
         });
     });
 

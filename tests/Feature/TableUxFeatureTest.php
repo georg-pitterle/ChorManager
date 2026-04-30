@@ -66,7 +66,7 @@ class TableUxFeatureTest extends TestCase
         $usersTemplate = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
 
         $this->assertIsString($usersTemplate);
-        $this->assertStringContainsString('data-users-manage-filter-slot', $usersTemplate);
+        $this->assertStringNotContainsString('data-users-manage-filter-slot', $usersTemplate);
         $this->assertStringContainsString('data-table-plugins="usersManage,usersGroup"', $usersTemplate);
         $this->assertStringContainsString('data-voice-options="{{ voice_options_attr|replace({\'\\n\': \'\', \'\\r\': \'\', \'\\t\': \' \'})|trim }}"', $usersTemplate);
         $this->assertStringContainsString('data-project-options="{{ project_options_attr|replace({\'\\n\': \'\', \'\\r\': \'\', \'\\t\': \' \'})|trim }}"', $usersTemplate);
@@ -225,6 +225,24 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringContainsString('data-table-plugins="usersManage,usersGroup"', $usersTemplate);
         $this->assertStringContainsString('data-sub-voice-options=', $usersTemplate);
         $this->assertStringContainsString('data-show-archived=', $usersTemplate);
+    }
+
+    public function testSponsorsIndexUsesPluginFirstFilteringWithoutServerFilterForm(): void
+    {
+        $sponsorsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/sponsoring/sponsors/index.twig');
+
+        $this->assertIsString($sponsorsTemplate);
+        $this->assertStringContainsString('data-table-plugins="sponsorStatus"', $sponsorsTemplate);
+        $this->assertStringNotContainsString('method="get" action="/sponsoring/sponsors"', $sponsorsTemplate);
+    }
+
+    public function testSongsManageUsesPluginFirstFilteringWithoutGetFilterForm(): void
+    {
+        $songsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/songs/manage.twig');
+
+        $this->assertIsString($songsTemplate);
+        $this->assertStringContainsString('data-table-plugins="songCategory"', $songsTemplate);
+        $this->assertStringNotContainsString('method="get" action="/song-library"', $songsTemplate);
     }
 
     public function testDownloadsTemplateKeepsFileTableDefaultSortWhenLinksBlockIsAdded(): void

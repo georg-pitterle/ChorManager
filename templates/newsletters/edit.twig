@@ -7,7 +7,7 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
             <h1 class="h2 mb-1">Newsletter bearbeiten</h1>
             <p class="text-muted mb-0">
                 Projekt: <strong>{{ project.name }}</strong>
@@ -35,69 +35,87 @@
               action="/newsletters/{{ newsletter.id }}"
               data-newsletter-id="{{ newsletter.id }}"
               data-is-modal="{{ is_modal|default(false) ? '1' : '0' }}">
-            <div class="surface-card form-surface card mb-4 border-0">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Newsletter-Einstellungen</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="project_id" class="form-label">
-                            Projekt <span class="text-danger">*</span>
-                        </label>
-                        <select class="form-select" id="project_id" name="project_id" required>
-                            {% for selectable_project in projects %}
-                                <option value="{{ selectable_project.id }}"
-                                        {% if newsletter.project_id == selectable_project.id %}selected{% endif %}>
-                                    {{ selectable_project.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+            <div class="dashboard-shell">
+                <section class="dashboard-section dashboard-section--actions"
+                         aria-labelledby="newsletter-edit-settings-title">
+                    <div class="dashboard-section-head">
+                        <h2 class="dashboard-section-title" id="newsletter-edit-settings-title">Newsletter-Einstellungen</h2>
+                        <p class="dashboard-section-lead mb-0">Projekt, Titel und Eventzuordnung anpassen.</p>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="title" class="form-label">
-                            Titel <span class="text-danger">*</span>
-                        </label>
-                        <input type="text"
-                               class="form-control"
-                               id="title"
-                               name="title"
-                               value="{{ newsletter.title }}"
-                               required>
+                    <div class="surface-card form-surface card border-0">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Newsletter-Einstellungen</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="project_id" class="form-label">
+                                    Projekt <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="project_id" name="project_id" required>
+                                    {% for selectable_project in projects %}
+                                        <option value="{{ selectable_project.id }}"
+                                                {% if newsletter.project_id == selectable_project.id %}selected{% endif %}>
+                                            {{ selectable_project.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="title" class="form-label">
+                                    Titel <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="title"
+                                       name="title"
+                                       value="{{ newsletter.title }}"
+                                       required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="event_id" class="form-label">Event (optional)</label>
+                                <select class="form-select" id="event_id" name="event_id">
+                                    <option value="">-- Keine Auswahl --</option>
+                                    {% for event in events %}
+                                        <option value="{{ event.id }}"
+                                                data-project-id="{{ event.project_id }}"
+                                                {% if newsletter.event_id == event.id %}selected{% endif %}>
+                                            {{ event.title }} ({{ event.starts_at|date('d.m.Y') }}) - {{ event.project.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <strong>Empfänger:</strong> <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
+                                {% if newsletter.event_id %}
+                                    Teilnehmer des Events
+                                {% else %}
+                                    Alle Projektmitglieder
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="dashboard-section dashboard-section--actions"
+                         aria-labelledby="newsletter-edit-content-title">
+                    <div class="dashboard-section-head">
+                        <h2 class="dashboard-section-title" id="newsletter-edit-content-title">Inhalt</h2>
+                        <p class="dashboard-section-lead mb-0">Inhalt prüfen, bearbeiten und versenden.</p>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="event_id" class="form-label">Event (optional)</label>
-                        <select class="form-select" id="event_id" name="event_id">
-                            <option value="">-- Keine Auswahl --</option>
-                            {% for event in events %}
-                                <option value="{{ event.id }}"
-                                        data-project-id="{{ event.project_id }}"
-                                        {% if newsletter.event_id == event.id %}selected{% endif %}>
-                                    {{ event.title }} ({{ event.starts_at|date('d.m.Y') }}) - {{ event.project.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                    <div class="surface-card form-surface card border-0">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Inhalt</h5>
+                        </div>
+                        <div class="card-body">
+                            <textarea id="content_html" name="content_html" class="tinymce-editor">{{ newsletter.content_html }}</textarea>
+                        </div>
                     </div>
-
-                    <div class="alert alert-info">
-                        <strong>Empfänger:</strong> <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
-                        {% if newsletter.event_id %}
-                            Teilnehmer des Events
-                        {% else %}
-                            Alle Projektmitglieder
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <div class="surface-card form-surface card mb-4 border-0">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Inhalt</h5>
-                </div>
-                <div class="card-body">
-                    <textarea id="content_html" name="content_html" class="tinymce-editor">{{ newsletter.content_html }}</textarea>
-                </div>
+                </section>
             </div>
 
             <div class="d-grid gap-2 d-md-flex justify-content-md-between">

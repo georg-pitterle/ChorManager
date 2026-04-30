@@ -242,7 +242,8 @@ class LayoutFeatureTest extends TestCase
         $settingsContent = file_get_contents($settingsPath);
 
         $this->assertIsString($settingsContent);
-        $this->assertStringContainsString('class="bg-light p-3 rounded border text-center logo-preview-frame"', $settingsContent);
+        $this->assertStringContainsString('logo-preview-frame', $settingsContent);
+        $this->assertStringContainsString('settings-logo-preview', $settingsContent);
         $this->assertStringContainsString('class="mb-2 d-inline-block logo-preview"', $settingsContent);
         $this->assertStringNotContainsString('alt="Aktuelles Logo" style=', $settingsContent);
     }

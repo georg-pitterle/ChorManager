@@ -1,7 +1,7 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
-    App-Einstellungen - {{ app_settings.app_name|default('Chor-Manager') }}
+    App-Einstellungen - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -34,9 +34,15 @@
         </div>
     {% endif %}
 
-    <div class="row">
-        <div class="col-md-8">
-            <div class="surface-card card border-0">
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--actions"
+                 aria-labelledby="settings-general-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="settings-general-title">Allgemeine Einstellungen</h2>
+                <p class="dashboard-section-lead mb-0">App-Metadaten, Branding und Mail-Queue-Parameter verwalten.</p>
+            </div>
+
+            <div class="surface-card form-surface card border-0 settings-form-shell">
                 <div class="card-body p-4">
                     <form action="/settings"
                           method="post"
@@ -50,15 +56,15 @@
                                    class="form-control"
                                    id="app_name"
                                    name="app_name"
-                                   value="{{ settings.app_name|default('Chor-Manager') }}"
+                                   value="{{ settings.app_name|default("Chor-Manager") }}"
                                    required>
                             <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
                         </div>
 
                         <div class="mb-4">
                             <label for="app_logo" class="form-label fw-bold">Logo hochladen</label>
-                            <div class="d-flex align-items-start gap-4">
-                                <div class="bg-light p-3 rounded border text-center logo-preview-frame">
+                            <div class="settings-logo-row d-flex flex-column flex-lg-row align-items-start gap-3">
+                                <div class="bg-light p-3 rounded border text-center logo-preview-frame settings-logo-preview">
                                     <img src="/logo"
                                          alt="Aktuelles Logo"
                                          width="200"
@@ -66,7 +72,7 @@
                                          class="mb-2 d-inline-block logo-preview">
                                     <div class="small text-muted">Aktuelles Logo</div>
                                 </div>
-                                <div class="flex-grow-1">
+                                <div class="flex-grow-1 w-100 settings-logo-input">
                                     <input class="form-control"
                                            type="file"
                                            id="app_logo"
@@ -83,7 +89,7 @@
                                    class="form-control"
                                    id="primary_color"
                                    name="primary_color"
-                                   value="{{ settings.primary_color|default('#E8A817') }}"
+                                   value="{{ settings.primary_color|default("#E8A817") }}"
                                    inputmode="text"
                                    pattern="^#?[A-Fa-f0-9]{3}([A-Fa-f0-9]{3})?$">
                             <div class="form-text">Hex-Farbwert, zum Beispiel #E8A817. Leer oder ungültig fällt auf das Standardgelb zurück.</div>
@@ -147,7 +153,7 @@
                     </form>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
 {% endblock content %}

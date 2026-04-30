@@ -76,154 +76,166 @@
         </div>
     {% endif %}
 
-    <div class="surface-card card border-0 table-shell"
-         data-table-engine="true"
-         data-table-id="finances.index"
-         data-default-view="auto"
-         data-default-page-size="100"
-         data-page-size-options="25,50,100,200"
-         data-default-sort-key="running_number"
-         data-default-sort-dir="desc">
-        {{ include('partials/table_toolbar.twig') }}
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table"
-                       id="financesTable">
-                    <thead class="table-dark">
-                        <tr>
-                            <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
-                            <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
-                            <th data-sort-key="payment_date" data-sort-type="date">Zahldatum</th>
-                            <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
-                            <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
-                            <th data-sort-key="type" data-sort-type="text">Art</th>
-                            <th class="text-end finance-amount-column"
-                                data-sort-key="amount"
-                                data-sort-type="number">Betrag</th>
-                            <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
-                            <th>Anhänge</th>
-                            {% if can_write_finances %}<th class="text-end finance-actions-column">Aktionen</th>{% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in finances %}
-                            <tr data-sort-running_number="{{ item.running_number }}"
-                                data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
-                                data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
-                                data-sort-description="{{ item.description|lower }}"
-                                data-sort-group_name="{{ item.group_name|default('')|lower }}"
-                                data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
-                                data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
-                                data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
-                                <td data-label="Lfd. Nr.">
-                                    <strong>{{ item.running_number }}</strong>
-                                </td>
-                                <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
-                                <td data-label="Zahldatum">
-                                    {{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}
-                                </td>
-                                <td data-label="Beschreibung">{{ item.description }}</td>
-                                <td data-label="Gruppe">
-                                    {% if item.group_name %}
-                                        <span class="badge rounded-pill bg-light text-dark border">{{ item.group_name }}</span>
-                                    {% else %}
-                                        <span class="text-muted small">—</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Art">
-                                    {% if item.type == 'income' %}
-                                        <span class="badge bg-success">Eingang</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Ausgang</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Betrag"
-                                    class="finance-amount-cell text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
-                                    {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
-                                </td>
-                                <td data-label="Zahlungsart">
-                                    {% if item.payment_method == 'cash' %}
-                                        <i class="bi bi-cash-coin me-1"></i> Bar
-                                    {% else %}
-                                        <i class="bi bi-bank me-1"></i> Überweisung
-                                    {% endif %}
-                                </td>
-                                <td data-label="Anhänge">
-                                    {% if item.attachments|length > 0 %}
-                                        <div class="btn-group">
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-info dropdown-toggle"
-                                                    data-bs-toggle="dropdown"
-                                                    aria-expanded="false"
-                                                    data-bs-boundary="viewport">
-                                                <i class="bi bi-paperclip"></i> ({{ item.attachments|length }})
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                {% for att in item.attachments %}
-                                                    <li>
-                                                        <a class="dropdown-item d-flex justify-content-between align-items-center"
-                                                           href="/finances/attachments/{{ att.id }}"
-                                                           target="_blank">
-                                                            <span>{{ att.filename }}</span>
-                                                            <i class="bi bi-box-arrow-up-right ms-2 small"></i>
-                                                        </a>
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        </div>
-                                    {% else %}
-                                        <span class="text-muted small">—</span>
-                                    {% endif %}
-                                </td>
-                                {% set _item_atts = [] %}
-                                {% for _att in item.attachments %}
-                                    {% set _item_atts = _item_atts|merge([{id: _att.id, filename: _att.filename}]) %}
-                                {% endfor %}
-                                {% set _item_payload = {
-                                                                    id: item.id,
-                                                                    invoice_date: item.invoice_date|date("Y-m-d"),
-                                                                    payment_date: item.payment_date ? item.payment_date|date("Y-m-d") : null,
-                                                                    description: item.description,
-                                                                    group_name: item.group_name,
-                                                                    type: item.type,
-                                                                    payment_method: item.payment_method,
-                                                                    amount: item.amount,
-                                                                    running_number: item.running_number,
-                                                                    attachments: _item_atts,
-                                                                } %}
-                                {% if can_write_finances %}
-                                    <td data-label="Aktionen" class="finance-actions-cell text-end">
-                                        <div class="finance-actions">
-                                            <button class="btn btn-sm btn-outline-secondary"
-                                                    data-action="edit-finance"
-                                                    data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
-                                                    title="Bearbeiten">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <form action="/finances/{{ item.id }}/delete"
-                                                  method="post"
-                                                  class="mb-0"
-                                                  data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                {% endif %}
-                            </tr>
-                        {% else %}
-                            <tr>
-                                <td colspan="{{ can_write_finances ? 10 : 9 }}"
-                                    class="text-center py-4 text-muted">
-                                    Keine Einträge in diesem Geschäftsjahr gefunden.
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="finances-list-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="finances-list-title">Buchungen</h2>
+                <p class="dashboard-section-lead mb-0">
+                    {{ finances|length }} Einträge im aktuellen Geschäftsjahr. Suche und Sortierung über die Tabellenleiste.
+                </p>
             </div>
-        </div>
+
+            <div class="surface-card card border-0 table-shell"
+                 data-table-engine="true"
+                 data-table-id="finances.index"
+                 data-default-view="auto"
+                 data-default-page-size="100"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="running_number"
+                 data-default-sort-dir="desc">
+                {{ include('partials/table_toolbar.twig') }}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table"
+                               id="financesTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
+                                    <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
+                                    <th data-sort-key="payment_date" data-sort-type="date">Zahldatum</th>
+                                    <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
+                                    <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
+                                    <th data-sort-key="type" data-sort-type="text">Art</th>
+                                    <th class="text-end finance-amount-column"
+                                        data-sort-key="amount"
+                                        data-sort-type="number">Betrag</th>
+                                    <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
+                                    <th>Anhänge</th>
+                                    {% if can_write_finances %}<th class="text-end finance-actions-column">Aktionen</th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in finances %}
+                                    <tr data-sort-running_number="{{ item.running_number }}"
+                                        data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
+                                        data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
+                                        data-sort-description="{{ item.description|lower }}"
+                                        data-sort-group_name="{{ item.group_name|default('')|lower }}"
+                                        data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
+                                        data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
+                                        data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
+                                        <td data-label="Lfd. Nr.">
+                                            <strong>{{ item.running_number }}</strong>
+                                        </td>
+                                        <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
+                                        <td data-label="Zahldatum">
+                                            {{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}
+                                        </td>
+                                        <td data-label="Beschreibung">{{ item.description }}</td>
+                                        <td data-label="Gruppe">
+                                            {% if item.group_name %}
+                                                <span class="badge rounded-pill bg-light text-dark border">{{ item.group_name }}</span>
+                                            {% else %}
+                                                <span class="text-muted small">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Art">
+                                            {% if item.type == 'income' %}
+                                                <span class="badge bg-success">Eingang</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Ausgang</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Betrag"
+                                            class="finance-amount-cell text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
+                                            {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
+                                        </td>
+                                        <td data-label="Zahlungsart">
+                                            {% if item.payment_method == 'cash' %}
+                                                <i class="bi bi-cash-coin me-1"></i> Bar
+                                            {% else %}
+                                                <i class="bi bi-bank me-1"></i> Überweisung
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Anhänge">
+                                            {% if item.attachments|length > 0 %}
+                                                <div class="btn-group">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-info dropdown-toggle"
+                                                            data-bs-toggle="dropdown"
+                                                            aria-expanded="false"
+                                                            data-bs-boundary="viewport">
+                                                        <i class="bi bi-paperclip"></i> ({{ item.attachments|length }})
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        {% for att in item.attachments %}
+                                                            <li>
+                                                                <a class="dropdown-item d-flex justify-content-between align-items-center"
+                                                                   href="/finances/attachments/{{ att.id }}"
+                                                                   target="_blank">
+                                                                    <span>{{ att.filename }}</span>
+                                                                    <i class="bi bi-box-arrow-up-right ms-2 small"></i>
+                                                                </a>
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted small">—</span>
+                                            {% endif %}
+                                        </td>
+                                        {% set _item_atts = [] %}
+                                        {% for _att in item.attachments %}
+                                            {% set _item_atts = _item_atts|merge([{id: _att.id, filename: _att.filename}]) %}
+                                        {% endfor %}
+                                        {% set _item_payload = {
+                                                                                    id: item.id,
+                                                                                    invoice_date: item.invoice_date|date("Y-m-d"),
+                                                                                    payment_date: item.payment_date ? item.payment_date|date("Y-m-d") : null,
+                                                                                    description: item.description,
+                                                                                    group_name: item.group_name,
+                                                                                    type: item.type,
+                                                                                    payment_method: item.payment_method,
+                                                                                    amount: item.amount,
+                                                                                    running_number: item.running_number,
+                                                                                    attachments: _item_atts,
+                                                                                } %}
+                                        {% if can_write_finances %}
+                                            <td data-label="Aktionen" class="finance-actions-cell text-end">
+                                                <div class="finance-actions">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                            data-action="edit-finance"
+                                                            data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
+                                                            title="Bearbeiten">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <form action="/finances/{{ item.id }}/delete"
+                                                          method="post"
+                                                          class="mb-0"
+                                                          data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="{{ can_write_finances ? 10 : 9 }}"
+                                            class="text-center py-4 text-muted">
+                                            Keine Einträge in diesem Geschäftsjahr gefunden.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     {% if can_write_finances %}

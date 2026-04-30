@@ -45,56 +45,25 @@
         </div>
     {% endif %}
 
+    {% set category_options_attr %}
+        {% for cat in categories %}{{ cat.id }}::{{ cat.name }}||{% endfor %}
+    {% endset %}
+
     <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--actions"
-                 aria-labelledby="repertoire-filter-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="repertoire-filter-title">Lieder finden</h2>
-                <p class="dashboard-section-lead mb-0">Durchsuche das gesamte Repertoire oder filtere nach Kategorie.</p>
-            </div>
-
-            <form class="row g-2" method="get" action="/song-library">
-                <div class="col-md-6">
-                    <input type="text"
-                           name="search"
-                           class="form-control"
-                           placeholder="Titel, Komponist, Arrangeur..."
-                           value="{{ search }}">
-                </div>
-                <div class="col-md-4">
-                    <select name="category" class="form-select">
-                        <option value="">Alle Kategorien</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat.id }}"
-                                    {% if selected_category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-outline-primary flex-grow-1">
-                        <i class="bi bi-search me-1"></i>Filtern
-                    </button>
-                    {% if search or selected_category_id %}
-                        <a href="/song-library"
-                           class="btn btn-outline-secondary"
-                           aria-label="Filter zurücksetzen">
-                            <i class="bi bi-x-lg"></i>
-                        </a>
-                    {% endif %}
-                </div>
-            </form>
-        </section>
-
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="repertoire-list-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="repertoire-list-title">Repertoireübersicht</h2>
-                <p class="dashboard-section-lead mb-0">{{ songs|length }} Lieder im aktuellen Ergebnis.</p>
+                <p class="dashboard-section-lead mb-0">
+                    {{ songs|length }} Lieder im aktuellen Ergebnis. Suche und Kategorien über die Tabellenleiste.
+                </p>
             </div>
 
             <div class="surface-card card border-0 table-shell"
                  data-table-engine="true"
                  data-table-id="songs.manage"
+                 data-table-plugins="songCategory"
+                 data-category-options="{{ category_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
                  data-default-view="auto"
                  data-default-page-size="100"
                  data-page-size-options="25,50,100,200"
@@ -126,13 +95,16 @@
                                     {% if song.publisher %}
                                         {% set meta_parts = meta_parts|merge([song.publisher]) %}
                                     {% endif %}
-                                    {% set categories_sort = '' %}
+                                    {% set categories_sort = "" %}
+                                    {% set category_filter_ids = "|" %}
                                     {% for cat in song.categories %}
                                         {% set categories_sort = categories_sort ~ ' ' ~ cat.name|lower %}
+                                        {% set category_filter_ids = category_filter_ids ~ cat.id ~ '|' %}
                                     {% endfor %}
                                     <tr data-sort-title="{{ song.title|lower }}"
                                         data-sort-meta="{{ meta_parts|join(' | ')|lower }}"
                                         data-sort-categories="{{ categories_sort|trim }}"
+                                        data-category="{{ category_filter_ids }}"
                                         data-sort-attachments="{{ song.attachments|length }}"
                                         data-sort-projects="{{ song.projectAssignments|length }}">
                                         <td data-label="Titel">
@@ -177,13 +149,7 @@
                                     </tr>
                                 {% else %}
                                     <tr>
-                                        <td colspan="6" class="text-center py-4 text-muted">
-                                            {% if search or selected_category_id %}
-                                                Für den aktuellen Filter gibt es keine Treffer. <a href="/song-library">Filter zurücksetzen</a>.
-                                            {% else %}
-                                                Das Repertoire ist noch leer. Lege das erste Lied an.
-                                            {% endif %}
-                                        </td>
+                                        <td colspan="6" class="text-center py-4 text-muted">Das Repertoire ist noch leer. Lege das erste Lied an.</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -275,3 +241,8 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/js/table-plugins/song-category-plugin.js"></script>
+{% endblock scripts %}

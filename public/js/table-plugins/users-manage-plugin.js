@@ -70,40 +70,10 @@
             return { group: group, select: select };
         }
 
-        function applyDedicatedFieldLayout(container, field) {
-            if (!container || !field) {
-                return;
-            }
-
-            container.className = 'col-12 col-md-3';
-            field.className = 'd-flex flex-column gap-1 w-100';
-
-            const select = field.querySelector('select');
-            if (select) {
-                select.className = 'form-select';
-            }
-
-            const textNode = Array.from(field.childNodes).find(function (node) {
-                return node.nodeType === Node.TEXT_NODE && String(node.textContent || '').trim();
-            });
-            if (textNode) {
-                const labelText = String(textNode.textContent || '').trim();
-                textNode.textContent = '';
-
-                const labelSpan = document.createElement('span');
-                labelSpan.className = 'form-label small mb-0';
-                labelSpan.textContent = labelText;
-                field.insertBefore(labelSpan, field.firstChild);
-            }
-        }
-
         function createResetControl() {
-            const column = document.createElement('div');
-            column.className = 'col-12 col-md-3 d-flex align-items-end';
-
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'btn btn-outline-secondary w-100';
+            button.className = 'btn btn-sm btn-outline-secondary';
             button.innerHTML = '<i class="bi bi-x-circle"></i> Reset';
             button.addEventListener('click', function () {
                 state = { role: '', voice: '', project: '' };
@@ -112,9 +82,7 @@
                 }
                 context.onPluginStateChange();
             });
-
-            column.appendChild(button);
-            return { column: column, button: button };
+            return { button: button };
         }
 
         function rowHasToken(row, key, token) {
@@ -130,18 +98,12 @@
 
         function mount() {
             const tableContainer = context.pluginSlot.closest('[data-table-engine="true"]');
-            const dedicatedSlot = tableContainer && typeof tableContainer.querySelector === 'function'
-                ? tableContainer.parentElement.querySelector('[data-users-manage-filter-slot]')
-                : null;
-            const mountTarget = dedicatedSlot || context.pluginSlot;
-            if (!mountTarget) {
+            if (!context.pluginSlot || !tableContainer) {
                 return;
             }
 
             const root = document.createElement('div');
-            root.className = dedicatedSlot
-                ? 'row g-3 align-items-end w-100 m-0'
-                : 'd-flex gap-2 align-items-center flex-wrap';
+            root.className = 'd-flex gap-2 align-items-center flex-wrap';
 
             const roleOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.roleOptions : '');
             const voiceOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.voiceOptions : '');
@@ -150,29 +112,12 @@
             const voiceSelectControl = createSelect('Stimme', voiceOptions, 'voice');
             const projectSelectControl = createSelect('Projekt', projectOptions, 'project');
 
-            if (dedicatedSlot) {
-                const roleColumn = document.createElement('div');
-                const voiceColumn = document.createElement('div');
-                const projectColumn = document.createElement('div');
-                const resetControl = createResetControl();
-
-                applyDedicatedFieldLayout(roleColumn, roleSelectControl.group);
-                applyDedicatedFieldLayout(voiceColumn, voiceSelectControl.group);
-                applyDedicatedFieldLayout(projectColumn, projectSelectControl.group);
-
-                roleColumn.appendChild(roleSelectControl.group);
-                root.appendChild(roleColumn);
-                voiceColumn.appendChild(voiceSelectControl.group);
-                projectColumn.appendChild(projectSelectControl.group);
-                root.appendChild(voiceColumn);
-                root.appendChild(projectColumn);
-                root.appendChild(resetControl.column);
-            } else {
-                root.appendChild(roleSelectControl.group);
-                root.appendChild(voiceSelectControl.group);
-                root.appendChild(projectSelectControl.group);
-            }
-            mountTarget.appendChild(root);
+            const resetControl = createResetControl();
+            root.appendChild(roleSelectControl.group);
+            root.appendChild(voiceSelectControl.group);
+            root.appendChild(projectSelectControl.group);
+            root.appendChild(resetControl.button);
+            context.pluginSlot.appendChild(root);
 
             controls = {
                 root: root,

@@ -1,4 +1,4 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
     Sponsoren - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -7,7 +7,7 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
             <h1 class="h2 mb-1">
                 <i class="bi bi-people me-2"></i>Sponsoren
             </h1>
@@ -44,133 +44,116 @@
         </div>
     {% endif %}
 
-    {# Filter #}
-    <section class="surface-card filter-surface p-3 mb-3">
-        <form method="get" action="/sponsoring/sponsors" class="row g-2 mb-0">
-            <div class="col-sm-5 col-md-4">
-                <input type="text"
-                       name="q"
-                       class="form-control form-control-sm"
-                       placeholder="Suche (Name, Kontakt, E-Mail)..."
-                       value="{{ q }}">
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="sponsor-list-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="sponsor-list-title">Sponsorenübersicht</h2>
+                <p class="dashboard-section-lead mb-0">
+                    {{ sponsors|length }} Einträge im aktuellen Ergebnis. Suche und Statusfilter über die Tabellenleiste.
+                </p>
             </div>
-            <div class="col-sm-4 col-md-3">
-                <select name="status" class="form-select form-select-sm">
-                    <option value="">– Alle Status –</option>
-                    {% for s in statuses %}
-                        <option value="{{ s }}" {{ s == status ? 'selected' : '' }}>{{ s|capitalize }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-funnel"></i> Filtern
-                </button>
-                {% if q or status %}
-                    <a href="/sponsoring/sponsors"
-                       class="btn btn-outline-secondary btn-sm ms-1"><i class="bi bi-x"></i> Zurücksetzen</a>
-                {% endif %}
-            </div>
-        </form>
-    </section>
 
-    <div class="surface-card table-shell"
-         data-table-engine="true"
-         data-table-id="sponsoring.sponsors.index"
-         data-default-view="auto"
-         data-default-page-size="100"
-         data-page-size-options="25,50,100,200"
-         data-default-sort-key="sponsor_name">
-        {{ include('partials/table_toolbar.twig') }}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 table-responsive-cards"
-                   id="sponsorsTable">
-                <thead class="table-light">
-                    <tr>
-                        <th data-sort-key="sponsor_name" data-sort-type="text">Name</th>
-                        <th data-sort-key="category" data-sort-type="text">Typ</th>
-                        <th data-sort-key="status" data-sort-type="text">Status</th>
-                        <th>E-Mail</th>
-                        <th>Telefon</th>
-                        <th data-sort-key="sponsorship_count" data-sort-type="number">Vereinbarungen</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sponsor in sponsors %}
-                        <tr data-sort-sponsor_name="{{ sponsor.name|lower }}"
-                            data-sort-category="{{ sponsor.type == 'organization' ? 'organisation' : 'einzelperson' }}"
-                            data-sort-status="{{ sponsor.status|lower }}"
-                            data-sort-sponsorship_count="{{ sponsor.sponsorships|length }}">
-                            <td data-label="Name">
-                                <a href="/sponsoring/sponsors/{{ sponsor.id }}"
-                                   class="fw-semibold text-decoration-none">{{ sponsor.name }}</a>
-                                {% if sponsor.contact_person %}<div class="text-muted small">{{ sponsor.contact_person }}</div>{% endif %}
-                            </td>
-                            <td data-label="Typ">
-                                {% if sponsor.type == 'organization' %}
-                                    <i class="bi bi-building" title="Organisation"></i>
-                                {% else %}
-                                    <i class="bi bi-person" title="Einzelperson"></i>
-                                {% endif %}
-                            </td>
-                            <td data-label="Status">
-                                {% set status_colors = {
-                                    "prospect": "secondary",
-                                    "contacted": "info",
-                                    "negotiating": "warning",
-                                    "active": "success",
-                                    "paused": "secondary",
-                                    "closed": "dark"
-                                } %}
-                                {% set status_labels = {
-                                    "prospect": "Interessent",
-                                    "contacted": "Kontaktiert",
-                                    "negotiating": "Verhandlung",
-                                    "active": "Aktiv",
-                                    "paused": "Pausiert",
-                                    "closed": "Abgeschlossen"
-                                } %}
-                                <span class="badge bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
-                            </td>
-                            <td data-label="E-Mail">
-                                {% if sponsor.email %}
-                                    <a href="mailto:{{ sponsor.email }}" class="text-decoration-none small">{{ sponsor.email }}</a>
-                                {% else %}
-                                    –
-                                {% endif %}
-                            </td>
-                            <td data-label="Telefon" class="small">{{ sponsor.phone ?? '–' }}</td>
-                            <td data-label="Vereinbarungen"
-                                data-sort-key="sponsorship_count"
-                                data-sort-value="{{ sponsor.sponsorships|length }}">
-                                <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
-                            </td>
-                            <td data-label="Aktionen" class="text-end text-nowrap">
-                                <a href="/sponsoring/sponsors/{{ sponsor.id }}"
-                                   class="btn btn-sm btn-outline-secondary"
-                                   title="Details">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <form method="post"
-                                      action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-                                      class="d-inline"
-                                      data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-4">Keine Sponsoren gefunden.</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            <div class="surface-card table-shell"
+                 data-table-engine="true"
+                 data-table-id="sponsoring.sponsors.index"
+                 data-table-plugins="sponsorStatus"
+                 data-default-view="auto"
+                 data-default-page-size="100"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="sponsor_name">
+                {{ include('partials/table_toolbar.twig') }}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-responsive-cards"
+                           id="sponsorsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-sort-key="sponsor_name" data-sort-type="text">Name</th>
+                                <th data-sort-key="category" data-sort-type="text">Typ</th>
+                                <th data-sort-key="status" data-sort-type="text">Status</th>
+                                <th>E-Mail</th>
+                                <th>Telefon</th>
+                                <th data-sort-key="sponsorship_count" data-sort-type="number">Vereinbarungen</th>
+                                <th class="text-end">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sponsor in sponsors %}
+                                <tr data-sort-sponsor_name="{{ sponsor.name|lower }}"
+                                    data-sort-category="{{ sponsor.type == 'organization' ? 'organisation' : 'einzelperson' }}"
+                                    data-sort-status="{{ sponsor.status|lower }}"
+                                    data-status="{{ sponsor.status|lower }}"
+                                    data-sort-sponsorship_count="{{ sponsor.sponsorships|length }}">
+                                    <td data-label="Name">
+                                        <a href="/sponsoring/sponsors/{{ sponsor.id }}"
+                                           class="fw-semibold text-decoration-none">{{ sponsor.name }}</a>
+                                        {% if sponsor.contact_person %}<div class="text-muted small">{{ sponsor.contact_person }}</div>{% endif %}
+                                    </td>
+                                    <td data-label="Typ">
+                                        {% if sponsor.type == 'organization' %}
+                                            <i class="bi bi-building" title="Organisation"></i>
+                                        {% else %}
+                                            <i class="bi bi-person" title="Einzelperson"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Status">
+                                        {% set status_colors = {
+                                            "prospect": "secondary",
+                                            "contacted": "info",
+                                            "negotiating": "warning",
+                                            "active": "success",
+                                            "paused": "secondary",
+                                            "closed": "dark"
+                                        } %}
+                                        {% set status_labels = {
+                                            "prospect": "Interessent",
+                                            "contacted": "Kontaktiert",
+                                            "negotiating": "Verhandlung",
+                                            "active": "Aktiv",
+                                            "paused": "Pausiert",
+                                            "closed": "Abgeschlossen"
+                                        } %}
+                                        <span class="badge bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
+                                    </td>
+                                    <td data-label="E-Mail">
+                                        {% if sponsor.email %}
+                                            <a href="mailto:{{ sponsor.email }}" class="text-decoration-none small">{{ sponsor.email }}</a>
+                                        {% else %}
+                                            –
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Telefon" class="small">{{ sponsor.phone ?? '–' }}</td>
+                                    <td data-label="Vereinbarungen"
+                                        data-sort-key="sponsorship_count"
+                                        data-sort-value="{{ sponsor.sponsorships|length }}">
+                                        <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
+                                    </td>
+                                    <td data-label="Aktionen" class="text-end text-nowrap">
+                                        <a href="/sponsoring/sponsors/{{ sponsor.id }}"
+                                           class="btn btn-sm btn-outline-secondary"
+                                           title="Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <form method="post"
+                                              action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+                                              class="d-inline"
+                                              data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">Keine Sponsoren gefunden.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </div>
 
     {# Modal: Neuer Sponsor #}
@@ -252,3 +235,8 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/js/table-plugins/sponsors-status-plugin.js"></script>
+{% endblock scripts %}

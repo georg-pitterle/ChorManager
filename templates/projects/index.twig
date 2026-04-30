@@ -1,7 +1,7 @@
-{% extends 'layout.twig' %}
+{% extends "layout.twig" %}
 
 {% block title %}
-    Projekte - {{ app_settings.app_name|default('Chor-Manager') }}
+    Projekte - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -42,84 +42,95 @@
         </div>
     {% endif %}
 
-    <div class="surface-card card border-0 table-shell"
-         data-table-engine="true"
-         data-table-id="projects.index"
-         data-default-view="auto"
-         data-default-page-size="100"
-         data-page-size-options="25,50,100,200"
-         data-default-sort-key="start_date"
-         data-default-sort-dir="desc">
-        {{ include('partials/table_toolbar.twig') }}
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped mb-0 table-responsive-cards"
-                       id="projectsTable">
-                    <thead class="table-dark">
-                        <tr>
-                            <th data-sort-key="project_name" data-sort-type="text">Projektname</th>
-                            <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
-                            <th data-sort-key="start_date" data-sort-type="date">Startdatum</th>
-                            <th data-sort-key="end_date" data-sort-type="date">Enddatum</th>
-                            <th class="text-end">Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for project in projects %}
-                            <tr data-sort-project_name="{{ project.name|lower }}"
-                                data-sort-description="{{ project.description|default('')|lower }}"
-                                data-sort-start_date="{{ project.start_date|default('') }}"
-                                data-sort-end_date="{{ project.end_date|default('') }}">
-                                <td data-label="Projektname">
-                                    <strong>{{ project.name }}</strong>
-                                </td>
-                                <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
-                                <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>
-                                <td data-label="Enddatum">{{ project.end_date|default('-') }}</td>
-                                <td data-label="Aktionen" class="text-end">
-                                    <div class="dropdown">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                                data-bs-toggle="dropdown"
-                                                aria-expanded="false">Aktionen</button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <li>
-                                                <button type="button"
-                                                        class="dropdown-item"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#editProjectModal{{ project.id }}">
-                                                    <i class="bi bi-pencil me-2"></i>Bearbeiten
-                                                </button>
-                                            </li>
-
-                                            {% if session.can_manage_tasks %}
-                                                <li>
-                                                    <a href="/projects/{{ project.id }}/tasks" class="dropdown-item">
-                                                        <i class="bi bi-list-check me-2"></i>Planung
-                                                    </a>
-                                                </li>
-                                            {% endif %}
-
-                                            {% if session.can_manage_project_members %}
-                                                <li>
-                                                    <a href="/projects/{{ project.id }}/members" class="dropdown-item">
-                                                        <i class="bi bi-people me-2"></i>Mitglieder
-                                                    </a>
-                                                </li>
-                                            {% endif %}
-                                        </ul>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">Bisher wurden keine Projekte angelegt.</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="projects-list-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="projects-list-title">Projektübersicht</h2>
+                <p class="dashboard-section-lead mb-0">{{ projects|length }} Einträge im aktuellen Ergebnis.</p>
             </div>
-        </div>
+
+            <div class="surface-card card border-0 table-shell projects-table-shell"
+                 data-table-engine="true"
+                 data-table-id="projects.index"
+                 data-default-view="auto"
+                 data-default-page-size="100"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="start_date"
+                 data-default-sort-dir="desc">
+                {{ include('partials/table_toolbar.twig') }}
+                <div class="card-body p-0">
+                    <div class="table-responsive projects-table-responsive">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                               id="projectsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th data-sort-key="project_name" data-sort-type="text">Projektname</th>
+                                    <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
+                                    <th data-sort-key="start_date" data-sort-type="date">Startdatum</th>
+                                    <th data-sort-key="end_date" data-sort-type="date">Enddatum</th>
+                                    <th class="text-end">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in projects %}
+                                    <tr data-sort-project_name="{{ project.name|lower }}"
+                                        data-sort-description="{{ project.description|default('')|lower }}"
+                                        data-sort-start_date="{{ project.start_date|default('') }}"
+                                        data-sort-end_date="{{ project.end_date|default('') }}">
+                                        <td data-label="Projektname">
+                                            <strong>{{ project.name }}</strong>
+                                        </td>
+                                        <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
+                                        <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>
+                                        <td data-label="Enddatum">{{ project.end_date|default('-') }}</td>
+                                        <td data-label="Aktionen" class="text-end">
+                                            <div class="dropdown">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                        data-bs-toggle="dropdown"
+                                                        data-bs-boundary="viewport"
+                                                        aria-expanded="false">Aktionen</button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <button type="button"
+                                                                class="dropdown-item"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#editProjectModal{{ project.id }}">
+                                                            <i class="bi bi-pencil me-2"></i>Bearbeiten
+                                                        </button>
+                                                    </li>
+
+                                                    {% if session.can_manage_tasks %}
+                                                        <li>
+                                                            <a href="/projects/{{ project.id }}/tasks" class="dropdown-item">
+                                                                <i class="bi bi-list-check me-2"></i>Planung
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+
+                                                    {% if session.can_manage_project_members %}
+                                                        <li>
+                                                            <a href="/projects/{{ project.id }}/members" class="dropdown-item">
+                                                                <i class="bi bi-people me-2"></i>Mitglieder
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">Bisher wurden keine Projekte angelegt.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     {% for project in projects %}
@@ -154,7 +165,7 @@
                             <textarea class="form-control"
                                       id="edit_description_{{ project.id }}"
                                       name="description"
-                                      rows="3">{{ project.description|default('') }}</textarea>
+                                      rows="3">{{ project.description|default("") }}</textarea>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -163,7 +174,7 @@
                                        class="form-control"
                                        id="edit_start_date_{{ project.id }}"
                                        name="start_date"
-                                       value="{{ project.start_date|default('') }}">
+                                       value="{{ project.start_date|default("") }}">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="edit_end_date_{{ project.id }}" class="form-label">Enddatum</label>
@@ -171,7 +182,7 @@
                                        class="form-control"
                                        id="edit_end_date_{{ project.id }}"
                                        name="end_date"
-                                       value="{{ project.end_date|default('') }}">
+                                       value="{{ project.end_date|default("") }}">
                             </div>
                         </div>
                     </div>
