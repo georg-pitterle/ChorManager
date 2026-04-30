@@ -14,7 +14,6 @@ use App\Middleware\MailQueueProcessingMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Views\Twig;
-use Throwable;
 
 return function (App $app): void {
     // Example health endpoint middleware stack can stay empty for now.
@@ -38,7 +37,7 @@ return function (App $app): void {
         HttpNotFoundException::class,
         static function (
             Request $request,
-            Throwable $exception,
+            \Throwable $exception,
             bool $displayErrorDetails,
             bool $logErrors,
             bool $logErrorDetails
@@ -55,7 +54,7 @@ return function (App $app): void {
                             ['requested_path' => $request->getUri()->getPath()]
                         );
                     }
-                } catch (Throwable) {
+                } catch (\Throwable) {
                     // Fall through to Slim default error handler when Twig rendering fails.
                 }
             }
