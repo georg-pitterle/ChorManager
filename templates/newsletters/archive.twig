@@ -66,12 +66,16 @@
                                                 <td data-label="Erstellt von">{{ sender_name|default("-") }}</td>
                                                 <td data-label="Gesendet am">{{ entry.sent_at|date("d.m.Y H:i") }}</td>
                                                 <td data-label="Aktionen" class="text-end">
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-secondary"
-                                                            data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
-                                                            data-newsletter-modal-title="Newsletter Vorschau">
-                                                        <i class="bi bi-eye"></i> Vorschau
-                                                    </button>
+                                                    <div class="btn-group"
+                                                         role="group"
+                                                         aria-label="Aktionen für Newsletter {{ newsletter.title }}">
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary"
+                                                                data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
+                                                                data-newsletter-modal-title="Newsletter Vorschau">
+                                                            <i class="bi bi-eye"></i> Vorschau
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         {% endif %}

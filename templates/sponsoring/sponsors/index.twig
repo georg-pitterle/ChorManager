@@ -129,19 +129,33 @@
                                         <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
                                     </td>
                                     <td data-label="Aktionen" class="text-end text-nowrap">
-                                        <a href="/sponsoring/sponsors/{{ sponsor.id }}"
-                                           class="btn btn-sm btn-outline-secondary"
-                                           title="Details">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <form method="post"
-                                              action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-                                              class="d-inline"
-                                              data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                                <i class="bi bi-trash"></i>
+                                        <div class="btn-group"
+                                             role="group"
+                                             aria-label="Aktionen für Sponsor {{ sponsor.name }}">
+                                            <a href="/sponsoring/sponsors/{{ sponsor.id }}"
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="Details">
+                                                <i class="bi bi-eye"></i> Details
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    data-bs-boundary="viewport">
+                                                <span class="visually-hidden">Weitere Aktionen</span>
                                             </button>
-                                        </form>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <form method="post"
+                                                          action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+                                                          data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="bi bi-trash me-2"></i> Löschen
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </td>
                                 </tr>
                             {% else %}

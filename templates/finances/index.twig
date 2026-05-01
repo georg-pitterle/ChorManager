@@ -203,21 +203,33 @@
                                                                                 } %}
                                         {% if can_write_finances %}
                                             <td data-label="Aktionen" class="finance-actions-cell text-end">
-                                                <div class="finance-actions">
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Finanzaktionen für {{ item.running_number }}">
                                                     <button class="btn btn-sm btn-outline-secondary"
                                                             data-action="edit-finance"
                                                             data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
                                                             title="Bearbeiten">
-                                                        <i class="bi bi-pencil"></i>
+                                                        <i class="bi bi-pencil"></i> Bearbeiten
                                                     </button>
-                                                    <form action="/finances/{{ item.id }}/delete"
-                                                          method="post"
-                                                          class="mb-0"
-                                                          data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </form>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                            data-bs-toggle="dropdown"
+                                                            aria-expanded="false"
+                                                            data-bs-boundary="viewport">
+                                                        <span class="visually-hidden">Weitere Aktionen</span>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <form action="/finances/{{ item.id }}/delete"
+                                                                  method="post"
+                                                                  data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
+                                                                <button type="submit" class="dropdown-item text-danger">
+                                                                    <i class="bi bi-trash me-2"></i> Löschen
+                                                                </button>
+                                                            </form>
+                                                        </li>
+                                                    </ul>
                                                 </div>
                                             </td>
                                         {% endif %}

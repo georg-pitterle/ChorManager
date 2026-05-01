@@ -223,37 +223,63 @@
                                         {% endif %}
                                         <td data-label="Aktionen" class="text-end">
                                             {% if show_archived %}
-                                                <form action="/users/restore/{{ user.id }}"
-                                                      method="post"
-                                                      class="d-inline"
-                                                      data-confirm="Mitglied {{ user.first_name }} {{ user.last_name }} wirklich wiederherstellen?">
-                                                    <button type="submit"
-                                                            class="btn btn-sm btn-outline-success"
-                                                            title="Wiederherstellen">
-                                                        <i class="bi bi-person-check-fill"></i> Wiederherstellen
-                                                    </button>
-                                                </form>
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Aktionen für {{ user.first_name }} {{ user.last_name }}">
+                                                    <form action="/users/restore/{{ user.id }}"
+                                                          method="post"
+                                                          data-confirm="Mitglied {{ user.first_name }} {{ user.last_name }} wirklich wiederherstellen?">
+                                                        <button type="submit"
+                                                                class="btn btn-sm btn-outline-success"
+                                                                title="Wiederherstellen">
+                                                            <i class="bi bi-person-check-fill"></i> Wiederherstellen
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             {% else %}
-                                                {% if can_edit_users %}
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-primary"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#editUserModal{{ user.id }}"
-                                                            title="Bearbeiten">
-                                                        <i class="bi bi-pencil-fill"></i>
-                                                    </button>
-                                                {% endif %}
-                                                <form action="/users/deactivate/{{ user.id }}"
-                                                      method="post"
-                                                      class="d-inline"
-                                                      data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
-                                                    <button type="submit"
-                                                            class="btn btn-sm btn-outline-danger"
-                                                            {% if user.id == session.user_id %}disabled{% endif %}
-                                                            title="Deaktivieren">
-                                                        <i class="bi bi-person-x-fill"></i>
-                                                    </button>
-                                                </form>
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Aktionen für {{ user.first_name }} {{ user.last_name }}">
+                                                    {% if can_edit_users %}
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-primary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#editUserModal{{ user.id }}"
+                                                                title="Bearbeiten">
+                                                            <i class="bi bi-pencil-fill"></i> Bearbeiten
+                                                        </button>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                                data-bs-toggle="dropdown"
+                                                                aria-expanded="false"
+                                                                data-bs-boundary="viewport">
+                                                            <span class="visually-hidden">Weitere Aktionen</span>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            <li>
+                                                                <form action="/users/deactivate/{{ user.id }}"
+                                                                      method="post"
+                                                                      data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
+                                                                    <button type="submit"
+                                                                            class="dropdown-item text-danger"
+                                                                            {% if user.id == session.user_id %}disabled{% endif %}>
+                                                                        <i class="bi bi-person-x-fill me-2"></i> Deaktivieren
+                                                                    </button>
+                                                                </form>
+                                                            </li>
+                                                        </ul>
+                                                    {% else %}
+                                                        <form action="/users/deactivate/{{ user.id }}"
+                                                              method="post"
+                                                              data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
+                                                            <button type="submit"
+                                                                    class="btn btn-sm btn-outline-danger"
+                                                                    {% if user.id == session.user_id %}disabled{% endif %}>
+                                                                <i class="bi bi-person-x-fill me-2"></i> Deaktivieren
+                                                            </button>
+                                                        </form>
+                                                    {% endif %}
+                                                </div>
                                             {% endif %}
                                         </td>
                                     </tr>

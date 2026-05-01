@@ -149,11 +149,15 @@
                                         </td>
                                         <td data-label="Zuständig">{{ contact.owner_name }}</td>
                                         <td data-label="Aktionen" class="text-end">
-                                            <form method="post" action="{{ contact.mark_done_url }}" class="d-inline">
-                                                <button type="submit" class="btn btn-sm btn-success">
-                                                    <i class="bi bi-check-lg"></i> Erledigt
-                                                </button>
-                                            </form>
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Aktionen für Kontakt {{ contact.sponsor_name }}">
+                                                <form method="post" action="{{ contact.mark_done_url }}">
+                                                    <button type="submit" class="btn btn-sm btn-success">
+                                                        <i class="bi bi-check-lg"></i> Erledigt
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 {% endfor %}

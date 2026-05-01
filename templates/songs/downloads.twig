@@ -64,7 +64,6 @@
                                             <div data-table-engine="true"
                                                  data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}"
                                                  data-default-view="auto"
-                                                 data-auto-cards-max-width="767"
                                                  data-default-page-size="100"
                                                  data-page-size-options="25,50,100,200"
                                                  data-default-sort-key="file_name">
@@ -125,11 +124,15 @@
                                                                         {% endif %}
                                                                     </td>
                                                                     <td data-label="Aktionen" class="text-end">
-                                                                        <a class="btn btn-sm btn-outline-primary"
-                                                                           href="/downloads/attachments/{{ attachment.id }}/download">
-                                                                            <i class="bi bi-download"></i>
-                                                                            <span class="d-none d-sm-inline">Download</span>
-                                                                        </a>
+                                                                        <div class="btn-group"
+                                                                             role="group"
+                                                                             aria-label="Aktionen für Anhang {{ attachment.filename }}">
+                                                                            <a class="btn btn-sm btn-outline-primary"
+                                                                               href="/downloads/attachments/{{ attachment.id }}/download">
+                                                                                <i class="bi bi-download"></i>
+                                                                                <span class="d-none d-sm-inline">Download</span>
+                                                                            </a>
+                                                                        </div>
                                                                     </td>
                                                                 </tr>
                                                             {% else %}

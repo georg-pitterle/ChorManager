@@ -233,27 +233,31 @@
                                         <th scope="row">Aktionen</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-secondary edit-role-btn"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#editRoleModal"
-                                                        data-id="{{ role.id }}"
-                                                        data-name="{{ role.name }}"
-                                                        data-level="{{ role.hierarchy_level }}"
-                                                        data-manage="{{ role.can_manage_users ? '1' : '0' }}"
-                                                        data-edit="{{ role.can_edit_users ? '1' : '0' }}"
-                                                        data-attendance="{{ role.can_manage_attendance ? '1' : '0' }}"
-                                                        data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
-                                                        data-finance-read="{{ role.can_read_finances ? '1' : '0' }}"
-                                                        data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
-                                                        data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
-                                                        data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
-                                                        data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
-                                                        data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
-                                                        data-mail-queue="{{ role.can_manage_mail_queue ? '1' : '0' }}"
-                                                        data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
-                                                    <i class="bi bi-pencil"></i> Bearbeiten
-                                                </button>
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Rollenaktionen für {{ role.name }}">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary edit-role-btn"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editRoleModal"
+                                                            data-id="{{ role.id }}"
+                                                            data-name="{{ role.name }}"
+                                                            data-level="{{ role.hierarchy_level }}"
+                                                            data-manage="{{ role.can_manage_users ? '1' : '0' }}"
+                                                            data-edit="{{ role.can_edit_users ? '1' : '0' }}"
+                                                            data-attendance="{{ role.can_manage_attendance ? '1' : '0' }}"
+                                                            data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
+                                                            data-finance-read="{{ role.can_read_finances ? '1' : '0' }}"
+                                                            data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
+                                                            data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
+                                                            data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
+                                                            data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
+                                                            data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
+                                                            data-mail-queue="{{ role.can_manage_mail_queue ? '1' : '0' }}"
+                                                            data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
+                                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                                    </button>
+                                                </div>
                                             </td>
                                         {% endfor %}
                                     </tr>

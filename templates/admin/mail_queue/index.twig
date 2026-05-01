@@ -168,11 +168,13 @@
                                         </td>
                                         <td data-label="Aktionen">
                                             {% if entry.status == 'dead' %}
-                                                <form method="post"
-                                                      action="/admin/mail-queue/{{ entry.id }}/retry"
-                                                      class="d-inline">
-                                                    <button type="submit" class="btn btn-sm btn-warning">Erneut einreihen</button>
-                                                </form>
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Aktionen für Queue-Eintrag {{ entry.id }}">
+                                                    <form method="post" action="/admin/mail-queue/{{ entry.id }}/retry">
+                                                        <button type="submit" class="btn btn-sm btn-warning">Erneut einreihen</button>
+                                                    </form>
+                                                </div>
                                             {% else %}
                                                 —
                                             {% endif %}

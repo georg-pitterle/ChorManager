@@ -85,26 +85,27 @@
                                         <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>
                                         <td data-label="Enddatum">{{ project.end_date|default('-') }}</td>
                                         <td data-label="Aktionen" class="text-end">
-                                            <div class="dropdown">
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Projektaktionen für {{ project.name }}">
                                                 <button type="button"
-                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editProjectModal{{ project.id }}">
+                                                    <i class="bi bi-pencil"></i> Bearbeiten
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
                                                         data-bs-toggle="dropdown"
                                                         data-bs-boundary="viewport"
-                                                        aria-expanded="false">Aktionen</button>
+                                                        aria-expanded="false">
+                                                    <span class="visually-hidden">Weitere Aktionen</span>
+                                                </button>
                                                 <ul class="dropdown-menu dropdown-menu-end">
-                                                    <li>
-                                                        <button type="button"
-                                                                class="dropdown-item"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#editProjectModal{{ project.id }}">
-                                                            <i class="bi bi-pencil me-2"></i>Bearbeiten
-                                                        </button>
-                                                    </li>
-
                                                     {% if session.can_manage_tasks %}
                                                         <li>
                                                             <a href="/projects/{{ project.id }}/tasks" class="dropdown-item">
-                                                                <i class="bi bi-list-check me-2"></i>Planung
+                                                                <i class="bi bi-list-check me-2"></i> Planung
                                                             </a>
                                                         </li>
                                                     {% endif %}
@@ -112,7 +113,7 @@
                                                     {% if session.can_manage_project_members %}
                                                         <li>
                                                             <a href="/projects/{{ project.id }}/members" class="dropdown-item">
-                                                                <i class="bi bi-people me-2"></i>Mitglieder
+                                                                <i class="bi bi-people me-2"></i> Mitglieder
                                                             </a>
                                                         </li>
                                                     {% endif %}

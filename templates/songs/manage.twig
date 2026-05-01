@@ -131,19 +131,31 @@
                                         <td data-label="Dateien">{{ song.attachments|length }}</td>
                                         <td data-label="Projekte">{{ song.projectAssignments|length }}</td>
                                         <td data-label="Aktionen" class="text-end">
-                                            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Aktionen für {{ song.title }}">
                                                 <a href="/song-library/{{ song.id }}"
                                                    class="btn btn-outline-primary btn-sm">
                                                     <i class="bi bi-pencil-square me-1"></i>Details
                                                 </a>
-                                                <form action="/song-library/songs/{{ song.id }}/delete"
-                                                      method="post"
-                                                      class="d-inline"
-                                                      data-confirm="Lied '{{ song.title }}' wirklich loeschen? Alle Anhaenge und Projektzuweisungen werden entfernt.">
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                        <i class="bi bi-trash me-1"></i>Löschen
-                                                    </button>
-                                                </form>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        data-bs-boundary="viewport">
+                                                    <span class="visually-hidden">Weitere Aktionen</span>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <form action="/song-library/songs/{{ song.id }}/delete"
+                                                              method="post"
+                                                              data-confirm="Lied '{{ song.title }}' wirklich loeschen? Alle Anhaenge und Projektzuweisungen werden entfernt.">
+                                                            <button type="submit" class="dropdown-item text-danger">
+                                                                <i class="bi bi-trash me-2"></i> Löschen
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
                                             </div>
                                         </td>
                                     </tr>
