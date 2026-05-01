@@ -16,6 +16,7 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringContainsString('/js/table-preferences.js', $layoutContent);
         $this->assertStringContainsString('/js/table-engine.js', $layoutContent);
         $this->assertStringContainsString('/css/table-engine.css', $layoutContent);
+        $this->assertStringNotContainsString('/css/responsive-tables.css', $layoutContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/table_toolbar.twig'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../public/js/table-engine.js'));

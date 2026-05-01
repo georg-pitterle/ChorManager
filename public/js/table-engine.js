@@ -1,5 +1,4 @@
 (function (window, document) {
-    const AUTO_VIEW_HYSTERESIS_PX = 24;
     const DEFAULT_PAGE_SIZE = 100;
     const filterPluginFactories = {};
 
@@ -85,16 +84,28 @@
     }
 
     function resolveAutoView(overflowDelta, currentView, useHysteresis) {
-        if (currentView === 'cards' && useHysteresis) {
-            // Require AUTO_VIEW_HYSTERESIS_PX of free space before switching back to table
-            // to avoid rapid toggling near the threshold.
-            return overflowDelta > -AUTO_VIEW_HYSTERESIS_PX ? 'cards' : 'table';
-        }
-
-        return overflowDelta > 1 ? 'cards' : 'table';
+        return overflowDelta > 0 ? 'cards' : 'table';
     }
 
     window.ChorTableEngine.resolveAutoView = resolveAutoView;
+
+    function resolveAvailableWidth(elementWidth) {
+        const viewportWidth = document && document.documentElement && document.documentElement.clientWidth
+            ? document.documentElement.clientWidth
+            : 0;
+
+        if (elementWidth <= 0) {
+            return viewportWidth;
+        }
+
+        if (viewportWidth <= 0) {
+            return elementWidth;
+        }
+
+        return Math.min(elementWidth, viewportWidth);
+    }
+
+    window.ChorTableEngine.resolveAvailableWidth = resolveAvailableWidth;
 
     function createDefaultState(container) {
         const defaultPageSize = asInt(container.dataset.defaultPageSize, DEFAULT_PAGE_SIZE);
@@ -330,7 +341,6 @@
         const plugins = [];
         let mode = normalizeMode(prefs.viewOverride || prefs.view || container.dataset.defaultView || 'auto');
         let state = createState(container, prefs.state, allowedPageSizes);
-        let lastMeasuredTableWidth = 0;
 
         sortButtons.forEach(function (header, sortableIndex) {
             const key = header && header.dataset ? header.dataset.sortKey : '';
@@ -795,7 +805,8 @@
 
         function measureWidths() {
             const viewportElement = getTableViewportElement();
-            const availableWidth = viewportElement && viewportElement.clientWidth ? viewportElement.clientWidth : 0;
+            const viewportElementWidth = viewportElement && viewportElement.clientWidth ? viewportElement.clientWidth : 0;
+            const availableWidth = resolveAvailableWidth(viewportElementWidth);
 
             if (!viewportElement || !table) {
                 return { availableWidth, requiredWidth: 0 };
@@ -804,6 +815,12 @@
             const hadActiveView = Object.prototype.hasOwnProperty.call(container.dataset, 'activeView');
             const previousView = container.dataset.activeView;
             container.dataset.activeView = 'table';
+
+            // Ensure layout is recalculated before measuring widths after view toggle.
+            void table.offsetWidth;
+            if (viewportElement) {
+                void viewportElement.offsetWidth;
+            }
 
             const requiredWidth = Math.max(
                 table.scrollWidth || 0,
@@ -829,16 +846,6 @@
                 return 0;
             }
 
-            // In cards view the table layout is transformed, so the max-content measurement
-            // is unreliable. Keep using the last reliable measurement from when in table mode.
-            if (currentView !== 'cards') {
-                lastMeasuredTableWidth = requiredWidth;
-            }
-
-            if (currentView === 'cards' && lastMeasuredTableWidth > 0) {
-                return lastMeasuredTableWidth - availableWidth;
-            }
-
             return requiredWidth - availableWidth;
         }
 
@@ -862,7 +869,13 @@
 
         function applyEffectiveView(activeMode, options) {
             const currentView = container.dataset.activeView;
-            container.dataset.activeView = getEffectiveView(activeMode, currentView, options);
+            const nextView = getEffectiveView(activeMode, currentView, options);
+            container.dataset.activeView = nextView;
+
+            if (activeMode === 'auto') {
+                // A second pass eliminates transient measurements immediately after view toggles.
+                container.dataset.activeView = getEffectiveView(activeMode, container.dataset.activeView, options);
+            }
         }
 
         function persistMode(nextMode) {
@@ -919,11 +932,6 @@
         applyRows();
         updateSortPanel();
 
-        const initialWidths = measureWidths();
-        if (initialWidths.requiredWidth > 0) {
-            lastMeasuredTableWidth = initialWidths.requiredWidth;
-        }
-
         applyMode(mode, false);
 
         window.addEventListener('resize', function () {
@@ -961,9 +969,6 @@
         if (collapseParent) {
             collapseParent.addEventListener('shown.bs.collapse', function () {
                 if (mode === 'auto') {
-                    // Force a fresh measurement – reset the cached width so
-                    // that getOverflowDelta does not reuse a stale value.
-                    lastMeasuredTableWidth = 0;
                     applyMode(mode, false, { disableAutoHysteresis: true });
                 }
             });

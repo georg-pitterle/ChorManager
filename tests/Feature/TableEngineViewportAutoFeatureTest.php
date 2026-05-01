@@ -275,7 +275,6 @@ JS;
         $this->assertStringContainsString('table.scrollWidth', $engine);
         $this->assertStringContainsString('viewportElement.scrollWidth', $engine);
         $this->assertStringContainsString('clientWidth', $engine);
-        $this->assertStringContainsString('AUTO_VIEW_HYSTERESIS_PX', $engine);
         $this->assertStringContainsString("window.addEventListener('resize'", $engine);
         $this->assertStringContainsString("if (mode === 'auto')", $engine);
         $this->assertStringContainsString('applyMode(mode, false);', $engine);
@@ -284,6 +283,150 @@ JS;
         $this->assertStringContainsString('applyMode(clickedMode, true);', $engine);
         $this->assertStringContainsString('applyEffectiveView(mode);', $engine);
         $this->assertStringNotContainsString('setView(initialView)', $engine);
+    }
+
+    public function testAutoModeWithoutBreakpointFallsBackToMeasuredOverflowOnly(): void
+    {
+        $enginePath = dirname(__DIR__) . '/../public/js/table-engine.js';
+        $tempScript = tempnam(sys_get_temp_dir(), 'table-engine-overflow-only-test-');
+        $this->assertNotFalse($tempScript);
+
+        $nodeScript = <<<'JS'
+const fs = require('fs');
+
+const enginePath = process.argv[2];
+const engineCode = fs.readFileSync(enginePath, 'utf8');
+
+let viewportWidth = 900;
+const resizeHandlers = [];
+
+const responsiveWrapper = {
+    clientWidth: 900
+};
+
+function makeButton(dataset) {
+    return {
+        dataset,
+        _handlers: {},
+        classList: { toggle: function () {} },
+        setAttribute: function () {},
+        addEventListener: function (eventName, cb) {
+            this._handlers[eventName] = cb;
+        }
+    };
+}
+
+const modeButtons = [
+    makeButton({ tableMode: 'auto' }),
+    makeButton({ tableView: 'cards' }),
+    makeButton({ tableView: 'table' })
+];
+
+const tableElement = {
+    id: 'overflow-only-table',
+    scrollWidth: 1000,
+    clientWidth: 600,
+    parentElement: responsiveWrapper,
+    closest: function (selector) {
+        if (selector === '.table-responsive') {
+            return responsiveWrapper;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === 'tbody tr') {
+            return [];
+        }
+        return [];
+    }
+};
+
+const container = {
+    dataset: {
+        tableId: 'global.breakpoint',
+        tableEngine: 'true',
+        defaultView: 'auto'
+    },
+    querySelector: function (selector) {
+        if (selector === 'table') {
+            return tableElement;
+        }
+        return null;
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-mode], [data-table-view]') {
+            return modeButtons;
+        }
+        if (selector === 'th[data-sort-key]') {
+            return [];
+        }
+        return [];
+    }
+};
+
+const documentMock = {
+    _domReady: null,
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'DOMContentLoaded') {
+            this._domReady = cb;
+        }
+    },
+    querySelectorAll: function (selector) {
+        if (selector === '[data-table-engine="true"]') {
+            return [container];
+        }
+        return [];
+    }
+};
+
+const windowMock = {
+    get innerWidth() {
+        return viewportWidth;
+    },
+    addEventListener: function (eventName, cb) {
+        if (eventName === 'resize') {
+            resizeHandlers.push(cb);
+        }
+    },
+    ChorTablePrefs: {
+        read: function () {
+            return {};
+        },
+        write: function () {}
+    }
+};
+
+global.window = windowMock;
+global.document = documentMock;
+
+eval(engineCode);
+documentMock._domReady();
+
+if (container.dataset.activeView !== 'cards') {
+    throw new Error('Expected cards when measured table width overflows container width');
+}
+
+viewportWidth = 1200;
+tableElement.scrollWidth = 600;
+responsiveWrapper.clientWidth = 1200;
+resizeHandlers.forEach((cb) => cb());
+
+if (container.dataset.activeView !== 'table') {
+    throw new Error('Expected table when no measured overflow exists');
+}
+
+console.log('ok');
+JS;
+
+        file_put_contents($tempScript, $nodeScript);
+
+        $output = [];
+        $exitCode = 1;
+        exec('node ' . escapeshellarg($tempScript) . ' ' . escapeshellarg($enginePath) . ' 2>&1', $output, $exitCode);
+        @unlink($tempScript);
+
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+        $this->assertContains('ok', $output);
     }
 
     public function testPreferencesHelperRetainsSafeReadWriteContract(): void
@@ -484,18 +627,19 @@ if (container.dataset.activeView !== 'cards') {
 // to switch back using the cached width measured while in table mode.
 tableElement.scrollWidth = 2000;
 
-// Hysteresis: with only a small free space buffer we should stay in cards mode.
+// Overflow-only decision: if measured width fits again, switch directly to table.
 responsiveWrapper.clientWidth = 710;
 resizeHandlers.forEach((cb) => cb());
-if (container.dataset.activeView !== 'cards') {
-    throw new Error('Auto mode should not immediately switch back to table near threshold');
+if (container.dataset.activeView !== 'table') {
+    throw new Error('Auto mode should switch back to table as soon as overflow is gone');
 }
 
-// Once there is enough free space, auto mode should return to table mode.
+// Additional free space keeps table mode stable.
+tableElement.scrollWidth = 700;
 responsiveWrapper.clientWidth = 740;
 resizeHandlers.forEach((cb) => cb());
 if (container.dataset.activeView !== 'table') {
-    throw new Error('Auto mode should switch back to table when overflow pressure is gone');
+    throw new Error('Auto mode should remain in table mode when there is no overflow');
 }
 
 console.log('ok');
