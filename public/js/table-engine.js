@@ -341,6 +341,7 @@
         const plugins = [];
         let mode = normalizeMode(prefs.viewOverride || prefs.view || container.dataset.defaultView || 'auto');
         let state = createState(container, prefs.state, allowedPageSizes);
+        let lastStableTableWidth = 0;
 
         sortButtons.forEach(function (header, sortableIndex) {
             const key = header && header.dataset ? header.dataset.sortKey : '';
@@ -840,10 +841,19 @@
         function getOverflowDelta(currentView) {
             const widths = measureWidths();
             const availableWidth = widths.availableWidth;
-            const requiredWidth = widths.requiredWidth;
+            let requiredWidth = widths.requiredWidth;
 
             if (availableWidth <= 0 || requiredWidth <= 0) {
                 return 0;
+            }
+
+            if (currentView !== 'cards') {
+                lastStableTableWidth = requiredWidth;
+            }
+
+            if (currentView === 'cards' && lastStableTableWidth > 0 && requiredWidth > lastStableTableWidth) {
+                // Guard against inflated measurements while cards CSS is active.
+                requiredWidth = lastStableTableWidth;
             }
 
             return requiredWidth - availableWidth;
@@ -871,11 +881,6 @@
             const currentView = container.dataset.activeView;
             const nextView = getEffectiveView(activeMode, currentView, options);
             container.dataset.activeView = nextView;
-
-            if (activeMode === 'auto') {
-                // A second pass eliminates transient measurements immediately after view toggles.
-                container.dataset.activeView = getEffectiveView(activeMode, container.dataset.activeView, options);
-            }
         }
 
         function persistMode(nextMode) {
@@ -931,6 +936,11 @@
 
         applyRows();
         updateSortPanel();
+
+        const initialWidths = measureWidths();
+        if (initialWidths.requiredWidth > 0) {
+            lastStableTableWidth = initialWidths.requiredWidth;
+        }
 
         applyMode(mode, false);
 
