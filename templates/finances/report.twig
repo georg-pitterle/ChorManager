@@ -288,20 +288,39 @@
                     </div>
                 {% endif %}
 
-                <div class="card shadow-sm border-0">
+                <div class="card shadow-sm border-0 table-shell"
+                     data-table-engine="true"
+                     data-table-id="finances.report.timeline"
+                     data-default-view="auto"
+                     data-default-page-size="100"
+                     data-page-size-options="25,50,100,200"
+                     data-default-sort-key="invoice_date"
+                     data-default-sort-dir="asc">
                     <div class="card-header bg-white py-3">
                         <h5 class="mb-0">Verlauf des Geschäftsjahres</h5>
                     </div>
+                    {{ include("partials/table_toolbar.twig") }}
                     <div class="card-body p-0">
                         <div class="table-responsive finance-report-table-wrap">
-                            <table class="table table-hover table-sm mb-0 finance-report-table">
+                            <table class="table table-hover table-sm mb-0 table-responsive-cards finance-report-table"
+                                   id="financesReportTimelineTable">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="finance-report-date-cell">Datum</th>
-                                        <th class="finance-report-number-cell">Lfd. Nr.</th>
-                                        <th class="finance-report-description-cell">Beschreibung</th>
-                                        <th class="text-end finance-report-amount-cell">Einnahme</th>
-                                        <th class="text-end finance-report-amount-cell">Ausgabe</th>
+                                        <th class="finance-report-date-cell"
+                                            data-sort-key="invoice_date"
+                                            data-sort-type="date">Datum</th>
+                                        <th class="finance-report-number-cell"
+                                            data-sort-key="running_number"
+                                            data-sort-type="number">Lfd. Nr.</th>
+                                        <th class="finance-report-description-cell"
+                                            data-sort-key="description"
+                                            data-sort-type="text">Beschreibung</th>
+                                        <th class="text-end finance-report-amount-cell"
+                                            data-sort-key="income"
+                                            data-sort-type="number">Einnahme</th>
+                                        <th class="text-end finance-report-amount-cell"
+                                            data-sort-key="expense"
+                                            data-sort-type="number">Ausgabe</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -312,15 +331,21 @@
                                         {% else %}
                                             {% set current_balance = current_balance - item.amount %}
                                         {% endif %}
-                                        <tr>
-                                            <td class="finance-report-date-cell">{{ item.invoice_date|date('d.m.Y') }}</td>
-                                            <td class="text-muted finance-report-number-cell">#{{ item.running_number }}</td>
-                                            <td class="finance-report-description-cell">{{ item.description }}</td>
-                                            <td class="text-end text-success finance-report-amount-cell">
-                                                {{ item.type == 'income' ? '+ ' ~ item.amount|number_format(2, ',', '.') ~ ' €' : '' }}
+                                        <tr data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
+                                            data-sort-running_number="{{ item.running_number }}"
+                                            data-sort-description="{{ item.description|lower }}"
+                                            data-sort-income="{{ item.type == "income" ? item.amount : 0 }}"
+                                            data-sort-expense="{{ item.type == "expense" ? item.amount : 0 }}">
+                                            <td class="finance-report-date-cell" data-label="Datum">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                            <td class="text-muted finance-report-number-cell" data-label="Lfd. Nr.">#{{ item.running_number }}</td>
+                                            <td class="finance-report-description-cell" data-label="Beschreibung">{{ item.description }}</td>
+                                            <td class="text-end text-success finance-report-amount-cell"
+                                                data-label="Einnahme">
+                                                {{ item.type == "income" ? "+ " ~ item.amount|number_format(2, ",", ".") ~ " €" : "" }}
                                             </td>
-                                            <td class="text-end text-danger finance-report-amount-cell">
-                                                {{ item.type == 'expense' ? '- ' ~ item.amount|number_format(2, ',', '.') ~ ' €' : '' }}
+                                            <td class="text-end text-danger finance-report-amount-cell"
+                                                data-label="Ausgabe">
+                                                {{ item.type == "expense" ? "- " ~ item.amount|number_format(2, ",", ".") ~ " €" : "" }}
                                             </td>
                                         </tr>
                                     {% else %}
@@ -328,17 +353,19 @@
                                             <td colspan="5" class="text-center py-4 text-muted">Keine Buchungen vorhanden.</td>
                                         </tr>
                                     {% endfor %}
+                                </tbody>
 
-                                    {% if finances|length > 0 %}
+                                {% if finances|length > 0 %}
+                                    <tfoot>
                                         <tr class="table-dark fw-bold">
                                             <td colspan="3" class="text-end">Gesamtsaldo:</td>
                                             <td colspan="2"
-                                                class="text-end finance-report-amount-cell {{ current_balance >= 0 ? 'text-success' : 'text-danger' }}">
-                                                {{ current_balance|number_format(2, ',', '.') }} €
+                                                class="text-end finance-report-amount-cell {{ current_balance >= 0 ? "text-success" : "text-danger" }}">
+                                                {{ current_balance|number_format(2, ",", ".") }} €
                                             </td>
                                         </tr>
-                                    {% endif %}
-                                </tbody>
+                                    </tfoot>
+                                {% endif %}
                             </table>
                         </div>
                     </div>

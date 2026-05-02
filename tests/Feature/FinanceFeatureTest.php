@@ -83,6 +83,18 @@ class FinanceFeatureTest extends TestCase
         $this->assertStringContainsString('{% if can_write_finances %}', $template);
     }
 
+    public function testFinanceReportTimelineUsesTableEngine(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/finances/report.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString('data-table-engine="true"', $template);
+        $this->assertStringContainsString('data-table-id="finances.report.timeline"', $template);
+        $this->assertStringContainsString('partials/table_toolbar.twig', $template);
+        $this->assertStringContainsString('table-responsive-cards', $template);
+        $this->assertStringContainsString('data-sort-key="invoice_date"', $template);
+    }
+
     public function testFinanceNavigationAndDashboardUseFinanceReadPermission(): void
     {
         $areas = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');

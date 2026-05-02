@@ -41,7 +41,11 @@ return function (App $app): void {
             bool $displayErrorDetails,
             bool $logErrors,
             bool $logErrorDetails
-        ) use ($app, $container, $defaultErrorHandler): Response {
+        ) use (
+            $app,
+            $container,
+            $defaultErrorHandler
+        ): Response {
             if (!$displayErrorDetails && $container instanceof ContainerInterface) {
                 try {
                     $view = $container->get(Twig::class);
