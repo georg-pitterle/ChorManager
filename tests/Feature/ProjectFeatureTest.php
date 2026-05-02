@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\ProjectController;
+use App\Policies\ProjectMemberPolicy;
+use Illuminate\Database\Eloquent\Collection;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 
@@ -27,15 +29,63 @@ class ProjectFeatureTest extends TestCase
         $this->assertTrue(method_exists(ProjectController::class, 'showMembers'));
         $this->assertTrue(method_exists(ProjectController::class, 'addMember'));
         $this->assertTrue(method_exists(ProjectController::class, 'removeMember'));
+        $this->assertTrue(method_exists(ProjectController::class, 'listForMembers'));
 
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/projects'", $routesContent);
         $this->assertStringContainsString("'/projects/{id:[0-9]+}/update'", $routesContent);
+        $this->assertStringContainsString("'/members'", $routesContent);
         $this->assertStringContainsString("'/{id:[0-9]+}/members'", $routesContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/projects/index.twig'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/projects/members.twig'));
+        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/projects/member_projects.twig'));
+    }
+
+    public function testListForMembersRendersMemberProjectsTemplate(): void
+    {
+        $projectOne = (object) ['id' => 1, 'name' => 'Alpha'];
+        $projectTwo = (object) ['id' => 2, 'name' => 'Beta'];
+
+        $twig = $this->createMock(Twig::class);
+        $twig->expects($this->once())
+            ->method('render')
+            ->with(
+                $this->isInstanceOf(\Psr\Http\Message\ResponseInterface::class),
+                'projects/member_projects.twig',
+                $this->callback(function (array $data): bool {
+                    if (!isset($data['projects']) || !$data['projects'] instanceof Collection) {
+                        return false;
+                    }
+
+                    $ids = $data['projects']->pluck('id')->all();
+                    return $ids === [2];
+                })
+            )
+            ->willReturnCallback(
+                fn (\Psr\Http\Message\ResponseInterface $response) => $response->withStatus(200)
+            );
+
+        $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
+        $projectQuery->expects($this->once())
+            ->method('getAllProjects')
+            ->willReturn(new Collection([$projectOne, $projectTwo]));
+
+        $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
+
+        $policy = $this->createMock(ProjectMemberPolicy::class);
+        $policy->expects($this->once())
+            ->method('getAccessibleProjectIds')
+            ->willReturn([2]);
+
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
+        $request = $this->makeRequest('GET', '/projects/members');
+        $response = $this->makeResponse();
+
+        $result = $controller->listForMembers($request, $response);
+
+        $this->assertSame(200, $result->getStatusCode());
     }
 
     public function testUpdateRejectsEmptyProjectNameBeforeDatabaseAccess(): void
@@ -43,7 +93,8 @@ class ProjectFeatureTest extends TestCase
         $twig = $this->createMock(Twig::class);
         $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence);
+        $policy = $this->createMock(ProjectMemberPolicy::class);
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
 
         $request = $this->makeRequest('POST', '/projects/1/update', ['name' => '   ']);
         $response = $this->makeResponse();
@@ -63,5 +114,16 @@ class ProjectFeatureTest extends TestCase
         $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $templateContent);
         $this->assertStringContainsString('Bearbeiten', $templateContent);
         $this->assertStringContainsString('/projects/{{ project.id }}/update', $templateContent);
+    }
+
+    public function testAreasNavigationContainsMemberProjectsCondition(): void
+    {
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('session.can_manage_project_members', $templateContent);
+        $this->assertStringContainsString('not session.can_manage_master_data', $templateContent);
+        $this->assertStringContainsString('/projects/members', $templateContent);
+        $this->assertStringContainsString('project_members', $templateContent);
     }
 }

@@ -1,3 +1,4 @@
+{% if can_show_areas %}
 <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle {% if is_areas_active %}active{% endif %}"
        href="#"
@@ -8,6 +9,12 @@
             <li>
                 <a class="dropdown-item {% if nav_active(path, nav, ['/users'], ['users']) %}active{% endif %}"
                    href="/users"><i class="bi bi-people-fill me-2"></i> Mitgliederverwaltung</a>
+            </li>
+        {% endif %}
+        {% if session.can_manage_project_members and not session.can_manage_master_data %}
+            <li>
+                <a class="dropdown-item {% if nav_active(path, nav, ['/projects/members'], ['project_members']) %}active{% endif %}"
+                   href="/projects/members"><i class="bi bi-person-check me-2"></i> Meine Projekte</a>
             </li>
         {% endif %}
         {% if session.can_read_finances or session.can_manage_users %}
@@ -43,4 +50,5 @@
             </li>
         {% endif %}
     </ul>
-</li>
+    </li>
+{% endif %}

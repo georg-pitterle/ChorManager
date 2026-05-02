@@ -38,8 +38,10 @@
             {% set is_areas_active = nav_active(path, nav, ['/users', '/finances', '/sponsoring', '/song-library', '/downloads', '/newsletters'], ['users', 'finances', 'sponsoring', 'song_library', 'downloads', 'newsletters']) %}
             {% set is_admin_active = nav_active(path, nav, ['/projects', '/roles', '/voice-groups', '/event-types', '/settings'], ['projects', 'roles', 'voice_groups', 'event_types', 'settings']) %}
             {% set is_evaluations_active = nav_active(path, nav, ['/evaluations'], ['evaluations', 'evaluations_project_members']) %}
-            {% set can_show_admin = session.can_manage_master_data or session.can_manage_users or session.role_level >= 40 %}
+            {% set can_show_admin = session.can_manage_master_data or session.can_manage_users or session.can_manage_mail_queue %}
             {% set can_show_evaluations = session.can_manage_users or session.role_level >= 40 or session.can_manage_project_members %}
+            {% set can_show_areas = (session.can_manage_users or session.role_level >= 40) or session.can_read_finances or session.can_manage_sponsoring or session.can_manage_song_library or session.can_manage_project_members %}
+            {% set can_show_events = session.can_manage_attendance or session.can_manage_users %}
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top app-topbar">
                 <div class="container-fluid app-topbar__inner">
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
@@ -67,11 +69,14 @@
                             is_dashboard_active: is_dashboard_active,
                             }, false) }}
                             {{ include('partials/navigation/events.twig', {
+                            can_show_events: can_show_events,
                             is_events_active: is_events_active,
                             path: path,
                             nav: nav,
+                            session: session,
                             }, false) }}
                             {{ include('partials/navigation/areas.twig', {
+                            can_show_areas: can_show_areas,
                             is_areas_active: is_areas_active,
                             path: path,
                             nav: nav,

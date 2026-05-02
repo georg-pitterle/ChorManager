@@ -1,3 +1,4 @@
+{% if can_show_events %}
 <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle {% if is_events_active %}active{% endif %}"
        href="#"
@@ -15,4 +16,5 @@
             </li>
         {% endif %}
     </ul>
-</li>
+    </li>
+{% endif %}

@@ -6,3 +6,4 @@ ChorManager.code-workspace
 .playwright-mcp/
 .phpunit.result.cache
 node_modules/
+.worktrees/

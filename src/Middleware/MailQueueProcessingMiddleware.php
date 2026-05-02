@@ -18,7 +18,8 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
     public function __construct(
         private readonly MailDeliveryService $deliveryService,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     public function process(Request $request, RequestHandler $handler): Response
     {

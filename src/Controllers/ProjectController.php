@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Project;
+use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Persistence\ProjectPersistence;
 
@@ -16,15 +17,18 @@ class ProjectController
     private Twig $view;
     private ProjectQuery $projectQuery;
     private ProjectPersistence $projectPersistence;
+    private ProjectMemberPolicy $policy;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
-        ProjectPersistence $projectPersistence
+        ProjectPersistence $projectPersistence,
+        ProjectMemberPolicy $policy
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->projectPersistence = $projectPersistence;
+        $this->policy = $policy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -104,11 +108,14 @@ class ProjectController
     {
         $projectId = (int)$args['id'];
 
+        if (!$this->policy->canViewMembers($projectId)) {
+            return $response->withStatus(403);
+        }
+
         $project = $this->projectQuery->findById($projectId);
 
         if (!$project) {
-            $_SESSION['error'] = 'Projekt nicht gefunden.';
-            return $response->withHeader('Location', '/projects')->withStatus(302);
+            return $response->withStatus(403);
         }
 
         $members = $this->projectQuery->getProjectMembers($projectId);
@@ -151,9 +158,26 @@ class ProjectController
         ]);
     }
 
+    public function listForMembers(Request $request, Response $response): Response
+    {
+        $accessibleIds = $this->policy->getAccessibleProjectIds();
+        $projects = $this->projectQuery->getAllProjects()->filter(
+            fn ($project) => in_array($project->id, $accessibleIds, true)
+        );
+
+        return $this->view->render($response, 'projects/member_projects.twig', [
+            'projects' => $projects,
+        ]);
+    }
+
     public function addMember(Request $request, Response $response, array $args): Response
     {
         $projectId = (int)$args['id'];
+
+        if (!$this->policy->canAddMember($projectId)) {
+            return $response->withStatus(403);
+        }
+
         $data = (array)$request->getParsedBody();
         $userId = (int)($data['user_id'] ?? 0);
 
@@ -170,6 +194,11 @@ class ProjectController
     public function removeMember(Request $request, Response $response, array $args): Response
     {
         $projectId = (int)$args['id'];
+
+        if (!$this->policy->canRemoveMember($projectId)) {
+            return $response->withStatus(403);
+        }
+
         $userId = (int)($args['user_id'] ?? 0);
 
         if ($userId <= 0) {

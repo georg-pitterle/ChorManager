@@ -25,6 +25,7 @@ use App\Services\ProviderWebhookVerifier;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
 use App\Commands\ProcessMailQueueCommand;
+use App\Policies\ProjectMemberPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
 use App\Util\Csrf;
@@ -69,6 +70,7 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
+        ProjectMemberPolicy::class => \DI\autowire(),
 
         Twig::class => function (ContainerInterface $c) {
             $settings = $c->get('settings')['view'];

@@ -224,6 +224,7 @@ return function (App $app) {
             $group->group(
                 '/projects',
                 function (RouteCollectorProxy $projGroup) {
+                    $projGroup->get('/members', [ProjectController::class, 'listForMembers']);
                     $projGroup->get('/{id:[0-9]+}/members', [ProjectController::class, 'showMembers']);
                     $projGroup->post('/{id:[0-9]+}/members', [ProjectController::class, 'addMember']);
                     $projGroup->post(

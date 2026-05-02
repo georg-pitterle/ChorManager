@@ -283,7 +283,10 @@ class UserController
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
         $subVoices = $data['sub_voices'] ?? [];
-        $projectIds = array_filter((array) ($data['projects'] ?? []), fn($id) => (int) $id > 0);
+        $projectIds = array_values(array_filter(
+            array_map('intval', (array) ($data['projects'] ?? [])),
+            fn(int $id): bool => $id > 0
+        ));
 
         $formData = [
             'first_name' => $firstName,
@@ -373,6 +376,15 @@ class UserController
             $this->userPersistence->syncVoiceGroups($targetUser, $vgData);
 
             if ($canEditGlobal || $canManageProjectMembers) {
+                if (!$canEditGlobal && $canManageProjectMembers) {
+                    $policy = new \App\Policies\ProjectMemberPolicy();
+                    $accessibleIds = $policy->getAccessibleProjectIds();
+                    $projectIds = array_values(array_filter(
+                        $projectIds,
+                        fn(int $id): bool => in_array($id, $accessibleIds, true)
+                    ));
+                }
+
                 $this->projectPersistence->setUserProjects($userId, $projectIds);
             }
 
