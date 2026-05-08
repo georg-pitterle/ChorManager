@@ -259,6 +259,24 @@ body.app-shell {
     align-self: flex-start;
 }
 
+.song-detail-context-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.song-attachment-item {
+    min-width: 0;
+}
+
+.song-attachment-item .text-truncate {
+    min-width: 0;
+    display: block;
+}
+
+.song-attachment-item form {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
 .dashboard-panel--critical {
     background: linear-gradient(180deg, #dc3545 0%, #c52d3d 100%);
     border-color: rgba(197, 45, 61, 0.78);
@@ -353,6 +371,14 @@ body.app-shell {
         width: 100%;
     }
 
+    .song-attachment-item {
+        flex-wrap: wrap;
+    }
+
+    .song-attachment-item .text-truncate {
+        flex-basis: calc(100% - 2rem);
+    }
+
     .downloads-section {
         padding: 0.55rem;
     }
@@ -445,6 +471,20 @@ body.app-shell {
 
     .downloads-section [data-table-engine="true"]:not([data-active-view="table"]) .downloads-files-table td[data-label="Aktionen"] .btn {
         width: auto;
+    }
+}
+
+@media (max-width: 1199.98px) and (min-width: 768px) {
+    .song-detail-context-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .song-attachment-item {
+        flex-wrap: wrap;
+    }
+
+    .song-attachment-item .text-truncate {
+        flex-basis: calc(100% - 2rem);
     }
 }
 

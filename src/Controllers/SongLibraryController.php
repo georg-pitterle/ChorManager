@@ -95,6 +95,9 @@ class SongLibraryController
                 $query->where('resource_type', 'link')->orderBy('title', 'asc');
             },
             'projectAssignments.project',
+            'sheetArchive.lineItems' => function ($query) {
+                $query->orderBy('sort_order', 'asc');
+            },
         ])->find($songId);
 
         if (!$song) {
@@ -112,6 +115,7 @@ class SongLibraryController
 
         return $this->view->render($response, 'songs/detail.twig', [
             'song' => $song,
+            'archive' => $song->sheetArchive,
             'all_categories' => $allCategories,
             'all_projects' => $allProjects,
             'assigned_project_ids' => $assignedProjectIds,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\SheetArchive;
 
 class Song extends Model
 {
@@ -55,5 +56,10 @@ class Song extends Model
         return $this->hasMany(SongResource::class, 'song_id', 'id')
             ->where('resource_type', 'link')
             ->orderBy('title', 'asc');
+    }
+
+    public function sheetArchive()
+    {
+        return $this->hasOne(SheetArchive::class, 'song_id', 'id');
     }
 }

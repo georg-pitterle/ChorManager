@@ -106,9 +106,30 @@
                                value="{{ song.publisher }}">
                     </div>
                 </div>
+
                 <div class="mt-3 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-floppy me-1"></i>Speichern
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="dashboard-section dashboard-section--actions"
+                 aria-labelledby="song-archive-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="song-archive-title">Notenarchiv</h2>
+                <p class="dashboard-section-lead mb-0">Archivdaten separat verwalten und Einzelstimmen erfassen.</p>
+            </div>
+
+            <form method="post"
+                  action="/song-library/songs/{{ song.id }}/archive/save"
+                  data-archive-form="1">
+                {% include "songs/partials/archive_section.twig" %}
+
+                <div class="mt-3 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-floppy me-1"></i>Notenarchiv speichern
                     </button>
                 </div>
             </form>
@@ -121,7 +142,7 @@
                 <p class="dashboard-section-lead mb-0">Ordne das Lied ein und verwalte alle zugehörigen Dateien.</p>
             </div>
 
-            <div class="dashboard-context-grid">
+            <div class="dashboard-context-grid song-detail-context-grid">
                 <article class="surface-card dashboard-panel dashboard-panel--context">
                     <div class="dashboard-panel__body">
                         <p class="dashboard-panel__eyebrow">Kategorisierung</p>
@@ -179,7 +200,7 @@
                         {% if song.attachments|length > 0 %}
                             <ul class="list-group list-group-flush mb-3">
                                 {% for attachment in song.attachments %}
-                                    <li class="list-group-item px-0 d-flex align-items-center gap-2">
+                                    <li class="list-group-item px-0 d-flex align-items-center gap-2 song-attachment-item">
                                         <i class="bi bi-file-earmark text-muted"></i>
                                         <span class="flex-grow-1 text-truncate"
                                               title="{{ attachment.original_name }}">{{ attachment.original_name }}</span>

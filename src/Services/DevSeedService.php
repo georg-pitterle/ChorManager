@@ -266,6 +266,7 @@ class DevSeedService
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,
                 'can_manage_tasks' => 1,
+                'can_manage_sheet_archive' => 1,
             ],
             [
                 'name' => 'Vorstand',
@@ -282,6 +283,7 @@ class DevSeedService
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,
                 'can_manage_tasks' => 1,
+                'can_manage_sheet_archive' => 0,
             ],
             [
                 'name' => 'Kassier',
@@ -298,6 +300,7 @@ class DevSeedService
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
+                'can_manage_sheet_archive' => 0,
             ],
             [
                 'name' => 'Chorleitung',
@@ -314,6 +317,7 @@ class DevSeedService
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 1,
+                'can_manage_sheet_archive' => 1,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -330,6 +334,7 @@ class DevSeedService
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
+                'can_manage_sheet_archive' => 0,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -346,6 +351,7 @@ class DevSeedService
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
+                'can_manage_sheet_archive' => 0,
             ],
             [
                 'name' => 'Mitglied',
@@ -362,6 +368,7 @@ class DevSeedService
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
                 'can_manage_tasks' => 0,
+                'can_manage_sheet_archive' => 0,
             ],
         ];
 

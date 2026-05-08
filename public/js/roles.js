@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('edit_can_manage_song_library').checked = this.getAttribute('data-song-library') === '1';
                 document.getElementById('edit_can_manage_newsletters').checked = this.getAttribute('data-newsletters') === '1';
                 document.getElementById('edit_can_manage_mail_queue').checked = this.getAttribute('data-mail-queue') === '1';
+                document.getElementById('edit_can_manage_sheet_archive').checked = this.getAttribute('data-sheet-archive') === '1';
                 document.getElementById('edit_can_manage_tasks').checked = this.getAttribute('data-tasks') === '1';
             });
         });

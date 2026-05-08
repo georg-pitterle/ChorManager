@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Slim\App;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Controllers\AuthController;
@@ -32,12 +33,26 @@ use App\Controllers\NewsletterController;
 use App\Controllers\MailQueueController;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
+use App\Controllers\SheetArchiveController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Slim\Routing\RouteCollectorProxy;
 
 return function (App $app) {
+    $settings = [];
+    $container = $app->getContainer();
+    if ($container instanceof ContainerInterface) {
+        try {
+            $resolvedSettings = $container->get('settings');
+            if (is_array($resolvedSettings)) {
+                $settings = $resolvedSettings;
+            }
+        } catch (\Throwable) {
+            $settings = [];
+        }
+    }
+
     // Auth Routes
     $app->get('/login', [AuthController::class, 'showLogin']);
     $app->post('/login', [AuthController::class, 'processLogin']);
@@ -76,7 +91,7 @@ return function (App $app) {
     // Protected Routes
     $app->group(
         '',
-        function (RouteCollectorProxy $group) {
+        function (RouteCollectorProxy $group) use ($settings) {
             $group->get('/dashboard', [DashboardController::class, 'index']);
 
             // Profile Routes
@@ -306,7 +321,7 @@ return function (App $app) {
             // Song library management
             $group->group(
                 '/song-library',
-                function (RouteCollectorProxy $songsGroup) {
+                function (RouteCollectorProxy $songsGroup) use ($settings) {
                     $songsGroup->get('', [SongLibraryController::class, 'index']);
                     $songsGroup->get('/create', [SongLibraryController::class, 'create']);
                     $songsGroup->get('/{id:[0-9]+}', [SongLibraryController::class, 'show']);
@@ -331,6 +346,15 @@ return function (App $app) {
                         [SongLibraryController::class, 'deleteLinkResource']
                     );
                     $songsGroup->post('/songs/{id:[0-9]+}/categories', [SongLibraryController::class, 'syncCategories']);
+
+                    // Sheet Archive routes (save, fetch voice categories) - requiresSheetArchiveManagement
+                    if ($settings['modules']['sheet_archive'] ?? false) {
+                        $songsGroup->post('/songs/{songId:[0-9]+}/archive/save', [SheetArchiveController::class, 'save'])
+                            ->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, false, false, true)); // requiresSheetArchiveManagement
+
+                        $songsGroup->get('/archive/voice-categories', [SheetArchiveController::class, 'getVoiceCategories'])
+                            ->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, false, false, true)); // requiresSheetArchiveManagement
+                    }
 
                     // Category management
                     $songsGroup->post('/categories', [CategoryController::class, 'create']);

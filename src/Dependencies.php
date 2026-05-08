@@ -17,6 +17,7 @@ use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Services\SheetArchiveService;
 use App\Services\MailQueueService;
 use App\Services\MailDeliveryService;
 use App\Services\MailQueueAdminService;
@@ -70,11 +71,15 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
+        SheetArchiveService::class => function (ContainerInterface $c) {
+            return new SheetArchiveService();
+        },
         ProjectMemberPolicy::class => \DI\autowire(),
 
         Twig::class => function (ContainerInterface $c) {
-            $settings = $c->get('settings')['view'];
-            $appTimezone = $c->get('settings')['timezone'] ?? 'Europe/Vienna';
+            $allSettings = $c->get('settings');
+            $settings = $allSettings['view'];
+            $appTimezone = $allSettings['timezone'] ?? 'Europe/Vienna';
             // Explicitly enable autoescape for security (HTML context)
             $twig = Twig::create(
                 $settings['template_path'],
@@ -90,6 +95,7 @@ return function (ContainerBuilder $containerBuilder) {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
+            $environment->addGlobal('settings', $allSettings);
             $environment->addGlobal('session', $_SESSION);
             $environment->addGlobal('csrf_token', Csrf::ensureToken());
 

@@ -37,6 +37,9 @@ return function (ContainerBuilder $containerBuilder) {
                 'stream' => EnvHelper::read('APP_LOG_STREAM', 'php://stderr'),
                 'level' => strtoupper(EnvHelper::read('APP_LOG_LEVEL', 'INFO')),
             ],
+            'modules' => [
+                'sheet_archive' => EnvHelper::read('FEATURE_SHEET_ARCHIVE', 'false') === 'true',
+            ],
         ],
     ]);
 };
