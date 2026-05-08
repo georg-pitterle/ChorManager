@@ -70,7 +70,7 @@ class SessionAuthService
             if ($role->can_manage_mail_queue) {
                 $canManageMailQueue = true;
             }
-            if ($role->can_manage_sheet_archive) {
+            if (($role->can_manage_sheet_archive ?? false)) {
                 $canManageSheetArchive = true;
             }
             if ($role->can_manage_tasks) {
