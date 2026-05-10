@@ -177,4 +177,15 @@ class SongLibraryFeatureTest extends TestCase
         );
         $this->assertStringContainsString('$this->persistAttachments($songId, $files)', $controllerContent);
     }
+
+    public function testDetailTemplateGuardsArchiveSectionByFeatureFlagAndPermission(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/songs/detail.twig');
+
+        $this->assertIsString($content);
+        $this->assertMatchesRegularExpression(
+            '/\{\% if settings\\.modules\\.sheet_archive and session\\.can_manage_sheet_archive \%\}[\s\S]*id="song-archive-title"[\s\S]*\{\% endif \%\}/',
+            $content
+        );
+    }
 }
