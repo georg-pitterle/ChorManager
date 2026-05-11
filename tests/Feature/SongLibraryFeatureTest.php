@@ -93,6 +93,19 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertStringContainsString('$this->seedSongLinkResources($songs, 24);', $seedContent);
     }
 
+    public function testDevSeedServiceSeedsSheetArchives(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString("'sheet_archives' => 0", $seedContent);
+        $this->assertStringContainsString("'sheet_archive_line_items' => 0", $seedContent);
+        $this->assertStringContainsString('$this->seedSheetArchives($songs);', $seedContent);
+        $this->assertStringContainsString('private function seedSheetArchives(array $songs): void', $seedContent);
+        $this->assertStringContainsString('SheetArchive::updateOrCreate(', $seedContent);
+        $this->assertStringContainsString('SheetArchiveLineItem::create([', $seedContent);
+    }
+
     public function testCreateRouteAndMethodExist(): void
     {
         $this->assertTrue(method_exists(\App\Controllers\SongLibraryController::class, 'create'));

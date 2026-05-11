@@ -31,6 +31,8 @@ use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
+use App\Models\SheetArchive;
+use App\Models\SheetArchiveLineItem;
 use App\Models\SubVoice;
 use App\Models\Task;
 use App\Models\User;
@@ -99,6 +101,8 @@ class DevSeedService
                 'songs' => 0,
                 'song_attachments' => 0,
                 'song_link_resources' => 0,
+                'sheet_archives' => 0,
+                'sheet_archive_line_items' => 0,
                 'repertoire_categories' => 0,
                 'song_category_assignments' => 0,
                 'project_song_assignments' => 0,
@@ -152,6 +156,7 @@ class DevSeedService
             $this->seedProjectSongAssignments($songs, $projects);
             $this->seedSongAttachments($songs, 48);
             $this->seedSongLinkResources($songs, 24);
+            $this->seedSheetArchives($songs);
             $tasks = $this->seedTasks($projects, $users['active']);
             $this->seedTaskActivities($tasks, $users['active']);
             $this->seedTaskComments($tasks, $users['active']);
@@ -212,6 +217,8 @@ class DevSeedService
             'project_song_assignments',
             'song_category_assignments',
             'song_resources',
+            'sheet_archive_line_items',
+            'sheet_archives',
             'songs',
             'repertoire_categories',
             'remember_logins',
@@ -2007,6 +2014,99 @@ class DevSeedService
             }
 
             $attempt++;
+        }
+    }
+
+    private function seedSheetArchives(array $songs): void
+    {
+        if (count($songs) === 0) {
+            return;
+        }
+
+        $definitions = [
+            'Ave Verum' => [
+                'archive_number' => 'ARCH-AV-001',
+                'location' => 'Notenschrank A / Fach 2',
+                'line_items' => [
+                    ['voice_category' => 'Sopran', 'count' => 8],
+                    ['voice_category' => 'Alt', 'count' => 8],
+                    ['voice_category' => 'Tenor', 'count' => 6],
+                    ['voice_category' => 'Bass', 'count' => 6],
+                ],
+            ],
+            'Cantate Domino' => [
+                'archive_number' => 'ARCH-CD-014',
+                'location' => 'Notenarchiv West / Box 1',
+                'line_items' => [
+                    ['voice_category' => 'Sopran', 'count' => 10],
+                    ['voice_category' => 'Alt', 'count' => 10],
+                    ['voice_category' => 'Tenor', 'count' => 7],
+                    ['voice_category' => 'Bass', 'count' => 7],
+                ],
+            ],
+            'Hallelujah' => [
+                'archive_number' => 'ARCH-HL-021',
+                'location' => 'Regal B / Mappe Pop',
+                'line_items' => [
+                    ['voice_category' => 'Sopran', 'count' => 12],
+                    ['voice_category' => 'Alt', 'count' => 12],
+                    ['voice_category' => 'Tenor', 'count' => 9],
+                    ['voice_category' => 'Bass', 'count' => 9],
+                ],
+            ],
+            'O Magnum Mysterium' => [
+                'archive_number' => 'ARCH-OM-008',
+                'location' => 'Kirchenmusik / Fach 4',
+                'line_items' => [
+                    ['voice_category' => 'Sopran', 'count' => 7],
+                    ['voice_category' => 'Alt', 'count' => 7],
+                    ['voice_category' => 'Tenor', 'count' => 5],
+                    ['voice_category' => 'Bass', 'count' => 5],
+                ],
+            ],
+            'Shenandoah' => [
+                'archive_number' => 'ARCH-SH-019',
+                'location' => 'Archiv Nord / Folk-Mappe',
+                'line_items' => [
+                    ['voice_category' => 'Sopran', 'count' => 9],
+                    ['voice_category' => 'Alt', 'count' => 9],
+                    ['voice_category' => 'Tenor', 'count' => 8],
+                    ['voice_category' => 'Bass', 'count' => 8],
+                ],
+            ],
+        ];
+
+        foreach ($songs as $song) {
+            $definition = $definitions[$song->title] ?? null;
+            if ($definition === null) {
+                continue;
+            }
+
+            $archive = SheetArchive::updateOrCreate(
+                ['song_id' => $song->id],
+                [
+                    'archive_number' => $definition['archive_number'],
+                    'location' => $definition['location'],
+                ]
+            );
+
+            if ($archive->wasRecentlyCreated) {
+                $this->report['counts']['sheet_archives']++;
+            }
+
+            $archive->lineItems()->delete();
+            foreach ($definition['line_items'] as $sortOrder => $lineItem) {
+                $createdLineItem = SheetArchiveLineItem::create([
+                    'sheet_archive_id' => $archive->id,
+                    'voice_category' => $lineItem['voice_category'],
+                    'count' => (int) $lineItem['count'],
+                    'sort_order' => $sortOrder,
+                ]);
+
+                if ($createdLineItem->exists) {
+                    $this->report['counts']['sheet_archive_line_items']++;
+                }
+            }
         }
     }
 
