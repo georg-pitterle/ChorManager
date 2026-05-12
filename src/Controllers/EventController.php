@@ -134,7 +134,7 @@ class EventController
             $colorName = (string) ($event->type_color ?? 'secondary');
             return [
                 'id'    => $event->id,
-                'title' => $event->title,
+                'title' => htmlspecialchars((string) $event->title, ENT_QUOTES, 'UTF-8'),
                 'start' => $event->starts_at instanceof \DateTimeInterface
                     ? $event->starts_at->format('Y-m-d\TH:i:s')
                     : (string) $event->starts_at,
@@ -729,11 +729,14 @@ class EventController
         $comments = Comment::with('user')
             ->where('entity_type', 'event')
             ->whereIn('entity_id', $eventIds)
+            ->where(function ($query) use ($userId) {
+                $query->where('is_private', false)
+                    ->orWhere(function ($subQuery) use ($userId) {
+                        $subQuery->where('is_private', true)->where('user_id', $userId);
+                    });
+            })
             ->orderBy('created_at', 'desc')
             ->get()
-            ->filter(function (Comment $comment) use ($userId): bool {
-                return !$comment->is_private || (int) $comment->user_id === $userId;
-            })
             ->groupBy('entity_id');
 
         foreach ($events as $event) {
@@ -746,11 +749,14 @@ class EventController
         return Comment::with('user')
             ->where('entity_type', 'event')
             ->where('entity_id', $eventId)
+            ->where(function ($query) use ($userId) {
+                $query->where('is_private', false)
+                    ->orWhere(function ($subQuery) use ($userId) {
+                        $subQuery->where('is_private', true)->where('user_id', $userId);
+                    });
+            })
             ->orderBy('created_at', 'desc')
             ->get()
-            ->filter(function (Comment $comment) use ($userId): bool {
-                return !$comment->is_private || (int) $comment->user_id === $userId;
-            })
             ->values();
     }
 
