@@ -29,6 +29,34 @@ class SheetArchiveController
     {
         try {
             $songId = (int) $args['songId'];
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $canManageArchive = (bool) ($_SESSION['can_manage_sheet_archive'] ?? false);
+
+            // Verify user is authenticated
+            if ($userId <= 0) {
+                $this->logger->warning('Unauthorized sheet archive access attempt - not authenticated', [
+                    'event' => 'sheet_archive.unauthorized',
+                    'reason' => 'not_authenticated',
+                ]);
+                $response->getBody()->write((string) json_encode(['error' => 'Unauthorized']));
+                return $response
+                    ->withStatus(403)
+                    ->withHeader('Content-Type', 'application/json');
+            }
+
+            // Verify user has archive management permission
+            if (!$canManageArchive) {
+                $this->logger->warning('Unauthorized sheet archive access attempt - missing permission', [
+                    'event' => 'sheet_archive.unauthorized',
+                    'reason' => 'missing_permission',
+                    'user_id' => $userId,
+                ]);
+                $response->getBody()->write((string) json_encode(['error' => 'Unauthorized']));
+                return $response
+                    ->withStatus(403)
+                    ->withHeader('Content-Type', 'application/json');
+            }
+
             $data = $request->getParsedBody();
             if (!is_array($data)) {
                 $rawBody = (string) $request->getBody();
@@ -68,6 +96,9 @@ class SheetArchiveController
             $this->logger->info('Sheet archive saved', [
                 'event' => 'sheet_archive.saved',
                 'song_id' => $songId,
+                'user_id' => $userId,
+                'archive_id' => $archive->id,
+                'line_item_count' => count($archive->lineItems),
                 'total_count' => $archive->getTotalCount(),
             ]);
 
@@ -108,6 +139,19 @@ class SheetArchiveController
     public function getVoiceCategories(Request $request, Response $response): Response
     {
         try {
+            // Double-check permission (also validated by RoleMiddleware)
+            if (!($_SESSION['can_manage_sheet_archive'] ?? false)) {
+                $this->logger->warning('Unauthorized voice category access attempt', [
+                    'event' => 'sheet_archive.unauthorized',
+                    'reason' => 'missing_permission',
+                    'user_id' => (int) ($_SESSION['user_id'] ?? 0),
+                ]);
+                $response->getBody()->write((string) json_encode(['error' => 'Unauthorized']));
+                return $response
+                    ->withStatus(403)
+                    ->withHeader('Content-Type', 'application/json');
+            }
+
             $categories = $this->archiveService->getAllVoiceCategories();
 
             $response->getBody()->write((string) json_encode(['categories' => $categories]));

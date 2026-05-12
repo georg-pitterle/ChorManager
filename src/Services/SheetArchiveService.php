@@ -101,6 +101,18 @@ class SheetArchiveService
                 throw new InvalidArgumentException('voice_category must be a non-empty string');
             }
 
+            $category = trim($item['voice_category']);
+            
+            // Validate length (DB column: varchar(100))
+            if (strlen($category) > 100) {
+                throw new InvalidArgumentException('voice_category must not exceed 100 characters');
+            }
+
+            // Validate format (allow letters, numbers, spaces, common punctuation, umlauts)
+            if (!preg_match('/^[\p{L}\p{N}\s\-\.\/\(\)äöüßÄÖÜ]+$/u', $category)) {
+                throw new InvalidArgumentException('voice_category contains invalid characters');
+            }
+
             if (!isset($item['count']) || !is_numeric($item['count'])) {
                 throw new InvalidArgumentException('count must be numeric');
             }

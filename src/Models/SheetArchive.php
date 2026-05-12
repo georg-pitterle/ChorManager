@@ -19,6 +19,8 @@ class SheetArchive extends Model
         'location',
     ];
 
+    private ?int $totalCountCache = null;
+
     public function song(): BelongsTo
     {
         return $this->belongsTo(Song::class, 'song_id', 'id');
@@ -32,11 +34,16 @@ class SheetArchive extends Model
     /**
      * Calculate the total quantity count from all line items.
      * 
-     * Executes a database query to sum the count values.
-     * Consider caching if called frequently within request lifecycle.
+     * Caches result during request lifecycle to prevent N+1 queries.
+     * Use formatArchiveResponse() to calculate once for API responses.
      */
     public function getTotalCount(): int
     {
-        return (int) $this->lineItems()->sum('count');
+        if ($this->totalCountCache !== null) {
+            return $this->totalCountCache;
+        }
+
+        $this->totalCountCache = (int) $this->lineItems()->sum('count');
+        return $this->totalCountCache;
     }
 }
