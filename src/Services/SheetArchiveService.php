@@ -102,7 +102,7 @@ class SheetArchiveService
             }
 
             $category = trim($item['voice_category']);
-            
+
             // Validate length (DB column: varchar(100))
             if (strlen($category) > 100) {
                 throw new InvalidArgumentException('voice_category must not exceed 100 characters');

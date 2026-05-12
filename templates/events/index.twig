@@ -117,147 +117,147 @@
         </section>
 
         {% if view_mode == 'list' %}
-        <section class="dashboard-section dashboard-section--context"
-                 aria-labelledby="events-list-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="events-list-title">Event-Liste</h2>
-                <p class="dashboard-section-lead mb-0">{{ events|length }} Einträge im aktuellen Ergebnis.</p>
-            </div>
+            <section class="dashboard-section dashboard-section--context"
+                     aria-labelledby="events-list-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="events-list-title">Event-Liste</h2>
+                    <p class="dashboard-section-lead mb-0">{{ events|length }} Einträge im aktuellen Ergebnis.</p>
+                </div>
 
-            <div class="surface-card card border-0 table-shell">
-                <div class="card-body p-0"
-                     data-table-engine="true"
-                     data-table-id="events.index"
-                     data-default-view="auto"
-                     data-default-page-size="100"
-                     data-page-size-options="25,50,100,200"
-                     data-default-sort-key="starts_at"
-                     data-default-sort-dir="asc">
-                    {{ include('partials/table_toolbar.twig') }}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 table-responsive-cards"
-                               id="eventsTable">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>
-                                    <th data-sort-key="title" data-sort-type="text">Titel</th>
-                                    <th data-sort-key="has_note" data-sort-type="text">Bemerkung</th>
-                                    <th data-sort-key="location" data-sort-type="text">Ort</th>
-                                    <th data-sort-key="type" data-sort-type="text">Typ</th>
-                                    <th data-sort-key="project_name" data-sort-type="text">Projekt</th>
-                                    <th class="text-end">Aktionen</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for event in events %}
-                                    {% set public_notes_count = event.comments|filter(note => not note.is_private)|length %}
-                                    {% set private_notes_count = event.comments|filter(note => note.is_private)|length %}
-                                    <tr data-sort-starts_at="{{ event.starts_at|date('Y-m-d') }}"
-                                        data-sort-title="{{ event.title|lower }}"
-                                        data-sort-has_note="{{ event.comments|length > 0 ? 'ja' : 'nein' }}"
-                                        data-sort-location="{{ event.location|default('')|lower }}"
-                                        data-sort-type="{{ event.type_name|lower }}"
-                                        data-sort-project_name="{{ event.project_name|default('')|lower }}">
-                                        <td data-label="Datum / Zeit">
-                                            <strong>{{ event.starts_at|date('d.m.Y') }}</strong>
-                                            <br>
-                                            <span class="text-muted small">{{ event.starts_at|date('H:i') }} - {{ event.ends_at|date('H:i') }}</span>
-                                            {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
-                                        </td>
-                                        <td data-label="Titel">{{ event.title }}</td>
-                                        <td data-label="Bemerkung"
-                                            data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
-                                            {% if event.comments|length > 0 %}
-                                                <span class="badge text-bg-success">Ja</span>
-                                            {% else %}
-                                                <span class="badge text-bg-secondary">Nein</span>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Ort">{{ event.location|default('-') }}</td>
-                                        <td data-label="Typ">
-                                            <span class="badge bg-{{ event.type_color }}">{{ event.type_name }}</span>
-                                        </td>
-                                        <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
-                                        <td data-label="Aktionen" class="text-end">
-                                            <div class="btn-group">
-                                                <a href="/events/{{ event.id }}"
-                                                   class="btn btn-sm btn-outline-secondary">
-                                                    <i class="bi bi-chat-left-text"></i>
-                                                    Bemerkungen ({{ public_notes_count }}/{{ private_notes_count }})
-                                                </a>
-                                                {% if session.can_manage_attendance or session.can_manage_users %}
-                                                    <a href="/attendance/{{ event.id }}"
-                                                       class="btn btn-sm btn-outline-primary">
-                                                        <i class="bi bi-person-check"></i> Anwesenheit
-                                                    </a>
+                <div class="surface-card card border-0 table-shell">
+                    <div class="card-body p-0"
+                         data-table-engine="true"
+                         data-table-id="events.index"
+                         data-default-view="auto"
+                         data-default-page-size="100"
+                         data-page-size-options="25,50,100,200"
+                         data-default-sort-key="starts_at"
+                         data-default-sort-dir="asc">
+                        {{ include('partials/table_toolbar.twig') }}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 table-responsive-cards"
+                                   id="eventsTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>
+                                        <th data-sort-key="title" data-sort-type="text">Titel</th>
+                                        <th data-sort-key="has_note" data-sort-type="text">Bemerkung</th>
+                                        <th data-sort-key="location" data-sort-type="text">Ort</th>
+                                        <th data-sort-key="type" data-sort-type="text">Typ</th>
+                                        <th data-sort-key="project_name" data-sort-type="text">Projekt</th>
+                                        <th class="text-end">Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in events %}
+                                        {% set public_notes_count = event.comments|filter(note => not note.is_private)|length %}
+                                        {% set private_notes_count = event.comments|filter(note => note.is_private)|length %}
+                                        <tr data-sort-starts_at="{{ event.starts_at|date('Y-m-d') }}"
+                                            data-sort-title="{{ event.title|lower }}"
+                                            data-sort-has_note="{{ event.comments|length > 0 ? 'ja' : 'nein' }}"
+                                            data-sort-location="{{ event.location|default('')|lower }}"
+                                            data-sort-type="{{ event.type_name|lower }}"
+                                            data-sort-project_name="{{ event.project_name|default('')|lower }}">
+                                            <td data-label="Datum / Zeit">
+                                                <strong>{{ event.starts_at|date('d.m.Y') }}</strong>
+                                                <br>
+                                                <span class="text-muted small">{{ event.starts_at|date('H:i') }} - {{ event.ends_at|date('H:i') }}</span>
+                                                {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
+                                            </td>
+                                            <td data-label="Titel">{{ event.title }}</td>
+                                            <td data-label="Bemerkung"
+                                                data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
+                                                {% if event.comments|length > 0 %}
+                                                    <span class="badge text-bg-success">Ja</span>
+                                                {% else %}
+                                                    <span class="badge text-bg-secondary">Nein</span>
                                                 {% endif %}
-                                                {% if session.can_manage_users or session.role_level >= 40 %}
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                                            data-bs-toggle="dropdown"
-                                                            aria-expanded="false"
-                                                            data-bs-boundary="viewport">
-                                                        <span class="visually-hidden">Toggle Dropdown</span>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end">
-                                                        <li>
-                                                            <a href="/events/{{ event.id }}/edit" class="dropdown-item">
-                                                                <i class="bi bi-pencil me-2"></i> Termin bearbeiten
-                                                            </a>
-                                                        </li>
-                                                        <li>
-                                                            <form action="/events/{{ event.id }}/delete"
-                                                                  method="post"
-                                                                  data-confirm="Diesen Termin wirklich löschen?">
-                                                                <button type="submit" class="dropdown-item text-danger">
-                                                                    <i class="bi bi-trash me-2"></i> Termin löschen
-                                                                </button>
-                                                            </form>
-                                                        </li>
-                                                        {% if event.series_id %}
+                                            </td>
+                                            <td data-label="Ort">{{ event.location|default('-') }}</td>
+                                            <td data-label="Typ">
+                                                <span class="badge bg-{{ event.type_color }}">{{ event.type_name }}</span>
+                                            </td>
+                                            <td data-label="Projekt">{{ event.project_name|default('-') }}</td>
+                                            <td data-label="Aktionen" class="text-end">
+                                                <div class="btn-group">
+                                                    <a href="/events/{{ event.id }}"
+                                                       class="btn btn-sm btn-outline-secondary">
+                                                        <i class="bi bi-chat-left-text"></i>
+                                                        Bemerkungen ({{ public_notes_count }}/{{ private_notes_count }})
+                                                    </a>
+                                                    {% if session.can_manage_attendance or session.can_manage_users %}
+                                                        <a href="/attendance/{{ event.id }}"
+                                                           class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-person-check"></i> Anwesenheit
+                                                        </a>
+                                                    {% endif %}
+                                                    {% if session.can_manage_users or session.role_level >= 40 %}
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                                data-bs-toggle="dropdown"
+                                                                aria-expanded="false"
+                                                                data-bs-boundary="viewport">
+                                                            <span class="visually-hidden">Toggle Dropdown</span>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
                                                             <li>
-                                                                <form action="/events/{{ event.id }}/delete-series"
+                                                                <a href="/events/{{ event.id }}/edit" class="dropdown-item">
+                                                                    <i class="bi bi-pencil me-2"></i> Termin bearbeiten
+                                                                </a>
+                                                            </li>
+                                                            <li>
+                                                                <form action="/events/{{ event.id }}/delete"
                                                                       method="post"
-                                                                      data-confirm="Die gesamte Serie ab diesem Termin wirklich löschen?">
+                                                                      data-confirm="Diesen Termin wirklich löschen?">
                                                                     <button type="submit" class="dropdown-item text-danger">
-                                                                        <i class="bi bi-repeat me-2"></i> Serie löschen
+                                                                        <i class="bi bi-trash me-2"></i> Termin löschen
                                                                     </button>
                                                                 </form>
                                                             </li>
-                                                        {% endif %}
-                                                    </ul>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% else %}
-                                    <tr>
-                                        <td colspan="7" class="text-center py-4 text-muted">Keine Termine geplant.</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                                            {% if event.series_id %}
+                                                                <li>
+                                                                    <form action="/events/{{ event.id }}/delete-series"
+                                                                          method="post"
+                                                                          data-confirm="Die gesamte Serie ab diesem Termin wirklich löschen?">
+                                                                        <button type="submit" class="dropdown-item text-danger">
+                                                                            <i class="bi bi-repeat me-2"></i> Serie löschen
+                                                                        </button>
+                                                                    </form>
+                                                                </li>
+                                                            {% endif %}
+                                                        </ul>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4 text-muted">Keine Termine geplant.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
         {% endif %}
 
         {% if view_mode == 'calendar' %}
-        <section class="dashboard-section dashboard-section--context"
-                 aria-labelledby="events-calendar-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="events-calendar-title">Kalender</h2>
-                <p class="dashboard-section-lead mb-0">Monats- und Wochenübersicht aller gefilterten Termine.</p>
-            </div>
-            <div class="surface-card card border-0">
-                <div class="card-body">
-                    <div id="event-calendar"
-                         data-calendar-events="{{ calendar_events|e('html_attr') }}"
-                         {% if session.can_manage_users %}data-calendar-admin="1"{% endif %}></div>
+            <section class="dashboard-section dashboard-section--context"
+                     aria-labelledby="events-calendar-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="events-calendar-title">Kalender</h2>
+                    <p class="dashboard-section-lead mb-0">Monats- und Wochenübersicht aller gefilterten Termine.</p>
                 </div>
-            </div>
-        </section>
+                <div class="surface-card card border-0">
+                    <div class="card-body">
+                        <div id="event-calendar"
+                             data-calendar-events="{{ calendar_events|e('html_attr') }}"
+                             {% if session.can_manage_users %}data-calendar-admin="1"{% endif %}></div>
+                    </div>
+                </div>
+            </section>
         {% endif %}
     </div>
 
