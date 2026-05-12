@@ -559,6 +559,42 @@ class EventFeatureTest extends TestCase
         $this->assertStringNotContainsString('Meine private Bemerkung', $otherBody);
     }
 
+    public function testEventDetailShowsEditButtonForEditors(): void
+    {
+        $event = Event::create([
+            'title' => 'Editable Detail Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $_SESSION['can_manage_users'] = true;
+        $_SESSION['role_level'] = 10;
+
+        $body = $this->renderEventDetail($event->id);
+
+        $this->assertStringContainsString('/events/' . $event->id . '/edit', $body);
+        $this->assertStringContainsString('Termin bearbeiten', $body);
+    }
+
+    public function testEventDetailHidesEditButtonForNonEditors(): void
+    {
+        $event = Event::create([
+            'title' => 'Non Editable Detail Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['role_level'] = 10;
+
+        $body = $this->renderEventDetail($event->id);
+
+        $this->assertStringNotContainsString('/events/' . $event->id . '/edit', $body);
+        $this->assertStringNotContainsString('Termin bearbeiten', $body);
+    }
+
     public function testAddEventNoteStoresCreatorAndPrivacyFlag(): void
     {
         $event = Event::create([
@@ -895,5 +931,59 @@ class EventFeatureTest extends TestCase
         $result = $controller->detail($request, $response, ['id' => (string) $eventId]);
 
         return (string) $result->getBody();
+    }
+
+    public function testCalendarViewReturns200(): void
+    {
+        $body = $this->renderEventsIndex(['view' => 'calendar']);
+        $this->assertStringContainsString('id="event-calendar"', $body);
+    }
+
+    public function testCalendarViewContainsCalendarEventJson(): void
+    {
+        $this->createEvent('Kalenderprobe', '+3 days');
+        $body = $this->renderEventsIndex(['view' => 'calendar']);
+
+        $this->assertStringContainsString('data-calendar-events', $body);
+
+        preg_match('/data-calendar-events="([^"]*)"/', $body, $matches);
+        $this->assertNotEmpty($matches[1] ?? '', 'data-calendar-events attribute not found or empty');
+
+        $events = json_decode(html_entity_decode($matches[1]), true);
+        $this->assertIsArray($events);
+        $this->assertNotEmpty($events);
+        $first = $events[0];
+        $this->assertArrayHasKey('id', $first);
+        $this->assertArrayHasKey('title', $first);
+        $this->assertArrayHasKey('start', $first);
+        $this->assertArrayHasKey('end', $first);
+
+        $titles = array_column($events, 'title');
+        $this->assertContains('Kalenderprobe', $titles, 'Created event title not found in calendar events JSON');
+        $probe = $events[array_search('Kalenderprobe', $titles)];
+        $this->assertArrayHasKey('id', $probe);
+        $this->assertArrayHasKey('start', $probe);
+        $this->assertArrayHasKey('end', $probe);
+    }
+
+    public function testListViewShowsTable(): void
+    {
+        $body = $this->renderEventsIndex(['view' => 'list']);
+        $this->assertStringContainsString('id="eventsTable"', $body);
+        $this->assertStringNotContainsString('id="event-calendar"', $body);
+    }
+
+    public function testInvalidViewParameterFallsBackToList(): void
+    {
+        $body = $this->renderEventsIndex(['view' => 'foobar']);
+        $this->assertStringContainsString('id="eventsTable"', $body);
+        $this->assertStringNotContainsString('id="event-calendar"', $body);
+    }
+
+    public function testNonAdminDoesNotSeeCalendarAdminMarker(): void
+    {
+        $_SESSION['can_manage_users'] = false;
+        $body = $this->renderEventsIndex(['view' => 'calendar']);
+        $this->assertStringNotContainsString('data-calendar-admin', $body);
     }
 }

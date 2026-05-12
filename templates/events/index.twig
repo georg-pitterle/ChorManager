@@ -13,16 +13,26 @@
             <h1 class="h2 mb-1">Events</h1>
             <p class="text-muted mb-0">Plane Termine, filtere Ergebnisse und bearbeite Serien konsistent an einem Ort.</p>
         </div>
-        {% if session.can_manage_users %}
-            <div class="page-actions">
+        <div class="page-actions">
+            <div class="btn-group me-2" role="group" aria-label="Ansicht wählen">
+                <a href="/events?view=list&project_id={{ filters.project_id|default('') }}&event_type_id={{ filters.event_type_id|default('') }}&show_old_events={{ filters.show_old_events|default('') }}"
+                   class="btn btn-sm {{ view_mode == 'list' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+                    <i class="bi bi-list-ul"></i> Liste
+                </a>
+                <a href="/events?view=calendar&project_id={{ filters.project_id|default('') }}&event_type_id={{ filters.event_type_id|default('') }}&show_old_events={{ filters.show_old_events|default('') }}"
+                   class="btn btn-sm {{ view_mode == 'calendar' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+                    <i class="bi bi-calendar3"></i> Kalender
+                </a>
+            </div>
+            {% if session.can_manage_users %}
                 <button type="button"
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#addEventModal">
                     <i class="bi bi-calendar-plus"></i> Termin erstellen
                 </button>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </section>
 {% endblock page_header %}
 
@@ -60,6 +70,7 @@
                           action="/events"
                           id="event-filter-form"
                           class="row g-3 align-items-end">
+                        <input type="hidden" name="view" value="{{ view_mode }}">
                         <div class="col-12 col-md-5 mb-2">
                             <label for="filter_project" class="form-label small">Projekt</label>
                             <select name="project_id" id="filter_project" class="form-select">
@@ -105,6 +116,7 @@
             </div>
         </section>
 
+        {% if view_mode == 'list' %}
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="events-list-title">
             <div class="dashboard-section-head">
@@ -229,6 +241,24 @@
                 </div>
             </div>
         </section>
+        {% endif %}
+
+        {% if view_mode == 'calendar' %}
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="events-calendar-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="events-calendar-title">Kalender</h2>
+                <p class="dashboard-section-lead mb-0">Monats- und Wochenübersicht aller gefilterten Termine.</p>
+            </div>
+            <div class="surface-card card border-0">
+                <div class="card-body">
+                    <div id="event-calendar"
+                         data-calendar-events="{{ calendar_events|e('html_attr') }}"
+                         {% if session.can_manage_users %}data-calendar-admin="1"{% endif %}></div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
     </div>
 
     {% if session.can_manage_users %}
@@ -414,4 +444,13 @@
 
 {% block scripts %}
     <script src="/js/events.js"></script>
+    {% if view_mode == 'calendar' %}
+        <script src="/vendor/fullcalendar/core/index.global.min.js"></script>
+        <script src="/vendor/fullcalendar/core/locales/de.global.min.js"></script>
+        <script src="/vendor/fullcalendar/daygrid/index.global.min.js"></script>
+        <script src="/vendor/fullcalendar/timegrid/index.global.min.js"></script>
+        <script src="/vendor/fullcalendar/list/index.global.min.js"></script>
+        <script src="/vendor/fullcalendar/interaction/index.global.min.js"></script>
+        <script src="/js/event-calendar.js"></script>
+    {% endif %}
 {% endblock scripts %}

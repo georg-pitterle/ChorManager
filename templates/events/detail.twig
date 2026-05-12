@@ -14,7 +14,12 @@
                     {% if event.location %}| {{ event.location }}{% endif %}
                 </p>
             </div>
-            <a href="/events" class="btn btn-outline-secondary">Zur Liste</a>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="/events" class="btn btn-outline-secondary">Zur Liste</a>
+                {% if session.can_manage_users or session.role_level >= 40 %}
+                    <a href="/events/{{ event.id }}/edit" class="btn btn-primary">Termin bearbeiten</a>
+                {% endif %}
+            </div>
         </div>
     </div>
 

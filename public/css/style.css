@@ -910,6 +910,40 @@ a:hover {
     align-items: stretch;
 }
 
+/* Events calendar readability and responsive behavior */
+#event-calendar .fc-daygrid-event {
+    white-space: normal;
+}
+
+#event-calendar .fc-daygrid-dot-event .fc-event-title {
+    white-space: normal;
+    overflow: visible;
+}
+
+#event-calendar .fc .fc-toolbar {
+    gap: 0.5rem;
+}
+
+#event-calendar .fc .fc-toolbar-title {
+    font-size: clamp(1.1rem, 2.4vw, 1.75rem);
+}
+
+@media (max-width: 991.98px) {
+    #event-calendar .fc .fc-toolbar {
+        flex-wrap: wrap;
+    }
+
+    #event-calendar .fc .fc-toolbar-chunk {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    #event-calendar .fc .fc-toolbar-chunk:first-child {
+        justify-content: space-between;
+    }
+}
+
 .settings-logo-preview {
     min-width: 220px;
 }

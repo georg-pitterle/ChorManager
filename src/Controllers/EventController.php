@@ -16,6 +16,7 @@ use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Project;
 use App\Services\ModalFormService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class EventController
 {
@@ -39,6 +40,9 @@ class EventController
         $sort = $queryParams['sort'] ?? 'starts_at';
         $direction = $queryParams['direction'] ?? 'asc';
         $showOldEvents = !empty($queryParams['show_old_events']) ? (int)$queryParams['show_old_events'] : 0;
+        $viewMode = in_array($queryParams['view'] ?? '', ['list', 'calendar'], true)
+            ? $queryParams['view']
+            : 'list';
 
         if ($projectId !== null && $projectId > 0 && !$canManageUsers && !in_array($projectId, $accessibleProjectIds, true)) {
             return $response->withStatus(403);
@@ -116,6 +120,33 @@ class EventController
 
         $this->hydrateVisibleComments($events, $userId);
 
+        $bootstrapColorMap = [
+            'primary'   => '#0d6efd',
+            'secondary' => '#6c757d',
+            'success'   => '#198754',
+            'danger'    => '#dc3545',
+            'warning'   => '#ffc107',
+            'info'      => '#0dcaf0',
+            'light'     => '#f8f9fa',
+            'dark'      => '#212529',
+        ];
+        $calendarEvents = $events->map(static function ($event) use ($bootstrapColorMap): array {
+            $colorName = (string) ($event->type_color ?? 'secondary');
+            return [
+                'id'    => $event->id,
+                'title' => $event->title,
+                'start' => $event->starts_at instanceof \DateTimeInterface
+                    ? $event->starts_at->format('Y-m-d\TH:i:s')
+                    : (string) $event->starts_at,
+                'end'   => $event->ends_at instanceof \DateTimeInterface
+                    ? $event->ends_at->format('Y-m-d\TH:i:s')
+                    : (string) $event->ends_at,
+                'color' => $bootstrapColorMap[$colorName] ?? '#6c757d',
+                'url'   => '/events/' . $event->id,
+            ];
+        })->values()->all();
+        $calendarEventsJson = json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
+
         $projects = $accessibleProjects;
         $eventTypes = EventType::orderBy('name')->get();
 
@@ -140,6 +171,8 @@ class EventController
             'success' => $success,
             'error' => $error,
             'create_form' => $createState,
+            'view_mode' => $viewMode,
+            'calendar_events' => $calendarEventsJson,
         ]);
     }
 
@@ -686,7 +719,7 @@ class EventController
         return $this->canAccessProjectId($event->project_id !== null ? (int) $event->project_id : null);
     }
 
-    private function hydrateVisibleComments($events, int $userId): void
+    private function hydrateVisibleComments(EloquentCollection $events, int $userId): void
     {
         $eventIds = $events->pluck('id')->map(static fn($id) => (int) $id)->all();
         if ($eventIds === []) {

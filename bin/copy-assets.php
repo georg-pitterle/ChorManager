@@ -72,6 +72,22 @@ function copyAssets(): void
     if (!copy($source, $dest)) {
         throw new RuntimeException("Failed to copy $source to $dest");
     }
+
+    foreach (['core', 'daygrid', 'timegrid', 'interaction', 'list'] as $pkg) {
+        $source = "node_modules/@fullcalendar/{$pkg}/index.global.min.js";
+        $dest   = "public/vendor/fullcalendar/{$pkg}/index.global.min.js";
+        @mkdir(dirname($dest), 0755, true);
+        if (!copy($source, $dest)) {
+            throw new RuntimeException("Failed to copy $source to $dest");
+        }
+    }
+
+    $source = 'node_modules/@fullcalendar/core/locales/de.global.min.js';
+    $dest   = 'public/vendor/fullcalendar/core/locales/de.global.min.js';
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
 }
 
 try {
