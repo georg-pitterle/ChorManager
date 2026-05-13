@@ -8,13 +8,18 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Sponsor;
-use App\Models\Sponsorship;
 use App\Models\SponsorPackage;
 use App\Models\Project;
 use App\Models\User;
 
 class SponsorController
 {
+    private const MAX_NAME_LENGTH = 255;
+    private const MAX_CONTACT_PERSON_LENGTH = 255;
+    private const MAX_EMAIL_LENGTH = 255;
+    private const MAX_PHONE_LENGTH = 80;
+    private const MAX_WEBSITE_LENGTH = 2048;
+
     private Twig $view;
 
     private const STATUSES = [
@@ -71,28 +76,68 @@ class SponsorController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim((string) ($data['name'] ?? ''));
 
         if (!$name) {
             $_SESSION['error'] = 'Name ist ein Pflichtfeld.';
             return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
         }
 
+        if (mb_strlen($name) > self::MAX_NAME_LENGTH) {
+            $_SESSION['error'] = 'Der Name ist zu lang (max. 255 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        $contactPerson = $this->normalizeOptionalText($data['contact_person'] ?? null);
+        $email = $this->normalizeOptionalText($data['email'] ?? null);
+        $phone = $this->normalizeOptionalText($data['phone'] ?? null);
+        $address = $this->normalizeOptionalText($data['address'] ?? null);
+        $website = $this->normalizeOptionalText($data['website'] ?? null);
+        $notes = $this->normalizeOptionalText($data['notes'] ?? null);
+
+        if ($contactPerson !== null && mb_strlen($contactPerson) > self::MAX_CONTACT_PERSON_LENGTH) {
+            $_SESSION['error'] = 'Die Kontaktperson ist zu lang (max. 255 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        if ($email !== null) {
+            if (mb_strlen($email) > self::MAX_EMAIL_LENGTH || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                $_SESSION['error'] = 'Bitte eine gültige E-Mail-Adresse angeben.';
+                return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+            }
+        }
+
+        if ($phone !== null && mb_strlen($phone) > self::MAX_PHONE_LENGTH) {
+            $_SESSION['error'] = 'Die Telefonnummer ist zu lang (max. 80 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        if ($website !== null) {
+            if (mb_strlen($website) > self::MAX_WEBSITE_LENGTH || filter_var($website, FILTER_VALIDATE_URL) === false) {
+                $_SESSION['error'] = 'Bitte eine gültige Website-URL angeben.';
+                return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+            }
+        }
+
         try {
             Sponsor::create([
-                'type'           => in_array($data['type'] ?? '', ['organization', 'person']) ? $data['type'] : 'organization',
+                'type'           => in_array((string) ($data['type'] ?? ''), ['organization', 'person'], true)
+                    ? (string) $data['type']
+                    : 'organization',
                 'name'           => $name,
-                'contact_person' => trim($data['contact_person'] ?? '') ?: null,
-                'email'          => trim($data['email'] ?? '') ?: null,
-                'phone'          => trim($data['phone'] ?? '') ?: null,
-                'address'        => trim($data['address'] ?? '') ?: null,
-                'website'        => trim($data['website'] ?? '') ?: null,
-                'notes'          => trim($data['notes'] ?? '') ?: null,
-                'status'         => in_array($data['status'] ?? '', self::STATUSES) ? $data['status'] : 'prospect',
+                'contact_person' => $contactPerson,
+                'email'          => $email,
+                'phone'          => $phone,
+                'address'        => $address,
+                'website'        => $website,
+                'notes'          => $notes,
+                'status'         => in_array((string) ($data['status'] ?? ''), self::STATUSES, true)
+                    ? (string) $data['status']
+                    : 'prospect',
             ]);
             $_SESSION['success'] = 'Sponsor erfolgreich angelegt.';
-        } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ';
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = 'Fehler beim Anlegen des Sponsors.';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
@@ -132,29 +177,69 @@ class SponsorController
     {
         $id   = (int) $args['id'];
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim((string) ($data['name'] ?? ''));
 
         if (!$name) {
             $_SESSION['error'] = 'Name ist ein Pflichtfeld.';
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
         }
 
+        if (mb_strlen($name) > self::MAX_NAME_LENGTH) {
+            $_SESSION['error'] = 'Der Name ist zu lang (max. 255 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+        }
+
+        $contactPerson = $this->normalizeOptionalText($data['contact_person'] ?? null);
+        $email = $this->normalizeOptionalText($data['email'] ?? null);
+        $phone = $this->normalizeOptionalText($data['phone'] ?? null);
+        $address = $this->normalizeOptionalText($data['address'] ?? null);
+        $website = $this->normalizeOptionalText($data['website'] ?? null);
+        $notes = $this->normalizeOptionalText($data['notes'] ?? null);
+
+        if ($contactPerson !== null && mb_strlen($contactPerson) > self::MAX_CONTACT_PERSON_LENGTH) {
+            $_SESSION['error'] = 'Die Kontaktperson ist zu lang (max. 255 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+        }
+
+        if ($email !== null) {
+            if (mb_strlen($email) > self::MAX_EMAIL_LENGTH || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                $_SESSION['error'] = 'Bitte eine gültige E-Mail-Adresse angeben.';
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+            }
+        }
+
+        if ($phone !== null && mb_strlen($phone) > self::MAX_PHONE_LENGTH) {
+            $_SESSION['error'] = 'Die Telefonnummer ist zu lang (max. 80 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+        }
+
+        if ($website !== null) {
+            if (mb_strlen($website) > self::MAX_WEBSITE_LENGTH || filter_var($website, FILTER_VALIDATE_URL) === false) {
+                $_SESSION['error'] = 'Bitte eine gültige Website-URL angeben.';
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+            }
+        }
+
         try {
             $sponsor = Sponsor::findOrFail($id);
             $sponsor->update([
-                'type'           => in_array($data['type'] ?? '', ['organization', 'person']) ? $data['type'] : 'organization',
+                'type'           => in_array((string) ($data['type'] ?? ''), ['organization', 'person'], true)
+                    ? (string) $data['type']
+                    : 'organization',
                 'name'           => $name,
-                'contact_person' => trim($data['contact_person'] ?? '') ?: null,
-                'email'          => trim($data['email'] ?? '') ?: null,
-                'phone'          => trim($data['phone'] ?? '') ?: null,
-                'address'        => trim($data['address'] ?? '') ?: null,
-                'website'        => trim($data['website'] ?? '') ?: null,
-                'notes'          => trim($data['notes'] ?? '') ?: null,
-                'status'         => in_array($data['status'] ?? '', self::STATUSES) ? $data['status'] : 'prospect',
+                'contact_person' => $contactPerson,
+                'email'          => $email,
+                'phone'          => $phone,
+                'address'        => $address,
+                'website'        => $website,
+                'notes'          => $notes,
+                'status'         => in_array((string) ($data['status'] ?? ''), self::STATUSES, true)
+                    ? (string) $data['status']
+                    : 'prospect',
             ]);
             $_SESSION['success'] = 'Sponsor erfolgreich aktualisiert.';
-        } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = 'Fehler beim Aktualisieren des Sponsors.';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
@@ -167,10 +252,16 @@ class SponsorController
         try {
             Sponsor::findOrFail($id)->delete();
             $_SESSION['success'] = 'Sponsor erfolgreich gelöscht.';
-        } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = 'Fehler beim Löschen des Sponsors.';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+    }
+
+    private function normalizeOptionalText(mixed $value): ?string
+    {
+        $normalized = trim((string) ($value ?? ''));
+        return $normalized !== '' ? $normalized : null;
     }
 }

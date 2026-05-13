@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Controllers\SponsorController;
 use App\Controllers\SponsoringContactController;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -124,6 +125,101 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
         $result = $controller->update($request, $response, ['id' => '999999']);
 
         $this->assertRedirect($result, '/sponsoring/sponsors/42');
-        $this->assertSame('Ungueltige Kontaktart.', $_SESSION['error']);
+        $this->assertSame('Ungültige Kontaktart.', $_SESSION['error']);
+    }
+
+    public function testContactCreateRejectsUnknownContactTypeBeforePersistence(): void
+    {
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/contacts', [
+            'sponsor_id' => '42',
+            'contact_date' => '2026-04-03',
+            'type' => 'fax',
+            'summary' => 'Test',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->create($request, $response);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors/42');
+        $this->assertSame('Ungültige Kontaktart.', $_SESSION['error']);
+    }
+
+    public function testContactCreateRejectsInvalidContactDateBeforePersistence(): void
+    {
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/contacts', [
+            'sponsor_id' => '42',
+            'contact_date' => '2026-02-31',
+            'type' => 'call',
+            'summary' => 'Test',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->create($request, $response);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors/42');
+        $this->assertSame('Ungültiges Kontaktdatum.', $_SESSION['error']);
+    }
+
+    public function testContactCreateRejectsTooLongSummaryBeforePersistence(): void
+    {
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/contacts', [
+            'sponsor_id' => '42',
+            'contact_date' => '2026-04-03',
+            'type' => 'call',
+            'summary' => str_repeat('x', 2001),
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->create($request, $response);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors/42');
+        $this->assertSame('Die Zusammenfassung ist zu lang (max. 2000 Zeichen).', $_SESSION['error']);
+    }
+
+    public function testSponsorCreateRejectsInvalidEmailBeforePersistence(): void
+    {
+        $controller = new SponsorController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
+            'name' => 'Test Sponsor',
+            'email' => 'invalid-mail',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->create($request, $response);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors');
+        $this->assertSame('Bitte eine gültige E-Mail-Adresse angeben.', $_SESSION['error']);
+    }
+
+    public function testSponsorCreateRejectsInvalidWebsiteBeforePersistence(): void
+    {
+        $controller = new SponsorController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
+            'name' => 'Test Sponsor',
+            'website' => 'notaurl',
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->create($request, $response);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors');
+        $this->assertSame('Bitte eine gültige Website-URL angeben.', $_SESSION['error']);
+    }
+
+    public function testSponsorUpdateRejectsTooLongNameBeforePersistence(): void
+    {
+        $controller = new SponsorController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $request = $this->makeRequest('POST', '/sponsoring/sponsors/42', [
+            'name' => str_repeat('x', 256),
+        ]);
+        $response = $this->makeResponse();
+
+        $result = $controller->update($request, $response, ['id' => '42']);
+
+        $this->assertRedirect($result, '/sponsoring/sponsors/42');
+        $this->assertSame('Der Name ist zu lang (max. 255 Zeichen).', $_SESSION['error']);
     }
 }

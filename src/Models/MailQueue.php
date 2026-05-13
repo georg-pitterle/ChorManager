@@ -77,11 +77,17 @@ class MailQueue extends Model
 
     public function scopeDueSoon($query)
     {
-        return $query->whereIn('status', ['queued', 'failed'])
-            ->where(function ($q) {
-                $q->whereNull('next_attempt_at')
-                    ->orWhere('next_attempt_at', '<=', Carbon::now());
-            });
+        return $query->where(function ($statusScopedQuery) {
+            $statusScopedQuery->where('status', 'queued')
+                ->orWhere(function ($retryableFailed) {
+                    $retryableFailed->where('status', 'failed')
+                        ->where('is_retryable', true)
+                        ->whereColumn('attempts', '<', 'max_attempts');
+                });
+        })->where(function ($q) {
+            $q->whereNull('next_attempt_at')
+                ->orWhere('next_attempt_at', '<=', Carbon::now());
+        });
     }
 
     // Helpers
@@ -97,6 +103,14 @@ class MailQueue extends Model
 
     public function canRetry(): bool
     {
-        return $this->status === 'dead' && $this->attempts > 0;
+        if ($this->status === 'dead') {
+            return true;
+        }
+
+        if ($this->status !== 'failed') {
+            return false;
+        }
+
+        return $this->is_retryable && $this->attempts < $this->max_attempts;
     }
 }

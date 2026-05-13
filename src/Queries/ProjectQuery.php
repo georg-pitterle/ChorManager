@@ -26,7 +26,13 @@ class ProjectQuery
             $query->where('project_id', $projectId);
         })
             ->where('is_active', 1)
-            ->with(['voiceGroups.subVoices', 'subVoices.voiceGroup'])
+            ->with([
+                'voiceGroups' => function ($query) {
+                    $query->select('voice_groups.id', 'voice_groups.name')
+                        ->withPivot('sub_voice_id');
+                },
+                'subVoices'
+            ])
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();

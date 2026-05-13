@@ -12,27 +12,24 @@ use App\Models\Attachment;
 use App\Models\User;
 use App\Services\HtmlSanitizer;
 use App\Util\UploadValidator;
+use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class TaskController
 {
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
+    private TaskPolicy $policy;
 
-    public function __construct(Twig $view, HtmlSanitizer $htmlSanitizer)
+    public function __construct(Twig $view, HtmlSanitizer $htmlSanitizer, TaskPolicy $policy)
     {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
-    }
-
-    private function hasTaskAccess(Project $project): bool
-    {
-        $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
-
-        return $canManageTasks;
+        $this->policy = $policy;
     }
 
     private function validateStatus(string $status): string
@@ -45,6 +42,13 @@ class TaskController
     {
         $validPriorities = ['Niedrig', 'Mittel', 'Hoch'];
         return in_array($priority, $validPriorities, true) ? $priority : 'Mittel';
+    }
+
+    private function hasTaskAccess(Project $project): bool
+    {
+        $canManageTasks = $this->policy->canManageTasks((int) $project->id);
+
+        return $canManageTasks;
     }
 
     public function index(Request $request, Response $response, array $args): Response
@@ -113,27 +117,51 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
+        $title = trim($data['title'] ?? '');
+
+        // Validate required fields
+        if (empty($title)) {
+            $_SESSION['error'] = 'Aufgabentitel erforderlich.';
+            return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
+        }
+
+        if (strlen($title) > 255) {
+            $_SESSION['error'] = 'Aufgabentitel darf maximal 255 Zeichen lang sein.';
+            return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
+        }
+
         $description = $this->htmlSanitizer->sanitizeTaskHtml($data['description'] ?? '');
 
-        $task = Task::create([
-            'project_id'       => $project->id,
-            'name'             => trim($data['title'] ?? ''),
-            'description'      => $description,
-            'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
-            'created_by'       => $_SESSION['user_id'],
-            'start_date'       => !empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null,
-            'end_date'         => !empty($data['due_date']) ? Carbon::parse($data['due_date'])->toDateString() : null,
-            'status'           => $this->validateStatus($data['status'] ?? 'Offen'),
-            'priority'         => $this->validatePriority($data['priority'] ?? 'Mittel'),
-        ]);
+        // Parse and validate dates
+        try {
+            $startDate = !empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null;
+            $endDate = !empty($data['due_date']) ? Carbon::parse($data['due_date'])->toDateString() : null;
+        } catch (\Exception $e) {
+            $_SESSION['error'] = 'Ungültiges Datumsformat. Verwenden Sie das Format YYYY-MM-DD.';
+            return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
+        }
 
-        Activity::create([
-            'entity_type' => 'task',
-            'entity_id'   => $task->id,
-            'user_id'     => $_SESSION['user_id'],
-            'action'      => 'created',
-            'description' => 'Aufgabe erstellt.',
-        ]);
+        DB::transaction(function () use ($project, $data, $title, $description, $startDate, $endDate) {
+            $task = Task::create([
+                'project_id'       => $project->id,
+                'name'             => $title,
+                'description'      => $description,
+                'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'created_by'       => $_SESSION['user_id'],
+                'start_date'       => $startDate,
+                'end_date'         => $endDate,
+                'status'           => $this->validateStatus($data['status'] ?? 'Offen'),
+                'priority'         => $this->validatePriority($data['priority'] ?? 'Mittel'),
+            ]);
+
+            Activity::create([
+                'entity_type' => 'task',
+                'entity_id'   => $task->id,
+                'user_id'     => $_SESSION['user_id'],
+                'action'      => 'created',
+                'description' => 'Aufgabe erstellt.',
+            ]);
+        });
 
         $_SESSION['success'] = 'Aufgabe erfolgreich erstellt.';
         return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
@@ -150,6 +178,19 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
+        $title = trim($data['title'] ?? $task->name);
+
+        // Validate required fields
+        if (empty($title)) {
+            $_SESSION['error'] = 'Aufgabentitel erforderlich.';
+            return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
+        }
+
+        if (strlen($title) > 255) {
+            $_SESSION['error'] = 'Aufgabentitel darf maximal 255 Zeichen lang sein.';
+            return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
+        }
+
         $oldStatus = $task->status;
         $oldPriority = $task->priority;
         $oldAssigned = $task->assigned_to;
@@ -157,41 +198,53 @@ class TaskController
         $descriptionInput = array_key_exists('description', $data) ? (string) $data['description'] : $task->description;
         $description = $this->htmlSanitizer->sanitizeTaskHtml($descriptionInput);
 
-        $task->update([
-            'name'             => trim($data['title'] ?? $task->name),
-            'description'      => $description,
-            'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
-            'start_date'       => !empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null,
-            'end_date'         => !empty($data['due_date']) ? Carbon::parse($data['due_date'])->toDateString() : null,
-            'status'           => $this->validateStatus($data['status'] ?? $task->status),
-            'priority'         => $this->validatePriority($data['priority'] ?? $task->priority),
-        ]);
-
-        // Changes logging
-        $changes = [];
-        if ($oldStatus !== $task->status) {
-            $changes[] = "Status von '$oldStatus' auf '{$task->status}' geändert";
-        }
-        if ($oldPriority !== $task->priority) {
-            $changes[] = "Priorität von '$oldPriority' auf '{$task->priority}' geändert";
-        }
-        if ($oldAssigned !== $task->assigned_to) {
-            $newUserName = $task->assigned_to ? User::find($task->assigned_to)->first_name : 'Niemanden';
-            $changes[] = "Zugewiesen an: $newUserName";
-        }
-        if ($oldDescription !== $description) {
-            $changes[] = 'Beschreibung aktualisiert';
+        // Parse and validate dates
+        try {
+            $startDate = !empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null;
+            $endDate = !empty($data['due_date']) ? Carbon::parse($data['due_date'])->toDateString() : null;
+        } catch (\Exception $e) {
+            $_SESSION['error'] = 'Ungültiges Datumsformat. Verwenden Sie das Format YYYY-MM-DD.';
+            return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
-        if (count($changes) > 0) {
-            Activity::create([
-                'entity_type' => 'task',
-                'entity_id'   => $task->id,
-                'user_id'     => $_SESSION['user_id'],
-                'action'      => 'updated',
-                'description' => implode(', ', $changes),
+        DB::transaction(function () use ($task, $data, $title, $description, $startDate, $endDate, $oldStatus, $oldPriority, $oldAssigned, $oldDescription) {
+            $task->update([
+                'name'             => $title,
+                'description'      => $description,
+                'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'start_date'       => $startDate,
+                'end_date'         => $endDate,
+                'status'           => $this->validateStatus($data['status'] ?? $task->status),
+                'priority'         => $this->validatePriority($data['priority'] ?? $task->priority),
             ]);
-        }
+
+            // Changes logging
+            $changes = [];
+            if ($oldStatus !== $task->status) {
+                $changes[] = "Status von '$oldStatus' auf '{$task->status}' geändert";
+            }
+            if ($oldPriority !== $task->priority) {
+                $changes[] = "Priorität von '$oldPriority' auf '{$task->priority}' geändert";
+            }
+            if ($oldAssigned !== $task->assigned_to) {
+                $assignedUser = $task->assigned_to ? User::find($task->assigned_to) : null;
+                $newUserName = $assignedUser ? $assignedUser->first_name : 'Niemanden';
+                $changes[] = "Zugewiesen an: $newUserName";
+            }
+            if ($oldDescription !== $description) {
+                $changes[] = 'Beschreibung aktualisiert';
+            }
+
+            if (count($changes) > 0) {
+                Activity::create([
+                    'entity_type' => 'task',
+                    'entity_id'   => $task->id,
+                    'user_id'     => $_SESSION['user_id'],
+                    'action'      => 'updated',
+                    'description' => implode(', ', $changes),
+                ]);
+            }
+        });
 
         $_SESSION['success'] = 'Aufgabe erfolgreich aktualisiert.';
         return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
@@ -231,20 +284,22 @@ class TaskController
         $content = trim($data['content'] ?? '');
 
         if ($content !== '') {
-            Comment::create([
-                'entity_type' => 'task',
-                'entity_id'   => $task->id,
-                'user_id'     => $_SESSION['user_id'],
-                'comment'     => $content,
-            ]);
+            DB::transaction(function () use ($task, $content) {
+                Comment::create([
+                    'entity_type' => 'task',
+                    'entity_id'   => $task->id,
+                    'user_id'     => $_SESSION['user_id'],
+                    'comment'     => $content,
+                ]);
 
-            Activity::create([
-                'entity_type' => 'task',
-                'entity_id'   => $task->id,
-                'user_id'     => $_SESSION['user_id'],
-                'action'      => 'commented',
-                'description' => 'Neuer Kommentar hinzugefügt.',
-            ]);
+                Activity::create([
+                    'entity_type' => 'task',
+                    'entity_id'   => $task->id,
+                    'user_id'     => $_SESSION['user_id'],
+                    'action'      => 'commented',
+                    'description' => 'Neuer Kommentar hinzugefügt.',
+                ]);
+            });
 
             $_SESSION['success'] = 'Kommentar hinzugefügt.';
         }
@@ -268,10 +323,12 @@ class TaskController
         }
 
         $uploadedCount = 0;
+        $errors = [];
+
         foreach ($files as $file) {
             $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Anhang');
             if ($uploadError !== null) {
-                $_SESSION['error'] = $uploadError;
+                $errors[] = $uploadError;
                 continue;
             }
 
@@ -282,7 +339,7 @@ class TaskController
 
                 $validation = UploadValidator::validateFileSize($size, $mimeType);
                 if (!$validation['valid']) {
-                    $_SESSION['error'] = $validation['error'];
+                    $errors[] = $validation['error'];
                     continue;
                 }
 
@@ -297,6 +354,11 @@ class TaskController
                 ]);
                 $uploadedCount++;
             }
+        }
+
+        // Handle errors and success
+        if (count($errors) > 0) {
+            $_SESSION['error'] = implode('; ', $errors);
         }
 
         if ($uploadedCount > 0) {
@@ -348,7 +410,7 @@ class TaskController
         $attachmentId = (int) $args['attachment_id'];
         $task = Task::findOrFail($taskId);
 
-        if (!$this->hasTaskAccess($task->project)) {
+        if (!$this->policy->canManageTasks($task->project_id)) {
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }

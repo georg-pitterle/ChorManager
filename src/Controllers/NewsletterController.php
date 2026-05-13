@@ -167,6 +167,30 @@ class NewsletterController
         ];
     }
 
+    private function validateNewsletterDraftInput(array $data): array
+    {
+        $title = trim((string) ($data['title'] ?? ''));
+        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
+        $plainContent = trim(strip_tags((string) $contentHtml));
+
+        if ($title === '' || $plainContent === '') {
+            return ['ok' => false, 'message' => 'Titel und Inhalt sind Pflichtfelder.', 'payload' => []];
+        }
+
+        if (mb_strlen($title) > 255) {
+            return ['ok' => false, 'message' => 'Der Titel ist zu lang (max. 255 Zeichen).', 'payload' => []];
+        }
+
+        return [
+            'ok' => true,
+            'message' => null,
+            'payload' => [
+                'title' => $title,
+                'content_html' => $contentHtml,
+            ],
+        ];
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
@@ -313,13 +337,18 @@ class NewsletterController
 
     public function store(Request $request, Response $response): Response
     {
-        $data = $request->getParsedBody();
+        $data = (array) $request->getParsedBody();
         $projectId = (int)($data['project_id'] ?? 0);
         $isModal = ((string) ($data['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
+        $expectsJson = $this->expectsJson($request);
 
         if (!$projectId || !$userId) {
-            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+            }
+
+            return $response->withStatus(403);
         }
 
         $projects = $this->getAccessibleProjects($userId);
@@ -328,12 +357,30 @@ class NewsletterController
         });
 
         if (!$canAccessProject) {
-            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+            }
+
+            return $response->withStatus(403);
         }
 
         $project = Project::find($projectId);
         if (!$project) {
             return $response->withStatus(404);
+        }
+
+        $validation = $this->validateNewsletterDraftInput($data);
+        if (!$validation['ok']) {
+            $message = (string) ($validation['message'] ?? 'Ungültige Eingabedaten.');
+
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => $message], 422);
+            }
+
+            $_SESSION['error'] = $message;
+            return $response
+                ->withHeader('Location', '/newsletters/create?project_id=' . $projectId)
+                ->withStatus(302);
         }
 
         $eventId = null;
@@ -350,8 +397,8 @@ class NewsletterController
         $newsletter = Newsletter::create([
             'project_id' => $projectId,
             'event_id' => $eventId,
-            'title' => $data['title'] ?? 'Untitled Newsletter',
-            'content_html' => $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? ''),
+            'title' => $validation['payload']['title'],
+            'content_html' => $validation['payload']['content_html'],
             'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $userId,
         ]);
@@ -419,7 +466,7 @@ class NewsletterController
     public function update(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
-        $data = $request->getParsedBody();
+        $data = (array) $request->getParsedBody();
         $userId = $_SESSION['user_id'] ?? null;
 
         $newsletter = Newsletter::find($id);
@@ -428,7 +475,7 @@ class NewsletterController
         }
 
         if (!$this->lockingService->isLockedBy($newsletter, $userId)) {
-            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            return $this->jsonResponse($response, ['error' => 'Newsletter ist nicht für diese Sitzung gesperrt.'], 403);
         }
 
         $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : (int) $newsletter->project_id;
@@ -438,7 +485,13 @@ class NewsletterController
         });
 
         if (!$canAccessProject) {
-            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+        }
+
+        $validation = $this->validateNewsletterDraftInput($data);
+        if (!$validation['ok']) {
+            $message = (string) ($validation['message'] ?? 'Ungültige Eingabedaten.');
+            return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
         $eventId = null;
@@ -454,8 +507,8 @@ class NewsletterController
 
         $newsletter->update([
             'project_id' => $projectId,
-            'title' => $data['title'] ?? $newsletter->title,
-            'content_html' => $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? $newsletter->content_html),
+            'title' => $validation['payload']['title'],
+            'content_html' => $validation['payload']['content_html'],
             'event_id' => $eventId,
         ]);
 
@@ -575,7 +628,7 @@ class NewsletterController
             }
 
             $_SESSION['error'] = $message;
-            return $response->withStatus(500);
+            return $this->jsonResponse($response, ['error' => $message], 500);
         }
 
         return $response->withHeader(
@@ -588,8 +641,9 @@ class NewsletterController
     public function saveAsTemplate(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
-        $data = $request->getParsedBody();
+        $data = (array) $request->getParsedBody();
         $userId = $_SESSION['user_id'] ?? null;
+        $expectsJson = $this->expectsJson($request);
 
         if (!$this->canAccessNewsletterById($id, $userId)) {
             return $response->withStatus(403);
@@ -600,15 +654,30 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
+        $templateName = trim((string) ($data['template_name'] ?? $newsletter->title));
+        $templateDescription = trim((string) ($data['template_description'] ?? ''));
+        $templateContentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($newsletter->content_html);
+
+        if ($templateName === '' || mb_strlen($templateName) > 255 || trim(strip_tags($templateContentHtml)) === '') {
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten.'], 422);
+            }
+
+            $_SESSION['error'] = 'Ungültige Vorlagendaten.';
+            return $response
+                ->withHeader('Location', '/newsletters/' . $id . '/edit')
+                ->withStatus(302);
+        }
+
         $template = NewsletterTemplate::create([
-            'name' => $data['template_name'] ?? $newsletter->title,
-            'description' => $data['template_description'] ?? '',
-            'content_html' => $newsletter->content_html,
+            'name' => $templateName,
+            'description' => $templateDescription,
+            'content_html' => $templateContentHtml,
             'project_id' => $newsletter->project_id,
             'created_by' => $userId,
         ]);
 
-        if (!$this->expectsJson($request)) {
+        if (!$expectsJson) {
             $_SESSION['success'] = 'Vorlage gespeichert';
             return $response
                 ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')

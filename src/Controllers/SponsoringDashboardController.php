@@ -108,7 +108,7 @@ class SponsoringDashboardController
             'agreement_amount_sort' => $amount,
             'agreement_status_label' => $statusLabel,
             'owner_name' => $ownerName,
-            'owner_name_sort' => strtolower($ownerName),
+            'owner_name_sort' => mb_strtolower($ownerName),
             'is_overdue' => $followUpDateSort !== '' && $followUpDateSort <= $todayIso,
             'mark_done_url' => '/sponsoring/contacts/' . $contact->id . '/done?redirect_to=dashboard',
         ];
@@ -138,7 +138,7 @@ class SponsoringDashboardController
             'contact_type_sort' => $contactType,
             'summary' => (string) ($contact->summary ?? ''),
             'owner_name' => $ownerName,
-            'owner_name_sort' => strtolower($ownerName),
+            'owner_name_sort' => mb_strtolower($ownerName),
         ];
     }
 

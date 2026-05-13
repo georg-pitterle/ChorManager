@@ -118,6 +118,7 @@ class ProjectController
             return $response->withStatus(403);
         }
 
+        // Members are already loaded with relationships via ProjectQuery::getProjectMembers()
         $members = $this->projectQuery->getProjectMembers($projectId);
         $availableUsers = $this->projectQuery->getUsersNotInProject($projectId);
 
@@ -162,7 +163,7 @@ class ProjectController
     {
         $accessibleIds = $this->policy->getAccessibleProjectIds();
         $projects = $this->projectQuery->getAllProjects()->filter(
-            fn ($project) => in_array($project->id, $accessibleIds, true)
+            fn($project) => in_array($project->id, $accessibleIds, true)
         );
 
         return $this->view->render($response, 'projects/member_projects.twig', [
