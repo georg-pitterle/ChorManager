@@ -391,6 +391,10 @@ return function (App $app) {
                     $newsletterGroup->get('/newsletters', [NewsletterController::class, 'index']);
                     $newsletterGroup->get('/newsletters/create', [NewsletterController::class, 'create']);
                     $newsletterGroup->post('/newsletters', [NewsletterController::class, 'store']);
+                    $newsletterGroup->post(
+                        '/newsletters/resolve-recipients-preview',
+                        [NewsletterController::class, 'resolveRecipientsPreview']
+                    );
                     $newsletterGroup->get('/newsletters/{id:[0-9]+}/edit', [NewsletterController::class, 'edit']);
                     $newsletterGroup->post('/newsletters/{id:[0-9]+}', [NewsletterController::class, 'update']);
                     $newsletterGroup->post('/newsletters/{id:[0-9]+}/send', [NewsletterController::class, 'send']);

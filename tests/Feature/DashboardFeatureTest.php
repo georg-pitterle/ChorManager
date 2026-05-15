@@ -18,7 +18,7 @@ class DashboardFeatureTest extends TestCase
         $this->assertStringContainsString('Newsletter::STATUS_SENT', $controller);
         $this->assertStringContainsString('countDeadLetters()', $controller);
         $this->assertStringContainsString("->orderBy('sent_at', 'desc')", $controller);
-        $this->assertStringContainsString("->with(['project', 'event'])", $controller);
+        $this->assertStringContainsString("->with(['project', 'recipientSources'])", $controller);
     }
 
     public function testDashboardTemplateContainsStructuredSectionsAndCommunicationAnchors(): void

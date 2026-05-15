@@ -16,14 +16,30 @@ function initNewsletterEdit() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
 
     const projectSelect = document.getElementById("project_id");
-    const eventSelect = document.getElementById("event_id");
     const titleInput = document.getElementById("title");
+    const recipientCountBadge = document.getElementById("recipient-count-badge");
+    const recipientCountStatus = document.getElementById("recipient-count-status");
+    const sourceProjectMembersCount = document.getElementById("source-project-members-count");
+    const sourceEventAttendeesCount = document.getElementById("source-event-attendees-count");
+    const sourceRolesCount = document.getElementById("source-roles-count");
+    const sourceUsersCount = document.getElementById("source-users-count");
     const saveDraftButton = document.getElementById("save-draft-btn");
     const previewButton = document.getElementById("preview-btn");
     const sendButton = document.getElementById("send-newsletter-btn");
     const saveTemplateButton = document.getElementById("save-template-btn");
     const templateNameInput = document.getElementById("template_name");
     const templateDescriptionInput = document.getElementById("template_description");
+    const sourceBadgeMap = {
+        project_members: sourceProjectMembersCount,
+        event_attendees: sourceEventAttendeesCount,
+        role: sourceRolesCount,
+        user: sourceUsersCount,
+    };
+    const sourceTypes = Object.keys(sourceBadgeMap);
+
+    function getSourceCheckboxes(type) {
+        return Array.from(editForm.querySelectorAll(`input.newsletter-source-option[data-source-type="${type}"]`));
+    }
 
     let lastSavedSnapshot = null;
     let saveInProgress = false;
@@ -52,41 +68,155 @@ function initNewsletterEdit() {
         editForm.prepend(wrapper);
     }
 
-    function filterEventsByProject() {
-        if (!projectSelect || !eventSelect) {
+    function buildRecipientSourcesPayload() {
+        const payload = [];
+        sourceTypes.forEach(type => {
+            getSourceCheckboxes(type).forEach(checkbox => {
+                if (!checkbox.checked) {
+                    return;
+                }
+
+                const referenceId = Number(checkbox.value);
+                if (!Number.isInteger(referenceId) || referenceId <= 0) {
+                    return;
+                }
+
+                payload.push({ type, reference_id: referenceId });
+            });
+        });
+
+        return payload;
+    }
+
+    function refreshSourceSelectionCounts() {
+        sourceTypes.forEach(type => {
+            const badge = sourceBadgeMap[type];
+            if (!badge) {
+                return;
+            }
+
+            const selectedCount = getSourceCheckboxes(type).filter(checkbox => checkbox.checked).length;
+            badge.textContent = String(selectedCount);
+        });
+    }
+
+    function syncSourcesHiddenInputs() {
+        let hiddenContainer = document.getElementById("sources-hidden-inputs");
+        if (!hiddenContainer) {
+            hiddenContainer = document.createElement("div");
+            hiddenContainer.id = "sources-hidden-inputs";
+            hiddenContainer.className = "d-none";
+            editForm.appendChild(hiddenContainer);
+        }
+
+        hiddenContainer.innerHTML = "";
+        const payload = buildRecipientSourcesPayload();
+        payload.forEach((source, index) => {
+            const inputType = document.createElement("input");
+            inputType.type = "hidden";
+            inputType.name = `sources[${index}][type]`;
+            inputType.value = source.type;
+
+            const inputReference = document.createElement("input");
+            inputReference.type = "hidden";
+            inputReference.name = `sources[${index}][reference_id]`;
+            inputReference.value = String(source.reference_id);
+
+            hiddenContainer.appendChild(inputType);
+            hiddenContainer.appendChild(inputReference);
+        });
+
+        return payload;
+    }
+
+    function debounce(fn, delayMs) {
+        let timer = null;
+        return function debounced(...args) {
+            if (timer !== null) {
+                window.clearTimeout(timer);
+            }
+
+            timer = window.setTimeout(() => {
+                timer = null;
+                fn.apply(this, args);
+            }, delayMs);
+        };
+    }
+
+    async function refreshRecipientPreview() {
+        if (!recipientCountBadge) {
             return;
         }
 
-        const projectId = projectSelect.value;
-        const options = eventSelect.querySelectorAll("option[data-project-id]");
+        const payload = syncSourcesHiddenInputs();
+        if (payload.length === 0) {
+            recipientCountBadge.textContent = "0";
+            if (recipientCountStatus) {
+                recipientCountStatus.textContent = "";
+            }
+            return;
+        }
 
-        options.forEach(option => {
-            const matches = option.getAttribute("data-project-id") === projectId;
-            option.hidden = !matches;
-            option.disabled = !matches;
+        if (recipientCountStatus) {
+            recipientCountStatus.textContent = "Aktualisiere...";
+        }
+
+        const requestData = new FormData();
+        payload.forEach((source, index) => {
+            requestData.append(`sources[${index}][type]`, source.type);
+            requestData.append(`sources[${index}][reference_id]`, String(source.reference_id));
         });
+        if (projectSelect && projectSelect.value) {
+            requestData.append("project_id", projectSelect.value);
+        }
+        if (csrfToken) {
+            requestData.append("_csrf", csrfToken);
+        }
 
-        const selectedOption = eventSelect.options[eventSelect.selectedIndex];
-        if (
-            selectedOption
-            && selectedOption.hasAttribute("data-project-id")
-            && selectedOption.getAttribute("data-project-id") !== projectId
-        ) {
-            eventSelect.value = "";
+        try {
+            const response = await fetch("/newsletters/resolve-recipients-preview", {
+                method: "POST",
+                body: requestData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+                },
+            });
+
+            if (!response.ok) {
+                recipientCountBadge.textContent = "-";
+                if (recipientCountStatus) {
+                    recipientCountStatus.textContent = "Vorschau nicht verfügbar";
+                }
+                return;
+            }
+
+            const data = await response.json();
+            recipientCountBadge.textContent = String(data.count ?? 0);
+            if (recipientCountStatus) {
+                recipientCountStatus.textContent = "";
+            }
+        } catch (_error) {
+            recipientCountBadge.textContent = "-";
+            if (recipientCountStatus) {
+                recipientCountStatus.textContent = "Vorschau nicht verfügbar";
+            }
         }
     }
+
+    const refreshRecipientPreviewDebounced = debounce(refreshRecipientPreview, 300);
 
     function createSnapshot() {
         const projectId = projectSelect ? projectSelect.value : "";
         const title = titleInput ? titleInput.value : "";
-        const eventId = eventSelect ? eventSelect.value : "";
         const editor = tinymce.get("content_html");
         const contentHtml = editor ? editor.getContent() : "";
+        const sources = buildRecipientSourcesPayload();
 
         return JSON.stringify({
             project_id: projectId,
             title: title,
-            event_id: eventId,
+            sources: sources,
             content_html: contentHtml,
         });
     }
@@ -102,6 +232,7 @@ function initNewsletterEdit() {
         }
 
         saveInProgress = true;
+        syncSourcesHiddenInputs();
         const formData = new FormData(editForm);
         const editor = tinymce.get("content_html");
         formData.set("content_html", editor ? editor.getContent() : "");
@@ -150,8 +281,39 @@ function initNewsletterEdit() {
         saveNewsletter(true);
     });
 
+    function isSourceOptionTarget(target) {
+        return !!(
+            target
+            && typeof target === "object"
+            && target.classList
+            && typeof target.classList.contains === "function"
+            && target.classList.contains("newsletter-source-option")
+        );
+    }
+
+    editForm.addEventListener("change", function (event) {
+        if (!isSourceOptionTarget(event.target)) {
+            return;
+        }
+
+        refreshSourceSelectionCounts();
+        refreshRecipientPreviewDebounced();
+    });
+
+    editForm.addEventListener("input", function (event) {
+        if (!isSourceOptionTarget(event.target)) {
+            return;
+        }
+
+        refreshSourceSelectionCounts();
+        refreshRecipientPreviewDebounced();
+    });
+
     if (projectSelect) {
-        projectSelect.addEventListener("change", filterEventsByProject);
+        projectSelect.addEventListener("change", function () {
+            refreshSourceSelectionCounts();
+            refreshRecipientPreviewDebounced();
+        });
     }
 
     if (saveDraftButton) {
@@ -167,10 +329,8 @@ function initNewsletterEdit() {
                 return;
             }
 
-            const selectedEvent = eventSelect ? eventSelect.options[eventSelect.selectedIndex] : null;
             const previewTitle = document.getElementById("preview-modal-title");
             const previewProject = document.getElementById("preview-modal-project");
-            const previewEvent = document.getElementById("preview-modal-event");
             const previewContent = document.getElementById("preview-modal-content");
             const editor = tinymce.get("content_html");
 
@@ -181,12 +341,6 @@ function initNewsletterEdit() {
             if (previewProject && projectSelect) {
                 const selectedProject = projectSelect.options[projectSelect.selectedIndex];
                 previewProject.textContent = selectedProject ? selectedProject.textContent.trim() : "";
-            }
-
-            if (previewEvent) {
-                previewEvent.textContent = selectedEvent && selectedEvent.value
-                    ? selectedEvent.textContent.trim()
-                    : "Kein Event";
             }
 
             if (previewContent) {
@@ -301,7 +455,9 @@ function initNewsletterEdit() {
     }
 
     window.addEventListener("load", function () {
-        filterEventsByProject();
+        syncSourcesHiddenInputs();
+        refreshSourceSelectionCounts();
+        refreshRecipientPreviewDebounced();
         lastSavedSnapshot = createSnapshot();
     });
 

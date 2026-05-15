@@ -85,8 +85,21 @@
                                 </select>
                             </div>
 
+                            <div class="col-12 col-md-4">
+                                <label for="newsletter-recipient-type" class="form-label">Empfängertyp</label>
+                                <select id="newsletter-recipient-type"
+                                        name="recipient_type"
+                                        class="form-select onchange-submit">
+                                    <option value="" {% if not recipient_type %}selected{% endif %}>Alle</option>
+                                    <option value="project_members" {% if recipient_type == 'project_members' %}selected{% endif %}>Projektmitglieder</option>
+                                    <option value="event_attendees" {% if recipient_type == 'event_attendees' %}selected{% endif %}>Veranstaltungsteilnehmer</option>
+                                    <option value="role" {% if recipient_type == 'role' %}selected{% endif %}>Rollen</option>
+                                    <option value="user" {% if recipient_type == 'user' %}selected{% endif %}>Einzelne Mitglieder</option>
+                                </select>
+                            </div>
+
                             {% if status != "sent" and projects|length > 0 %}
-                                <div class="col-12 col-md-8">
+                                <div class="col-12 col-md-4">
                                     <label for="newsletter-status-project" class="form-label">Projekt</label>
                                     <select id="newsletter-status-project"
                                             name="project_id"
@@ -151,10 +164,6 @@
                                                 data-sort-status="{{ newsletter.status|lower }}">
                                                 <td data-label="Titel">
                                                     <strong>{{ newsletter.title }}</strong>
-                                                    {% if newsletter.event_id %}
-                                                        <br>
-                                                        <small class="text-muted">Event: {{ newsletter.event.title ?? 'N/A' }}</small>
-                                                    {% endif %}
                                                 </td>
                                                 <td data-label="Erstellt von">
                                                     {{ newsletter.createdBy.first_name|default('') }} {{ newsletter.createdBy.last_name|default('') }}

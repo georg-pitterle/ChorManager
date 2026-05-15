@@ -56,10 +56,7 @@ class NewsletterService
         $recipients = $this->recipientService->getRecipients($newsletter->id);
 
         if ($recipients->count() === 0) {
-            $resolvedRecipients = $this->recipientService->resolveRecipients(
-                (int) $newsletter->project_id,
-                (int) ($newsletter->event_id ?? 0)
-            );
+            $resolvedRecipients = $this->recipientService->resolveRecipients($newsletter);
 
             $this->recipientService->setRecipients($newsletter, $resolvedRecipients->pluck('id')->map(function ($id) {
                 return (int) $id;

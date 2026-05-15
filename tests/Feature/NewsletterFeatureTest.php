@@ -228,8 +228,8 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $editTemplate);
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $previewTemplate);
         $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $lockedTemplate);
-        $this->assertStringContainsString('<script src="/js/newsletters-create.js"></script>', $createTemplate);
-        $this->assertStringContainsString('<script src="/js/newsletters-edit.js"></script>', $editTemplate);
+        $this->assertStringContainsString("<script src=\"{{ asset_path('/js/newsletters-create.js') }}\"></script>", $createTemplate);
+        $this->assertStringContainsString("<script src=\"{{ asset_path('/js/newsletters-edit.js') }}\"></script>", $editTemplate);
         $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/delete"', $editTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters-locked.js"></script>', $lockedTemplate);
         $this->assertStringNotContainsString('onclick=', $lockedTemplate);
@@ -449,5 +449,97 @@ class NewsletterFeatureTest extends TestCase
         $envExample = file_get_contents(dirname(__DIR__) . '/../.env.example');
         $this->assertIsString($envExample);
         $this->assertStringContainsString('DISABLE_MAIL_SEND=true', $envExample);
+    }
+
+    public function testNewsletterRecipientSourcesMigrationExistsAndContainsDataBackfill(): void
+    {
+        $migrationPath = dirname(__DIR__) . '/../db/migrations/20260513220000_add_newsletter_recipient_sources.php';
+        $this->assertFileExists($migrationPath);
+
+        $migrationContent = file_get_contents($migrationPath);
+        $this->assertIsString($migrationContent);
+        $this->assertStringContainsString('newsletter_recipient_sources', $migrationContent);
+        $this->assertStringContainsString("'project_members'", $migrationContent);
+        $this->assertStringContainsString("'event_attendees'", $migrationContent);
+        $this->assertStringContainsString('removeColumn(\'event_id\')', $migrationContent);
+        $this->assertStringContainsString('INNER JOIN newsletter_recipient_sources', $migrationContent);
+    }
+
+    public function testNewsletterModelSupportsRecipientSourcesInsteadOfLegacyEventField(): void
+    {
+        $modelContent = file_get_contents(dirname(__DIR__) . '/../src/Models/Newsletter.php');
+
+        $this->assertIsString($modelContent);
+        $this->assertStringContainsString('recipientSources', $modelContent);
+        $this->assertStringNotContainsString("'event_id'", $modelContent);
+    }
+
+    public function testNewsletterControllerUsesRecipientSourceValidationAndPreviewEndpoint(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('validateNewsletterSourcesInput', $controllerContent);
+        $this->assertStringContainsString('resolveRecipientsPreview', $controllerContent);
+        $this->assertStringContainsString('recipientService->setSources', $controllerContent);
+        $this->assertStringContainsString("'recipient_type'", $controllerContent);
+        $this->assertStringContainsString('accessibleProjectIds', $controllerContent);
+        $this->assertStringContainsString("'project_id'", $controllerContent);
+        $this->assertStringContainsString('Zugriff verweigert.', $controllerContent);
+    }
+
+    public function testNewsletterRoutesExposeRecipientPreviewEndpoint(): void
+    {
+        $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
+
+        $this->assertIsString($routesContent);
+        $this->assertStringContainsString('/newsletters/resolve-recipients-preview', $routesContent);
+    }
+
+    public function testNewsletterTemplatesContainRecipientSourcesUi(): void
+    {
+        $createTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/create.twig');
+        $editTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/edit.twig');
+        $indexTemplate = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/index.twig');
+
+        $this->assertIsString($createTemplate);
+        $this->assertIsString($editTemplate);
+        $this->assertIsString($indexTemplate);
+
+        $this->assertStringContainsString('id="recipient-sources"', $createTemplate);
+        $this->assertStringContainsString('data-source-type="project_members"', $createTemplate);
+        $this->assertStringContainsString('data-source-type="event_attendees"', $createTemplate);
+        $this->assertStringContainsString('data-source-type="role"', $createTemplate);
+        $this->assertStringContainsString('data-source-type="user"', $createTemplate);
+
+        $this->assertStringContainsString('id="recipient-count-badge"', $editTemplate);
+        $this->assertStringContainsString('name="recipient_type"', $indexTemplate);
+    }
+
+    public function testNewsletterScriptsBuildSourcePayloadAndCallPreviewEndpoint(): void
+    {
+        $createScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-create.js');
+        $editScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-edit.js');
+
+        $this->assertIsString($createScriptContent);
+        $this->assertIsString($editScriptContent);
+
+        $this->assertStringContainsString('buildRecipientSourcesPayload', $createScriptContent);
+        $this->assertStringContainsString('/newsletters/resolve-recipients-preview', $createScriptContent);
+        $this->assertStringContainsString('recipient-count-badge', $createScriptContent);
+
+        $this->assertStringContainsString('buildRecipientSourcesPayload', $editScriptContent);
+        $this->assertStringContainsString('/newsletters/resolve-recipients-preview', $editScriptContent);
+        $this->assertStringContainsString('recipient-count-badge', $editScriptContent);
+    }
+
+    public function testDevSeedCreatesNewsletterRecipientSourcesAndNoLegacyEventFieldUsage(): void
+    {
+        $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seedContent);
+        $this->assertStringContainsString('NewsletterRecipientSource::create([', $seedContent);
+        $this->assertStringContainsString("'newsletter_recipient_sources'", $seedContent);
+        $this->assertStringNotContainsString("'event_id' => null", $seedContent);
     }
 }

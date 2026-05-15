@@ -1073,6 +1073,51 @@ a:hover {
     background-color: #f2f2f2;
 }
 
+.newsletter-source-dropdown .dropdown-toggle {
+    color: var(--theme-text);
+    font-weight: 500;
+    border-color: var(--theme-border);
+    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+}
+
+.newsletter-source-dropdown .dropdown-toggle:hover,
+.newsletter-source-dropdown .dropdown-toggle:focus,
+.newsletter-source-dropdown .dropdown-toggle:active,
+.newsletter-source-dropdown .dropdown-toggle.show {
+    color: var(--theme-text);
+    border-color: var(--theme-border);
+    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+}
+
+.newsletter-source-dropdown .dropdown-menu {
+    width: 100%;
+    max-width: 100%;
+    max-height: 16rem;
+    overflow-y: auto;
+    border-color: var(--theme-border);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+}
+
+.newsletter-source-dropdown .form-check {
+    margin-bottom: 0.35rem;
+}
+
+.newsletter-source-dropdown .form-check:last-child {
+    margin-bottom: 0;
+}
+
+.newsletter-source-dropdown .form-check-label {
+    display: inline-block;
+    width: calc(100% - 1.5rem);
+    color: var(--theme-text);
+}
+
+@media (max-width: 767.98px) {
+    .newsletter-source-dropdown .dropdown-menu {
+        max-height: 13rem;
+    }
+}
+
 /* Newsletter action modal: almost full width, but capped at 1200px */
 #newsletterActionModal {
     --newsletter-modal-edge-gap: 1rem;

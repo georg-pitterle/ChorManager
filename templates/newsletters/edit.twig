@@ -40,7 +40,7 @@
                          aria-labelledby="newsletter-edit-settings-title">
                     <div class="dashboard-section-head">
                         <h2 class="dashboard-section-title" id="newsletter-edit-settings-title">Newsletter-Einstellungen</h2>
-                        <p class="dashboard-section-lead mb-0">Projekt, Titel und Eventzuordnung anpassen.</p>
+                        <p class="dashboard-section-lead mb-0">Projekt, Titel und Empfängerquellen anpassen.</p>
                     </div>
 
                     <div class="surface-card form-surface card border-0">
@@ -74,28 +74,157 @@
                                        required>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="event_id" class="form-label">Event (optional)</label>
-                                <select class="form-select" id="event_id" name="event_id">
-                                    <option value="">-- Keine Auswahl --</option>
-                                    {% for event in events %}
-                                        <option value="{{ event.id }}"
-                                                data-project-id="{{ event.project_id }}"
-                                                {% if newsletter.event_id == event.id %}selected{% endif %}>
-                                            {{ event.title }} ({{ event.starts_at|date('d.m.Y') }}) - {{ event.project.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="alert alert-info">
-                                <strong>Empfänger:</strong> <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
-                                {% if newsletter.event_id %}
-                                    Teilnehmer des Events
-                                {% else %}
-                                    Alle Projektmitglieder
+                            {% set project_source_ids = [] %}
+                            {% set event_source_ids = [] %}
+                            {% set role_source_ids = [] %}
+                            {% set user_source_ids = [] %}
+                            {% for source in recipient_sources %}
+                                {% if source.type == 'project_members' %}
+                                    {% set project_source_ids = project_source_ids|merge([source.reference_id]) %}
+                                {% elseif source.type == 'event_attendees' %}
+                                    {% set event_source_ids = event_source_ids|merge([source.reference_id]) %}
+                                {% elseif source.type == 'role' %}
+                                    {% set role_source_ids = role_source_ids|merge([source.reference_id]) %}
+                                {% elseif source.type == 'user' %}
+                                    {% set user_source_ids = user_source_ids|merge([source.reference_id]) %}
                                 {% endif %}
-                            </div>
+                            {% endfor %}
+
+                            <section class="mb-3" id="recipient-sources" aria-labelledby="recipient-sources-title">
+                                <h3 class="h6" id="recipient-sources-title">Empfängerquellen</h3>
+
+                                <div class="mb-3" data-source-type="project_members">
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Projektmitglieder</span>
+                                        <span class="badge bg-secondary" id="source-project-members-count">{{ project_source_ids|length }}</span>
+                                    </label>
+                                    <div class="dropdown newsletter-source-dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                                                type="button"
+                                                data-bs-toggle="dropdown"
+                                                data-bs-auto-close="outside"
+                                                aria-expanded="false">
+                                            Projekte auswählen
+                                        </button>
+                                        <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
+                                            {% for selectable_project in projects %}
+                                                <div class="form-check">
+                                                    <input class="form-check-input newsletter-source-option"
+                                                           type="checkbox"
+                                                           data-source-type="project_members"
+                                                           value="{{ selectable_project.id }}"
+                                                           id="edit-source-project-{{ selectable_project.id }}"
+                                                           {% if selectable_project.id in project_source_ids %}checked{% endif %}>
+                                                    <label class="form-check-label"
+                                                           for="edit-source-project-{{ selectable_project.id }}">
+                                                        {{ selectable_project.name }}
+                                                    </label>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="form-text">Mehrfachauswahl per Klick. Dropdown bleibt zum schnellen Auswählen geöffnet.</div>
+                                </div>
+
+                                <div class="mb-3" data-source-type="event_attendees">
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Veranstaltungsteilnehmer</span>
+                                        <span class="badge bg-secondary" id="source-event-attendees-count">{{ event_source_ids|length }}</span>
+                                    </label>
+                                    <div class="dropdown newsletter-source-dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                                                type="button"
+                                                data-bs-toggle="dropdown"
+                                                data-bs-auto-close="outside"
+                                                aria-expanded="false">
+                                            Veranstaltungen auswählen
+                                        </button>
+                                        <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
+                                            {% for event in events %}
+                                                <div class="form-check">
+                                                    <input class="form-check-input newsletter-source-option"
+                                                           type="checkbox"
+                                                           data-source-type="event_attendees"
+                                                           value="{{ event.id }}"
+                                                           id="edit-source-event-{{ event.id }}"
+                                                           {% if event.id in event_source_ids %}checked{% endif %}>
+                                                    <label class="form-check-label" for="edit-source-event-{{ event.id }}">
+                                                        {{ event.title }} ({{ event.starts_at|date('d.m.Y') }}) - {{ event.project.name }}
+                                                    </label>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3" data-source-type="role">
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Rollen</span>
+                                        <span class="badge bg-secondary" id="source-roles-count">{{ role_source_ids|length }}</span>
+                                    </label>
+                                    <div class="dropdown newsletter-source-dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                                                type="button"
+                                                data-bs-toggle="dropdown"
+                                                data-bs-auto-close="outside"
+                                                aria-expanded="false">
+                                            Rollen auswählen
+                                        </button>
+                                        <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
+                                            {% for role in roles %}
+                                                <div class="form-check">
+                                                    <input class="form-check-input newsletter-source-option"
+                                                           type="checkbox"
+                                                           data-source-type="role"
+                                                           value="{{ role.id }}"
+                                                           id="edit-source-role-{{ role.id }}"
+                                                           {% if role.id in role_source_ids %}checked{% endif %}>
+                                                    <label class="form-check-label" for="edit-source-role-{{ role.id }}">
+                                                        {{ role.name }}
+                                                    </label>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3" data-source-type="user">
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Einzelne Mitglieder</span>
+                                        <span class="badge bg-secondary" id="source-users-count">{{ user_source_ids|length }}</span>
+                                    </label>
+                                    <div class="dropdown newsletter-source-dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                                                type="button"
+                                                data-bs-toggle="dropdown"
+                                                data-bs-auto-close="outside"
+                                                aria-expanded="false">
+                                            Mitglieder auswählen
+                                        </button>
+                                        <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
+                                            {% for member in users %}
+                                                <div class="form-check">
+                                                    <input class="form-check-input newsletter-source-option"
+                                                           type="checkbox"
+                                                           data-source-type="user"
+                                                           value="{{ member.id }}"
+                                                           id="edit-source-user-{{ member.id }}"
+                                                           {% if member.id in user_source_ids %}checked{% endif %}>
+                                                    <label class="form-check-label" for="edit-source-user-{{ member.id }}">
+                                                        {{ member.last_name }}, {{ member.first_name }}
+                                                    </label>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info mb-0">
+                                    <strong>Empfänger:</strong>
+                                    <span id="recipient-count-badge" class="badge bg-info">{{ newsletter.recipient_count }}</span>
+                                    <span class="small text-muted ms-2" id="recipient-count-status"></span>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </section>
@@ -205,7 +334,6 @@
                             <h4 id="preview-modal-title" class="mb-1"></h4>
                             <small class="text-muted">
                                 Projekt: <span id="preview-modal-project"></span>
-                                | Event: <span id="preview-modal-event">Kein Event</span>
                             </small>
                         </div>
                         <div id="preview-modal-content"
@@ -227,5 +355,5 @@
 {% endblock content %}
 
 {% block scripts %}
-    <script src="/js/newsletters-edit.js"></script>
+    <script src="{{ asset_path('/js/newsletters-edit.js') }}"></script>
 {% endblock scripts %}

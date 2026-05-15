@@ -10,38 +10,199 @@ function initNewsletterCreate() {
     form.setAttribute("data-newsletter-create-init", "1");
 
     const projectSelect = document.getElementById("project_id");
-    const eventSelect = document.getElementById("event_id");
     const templateSelect = document.getElementById("template");
     const titleInput = document.getElementById("title");
+    const recipientCountBadge = document.getElementById("recipient-count-badge");
+    const recipientCountStatus = document.getElementById("recipient-count-status");
+    const sourceProjectMembersCount = document.getElementById("source-project-members-count");
+    const sourceEventAttendeesCount = document.getElementById("source-event-attendees-count");
+    const sourceRolesCount = document.getElementById("source-roles-count");
+    const sourceUsersCount = document.getElementById("source-users-count");
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
     const isModal = form.getAttribute("data-is-modal") === "1";
+    const sourceBadgeMap = {
+        project_members: sourceProjectMembersCount,
+        event_attendees: sourceEventAttendeesCount,
+        role: sourceRolesCount,
+        user: sourceUsersCount,
+    };
+    const sourceTypes = Object.keys(sourceBadgeMap);
 
-    function filterEventsByProject() {
-        if (!projectSelect || !eventSelect) {
+    function getSourceCheckboxes(type) {
+        return Array.from(form.querySelectorAll(`input.newsletter-source-option[data-source-type="${type}"]`));
+    }
+
+    function buildRecipientSourcesPayload() {
+        const payload = [];
+        sourceTypes.forEach(type => {
+            getSourceCheckboxes(type).forEach(checkbox => {
+                if (!checkbox.checked) {
+                    return;
+                }
+
+                const referenceId = Number(checkbox.value);
+                if (!Number.isInteger(referenceId) || referenceId <= 0) {
+                    return;
+                }
+
+                payload.push({ type, reference_id: referenceId });
+            });
+        });
+
+        return payload;
+    }
+
+    function refreshSourceSelectionCounts() {
+        sourceTypes.forEach(type => {
+            const badge = sourceBadgeMap[type];
+            if (!badge) {
+                return;
+            }
+
+            const selectedCount = getSourceCheckboxes(type).filter(checkbox => checkbox.checked).length;
+            badge.textContent = String(selectedCount);
+        });
+    }
+
+    function syncSourcesHiddenInputs() {
+        let hiddenContainer = document.getElementById("sources-hidden-inputs");
+        if (!hiddenContainer) {
+            hiddenContainer = document.createElement("div");
+            hiddenContainer.id = "sources-hidden-inputs";
+            hiddenContainer.className = "d-none";
+            form.appendChild(hiddenContainer);
+        }
+
+        hiddenContainer.innerHTML = "";
+        const payload = buildRecipientSourcesPayload();
+        payload.forEach((source, index) => {
+            const inputType = document.createElement("input");
+            inputType.type = "hidden";
+            inputType.name = `sources[${index}][type]`;
+            inputType.value = source.type;
+
+            const inputReference = document.createElement("input");
+            inputReference.type = "hidden";
+            inputReference.name = `sources[${index}][reference_id]`;
+            inputReference.value = String(source.reference_id);
+
+            hiddenContainer.appendChild(inputType);
+            hiddenContainer.appendChild(inputReference);
+        });
+
+        return payload;
+    }
+
+    function debounce(fn, delayMs) {
+        let timer = null;
+        return function debounced(...args) {
+            if (timer !== null) {
+                window.clearTimeout(timer);
+            }
+
+            timer = window.setTimeout(() => {
+                timer = null;
+                fn.apply(this, args);
+            }, delayMs);
+        };
+    }
+
+    async function refreshRecipientPreview() {
+        if (!recipientCountBadge) {
             return;
         }
 
-        const projectId = projectSelect.value;
-        const options = eventSelect.querySelectorAll("option[data-project-id]");
+        const payload = syncSourcesHiddenInputs();
+        if (payload.length === 0) {
+            recipientCountBadge.textContent = "0";
+            if (recipientCountStatus) {
+                recipientCountStatus.textContent = "";
+            }
+            return;
+        }
 
-        options.forEach(option => {
-            const matches = option.getAttribute("data-project-id") === projectId;
-            option.hidden = !matches;
-            option.disabled = !matches;
+        if (recipientCountStatus) {
+            recipientCountStatus.textContent = "Aktualisiere...";
+        }
+
+        const requestData = new FormData();
+        payload.forEach((source, index) => {
+            requestData.append(`sources[${index}][type]`, source.type);
+            requestData.append(`sources[${index}][reference_id]`, String(source.reference_id));
         });
+        if (projectSelect && projectSelect.value) {
+            requestData.append("project_id", projectSelect.value);
+        }
+        if (csrfToken) {
+            requestData.append("_csrf", csrfToken);
+        }
 
-        const selectedOption = eventSelect.options[eventSelect.selectedIndex];
-        if (
-            selectedOption
-            && selectedOption.hasAttribute("data-project-id")
-            && selectedOption.getAttribute("data-project-id") !== projectId
-        ) {
-            eventSelect.value = "";
+        try {
+            const response = await fetch("/newsletters/resolve-recipients-preview", {
+                method: "POST",
+                body: requestData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+                },
+            });
+
+            if (!response.ok) {
+                recipientCountBadge.textContent = "-";
+                if (recipientCountStatus) {
+                    recipientCountStatus.textContent = "Vorschau nicht verfügbar";
+                }
+                return;
+            }
+
+            const data = await response.json();
+            recipientCountBadge.textContent = String(data.count ?? 0);
+            if (recipientCountStatus) {
+                recipientCountStatus.textContent = "";
+            }
+        } catch (_error) {
+            recipientCountBadge.textContent = "-";
+            if (recipientCountStatus) {
+                recipientCountStatus.textContent = "Vorschau nicht verfügbar";
+            }
         }
     }
 
+    const refreshRecipientPreviewDebounced = debounce(refreshRecipientPreview, 300);
+
+    function isSourceOptionTarget(target) {
+        return !!(
+            target
+            && typeof target === "object"
+            && target.classList
+            && typeof target.classList.contains === "function"
+            && target.classList.contains("newsletter-source-option")
+        );
+    }
+
+    form.addEventListener("change", function (event) {
+        if (!isSourceOptionTarget(event.target)) {
+            return;
+        }
+
+        refreshSourceSelectionCounts();
+        refreshRecipientPreviewDebounced();
+    });
+
+    form.addEventListener("input", function (event) {
+        if (!isSourceOptionTarget(event.target)) {
+            return;
+        }
+
+        refreshSourceSelectionCounts();
+        refreshRecipientPreviewDebounced();
+    });
+
     if (projectSelect) {
-        projectSelect.addEventListener("change", filterEventsByProject);
+        projectSelect.addEventListener("change", function () {
+            refreshSourceSelectionCounts();
+            refreshRecipientPreviewDebounced();
+        });
     }
 
     if (templateSelect) {
@@ -77,6 +238,7 @@ function initNewsletterCreate() {
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
 
+            syncSourcesHiddenInputs();
             const formData = new FormData(form);
             const editor = typeof tinymce !== 'undefined' ? tinymce.get("content_html") : null;
             formData.set("content_html", editor ? editor.getContent() : "");
@@ -101,7 +263,9 @@ function initNewsletterCreate() {
         });
     }
 
-    filterEventsByProject();
+    syncSourcesHiddenInputs();
+    refreshSourceSelectionCounts();
+    refreshRecipientPreviewDebounced();
 }
 
 if (document.readyState === "loading") {

@@ -18,6 +18,7 @@ use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
+use App\Models\NewsletterRecipientSource;
 use App\Models\Category;
 use App\Models\PasswordReset;
 use App\Models\Project;
@@ -128,6 +129,7 @@ class DevSeedService
                 'sponsor_attachments' => 0,
                 'newsletter_templates' => 0,
                 'newsletters' => 0,
+                'newsletter_recipient_sources' => 0,
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
                 'mail_queue' => 0,
@@ -228,6 +230,7 @@ class DevSeedService
             'sponsors',
             'sponsor_packages',
             'newsletter_recipients',
+            'newsletter_recipient_sources',
             'newsletter_archive',
             'newsletters',
             'newsletter_templates',
@@ -2627,7 +2630,6 @@ class DevSeedService
 
                 $newsletter = Newsletter::create([
                     'project_id' => $project->id,
-                    'event_id' => null,
                     'title' => 'Newsletter ' . $project->name . ' #' . ($i + 1),
                     'content_html' => '<h2>Newsletter ' . $project->name . '</h2>' .
                         '<p>Aktuelle Informationen zum Projekt:</p>' .
@@ -2640,6 +2642,13 @@ class DevSeedService
                 ]);
 
                 $this->report['counts']['newsletters']++;
+
+                NewsletterRecipientSource::create([
+                    'newsletter_id' => $newsletter->id,
+                    'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+                    'reference_id' => $project->id,
+                ]);
+                $this->report['counts']['newsletter_recipient_sources']++;
 
                 // Add recipients from project members
                 $recipients = $project->users()->pluck('user_id')->toArray();
@@ -2672,7 +2681,6 @@ class DevSeedService
             $draftUser = $activeUsers[(0 + 1) % count($activeUsers)];
             $draft = Newsletter::create([
                 'project_id' => $project->id,
-                'event_id' => null,
                 'title' => 'Entwurf: ' . $project->name . ' - Neuer Newsletter',
                 'content_html' => '<h2>Editierbar</h2><p>Dies ist ein Entwurfs-Newsletter, der noch bearbeitet werden kann.</p>',
                 'status' => Newsletter::STATUS_DRAFT,
@@ -2682,6 +2690,13 @@ class DevSeedService
             ]);
 
             $this->report['counts']['newsletters']++;
+
+            NewsletterRecipientSource::create([
+                'newsletter_id' => $draft->id,
+                'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+                'reference_id' => $project->id,
+            ]);
+            $this->report['counts']['newsletter_recipient_sources']++;
 
             $recipients = $project->users()->pluck('user_id')->toArray();
             $draft->recipient_count = count($recipients);

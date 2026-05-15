@@ -22,7 +22,6 @@ class Newsletter extends Model
 
     protected $fillable = [
         'project_id',
-        'event_id',
         'title',
         'content_html',
         'status',
@@ -35,7 +34,6 @@ class Newsletter extends Model
 
     protected $casts = [
         'project_id' => 'integer',
-        'event_id' => 'integer',
         'recipient_count' => 'integer',
         'locked_by' => 'integer',
         'created_by' => 'integer',
@@ -48,11 +46,6 @@ class Newsletter extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
-    }
-
-    public function event(): BelongsTo
-    {
-        return $this->belongsTo(Event::class, 'event_id');
     }
 
     public function createdBy(): BelongsTo
@@ -68,6 +61,11 @@ class Newsletter extends Model
     public function recipients(): HasMany
     {
         return $this->hasMany(NewsletterRecipient::class, 'newsletter_id');
+    }
+
+    public function recipientSources(): HasMany
+    {
+        return $this->hasMany(NewsletterRecipientSource::class, 'newsletter_id');
     }
 
     public function archive(): HasMany

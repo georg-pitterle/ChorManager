@@ -48,7 +48,7 @@ class DashboardController
                 $roles = $user->roles()->pluck('roles.name')->toArray();
                 $newsletterQuery = Newsletter::query()
                     ->where('status', Newsletter::STATUS_SENT)
-                    ->with(['project', 'event']);
+                    ->with(['project', 'recipientSources']);
 
                 if (!in_array('Admin', $roles, true)) {
                     $accessibleProjectIds = $user->projects()

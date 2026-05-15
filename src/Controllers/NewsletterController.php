@@ -10,9 +10,11 @@ use Slim\Views\Twig;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
+use App\Models\NewsletterRecipientSource;
 use App\Models\NewsletterTemplate;
 use App\Models\Project;
 use App\Models\Event;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
@@ -21,6 +23,7 @@ use App\Services\HtmlSanitizer;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Util\EnvHelper;
+use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
 
 class NewsletterController
@@ -191,6 +194,125 @@ class NewsletterController
         ];
     }
 
+    /**
+     * @param array<string, mixed> $data
+     * @return array{ok:bool, message:?string, payload:array<string, mixed>}
+     */
+    private function validateNewsletterSourcesInput(array $data, array $accessibleProjectIds = []): array
+    {
+        $sources = $data['sources'] ?? null;
+        if (!is_array($sources) || $sources === []) {
+            return [
+                'ok' => false,
+                'message' => 'Mindestens eine Empfängerquelle ist erforderlich.',
+                'payload' => [],
+            ];
+        }
+
+        $allowedTypes = [
+            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
+            NewsletterRecipientSource::TYPE_ROLE,
+            NewsletterRecipientSource::TYPE_USER,
+        ];
+
+        $normalized = [];
+        $seen = [];
+
+        foreach ($sources as $source) {
+            if (!is_array($source)) {
+                continue;
+            }
+
+            $type = trim((string) ($source['type'] ?? ''));
+            $referenceId = (int) ($source['reference_id'] ?? 0);
+
+            if (!in_array($type, $allowedTypes, true) || $referenceId <= 0) {
+                continue;
+            }
+
+            if ($type === NewsletterRecipientSource::TYPE_PROJECT_MEMBERS) {
+                $project = Project::query()->find($referenceId);
+                if (!$project) {
+                    continue;
+                }
+
+                if ($accessibleProjectIds !== [] && !in_array((int) $project->id, $accessibleProjectIds, true)) {
+                    continue;
+                }
+            }
+
+            if ($type === NewsletterRecipientSource::TYPE_EVENT_ATTENDEES) {
+                $event = Event::query()->find($referenceId);
+                if (!$event) {
+                    continue;
+                }
+
+                if ($accessibleProjectIds !== [] && !in_array((int) $event->project_id, $accessibleProjectIds, true)) {
+                    continue;
+                }
+            }
+
+            if (
+                $type === NewsletterRecipientSource::TYPE_ROLE
+                && !Role::query()->where('id', $referenceId)->exists()
+            ) {
+                continue;
+            }
+
+            if (
+                $type === NewsletterRecipientSource::TYPE_USER
+                && !User::query()->where('id', $referenceId)->where('is_active', 1)->exists()
+            ) {
+                continue;
+            }
+
+            $dedupeKey = $type . ':' . $referenceId;
+            if (isset($seen[$dedupeKey])) {
+                continue;
+            }
+
+            $seen[$dedupeKey] = true;
+            $normalized[] = [
+                'type' => $type,
+                'reference_id' => $referenceId,
+            ];
+        }
+
+        if ($normalized === []) {
+            return [
+                'ok' => false,
+                'message' => 'Mindestens eine gültige Empfängerquelle ist erforderlich.',
+                'payload' => [],
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'message' => null,
+            'payload' => [
+                'sources' => $normalized,
+            ],
+        ];
+    }
+
+    /**
+     * @param array<int, array{type:string, reference_id:int}> $sources
+     * @return Collection<int, NewsletterRecipientSource>
+     */
+    private function buildSourceCollection(array $sources): Collection
+    {
+        $items = [];
+        foreach ($sources as $source) {
+            $items[] = new NewsletterRecipientSource([
+                'source_type' => (string) $source['type'],
+                'reference_id' => (int) $source['reference_id'],
+            ]);
+        }
+
+        return new Collection($items);
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
@@ -218,6 +340,16 @@ class NewsletterController
 
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $status = $queryParams['status'] ?? Newsletter::STATUS_DRAFT;
+        $recipientType = trim((string) ($queryParams['recipient_type'] ?? ''));
+        $allowedRecipientTypes = [
+            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
+            NewsletterRecipientSource::TYPE_ROLE,
+            NewsletterRecipientSource::TYPE_USER,
+        ];
+        if (!in_array($recipientType, $allowedRecipientTypes, true)) {
+            $recipientType = '';
+        }
         $allowedStatuses = Newsletter::SUPPORTED_STATUSES;
 
         if (!in_array($status, $allowedStatuses, true)) {
@@ -225,10 +357,18 @@ class NewsletterController
         }
 
         if ($status === Newsletter::STATUS_SENT) {
-            $newsletters = Newsletter::query()
+            $query = Newsletter::query()
                 ->whereIn('project_id', $projectIds)
                 ->where('status', Newsletter::STATUS_SENT)
-                ->with(['createdBy', 'project', 'event'])
+                ->with(['createdBy', 'project']);
+
+            if ($recipientType !== '') {
+                $query->whereHas('recipientSources', function ($sourceQuery) use ($recipientType) {
+                    $sourceQuery->where('source_type', $recipientType);
+                });
+            }
+
+            $newsletters = $query
                 ->orderBy('sent_at', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -238,6 +378,7 @@ class NewsletterController
                 'project' => null,
                 'projects' => $projects,
                 'status' => $status,
+                'recipient_type' => $recipientType,
                 'user_id' => $userId,
                 'success' => $success,
                 'error' => $error,
@@ -259,6 +400,12 @@ class NewsletterController
 
         $query->where('status', $status);
 
+        if ($recipientType !== '') {
+            $query->whereHas('recipientSources', function ($sourceQuery) use ($recipientType) {
+                $sourceQuery->where('source_type', $recipientType);
+            });
+        }
+
         $newsletters = $query
             ->with(['createdBy'])
             ->orderBy('created_at', 'desc')
@@ -269,6 +416,7 @@ class NewsletterController
             'project' => $project,
             'projects' => $projects,
             'status' => $status,
+            'recipient_type' => $recipientType,
             'user_id' => $userId,
             'success' => $success,
             'error' => $error,
@@ -285,7 +433,7 @@ class NewsletterController
 
         $archives = NewsletterArchive::query()
             ->where('user_id', (int) $userId)
-            ->with(['newsletter.createdBy', 'newsletter.project', 'newsletter.event'])
+            ->with(['newsletter.createdBy', 'newsletter.project'])
             ->orderBy('sent_at', 'desc')
             ->get();
 
@@ -321,6 +469,8 @@ class NewsletterController
             ->whereIn('project_id', $projects->pluck('id')->toArray())
             ->orderBy('starts_at', 'desc')
             ->get();
+        $roles = Role::query()->orderBy('name')->get();
+        $users = User::query()->where('is_active', 1)->orderBy('last_name')->orderBy('first_name')->get();
         $templates = NewsletterTemplate::where('project_id', $projectId)
             ->orWhereNull('project_id')
             ->orderBy('name')
@@ -330,6 +480,14 @@ class NewsletterController
             'project' => $project,
             'projects' => $projects,
             'events' => $events,
+            'roles' => $roles,
+            'users' => $users,
+            'recipient_sources' => [
+                [
+                    'type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+                    'reference_id' => $projectId,
+                ],
+            ],
             'templates' => $templates,
             'is_modal' => $isModal,
         ]);
@@ -383,30 +541,30 @@ class NewsletterController
                 ->withStatus(302);
         }
 
-        $eventId = null;
-        if (!empty($data['event_id'])) {
-            $requestedEventId = (int) $data['event_id'];
-            $event = Event::where('id', $requestedEventId)
-                ->where('project_id', $projectId)
-                ->first();
-            if ($event) {
-                $eventId = $requestedEventId;
+        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id): int => (int) $id)->all();
+        $sourceValidation = $this->validateNewsletterSourcesInput($data, $accessibleProjectIds);
+        if (!$sourceValidation['ok']) {
+            $message = (string) ($sourceValidation['message'] ?? 'Ungültige Empfängerquellen.');
+
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => $message], 422);
             }
+
+            $_SESSION['error'] = $message;
+            return $response
+                ->withHeader('Location', '/newsletters/create?project_id=' . $projectId)
+                ->withStatus(302);
         }
 
         $newsletter = Newsletter::create([
             'project_id' => $projectId,
-            'event_id' => $eventId,
             'title' => $validation['payload']['title'],
             'content_html' => $validation['payload']['content_html'],
             'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $userId,
         ]);
 
-        $recipients = $this->recipientService->resolveRecipients($projectId, (int) ($eventId ?? 0));
-        $this->recipientService->setRecipients($newsletter, $recipients->pluck('id')->map(function ($id) {
-            return (int) $id;
-        })->all());
+        $this->recipientService->setSources($newsletter, $sourceValidation['payload']['sources']);
 
         return $this->jsonResponse($response, [
             'id' => $newsletter->id,
@@ -453,12 +611,24 @@ class NewsletterController
             ->whereIn('project_id', $projects->pluck('id')->toArray())
             ->orderBy('starts_at', 'desc')
             ->get();
+        $roles = Role::query()->orderBy('name')->get();
+        $users = User::query()->where('is_active', 1)->orderBy('last_name')->orderBy('first_name')->get();
+        $sources = $this->recipientService->getSources($newsletter);
+        if ($sources === []) {
+            $sources = [[
+                'type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+                'reference_id' => (int) $newsletter->project_id,
+            ]];
+        }
 
         return $this->view->render($response, 'newsletters/edit.twig', [
             'newsletter' => $newsletter,
             'project' => $project,
             'projects' => $projects,
             'events' => $events,
+            'roles' => $roles,
+            'users' => $users,
+            'recipient_sources' => $sources,
             'is_modal' => $isModal,
         ]);
     }
@@ -494,28 +664,20 @@ class NewsletterController
             return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
-        $eventId = null;
-        if (!empty($data['event_id'])) {
-            $requestedEventId = (int) $data['event_id'];
-            $event = Event::where('id', $requestedEventId)
-                ->where('project_id', $projectId)
-                ->first();
-            if ($event) {
-                $eventId = $requestedEventId;
-            }
+        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id): int => (int) $id)->all();
+        $sourceValidation = $this->validateNewsletterSourcesInput($data, $accessibleProjectIds);
+        if (!$sourceValidation['ok']) {
+            $message = (string) ($sourceValidation['message'] ?? 'Ungültige Empfängerquellen.');
+            return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
         $newsletter->update([
             'project_id' => $projectId,
             'title' => $validation['payload']['title'],
             'content_html' => $validation['payload']['content_html'],
-            'event_id' => $eventId,
         ]);
 
-        $recipients = $this->recipientService->resolveRecipients($projectId, (int) ($eventId ?? 0));
-        $this->recipientService->setRecipients($newsletter, $recipients->pluck('id')->map(function ($id) {
-            return (int) $id;
-        })->all());
+        $this->recipientService->setSources($newsletter, $sourceValidation['payload']['sources']);
 
         $suppressFlash = ((string) ($data['suppress_flash'] ?? '0')) === '1';
         if (!$suppressFlash) {
@@ -526,6 +688,34 @@ class NewsletterController
             'success' => true,
             'message' => 'Newsletter gespeichert',
         ]);
+    }
+
+    public function resolveRecipientsPreview(Request $request, Response $response): Response
+    {
+        $data = (array) $request->getParsedBody();
+        $userId = $_SESSION['user_id'] ?? null;
+        $projectId = (int) ($data['project_id'] ?? 0);
+
+        $projects = $this->getAccessibleProjects($userId);
+        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id): int => (int) $id)->all();
+        if ($projectId <= 0 || !in_array($projectId, $accessibleProjectIds, true)) {
+            return $this->jsonResponse($response, [
+                'errors' => ['Zugriff verweigert.'],
+            ], 403);
+        }
+
+        $validation = $this->validateNewsletterSourcesInput($data, $accessibleProjectIds);
+        if (!$validation['ok']) {
+            return $this->jsonResponse($response, [
+                'errors' => [(string) ($validation['message'] ?? 'Ungültige Empfängerquellen.')],
+            ], 422);
+        }
+
+        $newsletter = new Newsletter();
+        $newsletter->setRelation('recipientSources', $this->buildSourceCollection($validation['payload']['sources']));
+        $count = $this->recipientService->resolveRecipients($newsletter)->count();
+
+        return $this->jsonResponse($response, ['count' => $count]);
     }
 
     public function preview(Request $request, Response $response): Response
