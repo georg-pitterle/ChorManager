@@ -15,7 +15,11 @@ use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Project;
+use App\Models\User;
+use App\Services\CalendarSubscriptionService;
 use App\Services\ModalFormService;
+use App\Util\AppUrlResolver;
+use App\Util\Timezone;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class EventController
@@ -157,6 +161,13 @@ class EventController
         $createState = $createService->getState();
         $createService->clear();
 
+        $calendarSubscriptionUrl = null;
+        if ($userId > 0) {
+            $subscriptionService = new CalendarSubscriptionService();
+            $token = $subscriptionService->getOrCreateTokenForUser($userId);
+            $calendarSubscriptionUrl = AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
+        }
+
         return $this->view->render($response, 'events/index.twig', [
             'events' => $events,
             'projects' => $projects,
@@ -173,6 +184,7 @@ class EventController
             'create_form' => $createState,
             'view_mode' => $viewMode,
             'calendar_events' => $calendarEventsJson,
+            'calendar_subscription_url' => $calendarSubscriptionUrl,
         ]);
     }
 
@@ -195,11 +207,130 @@ class EventController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        $calendarSubscriptionUrl = null;
+        if ($userId > 0) {
+            $subscriptionService = new CalendarSubscriptionService();
+            $token = $subscriptionService->getOrCreateTokenForUser($userId);
+            $calendarSubscriptionUrl = AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
+        }
+
         return $this->view->render($response, 'events/detail.twig', [
             'event' => $event,
             'success' => $success,
             'error' => $error,
+            'calendar_subscription_url' => $calendarSubscriptionUrl,
         ]);
+    }
+
+    public function exportCalendar(Request $request, Response $response, array $args): Response
+    {
+        $subscriptionService = new CalendarSubscriptionService();
+        $subscription = $subscriptionService->findByToken((string) $args['token']);
+        if (!$subscription) {
+            return $response->withStatus(404);
+        }
+
+        $user = User::find((int) $subscription->user_id);
+        if (!$user) {
+            return $response->withStatus(404);
+        }
+
+        $events = $this->getAccessibleCalendarEventsForUser($user);
+
+        $timezone = Timezone::resolveAppTimezone();
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Chor Manager//Calendar Subscription//DE',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'X-WR-CALNAME:Chor-Manager Kalender',
+            'X-WR-TIMEZONE:' . $timezone,
+        ];
+
+        foreach ($events as $event) {
+            $lines = array_merge($lines, $this->buildIcsEventLines($event, $baseUrl, $timezone));
+        }
+
+        $lines[] = 'END:VCALENDAR';
+        $content = implode("\r\n", $lines) . "\r\n";
+
+        $response->getBody()->write($content);
+
+        return $response
+            ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
+            ->withHeader('Content-Disposition', 'inline; filename="chor-manager.ics"');
+    }
+
+    private function getAccessibleCalendarEventsForUser(User $user)
+    {
+        $userId = (int) $user->id;
+        $canManageUsers = $user->roles()->where('can_manage_users', 1)->exists();
+        $accessibleProjects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $accessibleProjectIds = $accessibleProjects->pluck('id')->map(static fn($id) => (int) $id)->all();
+
+        $query = Event::query();
+        if (!$canManageUsers) {
+            $query->where(function ($scopedQuery) use ($accessibleProjectIds) {
+                $scopedQuery->whereNull('project_id');
+
+                if (!empty($accessibleProjectIds)) {
+                    $scopedQuery->orWhereIn('project_id', $accessibleProjectIds);
+                }
+            });
+        }
+
+        return $query
+            ->with('project')
+            ->where('ends_at', '>=', Carbon::now())
+            ->orderBy('starts_at')
+            ->get();
+    }
+
+    private function buildIcsEventLines(Event $event, string $baseUrl, string $timezone): array
+    {
+        $lines = [
+            'BEGIN:VEVENT',
+            'UID:event-' . $event->id . '@chor-manager',
+            'DTSTAMP:' . Carbon::now('UTC')->format('Ymd\THis\Z'),
+            'DTSTART;TZID=' . $timezone . ':' . $event->starts_at->format('Ymd\THis'),
+            'DTEND;TZID=' . $timezone . ':' . $event->ends_at->format('Ymd\THis'),
+            'SUMMARY:' . $this->escapeIcsText($event->title),
+            'DESCRIPTION:' . $this->escapeIcsText($this->buildIcsDescription($event, $baseUrl)),
+            'URL:' . $this->escapeIcsText($baseUrl . '/events/' . $event->id),
+        ];
+
+        if (!empty($event->location)) {
+            $lines[] = 'LOCATION:' . $this->escapeIcsText($event->location);
+        }
+
+        $lines[] = 'END:VEVENT';
+
+        return $lines;
+    }
+
+    private function buildIcsDescription(Event $event, string $baseUrl): string
+    {
+        $description = 'Termin: ' . $event->title;
+        if ($event->project) {
+            $description .= '\nProjekt: ' . $event->project->name;
+        }
+        if (!empty($event->location)) {
+            $description .= '\nOrt: ' . $event->location;
+        }
+        $description .= '\nDetails: ' . $baseUrl . '/events/' . $event->id;
+
+        return $description;
+    }
+
+    private function escapeIcsText(string $text): string
+    {
+        return str_replace(
+            ['\\', "\r\n", "\n", ',', ';'],
+            ['\\\\', '\\n', '\\n', '\\,', '\\;'],
+            $text
+        );
     }
 
     public function addNote(Request $request, Response $response, array $args): Response

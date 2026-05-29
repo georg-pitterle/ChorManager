@@ -31,6 +31,14 @@
                         data-bs-target="#addEventModal">
                     <i class="bi bi-calendar-plus"></i> Termin erstellen
                 </button>
+                {% if calendar_subscription_url %}
+                    <button type="button"
+                            class="btn btn-outline-secondary me-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="#calendarSubscriptionModal">
+                        <i class="bi bi-calendar2-week me-1"></i> Kalender abonnieren
+                    </button>
+                {% endif %}
             {% endif %}
         </div>
     </section>
@@ -115,6 +123,35 @@
                 </div>
             </div>
         </section>
+
+        {% if calendar_subscription_url %}
+            <div class="modal fade" id="calendarSubscriptionModal" tabindex="-1" aria-labelledby="calendarSubscriptionModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-sm">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="calendarSubscriptionModalLabel">Kalender abonnieren</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-3">Kopiere den persönlichen Kalenderlink in deine Kalender-App oder füge ihn als URL-Abonnement hinzu.</p>
+                            <div class="input-group">
+                                <input id="calendarSubscriptionUrlInput"
+                                       type="text"
+                                       class="form-control"
+                                       value="{{ calendar_subscription_url }}"
+                                       readonly>
+                                <button id="copyCalendarSubscriptionUrl" type="button" class="btn btn-outline-secondary">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
 
         {% if view_mode == 'list' %}
             <section class="dashboard-section dashboard-section--context"
@@ -452,5 +489,61 @@
         <script src="/vendor/fullcalendar/list/index.global.min.js"></script>
         <script src="/vendor/fullcalendar/interaction/index.global.min.js"></script>
         <script src="/js/event-calendar.js"></script>
+    {% endif %}
+    {% if calendar_subscription_url %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var copyButton = document.getElementById('copyCalendarSubscriptionUrl');
+                var urlInput = document.getElementById('calendarSubscriptionUrlInput');
+                if (!copyButton || !urlInput) {
+                    return;
+                }
+
+                var originalHtml = copyButton.innerHTML;
+
+                function showCopiedState() {
+                    copyButton.innerHTML = 'Kopiert';
+                    setTimeout(function () {
+                        copyButton.innerHTML = originalHtml;
+                    }, 2000);
+                }
+
+                function fallbackCopy(text) {
+                    var wasReadOnly = urlInput.hasAttribute('readonly');
+                    if (wasReadOnly) {
+                        urlInput.removeAttribute('readonly');
+                    }
+                    urlInput.select();
+                    urlInput.setSelectionRange(0, text.length);
+                    try {
+                        document.execCommand('copy');
+                        showCopiedState();
+                    } catch (e) {
+                        console.error('Clipboard fallback failed', e);
+                    }
+                    if (wasReadOnly) {
+                        urlInput.setAttribute('readonly', 'readonly');
+                    }
+                }
+
+                copyButton.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    var text = urlInput.value || '';
+                    if (text === '') {
+                        return;
+                    }
+
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(function () {
+                            showCopiedState();
+                        }).catch(function () {
+                            fallbackCopy(text);
+                        });
+                    } else {
+                        fallbackCopy(text);
+                    }
+                });
+            });
+        </script>
     {% endif %}
 {% endblock scripts %}

@@ -9,6 +9,7 @@ use App\Models\Comment;
 use App\Models\Event;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\CalendarSubscriptionService;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -933,6 +934,16 @@ class EventFeatureTest extends TestCase
         return (string) $result->getBody();
     }
 
+    private function renderEventCalendarExport(string $token)
+    {
+        $twig = $this->createTwig();
+        $controller = new EventController($twig);
+        $request = $this->makeRequest('GET', '/events/export/' . $token . '.ics');
+        $response = $this->makeResponse();
+
+        return $controller->exportCalendar($request, $response, ['token' => $token]);
+    }
+
     public function testCalendarViewReturns200(): void
     {
         $body = $this->renderEventsIndex(['view' => 'calendar']);
@@ -964,6 +975,40 @@ class EventFeatureTest extends TestCase
         $this->assertArrayHasKey('id', $probe);
         $this->assertArrayHasKey('start', $probe);
         $this->assertArrayHasKey('end', $probe);
+    }
+
+    public function testEventDetailShowsCalendarSubscriptionButton(): void
+    {
+        $event = $this->createEvent('Probe-Termin', '+3 days');
+
+        $body = $this->renderEventDetail($event->id);
+
+        $this->assertStringContainsString('Kalender abonnieren', $body);
+        $this->assertStringContainsString('id="calendarSubscriptionModal"', $body);
+        $this->assertStringContainsString('id="calendarSubscriptionUrlInput"', $body);
+    }
+
+    public function testPersonalCalendarExportReturnsIcsForValidToken(): void
+    {
+        $this->createEvent('Probe-Termin', '+3 days');
+
+        $token = (new CalendarSubscriptionService())->getOrCreateTokenForUser(1);
+        $response = $this->renderEventCalendarExport($token);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('text/calendar; charset=utf-8', $response->getHeaderLine('Content-Type'));
+
+        $body = (string) $response->getBody();
+        $this->assertStringContainsString('BEGIN:VCALENDAR', $body);
+        $this->assertStringContainsString('SUMMARY:Probe-Termin', $body);
+        $this->assertStringContainsString('DTSTART;TZID=', $body);
+    }
+
+    public function testPersonalCalendarExportReturns404ForInvalidToken(): void
+    {
+        $response = $this->renderEventCalendarExport(str_repeat('a', 64));
+
+        $this->assertSame(404, $response->getStatusCode());
     }
 
     public function testListViewShowsTable(): void

@@ -83,6 +83,9 @@ return function (App $app) {
         return $response->withHeader('Content-Type', 'text/plain');
     });
 
+    // Public calendar subscription feed
+    $app->get('/events/export/{token:[a-f0-9]{64}}.ics', [EventController::class, 'exportCalendar']);
+
     // Provider feedback ingest endpoints (public, verified/trusted channels)
     $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
     $app->post('/mail/delivery/dsn', [MailDeliveryDsnController::class, 'ingest']);
