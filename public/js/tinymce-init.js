@@ -23,6 +23,7 @@ function initTinymceEditors(root) {
         }
 
         tinymce.init({
+            license_key: 'gpl',
             selector: '#' + textarea.id,
             language: 'de',
             language_url: '/vendor/tinymce/langs/de.js',

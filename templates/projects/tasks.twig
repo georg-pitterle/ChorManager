@@ -1,7 +1,7 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Aufgaben - {{ project.name }} - {{ app_settings.app_name|default("Chor-Manager") }}
+    Aufgaben - {{ project.name }} - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -48,101 +48,372 @@
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="project-tasks-title">
             <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="project-tasks-title">Aufgabenübersicht</h2>
-                <p class="dashboard-section-lead mb-0">{{ tasks|length }} Aufgaben im aktuellen Ergebnis.</p>
+                <div>
+                    <h2 class="dashboard-section-title" id="project-tasks-title">Aufgabenübersicht</h2>
+                    <p class="dashboard-section-lead mb-0">{{ tasks|length }} Aufgaben im aktuellen Ergebnis.</p>
+                </div>
+                <div class="btn-group" role="group" aria-label="Ansicht umschalten">
+                    <button type="button"
+                            id="btn-view-list"
+                            class="btn btn-sm btn-outline-secondary active"
+                            aria-pressed="true">
+                        <i class="bi bi-list-ul"></i> Liste
+                    </button>
+                    <button type="button"
+                            id="btn-view-kanban"
+                            class="btn btn-sm btn-outline-secondary"
+                            aria-pressed="false">
+                        <i class="bi bi-kanban"></i> Kanban
+                    </button>
+                </div>
             </div>
 
-            <div class="surface-card card border-0 table-shell"
-                 data-table-engine="true"
-                 data-table-id="tasks.index"
-                 data-default-view="auto"
-                 data-default-page-size="100"
-                 data-page-size-options="25,50,100,200"
-                 data-default-sort-key="due_date">
-                {{ include('partials/table_toolbar.twig') }}
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-striped mb-0 table-responsive-cards"
-                               id="tasksTable">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th data-sort-key="task_title" data-sort-type="text">Titel</th>
-                                    <th data-sort-key="assignee_name" data-sort-type="text">Verantwortlich</th>
-                                    <th data-sort-key="due_date" data-sort-type="date">Fällig am</th>
-                                    <th>Priorität</th>
-                                    <th data-sort-key="task_status" data-sort-type="text">Status</th>
-                                    <th class="text-end">Aktionen</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for task in tasks %}
-                                    <tr data-sort-task_title="{{ task.name|lower }}"
-                                        data-sort-assignee_name="{{ task.assignee ? (task.assignee.first_name ~ ' ' ~ task.assignee.last_name)|lower : '' }}"
-                                        data-sort-due_date="{{ task.end_date ? task.end_date|date('Y-m-d') : '9999-12-31' }}"
-                                        data-sort-task_status="{{ task.status|lower }}">
-                                        <td data-label="Titel">
-                                            <strong>{{ task.name }}</strong>
-                                            {% if task.comments_count > 0 %}
-                                                <span class="badge bg-light text-dark ms-2"
-                                                      title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Verantwortlich">
-                                            {% if task.assignee %}
-                                                {{ task.assignee.first_name }} {{ task.assignee.last_name }}
-                                            {% else %}
-                                                <span class="text-muted fst-italic">Nicht zugewiesen</span>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Fällig am">
-                                            {% if task.end_date %}
-                                                {% set due = task.end_date|date('Y-m-d') %}
-                                                {% set today = 'now'|date('Y-m-d') %}
-                                                <span class="{{ due < today and task.status != 'Abgeschlossen' ? 'text-danger fw-bold' : '' }}">
-                                                    {{ task.end_date|date('d.m.Y') }}
-                                                </span>
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Priorität">
-                                            {% if task.priority == 'Niedrig' %}
-                                                <span class="badge bg-secondary">Niedrig</span>
-                                            {% elseif task.priority == 'Mittel' %}
-                                                <span class="badge bg-primary">Mittel</span>
-                                            {% elseif task.priority == 'Hoch' %}
-                                                <span class="badge bg-danger">Hoch</span>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Status">
-                                            {% if task.status == 'Abgeschlossen' %}
-                                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Erledigt</span>
-                                            {% elseif task.status == 'In Bearbeitung' %}
-                                                <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary bg-opacity-75"><i class="bi bi-circle"></i> Offen</span>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Aktionen" class="text-end">
-                                            <div class="btn-group"
-                                                 role="group"
-                                                 aria-label="Aktionen für Aufgabe {{ task.title }}">
-                                                <a href="/tasks/{{ task.id }}" class="btn btn-sm btn-outline-primary">
-                                                    Details <i class="bi bi-chevron-right"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% else %}
+            {# ── LIST VIEW ── #}
+            <div id="list-view">
+                <div class="surface-card card border-0 table-shell"
+                     data-table-engine="true"
+                     data-table-id="tasks.index"
+                     data-default-view="auto"
+                     data-default-page-size="100"
+                     data-page-size-options="25,50,100,200"
+                     data-default-sort-key="due_date">
+                    {{ include('partials/table_toolbar.twig') }}
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped mb-0 table-responsive-cards"
+                                   id="tasksTable">
+                                <thead class="table-dark">
                                     <tr>
-                                        <td colspan="6" class="text-center py-4 text-muted">Bisher wurden keine Aufgaben für dieses Projekt angelegt.</td>
+                                        <th data-sort-key="task_title" data-sort-type="text">Titel</th>
+                                        <th data-sort-key="assignee_name" data-sort-type="text">Verantwortlich</th>
+                                        <th data-sort-key="due_date" data-sort-type="date">Fällig am</th>
+                                        <th>Priorität</th>
+                                        <th data-sort-key="task_status" data-sort-type="text">Status</th>
+                                        <th class="text-end">Aktionen</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {% for task in tasks %}
+                                        <tr data-sort-task_title="{{ task.name|lower }}"
+                                            data-sort-assignee_name="{{ task.assignee ? (task.assignee.first_name ~ ' ' ~ task.assignee.last_name)|lower : '' }}"
+                                            data-sort-due_date="{{ task.end_date ? task.end_date|date('Y-m-d') : '9999-12-31' }}"
+                                            data-sort-task_status="{{ task.status|lower }}">
+                                            <td data-label="Titel">
+                                                <strong>{{ task.name }}</strong>
+                                                {% if task.comments_count > 0 %}
+                                                    <span class="badge bg-light text-dark ms-2"
+                                                          title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Verantwortlich">
+                                                {% if task.assignee %}
+                                                    {{ task.assignee.first_name }} {{ task.assignee.last_name }}
+                                                {% else %}
+                                                    <span class="text-muted fst-italic">Nicht zugewiesen</span>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Fällig am">
+                                                {% if task.end_date %}
+                                                    {% set due = task.end_date|date('Y-m-d') %}
+                                                    {% set today = 'now'|date('Y-m-d') %}
+                                                    <span class="{{ due < today and task.status != 'Abgeschlossen' ? 'text-danger fw-bold' : '' }}">
+                                                        {{ task.end_date|date('d.m.Y') }}
+                                                    </span>
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Priorität">
+                                                {% if task.priority == 'Niedrig' %}
+                                                    <span class="badge bg-secondary">Niedrig</span>
+                                                {% elseif task.priority == 'Mittel' %}
+                                                    <span class="badge bg-primary">Mittel</span>
+                                                {% elseif task.priority == 'Hoch' %}
+                                                    <span class="badge bg-danger">Hoch</span>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Status">
+                                                {% if task.status == 'Abgeschlossen' %}
+                                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Erledigt</span>
+                                                {% elseif task.status == 'In Bearbeitung' %}
+                                                    <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary bg-opacity-75"><i class="bi bi-circle"></i> Offen</span>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Aktionen" class="text-end">
+                                                <div class="btn-group"
+                                                     role="group"
+                                                     aria-label="Aktionen für Aufgabe {{ task.name }}">
+                                                    <a href="/tasks/{{ task.id }}" class="btn btn-sm btn-outline-primary">
+                                                        Details <i class="bi bi-chevron-right"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">Bisher wurden keine Aufgaben für dieses Projekt angelegt.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {# ── KANBAN VIEW ── #}
+            <div id="kanban-view" hidden>
+                <div class="kanban-container">
+                    <div class="row g-3" id="kanban-board">
+
+                        {# Column: Offen #}
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="kanban-column" data-status="Offen">
+                                <div class="kanban-column-header">
+                                    <h3>
+                                        <i class="bi bi-circle text-secondary me-2"></i>Offen
+                                        <span class="badge bg-secondary ms-2" id="count-offen">{{ tasks|filter(t => t.status == 'Offen')|length }}</span>
+                                    </h3>
+                                </div>
+                                <div class="kanban-cards-container" data-drop-zone="Offen">
+                                    {% set has_offen = false %}
+                                    {% for task in tasks %}
+                                        {% if task.status == 'Offen' %}
+                                            {% set has_offen = true %}
+                                            <div class="kanban-card"
+                                                 data-task-id="{{ task.id }}"
+                                                 data-task-status="{{ task.status }}"
+                                                 draggable="true">
+                                                <div class="kanban-card-title">
+                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
+                                                    {% if task.comments_count > 0 %}
+                                                        <span class="badge bg-light text-dark ms-1"
+                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="kanban-card-meta">
+                                                    <span>
+                                                        {% if task.priority == 'Hoch' %}
+                                                            <span class="kanban-card-badge badge bg-danger">Hoch</span>
+                                                        {% elseif task.priority == 'Mittel' %}
+                                                            <span class="kanban-card-badge badge bg-primary">Mittel</span>
+                                                        {% else %}
+                                                            <span class="kanban-card-badge badge bg-secondary">Niedrig</span>
+                                                        {% endif %}
+                                                    </span>
+                                                    <span>
+                                                        {% if task.end_date %}
+                                                            {% set due = task.end_date|date('Y-m-d') %}
+                                                            {% set today = 'now'|date('Y-m-d') %}
+                                                            <i class="bi bi-calendar3"></i>
+                                                            <span class="{{ due < today ? 'kanban-date-warning' : '' }}">{{ task.end_date|date('d.m.Y') }}</span>
+                                                        {% endif %}
+                                                        {% if task.assignee %}
+                                                            <span class="avatar-initials ms-1"
+                                                                  title="{{ task.assignee.first_name }} {{ task.assignee.last_name }}">{{ task.assignee.first_name|slice(0, 1) }}{{ task.assignee.last_name|slice(0, 1) }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if not has_offen %}
+                                        <div class="kanban-empty-placeholder">
+                                            <i class="bi bi-inbox"></i>
+                                            <span>Keine offenen Aufgaben</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Column: In Bearbeitung #}
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="kanban-column" data-status="In Bearbeitung">
+                                <div class="kanban-column-header">
+                                    <h3>
+                                        <i class="bi bi-arrow-repeat text-info me-2"></i>In Bearbeitung
+                                        <span class="badge bg-info text-dark ms-2" id="count-in-bearbeitung">{{ tasks|filter(t => t.status == 'In Bearbeitung')|length }}</span>
+                                    </h3>
+                                </div>
+                                <div class="kanban-cards-container" data-drop-zone="In Bearbeitung">
+                                    {% set has_in_bearbeitung = false %}
+                                    {% for task in tasks %}
+                                        {% if task.status == 'In Bearbeitung' %}
+                                            {% set has_in_bearbeitung = true %}
+                                            <div class="kanban-card"
+                                                 data-task-id="{{ task.id }}"
+                                                 data-task-status="{{ task.status }}"
+                                                 draggable="true">
+                                                <div class="kanban-card-title">
+                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
+                                                    {% if task.comments_count > 0 %}
+                                                        <span class="badge bg-light text-dark ms-1"
+                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="kanban-card-meta">
+                                                    <span>
+                                                        {% if task.priority == 'Hoch' %}
+                                                            <span class="kanban-card-badge badge bg-danger">Hoch</span>
+                                                        {% elseif task.priority == 'Mittel' %}
+                                                            <span class="kanban-card-badge badge bg-primary">Mittel</span>
+                                                        {% else %}
+                                                            <span class="kanban-card-badge badge bg-secondary">Niedrig</span>
+                                                        {% endif %}
+                                                    </span>
+                                                    <span>
+                                                        {% if task.end_date %}
+                                                            {% set due = task.end_date|date('Y-m-d') %}
+                                                            {% set today = 'now'|date('Y-m-d') %}
+                                                            <i class="bi bi-calendar3"></i>
+                                                            <span class="{{ due < today ? 'kanban-date-warning' : '' }}">{{ task.end_date|date('d.m.Y') }}</span>
+                                                        {% endif %}
+                                                        {% if task.assignee %}
+                                                            <span class="avatar-initials ms-1"
+                                                                  title="{{ task.assignee.first_name }} {{ task.assignee.last_name }}">{{ task.assignee.first_name|slice(0, 1) }}{{ task.assignee.last_name|slice(0, 1) }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if not has_in_bearbeitung %}
+                                        <div class="kanban-empty-placeholder">
+                                            <i class="bi bi-inbox"></i>
+                                            <span>Keine Aufgaben in Bearbeitung</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Column: Blockiert #}
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="kanban-column" data-status="Blockiert">
+                                <div class="kanban-column-header">
+                                    <h3>
+                                        <i class="bi bi-x-circle text-danger me-2"></i>Blockiert
+                                        <span class="badge bg-danger ms-2" id="count-blockiert">{{ tasks|filter(t => t.status == 'Blockiert')|length }}</span>
+                                    </h3>
+                                </div>
+                                <div class="kanban-cards-container" data-drop-zone="Blockiert">
+                                    {% set has_blockiert = false %}
+                                    {% for task in tasks %}
+                                        {% if task.status == 'Blockiert' %}
+                                            {% set has_blockiert = true %}
+                                            <div class="kanban-card"
+                                                 data-task-id="{{ task.id }}"
+                                                 data-task-status="{{ task.status }}"
+                                                 draggable="true">
+                                                <div class="kanban-card-title">
+                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
+                                                    {% if task.comments_count > 0 %}
+                                                        <span class="badge bg-light text-dark ms-1"
+                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="kanban-card-meta">
+                                                    <span>
+                                                        {% if task.priority == 'Hoch' %}
+                                                            <span class="kanban-card-badge badge bg-danger">Hoch</span>
+                                                        {% elseif task.priority == 'Mittel' %}
+                                                            <span class="kanban-card-badge badge bg-primary">Mittel</span>
+                                                        {% else %}
+                                                            <span class="kanban-card-badge badge bg-secondary">Niedrig</span>
+                                                        {% endif %}
+                                                    </span>
+                                                    <span>
+                                                        {% if task.end_date %}
+                                                            {% set due = task.end_date|date('Y-m-d') %}
+                                                            {% set today = 'now'|date('Y-m-d') %}
+                                                            <i class="bi bi-calendar3"></i>
+                                                            <span class="{{ due < today ? 'kanban-date-warning' : '' }}">{{ task.end_date|date('d.m.Y') }}</span>
+                                                        {% endif %}
+                                                        {% if task.assignee %}
+                                                            <span class="avatar-initials ms-1"
+                                                                  title="{{ task.assignee.first_name }} {{ task.assignee.last_name }}">{{ task.assignee.first_name|slice(0, 1) }}{{ task.assignee.last_name|slice(0, 1) }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if not has_blockiert %}
+                                        <div class="kanban-empty-placeholder">
+                                            <i class="bi bi-inbox"></i>
+                                            <span>Keine blockierten Aufgaben</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Column: Abgeschlossen #}
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="kanban-column" data-status="Abgeschlossen">
+                                <div class="kanban-column-header">
+                                    <h3>
+                                        <i class="bi bi-check-circle text-success me-2"></i>Erledigt
+                                        <span class="badge bg-success ms-2" id="count-abgeschlossen">{{ tasks|filter(t => t.status == 'Abgeschlossen')|length }}</span>
+                                    </h3>
+                                </div>
+                                <div class="kanban-cards-container" data-drop-zone="Abgeschlossen">
+                                    {% set has_abgeschlossen = false %}
+                                    {% for task in tasks %}
+                                        {% if task.status == 'Abgeschlossen' %}
+                                            {% set has_abgeschlossen = true %}
+                                            <div class="kanban-card"
+                                                 data-task-id="{{ task.id }}"
+                                                 data-task-status="{{ task.status }}"
+                                                 draggable="true">
+                                                <div class="kanban-card-title">
+                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
+                                                    {% if task.comments_count > 0 %}
+                                                        <span class="badge bg-light text-dark ms-1"
+                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="kanban-card-meta">
+                                                    <span>
+                                                        {% if task.priority == 'Hoch' %}
+                                                            <span class="kanban-card-badge badge bg-danger">Hoch</span>
+                                                        {% elseif task.priority == 'Mittel' %}
+                                                            <span class="kanban-card-badge badge bg-primary">Mittel</span>
+                                                        {% else %}
+                                                            <span class="kanban-card-badge badge bg-secondary">Niedrig</span>
+                                                        {% endif %}
+                                                    </span>
+                                                    <span>
+                                                        {% if task.end_date %}
+                                                            <i class="bi bi-calendar3"></i>
+                                                            <span>{{ task.end_date|date('d.m.Y') }}</span>
+                                                        {% endif %}
+                                                        {% if task.assignee %}
+                                                            <span class="avatar-initials ms-1"
+                                                                  title="{{ task.assignee.first_name }} {{ task.assignee.last_name }}">{{ task.assignee.first_name|slice(0, 1) }}{{ task.assignee.last_name|slice(0, 1) }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if not has_abgeschlossen %}
+                                        <div class="kanban-empty-placeholder">
+                                            <i class="bi bi-inbox"></i>
+                                            <span>Keine erledigten Aufgaben</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
         </section>
     </div>
 
@@ -225,3 +496,9 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/vendor/sortable.min.js"></script>
+    <script src="/js/kanban-sortable-init.js"></script>
+    <script src="{{ asset_path('/js/tasks-kanban.js') }}"></script>
+{% endblock scripts %}

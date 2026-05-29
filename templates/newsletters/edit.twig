@@ -90,7 +90,9 @@
                                 {% endif %}
                             {% endfor %}
 
-                            <section class="mb-3" id="recipient-sources" aria-labelledby="recipient-sources-title">
+                            <section class="mb-3"
+                                     id="recipient-sources"
+                                     aria-labelledby="recipient-sources-title">
                                 <h3 class="h6" id="recipient-sources-title">Empfängerquellen</h3>
 
                                 <div class="mb-3" data-source-type="project_members">
@@ -103,9 +105,7 @@
                                                 type="button"
                                                 data-bs-toggle="dropdown"
                                                 data-bs-auto-close="outside"
-                                                aria-expanded="false">
-                                            Projekte auswählen
-                                        </button>
+                                                aria-expanded="false">Projekte auswählen</button>
                                         <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
                                             {% for selectable_project in projects %}
                                                 <div class="form-check">
@@ -136,9 +136,7 @@
                                                 type="button"
                                                 data-bs-toggle="dropdown"
                                                 data-bs-auto-close="outside"
-                                                aria-expanded="false">
-                                            Veranstaltungen auswählen
-                                        </button>
+                                                aria-expanded="false">Veranstaltungen auswählen</button>
                                         <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
                                             {% for event in events %}
                                                 <div class="form-check">
@@ -167,9 +165,7 @@
                                                 type="button"
                                                 data-bs-toggle="dropdown"
                                                 data-bs-auto-close="outside"
-                                                aria-expanded="false">
-                                            Rollen auswählen
-                                        </button>
+                                                aria-expanded="false">Rollen auswählen</button>
                                         <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
                                             {% for role in roles %}
                                                 <div class="form-check">
@@ -179,9 +175,7 @@
                                                            value="{{ role.id }}"
                                                            id="edit-source-role-{{ role.id }}"
                                                            {% if role.id in role_source_ids %}checked{% endif %}>
-                                                    <label class="form-check-label" for="edit-source-role-{{ role.id }}">
-                                                        {{ role.name }}
-                                                    </label>
+                                                    <label class="form-check-label" for="edit-source-role-{{ role.id }}">{{ role.name }}</label>
                                                 </div>
                                             {% endfor %}
                                         </div>
@@ -198,9 +192,7 @@
                                                 type="button"
                                                 data-bs-toggle="dropdown"
                                                 data-bs-auto-close="outside"
-                                                aria-expanded="false">
-                                            Mitglieder auswählen
-                                        </button>
+                                                aria-expanded="false">Mitglieder auswählen</button>
                                         <div class="dropdown-menu p-2 newsletter-source-dropdown-menu">
                                             {% for member in users %}
                                                 <div class="form-check">

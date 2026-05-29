@@ -64,7 +64,7 @@ class ProjectFeatureTest extends TestCase
                 })
             )
             ->willReturnCallback(
-                fn (\Psr\Http\Message\ResponseInterface $response) => $response->withStatus(200)
+                fn(\Psr\Http\Message\ResponseInterface $response) => $response->withStatus(200)
             );
 
         $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
@@ -114,6 +114,26 @@ class ProjectFeatureTest extends TestCase
         $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $templateContent);
         $this->assertStringContainsString('Bearbeiten', $templateContent);
         $this->assertStringContainsString('/projects/{{ project.id }}/update', $templateContent);
+    }
+
+    public function testProjectsTemplateFormatsEditDateFieldsForHtmlDateInput(): void
+    {
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('value="{{ project.start_date and project.start_date != "-" ? project.start_date|date("Y-m-d") : "" }}"', $templateContent);
+        $this->assertStringContainsString('value="{{ project.end_date and project.end_date != "-" ? project.end_date|date("Y-m-d") : "" }}"', $templateContent);
+    }
+
+    public function testProjectsTemplateGuardsDateParsingForPlaceholderValues(): void
+    {
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
+
+        $this->assertIsString($templateContent);
+        $this->assertStringContainsString('{% set has_start_date = project.start_date and project.start_date != "-" %}', $templateContent);
+        $this->assertStringContainsString('{% set has_end_date = project.end_date and project.end_date != "-" %}', $templateContent);
+        $this->assertStringContainsString('{{ has_start_date ? project.start_date|date("d.m.Y") : "-" }}', $templateContent);
+        $this->assertStringContainsString('{{ has_end_date ? project.end_date|date("d.m.Y") : "-" }}', $templateContent);
     }
 
     public function testAreasNavigationContainsMemberProjectsCondition(): void

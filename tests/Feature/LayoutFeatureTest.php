@@ -48,12 +48,18 @@ class LayoutFeatureTest extends TestCase
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
-        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler {', $styleContent);
-        $this->assertStringNotContainsString('display: inline-flex;', $styleContent);
-        $this->assertStringNotContainsString(
-            '.navbar.bg-dark.app-topbar .navbar-toggler {' . "\n" . '        display: none !important;',
-            $styleContent
-        );
+
+        $selector = '.navbar.bg-dark.app-topbar .navbar-toggler {';
+        $start = strpos($styleContent, $selector);
+        $this->assertNotFalse($start, "Expected CSS selector {$selector} to exist in style.css");
+
+        $block = substr($styleContent, $start);
+        $end = strpos($block, '}');
+        $this->assertNotFalse($end, "Expected closing brace for {$selector}");
+        $block = substr($block, 0, $end);
+
+        $this->assertStringNotContainsString('display: inline-flex;', $block);
+        $this->assertStringNotContainsString('display: none !important;', $block);
     }
 
     public function testPageHeaderCssWrapsActionsToAvoidHorizontalOverflow(): void

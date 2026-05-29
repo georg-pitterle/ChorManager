@@ -17,7 +17,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class TaskController
 {
@@ -141,7 +141,7 @@ class TaskController
             return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
         }
 
-        DB::transaction(function () use ($project, $data, $title, $description, $startDate, $endDate) {
+        Capsule::connection()->transaction(function () use ($project, $data, $title, $description, $startDate, $endDate) {
             $task = Task::create([
                 'project_id'       => $project->id,
                 'name'             => $title,
@@ -207,7 +207,7 @@ class TaskController
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
-        DB::transaction(function () use ($task, $data, $title, $description, $startDate, $endDate, $oldStatus, $oldPriority, $oldAssigned, $oldDescription) {
+        Capsule::connection()->transaction(function () use ($task, $data, $title, $description, $startDate, $endDate, $oldStatus, $oldPriority, $oldAssigned, $oldDescription) {
             $task->update([
                 'name'             => $title,
                 'description'      => $description,
@@ -284,7 +284,7 @@ class TaskController
         $content = trim($data['content'] ?? '');
 
         if ($content !== '') {
-            DB::transaction(function () use ($task, $content) {
+            Capsule::connection()->transaction(function () use ($task, $content) {
                 Comment::create([
                     'entity_type' => 'task',
                     'entity_id'   => $task->id,
@@ -434,5 +434,68 @@ class TaskController
         $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
         $trimmed = trim($safe);
         return $trimmed !== '' ? $trimmed : 'download';
+    }
+
+    public function updateStatus(Request $request, Response $response, array $args): Response
+    {
+        $taskId = (int) $args['id'];
+        $task = Task::findOrFail($taskId);
+
+        if (!$this->hasTaskAccess($task->project)) {
+            $response->getBody()->write((string) json_encode([
+                'success' => false,
+                'error' => 'Zugriff verweigert.'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        if (empty($data)) {
+            $json = $request->getBody()->getContents();
+            $data = (array) json_decode($json, true);
+        }
+
+        $statusInput = trim((string) ($data['status'] ?? ''));
+        if (empty($statusInput)) {
+            $response->getBody()->write((string) json_encode([
+                'success' => false,
+                'error' => 'Status erforderlich.'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $newStatus = $this->validateStatus($statusInput);
+        if ($newStatus !== $statusInput) {
+            $response->getBody()->write((string) json_encode([
+                'success' => false,
+                'error' => 'Ungültiger Status.'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $oldStatus = $task->status;
+
+        if ($oldStatus !== $newStatus) {
+            Capsule::connection()->transaction(function () use ($task, $newStatus, $oldStatus) {
+                $task->update([
+                    'status' => $newStatus,
+                ]);
+
+                Activity::create([
+                    'entity_type' => 'task',
+                    'entity_id'   => $task->id,
+                    'user_id'     => $_SESSION['user_id'],
+                    'action'      => 'updated',
+                    'description' => "Status von '$oldStatus' auf '$newStatus' geändert via Kanban-Board",
+                ]);
+            });
+        }
+
+        $response->getBody()->write((string) json_encode([
+            'success' => true,
+            'status' => $newStatus,
+            'message' => 'Status erfolgreich aktualisiert.'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
     }
 }

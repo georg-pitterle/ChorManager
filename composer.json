@@ -1,6 +1,6 @@
 {
-    "name": "antigravity/choir-attendance",
-    "description": "Choir Attendance Web Application",
+    "name": "georg-pitterle/chormanager",
+    "description": "Verwaltungsplattform für Chöre: Mitglieder, Rollen, Termine, Anwesenheit, Finanzen und Newsletter in einer webbasierten Anwendung",
     "type": "project",
     "license": "MIT",
     "require": {

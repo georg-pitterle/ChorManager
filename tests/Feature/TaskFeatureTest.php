@@ -481,4 +481,33 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString('$this->seedTaskComments($tasks, $users[\'active\']);', $seedContent);
         $this->assertStringContainsString('$this->seedTaskAttachments($tasks, 40);', $seedContent);
     }
+
+    /**
+     * Test updateStatus method exists on TaskController
+     */
+    public function testTaskControllerHasUpdateStatusMethod(): void
+    {
+        $this->assertTrue(method_exists(TaskController::class, 'updateStatus'));
+    }
+
+    /**
+     * Test updateStatus method validates status input and returns JSON
+     */
+    public function testUpdateStatusMethodValidatesAndReturnsJson(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+
+        $this->assertStringContainsString('updateStatus', $controllerContent);
+        $this->assertStringContainsString("'Content-Type', 'application/json'", $controllerContent);
+        $this->assertStringContainsString("'success' => true", $controllerContent);
+        $this->assertStringContainsString("'success' => false", $controllerContent);
+        $this->assertStringContainsString('validateStatus', $controllerContent);
+
+        // Must NOT use DB facade (no facade application set in this app)
+        $this->assertStringNotContainsString('Illuminate\\Support\\Facades\\DB', $controllerContent);
+        // Must use Capsule::connection()->transaction() pattern
+        $this->assertStringContainsString('Capsule::connection()->transaction(', $controllerContent);
+    }
+
+    // Test für alte Kanban-Drag&Drop-Logik entfernt, da SortableJS verwendet wird.
 }

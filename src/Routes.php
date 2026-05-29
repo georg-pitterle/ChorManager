@@ -264,6 +264,7 @@ return function (App $app) {
                 function (RouteCollectorProxy $taskGroup) {
                     $taskGroup->get('/{id:[0-9]+}', [TaskController::class, 'detail']);
                     $taskGroup->post('/{id:[0-9]+}/update', [TaskController::class, 'update']);
+                    $taskGroup->post('/{id:[0-9]+}/status', [TaskController::class, 'updateStatus']);
                     $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);
                     $taskGroup->post('/{id:[0-9]+}/comments', [TaskController::class, 'addComment']);
                     $taskGroup->post('/{id:[0-9]+}/attachments', [TaskController::class, 'uploadAttachment']);

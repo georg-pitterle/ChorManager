@@ -74,6 +74,8 @@
                             </thead>
                             <tbody>
                                 {% for project in projects %}
+                                    {% set has_start_date = project.start_date and project.start_date != "-" %}
+                                    {% set has_end_date = project.end_date and project.end_date != "-" %}
                                     <tr data-sort-project_name="{{ project.name|lower }}"
                                         data-sort-description="{{ project.description|default('')|lower }}"
                                         data-sort-start_date="{{ project.start_date|default('') }}"
@@ -82,8 +84,8 @@
                                             <strong>{{ project.name }}</strong>
                                         </td>
                                         <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
-                                        <td data-label="Startdatum">{{ project.start_date|default('-') }}</td>
-                                        <td data-label="Enddatum">{{ project.end_date|default('-') }}</td>
+                                        <td data-label="Startdatum">{{ has_start_date ? project.start_date|date("d.m.Y") : "-" }}</td>
+                                        <td data-label="Enddatum">{{ has_end_date ? project.end_date|date("d.m.Y") : "-" }}</td>
                                         <td data-label="Aktionen" class="text-end">
                                             <div class="btn-group"
                                                  role="group"
@@ -175,7 +177,7 @@
                                        class="form-control"
                                        id="edit_start_date_{{ project.id }}"
                                        name="start_date"
-                                       value="{{ project.start_date|default("") }}">
+                                       value="{{ project.start_date and project.start_date != "-" ? project.start_date|date("Y-m-d") : "" }}">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="edit_end_date_{{ project.id }}" class="form-label">Enddatum</label>
@@ -183,7 +185,7 @@
                                        class="form-control"
                                        id="edit_end_date_{{ project.id }}"
                                        name="end_date"
-                                       value="{{ project.end_date|default("") }}">
+                                       value="{{ project.end_date and project.end_date != "-" ? project.end_date|date("Y-m-d") : "" }}">
                             </div>
                         </div>
                     </div>

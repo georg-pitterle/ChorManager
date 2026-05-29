@@ -8,10 +8,14 @@
     "bootstrap": "5.3.8",
     "bootstrap-icons": "1.13.1",
     "html-midi-player": "1.6.0",
+    "sortablejs": "^1.15.7",
     "tinymce": "7.9.1",
     "tinymce-i18n": "26.3.23"
   },
   "overrides": {
     "minimist": "0.2.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }
