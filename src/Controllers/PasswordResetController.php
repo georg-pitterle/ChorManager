@@ -69,6 +69,12 @@ class PasswordResetController
             return $response->withHeader('Location', '/forgot-password')->withStatus(302);
         }
 
+        $limit = $this->rateLimiter?->hit('password_reset:' . $email, 3, 900);
+        if ($limit !== null && !$limit['allowed']) {
+            $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
+            return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+        }
+
         $user = User::where('email', $email)->first();
 
         if (!$user || !$user->is_active) {

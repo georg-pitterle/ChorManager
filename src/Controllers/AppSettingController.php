@@ -115,7 +115,7 @@ class AppSettingController
 
                 if ($file->getError() === UPLOAD_ERR_OK) {
                     $size = (int) $file->getSize();
-                    $mimeType = trim((string) $file->getClientMediaType());
+                    $mimeType = UploadValidator::detectMimeType($file);
 
                     // Use validateImageSize() for 2MB image limit
                     $validation = UploadValidator::validateImageSize($size, $mimeType);

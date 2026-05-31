@@ -400,7 +400,7 @@ class SongLibraryController
                 return $uploadError;
             }
 
-            $mimeType = trim((string) $file->getClientMediaType()) ?: 'application/octet-stream';
+            $mimeType = UploadValidator::detectMimeType($file);
             $contents = $file->getStream()->getContents();
             $size = strlen($contents);
             if ($size <= 0) {

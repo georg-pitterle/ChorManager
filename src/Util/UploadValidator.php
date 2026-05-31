@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Util;
 
+use Psr\Http\Message\UploadedFileInterface;
+
 class UploadValidator
 {
     // Size constants in bytes
@@ -121,6 +123,20 @@ class UploadValidator
     public static function normalizeMimeType(string $mimeType): string
     {
         return trim(strtolower($mimeType));
+    }
+
+    public static function detectMimeType(UploadedFileInterface $file): string
+    {
+        $uri = $file->getStream()->getMetadata('uri');
+        if (is_string($uri) && $uri !== '' && is_file($uri)) {
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mimeType = $finfo->file($uri);
+            if (is_string($mimeType) && $mimeType !== '') {
+                return self::normalizeMimeType($mimeType);
+            }
+        }
+
+        return self::normalizeMimeType($file->getClientMediaType() ?: 'application/octet-stream');
     }
 
     /**

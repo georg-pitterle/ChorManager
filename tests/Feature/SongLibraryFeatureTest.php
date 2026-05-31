@@ -49,7 +49,7 @@ class SongLibraryFeatureTest extends TestCase
 
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString(
-            "trim((string) " . '$' . "file->getClientMediaType()) ?: 'application/octet-stream'",
+            'UploadValidator::detectMimeType(' . '$' . 'file)',
             $controllerContent
         );
         $this->assertStringContainsString(

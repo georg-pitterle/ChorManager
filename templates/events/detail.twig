@@ -155,24 +155,12 @@
     </div>
 
     {% if calendar_subscription_url %}
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                var copyButton = document.getElementById('copyCalendarSubscriptionUrl');
-                var urlInput = document.getElementById('calendarSubscriptionUrlInput');
-                if (!copyButton || !urlInput || !navigator.clipboard) {
-                    return;
-                }
-
-                copyButton.addEventListener('click', function () {
-                    navigator.clipboard.writeText(urlInput.value).then(function () {
-                        var originalText = copyButton.textContent;
-                        copyButton.textContent = 'Kopiert';
-                        setTimeout(function () {
-                            copyButton.textContent = originalText;
-                        }, 2000);
-                    });
-                });
-            });
-        </script>
+        {# copy button behavior is handled by /js/events.js #}
     {% endif %}
 {% endblock content %}
+
+{% block scripts %}
+    {% if calendar_subscription_url %}
+        <script src="/js/events.js"></script>
+    {% endif %}
+{% endblock scripts %}

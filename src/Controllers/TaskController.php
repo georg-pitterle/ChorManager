@@ -333,7 +333,7 @@ class TaskController
             }
 
             if ($file->getError() === UPLOAD_ERR_OK) {
-                $mimeType = trim((string) $file->getClientMediaType());
+                $mimeType = UploadValidator::detectMimeType($file);
                 $contents = $file->getStream()->getContents();
                 $size = strlen($contents);
 

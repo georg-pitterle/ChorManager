@@ -73,4 +73,53 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
+
+    var copyButton = document.getElementById('copyCalendarSubscriptionUrl');
+    var urlInput = document.getElementById('calendarSubscriptionUrlInput');
+    if (copyButton && urlInput) {
+        var originalHtml = copyButton.innerHTML;
+
+        function showCopiedState() {
+            copyButton.innerHTML = 'Kopiert';
+            setTimeout(function () {
+                copyButton.innerHTML = originalHtml;
+            }, 2000);
+        }
+
+        function fallbackCopy(text) {
+            var wasReadOnly = urlInput.hasAttribute('readonly');
+            if (wasReadOnly) {
+                urlInput.removeAttribute('readonly');
+            }
+            urlInput.select();
+            urlInput.setSelectionRange(0, text.length);
+            try {
+                document.execCommand('copy');
+                showCopiedState();
+            } catch (e) {
+                console.error('Clipboard fallback failed', e);
+            }
+            if (wasReadOnly) {
+                urlInput.setAttribute('readonly', 'readonly');
+            }
+        }
+
+        copyButton.addEventListener('click', function (event) {
+            event.preventDefault();
+            var text = urlInput.value || '';
+            if (text === '') {
+                return;
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () {
+                    showCopiedState();
+                }).catch(function () {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        });
+    }
 });

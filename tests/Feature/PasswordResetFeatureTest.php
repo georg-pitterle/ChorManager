@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\PasswordResetController;
+use App\Services\MailQueueService;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
+use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Schema\Blueprint;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 
@@ -142,6 +145,53 @@ class PasswordResetFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/reset-password?token=abc&email=a%40b.com');
         $this->assertSame('Das Passwort muss mindestens 12 Zeichen lang sein.', $_SESSION['error']);
+    }
+
+    public function testSendResetLinkUsesRateLimiter(): void
+    {
+        $capsule = new Capsule();
+        $capsule->addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        $capsule->setAsGlobal();
+        $capsule->bootEloquent();
+
+        $capsule->getConnection()->getSchemaBuilder()->create('users', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('email')->unique();
+            $table->string('password')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+        });
+
+        $twig = $this->createMock(Twig::class);
+        $rateLimiter = $this->createMock(RateLimiterService::class);
+        $rateLimiter->expects($this->once())
+            ->method('hit')
+            ->with('password_reset:test@example.com', 3, 900)
+            ->willReturn(['allowed' => true, 'retry_after' => 0, 'remaining' => 2]);
+
+        $mailQueueService = $this->createMock(MailQueueService::class);
+        $mailQueueService->expects($this->never())->method('enqueuePasswordResetMail');
+
+        $controller = new PasswordResetController(
+            $twig,
+            null,
+            $rateLimiter,
+            null,
+            $mailQueueService
+        );
+
+        $request = $this->makeRequest('POST', '/forgot-password', ['email' => 'test@example.com']);
+        $response = $this->makeResponse();
+
+        $result = $controller->sendResetLink($request, $response);
+
+        $this->assertRedirect($result, '/forgot-password');
+        $this->assertSame('Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.', $_SESSION['success']);
     }
 
     public function testProcessResetRejectsWeakPassword(): void

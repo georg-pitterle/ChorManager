@@ -6,6 +6,8 @@ namespace App\Tests\Feature;
 
 use App\Util\UploadValidator;
 use PHPUnit\Framework\TestCase;
+use Slim\Psr7\Factory\StreamFactory;
+use Slim\Psr7\UploadedFile;
 
 class UploadCompressionFeatureTest extends TestCase
 {
@@ -141,6 +143,20 @@ class UploadCompressionFeatureTest extends TestCase
         );
         $this->assertFalse($validation['valid']);
         $this->assertStringContainsString('erlaubtes Bildformat', $validation['error']);
+    }
+
+    public function testDetectMimeTypeUsesServerSideFileInfo(): void
+    {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cm_mime_test_');
+        $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAgMBAQ4ZsnYAAAAASUVORK5CYII=');
+        file_put_contents($tmpFile, $pngData);
+
+        $stream = (new StreamFactory())->createStreamFromFile($tmpFile, 'r');
+        $uploadedFile = new UploadedFile($stream, 'test.php', 'image/jpeg', filesize($tmpFile), UPLOAD_ERR_OK);
+
+        $this->assertSame('image/png', UploadValidator::detectMimeType($uploadedFile));
+
+        @unlink($tmpFile);
     }
 
     public function testZeroByteImageIsRejected(): void
