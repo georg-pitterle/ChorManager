@@ -10,6 +10,7 @@ use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Models\AppSetting;
 use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventSeries;
@@ -239,13 +240,17 @@ class EventController
 
         $timezone = Timezone::resolveAppTimezone();
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $settings = AppSetting::query()
+            ->whereIn('setting_key', ['app_name'])
+            ->pluck('setting_value', 'setting_key')
+            ->toArray();
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//Chor Manager//Calendar Subscription//DE',
+            'PRODID:-//' . ($settings['app_name'] ?? 'Chor Manager') . '//Calendar Subscription//DE',
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
-            'X-WR-CALNAME:Chor-Manager Kalender',
+            'X-WR-CALNAME:' . ($settings['app_name'] ?? 'Chor Manager') . ' Termine',
             'X-WR-TIMEZONE:' . $timezone,
         ];
 
@@ -327,8 +332,8 @@ class EventController
     private function escapeIcsText(string $text): string
     {
         return str_replace(
-            ['\\', "\r\n", "\n", ',', ';'],
-            ['\\\\', '\\n', '\\n', '\\,', '\\;'],
+            ['\\', "\r\n", ',', ';'],
+            ['\\\\', '\n', '\\,', '\\;'],
             $text
         );
     }
