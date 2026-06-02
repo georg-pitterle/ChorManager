@@ -332,8 +332,8 @@ class EventController
     private function escapeIcsText(string $text): string
     {
         return str_replace(
-            ['\\', "\r\n", ',', ';'],
-            ['\\\\', '\n', '\\,', '\\;'],
+            ["\r\n", ',', ';'],
+            ['\n', '\\,', '\\;'],
             $text
         );
     }
