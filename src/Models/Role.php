@@ -26,6 +26,7 @@ class Role extends Model
         'can_manage_newsletters',
         'can_manage_mail_queue',
         'can_manage_sheet_archive',
+        'can_manage_budget',
         'can_manage_tasks',
     ];
 

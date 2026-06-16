@@ -25,6 +25,7 @@ class SessionAuthService
         $canManageNewsletters = false;
         $canManageMailQueue = false;
         $canManageSheetArchive = false;
+        $canManageBudget = false;
         $canManageTasks = false;
         $maxRoleLevel = 0;
 
@@ -73,6 +74,9 @@ class SessionAuthService
             if (($role->can_manage_sheet_archive ?? false)) {
                 $canManageSheetArchive = true;
             }
+            if (($role->can_manage_budget ?? false)) {
+                $canManageBudget = true;
+            }
             if ($role->can_manage_tasks) {
                 $canManageTasks = true;
             }
@@ -94,6 +98,7 @@ class SessionAuthService
         $_SESSION['can_manage_newsletters'] = $canManageNewsletters;
         $_SESSION['can_manage_mail_queue'] = $canManageMailQueue;
         $_SESSION['can_manage_sheet_archive'] = $canManageSheetArchive;
+        $_SESSION['can_manage_budget'] = $canManageBudget;
         $_SESSION['can_manage_tasks'] = $canManageTasks;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();

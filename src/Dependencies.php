@@ -17,6 +17,7 @@ use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Services\BudgetService;
 use App\Services\SheetArchiveService;
 use App\Services\MailQueueService;
 use App\Services\MailDeliveryService;
@@ -25,6 +26,7 @@ use App\Services\MailEventMapperService;
 use App\Services\ProviderWebhookVerifier;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
+use App\Controllers\BudgetController;
 use App\Commands\ProcessMailQueueCommand;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
@@ -72,6 +74,8 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
+        BudgetService::class => \DI\autowire(),
+        BudgetController::class => \DI\autowire(),
         SheetArchiveService::class => function (ContainerInterface $c) {
             return new SheetArchiveService();
         },

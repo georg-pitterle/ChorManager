@@ -1,0 +1,312 @@
+{% extends "layout.twig" %}
+
+{# djlint:off J018 #}
+
+{% block title %}Budget{% endblock title %}
+
+{% block content %}
+<div class="container-xl py-4">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+        <h1 class="h3 mb-0"><i class="bi bi-calculator me-2"></i>Budget</h1>
+        {% if session.can_manage_budget or session.can_manage_users %}
+            <button class="btn btn-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modal-create-category">
+                <i class="bi bi-plus-lg me-1"></i> Kategorie hinzufügen
+            </button>
+        {% endif %}
+    </div>
+
+    <div class="mb-4">
+        <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Haushaltsjahr wählen">
+            {% for year, label in available_years %}
+                <a href="/budget?year={{ year }}"
+                   class="btn {{ selected_year == year ? "btn-primary" : "btn-outline-secondary" }}">
+                    {{ label }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endif %}
+
+    {% set can_write = session.can_manage_budget or session.can_manage_users %}
+
+    {% macro category_table(type_label, entries, totals, can_write) %}
+        <div class="card mb-4">
+            <div class="card-header fw-semibold">{{ type_label }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Kategorie / Posten</th>
+                            <th class="text-end">Geplant (€)</th>
+                            <th class="text-end">Ist (€)</th>
+                            <th class="text-end">Differenz (€)</th>
+                            {% if can_write %}<th></th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in entries %}
+                            <tr class="fw-semibold"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#items-{{ row.category.id }}">
+                                <td><i class="bi bi-chevron-right me-1 text-muted small"></i>{{ row.category.group_name }}</td>
+                                <td class="text-end">{{ row.planned|number_format(2, ",", ".") }}</td>
+                                <td class="text-end">{{ row.actual|number_format(2, ",", ".") }}</td>
+                                <td class="text-end {{ row.diff < 0 ? "text-danger" : "text-success" }}">
+                                    {{ row.diff|number_format(2, ",", ".") }}
+                                </td>
+                                {% if can_write %}
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-link btn-sm p-0 me-2"
+                                                title="Kategorie bearbeiten"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modal-edit-category-{{ row.category.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-link btn-sm p-0 text-danger"
+                                                title="Kategorie löschen"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modal-delete-category-{{ row.category.id }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                            <tr class="collapse" id="items-{{ row.category.id }}">
+                                <td colspan="{{ can_write ? 5 : 4 }}" class="p-0">
+                                    <table class="table table-sm mb-0 bg-light">
+                                        <tbody>
+                                            {% for item in row.items %}
+                                                <tr>
+                                                    <td class="ps-5">{{ item.description }}</td>
+                                                    <td class="text-end">{{ item.planned_amount|number_format(2, ",", ".") }}</td>
+                                                    <td class="text-end text-muted">—</td>
+                                                    <td class="text-end text-muted">—</td>
+                                                    {% if can_write %}
+                                                        <td class="text-end text-nowrap">
+                                                            <button class="btn btn-link btn-sm p-0 me-2"
+                                                                    title="Posten bearbeiten"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#modal-edit-item-{{ item.id }}">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <form method="post"
+                                                                  action="/budget/items/{{ item.id }}/delete"
+                                                                  class="d-inline"
+                                                                  onsubmit="return confirm('Posten löschen?');">
+                                                                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                                                <button type="submit" class="btn btn-link btn-sm p-0 text-danger">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </td>
+                                                    {% endif %}
+                                                </tr>
+                                            {% endfor %}
+                                            {% if can_write %}
+                                                <tr>
+                                                    <td colspan="{{ can_write ? 5 : 4 }}" class="ps-5">
+                                                        <button class="btn btn-link btn-sm p-0"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modal-create-item-{{ row.category.id }}">
+                                                            <i class="bi bi-plus-lg me-1"></i> Posten hinzufügen
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="{{ can_write ? 5 : 4 }}" class="text-muted text-center py-3">Keine Kategorien vorhanden.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-semibold">
+                        <tr>
+                            <td>Summe</td>
+                            <td class="text-end">{{ totals.planned|number_format(2, ",", ".") }}</td>
+                            <td class="text-end">{{ totals.actual|number_format(2, ",", ".") }}</td>
+                            <td class="text-end {{ totals.diff < 0 ? "text-danger" : "text-success" }}">
+                                {{ totals.diff|number_format(2, ",", ".") }}
+                            </td>
+                            {% if can_write %}<td></td>{% endif %}
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    {% endmacro %}
+
+    {{ _self.category_table("Einnahmen", overview.income, overview.totals.income, can_write) }}
+    {{ _self.category_table("Ausgaben", overview.expense, overview.totals.expense, can_write) }}
+
+</div>
+
+{% if session.can_manage_budget or session.can_manage_users %}
+
+    <div class="modal fade" id="modal-create-category" tabindex="-1" aria-labelledby="modal-create-category-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="/budget/categories">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <input type="hidden" name="fiscal_year_start" value="{{ selected_year }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modal-create-category-label">Neue Budgetkategorie</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="new-group-name" class="form-label">Kategoriename</label>
+                            <input type="text" class="form-control" id="new-group-name" name="group_name" required maxlength="255">
+                        </div>
+                        <div class="mb-3">
+                            <label for="new-type" class="form-label">Typ</label>
+                            <select class="form-select" id="new-type" name="type" required>
+                                <option value="income">Einnahme</option>
+                                <option value="expense">Ausgabe</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Anlegen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% for section_rows in [overview.income, overview.expense] %}
+        {% for row in section_rows %}
+
+            <div class="modal fade" id="modal-edit-category-{{ row.category.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="/budget/categories/{{ row.category.id }}/update">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Kategorie bearbeiten</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Kategoriename</label>
+                                    <input type="text" class="form-control" name="group_name"
+                                           value="{{ row.category.group_name }}" required maxlength="255">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="submit" class="btn btn-primary">Speichern</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modal-delete-category-{{ row.category.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="/budget/categories/{{ row.category.id }}/delete">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Kategorie löschen</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Kategorie <strong>{{ row.category.group_name }}</strong> und alle zugehörigen Posten ({{ row.items|length }}) wirklich löschen?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="submit" class="btn btn-danger">Löschen</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modal-create-item-{{ row.category.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="/budget/categories/{{ row.category.id }}/items">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Neuer Posten – {{ row.category.group_name }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Bezeichnung</label>
+                                    <input type="text" class="form-control" name="description" required maxlength="255">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Geplanter Betrag (€)</label>
+                                    <input type="text" class="form-control" name="planned_amount" required placeholder="0,00">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="submit" class="btn btn-primary">Anlegen</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% for item in row.items %}
+                <div class="modal fade" id="modal-edit-item-{{ item.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post" action="/budget/items/{{ item.id }}/update">
+                                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Posten bearbeiten</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Bezeichnung</label>
+                                        <input type="text" class="form-control" name="description"
+                                               value="{{ item.description }}" required maxlength="255">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Geplanter Betrag (€)</label>
+                                        <input type="text" class="form-control" name="planned_amount"
+                                               value="{{ item.planned_amount }}" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                    <button type="submit" class="btn btn-primary">Speichern</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+
+        {% endfor %}
+    {% endfor %}
+
+{% endif %}
+
+{% endblock content %}
+
+{# djlint:on J018 #}

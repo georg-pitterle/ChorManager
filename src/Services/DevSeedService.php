@@ -7,6 +7,8 @@ namespace App\Services;
 use App\Models\AppSetting;
 use App\Models\Activity;
 use App\Models\Attendance;
+use App\Models\BudgetCategory;
+use App\Models\BudgetItem;
 use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventSeries;
@@ -118,6 +120,8 @@ class DevSeedService
                 'attendance' => 0,
                 'finances' => 0,
                 'finance_attachments' => 0,
+                'budget_categories' => 0,
+                'budget_items' => 0,
                 'password_resets' => 0,
                 'remember_logins' => 0,
                 'settings' => 0,
@@ -170,6 +174,7 @@ class DevSeedService
 
             $this->seedAttendance($projectMembers, $projectEvents);
             $this->seedFinances($projects, 320, 40);
+            $this->seedBudget();
             $packages = $this->seedSponsorPackages();
             $sponsors = $this->seedSponsors();
             $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
@@ -235,6 +240,8 @@ class DevSeedService
             'newsletters',
             'newsletter_templates',
             'mail_queue',
+            'budget_items',
+            'budget_categories',
             'project_users',
             'user_voice_groups',
             'user_roles',
@@ -1010,6 +1017,112 @@ class DevSeedService
             ]);
             $this->report['counts']['finance_attachments']++;
             $attachmentsLeft--;
+        }
+    }
+
+    private function seedBudget(): void
+    {
+        $fiscalYearStart = (int) date('Y');
+
+        $categories = [
+            [
+                'group_name' => 'Mitgliedsbeiträge',
+                'type' => 'income',
+                'items' => [
+                    ['description' => 'Jahresbeiträge aktive Mitglieder', 'planned_amount' => 14500.00],
+                    ['description' => 'Jahresbeiträge fördernde Mitglieder', 'planned_amount' => 5200.00],
+                    ['description' => 'Nachzahlungen Vorjahr', 'planned_amount' => 1200.00],
+                ],
+            ],
+            [
+                'group_name' => 'Konzert',
+                'type' => 'income',
+                'items' => [
+                    ['description' => 'Ticketverkauf Frühlingskonzert', 'planned_amount' => 9200.00],
+                    ['description' => 'Ticketverkauf Adventkonzert', 'planned_amount' => 10800.00],
+                    ['description' => 'Programmsponsoring Konzertheft', 'planned_amount' => 2500.00],
+                ],
+            ],
+            [
+                'group_name' => 'Förderung',
+                'type' => 'income',
+                'items' => [
+                    ['description' => 'Kulturförderung Gemeinde', 'planned_amount' => 6000.00],
+                    ['description' => 'Landesförderung Projektchor', 'planned_amount' => 4500.00],
+                    ['description' => 'Zweckspenden', 'planned_amount' => 3000.00],
+                ],
+            ],
+            [
+                'group_name' => 'Notenmaterial',
+                'type' => 'expense',
+                'items' => [
+                    ['description' => 'Neue Chorsätze Saisonprogramm', 'planned_amount' => 2800.00],
+                    ['description' => 'Kopierrechte und Lizenzen', 'planned_amount' => 900.00],
+                    ['description' => 'Archivierung und Ersatzdrucke', 'planned_amount' => 450.00],
+                ],
+            ],
+            [
+                'group_name' => 'Raummiete',
+                'type' => 'expense',
+                'items' => [
+                    ['description' => 'Probenraum Wochentermine', 'planned_amount' => 4200.00],
+                    ['description' => 'Saalmiete Hauptprobe', 'planned_amount' => 1500.00],
+                    ['description' => 'Lagerraum Notenarchiv', 'planned_amount' => 800.00],
+                ],
+            ],
+            [
+                'group_name' => 'Honorare',
+                'type' => 'expense',
+                'items' => [
+                    ['description' => 'Chorleitung Proben', 'planned_amount' => 9800.00],
+                    ['description' => 'Korrepetition', 'planned_amount' => 2200.00],
+                    ['description' => 'Stimmbildung Workshops', 'planned_amount' => 1700.00],
+                ],
+            ],
+            [
+                'group_name' => 'Technik',
+                'type' => 'expense',
+                'items' => [
+                    ['description' => 'Tontechnik Konzert', 'planned_amount' => 3100.00],
+                    ['description' => 'Lichttechnik Bühne', 'planned_amount' => 1900.00],
+                    ['description' => 'Mikrofonservice und Ersatzteile', 'planned_amount' => 750.00],
+                ],
+            ],
+        ];
+
+        foreach ($categories as $categoryData) {
+            $category = BudgetCategory::updateOrCreate(
+                [
+                    'fiscal_year_start' => $fiscalYearStart,
+                    'group_name' => $categoryData['group_name'],
+                    'type' => $categoryData['type'],
+                ],
+                [
+                    'fiscal_year_start' => $fiscalYearStart,
+                    'group_name' => $categoryData['group_name'],
+                    'type' => $categoryData['type'],
+                ]
+            );
+
+            if ($category->wasRecentlyCreated) {
+                $this->report['counts']['budget_categories']++;
+            }
+
+            foreach ($categoryData['items'] as $itemData) {
+                $item = BudgetItem::updateOrCreate(
+                    [
+                        'budget_category_id' => $category->id,
+                        'description' => $itemData['description'],
+                    ],
+                    [
+                        'planned_amount' => $itemData['planned_amount'],
+                    ]
+                );
+
+                if ($item->wasRecentlyCreated) {
+                    $this->report['counts']['budget_items']++;
+                }
+            }
         }
     }
 

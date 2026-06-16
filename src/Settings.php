@@ -39,6 +39,7 @@ return function (ContainerBuilder $containerBuilder) {
             ],
             'modules' => [
                 'sheet_archive' => EnvHelper::read('FEATURE_SHEET_ARCHIVE', 'false') === 'true',
+                'budget'        => EnvHelper::read('FEATURE_BUDGET', 'false') === 'true',
             ],
         ],
     ]);

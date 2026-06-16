@@ -33,7 +33,7 @@ class SheetArchive extends Model
 
     /**
      * Calculate the total quantity count from all line items.
-     * 
+     *
      * Caches result during request lifecycle to prevent N+1 queries.
      * Use formatArchiveResponse() to calculate once for API responses.
      */

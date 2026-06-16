@@ -26,6 +26,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresAttendanceManagement;
     private bool $requiresFinanceRead;
     private bool $requiresSheetArchiveManagement;
+    private bool $requiresBudgetManagement;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -41,7 +42,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresNewsletterManagement = false,
         bool $requiresMailQueueManagement = false,
         bool $requiresFinanceRead = false,
-        bool $requiresSheetArchiveManagement = false
+        bool $requiresSheetArchiveManagement = false,
+        bool $requiresBudgetManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -57,6 +59,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresMailQueueManagement = $requiresMailQueueManagement;
         $this->requiresFinanceRead = $requiresFinanceRead;
         $this->requiresSheetArchiveManagement = $requiresSheetArchiveManagement;
+        $this->requiresBudgetManagement = $requiresBudgetManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -76,6 +79,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageNewsletters = $_SESSION['can_manage_newsletters'] ?? false;
         $canManageMailQueue = $_SESSION['can_manage_mail_queue'] ?? false;
         $canManageSheetArchive = $_SESSION['can_manage_sheet_archive'] ?? false;
+        $canManageBudget = $_SESSION['can_manage_budget'] ?? false;
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
@@ -113,6 +117,12 @@ class RoleMiddleware implements MiddlewareInterface
         if ($this->requiresSheetArchiveManagement && !$canManageSheetArchive && !$canManageUsers) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Notenarchiv-Verwaltung.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->requiresBudgetManagement && !$canManageBudget && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.");
             return $response->withStatus(403);
         }
 

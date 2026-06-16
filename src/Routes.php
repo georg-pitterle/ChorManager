@@ -34,6 +34,7 @@ use App\Controllers\MailQueueController;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\SheetArchiveController;
+use App\Controllers\BudgetController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
@@ -354,10 +355,10 @@ return function (App $app) {
                     // Sheet Archive routes (save, fetch voice categories) - requiresSheetArchiveManagement
                     if ($settings['modules']['sheet_archive'] ?? false) {
                         $songsGroup->post('/songs/{songId:[0-9]+}/archive/save', [SheetArchiveController::class, 'save'])
-                            ->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, false, false, true)); // requiresSheetArchiveManagement
+                            ->add(new RoleMiddleware(requiresSheetArchiveManagement: true));
 
                         $songsGroup->get('/archive/voice-categories', [SheetArchiveController::class, 'getVoiceCategories'])
-                            ->add(new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, false, false, true)); // requiresSheetArchiveManagement
+                            ->add(new RoleMiddleware(requiresSheetArchiveManagement: true));
                     }
 
                     // Category management
@@ -383,6 +384,37 @@ return function (App $app) {
                     );
                 }
             )->add(new RoleMiddleware(false, 0, false, false, false, false, false, true));
+
+            // Budget routes
+            if ($settings['modules']['budget'] ?? false) {
+                $group->group(
+                    '',
+                    function (RouteCollectorProxy $budgetGroup) {
+                        $budgetGroup->get('/budget', [BudgetController::class, 'index']);
+                        $budgetGroup->post('/budget/categories', [BudgetController::class, 'createCategory']);
+                        $budgetGroup->post(
+                            '/budget/categories/{id:[0-9]+}/update',
+                            [BudgetController::class, 'updateCategory']
+                        );
+                        $budgetGroup->post(
+                            '/budget/categories/{id:[0-9]+}/delete',
+                            [BudgetController::class, 'deleteCategory']
+                        );
+                        $budgetGroup->post(
+                            '/budget/categories/{id:[0-9]+}/items',
+                            [BudgetController::class, 'createItem']
+                        );
+                        $budgetGroup->post(
+                            '/budget/items/{id:[0-9]+}/update',
+                            [BudgetController::class, 'updateItem']
+                        );
+                        $budgetGroup->post(
+                            '/budget/items/{id:[0-9]+}/delete',
+                            [BudgetController::class, 'deleteItem']
+                        );
+                    }
+                )->add(new RoleMiddleware(requiresBudgetManagement: true));
+            }
 
             // Authenticated users can access their own newsletter archive and previews.
             $group->get('/newsletters/archive', [NewsletterController::class, 'archive']);
