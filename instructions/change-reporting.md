@@ -1,7 +1,3 @@
----
-applyTo: "**"
----
-
 # Change Reporting Standard
 
 - Never perform important actions silently.

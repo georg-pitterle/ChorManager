@@ -1,8 +1,4 @@
----
-applyTo: "**"
----
-
-# DDEV Workflow Guard
+# DDEV Workflow
 
 - Use DDEV for project commands.
 - On Windows host, prefer PowerShell-compatible commands.
