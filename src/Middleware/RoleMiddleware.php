@@ -27,6 +27,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresFinanceRead;
     private bool $requiresSheetArchiveManagement;
     private bool $requiresBudgetManagement;
+    private bool $requiresBudgetRead;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -43,7 +44,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresMailQueueManagement = false,
         bool $requiresFinanceRead = false,
         bool $requiresSheetArchiveManagement = false,
-        bool $requiresBudgetManagement = false
+        bool $requiresBudgetManagement = false,
+        bool $requiresBudgetRead = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -60,6 +62,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresFinanceRead = $requiresFinanceRead;
         $this->requiresSheetArchiveManagement = $requiresSheetArchiveManagement;
         $this->requiresBudgetManagement = $requiresBudgetManagement;
+        $this->requiresBudgetRead = $requiresBudgetRead;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -123,6 +126,17 @@ class RoleMiddleware implements MiddlewareInterface
         if ($this->requiresBudgetManagement && !$canManageBudget && !$canManageUsers) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.");
+            return $response->withStatus(403);
+        }
+
+        // Budget is an aggregated view of finance data, so finance readers may view it
+        // read-only even without budget management rights.
+        if (
+            $this->requiresBudgetRead
+            && !$canReadFinances && !$canManageFinances && !$canManageBudget && !$canManageUsers
+        ) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.");
             return $response->withStatus(403);
         }
 

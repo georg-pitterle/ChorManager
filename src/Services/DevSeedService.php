@@ -14,6 +14,7 @@ use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Finance;
+use App\Models\FinanceGroup;
 use App\Models\Attachment;
 use App\Models\MailQueue;
 use App\Models\Newsletter;
@@ -120,6 +121,7 @@ class DevSeedService
                 'attendance' => 0,
                 'finances' => 0,
                 'finance_attachments' => 0,
+                'finance_groups' => 0,
                 'budget_categories' => 0,
                 'budget_items' => 0,
                 'password_resets' => 0,
@@ -242,6 +244,7 @@ class DevSeedService
             'mail_queue',
             'budget_items',
             'budget_categories',
+            'finance_groups',
             'project_users',
             'user_voice_groups',
             'user_roles',
@@ -953,6 +956,16 @@ class DevSeedService
             'Sonstiges',
         ];
 
+        // Canonical group entities, linked to each booking via finance_group_id.
+        $groupIds = [];
+        foreach ($groups as $groupName) {
+            $group = FinanceGroup::firstOrCreate(['name' => $groupName]);
+            if ($group->wasRecentlyCreated) {
+                $this->report['counts']['finance_groups']++;
+            }
+            $groupIds[$groupName] = $group->id;
+        }
+
         $runningNumber = ((int) Finance::max('running_number')) + 1;
         $attachmentsLeft = $attachmentCount;
 
@@ -971,12 +984,14 @@ class DevSeedService
                 ? mt_rand(5000, 350000) / 100
                 : mt_rand(2000, 240000) / 100;
 
+            $groupName = $groups[$i % count($groups)];
             $finance = Finance::create([
                 'running_number' => $runningNumber,
                 'invoice_date' => $invoiceDate->format('Y-m-d'),
                 'payment_date' => $paymentDate->format('Y-m-d'),
                 'description' => $descriptionBase . ' - ' . $project->name,
-                'group_name' => $groups[$i % count($groups)],
+                'group_name' => $groupName,
+                'finance_group_id' => $groupIds[$groupName],
                 'type' => $isIncome ? 'income' : 'expense',
                 'amount' => $amount,
                 'payment_method' => $paymentMethod,
@@ -1022,7 +1037,9 @@ class DevSeedService
 
     private function seedBudget(): void
     {
-        $fiscalYearStart = (int) date('Y');
+        // Use the active fiscal year (not the calendar year) so the seeded budget
+        // is visible on the default budget view and overlaps the seeded finances.
+        $fiscalYearStart = (new BudgetService())->defaultFiscalYearStart();
 
         $categories = [
             [
@@ -1091,15 +1108,20 @@ class DevSeedService
         ];
 
         foreach ($categories as $categoryData) {
+            $group = FinanceGroup::firstOrCreate(['name' => $categoryData['group_name']]);
+            if ($group->wasRecentlyCreated) {
+                $this->report['counts']['finance_groups']++;
+            }
+
             $category = BudgetCategory::updateOrCreate(
                 [
                     'fiscal_year_start' => $fiscalYearStart,
-                    'group_name' => $categoryData['group_name'],
+                    'finance_group_id' => $group->id,
                     'type' => $categoryData['type'],
                 ],
                 [
                     'fiscal_year_start' => $fiscalYearStart,
-                    'group_name' => $categoryData['group_name'],
+                    'finance_group_id' => $group->id,
                     'type' => $categoryData['type'],
                 ]
             );

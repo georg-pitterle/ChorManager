@@ -17,6 +17,7 @@ class Finance extends Model
         'payment_date',
         'description',
         'group_name',
+        'finance_group_id',
         'type',
         'amount',
         'payment_method'
@@ -31,5 +32,11 @@ class Finance extends Model
     public function attachments()
     {
         return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'finance');
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Relations\BelongsTo */
+    public function financeGroup()
+    {
+        return $this->belongsTo(FinanceGroup::class, 'finance_group_id', 'id');
     }
 }

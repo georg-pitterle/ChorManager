@@ -12,17 +12,32 @@ class BudgetCategory extends Model
 
     protected $fillable = [
         'fiscal_year_start',
-        'group_name',
+        'finance_group_id',
         'type',
     ];
 
     protected $casts = [
         'fiscal_year_start' => 'integer',
+        'finance_group_id' => 'integer',
     ];
 
     /** @return \Illuminate\Database\Eloquent\Relations\HasMany */
     public function items()
     {
         return $this->hasMany(BudgetItem::class, 'budget_category_id', 'id');
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Relations\BelongsTo */
+    public function financeGroup()
+    {
+        return $this->belongsTo(FinanceGroup::class, 'finance_group_id', 'id');
+    }
+
+    /**
+     * Display name resolved from the linked finance group.
+     */
+    public function getGroupNameAttribute(): string
+    {
+        return $this->financeGroup->name ?? '';
     }
 }

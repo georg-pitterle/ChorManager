@@ -22,7 +22,7 @@ final class BudgetFeatureTest extends TestCase
         $this->assertSame('budget_categories', $category->getTable());
         $this->assertSame([
             'fiscal_year_start',
-            'group_name',
+            'finance_group_id',
             'type',
         ], $category->getFillable());
         $this->assertSame('integer', $category->getCasts()['fiscal_year_start'] ?? null);
@@ -86,6 +86,32 @@ final class BudgetFeatureTest extends TestCase
         $this->assertIsString($content);
         $this->assertStringContainsString('requiresBudgetManagement', $content);
         $this->assertStringContainsString('can_manage_budget', $content);
+    }
+
+    public function testRoleMiddlewareHasRequiresBudgetReadParameter(): void
+    {
+        $content = file_get_contents(dirname(__DIR__, 2) . '/src/Middleware/RoleMiddleware.php');
+        $this->assertIsString($content);
+        $this->assertStringContainsString('requiresBudgetRead', $content);
+    }
+
+    public function testBudgetReadRouteUsesReadGate(): void
+    {
+        $content = file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
+        $this->assertIsString($content);
+        // The GET /budget view must be reachable for finance readers, not only managers.
+        $this->assertStringContainsString('requiresBudgetRead: true', $content);
+    }
+
+    public function testBudgetNavigationVisibleForFinanceReaders(): void
+    {
+        $content = file_get_contents(dirname(__DIR__, 2) . '/templates/partials/navigation/areas.twig');
+        $this->assertIsString($content);
+        // Budget entry condition must include finance-read audience.
+        $this->assertMatchesRegularExpression(
+            '/settings\.modules\.budget and \([^)]*can_read_finances[^)]*\)/',
+            $content
+        );
     }
 
     public function testBudgetServiceClassExists(): void

@@ -24,6 +24,14 @@ class BudgetService
         $day = (int) ($parts[0] ?? 1);
         $month = (int) ($parts[1] ?? 9);
 
+        // Guard against malformed settings so date math cannot overflow.
+        if ($month < 1 || $month > 12) {
+            $month = 9;
+        }
+        if ($day < 1 || $day > 31) {
+            $day = 1;
+        }
+
         return [$day, $month, $startStr];
     }
 
@@ -34,8 +42,15 @@ class BudgetService
      */
     public function datesForYear(int $startYear, int $day, int $month): array
     {
-        $start = Carbon::create($startYear, $month, $day, 0, 0, 0);
-        $end = Carbon::create($startYear + 1, $month, $day, 0, 0, 0)->subDay();
+        // Clamp the day to the actual length of the target month so an invalid
+        // fiscal day (e.g. 31 in April, 29.02 in a non-leap year) does not overflow
+        // into the following month.
+        $startDay = min($day, (int) Carbon::create($startYear, $month, 1)->daysInMonth);
+        $endMonthDays = (int) Carbon::create($startYear + 1, $month, 1)->daysInMonth;
+        $endDay = min($day, $endMonthDays);
+
+        $start = Carbon::create($startYear, $month, $startDay, 0, 0, 0);
+        $end = Carbon::create($startYear + 1, $month, $endDay, 0, 0, 0)->subDay();
 
         return [$start, $end];
     }
@@ -65,20 +80,20 @@ class BudgetService
         $years = [];
 
         $default = $this->defaultFiscalYearStart();
-        [$start, $end] = $this->datesForYear($default, $day, $month);
-        $years[$default] = $start->format('d.m.Y') . ' – ' . $end->format('d.m.Y');
 
-        $existingYears = BudgetCategory::select('fiscal_year_start')
-            ->distinct()
-            ->pluck('fiscal_year_start')
-            ->toArray();
+        // Offer a span around the current year so budgets can be planned ahead
+        // (and past years reviewed) without a category needing to exist first.
+        $candidateYears = range($default - 2, $default + 3);
 
-        foreach ($existingYears as $year) {
+        $existingYears = array_map(
+            'intval',
+            BudgetCategory::select('fiscal_year_start')->distinct()->pluck('fiscal_year_start')->toArray()
+        );
+
+        foreach (array_unique(array_merge($candidateYears, $existingYears)) as $year) {
             $year = (int) $year;
-            if (!isset($years[$year])) {
-                [$start, $end] = $this->datesForYear($year, $day, $month);
-                $years[$year] = $start->format('d.m.Y') . ' – ' . $end->format('d.m.Y');
-            }
+            [$start, $end] = $this->datesForYear($year, $day, $month);
+            $years[$year] = $start->format('d.m.Y') . ' – ' . $end->format('d.m.Y');
         }
 
         ksort($years);
@@ -87,12 +102,13 @@ class BudgetService
     }
 
     /**
-     * Aggregates actual (Ist) amounts from the finances table for a given group_name and type
-     * within a fiscal year date range.
+     * Aggregates actual (Ist) amounts from the finances table for a given finance group
+     * and type within a fiscal year date range. Matching is by finance_group_id (FK) so
+     * the link survives label changes.
      */
-    public function computeActual(string $groupName, string $type, Carbon $from, Carbon $to): string
+    public function computeActual(int $financeGroupId, string $type, Carbon $from, Carbon $to): string
     {
-        $sum = Finance::where('group_name', $groupName)
+        $sum = Finance::where('finance_group_id', $financeGroupId)
             ->where('type', $type)
             ->whereBetween('invoice_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
             ->sum('amount');
@@ -110,11 +126,12 @@ class BudgetService
         [$day, $month] = $this->getFiscalConfig();
         [$from, $to] = $this->datesForYear($fiscalYearStart, $day, $month);
 
-        $categories = BudgetCategory::with('items')
+        $categories = BudgetCategory::with(['items', 'financeGroup'])
             ->where('fiscal_year_start', $fiscalYearStart)
             ->orderBy('type')
-            ->orderBy('group_name')
-            ->get();
+            ->get()
+            ->sortBy(fn ($category) => $category->financeGroup->name ?? '')
+            ->values();
 
         $result = [
             'income' => [],
@@ -128,7 +145,7 @@ class BudgetService
         foreach ($categories as $category) {
             $planned = (string) $category->items->sum(fn ($item) => (float) $item->planned_amount);
             $planned = number_format((float) $planned, 2, '.', '');
-            $actual = $this->computeActual($category->group_name, $category->type, $from, $to);
+            $actual = $this->computeActual((int) $category->finance_group_id, $category->type, $from, $to);
             $diff = number_format((float) $planned - (float) $actual, 2, '.', '');
 
             $type = $category->type;

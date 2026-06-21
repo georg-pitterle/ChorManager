@@ -32,6 +32,27 @@ class BudgetServiceBehaviorTest extends TestCase
         $this->assertSame('2024-12-31', $end->format('Y-m-d'));
     }
 
+    public function testDatesForYearClampsInvalidDayInsteadOfOverflowing(): void
+    {
+        $service = new BudgetService();
+
+        // 31 April does not exist; must clamp to 30.04 instead of overflowing to 01.05.
+        [$start, $end] = $service->datesForYear(2025, 31, 4);
+
+        $this->assertSame('2025-04-30', $start->format('Y-m-d'));
+        $this->assertSame('2026-04-29', $end->format('Y-m-d'));
+    }
+
+    public function testDatesForYearClampsFebruaryAcrossLeapBoundary(): void
+    {
+        $service = new BudgetService();
+
+        // Fiscal start 29.02: 2025 is not a leap year -> clamp to 28.02.
+        [$start] = $service->datesForYear(2025, 29, 2);
+
+        $this->assertSame('2025-02-28', $start->format('Y-m-d'));
+    }
+
     public function testGetFiscalConfigMethodReturnsThreeElements(): void
     {
         $content = file_get_contents(dirname(__DIR__, 2) . '/src/Services/BudgetService.php');

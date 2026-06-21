@@ -387,10 +387,14 @@ return function (App $app) {
 
             // Budget routes
             if ($settings['modules']['budget'] ?? false) {
+                // Read-only view: finance readers + budget managers.
+                $group->get('/budget', [BudgetController::class, 'index'])
+                    ->add(new RoleMiddleware(requiresBudgetRead: true));
+
+                // Write actions: budget managers only.
                 $group->group(
                     '',
                     function (RouteCollectorProxy $budgetGroup) {
-                        $budgetGroup->get('/budget', [BudgetController::class, 'index']);
                         $budgetGroup->post('/budget/categories', [BudgetController::class, 'createCategory']);
                         $budgetGroup->post(
                             '/budget/categories/{id:[0-9]+}/update',

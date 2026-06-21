@@ -23,7 +23,7 @@
                        href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a>
                 </li>
             {% endif %}
-            {% if settings.modules.budget and (session.can_manage_budget or session.can_manage_users) %}
+            {% if settings.modules.budget and (session.can_read_finances or session.can_manage_budget or session.can_manage_users) %}
                 <li>
                     <a class="dropdown-item {% if nav_active(path, nav, ['/budget'], ['budget']) %}active{% endif %}"
                        href="/budget"><i class="bi bi-calculator me-2"></i> Budget</a>

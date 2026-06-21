@@ -52,6 +52,27 @@
         </div>
     {% endif %}
 
+    {% macro group_picker(finance_groups, selected_id) %}
+        <div class="mb-3">
+            <label class="form-label">Gruppe</label>
+            <select class="form-select" name="finance_group_id" data-budget-group-select>
+                <option value="">— Gruppe wählen —</option>
+                {% for g in finance_groups %}
+                    <option value="{{ g.id }}" {{ selected_id == g.id ? "selected" : "" }}>{{ g.name }}</option>
+                {% endfor %}
+                <option value="__new__">+ Neue Gruppe eingeben…</option>
+            </select>
+            <input type="text"
+                   class="form-control mt-2 d-none"
+                   name="new_group_name"
+                   maxlength="255"
+                   placeholder="Name der neuen Gruppe"
+                   autocomplete="off"
+                   data-budget-group-new>
+            <div class="form-text">Verknüpft das Budget mit den Buchungen dieser Gruppe im Kassabuch.</div>
+        </div>
+    {% endmacro %}
+
     {% macro category_section(type_label, type_lead, entries, totals, can_write, is_income) %}
         <section class="dashboard-section dashboard-section--context" aria-labelledby="budget-{{ type_label|lower }}-title">
             <div class="dashboard-section-head">
@@ -74,11 +95,12 @@
                                         aria-controls="items-{{ row.category.id }}">
                                     <i class="bi bi-chevron-right budget-category-header__chevron" aria-hidden="true"></i>
                                     <span class="budget-category-header__name">{{ row.category.group_name }}</span>
+                                    {% set _row_diff = is_income ? (row.actual - row.planned) : (row.planned - row.actual) %}
                                     <span class="budget-category-header__stats">
                                         <span>Geplant: <strong>{{ row.planned|number_format(2, ",", ".") }} €</strong></span>
                                         <span>Ist: <strong>{{ row.actual|number_format(2, ",", ".") }} €</strong></span>
-                                        <span class="{{ (row.diff < 0) == is_income ? "text-success" : "text-danger" }}">
-                                            Differenz: <strong>{{ row.diff|number_format(2, ",", ".") }} €</strong>
+                                        <span class="{{ _row_diff < 0 ? "text-danger" : "text-success" }}">
+                                            Differenz: <strong>{{ _row_diff|number_format(2, ",", ".") }} €</strong>
                                         </span>
                                     </span>
                                 </button>
@@ -191,11 +213,12 @@
                 </div>
             {% endif %}
 
+            {% set _tot_diff = is_income ? (totals.actual - totals.planned) : (totals.planned - totals.actual) %}
             <div class="budget-summary-bar">
                 <span>Summe Geplant: <strong>{{ totals.planned|number_format(2, ",", ".") }} €</strong></span>
                 <span>Summe Ist: <strong>{{ totals.actual|number_format(2, ",", ".") }} €</strong></span>
-                <span class="{{ (totals.diff < 0) == is_income ? "text-success" : "text-danger" }}">
-                    Summe Differenz: <strong>{{ totals.diff|number_format(2, ",", ".") }} €</strong>
+                <span class="{{ _tot_diff < 0 ? "text-danger" : "text-success" }}">
+                    Summe Differenz: <strong>{{ _tot_diff|number_format(2, ",", ".") }} €</strong>
                 </span>
             </div>
         </section>
@@ -213,16 +236,20 @@
             <div class="modal-content border-0 shadow">
                 <form method="post" action="/budget/categories">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                    <input type="hidden" name="fiscal_year_start" value="{{ selected_year }}">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modal-create-category-label">Neue Budgetkategorie</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="new-group-name" class="form-label">Kategoriename</label>
-                            <input type="text" class="form-control" id="new-group-name" name="group_name" required maxlength="255">
+                            <label for="new-fiscal-year" class="form-label">Haushaltsjahr</label>
+                            <select class="form-select" id="new-fiscal-year" name="fiscal_year_start" required>
+                                {% for year, label in available_years %}
+                                    <option value="{{ year }}" {{ year == selected_year ? "selected" : "" }}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
+                        {{ _self.group_picker(finance_groups, null) }}
                         <div class="mb-3">
                             <label for="new-type" class="form-label">Typ</label>
                             <select class="form-select" id="new-type" name="type" required>
@@ -253,11 +280,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label">Kategoriename</label>
-                                    <input type="text" class="form-control" name="group_name"
-                                           value="{{ row.category.group_name }}" required maxlength="255">
-                                </div>
+                                {{ _self.group_picker(finance_groups, row.category.finance_group_id) }}
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -355,5 +378,9 @@
 {% endif %}
 
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/budget.js"></script>
+{% endblock scripts %}
 
 {# djlint:on J018 #}

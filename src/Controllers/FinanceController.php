@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Finance;
+use App\Models\FinanceGroup;
 use App\Models\Attachment;
 use App\Models\Setting;
 use Carbon\Carbon;
@@ -30,13 +31,24 @@ class FinanceController
         $parts = explode('.', $startStr);
         $day = (int) ($parts[0] ?? 1);
         $month = (int) ($parts[1] ?? 9);
+        // Guard against malformed settings so date math cannot overflow.
+        if ($month < 1 || $month > 12) {
+            $month = 9;
+        }
+        if ($day < 1 || $day > 31) {
+            $day = 1;
+        }
         return [$day, $month, $startStr];
     }
 
     private function datesForYear(int $startYear, int $day, int $month): array
     {
-        $start = Carbon::create($startYear, $month, $day, 0, 0, 0);
-        $end = Carbon::create($startYear + 1, $month, $day, 0, 0, 0)->subDay();
+        // Clamp the day to the target month length to avoid Carbon overflow on an
+        // invalid fiscal day (e.g. 31 in April, 29.02 in a non-leap year).
+        $startDay = min($day, (int) Carbon::create($startYear, $month, 1)->daysInMonth);
+        $endDay = min($day, (int) Carbon::create($startYear + 1, $month, 1)->daysInMonth);
+        $start = Carbon::create($startYear, $month, $startDay, 0, 0, 0);
+        $end = Carbon::create($startYear + 1, $month, $endDay, 0, 0, 0)->subDay();
         return [$start, $end];
     }
 
@@ -157,11 +169,17 @@ class FinanceController
         $data = (array) $request->getParsedBody();
         $id = isset($data['id']) && $data['id'] ? (int) $data['id'] : null;
         try {
+            $groupName = !empty(trim($data['group_name'] ?? '')) ? trim($data['group_name']) : null;
             $recordData = [
                 'invoice_date' => $data['invoice_date'],
                 'payment_date' => !empty($data['payment_date']) ? $data['payment_date'] : null,
                 'description' => trim($data['description'] ?? ''),
-                'group_name' => !empty(trim($data['group_name'] ?? '')) ? trim($data['group_name']) : null,
+                'group_name' => $groupName,
+                // Keep the canonical finance_group_id in sync so budget actuals stay
+                // linked even when the displayed group label changes.
+                'finance_group_id' => $groupName !== null
+                    ? FinanceGroup::firstOrCreate(['name' => $groupName])->id
+                    : null,
                 'type' => $data['type'],
                 'amount' => self::normalizeAmountInput((string) ($data['amount'] ?? '0')),
                 'payment_method' => $data['payment_method'],
