@@ -28,6 +28,7 @@ use App\Models\Project;
 use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
+use App\Services\BackupService;
 use App\Models\Setting;
 use App\Models\Song;
 use App\Models\SongResource;
@@ -56,6 +57,10 @@ class DevSeedService
     private const MODE_RESET = 'reset-and-seed';
     private const DEFAULT_SEED_PASSWORD = 'seed';
     private const ACTIVE_USER_TARGET = 80;
+
+    public function __construct(private readonly BackupService $backupService)
+    {
+    }
 
     /** @var array<string,int> */
     private const TARGET_VOICE_DISTRIBUTION = [
@@ -139,6 +144,7 @@ class DevSeedService
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
                 'mail_queue' => 0,
+                'backups' => 0,
             ],
         ];
 
@@ -187,6 +193,8 @@ class DevSeedService
             $this->seedAuthData($users['all']);
             $this->seedAppSettings();
         });
+
+        $this->seedBackups();
 
         $this->report['duration_seconds'] = round(microtime(true) - $startedAt, 3);
         $this->report['status'] = 'ok';
@@ -266,6 +274,10 @@ class DevSeedService
         }
 
         $connection->statement('SET FOREIGN_KEY_CHECKS=1');
+
+        foreach ($this->backupService->list() as $backup) {
+            $this->backupService->delete($backup['id']);
+        }
     }
 
     private function seedRoles(): array
@@ -287,6 +299,7 @@ class DevSeedService
                 'can_manage_mail_queue' => 1,
                 'can_manage_tasks' => 1,
                 'can_manage_sheet_archive' => 1,
+                'can_manage_backups' => 1,
             ],
             [
                 'name' => 'Vorstand',
@@ -1208,6 +1221,12 @@ class DevSeedService
                 $this->report['counts']['app_settings']++;
             }
         }
+    }
+
+    private function seedBackups(): void
+    {
+        $this->backupService->create(BackupService::TYPE_MANUAL, null);
+        $this->report['counts']['backups']++;
     }
 
     private function seedMailQueue(array $activeUsers): void

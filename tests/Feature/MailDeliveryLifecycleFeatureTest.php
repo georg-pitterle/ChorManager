@@ -61,6 +61,14 @@ final class MailDeliveryLifecycleFeatureTest extends TestCase
     {
         parent::setUp();
         self::$capsule?->connection()->beginTransaction();
+
+        // processDueEntries() queries mail_queue globally with no per-test scoping.
+        // Stray 'queued' rows left over from outside this transaction (e.g. a real
+        // dev-seed run, or manual app usage against the shared dev database) would
+        // otherwise be swept into this test's batch and inflate its stats counts.
+        // Deleting them here is safe: it happens inside the transaction opened above
+        // and is rolled back in tearDown(), so it never affects real persisted data.
+        MailQueue::query()->where('status', 'queued')->delete();
     }
 
     protected function tearDown(): void

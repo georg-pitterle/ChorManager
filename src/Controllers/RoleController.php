@@ -40,6 +40,7 @@ class RoleController
             'can_manage_sheet_archive' => isset($data['can_manage_sheet_archive']) ? 1 : 0,
             'can_manage_budget' => isset($data['can_manage_budget']) && $data['can_manage_budget'] === '1' ? 1 : 0,
             'can_manage_tasks' => isset($data['can_manage_tasks']) ? 1 : 0,
+            'can_manage_backups' => isset($data['can_manage_backups']) ? 1 : 0,
         ];
     }
 
@@ -93,7 +94,8 @@ class RoleController
                 'can_manage_mail_queue' => $permissions['can_manage_mail_queue'],
                 'can_manage_sheet_archive' => $permissions['can_manage_sheet_archive'],
                 'can_manage_budget' => $permissions['can_manage_budget'],
-                'can_manage_tasks' => $permissions['can_manage_tasks']
+                'can_manage_tasks' => $permissions['can_manage_tasks'],
+                'can_manage_backups' => $permissions['can_manage_backups']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
         } catch (\Exception $e) {
@@ -138,7 +140,8 @@ class RoleController
                 'can_manage_mail_queue' => $permissions['can_manage_mail_queue'],
                 'can_manage_sheet_archive' => $permissions['can_manage_sheet_archive'],
                 'can_manage_budget' => $permissions['can_manage_budget'],
-                'can_manage_tasks' => $permissions['can_manage_tasks']
+                'can_manage_tasks' => $permissions['can_manage_tasks'],
+                'can_manage_backups' => $permissions['can_manage_backups']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';
         } catch (\Exception $e) {

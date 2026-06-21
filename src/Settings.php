@@ -41,6 +41,13 @@ return function (ContainerBuilder $containerBuilder) {
                 'sheet_archive' => EnvHelper::read('FEATURE_SHEET_ARCHIVE', 'false') === 'true',
                 'budget'        => EnvHelper::read('FEATURE_BUDGET', 'false') === 'true',
             ],
+            'backup' => [
+                'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),
+                'max_manual' => (int) EnvHelper::read('BACKUP_MAX_MANUAL', '5'),
+                'max_auto' => (int) EnvHelper::read('BACKUP_MAX_AUTO', '7'),
+                'gzip' => EnvHelper::readBool('BACKUP_GZIP', true),
+                'app_version' => EnvHelper::read('APP_VERSION', 'dev'),
+            ],
         ],
     ]);
 };

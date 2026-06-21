@@ -7,3 +7,4 @@ ChorManager.code-workspace
 .phpunit.result.cache
 node_modules/
 .worktrees/
+var/

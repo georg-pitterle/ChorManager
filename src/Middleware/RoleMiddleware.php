@@ -28,6 +28,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresSheetArchiveManagement;
     private bool $requiresBudgetManagement;
     private bool $requiresBudgetRead;
+    private bool $requiresBackupManagement;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -45,7 +46,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresFinanceRead = false,
         bool $requiresSheetArchiveManagement = false,
         bool $requiresBudgetManagement = false,
-        bool $requiresBudgetRead = false
+        bool $requiresBudgetRead = false,
+        bool $requiresBackupManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -63,6 +65,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresSheetArchiveManagement = $requiresSheetArchiveManagement;
         $this->requiresBudgetManagement = $requiresBudgetManagement;
         $this->requiresBudgetRead = $requiresBudgetRead;
+        $this->requiresBackupManagement = $requiresBackupManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -85,6 +88,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageBudget = $_SESSION['can_manage_budget'] ?? false;
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
+        $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
 
         if ($this->requiresTaskManagement && !$canManageTasks) {
@@ -126,6 +130,12 @@ class RoleMiddleware implements MiddlewareInterface
         if ($this->requiresBudgetManagement && !$canManageBudget && !$canManageUsers) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->requiresBackupManagement && !$canManageBackups) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Backup-Verwaltung.");
             return $response->withStatus(403);
         }
 

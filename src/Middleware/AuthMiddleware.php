@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Models\AppSetting;
 use App\Queries\UserQuery;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
@@ -67,6 +68,18 @@ class AuthMiddleware implements MiddlewareInterface
         }
 
         if (!isset($_SESSION['user_id'])) {
+            $response = new SlimResponse();
+            return $response->withHeader('Location', '/login')->withStatus(302);
+        }
+
+        $sessionValidAfter = (int) (AppSetting::query()
+            ->where('setting_key', 'session_valid_after')
+            ->value('setting_value') ?? 0);
+        $authEpoch = (int) ($_SESSION['auth_epoch'] ?? 0);
+
+        if ($sessionValidAfter > 0 && $authEpoch < $sessionValidAfter) {
+            $this->sessionAuthService->clearSession();
+
             $response = new SlimResponse();
             return $response->withHeader('Location', '/login')->withStatus(302);
         }

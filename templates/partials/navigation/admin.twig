@@ -39,6 +39,15 @@
                        href="/admin/mail-queue"><i class="bi bi-envelope me-2"></i> Mailversand</a>
                 </li>
             {% endif %}
+            {% if session.can_manage_backups %}
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li>
+                    <a class="dropdown-item {% if nav_active(path, nav, ['/backups'], ['backups']) %}active{% endif %}"
+                       href="/backups"><i class="bi bi-database-down me-2"></i> Backup-Verwaltung</a>
+                </li>
+            {% endif %}
         </ul>
     </li>
 {% endif %}

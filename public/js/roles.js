@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('edit_can_manage_sheet_archive').checked = this.getAttribute('data-sheet-archive') === '1';
                 document.getElementById('edit_can_manage_budget').checked = this.getAttribute('data-budget') === '1';
                 document.getElementById('edit_can_manage_tasks').checked = this.getAttribute('data-tasks') === '1';
+                document.getElementById('edit_can_manage_backups').checked = this.getAttribute('data-backups') === '1';
             });
         });
     }

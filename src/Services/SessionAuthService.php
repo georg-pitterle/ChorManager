@@ -27,6 +27,7 @@ class SessionAuthService
         $canManageSheetArchive = false;
         $canManageBudget = false;
         $canManageTasks = false;
+        $canManageBackups = false;
         $maxRoleLevel = 0;
 
         foreach ($user->roles as $role) {
@@ -80,6 +81,9 @@ class SessionAuthService
             if ($role->can_manage_tasks) {
                 $canManageTasks = true;
             }
+            if (($role->can_manage_backups ?? false)) {
+                $canManageBackups = true;
+            }
 
             if ($role->hierarchy_level > $maxRoleLevel) {
                 $maxRoleLevel = (int) $role->hierarchy_level;
@@ -100,8 +104,13 @@ class SessionAuthService
         $_SESSION['can_manage_sheet_archive'] = $canManageSheetArchive;
         $_SESSION['can_manage_budget'] = $canManageBudget;
         $_SESSION['can_manage_tasks'] = $canManageTasks;
+        $_SESSION['can_manage_backups'] = $canManageBackups;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
+
+        if (!isset($_SESSION['auth_epoch'])) {
+            $_SESSION['auth_epoch'] = time();
+        }
     }
 
     public function clearSession(): void

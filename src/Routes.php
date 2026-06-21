@@ -35,6 +35,7 @@ use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\SheetArchiveController;
 use App\Controllers\BudgetController;
+use App\Controllers\BackupController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
@@ -485,6 +486,18 @@ return function (App $app) {
             )->add(
                 new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true, false)
             );
+
+            // Backup management
+            $group->group(
+                '',
+                function (RouteCollectorProxy $backupGroup) {
+                    $backupGroup->get('/backups', [BackupController::class, 'index']);
+                    $backupGroup->post('/backups', [BackupController::class, 'store']);
+                    $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/restore', [BackupController::class, 'restore']);
+                    $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/delete', [BackupController::class, 'delete']);
+                    $backupGroup->get('/backups/{id:[A-Za-z0-9_]+}/download', [BackupController::class, 'download']);
+                }
+            )->add(new RoleMiddleware(requiresBackupManagement: true));
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])

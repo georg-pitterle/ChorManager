@@ -207,7 +207,18 @@ class TaskController
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
-        Capsule::connection()->transaction(function () use ($task, $data, $title, $description, $startDate, $endDate, $oldStatus, $oldPriority, $oldAssigned, $oldDescription) {
+        Capsule::connection()->transaction(function () use (
+            $task,
+            $data,
+            $title,
+            $description,
+            $startDate,
+            $endDate,
+            $oldStatus,
+            $oldPriority,
+            $oldAssigned,
+            $oldDescription
+        ) {
             $task->update([
                 'name'             => $title,
                 'description'      => $description,

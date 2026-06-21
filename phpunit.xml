@@ -7,6 +7,7 @@
          beStrictAboutTestsThatDoNotTestAnything="true">
     <testsuites>
         <testsuite name="Newsletter Tests">
+            <directory>tests/Unit</directory>
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>

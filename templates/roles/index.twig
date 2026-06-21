@@ -77,6 +77,9 @@
                             </thead>
                             <tbody>
                                 {% if roles is not empty %}
+                                    <tr class="table-secondary">
+                                        <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Mitgliederverwaltung</th>
+                                    </tr>
                                     <tr>
                                         <th scope="row">Admin-Rechte</th>
                                         {% for role in roles %}
@@ -125,17 +128,8 @@
                                             </td>
                                         {% endfor %}
                                     </tr>
-                                    <tr>
-                                        <th scope="row">Stammdaten</th>
-                                        {% for role in roles %}
-                                            <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_manage_master_data %}
-                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
-                                                {% else %}
-                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
-                                                {% endif %}
-                                            </td>
-                                        {% endfor %}
+                                    <tr class="table-secondary">
+                                        <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Finanzen</th>
                                     </tr>
                                     <tr>
                                         <th scope="row">Finanzen nur lesen</th>
@@ -160,6 +154,23 @@
                                                 {% endif %}
                                             </td>
                                         {% endfor %}
+                                    </tr>
+                                    {% if settings.modules.budget %}
+                                        <tr>
+                                            <th scope="row">Budget verwalten</th>
+                                            {% for role in roles %}
+                                                <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                    {% if role.can_manage_budget %}
+                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                    {% else %}
+                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endif %}
+                                    <tr class="table-secondary">
+                                        <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Sponsoring &amp; Repertoire</th>
                                     </tr>
                                     <tr>
                                         <th scope="row">Sponsoring</th>
@@ -186,6 +197,21 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
+                                        <th scope="row">Notenarchiv verwalten</th>
+                                        {% for role in roles %}
+                                            <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                {% if role.can_manage_sheet_archive %}
+                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="table-secondary">
+                                        <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Kommunikation &amp; Planung</th>
+                                    </tr>
+                                    <tr>
                                         <th scope="row">Newsletter</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
@@ -210,10 +236,10 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Notenarchiv verwalten</th>
+                                        <th scope="row">Aufgaben/Planung</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_manage_sheet_archive %}
+                                                {% if role.can_manage_tasks %}
                                                     <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                                 {% else %}
                                                     <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
@@ -221,25 +247,26 @@
                                             </td>
                                         {% endfor %}
                                     </tr>
-                                    {% if settings.modules.budget %}
-                                        <tr>
-                                            <th scope="row">Budget verwalten</th>
-                                            {% for role in roles %}
-                                                <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                    {% if role.can_manage_budget %}
-                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
-                                                    {% else %}
-                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
-                                                    {% endif %}
-                                                </td>
-                                            {% endfor %}
-                                        </tr>
-                                    {% endif %}
+                                    <tr class="table-secondary">
+                                        <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Stammdaten &amp; System</th>
+                                    </tr>
                                     <tr>
-                                        <th scope="row">Aufgaben/Planung</th>
+                                        <th scope="row">Stammdaten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_manage_tasks %}
+                                                {% if role.can_manage_master_data %}
+                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Backup-Verwaltung</th>
+                                        {% for role in roles %}
+                                            <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                {% if role.can_manage_backups %}
                                                     <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
                                                 {% else %}
                                                     <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
@@ -282,7 +309,8 @@
                                                             data-mail-queue="{{ role.can_manage_mail_queue ? '1' : '0' }}"
                                                             data-sheet-archive="{{ role.can_manage_sheet_archive ? '1' : '0' }}"
                                                             data-budget="{{ role.can_manage_budget ? '1' : '0' }}"
-                                                            data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}">
+                                                            data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}"
+                                                            data-backups="{{ role.can_manage_backups ? '1' : '0' }}">
                                                         <i class="bi bi-pencil"></i> Bearbeiten
                                                     </button>
                                                 </div>
@@ -338,7 +366,9 @@
                         </div>
                     </div>
 
-                    <div class="form-check form-switch mb-3 mt-4">
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Mitgliederverwaltung</h6>
+
+                    <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
@@ -386,19 +416,7 @@
                         <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
                     </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="can_manage_master_data"
-                               name="can_manage_master_data"
-                               value="1">
-                        <label class="form-check-label fw-bold text-primary"
-                               for="can_manage_master_data">Stammdaten verwalten</label>
-                        <div class="form-text">
-                            Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.
-                        </div>
-                    </div>
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Finanzen</h6>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -424,6 +442,22 @@
                                for="can_manage_finances">Finanzen lesen und schreiben</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
                     </div>
+
+                          {% if settings.modules.budget %}
+                           <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                id="can_manage_budget"
+                                name="can_manage_budget"
+                                value="1">
+                            <label class="form-check-label fw-bold text-primary"
+                                for="can_manage_budget">Budget verwalten</label>
+                            <div class="form-text">Wenn aktiv, darf diese Person den Budget-Bereich sehen und bearbeiten.</div>
+                           </div>
+                          {% endif %}
+
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Sponsoring &amp; Repertoire</h6>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -455,6 +489,20 @@
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
+                               id="can_manage_sheet_archive"
+                               name="can_manage_sheet_archive"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="can_manage_sheet_archive">Notenarchiv verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person den Notenarchiv-Bereich im Repertoire sehen und bearbeiten.</div>
+                    </div>
+
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Kommunikation &amp; Planung</h6>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
                                id="can_manage_newsletters"
                                name="can_manage_newsletters"
                                value="1">
@@ -479,37 +527,39 @@
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
-                               id="can_manage_sheet_archive"
-                               name="can_manage_sheet_archive"
-                               value="1">
-                        <label class="form-check-label fw-bold text-primary"
-                               for="can_manage_sheet_archive">Notenarchiv verwalten</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person den Notenarchiv-Bereich im Repertoire sehen und bearbeiten.</div>
-                    </div>
-
-                          {% if settings.modules.budget %}
-                           <div class="form-check form-switch mb-3">
-                            <input class="form-check-input"
-                                type="checkbox"
-                                role="switch"
-                                id="can_manage_budget"
-                                name="can_manage_budget"
-                                value="1">
-                            <label class="form-check-label fw-bold text-primary"
-                                for="can_manage_budget">Budget verwalten</label>
-                            <div class="form-text">Wenn aktiv, darf diese Person den Budget-Bereich sehen und bearbeiten.</div>
-                           </div>
-                          {% endif %}
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
                                id="can_manage_tasks"
                                name="can_manage_tasks"
                                value="1">
                         <label class="form-check-label fw-bold text-primary" for="can_manage_tasks">Projektplanung (Aufgaben)</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                    </div>
+
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Stammdaten &amp; System</h6>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_master_data"
+                               name="can_manage_master_data"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="can_manage_master_data">Stammdaten verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_backups"
+                               name="can_manage_backups"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="can_manage_backups">Backup-Verwaltung</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Datenbank-Backups erstellen, herunterladen, löschen und wiederherstellen.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -558,7 +608,9 @@
                         </div>
                     </div>
 
-                    <div class="form-check form-switch mb-3 mt-4">
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Mitgliederverwaltung</h6>
+
+                    <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
@@ -608,19 +660,7 @@
                         <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
                     </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="edit_can_manage_master_data"
-                               name="can_manage_master_data"
-                               value="1">
-                        <label class="form-check-label fw-bold text-primary"
-                               for="edit_can_manage_master_data">Stammdaten verwalten</label>
-                        <div class="form-text">
-                            Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.
-                        </div>
-                    </div>
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Finanzen</h6>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -647,6 +687,23 @@
                                for="edit_can_manage_finances">Finanzen lesen und schreiben</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
                     </div>
+
+                          {% if settings.modules.budget %}
+                           <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                id="edit_can_manage_budget"
+                                name="can_manage_budget"
+                                value="1"
+                                {% if role.can_manage_budget %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-primary"
+                                for="edit_can_manage_budget">Budget verwalten</label>
+                            <div class="form-text">Wenn aktiv, darf diese Person den Budget-Bereich sehen und bearbeiten.</div>
+                           </div>
+                          {% endif %}
+
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Sponsoring &amp; Repertoire</h6>
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -678,6 +735,20 @@
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
+                               id="edit_can_manage_sheet_archive"
+                               name="can_manage_sheet_archive"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_sheet_archive">Notenarchiv verwalten</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person den Notenarchiv-Bereich im Repertoire sehen und bearbeiten.</div>
+                    </div>
+
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Kommunikation &amp; Planung</h6>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
                                id="edit_can_manage_newsletters"
                                name="can_manage_newsletters"
                                value="1">
@@ -702,39 +773,40 @@
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
-                               id="edit_can_manage_sheet_archive"
-                               name="can_manage_sheet_archive"
-                               value="1">
-                        <label class="form-check-label fw-bold text-primary"
-                               for="edit_can_manage_sheet_archive">Notenarchiv verwalten</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person den Notenarchiv-Bereich im Repertoire sehen und bearbeiten.</div>
-                    </div>
-
-                          {% if settings.modules.budget %}
-                           <div class="form-check form-switch mb-3">
-                            <input class="form-check-input"
-                                type="checkbox"
-                                role="switch"
-                                id="edit_can_manage_budget"
-                                name="can_manage_budget"
-                                value="1"
-                                {% if role.can_manage_budget %}checked{% endif %}>
-                            <label class="form-check-label fw-bold text-primary"
-                                for="edit_can_manage_budget">Budget verwalten</label>
-                            <div class="form-text">Wenn aktiv, darf diese Person den Budget-Bereich sehen und bearbeiten.</div>
-                           </div>
-                          {% endif %}
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
                                id="edit_can_manage_tasks"
                                name="can_manage_tasks"
                                value="1">
                         <label class="form-check-label fw-bold text-primary"
                                for="edit_can_manage_tasks">Projektplanung (Aufgaben)</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                    </div>
+
+                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Stammdaten &amp; System</h6>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_master_data"
+                               name="can_manage_master_data"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_master_data">Stammdaten verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person Projekte, Rollen, Stimmgruppen und App-Einstellungen bearbeiten.
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_backups"
+                               name="can_manage_backups"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_backups">Backup-Verwaltung</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Datenbank-Backups erstellen, herunterladen, löschen und wiederherstellen.</div>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -27,7 +27,13 @@ use App\Services\ProviderWebhookVerifier;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\BudgetController;
+use App\Controllers\BackupController;
 use App\Commands\ProcessMailQueueCommand;
+use App\Commands\CreateBackupCommand;
+use App\Services\BackupService;
+use App\Services\DumpRunnerInterface;
+use App\Services\MysqldumpRunner;
+use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -76,6 +82,31 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterService::class => \DI\autowire(),
         BudgetService::class => \DI\autowire(),
         BudgetController::class => \DI\autowire(),
+        DumpRunnerInterface::class => function () {
+            return new MysqldumpRunner(
+                EnvHelper::read('DB_HOST', 'db'),
+                EnvHelper::read('DB_PORT', '3306'),
+                EnvHelper::read('DB_DATABASE', 'db'),
+                EnvHelper::read('DB_USERNAME', 'db'),
+                EnvHelper::read('DB_PASSWORD', 'db')
+            );
+        },
+        BackupService::class => function (ContainerInterface $c) {
+            $backupSettings = $c->get('settings')['backup'];
+
+            return new BackupService(
+                $c->get(DumpRunnerInterface::class),
+                $c->get(LoggerInterface::class),
+                $backupSettings['dir'],
+                $backupSettings['max_manual'],
+                $backupSettings['max_auto'],
+                $backupSettings['gzip'],
+                EnvHelper::read('DB_DATABASE', 'db'),
+                $backupSettings['app_version']
+            );
+        },
+        BackupController::class => \DI\autowire(),
+        CreateBackupCommand::class => \DI\autowire(),
         SheetArchiveService::class => function (ContainerInterface $c) {
             return new SheetArchiveService();
         },
