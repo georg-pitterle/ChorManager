@@ -174,4 +174,101 @@
             </div>
         </div>
     </div>
+
+    <div class="row mt-4">
+        <!-- Mailbox Card -->
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-envelope"></i> Mailbox / Webmail-Zugang
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="/profile/mailbox" method="post">
+                        <div class="mb-3">
+                            <label for="imap_host" class="form-label text-muted small fw-bold text-uppercase">Host</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="imap_host"
+                                   name="imap_host"
+                                   value="{{ mail_account.imap_host|default('') }}"
+                                   maxlength="255"
+                                   required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label for="imap_port"
+                                       class="form-label text-muted small fw-bold text-uppercase">Port</label>
+                                <input type="number"
+                                       class="form-control"
+                                       id="imap_port"
+                                       name="imap_port"
+                                       value="{{ mail_account.imap_port|default('') }}"
+                                       placeholder="993"
+                                       min="1"
+                                       max="65535"
+                                       required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label for="imap_encryption"
+                                       class="form-label text-muted small fw-bold text-uppercase">Verschlüsselung</label>
+                                {% set _encryption = mail_account.imap_encryption|default('ssl') %}
+                                <select class="form-select" id="imap_encryption" name="imap_encryption" required>
+                                    <option value="ssl" {{ _encryption == 'ssl' ? 'selected' : '' }}>SSL</option>
+                                    <option value="tls" {{ _encryption == 'tls' ? 'selected' : '' }}>TLS</option>
+                                    <option value="none" {{ _encryption == 'none' ? 'selected' : '' }}>Keine</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="imap_username"
+                                   class="form-label text-muted small fw-bold text-uppercase">Benutzername</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="imap_username"
+                                   name="imap_username"
+                                   value="{{ mail_account.imap_username|default('') }}"
+                                   maxlength="255"
+                                   required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="imap_password" class="form-label">Passwort</label>
+                            <input type="password" class="form-control" id="imap_password" name="imap_password">
+                            {% if mail_account %}
+                                <div class="form-text">Gespeichert – leer lassen, um aktuelles Passwort zu behalten.</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-check mb-2">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="imap_enabled"
+                                   name="imap_enabled"
+                                   {{ mail_account.imap_enabled ? 'checked' : '' }}>
+                            <label class="form-check-label" for="imap_enabled">Aktiv</label>
+                        </div>
+                        <div class="form-check mb-4">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="mail_badge_enabled"
+                                   name="mail_badge_enabled"
+                                   {{ mail_account.mail_badge_enabled ? 'checked' : '' }}>
+                            <label class="form-check-label" for="mail_badge_enabled">Badge anzeigen</label>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit"
+                                    class="btn btn-outline-secondary"
+                                    formaction="/profile/mailbox/test">
+                                <i class="bi bi-plug"></i> Verbindung testen
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-envelope-check"></i> Mailbox speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock content %}

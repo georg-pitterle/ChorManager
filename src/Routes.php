@@ -103,6 +103,8 @@ return function (App $app) {
             $group->get('/profile', [ProfileController::class, 'index']);
             $group->post('/profile', [ProfileController::class, 'updateProfile']);
             $group->post('/profile/password', [ProfileController::class, 'updatePassword']);
+            $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
+            $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
 
             // Admin / User Management Routes
             $group->group(
