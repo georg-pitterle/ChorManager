@@ -75,4 +75,9 @@ class User extends Model
     {
         return $this->hasMany(Activity::class, 'user_id', 'id')->orderBy('created_at', 'desc');
     }
+
+    public function mailAccount()
+    {
+        return $this->hasOne(UserMailAccount::class, 'user_id', 'id');
+    }
 }
