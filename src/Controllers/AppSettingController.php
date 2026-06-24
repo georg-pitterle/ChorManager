@@ -246,7 +246,7 @@ class AppSettingController
         }
 
         // Return default logo if not found
-        $defaultLogoPath = __DIR__ . '/../../public/img/logo.png';
+        $defaultLogoPath = __DIR__ . '/../../public/icons/icon-512.png';
         if (file_exists($defaultLogoPath)) {
             $response->getBody()->write(file_get_contents($defaultLogoPath));
             return $response->withHeader('Content-Type', 'image/png');

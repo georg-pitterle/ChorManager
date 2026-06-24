@@ -684,7 +684,7 @@ class UserController
 
     private function buildDefaultInvitationLogoDataUri(): string
     {
-        $defaultLogoPath = __DIR__ . '/../../public/img/logo.png';
+        $defaultLogoPath = __DIR__ . '/../../public/icons/icon-512.png';
         if (!is_file($defaultLogoPath)) {
             return '';
         }
