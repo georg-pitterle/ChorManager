@@ -41,6 +41,7 @@ use App\Models\SheetArchiveLineItem;
 use App\Models\SubVoice;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use DateTimeImmutable;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -105,6 +106,7 @@ class DevSeedService
                 'users' => 0,
                 'user_roles' => 0,
                 'user_voice_groups' => 0,
+                'user_mail_accounts' => 0,
                 'projects' => 0,
                 'project_users' => 0,
                 'songs' => 0,
@@ -190,6 +192,7 @@ class DevSeedService
             $this->seedSponsorAttachments($sponsorships);
             $this->seedNewsletters($projects, $users['active']);
             $this->seedMailQueue($users['active']);
+            $this->seedUserMailAccounts($users['active'], new MailCredentialCryptoService());
             $this->seedAuthData($users['all']);
             $this->seedAppSettings();
         });
@@ -260,6 +263,7 @@ class DevSeedService
             'event_series',
             'finances',
             'projects',
+            'user_mail_accounts',
             'users',
             'event_types',
             'sub_voices',
@@ -1345,6 +1349,40 @@ class DevSeedService
             $model = MailQueue::create($entry);
             if ($model->exists) {
                 $this->report['counts']['mail_queue']++;
+            }
+        }
+    }
+
+    private function seedUserMailAccounts(array $activeUsers, MailCredentialCryptoService $crypto): void
+    {
+        $selectedUsers = array_slice($this->shuffled($activeUsers), 0, (int) ceil(count($activeUsers) / 2));
+
+        foreach ($selectedUsers as $index => $user) {
+            $hasUnseenMail = $index % 3 === 0;
+            $unseenCount = $hasUnseenMail ? mt_rand(1, 12) : 0;
+            $lastUidSeen = $hasUnseenMail ? (string) random_int(1000, 9999) : null;
+            $lastCheckedAt = $hasUnseenMail
+                ? (new DateTimeImmutable())->modify('-' . mt_rand(1, 6) . ' hours')->format('Y-m-d H:i:s')
+                : null;
+
+            $account = UserMailAccount::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'imap_host' => 'imap.example.org',
+                    'imap_port' => 993,
+                    'imap_encryption' => 'ssl',
+                    'imap_username' => $user->email,
+                    'imap_password_enc' => $crypto->encrypt('dev-seed-' . bin2hex(random_bytes(6))),
+                    'imap_enabled' => true,
+                    'mail_badge_enabled' => true,
+                    'mail_last_unseen_count' => $unseenCount,
+                    'mail_last_uid_seen' => $lastUidSeen,
+                    'mail_last_checked_at' => $lastCheckedAt,
+                ]
+            );
+
+            if ($account->wasRecentlyCreated) {
+                $this->report['counts']['user_mail_accounts']++;
             }
         }
     }
