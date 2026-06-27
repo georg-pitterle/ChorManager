@@ -35,7 +35,7 @@ return function (App $app): void {
     $defaultErrorHandler = $errorMiddleware->getDefaultErrorHandler();
     $errorMiddleware->setErrorHandler(
         HttpNotFoundException::class,
-        static function (
+        function (
             Request $request,
             \Throwable $exception,
             bool $displayErrorDetails,

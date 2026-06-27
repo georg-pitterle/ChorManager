@@ -71,6 +71,8 @@
             "@eol:check",
             "php vendor/bin/phpunit"
         ],
-        "copy-assets": "@php bin/copy-assets.php"
+        "copy-assets": "@php bin/copy-assets.php",
+        "post-install-cmd": "@copy-assets",
+        "post-update-cmd": "@copy-assets"
     }
 }

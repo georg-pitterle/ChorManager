@@ -90,6 +90,16 @@ function copyAssets(): void
     }
 }
 
+if (!is_dir('node_modules')) {
+    CliBootstrap::logger()->info(
+        'Asset copy skipped: node_modules not found, run npm ci first.',
+        [
+            'event' => 'assets.copy.skipped',
+        ]
+    );
+    exit(0);
+}
+
 try {
     copyAssets();
     CliBootstrap::logger()->info(

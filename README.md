@@ -27,8 +27,9 @@ ddev start
 ```bash
 ddev npm ci --omit=dev
 ddev composer install
-ddev php bin/copy-assets.php
 ```
+
+`composer install` kopiert die Frontend-Assets über den `post-install-cmd`-Hook automatisch nach `public/vendor` (siehe `bin/copy-assets.php`). `npm ci` muss daher vorher gelaufen sein.
 
 3. Konfiguration anlegen:
 
@@ -223,6 +224,7 @@ Nach dem ersten Start kann unter `/setup` ein Administrator-Account erstellt wer
 
 - In Produktion sollte die Anwendung ausschließlich über HTTPS bereitgestellt werden.
 - Frontend-Assets aus npm-Paketen werden mit `bin/copy-assets.php` nach `public/vendor` kopiert.
-- Nach `npm ci` sollte bei Paket-Änderungen erneut `php bin/copy-assets.php` ausgeführt werden.
-- Wenn `composer install` mit aktivierten Scripts läuft, werden Frontend-Assets nicht automatisch kopiert.
+- `composer install`/`composer update` lösen das automatisch über den `post-install-cmd`/`post-update-cmd`-Hook aus (Voraussetzung: `npm ci` ist vorher gelaufen). Fehlt `node_modules`, wird der Kopiervorgang übersprungen statt den Composer-Lauf abzubrechen.
+- Da der Produktions-Setup-Befehl oben bewusst `--no-scripts` verwendet, muss dort weiterhin `php bin/copy-assets.php` explizit ausgeführt werden.
+- Nach `npm ci` sollte bei Paket-Änderungen erneut `php bin/copy-assets.php` ausgeführt werden (bzw. `composer install`/`composer update` erneut laufen lassen).
 
