@@ -175,8 +175,9 @@ class NewsletterController
         $title = trim((string) ($data['title'] ?? ''));
         $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
         $plainContent = trim(strip_tags((string) $contentHtml));
+        $hasMediaContent = (bool) preg_match('/<(img|table)\b/i', (string) $contentHtml);
 
-        if ($title === '' || $plainContent === '') {
+        if ($title === '' || ($plainContent === '' && !$hasMediaContent)) {
             return ['ok' => false, 'message' => 'Titel und Inhalt sind Pflichtfelder.', 'payload' => []];
         }
 
@@ -929,6 +930,27 @@ class NewsletterController
             'locked_at' => $newsletter->locked_at->format('Y-m-d H:i:s'),
             'is_me' => $newsletter->locked_by === $userId,
         ]);
+    }
+
+    public function releaseLock(Request $request, Response $response): Response
+    {
+        $id = (int)$request->getAttribute('id');
+        $userId = $_SESSION['user_id'] ?? null;
+
+        if (!$this->canAccessNewsletterById($id, $userId)) {
+            return $response->withStatus(403);
+        }
+
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter) {
+            return $response->withStatus(404);
+        }
+
+        if ($this->lockingService->isLockedBy($newsletter, $userId)) {
+            $this->lockingService->releaseLock($newsletter);
+        }
+
+        return $this->jsonResponse($response, ['released' => true]);
     }
 
     public function deleteDraft(Request $request, Response $response): Response

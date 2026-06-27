@@ -138,35 +138,4 @@ class NewsletterService
 
         return $sentCount;
     }
-
-
-
-    /**
-     * Check if newsletter can be sent (validation)
-     *
-     * @param Newsletter $newsletter
-     * @return array Validation errors
-     */
-    public function validateForSending(Newsletter $newsletter): array
-    {
-        $errors = [];
-
-        if (!$newsletter->isDraft()) {
-            $errors[] = 'Newsletter-Status erlaubt keinen Versand';
-        }
-
-        if (empty($newsletter->title)) {
-            $errors[] = 'Titel erforderlich';
-        }
-
-        if (empty($newsletter->content_html)) {
-            $errors[] = 'Inhalt erforderlich';
-        }
-
-        if ($newsletter->recipient_count === 0) {
-            $errors[] = 'Keine Empfänger definiert';
-        }
-
-        return $errors;
-    }
 }

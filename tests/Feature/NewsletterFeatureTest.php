@@ -126,7 +126,6 @@ class NewsletterFeatureTest extends TestCase
     public function testNewsletterServiceHasRequiredMethods(): void
     {
         $this->assertTrue(method_exists(\App\Services\NewsletterService::class, 'send'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterService::class, 'validateForSending'));
     }
 
     /**
@@ -156,6 +155,7 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'saveAsTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'getTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'checkLock'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'releaseLock'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'deleteDraft'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'createTemplate'));
@@ -601,5 +601,42 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringNotContainsString('$newsletter->created_by === $userId', $middleware);
         $this->assertStringNotContainsString('Creator can always access', $middleware);
         $this->assertStringContainsString('isProjectMember', $middleware);
+    }
+
+    /**
+     * Test release-lock route is registered and releases an explicit, beacon-driven
+     * lock on navigate-away instead of relying solely on the 30-minute expiry.
+     */
+    public function testReleaseLockRouteIsRegisteredAndReleasesOwnLock(): void
+    {
+        $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
+        $this->assertIsString($routesContent);
+        $this->assertStringContainsString('/newsletters/{id:[0-9]+}/release-lock', $routesContent);
+        $this->assertStringContainsString("'releaseLock'", $routesContent);
+
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('public function releaseLock(Request $request, Response $response): Response', $controllerContent);
+        $this->assertStringContainsString('$this->lockingService->isLockedBy($newsletter, $userId)', $controllerContent);
+
+        $editScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-edit.js');
+        $this->assertIsString($editScriptContent);
+        $this->assertStringContainsString('pagehide', $editScriptContent);
+        $this->assertStringContainsString('navigator.sendBeacon(`/newsletters/${newsletterId}/release-lock`', $editScriptContent);
+    }
+
+    /**
+     * Test image/table-only newsletter content (no plain text) is accepted as valid,
+     * not rejected as "Inhalt ist Pflichtfeld" just because strip_tags() empties it.
+     */
+    public function testImageOnlyNewsletterContentIsNotTreatedAsEmpty(): void
+    {
+        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $this->assertIsString($controllerContent);
+        $this->assertStringContainsString(
+            "preg_match('/<(img|table)\\b/i', (string) \$contentHtml)",
+            $controllerContent
+        );
+        $this->assertStringContainsString('$plainContent === \'\' && !$hasMediaContent', $controllerContent);
     }
 }

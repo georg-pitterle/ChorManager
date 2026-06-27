@@ -428,6 +428,15 @@ function initNewsletterEdit() {
     }
 
     if (newsletterId) {
+        const releaseLockOnLeave = function () {
+            const beaconData = new FormData();
+            if (csrfToken) {
+                beaconData.append("_csrf", csrfToken);
+            }
+            navigator.sendBeacon(`/newsletters/${newsletterId}/release-lock`, beaconData);
+        };
+        window.addEventListener("pagehide", releaseLockOnLeave);
+
         const lockIntervalId = setInterval(async function () {
             if (!document.body.contains(editForm)) {
                 clearInterval(lockIntervalId);

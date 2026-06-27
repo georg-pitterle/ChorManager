@@ -445,6 +445,10 @@ return function (App $app) {
                     );
                     $newsletterGroup->get('/newsletters/template/{id:[0-9]+}', [NewsletterController::class, 'getTemplate']);
                     $newsletterGroup->get('/newsletters/{id:[0-9]+}/check-lock', [NewsletterController::class, 'checkLock']);
+                    $newsletterGroup->post(
+                        '/newsletters/{id:[0-9]+}/release-lock',
+                        [NewsletterController::class, 'releaseLock']
+                    );
                     $newsletterGroup->post('/newsletters/{id:[0-9]+}/delete', [NewsletterController::class, 'deleteDraft']);
 
                     // Newsletter template management
