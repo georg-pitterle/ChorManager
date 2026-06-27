@@ -53,23 +53,25 @@ class NewsletterService
             throw new Exception('Newsletter-Inhalt ist leer');
         }
 
-        $recipients = $this->recipientService->getRecipients($newsletter->id);
-
-        if ($recipients->count() === 0) {
-            $resolvedRecipients = $this->recipientService->resolveRecipients($newsletter);
-
-            $this->recipientService->setRecipients($newsletter, $resolvedRecipients->pluck('id')->map(function ($id) {
+        // Resolve recipients fresh at send time so the audience reflects the
+        // current project membership, role assignments and active state instead
+        // of a stale snapshot taken when the draft was last saved.
+        $resolvedRecipients = $this->recipientService->resolveRecipients($newsletter);
+        $this->recipientService->setRecipients(
+            $newsletter,
+            $resolvedRecipients->pluck('id')->map(static function ($id): int {
                 return (int) $id;
-            })->all());
+            })->all()
+        );
 
-            $recipients = $this->recipientService->getRecipients($newsletter->id);
-        }
+        $recipients = $this->recipientService->getRecipients($newsletter->id);
 
         if ($recipients->count() === 0) {
             throw new Exception('Keine Empfänger definiert');
         }
 
         $sentCount = 0;
+        $sentAt = Carbon::now();
         $emailContent = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
 
         // Enqueue newsletter for each recipient
@@ -92,6 +94,20 @@ class NewsletterService
                 NewsletterRecipient::where('newsletter_id', $newsletter->id)
                     ->where('user_id', $recipient->user->id)
                     ->update(['status' => 'queued']);
+
+                // Record a per-recipient archive entry so the newsletter shows up
+                // in the recipient's personal archive and can be previewed in-app,
+                // independent of their current project membership.
+                NewsletterArchive::updateOrCreate(
+                    [
+                        'newsletter_id' => (int) $newsletter->id,
+                        'user_id' => (int) $recipient->user->id,
+                    ],
+                    [
+                        'email' => $toEmail,
+                        'sent_at' => $sentAt,
+                    ]
+                );
 
                 $sentCount++;
             } catch (Exception $e) {
@@ -117,7 +133,7 @@ class NewsletterService
 
         $newsletter->update([
             'status' => Newsletter::STATUS_SENT,
-            'sent_at' => Carbon::now(),
+            'sent_at' => $sentAt,
         ]);
 
         return $sentCount;

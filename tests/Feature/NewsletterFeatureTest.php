@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use PHPUnit\Framework\TestCase;
 
-
 class NewsletterFeatureTest extends TestCase
 {
     /**
@@ -208,9 +207,18 @@ class NewsletterFeatureTest extends TestCase
 
         $this->assertStringContainsString('action="/newsletters"', $indexTemplate);
         $this->assertStringContainsString('class="form-select onchange-submit"', $indexTemplate);
-        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"', $indexTemplate);
-        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"', $indexTemplate);
-        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"', $indexTemplate);
+        $this->assertStringContainsString(
+            'data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"',
+            $indexTemplate
+        );
+        $this->assertStringContainsString(
+            'data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"',
+            $indexTemplate
+        );
+        $this->assertStringContainsString(
+            'data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"',
+            $indexTemplate
+        );
         $this->assertStringContainsString('dropdown-toggle-split', $indexTemplate);
         $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/send"', $indexTemplate);
         $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/delete"', $indexTemplate);
@@ -220,16 +228,26 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('id="newsletterActionModal"', $indexTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $indexTemplate);
 
-        $this->assertStringContainsString('data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"', $archiveTemplate);
+        $this->assertStringContainsString(
+            'data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"',
+            $archiveTemplate
+        );
         $this->assertStringContainsString('id="newsletterActionModal"', $archiveTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $archiveTemplate);
 
-        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $createTemplate);
-        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $editTemplate);
-        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $previewTemplate);
-        $this->assertStringContainsString("{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}", $lockedTemplate);
-        $this->assertStringContainsString("<script src=\"{{ asset_path('/js/newsletters-create.js') }}\"></script>", $createTemplate);
-        $this->assertStringContainsString("<script src=\"{{ asset_path('/js/newsletters-edit.js') }}\"></script>", $editTemplate);
+        $extendsLayout = "{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}";
+        $this->assertStringContainsString($extendsLayout, $createTemplate);
+        $this->assertStringContainsString($extendsLayout, $editTemplate);
+        $this->assertStringContainsString($extendsLayout, $previewTemplate);
+        $this->assertStringContainsString($extendsLayout, $lockedTemplate);
+        $this->assertStringContainsString(
+            "<script src=\"{{ asset_path('/js/newsletters-create.js') }}\"></script>",
+            $createTemplate
+        );
+        $this->assertStringContainsString(
+            "<script src=\"{{ asset_path('/js/newsletters-edit.js') }}\"></script>",
+            $editTemplate
+        );
         $this->assertStringContainsString('action="/newsletters/{{ newsletter.id }}/delete"', $editTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters-locked.js"></script>', $lockedTemplate);
         $this->assertStringNotContainsString('onclick=', $lockedTemplate);
@@ -406,14 +424,20 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('Dev-Modus', $controllerContent);
         $this->assertStringContainsString('$recipientCount', $controllerContent);
         $this->assertStringContainsString("if (\$expectsJson)", $controllerContent);
-        $this->assertStringContainsString("'redirect' => \"/newsletters?project_id={\$newsletter->project_id}&status=\" . Newsletter::STATUS_SENT", $controllerContent);
+        $this->assertStringContainsString(
+            "'redirect' => \"/newsletters?project_id={\$newsletter->project_id}&status=\" . Newsletter::STATUS_SENT",
+            $controllerContent
+        );
     }
 
     public function testDeleteDraftCleansRecipientsAndHandlesLockConflicts(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("NewsletterRecipient::where('newsletter_id', \$newsletter->id)->delete();", $controllerContent);
+        $this->assertStringContainsString(
+            "NewsletterRecipient::where('newsletter_id', \$newsletter->id)->delete();",
+            $controllerContent
+        );
         $this->assertStringContainsString('wird gerade von einer anderen Person bearbeitet', $controllerContent);
     }
 
@@ -432,7 +456,10 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString("if (!\$newsletter->isLocked()) {", $controllerContent);
         $this->assertStringContainsString("\$this->lockingService->acquireLock(\$newsletter, \$userId);", $controllerContent);
-        $this->assertStringContainsString('Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.', $controllerContent);
+        $this->assertStringContainsString(
+            'Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.',
+            $controllerContent
+        );
     }
 
     public function testNewsletterIndexIncludesFlashDataInSentStatusRender(): void
@@ -541,5 +568,38 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('NewsletterRecipientSource::create([', $seedContent);
         $this->assertStringContainsString("'newsletter_recipient_sources'", $seedContent);
         $this->assertStringNotContainsString("'event_id' => null", $seedContent);
+    }
+
+    /**
+     * Sending must resolve the audience fresh (current membership + active state)
+     * and write a per-recipient archive entry, so the recipient archive/preview
+     * works in production and is not limited to seed data.
+     */
+    public function testSendResolvesRecipientsFreshAndArchivesEachRecipient(): void
+    {
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterService.php');
+        $this->assertIsString($serviceContent);
+
+        $this->assertStringContainsString('Resolve recipients fresh at send time', $serviceContent);
+        $this->assertStringContainsString('$this->recipientService->resolveRecipients($newsletter)', $serviceContent);
+
+        $this->assertStringContainsString('NewsletterArchive::updateOrCreate(', $serviceContent);
+        $this->assertStringContainsString("'newsletter_id' => (int) \$newsletter->id", $serviceContent);
+        $this->assertStringContainsString("'user_id' => (int) \$recipient->user->id", $serviceContent);
+    }
+
+    /**
+     * Auth middleware and controller must use the same access rule (project
+     * membership or admin); the legacy "creator can always access" bypass that
+     * diverged from the controller is removed.
+     */
+    public function testNewsletterAuthMiddlewareEnforcesProjectMembershipConsistently(): void
+    {
+        $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/NewsletterAuthMiddleware.php');
+        $this->assertIsString($middleware);
+
+        $this->assertStringNotContainsString('$newsletter->created_by === $userId', $middleware);
+        $this->assertStringNotContainsString('Creator can always access', $middleware);
+        $this->assertStringContainsString('isProjectMember', $middleware);
     }
 }

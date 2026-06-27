@@ -62,12 +62,8 @@ class NewsletterAuthMiddleware implements MiddlewareInterface
             return true;
         }
 
-        // Creator can always access
-        if ($newsletter->created_by === $userId) {
-            return true;
-        }
-
-        // Project members can access their project newsletters
+        // Access is governed by project membership, consistent with the
+        // controller's project-scoped authorization checks.
         $isProjectMember = $user->projects()
             ->where('project_id', $newsletter->project_id)
             ->exists();
