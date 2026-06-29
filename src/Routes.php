@@ -18,6 +18,7 @@ use App\Controllers\RoleController;
 use App\Controllers\VoiceGroupController;
 use App\Controllers\FinanceController;
 use App\Controllers\ProfileController;
+use App\Controllers\WebmailController;
 use App\Controllers\AppSettingController;
 use App\Controllers\EventTypeController;
 use App\Controllers\DevSeedController;
@@ -105,6 +106,7 @@ return function (App $app) {
             $group->post('/profile/password', [ProfileController::class, 'updatePassword']);
             $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
+            $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
 
             // Admin / User Management Routes
             $group->group(

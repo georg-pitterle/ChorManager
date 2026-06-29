@@ -267,6 +267,17 @@
                             </button>
                         </div>
                     </form>
+
+                    {% if mail_account and mail_account.imap_enabled %}
+                        <hr>
+                        <form action="/profile/webmail/start" method="post">
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-box-arrow-up-right"></i> Webmail öffnen
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -14,6 +14,41 @@
 # does so by service name (`snappymail`) over the DDEV project's default network, which
 # every service defined here joins automatically (per DDEV's documented behavior for
 # .ddev/docker-compose.*.yaml add-on files).
+#
+# Task 5 (SSO auto-login) additions:
+#   - The `chormanager-sso` plugin source is bind-mounted from this repo into SnappyMail's
+#     plugins directory (verified path: APP_PLUGINS_PATH resolves to
+#     /var/lib/snappymail/_data_/_default_/plugins/ at runtime). NOT mounted `:ro`: the
+#     image's entrypoint.sh unconditionally runs `chown -R www-data:www-data
+#     /var/lib/snappymail/` on every boot (confirmed by reading entrypoint.sh), which would
+#     fail with "Read-only file system" under a `:ro` bind mount and (because entrypoint.sh
+#     uses `set -eu`) abort the whole container before nginx/php-fpm ever start. The plugin
+#     source itself is still only ever read by the application, never written to.
+#   - `enable-plugin.sh` is bind-mounted read-only and run in the background by the
+#     `command:` override below via `sh /chormanager-enable-plugin.sh` (not executed
+#     directly - Windows-host bind mounts do not preserve the executable bit, so a direct
+#     `/chormanager-enable-plugin.sh &` invocation fails with "Permission denied"). It
+#     idempotently flips `[plugins] enable = On` and appends `chormanager-sso` to
+#     `enabled_list` in application.ini once the image's entrypoint has generated that file
+#     on first boot, then gets out of the way.
+#   - The image's `CMD` is exactly `["/entrypoint.sh"]` with no separate `ENTRYPOINT`
+#     (confirmed via `docker inspect djmaze/snappymail:v2.38.2`), so overriding `command:`
+#     here fully and safely replaces it - `exec /entrypoint.sh` at the end preserves the
+#     image's normal startup behavior unchanged.
+#   - SNAPPYMAIL_SSO_SECRET is the shared secret between ChorManager
+#     (App\Services\SnappymailSsoTokenService) and the plugin; it is distinct from
+#     MAIL_CREDENTIAL_KEY (which protects stored IMAP credentials at rest).
+#   - IMPORTANT (also applies to SNAPPYMAIL_UPLOAD_MAX_SIZE/SNAPPYMAIL_MEMORY_LIMIT above,
+#     a pre-existing gap from when this file was first introduced): "${VAR}" interpolation
+#     in .ddev/docker-compose.*.yaml is resolved from DDEV's own process environment, NOT
+#     from this project's root .env file (that file is loaded by the PHP app at runtime via
+#     vlucas/phpdotenv - a completely separate mechanism). Confirmed empirically: setting
+#     SNAPPYMAIL_SSO_SECRET only in the project root .env still produced
+#     `level=warning msg="The \"SNAPPYMAIL_SSO_SECRET\" variable is not set."` on `ddev
+#     restart`, and the plugin then saw an empty secret. Fix: also write it to
+#     .ddev/.env.snappymail (gitignored, like .env), e.g.:
+#       ddev dotenv set .ddev/.env.snappymail --snappymail-sso-secret="$(php -r 'echo base64_encode(random_bytes(32));')"
+#     DDEV auto-loads any .ddev/.env* file for compose variable substitution.
 services:
   snappymail:
     image: djmaze/snappymail:v2.38.2
@@ -26,8 +61,16 @@ services:
       - UPLOAD_MAX_SIZE=${SNAPPYMAIL_UPLOAD_MAX_SIZE:-25M}
       - MEMORY_LIMIT=${SNAPPYMAIL_MEMORY_LIMIT:-128M}
       - SECURE_COOKIES=true
+      - SNAPPYMAIL_SSO_SECRET=${SNAPPYMAIL_SSO_SECRET}
     volumes:
       - snappymail_data:/var/lib/snappymail
+      # Paths in .ddev/docker-compose.*.yaml are resolved relative to the .ddev/ directory
+      # itself (verified empirically: a "./.ddev/snappymail-plugins/..." path resolved to
+      # the doubled ".ddev/.ddev/snappymail-plugins/..." and silently bind-mounted an empty
+      # directory instead) - so these are "./snappymail-plugins/...", not "./.ddev/...".
+      - ./snappymail-plugins/chormanager-sso:/var/lib/snappymail/_data_/_default_/plugins/chormanager-sso
+      - ./snappymail-plugins/enable-plugin.sh:/chormanager-enable-plugin.sh:ro
+    command: ["sh", "-c", "sh /chormanager-enable-plugin.sh & exec /entrypoint.sh"]
 
 volumes:
   snappymail_data:
