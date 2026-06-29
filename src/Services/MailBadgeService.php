@@ -21,6 +21,16 @@ use Throwable;
  */
 class MailBadgeService
 {
+    /**
+     * Hard cap on the number of lines read per tagged-response/STATUS read
+     * loop. Bounds worst-case worker time if a misbehaving or malicious IMAP
+     * server streams a continuous flow of short, non-matching, non-EOF lines
+     * without ever tripping stream_set_timeout(). Generous enough for any
+     * legitimate IMAP greeting/LOGIN/STATUS exchange (normally a handful of
+     * lines).
+     */
+    private const MAX_RESPONSE_LINES = 200;
+
     private MailCredentialCryptoService $crypto;
     private LoggerInterface $logger;
     private int $connectTimeoutSeconds;
@@ -93,7 +103,8 @@ class MailBadgeService
                 return false;
             }
 
-            $this->sendCommand($socket, "A3 LOGOUT\r\n");
+            // Best-effort: refresh already succeeded regardless of LOGOUT outcome.
+            $loggedOut = $this->sendCommand($socket, "A3 LOGOUT\r\n");
 
             $uidnext = $statusResult['uidnext'];
             $highestUid = $uidnext > 0 ? $uidnext - 1 : 0;
@@ -172,11 +183,15 @@ class MailBadgeService
      */
     private function readUntilTagged($socket, string $tag, string $expectedPrefix): bool
     {
-        while (!feof($socket)) {
+        $linesRead = 0;
+
+        while (!feof($socket) && $linesRead < self::MAX_RESPONSE_LINES) {
             $line = fgets($socket, 1024);
             if ($line === false) {
                 return false;
             }
+
+            $linesRead++;
 
             if (str_starts_with($line, $tag)) {
                 return str_starts_with($line, $expectedPrefix);
@@ -196,12 +211,15 @@ class MailBadgeService
     private function readStatusResponse($socket): ?array
     {
         $statusResult = null;
+        $linesRead = 0;
 
-        while (!feof($socket)) {
+        while (!feof($socket) && $linesRead < self::MAX_RESPONSE_LINES) {
             $line = fgets($socket, 1024);
             if ($line === false) {
                 return null;
             }
+
+            $linesRead++;
 
             if (str_starts_with($line, '* STATUS')) {
                 $statusResult = self::parseStatusLine($line);
