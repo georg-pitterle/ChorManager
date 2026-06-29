@@ -1,0 +1,34 @@
+# SnappyMail webmail service for ChorManager's local DDEV environment.
+#
+# Image: djmaze/snappymail (official, https://github.com/the-djmaze/snappymail).
+# Verified via the project's .docker/release/Dockerfile (master branch):
+#   - EXPOSE 8888 (nginx, the port to reach for HTTP) and EXPOSE 9000 (internal php-fpm,
+#     not for external use).
+#   - VOLUME /var/lib/snappymail holds all persistent config and per-account state.
+#   - entrypoint.sh supports UPLOAD_MAX_SIZE, MEMORY_LIMIT, SECURE_COOKIES, DEBUG env vars.
+#     There is no admin-password env var; the image auto-generates one on first boot and
+#     writes it to /var/lib/snappymail/_data_/_default_/admin_password.txt inside the
+#     volume (retrievable via `ddev exec -s snappymail cat ...` if the admin UI is needed).
+#
+# No host port is published: only the `web` container needs to reach this service, and it
+# does so by service name (`snappymail`) over the DDEV project's default network, which
+# every service defined here joins automatically (per DDEV's documented behavior for
+# .ddev/docker-compose.*.yaml add-on files).
+services:
+  snappymail:
+    image: djmaze/snappymail:v2.38.2
+    container_name: ddev-${DDEV_SITENAME}-snappymail
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    environment:
+      - UPLOAD_MAX_SIZE=${SNAPPYMAIL_UPLOAD_MAX_SIZE:-25M}
+      - MEMORY_LIMIT=${SNAPPYMAIL_MEMORY_LIMIT:-128M}
+      - SECURE_COOKIES=true
+    volumes:
+      - snappymail_data:/var/lib/snappymail
+
+volumes:
+  snappymail_data:
+    name: ${DDEV_SITENAME}-snappymail
