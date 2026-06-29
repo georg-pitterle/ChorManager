@@ -151,6 +151,25 @@ return function (ContainerBuilder $containerBuilder) {
             }
             $environment->addGlobal('app_settings', $appSettings);
 
+            // Add the current user's cached unread-mail badge count to Twig
+            try {
+                $mailBadgeUnseenCount = null;
+                if (isset($_SESSION['user_id'])) {
+                    $mailAccount = \App\Models\UserMailAccount::where('user_id', (int) $_SESSION['user_id'])
+                        ->first();
+                    if (
+                        $mailAccount !== null
+                        && $mailAccount->imap_enabled
+                        && $mailAccount->mail_badge_enabled
+                    ) {
+                        $mailBadgeUnseenCount = (int) $mailAccount->mail_last_unseen_count;
+                    }
+                }
+            } catch (\Exception $e) {
+                $mailBadgeUnseenCount = null;
+            }
+            $environment->addGlobal('mail_badge_unseen_count', $mailBadgeUnseenCount);
+
             $publicRoot = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public';
 
             $environment->addFunction(new TwigFunction(
