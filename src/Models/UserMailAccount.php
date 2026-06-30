@@ -29,6 +29,7 @@ class UserMailAccount extends Model
     protected $casts = [
         'imap_enabled' => 'boolean',
         'mail_badge_enabled' => 'boolean',
+        'mail_last_unseen_count' => 'integer',
         'mail_last_checked_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

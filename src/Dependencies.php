@@ -33,6 +33,8 @@ use App\Commands\CreateBackupCommand;
 use App\Services\BackupService;
 use App\Services\DumpRunnerInterface;
 use App\Services\MysqldumpRunner;
+use App\Services\MailBadgeService;
+use App\Services\MailCredentialCryptoService;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
@@ -109,6 +111,14 @@ return function (ContainerBuilder $containerBuilder) {
         CreateBackupCommand::class => \DI\autowire(),
         SheetArchiveService::class => function (ContainerInterface $c) {
             return new SheetArchiveService();
+        },
+        MailCredentialCryptoService::class => \DI\autowire(),
+        MailBadgeService::class => function (ContainerInterface $c) {
+            return new MailBadgeService(
+                $c->get(MailCredentialCryptoService::class),
+                $c->get(LoggerInterface::class),
+                3
+            );
         },
         ProjectMemberPolicy::class => \DI\autowire(),
         TaskPolicy::class => \DI\autowire(),
