@@ -33,6 +33,10 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
     private function refreshIfDue(): void
     {
         try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+
             if (!isset($_SESSION['user_id'])) {
                 return;
             }
