@@ -7,6 +7,7 @@ namespace App\Middleware;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeService;
 use Carbon\Carbon;
+use Closure;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -17,8 +18,17 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
 {
     private const STALENESS_MINUTES = 5;
 
+    /**
+     * The badge service is resolved through a factory (rather than injected
+     * directly) so that constructing it - which loads MAIL_CREDENTIAL_KEY and
+     * fails closed on a missing/invalid key - happens lazily inside the guarded
+     * refresh path. A mail-subsystem misconfiguration must degrade the badge
+     * only, never 500 every page on this global middleware.
+     *
+     * @param Closure(): MailBadgeService $badgeServiceFactory
+     */
     public function __construct(
-        private readonly MailBadgeService $badgeService,
+        private readonly Closure $badgeServiceFactory,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -53,7 +63,8 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
                 }
             }
 
-            $this->badgeService->refresh($account);
+            $badgeService = ($this->badgeServiceFactory)();
+            $badgeService->refresh($account);
         } catch (\Throwable $exception) {
             $this->logger->error(
                 'Mail badge opportunistic refresh failed.',

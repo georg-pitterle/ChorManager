@@ -60,6 +60,10 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 			);
 		}
 
+		// The inbound URL carries the SSO token in its query string. Tell the
+		// browser not to leak that URL as a Referer on the redirect target or
+		// any resource it subsequently loads.
+		\header('Referrer-Policy: no-referrer');
 		\header('Location: /webmail/');
 		return true;
 	}
@@ -104,15 +108,20 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 		$sMarkerDir = $this->replayMarkerDir();
 		$this->sweepOldMarkers($sMarkerDir);
 
+		// Atomically claim the token. fopen() with mode 'x' (O_CREAT|O_EXCL)
+		// fails if the marker already exists, closing the TOCTOU race that a
+		// plain file_exists()+touch() leaves open: two concurrent requests
+		// replaying the same token could otherwise both pass the existence
+		// check before either created the marker. The marker is claimed BEFORE
+		// attempting login, so a token can never be used twice even if
+		// LoginProcess() itself fails halfway.
 		$sMarkerFile = $sMarkerDir . $sJti;
-		if (\file_exists($sMarkerFile)) {
+		$rMarker = @\fopen($sMarkerFile, 'x');
+		if (false === $rMarker) {
 			$this->safeWriteLog('chormanager_sso.replay');
 			return;
 		}
-
-		// Create the marker BEFORE attempting login, so a token can never be
-		// used twice even if LoginProcess() itself fails halfway.
-		\touch($sMarkerFile);
+		\fclose($rMarker);
 
 		$sEmail = (string) ($aPayload['email'] ?? '');
 		$sPassword = (string) ($aPayload['password'] ?? '');
@@ -179,6 +188,17 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 	 * SnappyMail resolves the IMAP server by loading
 	 * APP_PRIVATE_DATA/domains/{domain}.json at login time. Without this file
 	 * the default.json (localhost:143) is used, causing ConnectionError.
+	 *
+	 * SECURITY / multi-tenant note: this file is keyed by e-mail DOMAIN and is
+	 * therefore shared by every ChorManager user on that provider. A user who
+	 * supplies a malicious imap_host for a shared domain could poison it for
+	 * others. Two things contain that: (1) we ALWAYS rewrite the file with the
+	 * current user's own host immediately before LoginProcess(), so the value
+	 * in effect at login is this user's own configuration - do NOT refactor
+	 * this into a "skip write if file exists" optimisation, as that would
+	 * reopen the hole; (2) TLS peer verification (verify_peer_name below) is
+	 * left enabled so a redirected host must still present a valid certificate
+	 * for the name it claims.
 	 *
 	 * imap_enc mapping (ChorManager → MailSo\Net\Enumerations\ConnectionSecurityType):
 	 *   'ssl'  → 1  (direct TLS, port 993)

@@ -113,7 +113,7 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
 
         unset($_SESSION['user_id']);
 
-        $middleware = new MailBadgeRefreshMiddleware($this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -128,7 +128,7 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
         $user = $this->createUser();
         $_SESSION['user_id'] = $user->id;
 
-        $middleware = new MailBadgeRefreshMiddleware($this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -157,7 +157,7 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             'mail_last_checked_at' => $checkedAt,
         ]);
 
-        $middleware = new MailBadgeRefreshMiddleware($this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -169,6 +169,42 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             $checkedAt->format('Y-m-d H:i:s'),
             Carbon::parse($account->mail_last_checked_at)->format('Y-m-d H:i:s')
         );
+    }
+
+    public function testBadgeServiceConstructionFailureDoesNotBreakTheRequest(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $crypto = new MailCredentialCryptoService();
+
+        UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => 'imap.example.test',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => $crypto->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 4,
+            'mail_last_uid_seen' => '11',
+            'mail_last_checked_at' => Carbon::now()->subMinutes(10),
+        ]);
+
+        // Simulate a misconfigured MAIL_CREDENTIAL_KEY: the badge service cannot
+        // even be constructed. The request must still complete normally.
+        $factory = static function (): MailBadgeService {
+            throw new \RuntimeException('MAIL_CREDENTIAL_KEY is not configured correctly');
+        };
+
+        $middleware = new MailBadgeRefreshMiddleware($factory, new NullLogger());
+        $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $account = UserMailAccount::where('user_id', $user->id)->first();
+        $this->assertSame(4, $account->mail_last_unseen_count);
+        $this->assertSame('11', $account->mail_last_uid_seen);
     }
 
     public function testStaleAccountTriggersRefreshAttemptAndRequestStillCompletes(): void
@@ -193,7 +229,7 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             'mail_last_checked_at' => $staleCheckedAt,
         ]);
 
-        $middleware = new MailBadgeRefreshMiddleware($this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());

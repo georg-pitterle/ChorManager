@@ -160,6 +160,56 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertNull($account->smtp_encryption);
     }
 
+    public function testControlCharsInUsernameAreRejectedToPreventImapInjection(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => "user\r\nA2 LOGOUT",
+            'imap_password' => 'whatever-password',
+        ]);
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $this->assertNotEmpty($_SESSION['error'] ?? null);
+        $this->assertNull(UserMailAccount::where('user_id', $this->user->id)->first());
+    }
+
+    public function testControlCharsInPasswordAreRejected(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => "secret\r\ninjected",
+        ]);
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $this->assertNotEmpty($_SESSION['error'] ?? null);
+        $this->assertNull(UserMailAccount::where('user_id', $this->user->id)->first());
+    }
+
+    public function testConnectionTestToPrivateHostIsBlockedWithGenericError(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox/test', [
+            'imap_host' => '127.0.0.1',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+        ]);
+
+        $response = $this->controller->testMailboxConnection($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        // Generic message: must not leak whether the internal host:port is
+        // open/closed/filtered (SSRF oracle).
+        $this->assertSame('Verbindung fehlgeschlagen: Host ist nicht erreichbar.', $_SESSION['error'] ?? null);
+    }
+
     public function testMissingRequiredFieldSetsErrorAndDoesNotCreateAccount(): void
     {
         $request = $this->makeRequest('POST', '/profile/mailbox', [

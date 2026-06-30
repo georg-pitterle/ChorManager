@@ -60,6 +60,12 @@ class MailBadgeServiceTest extends TestCase
         $this->assertSame($input, $recovered);
     }
 
+    public function testQuoteImapStringRejectsCrlfToPreventCommandInjection(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        MailBadgeService::quoteImapString("user\r\nA2 LOGOUT");
+    }
+
     public function testParseStatusLineExtractsUnseenAndUidnextInGivenOrder(): void
     {
         $line = "* STATUS INBOX (UNSEEN 5 UIDNEXT 124)\r\n";

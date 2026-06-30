@@ -120,6 +120,15 @@ return function (ContainerBuilder $containerBuilder) {
                 3
             );
         },
+        MailBadgeRefreshMiddleware::class => function (ContainerInterface $c) {
+            // Resolve MailBadgeService lazily so a missing/invalid
+            // MAIL_CREDENTIAL_KEY degrades the badge only, instead of throwing
+            // during middleware construction and 500-ing every request.
+            return new MailBadgeRefreshMiddleware(
+                static fn (): MailBadgeService => $c->get(MailBadgeService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         ProjectMemberPolicy::class => \DI\autowire(),
         TaskPolicy::class => \DI\autowire(),
 

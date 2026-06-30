@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\UserMailAccount;
+use App\Util\BlockedHostException;
+use App\Util\OutboundConnectionGuard;
 use Carbon\Carbon;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -59,12 +62,41 @@ class MailBadgeService
         try {
             $password = $this->crypto->decrypt((string) $account->imap_password_enc);
 
-            $scheme = $account->imap_encryption === 'ssl' ? 'ssl' : 'tcp';
-            $remote = $scheme . '://' . $account->imap_host . ':' . $account->imap_port;
+            $host = (string) $account->imap_host;
+            $encryption = (string) $account->imap_encryption;
+
+            try {
+                $validatedIp = OutboundConnectionGuard::resolvePublicIp($host);
+            } catch (BlockedHostException $exception) {
+                $this->logFailure($account);
+                return false;
+            }
+
+            $scheme = $encryption === 'ssl' ? 'ssl' : 'tcp';
+            // Connect to the validated IP (pinned against DNS rebinding) while
+            // verifying TLS against the configured hostname.
+            $ipForUrl = str_contains($validatedIp, ':') ? '[' . $validatedIp . ']' : $validatedIp;
+            $remote = $scheme . '://' . $ipForUrl . ':' . $account->imap_port;
+
+            $context = stream_context_create([
+                'ssl' => [
+                    'peer_name' => $host,
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                    'SNI_enabled' => true,
+                ],
+            ]);
 
             $errno = 0;
             $errstr = '';
-            $socket = @stream_socket_client($remote, $errno, $errstr, (float) $this->connectTimeoutSeconds);
+            $socket = @stream_socket_client(
+                $remote,
+                $errno,
+                $errstr,
+                (float) $this->connectTimeoutSeconds,
+                STREAM_CLIENT_CONNECT,
+                $context
+            );
 
             if ($socket === false) {
                 $this->logFailure($account);
@@ -77,6 +109,33 @@ class MailBadgeService
             if ($greeting === false || !str_starts_with($greeting, '* ')) {
                 $this->logFailure($account);
                 return false;
+            }
+
+            // For STARTTLS accounts, upgrade the plain connection to TLS BEFORE
+            // any credential leaves the process - otherwise LOGIN would travel
+            // in cleartext.
+            if ($encryption === 'tls') {
+                if (!$this->sendCommand($socket, "A0 STARTTLS\r\n")) {
+                    $this->logFailure($account);
+                    return false;
+                }
+
+                if (!$this->readUntilTagged($socket, 'A0 ', 'A0 OK')) {
+                    $this->logFailure($account);
+                    return false;
+                }
+
+                $cryptoEnabled = @stream_socket_enable_crypto(
+                    $socket,
+                    true,
+                    STREAM_CRYPTO_METHOD_TLS_CLIENT
+                    | STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT
+                    | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT
+                );
+                if ($cryptoEnabled !== true) {
+                    $this->logFailure($account);
+                    return false;
+                }
             }
 
             $loginCommand = 'A1 LOGIN ' . self::quoteImapString((string) $account->imap_username)
@@ -128,9 +187,19 @@ class MailBadgeService
     /**
      * Wrap a value in IMAP quoted-string syntax (RFC 3501 §4.3), escaping
      * embedded backslashes and double quotes.
+     *
+     * RFC 3501 forbids CR and LF inside a quoted-string; a value carrying them
+     * could break out of the quotes and inject a separate IMAP command. Such a
+     * value is never legitimate in a username or password, so we fail closed.
+     *
+     * @throws InvalidArgumentException when $value contains CR or LF.
      */
     public static function quoteImapString(string $value): string
     {
+        if (preg_match('/[\r\n]/', $value) === 1) {
+            throw new InvalidArgumentException('IMAP quoted-string must not contain CR or LF.');
+        }
+
         $escaped = str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
 
         return '"' . $escaped . '"';

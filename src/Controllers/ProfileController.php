@@ -14,6 +14,8 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\MailCredentialCryptoService;
 use App\Services\PasswordPolicyService;
+use App\Util\BlockedHostException;
+use App\Util\OutboundConnectionGuard;
 use Psr\Log\LoggerInterface;
 
 class ProfileController
@@ -204,6 +206,14 @@ class ProfileController
             $error = 'Bitte gib einen gültigen Benutzernamen an (max. 255 Zeichen).';
         }
 
+        if ($error === null && self::containsControlChars($imapUsername)) {
+            $error = 'Der Benutzername darf keine Steuerzeichen enthalten.';
+        }
+
+        if ($error === null && $imapPassword !== '' && self::containsControlChars($imapPassword)) {
+            $error = 'Das Passwort darf keine Steuerzeichen enthalten.';
+        }
+
         $existingAccount = UserMailAccount::where('user_id', $userId)->first();
 
         if ($error === null && $imapPassword === '' && !$existingAccount) {
@@ -273,16 +283,44 @@ class ProfileController
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
+        try {
+            $validatedIp = OutboundConnectionGuard::resolvePublicIp($imapHost);
+        } catch (BlockedHostException $e) {
+            $this->logger->warning(
+                'Mailbox connection test blocked: host did not resolve to a public address.',
+                [
+                    'event' => 'mailbox.test.host_blocked',
+                    'user_id' => (int)($_SESSION['user_id'] ?? 0),
+                ]
+            );
+            $_SESSION['error'] = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
         $imapPort = (int)$imapPortRaw;
         $scheme = $imapEncryption === 'ssl' ? 'ssl' : 'tcp';
-        $remote = $scheme . '://' . $imapHost . ':' . $imapPort;
+        // Connect to the validated IP (pinned), but keep TLS peer verification
+        // bound to the original hostname so a rebind cannot redirect us.
+        $ipForUrl = str_contains($validatedIp, ':') ? '[' . $validatedIp . ']' : $validatedIp;
+        $remote = $scheme . '://' . $ipForUrl . ':' . $imapPort;
+
+        $context = stream_context_create([
+            'ssl' => [
+                'peer_name' => $imapHost,
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'SNI_enabled' => true,
+            ],
+        ]);
 
         $errno = 0;
         $errstr = '';
-        $socket = @stream_socket_client($remote, $errno, $errstr, 5.0);
+        $socket = @stream_socket_client($remote, $errno, $errstr, 5.0, STREAM_CLIENT_CONNECT, $context);
 
         if ($socket === false) {
-            $_SESSION['error'] = 'Verbindung fehlgeschlagen: ' . $errstr;
+            // Deliberately generic: do not echo $errstr, which would leak an
+            // open/closed/filtered oracle for the targeted host:port.
+            $_SESSION['error'] = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
@@ -322,6 +360,16 @@ class ProfileController
         }
 
         return null;
+    }
+
+    /**
+     * Reject ASCII control characters (incl. CR/LF/NUL). Credentials carrying
+     * CR/LF would break out of an IMAP quoted-string and inject commands; they
+     * are never valid in a username or password anyway.
+     */
+    private static function containsControlChars(string $value): bool
+    {
+        return preg_match('/[\x00-\x1F\x7F]/', $value) === 1;
     }
 
     private function isCheckboxChecked(array $data, string $key): bool
