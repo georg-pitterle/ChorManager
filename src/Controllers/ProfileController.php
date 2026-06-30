@@ -60,14 +60,43 @@ class ProfileController
         $voiceGroups = VoiceGroup::orderBy('id')->get();
         $subVoices = SubVoice::orderBy('id')->get();
 
+        $mailAccount = $user->mailAccount;
+        $formOld = $_SESSION['mailbox_form_old'] ?? null;
+        unset($_SESSION['mailbox_form_old']);
+
         return $this->view->render($response, 'profile/index.twig', [
             'user' => $user,
             'success' => $success,
             'error' => $error,
             'voice_groups' => $voiceGroups,
             'sub_voices' => $subVoices,
-            'mail_account' => $user->mailAccount
+            'mail_account' => $formOld !== null ? $this->mailboxViewFromOldInput($formOld) : $mailAccount,
+            'has_saved_account' => $mailAccount !== null,
+            'webmail_available' => $mailAccount !== null && (bool)$mailAccount->imap_enabled,
         ]);
+    }
+
+    /**
+     * Rebuilds the mailbox form values from a flashed, failed submission so the
+     * user does not have to retype everything after "Verbindung testen".
+     * Deliberately omits imap_password - never echo a submitted password back.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function mailboxViewFromOldInput(array $data): array
+    {
+        return [
+            'imap_host' => trim((string)($data['imap_host'] ?? '')),
+            'imap_port' => trim((string)($data['imap_port'] ?? '')),
+            'imap_encryption' => trim((string)($data['imap_encryption'] ?? '')),
+            'imap_username' => trim((string)($data['imap_username'] ?? '')),
+            'imap_enabled' => $this->isCheckboxChecked($data, 'imap_enabled'),
+            'mail_badge_enabled' => $this->isCheckboxChecked($data, 'mail_badge_enabled'),
+            'smtp_host' => trim((string)($data['smtp_host'] ?? '')),
+            'smtp_port' => trim((string)($data['smtp_port'] ?? '')),
+            'smtp_encryption' => trim((string)($data['smtp_encryption'] ?? '')),
+        ];
     }
 
     public function updateProfile(Request $request, Response $response): Response
@@ -232,6 +261,7 @@ class ProfileController
     public function testMailboxConnection(Request $request, Response $response): Response
     {
         $data = (array)$request->getParsedBody();
+        $_SESSION['mailbox_form_old'] = array_diff_key($data, ['imap_password' => true]);
 
         $imapHost = trim((string)($data['imap_host'] ?? ''));
         $imapPortRaw = trim((string)($data['imap_port'] ?? ''));

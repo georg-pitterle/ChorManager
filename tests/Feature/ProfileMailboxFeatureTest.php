@@ -22,6 +22,7 @@ final class ProfileMailboxFeatureTest extends TestCase
     private ProfileController $controller;
     private MailCredentialCryptoService $crypto;
     private User $user;
+    private Twig $twigMock;
 
     protected function setUp(): void
     {
@@ -30,9 +31,9 @@ final class ProfileMailboxFeatureTest extends TestCase
 
         $this->crypto = new MailCredentialCryptoService();
 
-        $twig = $this->createMock(Twig::class);
+        $this->twigMock = $this->createMock(Twig::class);
         $this->controller = new ProfileController(
-            $twig,
+            $this->twigMock,
             new UserQuery(),
             new PasswordPolicyService(),
             new NullLogger(),
@@ -258,5 +259,41 @@ final class ProfileMailboxFeatureTest extends TestCase
 
         $this->assertRedirect($response, '/profile');
         $this->assertNotEmpty($_SESSION['error'] ?? null);
+    }
+
+    public function testFailedConnectionTestPrefillsFormOnNextIndexRender(): void
+    {
+        $testRequest = $this->makeRequest('POST', '/profile/mailbox/test', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '99999',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => 'should-not-be-echoed-back',
+            'smtp_host' => 'smtp.example.org',
+            'smtp_port' => '587',
+            'smtp_encryption' => 'tls',
+        ]);
+        $this->controller->testMailboxConnection($testRequest, $this->makeResponse());
+        $this->assertNotEmpty($_SESSION['error'] ?? null);
+
+        $capturedData = null;
+        $this->twigMock->expects($this->once())
+            ->method('render')
+            ->willReturnCallback(function ($response, $template, $data) use (&$capturedData) {
+                $capturedData = $data;
+                return $response;
+            });
+
+        $indexRequest = $this->makeRequest('GET', '/profile');
+        $this->controller->index($indexRequest, $this->makeResponse());
+
+        $this->assertIsArray($capturedData);
+        $this->assertSame('imap.example.org', $capturedData['mail_account']['imap_host']);
+        $this->assertSame('99999', $capturedData['mail_account']['imap_port']);
+        $this->assertSame('smtp.example.org', $capturedData['mail_account']['smtp_host']);
+        $this->assertArrayNotHasKey('imap_password', $capturedData['mail_account']);
+        $this->assertFalse($capturedData['has_saved_account']);
+        $this->assertFalse($capturedData['webmail_available']);
+        $this->assertArrayNotHasKey('mailbox_form_old', $_SESSION);
     }
 }

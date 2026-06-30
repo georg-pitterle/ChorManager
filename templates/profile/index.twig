@@ -235,7 +235,7 @@
                         <div class="mb-3">
                             <label for="imap_password" class="form-label">Passwort</label>
                             <input type="password" class="form-control" id="imap_password" name="imap_password">
-                            {% if mail_account %}
+                            {% if has_saved_account %}
                                 <div class="form-text">Gespeichert – leer lassen, um aktuelles Passwort zu behalten.</div>
                             {% endif %}
                         </div>
@@ -303,9 +303,9 @@
                         </div>
                     </form>
 
-                    {% if mail_account and mail_account.imap_enabled %}
+                    {% if webmail_available %}
                         <hr>
-                        <form action="/profile/webmail/start" method="post">
+                        <form action="/profile/webmail/start" method="post" target="_blank">
                             <div class="d-flex justify-content-end">
                                 <button type="submit" class="btn btn-success">
                                     <i class="bi bi-box-arrow-up-right"></i> Webmail öffnen
