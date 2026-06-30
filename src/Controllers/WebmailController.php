@@ -61,6 +61,9 @@ class WebmailController
             'imap_user' => $account->imap_username,
             'smtp_user' => $account->imap_username,
             'password' => $password,
+            'imap_host' => $account->imap_host,
+            'imap_port' => (int) $account->imap_port,
+            'imap_enc' => $account->imap_encryption,
             'exp' => time() + self::SSO_TOKEN_TTL_SECONDS,
             'jti' => bin2hex(random_bytes(16)),
         ];

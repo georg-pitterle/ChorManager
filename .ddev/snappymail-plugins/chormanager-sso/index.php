@@ -121,6 +121,13 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 			return;
 		}
 
+		$sImapHost = (string) ($aPayload['imap_host'] ?? '');
+		$iImapPort = (int) ($aPayload['imap_port'] ?? 993);
+		$sImapEnc  = (string) ($aPayload['imap_enc'] ?? 'ssl');
+		if ('' !== $sImapHost) {
+			$this->ensureDomainConfig($sEmail, $sImapHost, $iImapPort, $sImapEnc);
+		}
+
 		try {
 			$this->Manager()->Actions()->LoginProcess(
 				$sEmail,
@@ -159,6 +166,109 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 		}
 
 		return $aPayload;
+	}
+
+	/**
+	 * Write (or overwrite) the SnappyMail domain JSON for the email's domain so
+	 * that LoginProcess() connects to the correct IMAP server instead of the
+	 * default localhost:143 fallback.
+	 *
+	 * SnappyMail resolves the IMAP server by loading
+	 * APP_PRIVATE_DATA/domains/{domain}.json at login time. Without this file
+	 * the default.json (localhost:143) is used, causing ConnectionError.
+	 *
+	 * imap_enc mapping (ChorManager → MailSo\Net\Enumerations\ConnectionSecurityType):
+	 *   'ssl'  → 1  (direct TLS, port 993)
+	 *   'tls'  → 2  (STARTTLS, port 143/587)
+	 *   'none' → 0  (plain)
+	 */
+	private function ensureDomainConfig(
+		string $sEmail,
+		string $sImapHost,
+		int $iImapPort,
+		string $sImapEnc
+	): void {
+		$iAtPos = \strrpos($sEmail, '@');
+		if (false === $iAtPos) {
+			return;
+		}
+
+		$sDomain = \substr($sEmail, $iAtPos + 1);
+		// Restrict to valid hostname characters to prevent filesystem path injection.
+		$sSafeDomain = \preg_replace('/[^a-zA-Z0-9.\-]/', '', $sDomain);
+		if ('' === $sSafeDomain || \strlen($sSafeDomain) > 253) {
+			return;
+		}
+
+		$iType = match ($sImapEnc) {
+			'ssl'   => 1,
+			'tls'   => 2,
+			default => 0,
+		};
+
+		$aSslConfig = [
+			'verify_peer'       => true,
+			'verify_peer_name'  => true,
+			'allow_self_signed' => false,
+			'SNI_enabled'       => true,
+			'disable_compression' => true,
+			'security_level'    => 1,
+		];
+
+		$aConfig = [
+			'IMAP' => [
+				'host'            => $sImapHost,
+				'port'            => $iImapPort,
+				'type'            => $iType,
+				'timeout'         => 300,
+				'shortLogin'      => false,
+				'lowerLogin'      => false,
+				'sasl'            => ['PLAIN', 'LOGIN'],
+				'ssl'             => $aSslConfig,
+				'disabled_capabilities' => ['METADATA', 'OBJECTID', 'PREVIEW', 'STATUS=SIZE'],
+				'use_expunge_all_on_delete' => false,
+				'fast_simple_search' => true,
+				'force_select'    => false,
+				'message_all_headers' => false,
+				'message_list_limit' => 10000,
+				'search_filter'   => '',
+			],
+			'SMTP' => [
+				'host'       => 'localhost',
+				'port'       => 25,
+				'type'       => 0,
+				'timeout'    => 60,
+				'shortLogin' => false,
+				'lowerLogin' => false,
+				'sasl'       => ['PLAIN', 'LOGIN'],
+				'ssl'        => (object) [],
+				'useAuth'    => false,
+				'setSender'  => false,
+				'usePhpMail' => false,
+			],
+			'Sieve' => [
+				'host'        => 'localhost',
+				'port'        => 4190,
+				'type'        => 0,
+				'timeout'     => 10,
+				'shortLogin'  => false,
+				'lowerLogin'  => false,
+				'sasl'        => ['PLAIN', 'LOGIN'],
+				'ssl'         => (object) [],
+				'enabled'     => false,
+			],
+		];
+
+		$sDomainFile = \APP_PRIVATE_DATA . 'domains/' . $sSafeDomain . '.json';
+		$sJson = \json_encode($aConfig, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
+		if (false === $sJson) {
+			$this->safeWriteLog('chormanager_sso.domain_config_encode_failed');
+			return;
+		}
+
+		if (false === \file_put_contents($sDomainFile, $sJson)) {
+			$this->safeWriteLog('chormanager_sso.domain_config_write_failed');
+		}
 	}
 
 	private function replayMarkerDir(): string
