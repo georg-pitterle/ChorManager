@@ -117,6 +117,9 @@ final class WebmailControllerFeatureTest extends TestCase
             'imap_host' => 'imap.example.org',
             'imap_port' => 993,
             'imap_encryption' => 'ssl',
+            'smtp_host' => 'smtp.example.org',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
             'imap_username' => $imapUsername,
             'imap_password_enc' => $this->crypto->encrypt($plaintextPassword),
             'imap_enabled' => true,
@@ -146,9 +149,39 @@ final class WebmailControllerFeatureTest extends TestCase
         $this->assertSame($imapUsername, $payload['imap_user']);
         $this->assertSame($imapUsername, $payload['smtp_user']);
         $this->assertSame($plaintextPassword, $payload['password']);
+        $this->assertSame('smtp.example.org', $payload['smtp_host']);
+        $this->assertSame(587, $payload['smtp_port']);
+        $this->assertSame('tls', $payload['smtp_enc']);
         $this->assertGreaterThanOrEqual($beforeTime, $payload['exp']);
         $this->assertLessThanOrEqual(time() + 60, $payload['exp']);
         $this->assertNotEmpty($payload['jti']);
+    }
+
+    public function testStartWithoutSmtpConfigurationOmitsSmtpHostFromToken(): void
+    {
+        UserMailAccount::create([
+            'user_id' => $this->user->id,
+            'imap_host' => 'imap.example.org',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'webmail.tester@example.org',
+            'imap_password_enc' => $this->crypto->encrypt('S3cr3t-Imap-Pass'),
+            'imap_enabled' => true,
+        ]);
+
+        $request = $this->makeRequest('POST', '/profile/webmail/start');
+        $response = $this->controller->start($request, $this->makeResponse());
+
+        $location = $response->getHeaderLine('Location');
+        $encodedToken = substr($location, strpos($location, 'token=') + strlen('token='));
+        $token = rawurldecode($encodedToken);
+
+        $key = base64_decode((string) $_ENV[self::SSO_ENV_KEY], true);
+        $payload = $this->decryptToken($token, $key);
+
+        $this->assertSame('', $payload['smtp_host']);
+        $this->assertSame(0, $payload['smtp_port']);
+        $this->assertSame('', $payload['smtp_enc']);
     }
 
     /**

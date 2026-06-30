@@ -239,6 +239,41 @@
                                 <div class="form-text">Gespeichert – leer lassen, um aktuelles Passwort zu behalten.</div>
                             {% endif %}
                         </div>
+                        <hr class="my-3">
+                        <p class="text-muted small fw-bold text-uppercase mb-2">SMTP (optional, zum Versenden)</p>
+                        <div class="mb-3">
+                            <label for="smtp_host" class="form-label text-muted small fw-bold text-uppercase">SMTP-Host</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="smtp_host"
+                                   name="smtp_host"
+                                   value="{{ mail_account.smtp_host|default('') }}"
+                                   maxlength="255"
+                                   placeholder="z. B. send.one.com">
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label for="smtp_port" class="form-label text-muted small fw-bold text-uppercase">SMTP-Port</label>
+                                <input type="number"
+                                       class="form-control"
+                                       id="smtp_port"
+                                       name="smtp_port"
+                                       value="{{ mail_account.smtp_port|default('') }}"
+                                       placeholder="587"
+                                       min="1"
+                                       max="65535">
+                            </div>
+                            <div class="col-6">
+                                <label for="smtp_encryption" class="form-label text-muted small fw-bold text-uppercase">Verschlüsselung</label>
+                                {% set _smtp_enc = mail_account.smtp_encryption|default('tls') %}
+                                <select class="form-select" id="smtp_encryption" name="smtp_encryption">
+                                    <option value="ssl" {{ _smtp_enc == 'ssl' ? 'selected' : '' }}>SSL</option>
+                                    <option value="tls" {{ _smtp_enc == 'tls' ? 'selected' : '' }}>TLS</option>
+                                    <option value="none" {{ _smtp_enc == 'none' ? 'selected' : '' }}>Keine</option>
+                                </select>
+                            </div>
+                        </div>
+                        <hr class="my-3">
                         <div class="form-check mb-2">
                             <input type="checkbox"
                                    class="form-check-input"

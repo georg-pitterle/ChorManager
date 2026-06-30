@@ -124,8 +124,11 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 		$sImapHost = (string) ($aPayload['imap_host'] ?? '');
 		$iImapPort = (int) ($aPayload['imap_port'] ?? 993);
 		$sImapEnc  = (string) ($aPayload['imap_enc'] ?? 'ssl');
+		$sSmtpHost = (string) ($aPayload['smtp_host'] ?? '');
+		$iSmtpPort = (int) ($aPayload['smtp_port'] ?? 0);
+		$sSmtpEnc  = (string) ($aPayload['smtp_enc'] ?? '');
 		if ('' !== $sImapHost) {
-			$this->ensureDomainConfig($sEmail, $sImapHost, $iImapPort, $sImapEnc);
+			$this->ensureDomainConfig($sEmail, $sImapHost, $iImapPort, $sImapEnc, $sSmtpHost, $iSmtpPort, $sSmtpEnc);
 		}
 
 		try {
@@ -186,7 +189,10 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 		string $sEmail,
 		string $sImapHost,
 		int $iImapPort,
-		string $sImapEnc
+		string $sImapEnc,
+		string $sSmtpHost = '',
+		int $iSmtpPort = 0,
+		string $sSmtpEnc = ''
 	): void {
 		$iAtPos = \strrpos($sEmail, '@');
 		if (false === $iAtPos) {
@@ -234,15 +240,15 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 				'search_filter'   => '',
 			],
 			'SMTP' => [
-				'host'       => 'localhost',
-				'port'       => 25,
-				'type'       => 0,
+				'host'       => '' !== $sSmtpHost ? $sSmtpHost : 'localhost',
+				'port'       => $iSmtpPort > 0 ? $iSmtpPort : 25,
+				'type'       => '' !== $sSmtpHost ? match ($sSmtpEnc) { 'ssl' => 1, 'tls' => 2, default => 0 } : 0,
 				'timeout'    => 60,
 				'shortLogin' => false,
 				'lowerLogin' => false,
 				'sasl'       => ['PLAIN', 'LOGIN'],
-				'ssl'        => (object) [],
-				'useAuth'    => false,
+				'ssl'        => '' !== $sSmtpHost ? $aSslConfig : (object) [],
+				'useAuth'    => '' !== $sSmtpHost,
 				'setSender'  => false,
 				'usePhpMail' => false,
 			],

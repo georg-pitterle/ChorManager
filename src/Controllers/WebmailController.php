@@ -64,6 +64,9 @@ class WebmailController
             'imap_host' => $account->imap_host,
             'imap_port' => (int) $account->imap_port,
             'imap_enc' => $account->imap_encryption,
+            'smtp_host' => $account->smtp_host ?? '',
+            'smtp_port' => (int) ($account->smtp_port ?? 0),
+            'smtp_enc' => $account->smtp_encryption ?? '',
             'exp' => time() + self::SSO_TOKEN_TTL_SECONDS,
             'jti' => bin2hex(random_bytes(16)),
         ];

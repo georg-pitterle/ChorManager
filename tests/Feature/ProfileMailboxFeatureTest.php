@@ -91,6 +91,74 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertSame($plaintextPassword, $this->crypto->decrypt($account->imap_password_enc));
     }
 
+    public function testSmtpFieldsAreSavedWhenProvided(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => 'whatever-password',
+            'smtp_host' => 'smtp.example.org',
+            'smtp_port' => '587',
+            'smtp_encryption' => 'tls',
+        ]);
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $account = UserMailAccount::where('user_id', $this->user->id)->first();
+        $this->assertNotNull($account);
+        $this->assertSame('smtp.example.org', $account->smtp_host);
+        $this->assertSame(587, $account->smtp_port);
+        $this->assertSame('tls', $account->smtp_encryption);
+    }
+
+    public function testSmtpFieldsAreNullWhenSmtpHostIsBlank(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => 'whatever-password',
+            'smtp_host' => '',
+            'smtp_port' => '587',
+            'smtp_encryption' => 'tls',
+        ]);
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $account = UserMailAccount::where('user_id', $this->user->id)->first();
+        $this->assertNotNull($account);
+        $this->assertNull($account->smtp_host);
+        $this->assertNull($account->smtp_port);
+        $this->assertNull($account->smtp_encryption);
+    }
+
+    public function testInvalidSmtpEncryptionWithSmtpHostIsRejectedAsNull(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => 'whatever-password',
+            'smtp_host' => 'smtp.example.org',
+            'smtp_port' => '587',
+            'smtp_encryption' => 'bogus',
+        ]);
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $account = UserMailAccount::where('user_id', $this->user->id)->first();
+        $this->assertNotNull($account);
+        $this->assertSame('smtp.example.org', $account->smtp_host);
+        $this->assertNull($account->smtp_encryption);
+    }
+
     public function testMissingRequiredFieldSetsErrorAndDoesNotCreateAccount(): void
     {
         $request = $this->makeRequest('POST', '/profile/mailbox', [

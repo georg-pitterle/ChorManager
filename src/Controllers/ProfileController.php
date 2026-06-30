@@ -166,6 +166,9 @@ class ProfileController
         $imapEncryption = trim((string)($data['imap_encryption'] ?? ''));
         $imapUsername = trim((string)($data['imap_username'] ?? ''));
         $imapPassword = (string)($data['imap_password'] ?? '');
+        $smtpHost = trim((string)($data['smtp_host'] ?? ''));
+        $smtpPortRaw = trim((string)($data['smtp_port'] ?? ''));
+        $smtpEncryption = trim((string)($data['smtp_encryption'] ?? ''));
 
         $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
         if ($error === null && ($imapUsername === '' || strlen($imapUsername) > 255)) {
@@ -186,10 +189,18 @@ class ProfileController
         $imapEnabled = $this->isCheckboxChecked($data, 'imap_enabled');
         $mailBadgeEnabled = $this->isCheckboxChecked($data, 'mail_badge_enabled');
 
+        $smtpPort = ($smtpPortRaw !== '' && ctype_digit($smtpPortRaw)) ? (int)$smtpPortRaw : null;
+        $validEncryptions = ['ssl', 'tls', 'none'];
+
         $attributes = [
             'imap_host' => $imapHost,
             'imap_port' => (int)$imapPortRaw,
             'imap_encryption' => $imapEncryption,
+            'smtp_host' => $smtpHost !== '' ? $smtpHost : null,
+            'smtp_port' => ($smtpHost !== '' && $smtpPort !== null && $smtpPort >= 1 && $smtpPort <= 65535)
+                ? $smtpPort : null,
+            'smtp_encryption' => ($smtpHost !== '' && in_array($smtpEncryption, $validEncryptions, true))
+                ? $smtpEncryption : null,
             'imap_username' => $imapUsername,
             'imap_enabled' => $imapEnabled,
             'mail_badge_enabled' => $mailBadgeEnabled,
