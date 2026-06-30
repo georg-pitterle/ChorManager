@@ -9,28 +9,35 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Queries\UserQuery;
 use App\Models\User;
+use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
+use App\Services\MailCredentialCryptoService;
 use App\Services\PasswordPolicyService;
 use Psr\Log\LoggerInterface;
 
 class ProfileController
 {
+    private const IMAP_ENCRYPTIONS = ['ssl', 'tls', 'none'];
+
     private Twig $view;
     private UserQuery $userQuery;
     private PasswordPolicyService $passwordPolicyService;
     private LoggerInterface $logger;
+    private MailCredentialCryptoService $crypto;
 
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
         PasswordPolicyService $passwordPolicyService,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        MailCredentialCryptoService $crypto
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
         $this->passwordPolicyService = $passwordPolicyService;
         $this->logger = $logger;
+        $this->crypto = $crypto;
     }
 
     public function index(Request $request, Response $response): Response
@@ -58,7 +65,8 @@ class ProfileController
             'success' => $success,
             'error' => $error,
             'voice_groups' => $voiceGroups,
-            'sub_voices' => $subVoices
+            'sub_voices' => $subVoices,
+            'mail_account' => $user->mailAccount
         ]);
     }
 
@@ -146,5 +154,143 @@ class ProfileController
         $_SESSION['success'] = 'Dein Passwort wurde erfolgreich aktualisiert.';
 
         return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
+    public function updateMailbox(Request $request, Response $response): Response
+    {
+        $userId = (int)$_SESSION['user_id'];
+        $data = (array)$request->getParsedBody();
+
+        $imapHost = trim((string)($data['imap_host'] ?? ''));
+        $imapPortRaw = trim((string)($data['imap_port'] ?? ''));
+        $imapEncryption = trim((string)($data['imap_encryption'] ?? ''));
+        $imapUsername = trim((string)($data['imap_username'] ?? ''));
+        $imapPassword = (string)($data['imap_password'] ?? '');
+
+        $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
+        if ($error === null && ($imapUsername === '' || strlen($imapUsername) > 255)) {
+            $error = 'Bitte gib einen gültigen Benutzernamen an (max. 255 Zeichen).';
+        }
+
+        $existingAccount = UserMailAccount::where('user_id', $userId)->first();
+
+        if ($error === null && $imapPassword === '' && !$existingAccount) {
+            $error = 'Bitte gib ein Passwort für den Mailbox-Zugang an.';
+        }
+
+        if ($error !== null) {
+            $_SESSION['error'] = $error;
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        $imapEnabled = $this->isCheckboxChecked($data, 'imap_enabled');
+        $mailBadgeEnabled = $this->isCheckboxChecked($data, 'mail_badge_enabled');
+
+        $attributes = [
+            'imap_host' => $imapHost,
+            'imap_port' => (int)$imapPortRaw,
+            'imap_encryption' => $imapEncryption,
+            'imap_username' => $imapUsername,
+            'imap_enabled' => $imapEnabled,
+            'mail_badge_enabled' => $mailBadgeEnabled,
+        ];
+
+        if ($imapPassword !== '') {
+            $attributes['imap_password_enc'] = $this->crypto->encrypt($imapPassword);
+        }
+
+        try {
+            UserMailAccount::updateOrCreate(['user_id' => $userId], $attributes);
+
+            $_SESSION['success'] = 'Mailbox-Einstellungen wurden gespeichert.';
+        } catch (\Exception $e) {
+            $this->logger->error(
+                'Mail account update failed.',
+                [
+                    'event' => 'mail_account.update.failed',
+                    'user_id' => $userId,
+                    'exception' => $e,
+                ]
+            );
+            $_SESSION['error'] = 'Fehler beim Speichern der Mailbox-Einstellungen.';
+        }
+
+        return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
+    public function testMailboxConnection(Request $request, Response $response): Response
+    {
+        $data = (array)$request->getParsedBody();
+
+        $imapHost = trim((string)($data['imap_host'] ?? ''));
+        $imapPortRaw = trim((string)($data['imap_port'] ?? ''));
+        $imapEncryption = trim((string)($data['imap_encryption'] ?? ''));
+
+        $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
+        if ($error !== null) {
+            $_SESSION['error'] = $error;
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        $imapPort = (int)$imapPortRaw;
+        $scheme = $imapEncryption === 'ssl' ? 'ssl' : 'tcp';
+        $remote = $scheme . '://' . $imapHost . ':' . $imapPort;
+
+        $errno = 0;
+        $errstr = '';
+        $socket = @stream_socket_client($remote, $errno, $errstr, 5.0);
+
+        if ($socket === false) {
+            $_SESSION['error'] = 'Verbindung fehlgeschlagen: ' . $errstr;
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        stream_set_timeout($socket, 5);
+        $greeting = fgets($socket, 512);
+        fclose($socket);
+
+        if ($greeting !== false && str_starts_with($greeting, '* ')) {
+            $_SESSION['success'] = 'Verbindung erfolgreich.';
+        } else {
+            $_SESSION['error'] = 'Verbindung fehlgeschlagen: keine gültige IMAP-Antwort erhalten.';
+        }
+
+        return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
+    private function validateMailboxConnectionFields(
+        string $imapHost,
+        string $imapPortRaw,
+        string $imapEncryption
+    ): ?string {
+        if ($imapHost === '' || strlen($imapHost) > 255 || preg_match('/\s/', $imapHost)) {
+            return 'Bitte gib einen gültigen Host ohne Leerzeichen an (max. 255 Zeichen).';
+        }
+
+        if ($imapPortRaw === '' || !ctype_digit($imapPortRaw)) {
+            return 'Bitte gib einen gültigen Port an.';
+        }
+
+        $imapPort = (int)$imapPortRaw;
+        if ($imapPort < 1 || $imapPort > 65535) {
+            return 'Der Port muss zwischen 1 und 65535 liegen.';
+        }
+
+        if (!in_array($imapEncryption, self::IMAP_ENCRYPTIONS, true)) {
+            return 'Bitte wähle eine gültige Verschlüsselung (SSL, TLS oder Keine).';
+        }
+
+        return null;
+    }
+
+    private function isCheckboxChecked(array $data, string $key): bool
+    {
+        if (!array_key_exists($key, $data)) {
+            return false;
+        }
+
+        $value = $data[$key];
+
+        return $value === '1' || $value === 'on' || $value === true || $value === 1;
     }
 }

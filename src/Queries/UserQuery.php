@@ -20,7 +20,7 @@ class UserQuery
 
     public function findById(int $id): ?User
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
+        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'mailAccount'])
             ->find($id);
     }
 

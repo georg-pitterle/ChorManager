@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use App\Util\AppEnvironment;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
+use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Middleware\MailQueueProcessingMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
 use Slim\Exception\HttpNotFoundException;
@@ -70,5 +71,6 @@ return function (App $app): void {
     $app->add(HtmlFormCsrfInjectorMiddleware::class);
     $app->add(CsrfMiddleware::class);
     $app->add(MailQueueProcessingMiddleware::class);
+    $app->add(MailBadgeRefreshMiddleware::class);
     $app->add(SecurityHeadersMiddleware::class);
 };
