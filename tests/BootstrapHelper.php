@@ -17,6 +17,12 @@ class Bootstrap
     public static function setupTestDatabase(): void
     {
         if (self::$capsule !== null) {
+            // Re-assert as global: some tests (e.g. PasswordResetFeatureTest)
+            // swap the global Eloquent connection to an in-memory SQLite
+            // Capsule for an isolated scenario and never restore it, which
+            // would otherwise leak into every test that runs afterward.
+            self::$capsule->setAsGlobal();
+            self::$capsule->bootEloquent();
             return;
         }
 
