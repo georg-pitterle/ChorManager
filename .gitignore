@@ -1,6 +1,7 @@
 .vscode/
 vendor/
 .env
+.ddev/.env*
 ChorManager.code-workspace
 .twig-cs-fixer.cache
 .playwright-mcp/

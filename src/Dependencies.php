@@ -33,6 +33,8 @@ use App\Commands\CreateBackupCommand;
 use App\Services\BackupService;
 use App\Services\DumpRunnerInterface;
 use App\Services\MysqldumpRunner;
+use App\Services\MailBadgeService;
+use App\Services\MailCredentialCryptoService;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
@@ -110,6 +112,23 @@ return function (ContainerBuilder $containerBuilder) {
         SheetArchiveService::class => function (ContainerInterface $c) {
             return new SheetArchiveService();
         },
+        MailCredentialCryptoService::class => \DI\autowire(),
+        MailBadgeService::class => function (ContainerInterface $c) {
+            return new MailBadgeService(
+                $c->get(MailCredentialCryptoService::class),
+                $c->get(LoggerInterface::class),
+                3
+            );
+        },
+        MailBadgeRefreshMiddleware::class => function (ContainerInterface $c) {
+            // Resolve MailBadgeService lazily so a missing/invalid
+            // MAIL_CREDENTIAL_KEY degrades the badge only, instead of throwing
+            // during middleware construction and 500-ing every request.
+            return new MailBadgeRefreshMiddleware(
+                static fn (): MailBadgeService => $c->get(MailBadgeService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         ProjectMemberPolicy::class => \DI\autowire(),
         TaskPolicy::class => \DI\autowire(),
 
@@ -150,6 +169,25 @@ return function (ContainerBuilder $containerBuilder) {
                 $appSettings = [];
             }
             $environment->addGlobal('app_settings', $appSettings);
+
+            // Add the current user's cached unread-mail badge count to Twig
+            try {
+                $mailBadgeUnseenCount = null;
+                if (isset($_SESSION['user_id'])) {
+                    $mailAccount = \App\Models\UserMailAccount::where('user_id', (int) $_SESSION['user_id'])
+                        ->first();
+                    if (
+                        $mailAccount !== null
+                        && $mailAccount->imap_enabled
+                        && $mailAccount->mail_badge_enabled
+                    ) {
+                        $mailBadgeUnseenCount = (int) $mailAccount->mail_last_unseen_count;
+                    }
+                }
+            } catch (\Exception $e) {
+                $mailBadgeUnseenCount = null;
+            }
+            $environment->addGlobal('mail_badge_unseen_count', $mailBadgeUnseenCount);
 
             $publicRoot = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public';
 
