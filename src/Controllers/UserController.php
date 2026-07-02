@@ -188,6 +188,9 @@ class UserController
             }
         }
 
+        // Never allow assigning a role that outranks the actor's own hierarchy level.
+        $roleIds = $this->capRoleIdsToActorLevel($roleIds);
+
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
             $createService = new ModalFormService('user_create');
             $createService->setError('Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).', $formData);
@@ -266,6 +269,14 @@ class UserController
         $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
         $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
 
+        // Nobody may modify a member who outranks them in the role hierarchy - not even global
+        // user managers. This prevents lower-ranked admins from hijacking higher-ranked accounts
+        // (e.g. resetting an Obmann's password or e-mail from a lower administrative role).
+        if ($this->outranksActor($targetUser)) {
+            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
         if (!$canEditGlobal && !$canManageProjectMembers) {
             if ($userLevel < 40 || !$isInMyGroup) {
@@ -314,6 +325,10 @@ class UserController
                 }
             }
         }
+
+        // Never allow assigning a role that outranks the actor's own hierarchy level,
+        // regardless of whether the actor is a global user manager.
+        $roleIds = $this->capRoleIdsToActorLevel($roleIds);
 
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
             $editService = new ModalFormService('user_edit_' . $userId);
@@ -423,6 +438,11 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
+        if ($this->outranksActor($targetUser)) {
+            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
         $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
         $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
 
@@ -506,6 +526,11 @@ class UserController
             return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
         }
 
+        if ($this->outranksActor($targetUser)) {
+            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied wiederherzustellen.';
+            return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
+        }
+
         $targetUser->is_active = 1;
         $this->userPersistence->save($targetUser);
 
@@ -526,8 +551,60 @@ class UserController
             ->all();
     }
 
+    /**
+     * Highest role hierarchy level currently held by the target user.
+     */
+    private function targetHierarchyLevel(User $targetUser): int
+    {
+        $max = 0;
+        foreach ($targetUser->roles as $role) {
+            $level = (int) ($role->hierarchy_level ?? 0);
+            if ($level > $max) {
+                $max = $level;
+            }
+        }
+
+        return $max;
+    }
+
+    /**
+     * True when the target user holds a role that outranks the acting user's own level.
+     */
+    private function outranksActor(User $targetUser): bool
+    {
+        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
+
+        return $this->targetHierarchyLevel($targetUser) > $actorLevel;
+    }
+
+    /**
+     * Restrict the given role ids to those at or below the acting user's hierarchy level,
+     * preventing privilege escalation by assigning roles that outrank the actor.
+     *
+     * @param array<int|string> $roleIds
+     * @return array<int>
+     */
+    private function capRoleIdsToActorLevel(array $roleIds): array
+    {
+        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
+
+        $allowedIds = Role::where('hierarchy_level', '<=', $actorLevel)
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+
+        return array_values(array_intersect(
+            array_map('intval', $roleIds),
+            $allowedIds
+        ));
+    }
+
     private function canDeactivateTargetUser(User $targetUser): bool
     {
+        if ($this->outranksActor($targetUser)) {
+            return false;
+        }
+
         $canEditGlobal = (bool) ($_SESSION['can_edit_users'] ?? false);
         if ($canEditGlobal) {
             return true;
@@ -553,6 +630,11 @@ class UserController
         if (!$targetUser) {
             $response->getBody()->write(json_encode(['success' => false, 'message' => 'Nutzer nicht gefunden.']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+        }
+
+        if ($this->outranksActor($targetUser)) {
+            $response->getBody()->write(json_encode(['success' => false, 'message' => 'Keine Berechtigung.']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
         if (!$canManageUsers) {

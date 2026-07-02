@@ -77,6 +77,12 @@ class RoleController
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
 
+        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
+        if ($hierarchyLevel > $actorLevel) {
+            $_SESSION['error'] = 'Du kannst keine Rolle oberhalb deines eigenen Levels anlegen.';
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
+
         try {
             Role::create([
                 'name' => $name,
@@ -122,8 +128,22 @@ class RoleController
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
 
+        $existingRole = Role::find($roleId);
+        if (!$existingRole) {
+            $_SESSION['error'] = 'Rolle nicht gefunden.';
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
+
+        // A user administrator may neither modify a role that already outranks their own
+        // hierarchy level nor lift a role above it - both would be a privilege escalation.
+        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
+        if ((int) $existingRole->hierarchy_level > $actorLevel || $hierarchyLevel > $actorLevel) {
+            $_SESSION['error'] = 'Du kannst keine Rolle oberhalb deines eigenen Levels bearbeiten.';
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
+
         try {
-            $role = Role::findOrFail($roleId);
+            $role = $existingRole;
             $role->update([
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,

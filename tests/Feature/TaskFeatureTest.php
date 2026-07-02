@@ -73,8 +73,8 @@ class TaskFeatureTest extends TestCase
     {
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertStringContainsString("->add(new RoleMiddleware", $routesContent);
-        // Verify requiresTaskManagement parameter (9th parameter, index 8)
-        $taskMiddlewareSignature = "new RoleMiddleware(false, 0, false, false, false, false, false, false, true)";
+        // Verify the task routes are gated by the dedicated task-management permission.
+        $taskMiddlewareSignature = "new RoleMiddleware(requiresTaskManagement: true)";
         $this->assertStringContainsString($taskMiddlewareSignature, $routesContent);
         $this->assertGreaterThanOrEqual(2, substr_count($routesContent, $taskMiddlewareSignature));
     }

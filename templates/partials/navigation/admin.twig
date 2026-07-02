@@ -10,10 +10,12 @@
                     <a class="dropdown-item {% if nav_active(path, nav, ['/projects'], ['projects']) %}active{% endif %}"
                        href="/projects"><i class="bi bi-folder-fill me-2"></i> Projekte</a>
                 </li>
-                <li>
-                    <a class="dropdown-item {% if nav_active(path, nav, ['/roles'], ['roles']) %}active{% endif %}"
-                       href="/roles"><i class="bi bi-shield-lock-fill me-2"></i> Rollen</a>
-                </li>
+                {% if session.can_manage_users %}
+                    <li>
+                        <a class="dropdown-item {% if nav_active(path, nav, ['/roles'], ['roles']) %}active{% endif %}"
+                           href="/roles"><i class="bi bi-shield-lock-fill me-2"></i> Rollen</a>
+                    </li>
+                {% endif %}
                 <li>
                     <a class="dropdown-item {% if nav_active(path, nav, ['/voice-groups'], ['voice_groups']) %}active{% endif %}"
                        href="/voice-groups"><i class="bi bi-music-note-beamed me-2"></i> Stimmgruppen</a>

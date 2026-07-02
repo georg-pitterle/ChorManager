@@ -26,7 +26,7 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertStringContainsString("'/{id:[0-9]+}', [SongLibraryController::class, 'show']", $routesContent);
         $this->assertStringContainsString("'/songs/{id:[0-9]+}/attachments'", $routesContent);
         $this->assertStringContainsString(
-            'new RoleMiddleware(false, 0, false, false, false, false, false, true)',
+            'new RoleMiddleware(requiresSongLibraryManagement: true)',
             $routesContent
         );
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/songs/manage.twig'));
