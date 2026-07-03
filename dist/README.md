@@ -52,8 +52,20 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `REMEMBER_ME_DAYS`     | Remember-me cookie lifetime in days    | `30`            | No       |
 | `CLIENT_MAX_BODY_SIZE` | Nginx request body limit for uploads   | `100m`          | No       |
 | `TZ`                   | Container timezone                     | `Europe/Vienna` | No       |
+| `MAIL_CREDENTIAL_KEY`     | Encrypts stored IMAP passwords at rest (`openssl rand -base64 32`)   | -               | **Yes**  |
+| `SNAPPYMAIL_SSO_SECRET`   | Shared secret app ⇄ SnappyMail plugin (`openssl rand -base64 32`)    | -               | **Yes**  |
+| `APP_URL`                 | Public HTTPS URL, used for the webmail SSO redirect                  | -               | **Yes**  |
+| `MAIL_ALLOW_PRIVATE_HOSTS`| Allow IMAP hosts on private/loopback networks (SSRF guard opt-out)   | `0`             | No       |
+| `SNAPPYMAIL_UPLOAD_MAX_SIZE` | Upload limit inside the SnappyMail container                     | `25M`           | No       |
+| `SNAPPYMAIL_MEMORY_LIMIT` | PHP memory limit inside the SnappyMail container                     | `128M`          | No       |
 
 SMTP is configured exclusively via environment variables. It is no longer managed in the application UI.
+
+The mailbox / webmail feature is separate from the transactional SMTP above:
+`MAIL_CREDENTIAL_KEY` protects each user's stored IMAP credentials, and
+`SNAPPYMAIL_SSO_SECRET` secures the single-sign-on hand-off into the SnappyMail
+container. `MAIL_CREDENTIAL_KEY` is required as soon as the mailbox settings are
+visible in the profile, even if you do not deploy the SnappyMail container.
 
 ## SWAG Reverse Proxy Example
 
@@ -85,6 +97,51 @@ Adjust `server_name` to your real hostname and reload SWAG afterwards.
 
 If you set `CLIENT_MAX_BODY_SIZE` in this stack, keep the SWAG `client_max_body_size` at least as high.
 The effective upload limit is the smallest limit in the proxy chain.
+
+## Webmail (SnappyMail)
+
+The mailbox feature lets each user open a webmail client (SnappyMail) that logs
+straight into their IMAP mailbox via a short-lived single-sign-on token.
+
+- The SnappyMail image `ghcr.io/<owner>/chormanager-snappymail:latest` is built
+  automatically by the GitHub Actions workflow, alongside `app` and `web`. The
+  `chormanager-sso` SSO plugin is baked into it (source: `dist/snappymail/`), so
+  no host-side bind-mounts are needed - it works from the Portainer web editor.
+- Add the `snappymail` service to the stack on the `proxy` network (it needs
+  outbound access to reach IMAP/SMTP servers, so it must NOT sit on the
+  internal-only network), plus a `snappymail_data` named volume.
+- Set `MAIL_CREDENTIAL_KEY`, `SNAPPYMAIL_SSO_SECRET` and `APP_URL` (see the table
+  above). `SNAPPYMAIL_SSO_SECRET` is consumed by both `app` and `snappymail`
+  from the same variable, so the two sides always match.
+
+Route `/webmail/` to SnappyMail in your existing SWAG proxy config (same
+`server_name` as the app, so the SSO stays same-origin), before the `location /`
+block:
+
+```nginx
+    location /webmail/ {
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set $upstream_sm chormanager-snappymail-prod;
+        proxy_pass http://$upstream_sm:8888/;
+    }
+
+    location /snappymail/ {
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set $upstream_sm chormanager-snappymail-prod;
+        proxy_pass http://$upstream_sm:8888/snappymail/;
+    }
+```
+
+`/webmail/` serves the SnappyMail shell (prefix stripped); `/snappymail/` passes
+its version-pinned static assets straight through. The SnappyMail admin password
+is auto-generated on first boot inside the volume; retrieve it if needed with:
+
+```bash
+docker compose -f docker-compose.prod.yml exec snappymail \
+  cat /var/lib/snappymail/_data_/_default_/admin_password.txt
+```
 
 ## Operational Notes
 

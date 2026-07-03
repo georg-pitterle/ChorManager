@@ -12,9 +12,18 @@ x-app-environment: &app-environment
   SMTP_PASSWORD: ${SMTP_PASSWORD:?set in Portainer}
   SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
   SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:?set in Portainer}
-  SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Chor-Manager}
+  SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Chor Manager}
   REMEMBER_ME_DAYS: ${REMEMBER_ME_DAYS:-30}
   TZ: ${TZ:-Europe/Vienna}
+  DISABLE_MAIL_SEND: ${DISABLE_MAIL_SEND:-true}
+  APP_LOG_STREAM: ${APP_LOG_STREAM:-php://stderr}
+  FEATURE_SHEET_ARCHIVE: ${FEATURE_SHEET_ARCHIVE:-false}
+  FEATURE_BUDGET: ${FEATURE_BUDGET:-false}
+  # Mailbox / SnappyMail webmail feature
+  MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
+  SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
+  APP_URL: ${APP_URL:?set in Portainer}
+  MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-0}
 
 services:
   app:
@@ -23,7 +32,8 @@ services:
     working_dir: /var/www/html
     environment: *app-environment
     depends_on:
-      - db
+      db:
+        condition: service_healthy 
     networks:
       internal:
         aliases:
@@ -61,7 +71,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}" ]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -79,9 +89,6 @@ services:
     image: ghcr.io/georg-pitterle/chormanager-web:latest
     hostname: chormanager-web-prod
     restart: unless-stopped
-    environment:
-      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-100m}
-      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
     depends_on:
       - app
     networks:
@@ -91,10 +98,7 @@ services:
           - chormanager-web-prod
     expose:
       - "80"
-    volumes:
-      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     tmpfs:
-      - /etc/nginx/conf.d
       - /var/cache/nginx
       - /var/run
       - /tmp
@@ -111,10 +115,39 @@ services:
       driver: json-file
       options:
         max-size: "10m"
+        max-file: "3"   
+  snappymail:
+    image: ghcr.io/georg-pitterle/chormanager-snappymail:latest
+    restart: unless-stopped
+    environment:
+      UPLOAD_MAX_SIZE: ${SNAPPYMAIL_UPLOAD_MAX_SIZE:-25M}
+      MEMORY_LIMIT: ${SNAPPYMAIL_MEMORY_LIMIT:-128M}
+      SECURE_COOKIES: "true"
+      SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
+    volumes:
+      - snappymail_data:/var/lib/snappymail
+    networks:
+      proxy:
+        aliases:
+          - chormanager-snappymail-prod
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8888/ || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
         max-file: "3"
 
 volumes:
   db_data:
+  snappymail_data:
+
 
 networks:
   internal:
