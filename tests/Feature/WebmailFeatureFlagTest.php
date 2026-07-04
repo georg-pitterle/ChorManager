@@ -145,4 +145,21 @@ final class WebmailFeatureFlagTest extends TestCase
         // Fall 3: Flag aus, keine URL -> reiner Indikator ohne Form/Link.
         $this->assertStringContainsString('title="Ungelesene Nachrichten"', $template);
     }
+
+    public function testEnvExamplesDocumentFeatureWebmail(): void
+    {
+        $root = dirname(__DIR__, 2);
+
+        $devEnv = file_get_contents($root . '/.env.example');
+        $this->assertIsString($devEnv);
+        $this->assertStringContainsString('FEATURE_WEBMAIL=', $devEnv);
+
+        $prodEnv = file_get_contents($root . '/dist/.env.example');
+        $this->assertIsString($prodEnv);
+        $this->assertStringContainsString('FEATURE_WEBMAIL=', $prodEnv);
+
+        $compose = file_get_contents($root . '/dist/docker-compose.prod.yml');
+        $this->assertIsString($compose);
+        $this->assertStringContainsString('FEATURE_WEBMAIL: ${FEATURE_WEBMAIL:-false}', $compose);
+    }
 }

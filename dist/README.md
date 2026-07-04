@@ -103,6 +103,11 @@ The effective upload limit is the smallest limit in the proxy chain.
 The mailbox feature lets each user open a webmail client (SnappyMail) that logs
 straight into their IMAP mailbox via a short-lived single-sign-on token.
 
+> **Optional:** SnappyMail ist per `FEATURE_WEBMAIL` steuerbar (Default `false`).
+> Bei `FEATURE_WEBMAIL=false` kann der `snappymail`-Service samt
+> `SNAPPYMAIL_SSO_SECRET` komplett entfallen; Benutzer können stattdessen im
+> Profil eine externe Webmail-URL hinterlegen, auf die das Mail-Badge verlinkt.
+
 - The SnappyMail image `ghcr.io/<owner>/chormanager-snappymail:latest` is built
   automatically by the GitHub Actions workflow, alongside `app` and `web`. The
   `chormanager-sso` SSO plugin is baked into it (source: `dist/snappymail/`), so

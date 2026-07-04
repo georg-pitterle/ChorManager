@@ -19,6 +19,7 @@ x-app-environment: &app-environment
   APP_LOG_STREAM: ${APP_LOG_STREAM:-php://stderr}
   FEATURE_SHEET_ARCHIVE: ${FEATURE_SHEET_ARCHIVE:-false}
   FEATURE_BUDGET: ${FEATURE_BUDGET:-false}
+  FEATURE_WEBMAIL: ${FEATURE_WEBMAIL:-false}
   # Mailbox / SnappyMail webmail feature
   MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
   SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
