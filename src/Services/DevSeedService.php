@@ -1378,6 +1378,7 @@ class DevSeedService
                     'imap_password_enc' => $crypto->encrypt('dev-seed-' . bin2hex(random_bytes(6))),
                     'imap_enabled' => true,
                     'mail_badge_enabled' => true,
+                    'external_webmail_url' => $index % 2 === 0 ? 'https://webmail.example.org/' : null,
                     'mail_last_unseen_count' => $unseenCount,
                     'mail_last_uid_seen' => $lastUidSeen,
                     'mail_last_checked_at' => $lastCheckedAt,
