@@ -120,4 +120,29 @@ final class WebmailFeatureFlagTest extends TestCase
         $this->assertStringContainsString('{% set _external_url =', $template);
         $this->assertStringContainsString('rel="noopener noreferrer"', $template);
     }
+
+    public function testDependenciesExposeExternalWebmailUrlGlobal(): void
+    {
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Dependencies.php');
+        $this->assertIsString($content);
+        $this->assertStringContainsString("addGlobal('mail_external_webmail_url'", $content);
+    }
+
+    public function testUserMenuBadgeCoversAllThreeWebmailCases(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/user_menu.twig');
+        $this->assertIsString($template);
+
+        // Fall 1: Flag an -> SSO-Formular.
+        $this->assertStringContainsString('{% if settings.modules.webmail %}', $template);
+        $this->assertStringContainsString('action="/profile/webmail/start"', $template);
+
+        // Fall 2: Flag aus + externe URL -> Link.
+        $this->assertStringContainsString('{% elseif mail_external_webmail_url %}', $template);
+        $this->assertStringContainsString('href="{{ mail_external_webmail_url }}"', $template);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $template);
+
+        // Fall 3: Flag aus, keine URL -> reiner Indikator ohne Form/Link.
+        $this->assertStringContainsString('title="Ungelesene Nachrichten"', $template);
+    }
 }

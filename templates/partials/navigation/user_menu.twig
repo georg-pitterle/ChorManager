@@ -1,13 +1,28 @@
 {% if mail_badge_unseen_count is not null and mail_badge_unseen_count > 0 %}
-    <form action="/profile/webmail/start" method="post" class="m-0 me-3">
-        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-        <button type="submit" class="btn btn-link text-white p-0 mail-badge-trigger" title="Postfach öffnen">
+    {% set _badge_label = mail_badge_unseen_count > 99 ? "99+" : mail_badge_unseen_count %}
+    {% if settings.modules.webmail %}
+        <form action="/profile/webmail/start" method="post" class="m-0 me-3">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-link text-white p-0 mail-badge-trigger" title="Postfach öffnen">
+                <i class="bi bi-envelope-fill fs-5"></i>
+                <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+            </button>
+        </form>
+    {% elseif mail_external_webmail_url %}
+        <a href="{{ mail_external_webmail_url }}"
+           class="btn btn-link text-white p-0 mail-badge-trigger me-3"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="Postfach öffnen">
             <i class="bi bi-envelope-fill fs-5"></i>
-            <span class="badge bg-danger rounded-pill mail-badge-count">
-                {{ mail_badge_unseen_count > 99 ? "99+" : mail_badge_unseen_count }}
-            </span>
-        </button>
-    </form>
+            <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+        </a>
+    {% else %}
+        <span class="text-white me-3 mail-badge-trigger" title="Ungelesene Nachrichten">
+            <i class="bi bi-envelope-fill fs-5"></i>
+            <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+        </span>
+    {% endif %}
 {% endif %}
 <div class="d-flex align-items-center text-white dropdown">
     <a href="#"
