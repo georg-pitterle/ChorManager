@@ -98,6 +98,7 @@ class ProfileController
             'smtp_host' => trim((string)($data['smtp_host'] ?? '')),
             'smtp_port' => trim((string)($data['smtp_port'] ?? '')),
             'smtp_encryption' => trim((string)($data['smtp_encryption'] ?? '')),
+            'external_webmail_url' => trim((string)($data['external_webmail_url'] ?? '')),
         ];
     }
 
@@ -200,6 +201,8 @@ class ProfileController
         $smtpHost = trim((string)($data['smtp_host'] ?? ''));
         $smtpPortRaw = trim((string)($data['smtp_port'] ?? ''));
         $smtpEncryption = trim((string)($data['smtp_encryption'] ?? ''));
+        $hasExternalWebmailUrl = array_key_exists('external_webmail_url', $data);
+        $externalWebmailUrl = $hasExternalWebmailUrl ? trim((string)$data['external_webmail_url']) : '';
 
         $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
         if ($error === null && ($imapUsername === '' || strlen($imapUsername) > 255)) {
@@ -212,6 +215,10 @@ class ProfileController
 
         if ($error === null && $imapPassword !== '' && self::containsControlChars($imapPassword)) {
             $error = 'Das Passwort darf keine Steuerzeichen enthalten.';
+        }
+
+        if ($error === null && $externalWebmailUrl !== '') {
+            $error = self::validateExternalWebmailUrl($externalWebmailUrl);
         }
 
         $existingAccount = UserMailAccount::where('user_id', $userId)->first();
@@ -244,6 +251,10 @@ class ProfileController
             'imap_enabled' => $imapEnabled,
             'mail_badge_enabled' => $mailBadgeEnabled,
         ];
+
+        if ($hasExternalWebmailUrl) {
+            $attributes['external_webmail_url'] = $externalWebmailUrl !== '' ? $externalWebmailUrl : null;
+        }
 
         if ($imapPassword !== '') {
             $attributes['imap_password_enc'] = $this->crypto->encrypt($imapPassword);
@@ -357,6 +368,20 @@ class ProfileController
 
         if (!in_array($imapEncryption, self::IMAP_ENCRYPTIONS, true)) {
             return 'Bitte wähle eine gültige Verschlüsselung (SSL, TLS oder Keine).';
+        }
+
+        return null;
+    }
+
+    /**
+     * Externe Webmail-URL: nur http(s), gültige URL, max. 255 Zeichen.
+     * Liefert null bei gültiger Eingabe, sonst die Fehlermeldung.
+     */
+    private static function validateExternalWebmailUrl(string $url): ?string
+    {
+        $isHttp = str_starts_with($url, 'https://') || str_starts_with($url, 'http://');
+        if (!$isHttp || strlen($url) > 255 || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return 'Bitte gib eine gültige Webmail-URL an (http:// oder https://, max. 255 Zeichen).';
         }
 
         return null;
