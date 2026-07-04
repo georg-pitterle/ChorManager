@@ -11,45 +11,34 @@ use App\Models\Finance;
 use App\Models\FinanceGroup;
 use App\Models\Attachment;
 use App\Models\Setting;
+use App\Services\BudgetService;
 use Carbon\Carbon;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 use App\Util\UploadValidator;
 
 class FinanceController
 {
     private Twig $view;
+    private BudgetService $budgetService;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, BudgetService $budgetService, LoggerInterface $logger)
     {
         $this->view = $view;
+        $this->budgetService = $budgetService;
+        $this->logger = $logger;
     }
 
     private function getFiscalConfig(): array
     {
-        $setting = Setting::find('fiscal_year_start');
-        $startStr = $setting ? $setting->setting_value : '01.09.';
-        $parts = explode('.', $startStr);
-        $day = (int) ($parts[0] ?? 1);
-        $month = (int) ($parts[1] ?? 9);
-        // Guard against malformed settings so date math cannot overflow.
-        if ($month < 1 || $month > 12) {
-            $month = 9;
-        }
-        if ($day < 1 || $day > 31) {
-            $day = 1;
-        }
-        return [$day, $month, $startStr];
+        return $this->budgetService->getFiscalConfig();
     }
 
     private function datesForYear(int $startYear, int $day, int $month): array
     {
-        // Clamp the day to the target month length to avoid Carbon overflow on an
-        // invalid fiscal day (e.g. 31 in April, 29.02 in a non-leap year).
-        $startDay = min($day, (int) Carbon::create($startYear, $month, 1)->daysInMonth);
-        $endDay = min($day, (int) Carbon::create($startYear + 1, $month, 1)->daysInMonth);
-        $start = Carbon::create($startYear, $month, $startDay, 0, 0, 0);
-        $end = Carbon::create($startYear + 1, $month, $endDay, 0, 0, 0)->subDay();
-        return [$start, $end];
+        return $this->budgetService->datesForYear($startYear, $day, $month);
     }
 
     private function defaultStartYear(int $day, int $month): int
@@ -85,24 +74,37 @@ class FinanceController
             return $decimalSep === ',' ? str_replace(',', '.', $normalized) : $normalized;
         }
 
+        if ($lastComma !== false && substr_count($normalized, ',') > 1) {
+            return self::collapseThousandsGrouping($normalized, ',');
+        }
+
         if ($lastComma !== false) {
             return str_replace(',', '.', $normalized);
         }
 
         if ($lastDot !== false && substr_count($normalized, '.') > 1) {
-            $parts = explode('.', $normalized);
-            $fraction = array_pop($parts);
-            $integerPart = implode('', $parts);
-
-            if (strlen($fraction) === 3) {
-                // Likely pure thousands grouping, e.g. 1.234.567
-                return $integerPart . $fraction;
-            }
-
-            return $integerPart . '.' . $fraction;
+            return self::collapseThousandsGrouping($normalized, '.');
         }
 
         return $normalized;
+    }
+
+    /**
+     * Collapses a purely-grouped number (e.g. "1.234.567" or "1,234,567") that uses
+     * $separator more than once. A trailing 3-digit group is treated as a thousands
+     * group (dropped); any other length is treated as the decimal fraction.
+     */
+    private static function collapseThousandsGrouping(string $normalized, string $separator): string
+    {
+        $parts = explode($separator, $normalized);
+        $fraction = array_pop($parts);
+        $integerPart = implode('', $parts);
+
+        if (strlen($fraction) === 3) {
+            return $integerPart . $fraction;
+        }
+
+        return $integerPart . '.' . $fraction;
     }
 
     private function buildAvailableYears(int $day, int $month): array
@@ -145,7 +147,7 @@ class FinanceController
             ->orderBy('running_number', 'desc')
             ->get();
 
-        $groups = Finance::whereNotNull('group_name')->distinct()->pluck('group_name')->sort()->values();
+        $groups = FinanceGroup::orderBy('name')->pluck('name');
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -168,11 +170,26 @@ class FinanceController
     {
         $data = (array) $request->getParsedBody();
         $id = isset($data['id']) && $data['id'] ? (int) $data['id'] : null;
+
+        $amount = self::normalizeAmountInput((string) ($data['amount'] ?? '0'));
+        if (!is_numeric($amount) || (float) $amount <= 0) {
+            $_SESSION['error'] = 'Ungültiger Betrag. Bitte eine positive Zahl eingeben.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        $invoiceDate = (string) ($data['invoice_date'] ?? '');
+        $paymentDate = !empty($data['payment_date']) ? (string) $data['payment_date'] : null;
+        if ($paymentDate !== null && $invoiceDate !== '' && $paymentDate < $invoiceDate) {
+            $_SESSION['error'] = 'Das Zahlungsdatum darf nicht vor dem Rechnungsdatum liegen.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
         try {
-            $groupName = !empty(trim($data['group_name'] ?? '')) ? trim($data['group_name']) : null;
+            $groupNameRaw = trim($data['group_name'] ?? '');
+            $groupName = $groupNameRaw !== '' ? $groupNameRaw : null;
             $recordData = [
-                'invoice_date' => $data['invoice_date'],
-                'payment_date' => !empty($data['payment_date']) ? $data['payment_date'] : null,
+                'invoice_date' => $invoiceDate,
+                'payment_date' => $paymentDate,
                 'description' => trim($data['description'] ?? ''),
                 'group_name' => $groupName,
                 // Keep the canonical finance_group_id in sync so budget actuals stay
@@ -181,19 +198,21 @@ class FinanceController
                     ? FinanceGroup::firstOrCreate(['name' => $groupName])->id
                     : null,
                 'type' => $data['type'],
-                'amount' => self::normalizeAmountInput((string) ($data['amount'] ?? '0')),
+                'amount' => $amount,
                 'payment_method' => $data['payment_method'],
             ];
-            if ($id) {
-                $finance = Finance::findOrFail($id);
-                $finance->update($recordData);
-                $_SESSION['success'] = 'Eintrag erfolgreich aktualisiert.';
-            } else {
-                $maxRunningNumber = Finance::max('running_number') ?? 0;
-                $recordData['running_number'] = $maxRunningNumber + 1;
-                $finance = Finance::create($recordData);
-                $_SESSION['success'] = 'Neuer Eintrag erfolgreich verbucht.';
-            }
+
+            $finance = null;
+            Capsule::connection()->transaction(function () use ($id, &$recordData, &$finance): void {
+                if ($id) {
+                    $finance = Finance::findOrFail($id);
+                    $finance->update($recordData);
+                } else {
+                    $recordData['running_number'] = $this->nextRunningNumber();
+                    $finance = Finance::create($recordData);
+                }
+            });
+            $_SESSION['success'] = $id ? 'Eintrag erfolgreich aktualisiert.' : 'Neuer Eintrag erfolgreich verbucht.';
 
             // Handle Attachments
             $uploadedFiles = $request->getUploadedFiles();
@@ -237,22 +256,57 @@ class FinanceController
                 }
             }
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ';
+            $this->logger->error('Finance booking save failed.', [
+                'event' => 'finance.save.failed',
+                'finance_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Fehler beim Speichern. Bitte versuchen Sie es erneut.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
 
+    /**
+     * Atomically reserves the next running number via a locked settings counter row.
+     * The counter never decreases, so a running number is never reused even after the
+     * highest booking is deleted. Falls back to the current table max in case the
+     * counter is behind (e.g. after dev-seed data was inserted directly).
+     */
+    private function nextRunningNumber(): int
+    {
+        Capsule::connection()->statement(
+            "INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, '0')",
+            ['finance_next_running_number']
+        );
+
+        $counterRow = Setting::where('setting_key', 'finance_next_running_number')->lockForUpdate()->first();
+        $counterNext = ((int) $counterRow->setting_value) + 1;
+        $tableNext = ((int) Finance::max('running_number')) + 1;
+        $next = max($counterNext, $tableNext);
+
+        Setting::where('setting_key', 'finance_next_running_number')->update(['setting_value' => (string) $next]);
+
+        return $next;
+    }
+
     public function delete(Request $request, Response $response, array $args): Response
     {
+        $financeId = (int) $args['id'];
         try {
-            $financeId = (int) $args['id'];
-            Attachment::where('entity_type', 'finance')
-                ->where('entity_id', $financeId)
-                ->delete();
-            Finance::findOrFail($financeId)->delete();
+            Capsule::connection()->transaction(function () use ($financeId): void {
+                Attachment::where('entity_type', 'finance')
+                    ->where('entity_id', $financeId)
+                    ->delete();
+                Finance::findOrFail($financeId)->delete();
+            });
             $_SESSION['success'] = 'Eintrag erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+            $this->logger->error('Finance booking delete failed.', [
+                'event' => 'finance.delete.failed',
+                'finance_id' => $financeId,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Fehler beim Löschen. Bitte versuchen Sie es erneut.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
@@ -320,8 +374,12 @@ class FinanceController
     {
         $data = (array) $request->getParsedBody();
         $startStr = trim($data['fiscal_year_start'] ?? '');
-        if (!preg_match('/^\d{2}\.\d{2}\.$/', $startStr)) {
-            $_SESSION['error'] = 'Ungültiges Format für das Geschäftsjahr. (Erwartet: DD.MM.)';
+        $matches = [];
+        $matched = (bool) preg_match('/^(\d{2})\.(\d{2})\.$/', $startStr, $matches);
+        $day = $matched ? (int) $matches[1] : 0;
+        $month = $matched ? (int) $matches[2] : 0;
+        if ($day < 1 || $day > 31 || $month < 1 || $month > 12) {
+            $_SESSION['error'] = 'Ungültiges Format für das Geschäftsjahr. (Erwartet: DD.MM. mit Tag 01-31, Monat 01-12)';
         } else {
             Setting::updateOrCreate(['setting_key' => 'fiscal_year_start'], ['setting_value' => $startStr]);
             $_SESSION['success'] = 'Geschäftsjahr-Beginn aktualisiert.';
