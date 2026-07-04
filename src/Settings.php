@@ -40,6 +40,7 @@ return function (ContainerBuilder $containerBuilder) {
             'modules' => [
                 'sheet_archive' => EnvHelper::read('FEATURE_SHEET_ARCHIVE', 'false') === 'true',
                 'budget'        => EnvHelper::read('FEATURE_BUDGET', 'false') === 'true',
+                'webmail'       => EnvHelper::read('FEATURE_WEBMAIL', 'false') === 'true',
             ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),

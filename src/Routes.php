@@ -106,7 +106,9 @@ return function (App $app) {
             $group->post('/profile/password', [ProfileController::class, 'updatePassword']);
             $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
-            $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
+            if ($settings['modules']['webmail'] ?? false) {
+                $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
+            }
 
             // Admin / User Management Routes
             $group->group(
