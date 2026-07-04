@@ -24,6 +24,7 @@ class UserMailAccount extends Model
         'imap_password_enc',
         'imap_enabled',
         'mail_badge_enabled',
+        'external_webmail_url',
         'mail_last_unseen_count',
         'mail_last_uid_seen',
         'mail_last_checked_at',
