@@ -291,6 +291,25 @@
                             <label class="form-check-label" for="mail_badge_enabled">Badge anzeigen</label>
                         </div>
 
+                        {% if not settings.modules.webmail %}
+                            <div class="mb-4">
+                                <label for="external_webmail_url"
+                                       class="form-label text-muted small fw-bold text-uppercase">
+                                    Externe Webmail-URL (optional)
+                                </label>
+                                <input type="url"
+                                       class="form-control"
+                                       id="external_webmail_url"
+                                       name="external_webmail_url"
+                                       value="{{ mail_account.external_webmail_url|default("") }}"
+                                       maxlength="255"
+                                       placeholder="https://webmail.example.org">
+                                <div class="form-text">
+                                    Wird gesetzt, verlinkt das Mail-Badge in der Navigation auf diese Adresse.
+                                </div>
+                            </div>
+                        {% endif %}
+
                         <div class="d-flex justify-content-end gap-2">
                             <button type="submit"
                                     class="btn btn-outline-secondary"
@@ -303,7 +322,7 @@
                         </div>
                     </form>
 
-                    {% if webmail_available %}
+                    {% if settings.modules.webmail and webmail_available %}
                         <hr>
                         <form action="/profile/webmail/start" method="post" target="_blank" rel="noopener noreferrer">
                             <div class="d-flex justify-content-end">
@@ -312,6 +331,18 @@
                                 </button>
                             </div>
                         </form>
+                    {% endif %}
+                    {% set _external_url = mail_account.external_webmail_url|default("") %}
+                    {% if not settings.modules.webmail and _external_url != "" %}
+                        <hr>
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ _external_url }}"
+                               class="btn btn-success"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                <i class="bi bi-box-arrow-up-right"></i> Webmail öffnen
+                            </a>
+                        </div>
                     {% endif %}
                 </div>
             </div>

@@ -100,4 +100,24 @@ final class WebmailFeatureFlagTest extends TestCase
 
         return false;
     }
+
+    public function testProfileTemplateGatesExternalUrlFieldAndSsoButton(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/profile/index.twig');
+        $this->assertIsString($template);
+
+        // URL-Feld nur bei abgeschaltetem Flag.
+        $this->assertStringContainsString('{% if not settings.modules.webmail %}', $template);
+        $this->assertStringContainsString('name="external_webmail_url"', $template);
+
+        // SSO-Button nur bei aktivem Flag.
+        $this->assertStringContainsString(
+            '{% if settings.modules.webmail and webmail_available %}',
+            $template
+        );
+
+        // Externer Link-Button bei Flag aus + gesetzter URL.
+        $this->assertStringContainsString('{% set _external_url =', $template);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $template);
+    }
 }
