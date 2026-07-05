@@ -90,6 +90,9 @@ services:
     image: ghcr.io/georg-pitterle/chormanager-web:latest
     hostname: chormanager-web-prod
     restart: unless-stopped
+    environment:
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-100m}
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
     depends_on:
       - app
     networks:
@@ -99,7 +102,10 @@ services:
           - chormanager-web-prod
     expose:
       - "80"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     tmpfs:
+      - /etc/nginx/conf.d
       - /var/cache/nginx
       - /var/run
       - /tmp
