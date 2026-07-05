@@ -39,6 +39,12 @@ services:
       internal:
         aliases:
           - chormanager-fpm
+      # Outbound-only network so the app can reach the user's external IMAP/SMTP
+      # server (mailbox connection test + mail-badge polling). The internal
+      # network is internal:true and has no egress; the db deliberately stays on
+      # internal only. The app's FastCGI port 9000 stays unreachable from the
+      # shared proxy network this way.
+      egress:
     healthcheck:
       test: [ "CMD", "php", "-r", "if (@fsockopen('127.0.0.1',9000)) { exit(0); } exit(1);" ]
       interval: 30s
@@ -154,6 +160,8 @@ networks:
   internal:
     driver: bridge
     internal: true
+  egress:
+    driver: bridge
   proxy:
     external: true
     name: portainer_network

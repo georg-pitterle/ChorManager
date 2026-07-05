@@ -166,6 +166,38 @@ final class WebmailFeatureFlagTest extends TestCase
         $this->assertStringContainsString('FEATURE_WEBMAIL: ${FEATURE_WEBMAIL:-false}', $compose);
     }
 
+    public function testProdComposeGivesAppEgressForImapConnections(): void
+    {
+        // The app container runs the IMAP connection test and the mail-badge
+        // polling, both of which must reach the user's external mail server.
+        // With the app attached only to the internal:true network it has no
+        // egress, so every connection test fails with the generic
+        // "Host ist nicht erreichbar." The app therefore needs a second,
+        // non-internal bridge network for outbound traffic, while the db stays
+        // isolated on internal only.
+        $compose = file_get_contents(dirname(__DIR__, 2) . '/dist/docker-compose.prod.yml');
+        $this->assertIsString($compose);
+
+        // The app service must exist (uniquely identified by its FastCGI alias)
+        // and reference the egress network. A network reference indented with
+        // six spaces sits under a service's "networks:" block; only the app
+        // service references egress, so this asserts the app is on it.
+        $this->assertStringContainsString('- chormanager-fpm', $compose);
+        $this->assertStringContainsString("\n      egress:\n", $compose);
+
+        // The egress network must be a plain bridge WITHOUT internal: true,
+        // otherwise it would provide no outbound connectivity.
+        $this->assertStringContainsString(
+            "  egress:\n"
+            . "    driver: bridge\n",
+            $compose
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/  egress:\n    driver: bridge\n    internal: true/',
+            $compose
+        );
+    }
+
     public function testProfileTemplateHasDeleteMailboxForm(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/profile/index.twig');
