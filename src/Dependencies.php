@@ -35,6 +35,7 @@ use App\Services\DumpRunnerInterface;
 use App\Services\MysqldumpRunner;
 use App\Services\MailBadgeService;
 use App\Services\MailCredentialCryptoService;
+use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
