@@ -16,13 +16,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -37,7 +37,7 @@ jobs:
         echo "snappymail=ghcr.io/$OWNER/chormanager-snappymail:latest" >> "$GITHUB_OUTPUT"
 
     - name: Build and push app image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: ./Dockerfile
@@ -48,7 +48,7 @@ jobs:
         cache-to: type=gha,mode=max,scope=app
 
     - name: Build and push web image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: ./Dockerfile.web
@@ -61,7 +61,7 @@ jobs:
         cache-to: type=gha,mode=max,scope=web
 
     - name: Build and push SnappyMail image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: ./dist/snappymail
         file: ./dist/snappymail/Dockerfile
