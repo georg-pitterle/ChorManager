@@ -198,6 +198,23 @@ final class WebmailFeatureFlagTest extends TestCase
         );
     }
 
+    public function testProdReadmeWebmailProxyStripsPrefixViaRewrite(): void
+    {
+        // SWAG proxies to a variable upstream (needed for its resolver). With a
+        // variable upstream, proxy_pass does NOT strip the /webmail/ prefix via a
+        // trailing slash the way a literal upstream does — it forwards the request
+        // unchanged or drops the query, so SnappyMail's /webmail/?/AppData/... AJAX
+        // calls get its HTML shell back ("Invalid Content-Type text/html"). The
+        // documented config must therefore strip the prefix with an explicit
+        // rewrite and must not rely on the trailing-slash form.
+        $readme = file_get_contents(dirname(__DIR__, 2) . '/dist/README.md');
+        $this->assertIsString($readme);
+
+        $this->assertStringContainsString('rewrite ^/webmail/(.*) /$1 break;', $readme);
+        $this->assertStringNotContainsString('proxy_pass http://$upstream_sm:8888/;', $readme);
+        $this->assertStringNotContainsString('proxy_pass http://$upstream_sm:8888/snappymail/;', $readme);
+    }
+
     public function testProfileTemplateHasDeleteMailboxForm(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/profile/index.twig');

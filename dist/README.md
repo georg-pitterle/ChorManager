@@ -128,19 +128,30 @@ block:
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
         set $upstream_sm chormanager-snappymail-prod;
-        proxy_pass http://$upstream_sm:8888/;
+        # SWAG proxies to a variable upstream (for its resolver). With a variable
+        # upstream, proxy_pass does NOT strip the /webmail/ prefix via a trailing
+        # slash the way a literal upstream would — it forwards /webmail/?/... to
+        # SnappyMail unchanged (and can even drop the query), so SnappyMail replies
+        # with its HTML shell and its JSON/AJAX calls fail with
+        # "Invalid Content-Type 'text/html'". Strip the prefix explicitly instead:
+        rewrite ^/webmail/(.*) /$1 break;
+        proxy_pass http://$upstream_sm:8888;
     }
 
     location /snappymail/ {
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
         set $upstream_sm chormanager-snappymail-prod;
-        proxy_pass http://$upstream_sm:8888/snappymail/;
+        # No URI part on proxy_pass, so the original /snappymail/... asset path is
+        # forwarded unchanged (again, don't rely on a trailing slash with a
+        # variable upstream).
+        proxy_pass http://$upstream_sm:8888;
     }
 ```
 
-`/webmail/` serves the SnappyMail shell (prefix stripped); `/snappymail/` passes
-its version-pinned static assets straight through. The SnappyMail admin password
+`/webmail/` serves the SnappyMail shell (the `/webmail/` prefix stripped by the
+`rewrite`); `/snappymail/` passes its version-pinned static assets straight
+through. The SnappyMail admin password
 is auto-generated on first boot inside the volume; retrieve it if needed with:
 
 ```bash
