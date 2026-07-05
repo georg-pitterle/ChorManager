@@ -40,25 +40,22 @@ class UploadLimitFeatureTest extends TestCase
         }
     }
 
-    public function testProductionComposeSupportsEnvBasedClientMaxBodySize(): void
+    public function testProductionNginxImageBakesFixedClientMaxBodySize(): void
+    {
+        $nginxConfContent = file_get_contents(dirname(__DIR__, 2) . '/nginx.conf');
+
+        $this->assertIsString($nginxConfContent);
+        $this->assertStringContainsString('client_max_body_size 100m;', $nginxConfContent);
+    }
+
+    public function testProductionComposeDoesNotBindMountAnNginxTemplate(): void
     {
         $composeContent = file_get_contents(dirname(__DIR__, 2) . '/dist/docker-compose.prod.yml');
 
         $this->assertIsString($composeContent);
-        $this->assertStringContainsString('CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-100m}', $composeContent);
-        $this->assertStringContainsString('NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d', $composeContent);
-        $this->assertStringContainsString('./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro', $composeContent);
-        $this->assertStringContainsString('- /etc/nginx/conf.d', $composeContent);
-    }
-
-    public function testProductionNginxTemplateUsesEnvLimitAndFriendly413Message(): void
-    {
-        $templateContent = file_get_contents(dirname(__DIR__, 2) . '/dist/nginx/default.conf.template');
-
-        $this->assertIsString($templateContent);
-        $this->assertStringContainsString('client_max_body_size ${CLIENT_MAX_BODY_SIZE};', $templateContent);
-        $this->assertStringContainsString('error_page 413 /upload-too-large;', $templateContent);
-        $this->assertStringContainsString('Maximal erlaubt: ${CLIENT_MAX_BODY_SIZE}', $templateContent);
+        $this->assertStringNotContainsString('CLIENT_MAX_BODY_SIZE', $composeContent);
+        $this->assertStringNotContainsString('default.conf.template', $composeContent);
+        $this->assertStringNotContainsString('/etc/nginx/conf.d', $composeContent);
     }
 
     public function testUploadHelperChecksHardLimitBeforeSubmit(): void

@@ -50,7 +50,6 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `SMTP_FROM_EMAIL`      | Sender email address                   | -               | **Yes**  |
 | `SMTP_FROM_NAME`       | Sender display name                    | `Chor-Manager`  | No       |
 | `REMEMBER_ME_DAYS`     | Remember-me cookie lifetime in days    | `30`            | No       |
-| `CLIENT_MAX_BODY_SIZE` | Nginx request body limit for uploads   | `100m`          | No       |
 | `TZ`                   | Container timezone                     | `Europe/Vienna` | No       |
 | `MAIL_CREDENTIAL_KEY`     | Encrypts stored IMAP passwords at rest (`openssl rand -base64 32`)   | -               | **Yes**  |
 | `SNAPPYMAIL_SSO_SECRET`   | Shared secret app ⇄ SnappyMail plugin (`openssl rand -base64 32`)    | -               | **Yes**  |
@@ -95,8 +94,9 @@ server {
 
 Adjust `server_name` to your real hostname and reload SWAG afterwards.
 
-If you set `CLIENT_MAX_BODY_SIZE` in this stack, keep the SWAG `client_max_body_size` at least as high.
-The effective upload limit is the smallest limit in the proxy chain.
+The `web` service's own Nginx layer has a fixed `client_max_body_size 100m;` baked
+into the image (`nginx.conf`). Keep the SWAG `client_max_body_size` at or below
+that value — the effective upload limit is the smallest limit in the proxy chain.
 
 ## Webmail (SnappyMail)
 
