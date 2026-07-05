@@ -102,6 +102,26 @@ class ProfileController
         ];
     }
 
+    /**
+     * True when the client explicitly asked for a JSON response (the async
+     * mailbox form's fetch() calls always send this). Non-JS/legacy form
+     * submissions never send it, so they keep using the redirect+session-flash
+     * path unchanged.
+     */
+    private function wantsJsonResponse(Request $request): bool
+    {
+        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function jsonResponse(Response $response, array $payload, int $status): Response
+    {
+        $response->getBody()->write((string) json_encode($payload));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+    }
+
     public function updateProfile(Request $request, Response $response): Response
     {
         $userId = (int)$_SESSION['user_id'];
@@ -190,6 +210,7 @@ class ProfileController
 
     public function updateMailbox(Request $request, Response $response): Response
     {
+        $wantsJson = $this->wantsJsonResponse($request);
         $userId = (int)$_SESSION['user_id'];
         $data = (array)$request->getParsedBody();
 
@@ -228,6 +249,9 @@ class ProfileController
         }
 
         if ($error !== null) {
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => false, 'message' => $error], 422);
+            }
             $_SESSION['error'] = $error;
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
@@ -263,7 +287,11 @@ class ProfileController
         try {
             UserMailAccount::updateOrCreate(['user_id' => $userId], $attributes);
 
-            $_SESSION['success'] = 'Mailbox-Einstellungen wurden gespeichert.';
+            $message = 'Mailbox-Einstellungen wurden gespeichert.';
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => true, 'message' => $message], 200);
+            }
+            $_SESSION['success'] = $message;
         } catch (\Exception $e) {
             $this->logger->error(
                 'Mail account update failed.',
@@ -273,7 +301,24 @@ class ProfileController
                     'exception' => $e,
                 ]
             );
-            $_SESSION['error'] = 'Fehler beim Speichern der Mailbox-Einstellungen.';
+            $message = 'Fehler beim Speichern der Mailbox-Einstellungen.';
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => false, 'message' => $message], 500);
+            }
+            $_SESSION['error'] = $message;
+        }
+
+        return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
+    public function deleteMailbox(Request $request, Response $response): Response
+    {
+        $userId = (int)$_SESSION['user_id'];
+
+        $account = UserMailAccount::where('user_id', $userId)->first();
+        if ($account) {
+            $account->delete();
+            $_SESSION['success'] = 'Mailbox-Zugang wurde entfernt.';
         }
 
         return $response->withHeader('Location', '/profile')->withStatus(302);
@@ -281,8 +326,11 @@ class ProfileController
 
     public function testMailboxConnection(Request $request, Response $response): Response
     {
+        $wantsJson = $this->wantsJsonResponse($request);
         $data = (array)$request->getParsedBody();
-        $_SESSION['mailbox_form_old'] = array_diff_key($data, ['imap_password' => true]);
+        if (!$wantsJson) {
+            $_SESSION['mailbox_form_old'] = array_diff_key($data, ['imap_password' => true]);
+        }
 
         $imapHost = trim((string)($data['imap_host'] ?? ''));
         $imapPortRaw = trim((string)($data['imap_port'] ?? ''));
@@ -290,6 +338,9 @@ class ProfileController
 
         $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
         if ($error !== null) {
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => false, 'message' => $error], 422);
+            }
             $_SESSION['error'] = $error;
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
@@ -304,7 +355,11 @@ class ProfileController
                     'user_id' => (int)($_SESSION['user_id'] ?? 0),
                 ]
             );
-            $_SESSION['error'] = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
+            $message = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => false, 'message' => $message], 200);
+            }
+            $_SESSION['error'] = $message;
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
@@ -331,7 +386,11 @@ class ProfileController
         if ($socket === false) {
             // Deliberately generic: do not echo $errstr, which would leak an
             // open/closed/filtered oracle for the targeted host:port.
-            $_SESSION['error'] = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
+            $message = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => false, 'message' => $message], 200);
+            }
+            $_SESSION['error'] = $message;
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
@@ -340,9 +399,17 @@ class ProfileController
         fclose($socket);
 
         if ($greeting !== false && str_starts_with($greeting, '* ')) {
-            $_SESSION['success'] = 'Verbindung erfolgreich.';
+            $message = 'Verbindung erfolgreich.';
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => true, 'message' => $message], 200);
+            }
+            $_SESSION['success'] = $message;
         } else {
-            $_SESSION['error'] = 'Verbindung fehlgeschlagen: keine gültige IMAP-Antwort erhalten.';
+            $message = 'Verbindung fehlgeschlagen: keine gültige IMAP-Antwort erhalten.';
+            if ($wantsJson) {
+                return $this->jsonResponse($response, ['success' => false, 'message' => $message], 200);
+            }
+            $_SESSION['error'] = $message;
         }
 
         return $response->withHeader('Location', '/profile')->withStatus(302);

@@ -185,7 +185,8 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form action="/profile/mailbox" method="post">
+                    <form action="/profile/mailbox" method="post" id="mailboxForm">
+                        <div id="mailboxFormFeedback" class="alert d-none" role="alert"></div>
                         <div class="mb-3">
                             <label for="imap_host" class="form-label text-muted small fw-bold text-uppercase">Host</label>
                             <input type="text"
@@ -322,6 +323,19 @@
                         </div>
                     </form>
 
+                    {% if has_saved_account %}
+                        <form action="/profile/mailbox/delete"
+                              method="post"
+                              class="mt-3"
+                              data-confirm="Mailbox-Zugang wirklich entfernen? Nicht rückgängig zu machen.">
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash"></i> Zugang entfernen
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+
                     {% if settings.modules.webmail and webmail_available %}
                         <hr>
                         <form action="/profile/webmail/start" method="post" target="_blank" rel="noopener noreferrer">
@@ -349,3 +363,7 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="/js/profile-mailbox.js"></script>
+{% endblock scripts %}

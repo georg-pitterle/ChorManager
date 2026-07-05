@@ -346,4 +346,166 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertFalse($capturedData['webmail_available']);
         $this->assertArrayNotHasKey('mailbox_form_old', $_SESSION);
     }
+
+    public function testConnectionTestWithJsonAcceptReturnsJsonOnValidationError(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/profile/mailbox/test',
+            ['imap_host' => '', 'imap_port' => '993', 'imap_encryption' => 'ssl'],
+            [],
+            ['Accept' => 'application/json']
+        );
+
+        $response = $this->controller->testMailboxConnection($request, $this->makeResponse());
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+        $body = json_decode((string) $response->getBody(), true);
+        $this->assertIsArray($body);
+        $this->assertFalse($body['success']);
+        $this->assertNotEmpty($body['message']);
+        $this->assertArrayNotHasKey('mailbox_form_old', $_SESSION);
+    }
+
+    public function testConnectionTestWithJsonAcceptReturnsJsonOnBlockedHost(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/profile/mailbox/test',
+            ['imap_host' => '127.0.0.1', 'imap_port' => '993', 'imap_encryption' => 'ssl'],
+            [],
+            ['Accept' => 'application/json']
+        );
+
+        $response = $this->controller->testMailboxConnection($request, $this->makeResponse());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = json_decode((string) $response->getBody(), true);
+        $this->assertIsArray($body);
+        $this->assertFalse($body['success']);
+        $this->assertSame('Verbindung fehlgeschlagen: Host ist nicht erreichbar.', $body['message']);
+        $this->assertArrayNotHasKey('mailbox_form_old', $_SESSION);
+        $this->assertArrayNotHasKey('error', $_SESSION);
+    }
+
+    public function testUpdateMailboxWithJsonAcceptReturnsJsonOnSuccess(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/profile/mailbox',
+            [
+                'imap_host' => 'imap.example.org',
+                'imap_port' => '993',
+                'imap_encryption' => 'ssl',
+                'imap_username' => 'mailbox.tester@example.org',
+                'imap_password' => 'S3cr3t-Imap-Pass',
+                'imap_enabled' => '1',
+            ],
+            [],
+            ['Accept' => 'application/json']
+        );
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = json_decode((string) $response->getBody(), true);
+        $this->assertIsArray($body);
+        $this->assertTrue($body['success']);
+        $this->assertSame('Mailbox-Einstellungen wurden gespeichert.', $body['message']);
+
+        $account = UserMailAccount::where('user_id', $this->user->id)->first();
+        $this->assertNotNull($account);
+        $this->assertSame('imap.example.org', $account->imap_host);
+    }
+
+    public function testUpdateMailboxWithJsonAcceptReturnsJsonOnValidationError(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/profile/mailbox',
+            [
+                'imap_host' => '',
+                'imap_port' => '993',
+                'imap_encryption' => 'ssl',
+                'imap_username' => 'mailbox.tester@example.org',
+                'imap_password' => 'whatever-password',
+            ],
+            [],
+            ['Accept' => 'application/json']
+        );
+
+        $response = $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $this->assertSame(422, $response->getStatusCode());
+        $body = json_decode((string) $response->getBody(), true);
+        $this->assertIsArray($body);
+        $this->assertFalse($body['success']);
+        $this->assertNotEmpty($body['message']);
+        $this->assertNull(UserMailAccount::where('user_id', $this->user->id)->first());
+    }
+
+    public function testDeleteMailboxRemovesAccountAndSetsSuccessMessage(): void
+    {
+        UserMailAccount::create([
+            'user_id' => $this->user->id,
+            'imap_host' => 'imap.example.org',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password_enc' => $this->crypto->encrypt('whatever-password'),
+            'imap_enabled' => true,
+            'external_webmail_url' => 'https://webmail.example.org/',
+        ]);
+
+        $request = $this->makeRequest('POST', '/profile/mailbox/delete');
+        $response = $this->controller->deleteMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $this->assertSame('Mailbox-Zugang wurde entfernt.', $_SESSION['success'] ?? null);
+        $this->assertNull(UserMailAccount::where('user_id', $this->user->id)->first());
+    }
+
+    public function testDeleteMailboxWithoutExistingAccountIsANoOp(): void
+    {
+        $this->assertNull(UserMailAccount::where('user_id', $this->user->id)->first());
+
+        $request = $this->makeRequest('POST', '/profile/mailbox/delete');
+        $response = $this->controller->deleteMailbox($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $this->assertArrayNotHasKey('success', $_SESSION);
+        $this->assertArrayNotHasKey('error', $_SESSION);
+    }
+
+    public function testIndexReflectsEmptyStateAfterMailboxDeletion(): void
+    {
+        UserMailAccount::create([
+            'user_id' => $this->user->id,
+            'imap_host' => 'imap.example.org',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password_enc' => $this->crypto->encrypt('whatever-password'),
+            'imap_enabled' => true,
+        ]);
+
+        $this->controller->deleteMailbox($this->makeRequest('POST', '/profile/mailbox/delete'), $this->makeResponse());
+        unset($_SESSION['success'], $_SESSION['error']);
+
+        $capturedData = null;
+        $this->twigMock->expects($this->once())
+            ->method('render')
+            ->willReturnCallback(function ($response, $template, $data) use (&$capturedData) {
+                $capturedData = $data;
+                return $response;
+            });
+
+        $this->controller->index($this->makeRequest('GET', '/profile'), $this->makeResponse());
+
+        $this->assertIsArray($capturedData);
+        $this->assertFalse($capturedData['has_saved_account']);
+        $this->assertFalse($capturedData['webmail_available']);
+        $this->assertNull($capturedData['mail_account']);
+    }
 }

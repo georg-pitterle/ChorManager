@@ -56,8 +56,11 @@ COPY patches.lock.json ./
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install PHP dependencies. --no-scripts: composer.json's post-install-cmd
+# runs bin/copy-assets.php, which needs the app source tree (COPY . . below)
+# and would fail this early. The explicit copy-assets RUN step further down
+# already runs it at the correct point in the build.
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 # Copy application code
 COPY . .

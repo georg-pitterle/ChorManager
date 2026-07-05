@@ -1,7 +1,7 @@
 {% if mail_badge_unseen_count is not null and mail_badge_unseen_count > 0 %}
     {% set _badge_label = mail_badge_unseen_count > 99 ? "99+" : mail_badge_unseen_count %}
     {% if settings.modules.webmail %}
-        <form action="/profile/webmail/start" method="post" class="m-0 me-3">
+        <form action="/profile/webmail/start" method="post" class="m-0 me-3" target="_blank">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-link text-white p-0 mail-badge-trigger" title="Postfach öffnen">
                 <i class="bi bi-envelope-fill fs-5"></i>

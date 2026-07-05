@@ -106,6 +106,7 @@ return function (App $app) {
             $group->post('/profile/password', [ProfileController::class, 'updatePassword']);
             $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
+            $group->post('/profile/mailbox/delete', [ProfileController::class, 'deleteMailbox']);
             if ($settings['modules']['webmail'] ?? false) {
                 $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
             }

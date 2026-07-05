@@ -133,9 +133,12 @@ final class WebmailFeatureFlagTest extends TestCase
         $template = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/user_menu.twig');
         $this->assertIsString($template);
 
-        // Fall 1: Flag an -> SSO-Formular.
+        // Fall 1: Flag an -> SSO-Formular, oeffnet in neuem Tab.
         $this->assertStringContainsString('{% if settings.modules.webmail %}', $template);
-        $this->assertStringContainsString('action="/profile/webmail/start"', $template);
+        $this->assertStringContainsString(
+            '<form action="/profile/webmail/start" method="post" class="m-0 me-3" target="_blank">',
+            $template
+        );
 
         // Fall 2: Flag aus + externe URL -> Link.
         $this->assertStringContainsString('{% elseif mail_external_webmail_url %}', $template);
@@ -161,5 +164,15 @@ final class WebmailFeatureFlagTest extends TestCase
         $compose = file_get_contents($root . '/dist/docker-compose.prod.yml');
         $this->assertIsString($compose);
         $this->assertStringContainsString('FEATURE_WEBMAIL: ${FEATURE_WEBMAIL:-false}', $compose);
+    }
+
+    public function testProfileTemplateHasDeleteMailboxForm(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/profile/index.twig');
+        $this->assertIsString($template);
+
+        $this->assertStringContainsString('{% if has_saved_account %}', $template);
+        $this->assertStringContainsString('action="/profile/mailbox/delete"', $template);
+        $this->assertStringContainsString('data-confirm="Mailbox-Zugang wirklich entfernen?', $template);
     }
 }
