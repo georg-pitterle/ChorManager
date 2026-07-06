@@ -174,18 +174,20 @@
                                     <tr class="table-secondary">
                                         <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Sponsoring &amp; Repertoire</th>
                                     </tr>
-                                    <tr>
-                                        <th scope="row">Sponsoring</th>
-                                        {% for role in roles %}
-                                            <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_manage_sponsoring %}
-                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
-                                                {% else %}
-                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
-                                                {% endif %}
-                                            </td>
-                                        {% endfor %}
-                                    </tr>
+                                    {% if settings.modules.sponsoring %}
+                                        <tr>
+                                            <th scope="row">Sponsoring</th>
+                                            {% for role in roles %}
+                                                <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                    {% if role.can_manage_sponsoring %}
+                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                    {% else %}
+                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endif %}
                                     <tr>
                                         <th scope="row">Repertoire</th>
                                         {% for role in roles %}
@@ -239,18 +241,20 @@
                                             </td>
                                         {% endfor %}
                                     </tr>
-                                    <tr>
-                                        <th scope="row">Aufgaben/Planung</th>
-                                        {% for role in roles %}
-                                            <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_manage_tasks %}
-                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
-                                                {% else %}
-                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
-                                                {% endif %}
-                                            </td>
-                                        {% endfor %}
-                                    </tr>
+                                    {% if settings.modules.tasks %}
+                                        <tr>
+                                            <th scope="row">Aufgaben/Planung</th>
+                                            {% for role in roles %}
+                                                <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                    {% if role.can_manage_tasks %}
+                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                    {% else %}
+                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endif %}
                                     <tr class="table-secondary">
                                         <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Stammdaten &amp; System</th>
                                     </tr>
@@ -468,19 +472,21 @@
 
                     <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Sponsoring &amp; Repertoire</h6>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="can_manage_sponsoring"
-                               name="can_manage_sponsoring"
-                               value="1">
-                        <label class="form-check-label fw-bold text-info"
-                               for="can_manage_sponsoring">Sponsoring verwalten</label>
-                        <div class="form-text">
-                            Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                    {% if settings.modules.sponsoring %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="can_manage_sponsoring"
+                                   name="can_manage_sponsoring"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-info"
+                                   for="can_manage_sponsoring">Sponsoring verwalten</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -534,16 +540,19 @@
                         <div class="form-text">Wenn aktiv, darf diese Person die Mail-Queue einsehen und Dead-Letter erneut senden.</div>
                     </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="can_manage_tasks"
-                               name="can_manage_tasks"
-                               value="1">
-                        <label class="form-check-label fw-bold text-primary" for="can_manage_tasks">Projektplanung (Aufgaben)</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
-                    </div>
+                    {% if settings.modules.tasks %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="can_manage_tasks"
+                                   name="can_manage_tasks"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-primary"
+                                   for="can_manage_tasks">Projektplanung (Aufgaben)</label>
+                            <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                        </div>
+                    {% endif %}
 
                     <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Stammdaten &amp; System</h6>
 
@@ -720,19 +729,21 @@
 
                     <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Sponsoring &amp; Repertoire</h6>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="edit_can_manage_sponsoring"
-                               name="can_manage_sponsoring"
-                               value="1">
-                        <label class="form-check-label fw-bold text-info"
-                               for="edit_can_manage_sponsoring">Sponsoring verwalten</label>
-                        <div class="form-text">
-                            Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                    {% if settings.modules.sponsoring %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit_can_manage_sponsoring"
+                                   name="can_manage_sponsoring"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-info"
+                                   for="edit_can_manage_sponsoring">Sponsoring verwalten</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
 
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input"
@@ -786,17 +797,19 @@
                         <div class="form-text">Wenn aktiv, darf diese Person die Mail-Queue einsehen und Dead-Letter erneut senden.</div>
                     </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="edit_can_manage_tasks"
-                               name="can_manage_tasks"
-                               value="1">
-                        <label class="form-check-label fw-bold text-primary"
-                               for="edit_can_manage_tasks">Projektplanung (Aufgaben)</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
-                    </div>
+                    {% if settings.modules.tasks %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit_can_manage_tasks"
+                                   name="can_manage_tasks"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-primary"
+                                   for="edit_can_manage_tasks">Projektplanung (Aufgaben)</label>
+                            <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                        </div>
+                    {% endif %}
 
                     <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Stammdaten &amp; System</h6>
 

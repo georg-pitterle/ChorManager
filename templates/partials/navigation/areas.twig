@@ -29,7 +29,7 @@
                        href="/budget"><i class="bi bi-calculator me-2"></i> Budget</a>
                 </li>
             {% endif %}
-            {% if session.can_manage_sponsoring %}
+            {% if settings.modules.sponsoring and session.can_manage_sponsoring %}
                 <li>
                     <a class="dropdown-item {% if nav_active(path, nav, ['/sponsoring'], ['sponsoring']) %}active{% endif %}"
                        href="/sponsoring"><i class="bi bi-briefcase me-2"></i> Sponsoring</a>

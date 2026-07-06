@@ -22,6 +22,8 @@ x-app-environment: &app-environment
   FEATURE_WEBMAIL: ${FEATURE_WEBMAIL:-false}
   FEATURE_NEWSLETTER: ${FEATURE_NEWSLETTER:-false}
   FEATURE_FINANCE: ${FEATURE_FINANCE:-false}
+  FEATURE_SPONSORING: ${FEATURE_SPONSORING:-false}
+  FEATURE_TASKS: ${FEATURE_TASKS:-false}
   # Mailbox / SnappyMail webmail feature
   MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
   SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}

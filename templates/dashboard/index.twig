@@ -95,7 +95,7 @@
             </div>
         </section>
 
-        {% if session.can_manage_tasks %}
+        {% if settings.modules.tasks and session.can_manage_tasks %}
             <section class="dashboard-section dashboard-section--context"
                      aria-labelledby="dashboard-context-title">
                 <div class="dashboard-section-head">

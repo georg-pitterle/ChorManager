@@ -45,6 +45,8 @@ return function (ContainerBuilder $containerBuilder) {
                 'budget'        => EnvHelper::read('FEATURE_BUDGET', 'false') === 'true' && $financeEnabled,
                 'webmail'       => EnvHelper::read('FEATURE_WEBMAIL', 'false') === 'true',
                 'newsletter'    => EnvHelper::read('FEATURE_NEWSLETTER', 'false') === 'true',
+                'sponsoring'    => EnvHelper::read('FEATURE_SPONSORING', 'false') === 'true',
+                'tasks'         => EnvHelper::read('FEATURE_TASKS', 'false') === 'true',
             ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),

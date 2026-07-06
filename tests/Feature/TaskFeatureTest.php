@@ -129,7 +129,7 @@ class TaskFeatureTest extends TestCase
         $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
 
         $this->assertStringContainsString(
-            '{% if session.can_manage_tasks %}',
+            '{% if settings.modules.tasks and session.can_manage_tasks %}',
             $templateContent
         );
         $this->assertStringNotContainsString('session.can_manage_master_data', $templateContent);

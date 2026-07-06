@@ -272,75 +272,97 @@ return function (App $app) {
                 }
             )->add(new RoleMiddleware(requiresProjectMemberManagement: true));
 
-            // Project task routes require task management permission
-            $group->group(
-                '/projects',
-                function (RouteCollectorProxy $projGroup) {
-                    $projGroup->get('/{project_id:[0-9]+}/tasks', [TaskController::class, 'index']);
-                    $projGroup->post('/{project_id:[0-9]+}/tasks', [TaskController::class, 'create']);
-                }
-            )->add(new RoleMiddleware(requiresTaskManagement: true));
+            if ($settings['modules']['tasks'] ?? false) {
+                // Project task routes require task management permission
+                $group->group(
+                    '/projects',
+                    function (RouteCollectorProxy $projGroup) {
+                        $projGroup->get('/{project_id:[0-9]+}/tasks', [TaskController::class, 'index']);
+                        $projGroup->post('/{project_id:[0-9]+}/tasks', [TaskController::class, 'create']);
+                    }
+                )->add(new RoleMiddleware(requiresTaskManagement: true));
 
-            // Task detail routes require task management permission
-            $group->group(
-                '/tasks',
-                function (RouteCollectorProxy $taskGroup) {
-                    $taskGroup->get('/{id:[0-9]+}', [TaskController::class, 'detail']);
-                    $taskGroup->post('/{id:[0-9]+}/update', [TaskController::class, 'update']);
-                    $taskGroup->post('/{id:[0-9]+}/status', [TaskController::class, 'updateStatus']);
-                    $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);
-                    $taskGroup->post('/{id:[0-9]+}/comments', [TaskController::class, 'addComment']);
-                    $taskGroup->post('/{id:[0-9]+}/attachments', [TaskController::class, 'uploadAttachment']);
-                    $taskGroup->get(
-                        '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/download',
-                        [TaskController::class, 'downloadAttachment']
-                    );
-                    $taskGroup->post(
-                        '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
-                        [TaskController::class, 'deleteAttachment']
-                    );
-                }
-            )->add(new RoleMiddleware(requiresTaskManagement: true));
+                // Task detail routes require task management permission
+                $group->group(
+                    '/tasks',
+                    function (RouteCollectorProxy $taskGroup) {
+                        $taskGroup->get('/{id:[0-9]+}', [TaskController::class, 'detail']);
+                        $taskGroup->post('/{id:[0-9]+}/update', [TaskController::class, 'update']);
+                        $taskGroup->post('/{id:[0-9]+}/status', [TaskController::class, 'updateStatus']);
+                        $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);
+                        $taskGroup->post('/{id:[0-9]+}/comments', [TaskController::class, 'addComment']);
+                        $taskGroup->post('/{id:[0-9]+}/attachments', [TaskController::class, 'uploadAttachment']);
+                        $taskGroup->get(
+                            '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/download',
+                            [TaskController::class, 'downloadAttachment']
+                        );
+                        $taskGroup->post(
+                            '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                            [TaskController::class, 'deleteAttachment']
+                        );
+                    }
+                )->add(new RoleMiddleware(requiresTaskManagement: true));
+            }
 
-            // Sponsoring Routes
-            $group->group(
-                '/sponsoring',
-                function (RouteCollectorProxy $sponsoringGroup) {
-                    $sponsoringGroup->get('', [SponsoringDashboardController::class, 'index']);
+            if ($settings['modules']['sponsoring'] ?? false) {
+                // Sponsoring Routes
+                $group->group(
+                    '/sponsoring',
+                    function (RouteCollectorProxy $sponsoringGroup) {
+                        $sponsoringGroup->get('', [SponsoringDashboardController::class, 'index']);
 
-                    // Sponsor-Stammdaten
-                    $sponsoringGroup->get('/sponsors', [SponsorController::class, 'index']);
-                    $sponsoringGroup->post('/sponsors', [SponsorController::class, 'create']);
-                    $sponsoringGroup->get('/sponsors/{id:[0-9]+}', [SponsorController::class, 'detail']);
-                    $sponsoringGroup->post('/sponsors/{id:[0-9]+}', [SponsorController::class, 'update']);
-                    $sponsoringGroup->post('/sponsors/{id:[0-9]+}/delete', [SponsorController::class, 'delete']);
+                        // Sponsor-Stammdaten
+                        $sponsoringGroup->get('/sponsors', [SponsorController::class, 'index']);
+                        $sponsoringGroup->post('/sponsors', [SponsorController::class, 'create']);
+                        $sponsoringGroup->get('/sponsors/{id:[0-9]+}', [SponsorController::class, 'detail']);
+                        $sponsoringGroup->post('/sponsors/{id:[0-9]+}', [SponsorController::class, 'update']);
+                        $sponsoringGroup->post('/sponsors/{id:[0-9]+}/delete', [SponsorController::class, 'delete']);
 
-                    // Vereinbarungen
-                    $sponsoringGroup->post('/sponsorships', [SponsorshipController::class, 'create']);
-                    $sponsoringGroup->post('/sponsorships/{id:[0-9]+}', [SponsorshipController::class, 'update']);
-                    $sponsoringGroup->post('/sponsorships/{id:[0-9]+}/delete', [SponsorshipController::class, 'delete']);
-                    $sponsoringGroup->get(
-                        '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}',
-                        [SponsorshipController::class, 'downloadAttachment']
-                    );
-                    $sponsoringGroup->post(
-                        '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
-                        [SponsorshipController::class, 'deleteAttachment']
-                    );
+                        // Vereinbarungen
+                        $sponsoringGroup->post('/sponsorships', [SponsorshipController::class, 'create']);
+                        $sponsoringGroup->post(
+                            '/sponsorships/{id:[0-9]+}',
+                            [SponsorshipController::class, 'update']
+                        );
+                        $sponsoringGroup->post(
+                            '/sponsorships/{id:[0-9]+}/delete',
+                            [SponsorshipController::class, 'delete']
+                        );
+                        $sponsoringGroup->get(
+                            '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}',
+                            [SponsorshipController::class, 'downloadAttachment']
+                        );
+                        $sponsoringGroup->post(
+                            '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                            [SponsorshipController::class, 'deleteAttachment']
+                        );
 
-                    // Kontakthistorie
-                    $sponsoringGroup->post('/contacts', [SponsoringContactController::class, 'create']);
-                    $sponsoringGroup->post('/contacts/{id:[0-9]+}', [SponsoringContactController::class, 'update']);
-                    $sponsoringGroup->post('/contacts/{id:[0-9]+}/done', [SponsoringContactController::class, 'markDone']);
-                    $sponsoringGroup->post('/contacts/{id:[0-9]+}/delete', [SponsoringContactController::class, 'delete']);
+                        // Kontakthistorie
+                        $sponsoringGroup->post('/contacts', [SponsoringContactController::class, 'create']);
+                        $sponsoringGroup->post(
+                            '/contacts/{id:[0-9]+}',
+                            [SponsoringContactController::class, 'update']
+                        );
+                        $sponsoringGroup->post(
+                            '/contacts/{id:[0-9]+}/done',
+                            [SponsoringContactController::class, 'markDone']
+                        );
+                        $sponsoringGroup->post(
+                            '/contacts/{id:[0-9]+}/delete',
+                            [SponsoringContactController::class, 'delete']
+                        );
 
-                    // Paketverwaltung
-                    $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
-                    $sponsoringGroup->post('/packages', [SponsorPackageController::class, 'create']);
-                    $sponsoringGroup->post('/packages/{id:[0-9]+}', [SponsorPackageController::class, 'update']);
-                    $sponsoringGroup->post('/packages/{id:[0-9]+}/delete', [SponsorPackageController::class, 'delete']);
-                }
-            )->add(new RoleMiddleware(requiresSponsoringManagement: true));
+                        // Paketverwaltung
+                        $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
+                        $sponsoringGroup->post('/packages', [SponsorPackageController::class, 'create']);
+                        $sponsoringGroup->post('/packages/{id:[0-9]+}', [SponsorPackageController::class, 'update']);
+                        $sponsoringGroup->post(
+                            '/packages/{id:[0-9]+}/delete',
+                            [SponsorPackageController::class, 'delete']
+                        );
+                    }
+                )->add(new RoleMiddleware(requiresSponsoringManagement: true));
+            }
 
             // Song library management
             $group->group(

@@ -104,7 +104,7 @@
                                                     <span class="visually-hidden">Weitere Aktionen</span>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end">
-                                                    {% if session.can_manage_tasks %}
+                                                    {% if settings.modules.tasks and session.can_manage_tasks %}
                                                         <li>
                                                             <a href="/projects/{{ project.id }}/tasks" class="dropdown-item">
                                                                 <i class="bi bi-list-check me-2"></i> Planung
