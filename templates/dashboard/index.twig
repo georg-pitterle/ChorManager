@@ -209,28 +209,32 @@
         </section>
     </div>
 
-    <div class="modal fade"
-         id="newsletterActionModal"
-         tabindex="-1"
-         aria-labelledby="newsletterActionModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow rounded-3">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-2 p-md-3">
-                    <div id="newsletterActionContent" class="container-fluid px-0"></div>
+    {% if settings.modules.newsletter %}
+        <div class="modal fade"
+             id="newsletterActionModal"
+             tabindex="-1"
+             aria-labelledby="newsletterActionModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow rounded-3">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-2 p-md-3">
+                        <div id="newsletterActionContent" class="container-fluid px-0"></div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 {% endblock content %}
 
 {% block scripts %}
-    <script src="/js/newsletters.js"></script>
+    {% if settings.modules.newsletter %}
+        <script src="/js/newsletters.js"></script>
+    {% endif %}
 {% endblock scripts %}

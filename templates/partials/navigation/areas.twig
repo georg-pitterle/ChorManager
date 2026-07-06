@@ -45,15 +45,17 @@
                 <a class="dropdown-item {% if nav_active(path, nav, ['/downloads'], ['downloads']) %}active{% endif %}"
                    href="/downloads"><i class="bi bi-download me-2"></i> Downloads</a>
             </li>
-            <li>
-                <a class="dropdown-item {% if nav_active(path, nav, ['/newsletters/archive'], ['newsletters_archive']) %}active{% endif %}"
-                   href="/newsletters/archive"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a>
-            </li>
-            {% if session.can_manage_newsletters %}
+            {% if settings.modules.newsletter %}
                 <li>
-                    <a class="dropdown-item {% if nav_active(path, nav, ['/newsletters'], ['newsletters'], ['/newsletters/archive']) %}active{% endif %}"
-                       href="/newsletters"><i class="bi bi-envelope-open me-2"></i> Newsletter</a>
+                    <a class="dropdown-item {% if nav_active(path, nav, ['/newsletters/archive'], ['newsletters_archive']) %}active{% endif %}"
+                       href="/newsletters/archive"><i class="bi bi-envelope me-2"></i> Meine Newsletter</a>
                 </li>
+                {% if session.can_manage_newsletters %}
+                    <li>
+                        <a class="dropdown-item {% if nav_active(path, nav, ['/newsletters'], ['newsletters'], ['/newsletters/archive']) %}active{% endif %}"
+                           href="/newsletters"><i class="bi bi-envelope-open me-2"></i> Newsletter</a>
+                    </li>
+                {% endif %}
             {% endif %}
         </ul>
     </li>

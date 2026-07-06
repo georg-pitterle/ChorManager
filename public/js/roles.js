@@ -1,3 +1,12 @@
+// Feature-Flags koennen einzelne Checkboxen serverseitig ausblenden;
+// dann darf die Zuweisung nicht auf ein fehlendes Element treffen.
+function setCheckedIfPresent(id, checked) {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+        checkbox.checked = checked;
+    }
+}
+
 function syncFinancePermissionPair(readCheckbox, writeCheckbox) {
     if (!readCheckbox || !writeCheckbox) {
         return;
@@ -37,21 +46,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 document.getElementById('edit_name').value = this.getAttribute('data-name');
                 document.getElementById('edit_hierarchy_level').value = this.getAttribute('data-level');
-                document.getElementById('edit_can_manage_users').checked = this.getAttribute('data-manage') === '1';
-                document.getElementById('edit_can_edit_users').checked = this.getAttribute('data-edit') === '1';
-                document.getElementById('edit_can_manage_attendance').checked = this.getAttribute('data-attendance') === '1';
-                document.getElementById('edit_can_manage_project_members').checked = this.getAttribute('data-project-members') === '1';
-                document.getElementById('edit_can_read_finances').checked = this.getAttribute('data-finance-read') === '1';
-                document.getElementById('edit_can_manage_finances').checked = this.getAttribute('data-finances') === '1';
-                document.getElementById('edit_can_manage_master_data').checked = this.getAttribute('data-master-data') === '1';
-                document.getElementById('edit_can_manage_sponsoring').checked = this.getAttribute('data-sponsoring') === '1';
-                document.getElementById('edit_can_manage_song_library').checked = this.getAttribute('data-song-library') === '1';
-                document.getElementById('edit_can_manage_newsletters').checked = this.getAttribute('data-newsletters') === '1';
-                document.getElementById('edit_can_manage_mail_queue').checked = this.getAttribute('data-mail-queue') === '1';
-                document.getElementById('edit_can_manage_sheet_archive').checked = this.getAttribute('data-sheet-archive') === '1';
-                document.getElementById('edit_can_manage_budget').checked = this.getAttribute('data-budget') === '1';
-                document.getElementById('edit_can_manage_tasks').checked = this.getAttribute('data-tasks') === '1';
-                document.getElementById('edit_can_manage_backups').checked = this.getAttribute('data-backups') === '1';
+                setCheckedIfPresent('edit_can_manage_users', this.getAttribute('data-manage') === '1');
+                setCheckedIfPresent('edit_can_edit_users', this.getAttribute('data-edit') === '1');
+                setCheckedIfPresent('edit_can_manage_attendance', this.getAttribute('data-attendance') === '1');
+                setCheckedIfPresent('edit_can_manage_project_members', this.getAttribute('data-project-members') === '1');
+                setCheckedIfPresent('edit_can_read_finances', this.getAttribute('data-finance-read') === '1');
+                setCheckedIfPresent('edit_can_manage_finances', this.getAttribute('data-finances') === '1');
+                setCheckedIfPresent('edit_can_manage_master_data', this.getAttribute('data-master-data') === '1');
+                setCheckedIfPresent('edit_can_manage_sponsoring', this.getAttribute('data-sponsoring') === '1');
+                setCheckedIfPresent('edit_can_manage_song_library', this.getAttribute('data-song-library') === '1');
+                setCheckedIfPresent('edit_can_manage_newsletters', this.getAttribute('data-newsletters') === '1');
+                setCheckedIfPresent('edit_can_manage_mail_queue', this.getAttribute('data-mail-queue') === '1');
+                setCheckedIfPresent('edit_can_manage_sheet_archive', this.getAttribute('data-sheet-archive') === '1');
+                setCheckedIfPresent('edit_can_manage_budget', this.getAttribute('data-budget') === '1');
+                setCheckedIfPresent('edit_can_manage_tasks', this.getAttribute('data-tasks') === '1');
+                setCheckedIfPresent('edit_can_manage_backups', this.getAttribute('data-backups') === '1');
             });
         });
     }

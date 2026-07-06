@@ -28,6 +28,7 @@ use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
+use App\Controllers\DashboardController;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
 use App\Services\BackupService;
@@ -85,6 +86,13 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterService::class => \DI\autowire(),
         BudgetService::class => \DI\autowire(),
         BudgetController::class => \DI\autowire(),
+        DashboardController::class => function (ContainerInterface $c) {
+            return new DashboardController(
+                $c->get(Twig::class),
+                $c->get(MailQueueAdminService::class),
+                $c->get('settings')
+            );
+        },
         DumpRunnerInterface::class => function () {
             return new MysqldumpRunner(
                 EnvHelper::read('DB_HOST', 'db'),

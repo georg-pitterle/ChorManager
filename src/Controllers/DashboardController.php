@@ -15,19 +15,26 @@ class DashboardController
 {
     private Twig $view;
     private \App\Services\MailQueueAdminService $mailQueueAdminService;
+    private array $settings;
 
-    public function __construct(Twig $view, \App\Services\MailQueueAdminService $mailQueueAdminService)
-    {
+    public function __construct(
+        Twig $view,
+        \App\Services\MailQueueAdminService $mailQueueAdminService,
+        array $settings = []
+    ) {
         $this->view = $view;
         $this->mailQueueAdminService = $mailQueueAdminService;
+        $this->settings = $settings;
     }
 
     public function index(Request $request, Response $response): Response
     {
         $today = date('Y-m-d');
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $canViewNewsletterArea = (bool) ($_SESSION['can_manage_newsletters'] ?? false)
-            || (bool) ($_SESSION['can_manage_users'] ?? false);
+        $newsletterModuleEnabled = (bool) ($this->settings['modules']['newsletter'] ?? false);
+        $canViewNewsletterArea = $newsletterModuleEnabled
+            && ((bool) ($_SESSION['can_manage_newsletters'] ?? false)
+                || (bool) ($_SESSION['can_manage_users'] ?? false));
 
         $currentProject = Project::where('start_date', '<=', $today)
             ->where('end_date', '>=', $today)
