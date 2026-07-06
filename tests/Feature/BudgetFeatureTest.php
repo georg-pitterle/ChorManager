@@ -108,8 +108,16 @@ final class BudgetFeatureTest extends TestCase
         $content = file_get_contents(dirname(__DIR__, 2) . '/templates/partials/navigation/areas.twig');
         $this->assertIsString($content);
         // Budget entry condition must include finance-read audience.
-        $this->assertMatchesRegularExpression(
-            '/settings\.modules\.budget and \([^)]*can_read_finances[^)]*\)/',
+        $this->assertStringContainsString(
+            '{% set _budget_nav_perm = _finance_nav_perm or session.can_manage_budget %}',
+            $content
+        );
+        $this->assertStringContainsString(
+            '{% if settings.modules.budget and _budget_nav_perm %}',
+            $content
+        );
+        $this->assertStringContainsString(
+            '{% set _finance_nav_perm = session.can_read_finances',
             $content
         );
     }

@@ -54,7 +54,8 @@ class DashboardFeatureTest extends TestCase
 
         $this->assertStringContainsString('{% if session.can_manage_attendance or session.can_manage_users %}', $template);
         $this->assertStringContainsString(
-            '{% set _finance_perm = session.can_read_finances or session.can_manage_users %}',
+            '{% set _finance_perm = session.can_read_finances or session.can_manage_finances'
+                . ' or session.can_manage_users %}',
             $template
         );
         $this->assertStringContainsString(
@@ -68,5 +69,63 @@ class DashboardFeatureTest extends TestCase
         $this->assertStringContainsString('{% if dead_mail_count is not null %}', $template);
         $this->assertStringContainsString('Keine projektbezogenen Aufgabenbereiche verfügbar.', $template);
         $this->assertStringContainsString('Aktuell stehen für dich keine Kommunikationskarten bereit.', $template);
+    }
+
+    public function testDashboardControllerGatesProjectContextQueriesBehindTaskPermission(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DashboardController.php');
+
+        $this->assertIsString($controller);
+        $this->assertStringContainsString('if ($tasksModuleEnabled && $canManageTasks) {', $controller);
+        $this->assertStringContainsString("(bool) (\$this->settings['modules']['tasks'] ?? false)", $controller);
+    }
+
+    public function testDashboardControllerOmitsUnusedSessionDataFromViewModel(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DashboardController.php');
+
+        $this->assertIsString($controller);
+        $this->assertStringNotContainsString("'can_manage_users' =>", $controller);
+        $this->assertStringNotContainsString("'can_manage_attendance' =>", $controller);
+        $this->assertStringNotContainsString("'role_level' =>", $controller);
+        $this->assertStringNotContainsString("'voice_group_ids' =>", $controller);
+    }
+
+    public function testNewsletterScopingUsesPermissionInsteadOfHardcodedRoleName(): void
+    {
+        $dashboardController = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DashboardController.php');
+        $newsletterController = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+
+        $this->assertIsString($dashboardController);
+        $this->assertIsString($newsletterController);
+
+        $this->assertStringNotContainsString("'Admin'", $dashboardController);
+        $this->assertStringNotContainsString("where('name', 'Admin')", $newsletterController);
+        $this->assertStringContainsString("\$_SESSION['can_manage_users']", $newsletterController);
+    }
+
+    public function testDashboardTemplateShowsEvaluationsCardForAllUsers(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString('href="/evaluations"', $template);
+
+        $matched = preg_match(
+            '/\{% if session\.can_manage_users %\}(.*?)\{% endif %\}/s',
+            $template,
+            $matches
+        );
+        $this->assertSame(1, $matched, 'Admin-only block missing in dashboard template.');
+        $this->assertStringNotContainsString('href="/evaluations"', $matches[1]);
+    }
+
+    public function testDashboardTemplateUsesNeutralCommunicationEmptyState(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
+
+        $this->assertIsString($template);
+        $this->assertStringNotContainsString('Sobald Newsletter-Rechte oder Mail-Queue-Zugriff', $template);
+        $this->assertStringNotContainsString('Keine Schnellzugriffe verfügbar', $template);
     }
 }

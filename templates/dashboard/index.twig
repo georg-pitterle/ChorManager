@@ -40,7 +40,7 @@
                     </article>
                 {% endif %}
 
-                {% set _finance_perm = session.can_read_finances or session.can_manage_users %}
+                {% set _finance_perm = session.can_read_finances or session.can_manage_finances or session.can_manage_users %}
                 {% set _finance_panel_visible = settings.modules.finance and _finance_perm %}
                 {% if _finance_panel_visible %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
@@ -68,30 +68,19 @@
                         </div>
                         <a href="/users" class="btn btn-outline-success">Mitglieder verwalten</a>
                     </article>
-
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Auswertung</p>
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-bar-chart-fill"></i>
-                                Auswertungen
-                            </h3>
-                            <p class="dashboard-panel__text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
-                        </div>
-                        <a href="/evaluations" class="btn btn-outline-dark">Statistiken ansehen</a>
-                    </article>
                 {% endif %}
 
-                {% if not (session.can_manage_attendance or _finance_panel_visible or session.can_manage_users) %}
-                    <article class="surface-card dashboard-panel dashboard-panel--empty">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">Keine Schnellzugriffe verfügbar</h3>
-                            <p class="dashboard-panel__text mb-0">
-                                Für deinen aktuellen Berechtigungsumfang sind momentan keine direkten Bereiche hinterlegt.
-                            </p>
-                        </div>
-                    </article>
-                {% endif %}
+                <article class="surface-card dashboard-panel dashboard-panel--action">
+                    <div class="dashboard-panel__body">
+                        <p class="dashboard-panel__eyebrow">Auswertung</p>
+                        <h3 class="dashboard-panel__title">
+                            <i class="bi bi-bar-chart-fill"></i>
+                            Auswertungen
+                        </h3>
+                        <p class="dashboard-panel__text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
+                    </div>
+                    <a href="/evaluations" class="btn btn-outline-dark">Statistiken ansehen</a>
+                </article>
             </div>
         </section>
 
@@ -202,7 +191,8 @@
                         <div class="dashboard-panel__body">
                             <h3 class="dashboard-panel__title">Aktuell stehen für dich keine Kommunikationskarten bereit.</h3>
                             <p class="dashboard-panel__text mb-0">
-                                Sobald Newsletter-Rechte oder Mail-Queue-Zugriff verfügbar sind, erscheinen die Bereiche hier.
+                                Hier erscheinen der zuletzt versendete Newsletter und der Mail-Queue-Status,
+                                sobald passende Inhalte für dich vorliegen.
                             </p>
                         </div>
                     </article>

@@ -31,64 +31,64 @@ class DashboardController
     {
         $today = date('Y-m-d');
         $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $canManageTasks = (bool) ($_SESSION['can_manage_tasks'] ?? false);
+        $tasksModuleEnabled = (bool) ($this->settings['modules']['tasks'] ?? false);
         $newsletterModuleEnabled = (bool) ($this->settings['modules']['newsletter'] ?? false);
         $canViewNewsletterArea = $newsletterModuleEnabled
-            && ((bool) ($_SESSION['can_manage_newsletters'] ?? false)
-                || (bool) ($_SESSION['can_manage_users'] ?? false));
+            && ((bool) ($_SESSION['can_manage_newsletters'] ?? false) || $canManageUsers);
 
-        $currentProject = Project::where('start_date', '<=', $today)
-            ->where('end_date', '>=', $today)
-            ->orderBy('end_date', 'asc')
-            ->first();
+        $currentProject = null;
+        $upcomingProject = null;
 
-        $upcomingProject = Project::where('start_date', '>', $today)
-            ->orderBy('start_date', 'asc')
-            ->first();
+        if ($tasksModuleEnabled && $canManageTasks) {
+            $currentProject = Project::where('start_date', '<=', $today)
+                ->where('end_date', '>=', $today)
+                ->orderBy('end_date', 'asc')
+                ->first();
+
+            $upcomingProject = Project::where('start_date', '>', $today)
+                ->orderBy('start_date', 'asc')
+                ->first();
+        }
 
         $latestSentNewsletter = null;
         $deadMailCount = null;
 
         if ($canViewNewsletterArea && $userId > 0) {
-            $user = User::find($userId);
+            $newsletterQuery = Newsletter::query()
+                ->where('status', Newsletter::STATUS_SENT)
+                ->with(['project', 'recipientSources']);
 
-            if ($user) {
-                $roles = $user->roles()->pluck('roles.name')->toArray();
-                $newsletterQuery = Newsletter::query()
-                    ->where('status', Newsletter::STATUS_SENT)
-                    ->with(['project', 'recipientSources']);
-
-                if (!in_array('Admin', $roles, true)) {
-                    $accessibleProjectIds = $user->projects()
+            if (!$canManageUsers) {
+                $user = User::find($userId);
+                $accessibleProjectIds = $user
+                    ? $user->projects()
                         ->pluck('projects.id')
                         ->map(fn($id) => (int) $id)
-                        ->all();
+                        ->all()
+                    : [];
 
-                    if ($accessibleProjectIds === []) {
-                        $newsletterQuery = null;
-                    } else {
-                        $newsletterQuery->whereIn('project_id', $accessibleProjectIds);
-                    }
+                if ($accessibleProjectIds === []) {
+                    $newsletterQuery = null;
+                } else {
+                    $newsletterQuery->whereIn('project_id', $accessibleProjectIds);
                 }
+            }
 
-                if ($newsletterQuery !== null) {
-                    $latestSentNewsletter = $newsletterQuery
-                        ->orderBy('sent_at', 'desc')
-                        ->orderBy('created_at', 'desc')
-                        ->first();
-                }
+            if ($newsletterQuery !== null) {
+                $latestSentNewsletter = $newsletterQuery
+                    ->orderBy('sent_at', 'desc')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
             }
         }
 
-        if ((bool) ($_SESSION['can_manage_mail_queue'] ?? false) || (bool) ($_SESSION['can_manage_users'] ?? false)) {
+        if ((bool) ($_SESSION['can_manage_mail_queue'] ?? false) || $canManageUsers) {
             $deadMailCount = $this->mailQueueAdminService->countDeadLetters();
         }
 
-        // Simple dashboard placeholder handling both admin and basic views
         $data = [
-            'can_manage_users' => $_SESSION['can_manage_users'] ?? false,
-            'can_manage_attendance' => $_SESSION['can_manage_attendance'] ?? false,
-            'role_level' => $_SESSION['role_level'] ?? 0,
-            'voice_group_ids' => $_SESSION['voice_group_ids'] ?? [],
             'current_project' => $currentProject,
             'upcoming_project' => $upcomingProject,
             'latest_sent_newsletter' => $latestSentNewsletter,

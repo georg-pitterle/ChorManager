@@ -102,7 +102,13 @@ class FinanceFeatureTest extends TestCase
 
         $this->assertIsString($areas);
         $this->assertIsString($dashboard);
-        $this->assertStringContainsString('session.can_read_finances or session.can_manage_users', $areas);
-        $this->assertStringContainsString('session.can_read_finances or session.can_manage_users', $dashboard);
+        $this->assertStringContainsString(
+            'session.can_read_finances or session.can_manage_finances or session.can_manage_users',
+            $areas
+        );
+        $this->assertStringContainsString(
+            'session.can_read_finances or session.can_manage_finances or session.can_manage_users',
+            $dashboard
+        );
     }
 }

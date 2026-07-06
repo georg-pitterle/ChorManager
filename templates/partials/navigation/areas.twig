@@ -17,13 +17,15 @@
                        href="/projects/members"><i class="bi bi-person-check me-2"></i> Meine Projekte</a>
                 </li>
             {% endif %}
-            {% if settings.modules.finance and (session.can_read_finances or session.can_manage_users) %}
+            {% set _finance_nav_perm = session.can_read_finances or session.can_manage_finances or session.can_manage_users %}
+            {% if settings.modules.finance and _finance_nav_perm %}
                 <li>
                     <a class="dropdown-item {% if nav_active(path, nav, ['/finances'], ['finances']) %}active{% endif %}"
                        href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a>
                 </li>
             {% endif %}
-            {% if settings.modules.budget and (session.can_read_finances or session.can_manage_budget or session.can_manage_users) %}
+            {% set _budget_nav_perm = _finance_nav_perm or session.can_manage_budget %}
+            {% if settings.modules.budget and _budget_nav_perm %}
                 <li>
                     <a class="dropdown-item {% if nav_active(path, nav, ['/budget'], ['budget']) %}active{% endif %}"
                        href="/budget"><i class="bi bi-calculator me-2"></i> Budget</a>

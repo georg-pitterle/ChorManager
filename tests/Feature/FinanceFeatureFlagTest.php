@@ -190,7 +190,12 @@ final class FinanceFeatureFlagTest extends TestCase
         $this->assertIsString($template);
 
         $this->assertStringContainsString(
-            '{% if settings.modules.finance and (session.can_read_finances or session.can_manage_users) %}',
+            '{% set _finance_nav_perm = session.can_read_finances or session.can_manage_finances'
+                . ' or session.can_manage_users %}',
+            $template
+        );
+        $this->assertStringContainsString(
+            '{% if settings.modules.finance and _finance_nav_perm %}',
             $template
         );
     }
