@@ -17,7 +17,7 @@
                        href="/projects/members"><i class="bi bi-person-check me-2"></i> Meine Projekte</a>
                 </li>
             {% endif %}
-            {% if session.can_read_finances or session.can_manage_users %}
+            {% if settings.modules.finance and (session.can_read_finances or session.can_manage_users) %}
                 <li>
                     <a class="dropdown-item {% if nav_active(path, nav, ['/finances'], ['finances']) %}active{% endif %}"
                        href="/finances"><i class="bi bi-bank me-2"></i> Kassa</a>

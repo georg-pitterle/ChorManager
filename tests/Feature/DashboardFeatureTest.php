@@ -53,7 +53,15 @@ class DashboardFeatureTest extends TestCase
         $this->assertIsString($template);
 
         $this->assertStringContainsString('{% if session.can_manage_attendance or session.can_manage_users %}', $template);
-        $this->assertStringContainsString('{% if session.can_read_finances or session.can_manage_users %}', $template);
+        $this->assertStringContainsString(
+            '{% set _finance_perm = session.can_read_finances or session.can_manage_users %}',
+            $template
+        );
+        $this->assertStringContainsString(
+            '{% set _finance_panel_visible = settings.modules.finance and _finance_perm %}',
+            $template
+        );
+        $this->assertStringContainsString('{% if _finance_panel_visible %}', $template);
         $this->assertStringContainsString('{% if session.can_manage_users %}', $template);
         $this->assertStringContainsString('{% if session.can_manage_tasks and current_project %}', $template);
         $this->assertStringContainsString('{% if session.can_manage_tasks and upcoming_project %}', $template);

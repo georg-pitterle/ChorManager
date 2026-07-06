@@ -9,6 +9,7 @@ use App\Util\Timezone;
 
 return function (ContainerBuilder $containerBuilder) {
     $appTimezone = Timezone::resolveAppTimezone();
+    $financeEnabled = EnvHelper::read('FEATURE_FINANCE', 'false') === 'true';
 
     // Global Settings Object
     $containerBuilder->addDefinitions([
@@ -39,7 +40,9 @@ return function (ContainerBuilder $containerBuilder) {
             ],
             'modules' => [
                 'sheet_archive' => EnvHelper::read('FEATURE_SHEET_ARCHIVE', 'false') === 'true',
-                'budget'        => EnvHelper::read('FEATURE_BUDGET', 'false') === 'true',
+                'finance'       => $financeEnabled,
+                // Budget baut auf dem Finanzmodul auf und bleibt ohne dieses deaktiviert.
+                'budget'        => EnvHelper::read('FEATURE_BUDGET', 'false') === 'true' && $financeEnabled,
                 'webmail'       => EnvHelper::read('FEATURE_WEBMAIL', 'false') === 'true',
                 'newsletter'    => EnvHelper::read('FEATURE_NEWSLETTER', 'false') === 'true',
             ],

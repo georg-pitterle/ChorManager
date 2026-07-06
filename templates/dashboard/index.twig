@@ -40,7 +40,9 @@
                     </article>
                 {% endif %}
 
-                {% if session.can_read_finances or session.can_manage_users %}
+                {% set _finance_perm = session.can_read_finances or session.can_manage_users %}
+                {% set _finance_panel_visible = settings.modules.finance and _finance_perm %}
+                {% if _finance_panel_visible %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
                             <p class="dashboard-panel__eyebrow">Finanzen</p>
@@ -80,7 +82,7 @@
                     </article>
                 {% endif %}
 
-                {% if not (session.can_manage_attendance or session.can_read_finances or session.can_manage_users) %}
+                {% if not (session.can_manage_attendance or _finance_panel_visible or session.can_manage_users) %}
                     <article class="surface-card dashboard-panel dashboard-panel--empty">
                         <div class="dashboard-panel__body">
                             <h3 class="dashboard-panel__title">Keine Schnellzugriffe verfügbar</h3>

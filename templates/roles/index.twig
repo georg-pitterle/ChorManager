@@ -128,33 +128,35 @@
                                             </td>
                                         {% endfor %}
                                     </tr>
-                                    <tr class="table-secondary">
-                                        <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Finanzen</th>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Finanzen nur lesen</th>
-                                        {% for role in roles %}
-                                            <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_read_finances %}
-                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
-                                                {% else %}
-                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
-                                                {% endif %}
-                                            </td>
-                                        {% endfor %}
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Finanzen lesen und schreiben</th>
-                                        {% for role in roles %}
-                                            <td data-label="{{ role.name }}" class="text-center align-middle">
-                                                {% if role.can_manage_finances %}
-                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
-                                                {% else %}
-                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
-                                                {% endif %}
-                                            </td>
-                                        {% endfor %}
-                                    </tr>
+                                    {% if settings.modules.finance %}
+                                        <tr class="table-secondary">
+                                            <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Finanzen</th>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Finanzen nur lesen</th>
+                                            {% for role in roles %}
+                                                <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                    {% if role.can_read_finances %}
+                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                    {% else %}
+                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Finanzen lesen und schreiben</th>
+                                            {% for role in roles %}
+                                                <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                    {% if role.can_manage_finances %}
+                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                    {% else %}
+                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endif %}
                                     {% if settings.modules.budget %}
                                         <tr>
                                             <th scope="row">Budget verwalten</th>
@@ -418,32 +420,37 @@
                         <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
                     </div>
 
-                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Finanzen</h6>
+                    {% if settings.modules.finance %}
+                        <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Finanzen</h6>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="can_read_finances"
-                               name="can_read_finances"
-                               value="1">
-                        <label class="form-check-label fw-bold text-success" for="can_read_finances">Finanzen nur lesen</label>
-                        <div class="form-text">
-                            Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="can_read_finances"
+                                   name="can_read_finances"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-success"
+                                   for="can_read_finances">Finanzen nur lesen</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="can_manage_finances"
-                               name="can_manage_finances"
-                               value="1">
-                        <label class="form-check-label fw-bold text-success"
-                               for="can_manage_finances">Finanzen lesen und schreiben</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
-                    </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="can_manage_finances"
+                                   name="can_manage_finances"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-success"
+                                   for="can_manage_finances">Finanzen lesen und schreiben</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.
+                            </div>
+                        </div>
+                    {% endif %}
 
                           {% if settings.modules.budget %}
                            <div class="form-check form-switch mb-3">
@@ -664,33 +671,37 @@
                         <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
                     </div>
 
-                    <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Finanzen</h6>
+                    {% if settings.modules.finance %}
+                        <h6 class="text-uppercase text-muted small fw-bold mt-4 mb-2 border-bottom pb-1">Finanzen</h6>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="edit_can_read_finances"
-                               name="can_read_finances"
-                               value="1">
-                        <label class="form-check-label fw-bold text-success"
-                               for="edit_can_read_finances">Finanzen nur lesen</label>
-                        <div class="form-text">
-                            Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit_can_read_finances"
+                                   name="can_read_finances"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-success"
+                                   for="edit_can_read_finances">Finanzen nur lesen</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person das Finanzmodul ansehen und Auswertungen sowie Anhänge öffnen.
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               role="switch"
-                               id="edit_can_manage_finances"
-                               name="can_manage_finances"
-                               value="1">
-                        <label class="form-check-label fw-bold text-success"
-                               for="edit_can_manage_finances">Finanzen lesen und schreiben</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.</div>
-                    </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit_can_manage_finances"
+                                   name="can_manage_finances"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-success"
+                                   for="edit_can_manage_finances">Finanzen lesen und schreiben</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person Finanzeinträge und Konfigurationen bearbeiten sowie löschen.
+                            </div>
+                        </div>
+                    {% endif %}
 
                           {% if settings.modules.budget %}
                            <div class="form-check form-switch mb-3">

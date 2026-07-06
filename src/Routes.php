@@ -226,32 +226,37 @@ return function (App $app) {
             )->add(new RoleMiddleware(requiresMasterDataManagement: true));
 
 
-            // Finance (Kassa) read routes - Need can_read_finances OR can_manage_finances OR global manage
-            $group->group(
-                '',
-                function ($financeReadGroup) {
-                    $financeReadGroup->get('/finances', [FinanceController::class, 'index']);
-                    $financeReadGroup->get('/finances/report', [FinanceController::class, 'report']);
-                    $financeReadGroup->get(
-                        '/finances/attachments/{id:[0-9]+}',
-                        [FinanceController::class, 'viewAttachment']
-                    );
-                }
-            )->add(new RoleMiddleware(requiresFinanceRead: true));
+            if ($settings['modules']['finance'] ?? false) {
+                // Finance (Kassa) read routes - Need can_read_finances OR can_manage_finances OR global manage
+                $group->group(
+                    '',
+                    function ($financeReadGroup) {
+                        $financeReadGroup->get('/finances', [FinanceController::class, 'index']);
+                        $financeReadGroup->get('/finances/report', [FinanceController::class, 'report']);
+                        $financeReadGroup->get(
+                            '/finances/attachments/{id:[0-9]+}',
+                            [FinanceController::class, 'viewAttachment']
+                        );
+                    }
+                )->add(new RoleMiddleware(requiresFinanceRead: true));
 
-            // Finance (Kassa) write routes - Need can_manage_finances OR global manage
-            $group->group(
-                '',
-                function ($financeWriteGroup) {
-                    $financeWriteGroup->post('/finances/save', [FinanceController::class, 'save']);
-                    $financeWriteGroup->post('/finances/{id:[0-9]+}/delete', [FinanceController::class, 'delete']);
-                    $financeWriteGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
-                    $financeWriteGroup->post(
-                        '/finances/attachments/{id:[0-9]+}/delete',
-                        [FinanceController::class, 'deleteAttachment']
-                    );
-                }
-            )->add(new RoleMiddleware(requiresFinanceManagement: true));
+                // Finance (Kassa) write routes - Need can_manage_finances OR global manage
+                $group->group(
+                    '',
+                    function ($financeWriteGroup) {
+                        $financeWriteGroup->post('/finances/save', [FinanceController::class, 'save']);
+                        $financeWriteGroup->post(
+                            '/finances/{id:[0-9]+}/delete',
+                            [FinanceController::class, 'delete']
+                        );
+                        $financeWriteGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
+                        $financeWriteGroup->post(
+                            '/finances/attachments/{id:[0-9]+}/delete',
+                            [FinanceController::class, 'deleteAttachment']
+                        );
+                    }
+                )->add(new RoleMiddleware(requiresFinanceManagement: true));
+            }
 
             // Shared Evaluation Groups (Project Member Management)derverwaltung (eigenes Recht)
             $group->group(
