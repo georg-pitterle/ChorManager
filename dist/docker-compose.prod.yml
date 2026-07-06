@@ -94,7 +94,7 @@ services:
 
   web:
     image: ghcr.io/georg-pitterle/chormanager-web:latest
-    hostname: chormanager-web-prod
+    hostname: chormanager-web-${STACK_ID:-prod}
     restart: unless-stopped
     depends_on:
       - app
@@ -102,7 +102,7 @@ services:
       internal:
       proxy:
         aliases:
-          - chormanager-web-prod
+          - chormanager-web-${STACK_ID:-prod}
     expose:
       - "80"
     tmpfs:
@@ -136,7 +136,7 @@ services:
     networks:
       proxy:
         aliases:
-          - chormanager-snappymail-prod
+          - chormanager-snappymail-${STACK_ID:-prod}
     healthcheck:
       test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8888/ || exit 1" ]
       interval: 30s

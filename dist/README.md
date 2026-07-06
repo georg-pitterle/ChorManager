@@ -36,6 +36,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | Variable               | Description                            | Default         | Required |
 | ---------------------- | -------------------------------------- | --------------- | -------- |
 | `APP_IMAGE_TAG`        | Image tag from GHCR                    | `latest`        | No       |
+| `STACK_ID`             | Suffix for the shared-network aliases  | `prod`          | No       |
 | `DB_DATABASE`          | MySQL database name                    | `choir_db`      | No       |
 | `DB_USERNAME`          | MySQL user                             | `choir_user`    | No       |
 | `DB_PASSWORD`          | MySQL password                         | -               | **Yes**  |
@@ -92,7 +93,23 @@ server {
 }
 ```
 
-Adjust `server_name` to your real hostname and reload SWAG afterwards.
+Adjust `server_name` to your real hostname and reload SWAG afterwards. If you set
+a custom `STACK_ID`, use `chormanager-web-<STACK_ID>` as the `$upstream_app`.
+
+## Duplicating the Stack on the Same Host
+
+Deploy a second stack under a **different Portainer stack name**. Container names,
+the `db_data`/`snappymail_data` volumes and the `internal`/`egress` networks are
+project-prefixed, so they isolate automatically. The only shared surface is the
+external `portainer_network`; the `web` and `snappymail` aliases on it are
+suffixed with `STACK_ID`. So for a duplicate you only change `.env`:
+
+- give it a unique `STACK_ID` (e.g. `prod2`) — this re-points both aliases,
+- set a new `APP_URL` / hostname and fresh secrets,
+- add a SWAG proxy-conf whose `$upstream_app` / `$upstream_sm` use the same
+  `STACK_ID` suffix (`chormanager-web-prod2`, `chormanager-snappymail-prod2`).
+
+No compose edits are needed.
 
 The `web` service's own Nginx layer has a fixed `client_max_body_size 100m;` baked
 into the image (`nginx.conf`). Keep the SWAG `client_max_body_size` at or below
