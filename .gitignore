@@ -9,3 +9,4 @@ ChorManager.code-workspace
 node_modules/
 .worktrees/
 var/
+ship.ps1
