@@ -94,7 +94,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $targetUser->setRelation('roles', new Collection([]));
         $targetUser->setRelation('voiceGroups', new Collection([]));
 
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
 
         $userQuery = $this->createMock(UserQuery::class);
         $userQuery->expects($this->once())
@@ -102,7 +102,7 @@ class UserProjectScopeFeatureTest extends TestCase
             ->with(5)
             ->willReturn($targetUser);
 
-        $projectQuery = $this->createMock(ProjectQuery::class);
+        $projectQuery = $this->createStub(ProjectQuery::class);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())
@@ -120,9 +120,9 @@ class UserProjectScopeFeatureTest extends TestCase
             ->method('setUserProjects')
             ->with(5, [2, 4]);
 
-        $passwordPolicyService = $this->createMock(PasswordPolicyService::class);
-        $mailQueueService = $this->createMock(MailQueueService::class);
-        $logger = $this->createMock(LoggerInterface::class);
+        $passwordPolicyService = $this->createStub(PasswordPolicyService::class);
+        $mailQueueService = $this->createStub(MailQueueService::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $controller = new UserController(
             $twig,
@@ -170,7 +170,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $targetUser->setRelation('roles', new Collection([]));
         $targetUser->setRelation('voiceGroups', new Collection([]));
 
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
 
         $userQuery = $this->createMock(UserQuery::class);
         $userQuery->expects($this->once())
@@ -178,7 +178,7 @@ class UserProjectScopeFeatureTest extends TestCase
             ->with(5)
             ->willReturn($targetUser);
 
-        $projectQuery = $this->createMock(ProjectQuery::class);
+        $projectQuery = $this->createStub(ProjectQuery::class);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())
@@ -196,9 +196,9 @@ class UserProjectScopeFeatureTest extends TestCase
             ->method('setUserProjects')
             ->with(5, [2, 3, 4]);
 
-        $passwordPolicyService = $this->createMock(PasswordPolicyService::class);
-        $mailQueueService = $this->createMock(MailQueueService::class);
-        $logger = $this->createMock(LoggerInterface::class);
+        $passwordPolicyService = $this->createStub(PasswordPolicyService::class);
+        $mailQueueService = $this->createStub(MailQueueService::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $controller = new UserController(
             $twig,

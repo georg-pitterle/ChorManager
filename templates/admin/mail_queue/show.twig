@@ -29,22 +29,22 @@
 
 {% block content %}
     {% set status_labels = {
-        "queued": "In Warteschlange",
-        "sending": "Wird gesendet",
-        "sent": "Versendet",
-        "skipped": "Übersprungen",
-        "failed": "Fehlgeschlagen",
-        "dead": "Endgültig fehlgeschlagen"
+        queued: "In Warteschlange",
+        sending: "Wird gesendet",
+        sent: "Versendet",
+        skipped: "Übersprungen",
+        failed: "Fehlgeschlagen",
+        dead: "Endgültig fehlgeschlagen",
     } %}
     {% set status_badges = {
-        "queued": "bg-secondary",
-        "sending": "bg-primary",
-        "sent": "bg-success",
-        "skipped": "bg-info text-dark",
-        "failed": "bg-warning text-dark",
-        "dead": "bg-danger"
+        queued: "bg-secondary",
+        sending: "bg-primary",
+        sent: "bg-success",
+        skipped: "bg-info text-dark",
+        failed: "bg-warning text-dark",
+        dead: "bg-danger",
     } %}
-    {% set type_labels = {"newsletter": "Newsletter", "invitation": "Einladung", "password_reset": "Passwort zurücksetzen"} %}
+    {% set type_labels = {newsletter: "Newsletter", invitation: "Einladung", password_reset: "Passwort zurücksetzen"} %}
 
     <div class="dashboard-shell">
         <section class="dashboard-section dashboard-section--context"

@@ -31,7 +31,7 @@ final class ProfileMailboxFeatureTest extends TestCase
 
         $this->crypto = new MailCredentialCryptoService();
 
-        $this->twigMock = $this->createMock(Twig::class);
+        $this->twigMock = $this->createStub(Twig::class);
         $this->controller = new ProfileController(
             $this->twigMock,
             new UserQuery(),
@@ -327,8 +327,7 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertNotEmpty($_SESSION['error'] ?? null);
 
         $capturedData = null;
-        $this->twigMock->expects($this->once())
-            ->method('render')
+        $this->twigMock->method('render')
             ->willReturnCallback(function ($response, $template, $data) use (&$capturedData) {
                 $capturedData = $data;
                 return $response;
@@ -494,8 +493,7 @@ final class ProfileMailboxFeatureTest extends TestCase
         unset($_SESSION['success'], $_SESSION['error']);
 
         $capturedData = null;
-        $this->twigMock->expects($this->once())
-            ->method('render')
+        $this->twigMock->method('render')
             ->willReturnCallback(function ($response, $template, $data) use (&$capturedData) {
                 $capturedData = $data;
                 return $response;

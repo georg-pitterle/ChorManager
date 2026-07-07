@@ -70,7 +70,7 @@ class RoleFeatureTest extends TestCase
 
     public function testCreateRejectsEmptyRoleNameBeforeDatabaseAccess(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = new RoleController($twig);
 
         $request = $this->makeRequest('POST', '/roles', ['name' => '   ']);

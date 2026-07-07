@@ -29,7 +29,7 @@ class ProjectMemberSuccessFeatureTest extends TestCase
                 return $response->withStatus(200);
             });
 
-        $project = $this->createMock(\App\Models\Project::class);
+        $project = $this->createStub(\App\Models\Project::class);
         $members = new Collection([]);
         $available = new Collection([]);
 
@@ -47,7 +47,7 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->with(42)
             ->willReturn($available);
 
-        $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
+        $projectPersistence = $this->createStub(\App\Persistence\ProjectPersistence::class);
 
         $policy = $this->createMock(ProjectMemberPolicy::class);
         $policy->expects($this->once())
@@ -66,8 +66,8 @@ class ProjectMemberSuccessFeatureTest extends TestCase
 
     public function testAddMemberSucceedsWhenPolicyAllowsAccess(): void
     {
-        $twig = $this->createMock(Twig::class);
-        $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
         $projectPersistence->expects($this->once())
@@ -91,8 +91,8 @@ class ProjectMemberSuccessFeatureTest extends TestCase
 
     public function testRemoveMemberSucceedsWhenPolicyAllowsAccess(): void
     {
-        $twig = $this->createMock(Twig::class);
-        $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
         $projectPersistence->expects($this->once())

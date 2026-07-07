@@ -126,7 +126,7 @@
                 <form method="post"
                       action="/song-library/songs/{{ song.id }}/archive/save"
                       data-archive-form="1">
-                    {% include "songs/partials/archive_section.twig" %}
+                    {{ include("songs/partials/archive_section.twig") }}
 
                     <div class="mt-3 d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary">

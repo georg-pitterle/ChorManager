@@ -29,7 +29,7 @@ class ProjectMemberAccessFeatureTest extends TestCase
             ->method('findById')
             ->with(5);
 
-        $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
+        $projectPersistence = $this->createStub(\App\Persistence\ProjectPersistence::class);
         $policy = $this->createMock(ProjectMemberPolicy::class);
         $policy->expects($this->once())
             ->method('canViewMembers')
@@ -47,8 +47,8 @@ class ProjectMemberAccessFeatureTest extends TestCase
 
     public function testAddMemberReturns403WhenPolicyDeniesAccess(): void
     {
-        $twig = $this->createMock(Twig::class);
-        $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
         $projectPersistence->expects($this->never())->method('addProjectMember');
@@ -70,8 +70,8 @@ class ProjectMemberAccessFeatureTest extends TestCase
 
     public function testRemoveMemberReturns403WhenPolicyDeniesAccess(): void
     {
-        $twig = $this->createMock(Twig::class);
-        $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
         $projectPersistence->expects($this->never())->method('removeProjectMember');

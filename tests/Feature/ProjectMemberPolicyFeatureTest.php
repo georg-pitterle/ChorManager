@@ -60,11 +60,11 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_project_members'] = true;
 
-        // Use a partial mock to simulate getAccessibleProjectIds() returning empty array
+        // Use a partial stub to simulate getAccessibleProjectIds() returning empty array
         // (which would happen if User::find() returns null or user has no projects)
-        $policy = $this->getMockBuilder(ProjectMemberPolicy::class)
+        $policy = self::getStubBuilder(ProjectMemberPolicy::class)
             ->onlyMethods(['getAccessibleProjectIds'])
-            ->getMock();
+            ->getStub();
 
         $policy->method('getAccessibleProjectIds')
             ->willReturn([]);

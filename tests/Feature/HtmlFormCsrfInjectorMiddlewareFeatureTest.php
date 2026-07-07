@@ -19,7 +19,7 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $_SESSION = [];
 
         $middleware = new HtmlFormCsrfInjectorMiddleware();
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -41,7 +41,7 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $_SESSION = [Csrf::SESSION_KEY => bin2hex(random_bytes(32))];
 
         $middleware = new HtmlFormCsrfInjectorMiddleware();
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {

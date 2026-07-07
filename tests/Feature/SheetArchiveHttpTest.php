@@ -247,13 +247,13 @@ class SheetArchiveHttpTest extends TestCase
 
     private function createMockContainer(): ContainerInterface
     {
-        $container = $this->createMock(ContainerInterface::class);
+        $container = $this->createStub(ContainerInterface::class);
         $container->method('get')->willReturnCallback(function (string $id) {
             if ($id === SheetArchiveService::class) {
                 return new SheetArchiveService();
             }
             if ($id === LoggerInterface::class) {
-                return $this->createMock(LoggerInterface::class);
+                return $this->createStub(LoggerInterface::class);
             }
             throw new \Exception("Unknown service: $id");
         });

@@ -53,7 +53,7 @@ class RoleHierarchyProtectionFeatureTest extends TestCase
 
     private function controller(): RoleController
     {
-        return new RoleController($this->createMock(Twig::class));
+        return new RoleController($this->createStub(Twig::class));
     }
 
     public function testCreateRejectsRoleAboveActorLevel(): void

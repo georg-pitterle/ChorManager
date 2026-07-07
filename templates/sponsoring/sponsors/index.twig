@@ -98,20 +98,20 @@
                                     </td>
                                     <td data-label="Status">
                                         {% set status_colors = {
-                                            "prospect": "secondary",
-                                            "contacted": "info",
-                                            "negotiating": "warning",
-                                            "active": "success",
-                                            "paused": "secondary",
-                                            "closed": "dark"
+                                            prospect: "secondary",
+                                            contacted: "info",
+                                            negotiating: "warning",
+                                            active: "success",
+                                            paused: "secondary",
+                                            closed: "dark",
                                         } %}
                                         {% set status_labels = {
-                                            "prospect": "Interessent",
-                                            "contacted": "Kontaktiert",
-                                            "negotiating": "Verhandlung",
-                                            "active": "Aktiv",
-                                            "paused": "Pausiert",
-                                            "closed": "Abgeschlossen"
+                                            prospect: "Interessent",
+                                            contacted: "Kontaktiert",
+                                            negotiating: "Verhandlung",
+                                            active: "Aktiv",
+                                            paused: "Pausiert",
+                                            closed: "Abgeschlossen",
                                         } %}
                                         <span class="badge bg-{{ status_colors[sponsor.status] ?? 'secondary' }}">{{ status_labels[sponsor.status] ?? sponsor.status }}</span>
                                     </td>

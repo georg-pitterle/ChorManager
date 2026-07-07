@@ -6,6 +6,7 @@ namespace Tests\Unit\Util;
 
 use App\Util\BlockedHostException;
 use App\Util\OutboundConnectionGuard;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class OutboundConnectionGuardTest extends TestCase
@@ -56,9 +57,7 @@ final class OutboundConnectionGuardTest extends TestCase
         $this->assertSame('2001:4860:4860::8888', OutboundConnectionGuard::resolvePublicIp('[2001:4860:4860::8888]'));
     }
 
-    /**
-     * @dataProvider blockedLiteralProvider
-     */
+    #[DataProvider('blockedLiteralProvider')]
     public function testPrivateAndReservedLiteralsAreBlocked(string $host): void
     {
         $this->expectException(BlockedHostException::class);

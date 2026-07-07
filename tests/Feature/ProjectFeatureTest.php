@@ -72,7 +72,7 @@ class ProjectFeatureTest extends TestCase
             ->method('getAllProjects')
             ->willReturn(new Collection([$projectOne, $projectTwo]));
 
-        $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
+        $projectPersistence = $this->createStub(\App\Persistence\ProjectPersistence::class);
 
         $policy = $this->createMock(ProjectMemberPolicy::class);
         $policy->expects($this->once())
@@ -90,10 +90,10 @@ class ProjectFeatureTest extends TestCase
 
     public function testUpdateRejectsEmptyProjectNameBeforeDatabaseAccess(): void
     {
-        $twig = $this->createMock(Twig::class);
-        $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
-        $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
-        $policy = $this->createMock(ProjectMemberPolicy::class);
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
+        $projectPersistence = $this->createStub(\App\Persistence\ProjectPersistence::class);
+        $policy = $this->createStub(ProjectMemberPolicy::class);
         $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
 
         $request = $this->makeRequest('POST', '/projects/1/update', ['name' => '   ']);

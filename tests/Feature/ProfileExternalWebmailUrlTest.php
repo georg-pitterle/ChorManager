@@ -39,7 +39,7 @@ final class ProfileExternalWebmailUrlTest extends TestCase
         putenv(self::CRYPTO_ENV_KEY . '=' . $cryptoKey);
 
         $this->controller = new ProfileController(
-            $this->createMock(Twig::class),
+            $this->createStub(Twig::class),
             new UserQuery(),
             new PasswordPolicyService(),
             new NullLogger(),

@@ -77,7 +77,7 @@ final class FinanceBusinessLogicTest extends TestCase
 
     private function makeController(?LoggerInterface $logger = null): FinanceController
     {
-        $view = $this->createMock(Twig::class);
+        $view = $this->createStub(Twig::class);
 
         return new FinanceController($view, new BudgetService(), $logger ?? new NullLogger());
     }
@@ -231,7 +231,7 @@ final class FinanceBusinessLogicTest extends TestCase
         $logger->expects($this->once())
             ->method('error')
             ->with(
-                $this->isType('string'),
+                $this->isString(),
                 $this->callback(function (array $context): bool {
                     return ($context['event'] ?? null) === 'finance.save.failed'
                         && array_key_exists('exception', $context);
@@ -252,7 +252,7 @@ final class FinanceBusinessLogicTest extends TestCase
         $logger->expects($this->once())
             ->method('error')
             ->with(
-                $this->isType('string'),
+                $this->isString(),
                 $this->callback(function (array $context): bool {
                     return ($context['event'] ?? null) === 'finance.delete.failed'
                         && array_key_exists('exception', $context);

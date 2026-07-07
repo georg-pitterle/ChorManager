@@ -93,14 +93,14 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         ProjectPersistence $projectPersistence
     ): UserController {
         return new UserController(
-            $this->createMock(Twig::class),
+            $this->createStub(Twig::class),
             $userQuery,
-            $this->createMock(ProjectQuery::class),
+            $this->createStub(ProjectQuery::class),
             $userPersistence,
             $projectPersistence,
-            $this->createMock(PasswordPolicyService::class),
-            $this->createMock(MailQueueService::class),
-            $this->createMock(LoggerInterface::class)
+            $this->createStub(PasswordPolicyService::class),
+            $this->createStub(MailQueueService::class),
+            $this->createStub(LoggerInterface::class)
         );
     }
 
@@ -115,8 +115,8 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $target = $this->makeTarget([100]);
 
-        $userQuery = $this->createMock(UserQuery::class);
-        $userQuery->method('findById')->with(5)->willReturn($target);
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findById')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -158,8 +158,8 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $target = $this->makeTarget([]);
 
-        $userQuery = $this->createMock(UserQuery::class);
-        $userQuery->method('findById')->with(5)->willReturn($target);
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findById')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -200,8 +200,8 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $target = $this->makeTarget([80]);
 
-        $userQuery = $this->createMock(UserQuery::class);
-        $userQuery->method('findById')->with(5)->willReturn($target);
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findById')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -239,8 +239,8 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $target = $this->makeTarget([100]);
 
-        $userQuery = $this->createMock(UserQuery::class);
-        $userQuery->method('findById')->with(5)->willReturn($target);
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findById')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -248,7 +248,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $controller = $this->makeController(
             $userQuery,
             $userPersistence,
-            $this->createMock(ProjectPersistence::class)
+            $this->createStub(ProjectPersistence::class)
         );
 
         $result = $controller->deactivate($this->makeRequest('POST', '/users/deactivate/5'), $this->makeResponse(), ['id' => '5']);

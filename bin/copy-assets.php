@@ -57,7 +57,7 @@ function copyAssets(): void
     $destDir = 'public/vendor/tinymce/tinymce';
     copyRecursive($srcDir, $destDir);
 
-    $source = 'node_modules/tinymce-i18n/langs7/de.js';
+    $source = 'node_modules/tinymce-i18n/langs8/de.js';
     $dest = 'public/vendor/tinymce/langs/de.js';
 
     @mkdir(dirname($dest), 0755, true);

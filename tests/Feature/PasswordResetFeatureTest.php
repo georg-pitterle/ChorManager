@@ -64,7 +64,7 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testSendResetLinkRejectsInvalidEmail(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/forgot-password', ['email' => 'invalid-email']);
@@ -78,7 +78,7 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testShowResetFormRejectsMissingTokenOrEmail(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('GET', '/reset-password');
@@ -92,7 +92,7 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testProcessResetRejectsMissingRequiredFields(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [
@@ -111,7 +111,7 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testProcessResetRejectsPasswordMismatch(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [
@@ -130,7 +130,7 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testProcessResetRejectsTooShortPassword(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [
@@ -167,7 +167,7 @@ class PasswordResetFeatureTest extends TestCase
             $table->string('last_name')->nullable();
         });
 
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $rateLimiter = $this->createMock(RateLimiterService::class);
         $rateLimiter->expects($this->once())
             ->method('hit')
@@ -196,7 +196,7 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testProcessResetRejectsWeakPassword(): void
     {
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $controller = $this->makeController($twig);
 
         $request = $this->makeRequest('POST', '/reset-password', [

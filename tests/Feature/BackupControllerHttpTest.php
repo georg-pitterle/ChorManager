@@ -38,7 +38,7 @@ final class BackupControllerHttpTest extends TestCase
             'test-version'
         );
 
-        $twig = $this->createMock(Twig::class);
+        $twig = $this->createStub(Twig::class);
         $this->controller = new BackupController($twig, $this->backupService, new NullLogger());
 
         $_SESSION = [];

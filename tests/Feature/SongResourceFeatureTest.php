@@ -102,7 +102,7 @@ class SongResourceFeatureTest extends TestCase
     public function testCreateLinkRejectsUnsupportedScheme(): void
     {
         $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Abendlied']);
-        $controller = new SongLibraryController($this->createMock(Twig::class));
+        $controller = new SongLibraryController($this->createStub(Twig::class));
 
         $request = $this->makeRequest('POST', '/song-library/songs/' . $songId . '/resources/links', [
             'title' => 'MIDI Player',
@@ -120,7 +120,7 @@ class SongResourceFeatureTest extends TestCase
     public function testDeleteLinkRejectsUnknownResourceId(): void
     {
         $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Abendlied']);
-        $controller = new SongLibraryController($this->createMock(Twig::class));
+        $controller = new SongLibraryController($this->createStub(Twig::class));
 
         $request = $this->makeRequest('POST', '/song-library/songs/' . $songId . '/resources/links/999/delete');
         $response = $this->makeResponse();
