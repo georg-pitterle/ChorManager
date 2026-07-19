@@ -1,0 +1,116 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Anmeldung - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid py-3">
+        <div class="d-flex align-items-center mb-3">
+            <a href="/registrations" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+            <h1 class="h3 mb-0">{{ event.title }}</h1>
+        </div>
+
+        {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="text-muted">
+                    {{ event.starts_at|date("d.m.Y H:i") }}
+                    {% if event.location %} &middot; {{ event.location }}{% endif %}
+                    &middot; Anmeldeschluss: {{ event.registrationDeadlineAt()|date("d.m.Y H:i") }}
+                </div>
+                <div class="mt-2">
+                    <span class="badge registration-badge-yes">{{ counts.yes }} Zusagen</span>
+                    <span class="badge registration-badge-no">{{ counts.no }} Absagen</span>
+                    <span class="badge registration-badge-maybe">{{ counts.maybe }} Vielleicht</span>
+                    <span class="badge registration-badge-open">{{ counts.open }} Offen</span>
+                    <span class="ms-2 text-muted small">
+                        Rücklauf: {{ answered }} von {{ total_eligible }} ({{ response_rate }} %)
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {% if registration_open %}
+            <div class="card mb-3">
+                <div class="card-header">Meine Anmeldung</div>
+                <div class="card-body">
+                    <form method="post" action="/registrations/{{ event.id }}" class="registration-own-form">
+                        <div class="btn-group mb-2" role="group" aria-label="Eigener Anmeldestatus">
+                            {% set own_status = own_registration ? own_registration.status : null %}
+                            {% set yes_active = own_status == "yes" %}
+                            {% set no_active = own_status == "no" %}
+                            {% set maybe_active = own_status == "maybe" %}
+                            <input type="radio" class="btn-check" name="status" id="status-yes" value="yes"
+                                   {% if yes_active %}checked{% endif %}>
+                            <label class="btn btn-outline-success" for="status-yes">Zusage</label>
+                            <input type="radio" class="btn-check" name="status" id="status-no" value="no"
+                                   {% if no_active %}checked{% endif %}>
+                            <label class="btn btn-outline-danger" for="status-no">Absage</label>
+                            <input type="radio" class="btn-check" name="status" id="status-maybe" value="maybe"
+                                   {% if maybe_active %}checked{% endif %}>
+                            <label class="btn btn-outline-warning" for="status-maybe">Vielleicht</label>
+                        </div>
+                        <div class="mb-2 registration-note-field">
+                            <label class="form-label" for="registration-note">Begründung (optional, v. a. bei Absage)</label>
+                            <input type="text" class="form-control" id="registration-note" name="note"
+                                   maxlength="255" value="{{ own_registration ? own_registration.note : "" }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-secondary">Der Anmeldeschluss ist vorbei — Änderungen sind nicht mehr möglich.</div>
+        {% endif %}
+
+        {% if can_manage_others and registration_open %}
+            <form method="post" action="/registrations/{{ event.id }}/proxy">
+        {% endif %}
+        {% for group_name, members in voice_groups %}
+            <div class="card mb-3">
+                <div class="card-header">{{ group_name }}</div>
+                <ul class="list-group list-group-flush">
+                    {% for member in members %}
+                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                            <span class="flex-grow-1">{{ member.last_name }}, {{ member.first_name }}</span>
+                            {% set member_editable = can_manage_others and registration_open and member.editable %}
+                            {% if member_editable %}
+                                <select class="form-select form-select-sm registration-proxy-select"
+                                        name="registration[{{ member.user_id }}]">
+                                    <option value="">— offen —</option>
+                                    <option value="yes" {% if member.status == "yes" %}selected{% endif %}>Zusage</option>
+                                    <option value="no" {% if member.status == "no" %}selected{% endif %}>Absage</option>
+                                    <option value="maybe" {% if member.status == "maybe" %}selected{% endif %}>Vielleicht</option>
+                                </select>
+                                <input type="text" class="form-control form-control-sm registration-proxy-note"
+                                       name="note[{{ member.user_id }}]" maxlength="255"
+                                       placeholder="Begründung" value="{{ member.note }}">
+                            {% else %}
+                                {% if member.status == "yes" %}
+                                    <span class="badge registration-badge-yes">Zusage</span>
+                                {% elseif member.status == "no" %}
+                                    <span class="badge registration-badge-no">Absage</span>
+                                {% elseif member.status == "maybe" %}
+                                    <span class="badge registration-badge-maybe">Vielleicht</span>
+                                {% else %}
+                                    <span class="badge registration-badge-open">Offen</span>
+                                {% endif %}
+                                {% if member.note %}<span class="text-muted small">{{ member.note }}</span>{% endif %}
+                            {% endif %}
+                            {% if member.updated_by_name %}
+                                <span class="text-muted small">eingetragen von {{ member.updated_by_name }}</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+        {% if can_manage_others and registration_open %}
+                <button type="submit" class="btn btn-primary mb-3">Vertretungseinträge speichern</button>
+            </form>
+        {% endif %}
+    </div>
+{% endblock %}

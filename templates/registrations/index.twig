@@ -1,0 +1,63 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Anmeldungen - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid py-3">
+        <h1 class="h3 mb-3"><i class="bi bi-calendar-check me-2"></i>Anmeldungen</h1>
+
+        {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+        {% if rows is empty %}
+            <div class="alert alert-info">Aktuell sind keine Termine zur Anmeldung freigeschaltet.</div>
+        {% endif %}
+
+        <div class="registration-card-list">
+            {% for row in rows %}
+                <div class="card mb-2 registration-card">
+                    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                        <div class="flex-grow-1">
+                            <a href="/registrations/{{ row.event.id }}" class="fw-bold text-decoration-none">
+                                {{ row.event.title }}
+                            </a>
+                            <div class="text-muted small">
+                                {{ row.event.starts_at|date("d.m.Y H:i") }}
+                                {% if row.event.location %} &middot; {{ row.event.location }}{% endif %}
+                                &middot; Anmeldeschluss: {{ row.event.registrationDeadlineAt()|date("d.m.Y H:i") }}
+                            </div>
+                        </div>
+                        <div class="registration-counters small">
+                            <span class="badge registration-badge-yes">{{ row.yes_count }} Zusagen</span>
+                            <span class="badge registration-badge-no">{{ row.no_count }} Absagen</span>
+                            <span class="badge registration-badge-maybe">{{ row.maybe_count }} Vielleicht</span>
+                            <span class="badge registration-badge-open">{{ row.open_count }} Offen</span>
+                        </div>
+                        <div>
+                            {% if row.open %}
+                                <form method="post" action="/registrations/{{ row.event.id }}" class="d-inline">
+                                    <input type="hidden" name="status" value="yes">
+                                    {% set yes_active = row.own_status == "yes" %}
+                                    <button type="submit"
+                                            class="btn btn-sm {{ yes_active ? "btn-success" : "btn-outline-success" }}">Zusagen</button>
+                                </form>
+                                <form method="post" action="/registrations/{{ row.event.id }}" class="d-inline">
+                                    <input type="hidden" name="status" value="no">
+                                    {% set no_active = row.own_status == "no" %}
+                                    <button type="submit"
+                                            class="btn btn-sm {{ no_active ? "btn-danger" : "btn-outline-danger" }}">Absagen</button>
+                                </form>
+                                <a href="/registrations/{{ row.event.id }}" class="btn btn-sm btn-outline-secondary">Details</a>
+                            {% else %}
+                                <span class="badge text-bg-secondary">Anmeldeschluss vorbei</span>
+                                <a href="/registrations/{{ row.event.id }}" class="btn btn-sm btn-outline-secondary">Details</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

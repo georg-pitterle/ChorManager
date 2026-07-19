@@ -10,6 +10,7 @@ use Slim\Views\Twig;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\Attendance;
+use App\Services\AttendanceScopeService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
@@ -17,10 +18,12 @@ class AttendanceController
     private const SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
 
     private Twig $view;
+    private AttendanceScopeService $scopeService;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, AttendanceScopeService $scopeService)
     {
         $this->view = $view;
+        $this->scopeService = $scopeService;
     }
 
     public function show(Request $request, Response $response, array $args): Response
@@ -31,7 +34,7 @@ class AttendanceController
             ? (int) $queryParams['event_id']
             : null;
 
-        $events = Event::orderBy('starts_at', 'asc')->get();
+        $events = Event::where('attendance_required', true)->orderBy('starts_at', 'asc')->get();
 
         $eventId = $this->resolveSelectedEventId($routeEventId, $queryEventId, $events);
         if ($eventId !== null) {
@@ -72,6 +75,8 @@ class AttendanceController
                 $users = $users->where('is_active', 1)
                     ->with(['voiceGroups', 'subVoices.voiceGroup', 'attendances' => function ($q) use ($eventId) {
                         $q->where('event_id', $eventId);
+                    }, 'eventRegistrations' => function ($q) use ($eventId) {
+                        $q->where('event_id', $eventId);
                     }])
                     ->get()
                     ->sortBy(['last_name', 'first_name']);
@@ -92,6 +97,8 @@ class AttendanceController
                     $status = $attendance ? $attendance->status : 'unbekannt';
                     $note = $attendance ? $attendance->note : null;
 
+                    $registration = $u->eventRegistrations->first();
+
                     $svName = null;
                     if ($voiceGroup && $voiceGroup->pivot->sub_voice_id) {
                         $subVoice = $u->subVoices->firstWhere('id', $voiceGroup->pivot->sub_voice_id);
@@ -107,7 +114,9 @@ class AttendanceController
                         'voice_group_name' => $vgName !== 'Ohne Stimmgruppe' ? $vgName : null,
                         'sub_voice_name' => $svName,
                         'status' => $status,
-                        'note' => $note
+                        'note' => $note,
+                        'registration_status' => $registration ? $registration->status : null,
+                        'registration_note' => $registration ? $registration->note : null
                     ];
                 }
 
@@ -148,12 +157,17 @@ class AttendanceController
             return $response->withHeader('Location', '/attendance')->withStatus(302);
         }
 
+        if (!(bool) $event->attendance_required) {
+            $_SESSION['error'] = 'Für diesen Termin wird keine Anwesenheitsliste geführt.';
+            return $response->withHeader('Location', '/attendance')->withStatus(403);
+        }
+
         if (!$this->canAccessAttendanceEvent($event)) {
             $_SESSION['error'] = 'Zugriff verweigert: Keine Berechtigung für dieses Event.';
             return $response->withHeader('Location', '/attendance/' . $eventId)->withStatus(403);
         }
 
-        $allowedUserIds = $this->getManageableUserIds();
+        $allowedUserIds = $this->scopeService->getManageableUserIds();
         $submittedUserIds = array_values(array_unique(array_map('intval', array_keys((array) $attendances))));
         $unauthorizedUserIds = array_diff($submittedUserIds, $allowedUserIds);
 
@@ -275,35 +289,6 @@ class AttendanceController
         }
 
         return [$previousEventId, $nextEventId];
-    }
-
-    /**
-     * @return array<int>
-     */
-    private function getManageableUserIds(): array
-    {
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
-        $roleLevel = (int) ($_SESSION['role_level'] ?? 0);
-
-        if (!$canManageUsers && $roleLevel < 80) {
-            if (empty($userVoiceGroupIds)) {
-                return [];
-            }
-
-            return User::whereHas('voiceGroups', function ($query) use ($userVoiceGroupIds) {
-                $query->whereIn('voice_group_id', $userVoiceGroupIds);
-            })
-                ->where('is_active', 1)
-                ->pluck('id')
-                ->map(static fn($id) => (int) $id)
-                ->all();
-        }
-
-        return User::where('is_active', 1)
-            ->pluck('id')
-            ->map(static fn($id) => (int) $id)
-            ->all();
     }
 
     private function canAccessAttendanceEvent(Event $event): bool

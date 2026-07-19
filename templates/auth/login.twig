@@ -18,6 +18,9 @@
 
                 <form action="/login" method="post" class="d-grid gap-3">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    {% if redirect %}
+                        <input type="hidden" name="redirect" value="{{ redirect }}">
+                    {% endif %}
                     <div class="form-floating">
                         <input type="email"
                                class="form-control"

@@ -16,6 +16,7 @@ use App\Services\RateLimiterService;
 use App\Services\PasswordPolicyService;
 use App\Util\ClientIpResolver;
 use App\Util\InputValidator;
+use App\Util\SafeRedirect;
 use Psr\Log\LoggerInterface;
 
 class AuthController
@@ -66,8 +67,11 @@ class AuthController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['error']);
 
+        $redirect = SafeRedirect::sanitize((string) ($request->getQueryParams()['redirect'] ?? ''));
+
         return $this->view->render($response, 'auth/login.twig', [
-            'error' => $error
+            'error' => $error,
+            'redirect' => $redirect
         ]);
     }
 
@@ -78,17 +82,23 @@ class AuthController
         $password = $data['password'] ?? '';
         $remember = isset($data['remember']) && $data['remember'] === '1';
 
+        $failureLocation = '/login';
+        $redirect = SafeRedirect::sanitize((string) ($data['redirect'] ?? ''));
+        if ($redirect !== null) {
+            $failureLocation = '/login?redirect=' . rawurlencode($redirect);
+        }
+
         // If email is invalid, return generic error (don't reveal if email exists)
         if ($email === null) {
             $_SESSION['error'] = 'Ungültige E-Mail-Adresse oder Passwort.';
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $response->withHeader('Location', $failureLocation)->withStatus(302);
         }
 
         $clientIp = $this->resolveClientIp($request);
         $limit = $this->rateLimiterService->hit('auth:login:' . $clientIp, 10, 900);
         if (!$limit['allowed']) {
             $_SESSION['error'] = 'Zu viele Anmeldeversuche. Bitte versuche es in wenigen Minuten erneut.';
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $response->withHeader('Location', $failureLocation)->withStatus(302);
         }
 
         $user = $this->userQuery->findByEmail($email);
@@ -111,11 +121,11 @@ class AuthController
 
             $this->rateLimiterService->reset('auth:login:' . $clientIp);
 
-            return $response->withHeader('Location', '/dashboard')->withStatus(302);
+            return $response->withHeader('Location', $redirect ?? '/dashboard')->withStatus(302);
         }
 
         $_SESSION['error'] = 'Ungültige E-Mail-Adresse oder Passwort.';
-        return $response->withHeader('Location', '/login')->withStatus(302);
+        return $response->withHeader('Location', $failureLocation)->withStatus(302);
     }
 
     public function showSetup(Request $request, Response $response): Response

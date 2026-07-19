@@ -15,6 +15,12 @@
                        href="/attendance"><i class="bi bi-person-check me-2"></i> Anwesenheit</a>
                 </li>
             {% endif %}
+            {% if settings.modules.registration %}
+                <li>
+                    <a class="dropdown-item {% if nav_active(path, nav, ['/registrations'], ['registrations']) %}active{% endif %}"
+                       href="/registrations"><i class="bi bi-calendar-check me-2"></i> Anmeldungen</a>
+                </li>
+            {% endif %}
         </ul>
     </li>
 {% endif %}

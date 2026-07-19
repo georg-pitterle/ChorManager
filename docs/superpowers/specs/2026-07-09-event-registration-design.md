@@ -33,7 +33,8 @@ Anwesenheitsliste geführt wird.
 - Pro Termin einstellbar, ob überhaupt eine Anwesenheitsliste verlangt wird
   (`attendance_required`). Anmeldung und Anwesenheit sind unabhängig
   kombinierbar (alle vier Kombinationen möglich).
-- Feature-Toggle global über `app_settings`.
+- Feature-Toggle global über Umgebungsvariable `FEATURE_REGISTRATION`
+  (bestehendes Modul-Muster in `src/Settings.php`).
 
 ## 1. Datenmodell
 
@@ -61,10 +62,14 @@ Unique-Index auf `(event_id, user_id)`.
 
 ### Feature-Toggle
 
-`app_settings`-Key `feature_registration_enabled` (`'1'`/`'0'`, Default aus).
-Checkbox in den App-Einstellungen (`AppSettingController`). Toggle aus ⇒
-Menüpunkt ausgeblendet (Twig-Global `app_settings` existiert), Routen antworten
-404, Termin-Formular zeigt die Anmeldefelder nicht.
+Umgebungsvariable `FEATURE_REGISTRATION` (`true`/`false`, Default `false`) —
+folgt dem bestehenden Modul-Muster: Eintrag `registration` im
+`modules`-Array in `src/Settings.php`, Routen-Gate in `src/Routes.php`
+(`if ($settings['modules']['registration'] ?? false)`), Template-Gates via
+`settings.modules.registration`. Toggle aus ⇒ Menüpunkt ausgeblendet, Routen
+nicht registriert (404), Termin-Formular zeigt die Anmeldefelder nicht.
+Dokumentation in `.env.example`, `dist/.env.example` und
+`dist/docker-compose.prod.yml` wie bei den anderen Feature-Flags.
 
 ### Modelle
 
@@ -86,12 +91,13 @@ Neuer `RegistrationController`; Routen hinter Login, kein eigenes Recht-Flag
 
 ### Feature-Gate
 
-Neue schlanke `FeatureMiddleware('feature_registration_enabled')` auf der
-Routengruppe — Setting aus ⇒ 404. Wiederverwendbar für spätere Features.
+Routen werden nur innerhalb von
+`if ($settings['modules']['registration'] ?? false)` registriert — Feature aus
+⇒ Slim antwortet 404. Keine eigene Middleware nötig.
 
 ### Validierungsregeln (beide POSTs)
 
-1. Feature an (Middleware).
+1. Feature an (Routen-Gate).
 2. `registration_enabled = 1` am Event, sonst 403.
 3. Deadline nicht überschritten: `(registration_deadline ?? starts_at) > now`,
    sonst 403 — deckt „vergangene Termine nicht bearbeitbar" ab.
@@ -197,7 +203,7 @@ Verhalten bei `attendance_required = 0`:
 
 | Fall | Verhalten |
 |---|---|
-| Feature aus, Route aufgerufen | 404 (Middleware) |
+| Feature aus, Route aufgerufen | 404 (Route nicht registriert) |
 | Anmeldung am Event nicht freigeschaltet | 403 + Meldung |
 | Deadline vorbei / Termin vergangen | 403 bei POST; GET zeigt read-only |
 | Proxy für fremde Stimmgruppe | 403 |
@@ -226,8 +232,9 @@ im `exception`-Kontext.
 
 ## 8. Seed-Daten (`DevSeedService`)
 
-- `feature_registration_enabled = 1` und
-  `registration_reminder_days_before = 3` im App-Settings-Seed.
+- `FEATURE_REGISTRATION=true` in der Dev-Umgebung (`.env` /
+  `.env.example`); `registration_reminder_days_before = 3` im
+  App-Settings-Seed.
 - Mehrere zukünftige Termine mit `registration_enabled = 1`: einer mit
   Deadline, einer ohne, einer im Erinnerungsfenster ohne vollständigen
   Rücklauf, einer vergangener mit Anmeldedaten.

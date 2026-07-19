@@ -31,6 +31,8 @@ use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
+use App\Commands\SendRegistrationRemindersCommand;
+use App\Services\RegistrationReminderService;
 use App\Services\BackupService;
 use App\Services\DumpRunnerInterface;
 use App\Services\MysqldumpRunner;
@@ -81,6 +83,8 @@ return function (ContainerBuilder $containerBuilder) {
         MailDeliveryWebhookController::class => \DI\autowire(),
         MailDeliveryDsnController::class => \DI\autowire(),
         ProcessMailQueueCommand::class => \DI\autowire(),
+        RegistrationReminderService::class => \DI\autowire(),
+        SendRegistrationRemindersCommand::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),

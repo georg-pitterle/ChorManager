@@ -68,8 +68,7 @@ class AuthMiddleware implements MiddlewareInterface
         }
 
         if (!isset($_SESSION['user_id'])) {
-            $response = new SlimResponse();
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $this->redirectToLogin($request);
         }
 
         $sessionValidAfter = (int) (AppSetting::query()
@@ -80,8 +79,7 @@ class AuthMiddleware implements MiddlewareInterface
         if ($sessionValidAfter > 0 && $authEpoch < $sessionValidAfter) {
             $this->sessionAuthService->clearSession();
 
-            $response = new SlimResponse();
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $this->redirectToLogin($request);
         }
 
         $currentUser = $this->userQuery->findById((int) $_SESSION['user_id']);
@@ -94,8 +92,7 @@ class AuthMiddleware implements MiddlewareInterface
 
             $this->sessionAuthService->clearSession();
 
-            $response = new SlimResponse();
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $this->redirectToLogin($request);
         }
 
         // Refresh rights snapshot on every protected request.
@@ -106,5 +103,22 @@ class AuthMiddleware implements MiddlewareInterface
         // we can also do it there.
 
         return $handler->handle($request);
+    }
+
+    private function redirectToLogin(Request $request): Response
+    {
+        $target = $request->getUri()->getPath();
+        $query = $request->getUri()->getQuery();
+        if ($query !== '') {
+            $target .= '?' . $query;
+        }
+
+        $location = '/login';
+        if (strtoupper($request->getMethod()) === 'GET' && $target !== '' && $target !== '/dashboard') {
+            $location = '/login?redirect=' . rawurlencode($target);
+        }
+
+        $response = new SlimResponse();
+        return $response->withHeader('Location', $location)->withStatus(302);
     }
 }

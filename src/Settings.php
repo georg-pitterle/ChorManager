@@ -47,6 +47,7 @@ return function (ContainerBuilder $containerBuilder) {
                 'newsletter'    => EnvHelper::read('FEATURE_NEWSLETTER', 'false') === 'true',
                 'sponsoring'    => EnvHelper::read('FEATURE_SPONSORING', 'false') === 'true',
                 'tasks'         => EnvHelper::read('FEATURE_TASKS', 'false') === 'true',
+                'registration'  => EnvHelper::read('FEATURE_REGISTRATION', 'false') === 'true',
             ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),

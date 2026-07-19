@@ -394,6 +394,38 @@
                             </select>
                         </div>
 
+                        {% set _attendance_default_checked = create_form.form.attendance_required is not defined %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="attendance-required"
+                                   name="attendance_required"
+                                   value="1"
+                                   {% if _attendance_default_checked or create_form.form.attendance_required %}checked{% endif %}>
+                            <label class="form-check-label" for="attendance-required">Anwesenheitsliste führen</label>
+                        </div>
+                        {% if settings.modules.registration %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="registration-enabled"
+                                       name="registration_enabled"
+                                       value="1"
+                                       {% if create_form.form.registration_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="registration-enabled">Anmeldung freischalten</label>
+                            </div>
+                            <div class="mb-3">
+                                <label for="registration-deadline" class="form-label">
+                                    Anmeldeschluss (optional, sonst Terminbeginn)
+                                </label>
+                                <input type="datetime-local"
+                                       class="form-control"
+                                       id="registration-deadline"
+                                       name="registration_deadline"
+                                       value="{{ create_form.form.registration_deadline|default('') }}">
+                            </div>
+                        {% endif %}
+
                         <hr class="my-4">
 
                         <div class="form-check mb-3">

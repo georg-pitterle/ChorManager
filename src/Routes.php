@@ -13,6 +13,7 @@ use App\Controllers\ProjectController;
 use App\Controllers\EventController;
 use App\Controllers\TaskController;
 use App\Controllers\AttendanceController;
+use App\Controllers\RegistrationController;
 use App\Controllers\EvaluationController;
 use App\Controllers\RoleController;
 use App\Controllers\VoiceGroupController;
@@ -141,6 +142,15 @@ return function (App $app) {
                     $attendanceGroup->post('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'save']);
                 }
             )->add(new RoleMiddleware(requiresAttendanceManagement: true));
+
+            // Registration Routes (Anmeldung zu zukünftigen Terminen)
+            if ($settings['modules']['registration'] ?? false) {
+                $group->get('/registrations', [RegistrationController::class, 'index']);
+                $group->get('/registrations/{event_id:[0-9]+}', [RegistrationController::class, 'detail']);
+                $group->post('/registrations/{event_id:[0-9]+}', [RegistrationController::class, 'save']);
+                $group->post('/registrations/{event_id:[0-9]+}/proxy', [RegistrationController::class, 'saveProxy']);
+                $group->get('/evaluations/registrations', [EvaluationController::class, 'registrations']);
+            }
 
             // Download section for project members
             $group->get('/downloads', [DownloadController::class, 'index']);

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description"
+              content="Erinnerung zur Anmeldung in {{ app_name|default('Chor-Manager') }}.">
+        <meta name="keywords"
+              content="Erinnerung, Anmeldung, {{ app_name|default('Chor-Manager') }}">
+        <title>Erinnerung: Anmeldung zu {{ event.title }}</title>
+        <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .email-container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .email-header { background-color: #0d6efd; color: #ffffff; padding: 30px; text-align: center; }
+        .email-header h1 { margin: 0; font-size: 22px; }
+        .email-body { padding: 30px 40px; color: #333333; line-height: 1.6; }
+        .email-body p { margin: 0 0 16px 0; }
+        .email-actions { text-align: center; }
+        .btn-reminder { display: inline-block; margin: 20px 0; padding: 14px 28px; background-color: #0d6efd; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
+        .email-footer { padding: 20px 40px; background-color: #f9f9f9; border-top: 1px solid #eeeeee; font-size: 12px; color: #999999; text-align: center; }
+        .url-fallback { word-break: break-all; color: #666666; font-size: 13px; }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="email-header">
+                <h1>Erinnerung: Anmeldung zu {{ app_name|default('Chor-Manager') }}</h1>
+            </div>
+            <div class="email-body">
+                <p>Hallo {{ user.first_name }},</p>
+
+                <p>
+                    für den Termin <strong>{{ event.title }}</strong> am
+                    <strong>{{ event.starts_at|date("d.m.Y H:i") }}</strong>
+                    {% if event.location %} ({{ event.location }}){% endif %}
+                    liegt noch keine Anmeldung von dir vor.
+                </p>
+
+                <p>Anmeldeschluss: <strong>{{ deadline }}</strong></p>
+
+                <p class="email-actions">
+                    <a href="{{ link }}"
+                       class="btn-reminder"
+                       style="display:inline-block;
+                              padding:14px 28px;
+                              background-color:#0d6efd;
+                              color:#ffffff !important;
+                              text-decoration:none;
+                              border-radius:6px;
+                              font-size:16px;
+                              font-weight:bold">Jetzt eintragen</a>
+                </p>
+
+                <p>Falls der Button nicht funktioniert, kopiere diesen Link direkt in deinen Browser:</p>
+                <p class="url-fallback">{{ link }}</p>
+
+                <p>
+                    Mit freundlichen Grüßen,
+                    <br>
+                    Dein {{ app_name|default('Chor-Manager') }} Team
+                </p>
+            </div>
+            <div class="email-footer">Diese E-Mail wurde automatisch generiert. Bitte antworte nicht auf diese Nachricht.</div>
+        </div>
+    </body>
+</html>

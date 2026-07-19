@@ -466,6 +466,17 @@ class EventController
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $repeat = !empty($data['repeat']);
+        $registrationEnabled = !empty($data['registration_enabled']);
+        $attendanceRequired = !empty($data['attendance_required']);
+        $registrationDeadlineRaw = trim((string) ($data['registration_deadline'] ?? ''));
+        $registrationDeadline = null;
+        if ($registrationEnabled && $registrationDeadlineRaw !== '') {
+            try {
+                $registrationDeadline = Carbon::parse($registrationDeadlineRaw)->format('Y-m-d H:i:s');
+            } catch (Exception $e) {
+                $registrationDeadline = null;
+            }
+        }
 
         $formData = [
             'title' => $title,
@@ -480,6 +491,9 @@ class EventController
             'frequency' => trim((string) ($data['frequency'] ?? 'weekly')),
             'weekdays' => array_values(array_map('intval', (array) ($data['weekdays'] ?? [1]))),
             'series_end_date' => trim((string) ($data['series_end_date'] ?? '')),
+            'registration_enabled' => $registrationEnabled,
+            'registration_deadline' => $registrationDeadlineRaw,
+            'attendance_required' => $attendanceRequired,
         ];
 
         if (!$this->canAccessProjectId($projectId)) {
@@ -534,7 +548,10 @@ class EventController
                     'event_type_id' => $eventTypeId,
                     'project_id' => $projectId,
                     'type' => $typeName,
-                    'location' => trim($data['location'] ?? '')
+                    'location' => trim($data['location'] ?? ''),
+                    'registration_enabled' => $registrationEnabled,
+                    'registration_deadline' => $registrationDeadline,
+                    'attendance_required' => $attendanceRequired,
                 ]);
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
             } else {
@@ -587,7 +604,10 @@ class EventController
                             'project_id' => $projectId,
                             'type' => $typeName,
                             'series_id' => $series->id,
-                            'location' => trim($data['location'] ?? '')
+                            'location' => trim($data['location'] ?? ''),
+                            'registration_enabled' => $registrationEnabled,
+                            'registration_deadline' => null,
+                            'attendance_required' => $attendanceRequired,
                         ]);
                         $count++;
                     }
@@ -666,6 +686,11 @@ class EventController
                 'project_id' => $event->project_id !== null ? (string) $event->project_id : '',
                 'location' => (string) ($event->location ?? ''),
                 'update_series' => false,
+                'registration_enabled' => (bool) $event->registration_enabled,
+                'registration_deadline' => $event->registration_deadline
+                    ? Carbon::parse($event->registration_deadline)->format('Y-m-d\TH:i')
+                    : '',
+                'attendance_required' => (bool) $event->attendance_required,
             ];
         }
 
@@ -700,6 +725,17 @@ class EventController
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $updateSeries = !empty($data['update_series']);
+        $registrationEnabled = !empty($data['registration_enabled']);
+        $attendanceRequired = !empty($data['attendance_required']);
+        $registrationDeadlineRaw = trim((string) ($data['registration_deadline'] ?? ''));
+        $registrationDeadline = null;
+        if ($registrationEnabled && $registrationDeadlineRaw !== '') {
+            try {
+                $registrationDeadline = Carbon::parse($registrationDeadlineRaw)->format('Y-m-d H:i:s');
+            } catch (Exception $e) {
+                $registrationDeadline = null;
+            }
+        }
 
         $formData = [
             'title' => $title,
@@ -710,6 +746,9 @@ class EventController
             'project_id' => $projectId ?? '',
             'location' => trim($data['location'] ?? ''),
             'update_series' => $updateSeries,
+            'registration_enabled' => $registrationEnabled,
+            'registration_deadline' => $registrationDeadlineRaw,
+            'attendance_required' => $attendanceRequired,
         ];
 
         if (!$this->canAccessProjectId($projectId)) {
@@ -760,7 +799,9 @@ class EventController
                 'event_type_id' => $eventTypeId,
                 'project_id' => $projectId,
                 'type' => $typeName,
-                'location' => trim($data['location'] ?? '')
+                'location' => trim($data['location'] ?? ''),
+                'registration_enabled' => $registrationEnabled,
+                'attendance_required' => $attendanceRequired,
             ];
 
             if ($updateSeries && $event->series_id) {
@@ -792,6 +833,7 @@ class EventController
             } else {
                 $updateData['starts_at'] = $startsAt;
                 $updateData['ends_at'] = $endsAt;
+                $updateData['registration_deadline'] = $registrationDeadline;
                 $event->update($updateData);
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
             }

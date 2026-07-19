@@ -92,6 +92,47 @@
                                    name="location"
                                    value="{{ form.location|default(event.location) }}">
                         </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="attendance-required"
+                                   name="attendance_required"
+                                   value="1"
+                                   {% if form.attendance_required %}checked{% endif %}>
+                            <label class="form-check-label" for="attendance-required">Anwesenheitsliste führen</label>
+                        </div>
+                        {% if settings.modules.registration %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="registration-enabled"
+                                       name="registration_enabled"
+                                       value="1"
+                                       {% if form.registration_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="registration-enabled">Anmeldung freischalten</label>
+                            </div>
+                            <div class="mb-3">
+                                <label for="registration-deadline" class="form-label">
+                                    Anmeldeschluss (optional, sonst Terminbeginn)
+                                </label>
+                                <input type="datetime-local"
+                                       class="form-control"
+                                       id="registration-deadline"
+                                       name="registration_deadline"
+                                       value="{{ form.registration_deadline|default('') }}">
+                            </div>
+                        {% else %}
+                            {% if event.registration_enabled %}
+                                <input type="hidden" name="registration_enabled" value="1">
+                            {% endif %}
+                            {% if event.registration_deadline %}
+                                <input type="hidden"
+                                       name="registration_deadline"
+                                       value="{{ event.registration_deadline|date("Y-m-d\\TH:i") }}">
+                            {% endif %}
+                        {% endif %}
+
                         <div class="mb-3">
                             <label for="project_id" class="form-label">Projekt (Optional)</label>
                             <select class="form-select" id="project_id" name="project_id">

@@ -38,7 +38,7 @@ class AppSettingController
         unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'settings/index.twig', [
-            'settings' => $settings,
+            'settings_values' => $settings,
             'success' => $success,
             'error' => $error,
         ]);
@@ -55,6 +55,7 @@ class AppSettingController
             10
         );
         $mailQueueBatchSize = self::normalizePositiveInteger($data['mailqueue_batch_size'] ?? null, 50);
+        $registrationReminderDaysBefore = max(0, (int) ($data['registration_reminder_days_before'] ?? 0));
 
         try {
             if ($appName) {
@@ -99,6 +100,15 @@ class AppSettingController
                 ['setting_key' => 'mailqueue_batch_size'],
                 [
                     'setting_value' => (string) $mailQueueBatchSize,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'registration_reminder_days_before'],
+                [
+                    'setting_value' => (string) $registrationReminderDaysBefore,
                     'binary_content' => '',
                     'mime_type' => 'text/plain',
                 ]

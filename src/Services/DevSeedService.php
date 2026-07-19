@@ -11,6 +11,7 @@ use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\Comment;
 use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Finance;
@@ -126,6 +127,7 @@ class DevSeedService
                 'event_series' => 0,
                 'events' => 0,
                 'attendance' => 0,
+                'event_registrations' => 0,
                 'finances' => 0,
                 'finance_attachments' => 0,
                 'finance_groups' => 0,
@@ -180,9 +182,11 @@ class DevSeedService
 
             $projectEvents = $this->seedProjectEvents($projects, $eventTypes);
             $this->seedGlobalEvents($projects, $eventTypes, 12);
+            $this->configureEventRegistrations($projectEvents);
             $this->seedEventNotes($users['active']);
 
             $this->seedAttendance($projectMembers, $projectEvents);
+            $this->seedEventRegistrations($projectMembers, $projectEvents);
             $this->seedFinances($projects, 320, 40);
             $this->seedBudget();
             $packages = $this->seedSponsorPackages();
@@ -229,6 +233,7 @@ class DevSeedService
         $connection->statement('SET FOREIGN_KEY_CHECKS=0');
 
         $tables = [
+            'event_registrations',
             'attendance',
             'activities',
             'attachments',
@@ -940,6 +945,169 @@ class DevSeedService
         }
     }
 
+    /**
+     * Marks a realistic subset of future project events with registration
+     * configuration, plus at least one past event so the evaluation view
+     * has retrospective data to compare registrations against attendance.
+     *
+     * @param array<int,array<int,Event>> $projectEvents
+     */
+    private function configureEventRegistrations(array $projectEvents): void
+    {
+        $now = new DateTimeImmutable();
+
+        $futureEvents = [];
+        $pastEvents = [];
+
+        foreach ($projectEvents as $events) {
+            foreach ($events as $event) {
+                $startsAt = new DateTimeImmutable((string) $event->starts_at);
+                if ($startsAt > $now) {
+                    $futureEvents[] = $event;
+                } else {
+                    $pastEvents[] = $event;
+                }
+            }
+        }
+
+        if ($futureEvents === []) {
+            $this->report['warnings'][] = 'No future project events available for registration seeding.';
+            return;
+        }
+
+        usort($futureEvents, fn(Event $a, Event $b) => strcmp((string) $a->starts_at, (string) $b->starts_at));
+        usort($pastEvents, fn(Event $a, Event $b) => strcmp((string) $b->starts_at, (string) $a->starts_at));
+
+        // Enable registration on every second future event, deadline 2 days before start by default.
+        $enabledFuture = [];
+        foreach ($futureEvents as $index => $event) {
+            if ($index % 2 !== 0) {
+                continue;
+            }
+
+            $startsAt = new DateTimeImmutable((string) $event->starts_at);
+            $event->registration_enabled = true;
+            $event->registration_deadline = $startsAt->modify('-2 days')->format('Y-m-d H:i:s');
+            $event->save();
+            $enabledFuture[] = $event;
+        }
+
+        // One event without an explicit deadline (falls back to starts_at).
+        if (isset($enabledFuture[0])) {
+            $enabledFuture[0]->registration_deadline = null;
+            $enabledFuture[0]->save();
+        }
+
+        // One event where registration is on but attendance tracking is not required.
+        if (isset($enabledFuture[1])) {
+            $enabledFuture[1]->attendance_required = false;
+            $enabledFuture[1]->save();
+        }
+
+        // One event whose deadline falls inside the reminder window, reminder not sent yet.
+        if (isset($enabledFuture[2])) {
+            $enabledFuture[2]->registration_deadline = $now->modify('+2 days')->format('Y-m-d H:i:s');
+            $enabledFuture[2]->registration_reminder_sent_at = null;
+            $enabledFuture[2]->save();
+        }
+
+        // At least one past event with registration enabled, for the "auch vergangene" evaluation view.
+        if (isset($pastEvents[0])) {
+            $startsAt = new DateTimeImmutable((string) $pastEvents[0]->starts_at);
+            $pastEvents[0]->registration_enabled = true;
+            $pastEvents[0]->registration_deadline = $startsAt->modify('-2 days')->format('Y-m-d H:i:s');
+            $pastEvents[0]->save();
+        }
+    }
+
+    /**
+     * Maps active users who share a voice group with a "Stimmvertretung" user
+     * to that representative's user id, mirroring AttendanceScopeService's
+     * voice-group scoping so proxy-entered registrations look realistic.
+     *
+     * @return array<int,int>
+     */
+    private function buildVoiceGroupRepresentatives(): array
+    {
+        $representatives = User::query()
+            ->where('is_active', 1)
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Stimmvertretung');
+            })
+            ->with('voiceGroups')
+            ->get();
+
+        $map = [];
+        foreach ($representatives as $representative) {
+            foreach ($representative->voiceGroups as $group) {
+                $memberIds = User::query()
+                    ->where('is_active', 1)
+                    ->where('id', '!=', $representative->id)
+                    ->whereHas('voiceGroups', function ($query) use ($group) {
+                        $query->where('voice_group_id', $group->id);
+                    })
+                    ->pluck('id');
+
+                foreach ($memberIds as $memberId) {
+                    $map[(int) $memberId] = (int) $representative->id;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    private function seedEventRegistrations(array $projectMembers, array $projectEvents): void
+    {
+        $declineReasons = ['Beruflich verhindert', 'Im Urlaub', 'Krank gemeldet'];
+        $voiceReps = $this->buildVoiceGroupRepresentatives();
+
+        foreach ($projectEvents as $projectId => $events) {
+            $memberIds = $projectMembers[$projectId] ?? [];
+
+            foreach ($events as $event) {
+                if (!(bool) $event->registration_enabled) {
+                    continue;
+                }
+
+                // Response rate per event varies ~60-80%; the rest stay unregistered on purpose
+                // so the response-rate metric in the evaluation view is not always 100%.
+                $responseRate = mt_rand(60, 80);
+
+                foreach ($memberIds as $userId) {
+                    if (mt_rand(1, 100) > $responseRate) {
+                        continue;
+                    }
+
+                    $roll = mt_rand(1, 100);
+                    if ($roll <= 60) {
+                        $status = EventRegistration::STATUS_YES;
+                    } elseif ($roll <= 80) {
+                        $status = EventRegistration::STATUS_NO;
+                    } else {
+                        $status = EventRegistration::STATUS_MAYBE;
+                    }
+
+                    $note = null;
+                    if ($status === EventRegistration::STATUS_NO && mt_rand(1, 100) <= 60) {
+                        $note = $declineReasons[mt_rand(0, count($declineReasons) - 1)];
+                    }
+
+                    $updatedBy = $userId;
+                    if (isset($voiceReps[$userId]) && mt_rand(1, 100) <= 10) {
+                        $updatedBy = $voiceReps[$userId];
+                    }
+
+                    EventRegistration::updateOrCreate(
+                        ['event_id' => $event->id, 'user_id' => $userId],
+                        ['status' => $status, 'note' => $note, 'updated_by' => $updatedBy]
+                    );
+                    $this->report['counts']['event_registrations']++;
+                }
+            }
+        }
+    }
+
     private function seedFinances(array $projects, int $count, int $attachmentCount): void
     {
         $startDate = new DateTimeImmutable(sprintf('%d-01-01', (int) date('Y') - 2));
@@ -1209,6 +1377,7 @@ class DevSeedService
             'mailqueue_trigger_mode' => 'hybrid',
             'mailqueue_opportunistic_rate_limit' => '10',
             'mailqueue_batch_size' => '50',
+            'registration_reminder_days_before' => '3',
         ];
 
         foreach ($settings as $key => $value) {
@@ -1344,6 +1513,29 @@ class DevSeedService
             'error_message' => 'Permanent failure for invalid recipient address.',
             'is_retryable' => false,
         ];
+
+        $reminderEvent = Event::query()->orderByDesc('id')->first();
+        if ($reminderEvent !== null) {
+            $entries[] = [
+                'mail_type' => 'registration_reminder',
+                'recipient_email' => $sampleUser->email,
+                'subject' => 'Erinnerung: Anmeldung zu ' . $reminderEvent->title,
+                'body_html' => '<p>Seeded queued registration reminder.</p>',
+                'payload_json' => [
+                    'user_id' => $sampleUser->id,
+                    'event_id' => $reminderEvent->id,
+                ],
+                'status' => 'queued',
+                'attempts' => 0,
+                'max_attempts' => 3,
+                'next_attempt_at' => (new DateTimeImmutable('+5 minutes'))->format('Y-m-d H:i:s'),
+                'last_attempt_at' => null,
+                'sent_at' => null,
+                'error_code' => null,
+                'error_message' => null,
+                'is_retryable' => false,
+            ];
+        }
 
         foreach ($entries as $entry) {
             $model = MailQueue::create($entry);

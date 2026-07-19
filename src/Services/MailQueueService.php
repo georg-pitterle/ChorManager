@@ -99,6 +99,36 @@ class MailQueueService
     }
 
     /**
+     * Enqueue a registration reminder mail.
+     *
+     * @param string $recipientEmail
+     * @param string $subject
+     * @param string $bodyHtml
+     * @param int $userId
+     * @param int $eventId
+     * @return MailQueue
+     * @throws Exception
+     */
+    public function enqueueRegistrationReminderMail(
+        string $recipientEmail,
+        string $subject,
+        string $bodyHtml,
+        int $userId,
+        int $eventId
+    ): MailQueue {
+        return $this->enqueueGenericMail(
+            mailType: 'registration_reminder',
+            recipientEmail: $recipientEmail,
+            subject: $subject,
+            bodyHtml: $bodyHtml,
+            payload: [
+                'user_id' => $userId,
+                'event_id' => $eventId,
+            ]
+        );
+    }
+
+    /**
      * Generic enqueue logic.
      *
      * @param string $mailType

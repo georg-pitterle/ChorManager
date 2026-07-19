@@ -56,7 +56,7 @@
                                    class="form-control"
                                    id="app_name"
                                    name="app_name"
-                                   value="{{ settings.app_name|default("Chor-Manager") }}"
+                                   value="{{ settings_values.app_name|default("Chor-Manager") }}"
                                    required>
                             <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
                         </div>
@@ -89,7 +89,7 @@
                                    class="form-control"
                                    id="primary_color"
                                    name="primary_color"
-                                   value="{{ settings.primary_color|default("#E8A817") }}"
+                                   value="{{ settings_values.primary_color|default("#E8A817") }}"
                                    inputmode="text"
                                    pattern="^#?[A-Fa-f0-9]{3}([A-Fa-f0-9]{3})?$">
                             <div class="form-text">Hex-Farbwert, zum Beispiel #E8A817. Leer oder ungültig fällt auf das Standardgelb zurück.</div>
@@ -105,15 +105,15 @@
                                     id="mailqueue_trigger_mode"
                                     name="mailqueue_trigger_mode">
                                 <option value="hybrid"
-                                        {% if settings.mailqueue_trigger_mode|default('hybrid') == 'hybrid' %}selected{% endif %}>
+                                        {% if settings_values.mailqueue_trigger_mode|default('hybrid') == 'hybrid' %}selected{% endif %}>
                                     Hybrid
                                 </option>
                                 <option value="cron"
-                                        {% if settings.mailqueue_trigger_mode|default('hybrid') == 'cron' %}selected{% endif %}>
+                                        {% if settings_values.mailqueue_trigger_mode|default('hybrid') == 'cron' %}selected{% endif %}>
                                     Nur Cron
                                 </option>
                                 <option value="opportunistic"
-                                        {% if settings.mailqueue_trigger_mode|default('hybrid') == 'opportunistic' %}selected{% endif %}>
+                                        {% if settings_values.mailqueue_trigger_mode|default('hybrid') == 'opportunistic' %}selected{% endif %}>
                                     Nur opportunistisch
                                 </option>
                             </select>
@@ -129,7 +129,7 @@
                                    id="mailqueue_opportunistic_rate_limit"
                                    name="mailqueue_opportunistic_rate_limit"
                                    min="1"
-                                   value="{{ settings.mailqueue_opportunistic_rate_limit|default('10') }}">
+                                   value="{{ settings_values.mailqueue_opportunistic_rate_limit|default('10') }}">
                             <div class="form-text">Maximale Anzahl opportunistischer Queue-Trigger pro Minute.</div>
                         </div>
 
@@ -140,9 +140,37 @@
                                    id="mailqueue_batch_size"
                                    name="mailqueue_batch_size"
                                    min="1"
-                                   value="{{ settings.mailqueue_batch_size|default('50') }}">
+                                   value="{{ settings_values.mailqueue_batch_size|default('50') }}">
                             <div class="form-text">Wie viele Queue-Einträge pro Lauf verarbeitet werden.</div>
                         </div>
+
+                        {% if settings.modules.registration %}
+                            <hr class="my-4">
+
+                            <h2 class="h5 mb-3">Anmeldung</h2>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold" for="registration_reminder_days_before">
+                                    Erinnerungsmail: Tage vor Anmeldeschluss (0 = aus)
+                                </label>
+                                <input type="number"
+                                       min="0"
+                                       max="30"
+                                       class="form-control"
+                                       id="registration_reminder_days_before"
+                                       name="registration_reminder_days_before"
+                                       value="{{ settings_values.registration_reminder_days_before|default(0) }}">
+                                <div class="form-text">
+                                    Wie viele Tage vor Anmeldeschluss noch nicht angemeldete Personen erinnert werden.
+                                </div>
+                            </div>
+                        {% else %}
+                            {% if settings_values.registration_reminder_days_before %}
+                                <input type="hidden"
+                                       name="registration_reminder_days_before"
+                                       value="{{ settings_values.registration_reminder_days_before }}">
+                            {% endif %}
+                        {% endif %}
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>

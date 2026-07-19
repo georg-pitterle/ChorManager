@@ -7,10 +7,15 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Models\Attendance;
+use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
 use App\Util\TableQueryParams;
+use Carbon\Carbon;
 
 class EvaluationController
 {
@@ -64,7 +69,7 @@ class EvaluationController
                     $_SESSION['last_project_id'] = $projectId;
                 }
 
-                $totalEvents = $selectedProject->events()->count();
+                $totalEvents = $selectedProject->events()->where('attendance_required', true)->count();
 
                 if ($totalEvents > 0) {
                     // Get all active users, eager load their attendances for this specific project's events
@@ -74,7 +79,8 @@ class EvaluationController
                         })
                         ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
                             $q->whereHas('event', function ($sq) use ($projectId) {
-                                $sq->where('project_id', $projectId);
+                                $sq->where('project_id', $projectId)
+                                    ->where('attendance_required', true);
                             });
                         }])
                         ->orderBy('last_name')
@@ -166,6 +172,105 @@ class EvaluationController
             'selected_project' => $selectedProject,
             'grouped_members' => $groupedMembers
         ]);
+    }
+
+    public function registrations(Request $request, Response $response): Response
+    {
+        $includePast = (string) ($request->getQueryParams()['include_past'] ?? '') === '1';
+
+        $query = Event::where('registration_enabled', true)->orderBy('starts_at', 'asc');
+        if (!$includePast) {
+            $query->where('starts_at', '>', Carbon::now());
+        }
+        $events = $query->get();
+
+        $voiceGroupNames = VoiceGroup::orderBy('name')->pluck('name')->all();
+        $voiceGroupNames[] = 'Ohne Stimmgruppe';
+
+        $matrix = [];
+        foreach ($events as $event) {
+            $matrix[] = $this->buildRegistrationRow($event, $voiceGroupNames);
+        }
+
+        return $this->view->render($response, 'evaluations/registrations.twig', [
+            'voice_group_names' => $voiceGroupNames,
+            'matrix' => $matrix,
+            'include_past' => $includePast,
+        ]);
+    }
+
+    /**
+     * Builds one matrix row for a registration-enabled event: per-voice-group
+     * yes/maybe occupancy, total yes count, response rate, and (for past
+     * events with attendance_required=true) the actual attendance count.
+     *
+     * The eligible population used here — active users, restricted to
+     * project members for project-bound events — mirrors
+     * RegistrationController's eligibleUsers()/eligibleStatusCounts()
+     * exactly. Both the numerator (answered/yes/maybe counts) and the
+     * denominator (eligible count) are derived from the SAME queried user
+     * set, so they can never diverge (unlike a design that counts
+     * registrations from one query and eligible users from a second,
+     * differently-filtered query).
+     *
+     * @param string[] $voiceGroupNames
+     * @return array{
+     *     event: Event,
+     *     cells: array<string, array{yes: int, maybe: int}>,
+     *     total_yes: int,
+     *     response_rate: int,
+     *     attendance_comparison: ?int
+     * }
+     */
+    private function buildRegistrationRow(Event $event, array $voiceGroupNames): array
+    {
+        $eligibleUsers = $event->eligibleUsersQuery()
+            ->with([
+                'voiceGroups',
+                'eventRegistrations' => fn($q) => $q->where('event_id', (int) $event->id),
+            ])
+            ->get();
+
+        $cells = array_fill_keys($voiceGroupNames, ['yes' => 0, 'maybe' => 0]);
+        $totalYes = 0;
+        $answered = 0;
+
+        foreach ($eligibleUsers as $user) {
+            $registration = $user->eventRegistrations->first();
+            if (!$registration || !in_array($registration->status, EventRegistration::STATUSES, true)) {
+                continue;
+            }
+
+            $answered++;
+            $groupName = $user->voiceGroups->first()->name ?? 'Ohne Stimmgruppe';
+            if (!isset($cells[$groupName])) {
+                $groupName = 'Ohne Stimmgruppe';
+            }
+
+            if ($registration->status === EventRegistration::STATUS_YES) {
+                $cells[$groupName]['yes']++;
+                $totalYes++;
+            } elseif ($registration->status === EventRegistration::STATUS_MAYBE) {
+                $cells[$groupName]['maybe']++;
+            }
+        }
+
+        $eligible = $eligibleUsers->count();
+
+        $attendanceComparison = null;
+        if (Carbon::parse($event->starts_at)->isPast() && (bool) $event->attendance_required) {
+            $attendanceComparison = Attendance::where('event_id', (int) $event->id)
+                ->where('status', 'present')
+                ->count();
+        }
+
+        return [
+            'event' => $event,
+            'cells' => $cells,
+            'total_yes' => $totalYes,
+            'response_rate' => $eligible > 0 ? (int) round($answered * 100 / $eligible) : 0,
+            'attendance_comparison' => $attendanceComparison,
+        ];
     }
 
     private function getAccessibleProjects(int $userId, bool $canManageUsers)

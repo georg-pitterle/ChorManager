@@ -1,0 +1,78 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Anmelde-Auswertung - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Auswertung</p>
+            <h1 class="h2 mb-1"><i class="bi bi-calendar-check me-2"></i>Anmelde-Auswertung</h1>
+            <p class="text-muted mb-0">Besetzung je Stimmgruppe und Rücklaufquote der Anmeldungen.</p>
+        </div>
+        <div class="page-actions">
+            {% if include_past %}
+                <a class="btn btn-outline-secondary" href="/evaluations/registrations">Nur kommende</a>
+            {% else %}
+                <a class="btn btn-outline-secondary" href="/evaluations/registrations?include_past=1">Auch vergangene</a>
+            {% endif %}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if matrix is empty %}
+        <div class="alert alert-info">Keine Termine mit freigeschalteter Anmeldung gefunden.</div>
+    {% else %}
+        <div class="surface-card card shadow-sm border-0 table-shell">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Termin</th>
+                            {% for name in voice_group_names %}
+                                <th class="text-center">{{ name }}</th>
+                            {% endfor %}
+                            <th class="text-center">Zusagen gesamt</th>
+                            <th class="text-center">Rücklauf</th>
+                            <th class="text-center">Anwesend (Ist)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in matrix %}
+                            <tr>
+                                <td>
+                                    <a href="/registrations/{{ row.event.id }}" class="text-decoration-none">
+                                        {{ row.event.title }}
+                                    </a>
+                                    <div class="text-muted small">{{ row.event.starts_at|date("d.m.Y H:i") }}</div>
+                                </td>
+                                {% for name in voice_group_names %}
+                                    <td class="text-center">
+                                        {{ row.cells[name].yes }}
+                                        {% if row.cells[name].maybe > 0 %}
+                                            <span class="text-muted">({{ row.cells[name].maybe }})</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="text-center fw-bold">{{ row.total_yes }}</td>
+                                <td class="text-center">{{ row.response_rate }} %</td>
+                                <td class="text-center">
+                                    {% if row.attendance_comparison is not null %}
+                                        {{ row.attendance_comparison }}
+                                    {% else %}
+                                        &mdash;
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="text-muted small mt-2">
+            Zahlen: Zusagen, in Klammern Vielleicht. „Anwesend (Ist)“ nur für vergangene Termine mit Anwesenheitspflicht.
+        </p>
+    {% endif %}
+{% endblock content %}

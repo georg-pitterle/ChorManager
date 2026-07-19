@@ -1471,3 +1471,31 @@ a:hover {
         transform: translateY(0);
     }
 }
+
+/* Termin-Anmeldung (Registration) */
+.registration-badge-yes {
+    background-color: var(--bs-success);
+}
+
+.registration-badge-no {
+    background-color: var(--bs-danger);
+}
+
+.registration-badge-maybe {
+    background-color: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+.registration-badge-open {
+    background-color: var(--bs-secondary);
+}
+
+.registration-proxy-select {
+    width: auto;
+    min-width: 8rem;
+}
+
+.registration-proxy-note {
+    width: 14rem;
+    max-width: 100%;
+}
