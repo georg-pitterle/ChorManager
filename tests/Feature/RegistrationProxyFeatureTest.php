@@ -90,6 +90,7 @@ class RegistrationProxyFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $rep->id;
         $_SESSION['can_manage_users'] = false;
         $_SESSION['role_level'] = 50;
+        $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['voice_group_ids'] = $repGroupIds;
 
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', [
@@ -190,6 +191,7 @@ class RegistrationProxyFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $rep->id;
         $_SESSION['can_manage_users'] = false;
         $_SESSION['role_level'] = 50;
+        $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['voice_group_ids'] = $repGroupIds;
 
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', [
@@ -227,6 +229,7 @@ class RegistrationProxyFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $rep->id;
         $_SESSION['can_manage_users'] = false;
         $_SESSION['role_level'] = 50;
+        $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['voice_group_ids'] = $repGroupIds;
 
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', [

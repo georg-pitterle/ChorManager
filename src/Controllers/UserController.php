@@ -255,6 +255,7 @@ class UserController
     {
         $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
+        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
         $userLevel = $_SESSION['role_level'] ?? 0;
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
@@ -279,7 +280,7 @@ class UserController
 
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
         if (!$canEditGlobal && !$canManageProjectMembers) {
-            if ($userLevel < 40 || !$isInMyGroup) {
+            if (!$canManageOwnVoiceGroup || !$isInMyGroup) {
                 $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
                 return $response->withHeader('Location', '/users')->withStatus(302);
             }
@@ -430,7 +431,7 @@ class UserController
         }
 
         $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
-        $userLevel = $_SESSION['role_level'] ?? 0;
+        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
         $targetUser = $this->userQuery->findById($userId);
@@ -447,7 +448,7 @@ class UserController
         $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
 
         if (!$canEditGlobal) {
-            if ($userLevel < 40 || !$isInMyGroup) {
+            if (!$canManageOwnVoiceGroup || !$isInMyGroup) {
                 $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.';
                 return $response->withHeader('Location', '/users')->withStatus(302);
             }
@@ -610,18 +611,18 @@ class UserController
             return true;
         }
 
-        $userLevel = (int) ($_SESSION['role_level'] ?? 0);
+        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
         $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
         $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
 
-        return $userLevel >= 40 && $isInMyGroup;
+        return $canManageOwnVoiceGroup && $isInMyGroup;
     }
 
     public function invite(Request $request, Response $response, array $args): Response
     {
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
-        $userLevel = $_SESSION['role_level'] ?? 0;
+        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
         $userId = (int) $args['id'];
@@ -640,7 +641,7 @@ class UserController
         if (!$canManageUsers) {
             $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
             $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
-            if ($userLevel < 40 || !$isInMyGroup) {
+            if (!$canManageOwnVoiceGroup || !$isInMyGroup) {
                 $response->getBody()->write(json_encode(['success' => false, 'message' => 'Keine Berechtigung.']));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
             }

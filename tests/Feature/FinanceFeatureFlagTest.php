@@ -186,18 +186,38 @@ final class FinanceFeatureFlagTest extends TestCase
 
     public function testNavigationGatesFinanceLinkBehindFeatureFlag(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
-        $this->assertIsString($template);
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
+        $this->assertIsString($content);
 
-        $this->assertStringContainsString(
-            '{% set _finance_nav_perm = session.can_read_finances or session.can_manage_finances'
-                . ' or session.can_manage_users %}',
-            $template
+        // Slice out the Kassa entry itself (up to the next nav entry's 'label' =>) so the
+        // assertion below can only pass on Kassa's own visible closure, not the Budget entry
+        // that follows it and reuses the same 'can_manage_finances' / 'can_manage_users' tokens.
+        $kassaBlock = $this->extractNavEntry($content, 'Kassa');
+
+        $this->assertMatchesRegularExpression(
+            "/'url' => '\/finances'.*?"
+                . "\\\$c->module\\('finance'\\).*?\\\$c->can\\('can_read_finances'\\).*?"
+                . "\\\$c->can\\('can_manage_finances'\\)/s",
+            $kassaBlock
         );
-        $this->assertStringContainsString(
-            '{% if settings.modules.finance and _finance_nav_perm %}',
-            $template
-        );
+    }
+
+    /**
+     * Slices the given file content down to a single nav entry's own definition block, from
+     * its 'label' => '<label>' up to (but excluding) the next entry's 'label' =>. This keeps
+     * regex assertions with unbounded .*? from matching into a following nav entry that
+     * happens to reuse the same permission-flag tokens.
+     */
+    private function extractNavEntry(string $content, string $label): string
+    {
+        $needle = "'label' => '{$label}'";
+        $start = strpos($content, $needle);
+        $this->assertNotFalse($start, "Nav entry '{$label}' not found in NavigationBuilder.");
+
+        $nextLabelPos = strpos($content, "'label' =>", $start + strlen($needle));
+        $this->assertNotFalse($nextLabelPos, "No following nav entry found after '{$label}'.");
+
+        return substr($content, $start, $nextLabelPos - $start);
     }
 
     public function testDashboardTemplateGatesFinancePanel(): void

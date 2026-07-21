@@ -11,6 +11,8 @@ use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Navigation\NavigationBuilder;
+use App\Navigation\NavigationContext;
 use App\Queries\ProjectQuery;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
@@ -97,10 +99,37 @@ class RegistrationEvaluationFeatureTest extends TestCase
         $this->assertIsString($routes);
         $this->assertStringContainsString("'/evaluations/registrations'", $routes);
 
-        $nav = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/evaluations.twig');
+        $nav = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
         $this->assertIsString($nav);
-        $this->assertStringContainsString('settings.modules.registration', $nav);
-        $this->assertStringContainsString('href="/evaluations/registrations"', $nav);
+
+        // Slice out the '/evaluations/registrations' entry itself so the gate assertion below
+        // can only pass on its own visibility closure, not the '/registrations' entry, which
+        // reuses the identical "$c->module('registration')" token and even shares the label
+        // 'Anmeldungen'.
+        $entry = $this->extractNavEntry($nav, '/evaluations/registrations');
+        $this->assertStringContainsString("\$c->module('registration')", $entry);
+    }
+
+    /**
+     * Slices the given NavigationBuilder source down to the single nav entry whose 'url' =>
+     * matches exactly, from the nearest preceding 'label' => up to (but excluding) the next
+     * entry's 'label' =>. Anchoring on 'url' rather than 'label' is deliberate: several nav
+     * labels (Termine, Anmeldungen, Newsletter) are reused across two distinct entries, but
+     * every entry's url is unique, so this cannot mis-slice into the wrong entry.
+     */
+    private function extractNavEntry(string $content, string $url): string
+    {
+        $urlNeedle = "'url' => '{$url}'";
+        $urlPos = strpos($content, $urlNeedle);
+        $this->assertNotFalse($urlPos, "Nav entry with url '{$url}' not found in NavigationBuilder.");
+
+        $labelPos = strrpos(substr($content, 0, $urlPos), "'label' =>");
+        $this->assertNotFalse($labelPos, "No preceding label found for nav entry '{$url}'.");
+
+        $nextLabelPos = strpos($content, "'label' =>", $urlPos);
+        $this->assertNotFalse($nextLabelPos, "No following nav entry found after '{$url}'.");
+
+        return substr($content, $labelPos, $nextLabelPos - $labelPos);
     }
 
     public function testRegistrationEvaluationRouteIsFeatureGated(): void
@@ -427,39 +456,17 @@ class RegistrationEvaluationFeatureTest extends TestCase
             }
         ));
         $environment->addFunction(new TwigFunction(
-            'nav_active',
-            static function (
-                string $path,
-                ?string $activeNav = null,
-                array $pathPrefixes = [],
-                array $navKeys = [],
-                array $excludePrefixes = []
-            ): bool {
-                foreach ($excludePrefixes as $excludePrefix) {
-                    if ($excludePrefix !== '' && str_starts_with($path, $excludePrefix)) {
-                        return false;
-                    }
-                }
+            'navigation',
+            static function (string $activeNav = ''): array {
+                $settings = ['modules' => ['registration' => true]];
+                $context = NavigationContext::fromSession(
+                    $_SESSION,
+                    $settings,
+                    '/evaluations/registrations',
+                    $activeNav
+                );
 
-                if ($activeNav !== null && $activeNav !== '' && in_array($activeNav, $navKeys, true)) {
-                    return true;
-                }
-
-                foreach ($pathPrefixes as $prefix) {
-                    if ($prefix === '/' && $path === '/') {
-                        return true;
-                    }
-
-                    if ($prefix === '/') {
-                        continue;
-                    }
-
-                    if ($prefix !== '' && str_starts_with($path, $prefix)) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return (new NavigationBuilder())->build($context);
             }
         ));
 

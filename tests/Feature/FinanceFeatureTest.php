@@ -97,18 +97,43 @@ class FinanceFeatureTest extends TestCase
 
     public function testFinanceNavigationAndDashboardUseFinanceReadPermission(): void
     {
-        $areas = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
+        $navBuilder = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
         $dashboard = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
 
-        $this->assertIsString($areas);
+        $this->assertIsString($navBuilder);
         $this->assertIsString($dashboard);
-        $this->assertStringContainsString(
-            'session.can_read_finances or session.can_manage_finances or session.can_manage_users',
-            $areas
+        // Slice out the Kassa entry itself (up to the next nav entry's 'label' =>) so the
+        // assertion below can only pass on Kassa's own visible closure, not the Budget entry
+        // that follows it and reuses the same permission-flag tokens.
+        $kassaBlock = $this->extractNavEntry($navBuilder, 'Kassa');
+
+        $this->assertMatchesRegularExpression(
+            "/'url' => '\/finances'.*?"
+                . "\\\$c->can\\('can_read_finances'\\).*?\\\$c->can\\('can_manage_finances'\\).*?"
+                . "\\\$c->can\\('can_manage_users'\\)/s",
+            $kassaBlock
         );
         $this->assertStringContainsString(
             'session.can_read_finances or session.can_manage_finances or session.can_manage_users',
             $dashboard
         );
+    }
+
+    /**
+     * Slices the given file content down to a single nav entry's own definition block, from
+     * its 'label' => '<label>' up to (but excluding) the next entry's 'label' =>. This keeps
+     * regex assertions with unbounded .*? from matching into a following nav entry that
+     * happens to reuse the same permission-flag tokens.
+     */
+    private function extractNavEntry(string $content, string $label): string
+    {
+        $needle = "'label' => '{$label}'";
+        $start = strpos($content, $needle);
+        $this->assertNotFalse($start, "Nav entry '{$label}' not found in NavigationBuilder.");
+
+        $nextLabelPos = strpos($content, "'label' =>", $start + strlen($needle));
+        $this->assertNotFalse($nextLabelPos, "No following nav entry found after '{$label}'.");
+
+        return substr($content, $start, $nextLabelPos - $start);
     }
 }

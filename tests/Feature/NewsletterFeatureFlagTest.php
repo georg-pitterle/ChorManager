@@ -94,21 +94,13 @@ final class NewsletterFeatureFlagTest extends TestCase
 
     public function testNavigationGatesNewsletterLinksBehindFeatureFlag(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
-        $this->assertIsString($template);
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
+        $this->assertIsString($content);
 
-        $gatePos = strpos($template, '{% if settings.modules.newsletter %}');
-        $this->assertNotFalse($gatePos, 'Newsletter feature gate missing in areas.twig.');
-
-        $endifPos = strpos($template, '{% endif %}', $gatePos);
-        $this->assertNotFalse($endifPos);
-
-        // Beide Links (Archiv + Verwaltung) muessen innerhalb des Feature-Gates liegen.
-        foreach (['href="/newsletters/archive"', 'href="/newsletters"'] as $link) {
-            $linkPos = strpos($template, $link);
-            $this->assertNotFalse($linkPos, "Link $link missing in areas.twig.");
-            $this->assertGreaterThan($gatePos, $linkPos, "$link must be inside the newsletter feature gate.");
-        }
+        // Beide Links (Archiv + Verwaltung) muessen hinter dem Newsletter-Feature-Flag liegen.
+        $this->assertStringContainsString("'url' => '/newsletters/archive'", $content);
+        $this->assertStringContainsString("'url' => '/newsletters'", $content);
+        $this->assertSame(2, substr_count($content, "\$c->module('newsletter')"));
     }
 
     public function testDashboardControllerGatesNewsletterWidgetBehindFeatureFlag(): void

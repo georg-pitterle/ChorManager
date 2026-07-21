@@ -67,11 +67,11 @@ final class RoleAccessConsistencyFeatureTest extends TestCase
 
     public function testAdminNavHidesRoleLinkBehindUserManagementPermission(): void
     {
-        $nav = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/admin.twig');
+        $nav = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
         $this->assertIsString($nav);
 
         $this->assertMatchesRegularExpression(
-            '/\{% if session\.can_manage_users %\}.*?href="\/roles"/s',
+            "/'label' => 'Rollen',.*?'url' => '\/roles',.*?\\\$c->can\('can_manage_users'\)/s",
             $nav
         );
     }

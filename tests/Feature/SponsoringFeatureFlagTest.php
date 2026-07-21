@@ -88,14 +88,13 @@ final class SponsoringFeatureFlagTest extends TestCase
 
     public function testNavigationGatesSponsoringLinkBehindFeatureFlag(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
-        $this->assertIsString($template);
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
+        $this->assertIsString($content);
 
-        $this->assertStringContainsString(
-            '{% if settings.modules.sponsoring and session.can_manage_sponsoring %}',
-            $template
+        $this->assertMatchesRegularExpression(
+            "/'label' => 'Sponsoring',.*?\\\$c->module\('sponsoring'\) && \\\$c->can\('can_manage_sponsoring'\)/s",
+            $content
         );
-        $this->assertStringNotContainsString('{% if session.can_manage_sponsoring %}', $template);
     }
 
     public function testRolesTemplateGatesSponsoringPermissionUi(): void

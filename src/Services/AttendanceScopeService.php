@@ -15,9 +15,9 @@ class AttendanceScopeService
     public function canManageOthers(): bool
     {
         $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        $roleLevel = (int) ($_SESSION['role_level'] ?? 0);
+        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
 
-        return $canManageUsers || $roleLevel >= 40;
+        return $canManageUsers || $canManageOwnVoiceGroup;
     }
 
     /**

@@ -138,12 +138,12 @@ class ProjectFeatureTest extends TestCase
 
     public function testAreasNavigationContainsMemberProjectsCondition(): void
     {
-        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
 
-        $this->assertIsString($templateContent);
-        $this->assertStringContainsString('session.can_manage_project_members', $templateContent);
-        $this->assertStringContainsString('not session.can_manage_master_data', $templateContent);
-        $this->assertStringContainsString('/projects/members', $templateContent);
-        $this->assertStringContainsString('project_members', $templateContent);
+        $this->assertIsString($content);
+        $this->assertStringContainsString("\$c->can('can_manage_project_members')", $content);
+        $this->assertStringContainsString("!\$c->can('can_manage_master_data')", $content);
+        $this->assertStringContainsString('/projects/members', $content);
+        $this->assertStringContainsString('project_members', $content);
     }
 }

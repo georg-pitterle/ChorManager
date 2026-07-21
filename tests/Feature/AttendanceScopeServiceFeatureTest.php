@@ -42,6 +42,7 @@ class AttendanceScopeServiceFeatureTest extends TestCase
 
         $_SESSION['can_manage_users'] = false;
         $_SESSION['role_level'] = 50;
+        $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['voice_group_ids'] = $groupIds;
 
         $service = new AttendanceScopeService();

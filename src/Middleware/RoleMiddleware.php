@@ -89,6 +89,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
         $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
+        $canManageOwnVoiceGroup = $_SESSION['can_manage_own_voice_group'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
 
         if ($this->requiresTaskManagement && !$canManageTasks) {
@@ -181,8 +182,8 @@ class RoleMiddleware implements MiddlewareInterface
         }
 
         if ($this->allowVoiceGroupReps) {
-            // Must have global manage OR be a voice group rep (level >= 40)
-            if (!$canManageUsers && $userLevel < 40) {
+            // Must have global manage OR the own-voice-group capability
+            if (!$canManageUsers && !$canManageOwnVoiceGroup) {
                 $response = new SlimResponse();
                 $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
                 return $response->withStatus(403);

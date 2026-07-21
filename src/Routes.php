@@ -124,7 +124,7 @@ return function (App $app) {
                     $userGroup->post('/restore/{id:[0-9]+}', [UserController::class, 'restore']);
                     $userGroup->post('/{id:[0-9]+}/invite', [UserController::class, 'invite']);
                 }
-            )->add(new RoleMiddleware(allowVoiceGroupReps: true)); // allow manage_users OR userLevel >= 40
+            )->add(new RoleMiddleware(allowVoiceGroupReps: true)); // allow manage_users OR can_manage_own_voice_group
 
             // Here we'll add /attendance, etc.
             $group->get('/events', [EventController::class, 'index']);

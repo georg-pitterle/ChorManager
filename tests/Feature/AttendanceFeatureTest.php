@@ -28,10 +28,14 @@ class AttendanceFeatureTest extends TestCase
         $this->assertIsString($attendanceTemplate);
         $this->assertStringContainsString('attendance-status-group', $attendanceTemplate);
 
-        $eventsNavTemplate = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/events.twig');
-        $this->assertIsString($eventsNavTemplate);
-        $this->assertStringContainsString('can_manage_attendance', $eventsNavTemplate);
-        $this->assertStringContainsString('href="/attendance"', $eventsNavTemplate);
+        $navBuilder = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
+        $this->assertIsString($navBuilder);
+
+        // Slice out the '/attendance' entry itself so the gate assertion below can only pass
+        // on its own visibility closure, not merely on 'can_manage_attendance' appearing
+        // somewhere else in the file entirely unrelated to this entry's own gate.
+        $attendanceEntry = $this->extractNavEntry($navBuilder, '/attendance');
+        $this->assertStringContainsString('can_manage_attendance', $attendanceEntry);
 
         $dashboardTemplate = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
         $this->assertIsString($dashboardTemplate);
@@ -61,5 +65,27 @@ class AttendanceFeatureTest extends TestCase
         $this->assertStringContainsString('$allowedUserIds = $this->scopeService->getManageableUserIds();', $controllerContent);
         $this->assertStringContainsString('AttendanceScopeService', $controllerContent);
         $this->assertStringContainsString('private function canAccessAttendanceEvent(Event $event): bool', $controllerContent);
+    }
+
+    /**
+     * Slices the given NavigationBuilder source down to the single nav entry whose 'url' =>
+     * matches exactly, from the nearest preceding 'label' => up to (but excluding) the next
+     * entry's 'label' =>. Anchoring on 'url' rather than 'label' is deliberate: several nav
+     * labels (Termine, Anmeldungen, Newsletter) are reused across two distinct entries, but
+     * every entry's url is unique, so this cannot mis-slice into the wrong entry.
+     */
+    private function extractNavEntry(string $content, string $url): string
+    {
+        $urlNeedle = "'url' => '{$url}'";
+        $urlPos = strpos($content, $urlNeedle);
+        $this->assertNotFalse($urlPos, "Nav entry with url '{$url}' not found in NavigationBuilder.");
+
+        $labelPos = strrpos(substr($content, 0, $urlPos), "'label' =>");
+        $this->assertNotFalse($labelPos, "No preceding label found for nav entry '{$url}'.");
+
+        $nextLabelPos = strpos($content, "'label' =>", $urlPos);
+        $this->assertNotFalse($nextLabelPos, "No following nav entry found after '{$url}'.");
+
+        return substr($content, $labelPos, $nextLabelPos - $labelPos);
     }
 }

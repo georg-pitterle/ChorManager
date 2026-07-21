@@ -1,0 +1,26 @@
+{% for node in navigation %}
+    {% if node.type == "link" %}
+        <li class="nav-item">
+            <a class="nav-link {% if node.active %}active{% endif %}"
+               href="{{ node.url }}"><i class="bi {{ node.icon }} me-1"></i> {{ node.label }}</a>
+        </li>
+    {% else %}
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if node.active %}active{% endif %}"
+               href="#"
+               data-bs-toggle="dropdown"
+               aria-expanded="false"><i class="bi {{ node.icon }} me-1"></i> {{ node.label }}</a>
+            <ul class="dropdown-menu">
+                {% for item in node.items %}
+                    {% if item.divider_before %}
+                        <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li>
+                        <a class="dropdown-item {% if item.active %}active{% endif %}"
+                           href="{{ item.url }}"><i class="bi {{ item.icon }} me-2"></i> {{ item.label }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </li>
+    {% endif %}
+{% endfor %}

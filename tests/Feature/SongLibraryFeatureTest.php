@@ -173,10 +173,10 @@ class SongLibraryFeatureTest extends TestCase
 
     public function testAreasNavigationUsesRepertoireLabel(): void
     {
-        $content = file_get_contents(dirname(__DIR__) . '/../templates/partials/navigation/areas.twig');
+        $content = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
 
         $this->assertIsString($content);
-        $this->assertStringContainsString('> Repertoire</a>', $content);
+        $this->assertStringContainsString("'label' => 'Repertoire',", $content);
         $this->assertStringNotContainsString('Liedbibliothek', $content);
     }
 

@@ -105,19 +105,18 @@ final class BudgetFeatureTest extends TestCase
 
     public function testBudgetNavigationVisibleForFinanceReaders(): void
     {
-        $content = file_get_contents(dirname(__DIR__, 2) . '/templates/partials/navigation/areas.twig');
+        $content = file_get_contents(dirname(__DIR__, 2) . '/src/Navigation/NavigationBuilder.php');
         $this->assertIsString($content);
-        // Budget entry condition must include finance-read audience.
-        $this->assertStringContainsString(
-            '{% set _budget_nav_perm = _finance_nav_perm or session.can_manage_budget %}',
+        // Budget entry condition must include finance-read audience. Anchored on the Budget
+        // entry's own label so this cannot pass via the aliased 'can_read_finances' etc. flags
+        // that also appear on the separate Kassa entry.
+        $this->assertMatchesRegularExpression(
+            "/'label' => 'Budget',.*?'url' => '\/budget'.*?"
+                . "\\\$c->module\\('budget'\\).*?\\\$c->can\\('can_read_finances'\\)/s",
             $content
         );
-        $this->assertStringContainsString(
-            '{% if settings.modules.budget and _budget_nav_perm %}',
-            $content
-        );
-        $this->assertStringContainsString(
-            '{% set _finance_nav_perm = session.can_read_finances',
+        $this->assertMatchesRegularExpression(
+            "/'label' => 'Budget',.*?\\\$c->can\\('can_manage_budget'\\)/s",
             $content
         );
     }
@@ -240,9 +239,9 @@ final class BudgetFeatureTest extends TestCase
 
     public function testBudgetNavigationItemExistsInAreasTemplate(): void
     {
-        $content = file_get_contents(dirname(__DIR__, 2) . '/templates/partials/navigation/areas.twig');
+        $content = file_get_contents(dirname(__DIR__, 2) . '/src/Navigation/NavigationBuilder.php');
         $this->assertIsString($content);
-        $this->assertStringContainsString('settings.modules.budget', $content);
+        $this->assertStringContainsString("\$c->module('budget')", $content);
         $this->assertStringContainsString('/budget', $content);
     }
 }

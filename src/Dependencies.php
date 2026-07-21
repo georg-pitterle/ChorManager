@@ -39,6 +39,8 @@ use App\Services\MysqldumpRunner;
 use App\Services\MailBadgeService;
 use App\Services\MailCredentialCryptoService;
 use App\Middleware\MailBadgeRefreshMiddleware;
+use App\Navigation\NavigationBuilder;
+use App\Navigation\NavigationContext;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
@@ -230,39 +232,11 @@ return function (ContainerBuilder $containerBuilder) {
             ));
 
             $environment->addFunction(new TwigFunction(
-                'nav_active',
-                function (
-                    string $path,
-                    ?string $activeNav = null,
-                    array $pathPrefixes = [],
-                    array $navKeys = [],
-                    array $excludePrefixes = []
-                ): bool {
-                    foreach ($excludePrefixes as $excludePrefix) {
-                        if ($excludePrefix !== '' && str_starts_with($path, $excludePrefix)) {
-                            return false;
-                        }
-                    }
+                'navigation',
+                static function (string $activeNav = "") use ($allSettings, $currentPath): array {
+                    $context = NavigationContext::fromSession($_SESSION, $allSettings, $currentPath, $activeNav);
 
-                    if ($activeNav !== null && $activeNav !== '' && in_array($activeNav, $navKeys, true)) {
-                        return true;
-                    }
-
-                    foreach ($pathPrefixes as $prefix) {
-                        if ($prefix === '/' && $path === '/') {
-                            return true;
-                        }
-
-                        if ($prefix === '/') {
-                            continue;
-                        }
-
-                        if ($prefix !== '' && str_starts_with($path, $prefix)) {
-                            return true;
-                        }
-                    }
-
-                    return false;
+                    return (new NavigationBuilder())->build($context);
                 }
             ));
 

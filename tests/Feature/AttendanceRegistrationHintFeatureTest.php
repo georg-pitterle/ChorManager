@@ -8,6 +8,8 @@ use App\Controllers\AttendanceController;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
+use App\Navigation\NavigationBuilder;
+use App\Navigation\NavigationContext;
 use App\Services\AttendanceScopeService;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
@@ -246,15 +248,12 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
             }
         ));
         $environment->addFunction(new TwigFunction(
-            'nav_active',
-            static function (
-                string $path,
-                ?string $activeNav = null,
-                array $pathPrefixes = [],
-                array $navKeys = [],
-                array $excludePrefixes = []
-            ): bool {
-                return false;
+            'navigation',
+            static function (string $activeNav = '') use ($registrationFeatureEnabled): array {
+                $settings = ['modules' => ['registration' => $registrationFeatureEnabled]];
+                $context = NavigationContext::fromSession($_SESSION, $settings, '/attendance', $activeNav);
+
+                return (new NavigationBuilder())->build($context);
             }
         ));
 

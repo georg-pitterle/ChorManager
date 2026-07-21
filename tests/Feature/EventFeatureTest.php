@@ -9,6 +9,8 @@ use App\Models\Comment;
 use App\Models\Event;
 use App\Models\Project;
 use App\Models\User;
+use App\Navigation\NavigationBuilder;
+use App\Navigation\NavigationContext;
 use App\Services\CalendarSubscriptionService;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
@@ -596,6 +598,55 @@ class EventFeatureTest extends TestCase
         $this->assertStringNotContainsString('Termin bearbeiten', $body);
     }
 
+    public function testEventDetailHidesEditButtonForHighRoleLevelWithoutManageUsers(): void
+    {
+        // The edit route (/events/{id}/edit) is gated by RoleMiddleware on
+        // can_manage_users only, not on role_level. A voice-group rep (role_level
+        // 40) without can_manage_users must not see a control that 403s on click.
+        $event = Event::create([
+            'title' => 'High Level Non Editor Detail Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['role_level'] = 40;
+
+        $body = $this->renderEventDetail($event->id);
+
+        $this->assertStringNotContainsString('/events/' . $event->id . '/edit', $body);
+        $this->assertStringNotContainsString('Termin bearbeiten', $body);
+    }
+
+    public function testEventsIndexShowsEditControlForEditors(): void
+    {
+        $this->createEvent('Editable Index Event', '-1 days');
+
+        $_SESSION['can_manage_users'] = true;
+        $_SESSION['role_level'] = 10;
+
+        $body = $this->renderEventsIndex(['show_old_events' => '1']);
+
+        $this->assertStringContainsString('dropdown-toggle-split', $body);
+        $this->assertStringContainsString('Termin bearbeiten', $body);
+    }
+
+    public function testEventsIndexHidesEditControlForHighRoleLevelWithoutManageUsers(): void
+    {
+        // Same route-gate mismatch as above, exercised on the list view's
+        // split-button dropdown: role_level alone must never unlock it.
+        $this->createEvent('High Level Non Editor Index Event', '-1 days');
+
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['role_level'] = 40;
+
+        $body = $this->renderEventsIndex(['show_old_events' => '1']);
+
+        $this->assertStringNotContainsString('dropdown-toggle-split', $body);
+        $this->assertStringNotContainsString('Termin bearbeiten', $body);
+    }
+
     public function testAddEventNoteStoresCreatorAndPrivacyFlag(): void
     {
         $event = Event::create([
@@ -841,39 +892,11 @@ class EventFeatureTest extends TestCase
         ));
 
         $environment->addFunction(new TwigFunction(
-            'nav_active',
-            static function (
-                string $path,
-                ?string $activeNav = null,
-                array $pathPrefixes = [],
-                array $navKeys = [],
-                array $excludePrefixes = []
-            ): bool {
-                foreach ($excludePrefixes as $excludePrefix) {
-                    if ($excludePrefix !== '' && str_starts_with($path, $excludePrefix)) {
-                        return false;
-                    }
-                }
+            'navigation',
+            static function (string $activeNav = ''): array {
+                $context = NavigationContext::fromSession($_SESSION, [], '/events', $activeNav);
 
-                if ($activeNav !== null && $activeNav !== '' && in_array($activeNav, $navKeys, true)) {
-                    return true;
-                }
-
-                foreach ($pathPrefixes as $prefix) {
-                    if ($prefix === '/' && $path === '/') {
-                        return true;
-                    }
-
-                    if ($prefix === '/') {
-                        continue;
-                    }
-
-                    if ($prefix !== '' && str_starts_with($path, $prefix)) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return (new NavigationBuilder())->build($context);
             }
         ));
 

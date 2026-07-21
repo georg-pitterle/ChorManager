@@ -29,6 +29,7 @@ class Role extends Model
         'can_manage_budget',
         'can_manage_tasks',
         'can_manage_backups',
+        'can_manage_own_voice_group',
     ];
 
     public function users()

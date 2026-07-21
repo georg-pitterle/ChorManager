@@ -28,6 +28,7 @@ class SessionAuthService
         $canManageBudget = false;
         $canManageTasks = false;
         $canManageBackups = false;
+        $canManageOwnVoiceGroup = false;
         $maxRoleLevel = 0;
 
         foreach ($user->roles as $role) {
@@ -84,6 +85,9 @@ class SessionAuthService
             if (($role->can_manage_backups ?? false)) {
                 $canManageBackups = true;
             }
+            if (($role->can_manage_own_voice_group ?? false)) {
+                $canManageOwnVoiceGroup = true;
+            }
 
             if ($role->hierarchy_level > $maxRoleLevel) {
                 $maxRoleLevel = (int) $role->hierarchy_level;
@@ -105,6 +109,7 @@ class SessionAuthService
         $_SESSION['can_manage_budget'] = $canManageBudget;
         $_SESSION['can_manage_tasks'] = $canManageTasks;
         $_SESSION['can_manage_backups'] = $canManageBackups;
+        $_SESSION['can_manage_own_voice_group'] = $canManageOwnVoiceGroup;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
 
