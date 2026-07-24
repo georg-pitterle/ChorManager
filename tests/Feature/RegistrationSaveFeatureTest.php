@@ -6,8 +6,10 @@ namespace Tests\Feature;
 
 use App\Controllers\RegistrationController;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Services\AttendanceScopeService;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
@@ -138,6 +140,33 @@ class RegistrationSaveFeatureTest extends TestCase
         $payload = json_decode((string) $response->getBody(), true);
         $this->assertArrayHasKey('error', $payload);
         $this->assertSame(0, EventRegistration::where('event_id', $this->event->id)->count());
+    }
+
+    public function testSelfRegistrationRejectedWhenUserOutsideEventScope(): void
+    {
+        // Scope the event to a voice group the acting user is not a member of.
+        $group = VoiceGroup::create(['name' => 'Selbstanmeldung-Fremd']);
+        EventAudienceSource::create([
+            'event_id' => $this->event->id,
+            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
+            'reference_id' => (int) $group->id,
+        ]);
+
+        $request = $this->makeRequest('POST', '/registrations/' . $this->event->id, [
+            'status' => 'yes',
+        ]);
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(
+            0,
+            EventRegistration::where('event_id', $this->event->id)->count(),
+            'a user outside the event scope must not be able to self-register'
+        );
+
+        $group->delete();
     }
 
     public function testInvalidStatusRejected(): void

@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
 use App\Services\AttendanceScopeService;
+use App\Services\EventAudienceService;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -28,7 +29,10 @@ class RegistrationController
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
 
-        $events = Event::where('registration_enabled', true)
+        // Only events the user is actually part of (audience scope) are
+        // relevant for self-registration.
+        $events = (new EventAudienceService())->visibleEventsQuery($userId)
+            ->where('registration_enabled', true)
             ->where('starts_at', '>', Carbon::now())
             ->orderBy('starts_at', 'asc')
             ->with(['registrations' => fn($q) => $q->where('user_id', $userId)])
@@ -152,6 +156,20 @@ class RegistrationController
                 ->withStatus(403);
         }
 
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+
+        // Self-registration is only allowed for members within the event's
+        // audience scope — not for every otherwise authorised member.
+        if (!(new EventAudienceService())->isUserEligible($event, $userId)) {
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Du bist für diesen Termin nicht angemeldet.'], 403);
+            }
+            $_SESSION['error'] = 'Du gehörst nicht zur Zielgruppe dieses Termins.';
+            return $response
+                ->withHeader('Location', '/registrations')
+                ->withStatus(403);
+        }
+
         $data = (array) $request->getParsedBody();
         $status = (string) ($data['status'] ?? '');
         $note = trim((string) ($data['note'] ?? ''));
@@ -165,8 +183,6 @@ class RegistrationController
                 ->withHeader('Location', '/registrations/' . $event->id)
                 ->withStatus(302);
         }
-
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
 
         try {
             EventRegistration::updateOrCreate(
