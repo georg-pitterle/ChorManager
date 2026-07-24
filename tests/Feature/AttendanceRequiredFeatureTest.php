@@ -8,8 +8,10 @@ use App\Controllers\AttendanceController;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Queries\ProjectQuery;
@@ -158,6 +160,128 @@ class AttendanceRequiredFeatureTest extends TestCase
         );
     }
 
+    /**
+     * @return array{event: Event, inScope: User, outScope: User, voiceGroup: VoiceGroup}
+     */
+    private function createVoiceGroupScopedAttendanceFixture(): array
+    {
+        $inGroup = VoiceGroup::create(['name' => 'Anwesenheit-Scope-In']);
+        $outGroup = VoiceGroup::create(['name' => 'Anwesenheit-Scope-Out']);
+
+        $inScope = User::create([
+            'first_name' => 'ImScope',
+            'last_name' => 'Anwesenheitsberechtigt',
+            'email' => 'attendance-scope-in@example.test',
+            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'is_active' => true,
+        ]);
+        $outScope = User::create([
+            'first_name' => 'AusserhalbScope',
+            'last_name' => 'Anwesenheitsfremd',
+            'email' => 'attendance-scope-out@example.test',
+            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'is_active' => true,
+        ]);
+
+        self::$capsule?->table('user_voice_groups')->insert([
+            ['user_id' => $inScope->id, 'voice_group_id' => $inGroup->id],
+            ['user_id' => $outScope->id, 'voice_group_id' => $outGroup->id],
+        ]);
+
+        $event = Event::create([
+            'title' => 'Scope-Probe mit Anwesenheitspflicht',
+            'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
+            'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
+            'type' => 'Probe',
+            'attendance_required' => true,
+        ]);
+        EventAudienceSource::create([
+            'event_id' => $event->id,
+            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
+            'reference_id' => (int) $inGroup->id,
+        ]);
+
+        return ['event' => $event, 'inScope' => $inScope, 'outScope' => $outScope, 'voiceGroup' => $inGroup];
+    }
+
+    public function testAttendanceListOnlyShowsMembersInEventScope(): void
+    {
+        $fixture = $this->createVoiceGroupScopedAttendanceFixture();
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['can_manage_users'] = true;
+
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+
+        $request = $this->makeRequest('GET', '/attendance/' . $fixture['event']->id);
+        $response = $controller->show($request, $this->makeResponse(), [
+            'event_id' => (string) $fixture['event']->id,
+        ]);
+        $body = (string) $response->getBody();
+
+        $this->assertStringContainsString(
+            $fixture['inScope']->last_name,
+            $body,
+            'members inside the event scope must be listed for attendance'
+        );
+        $this->assertStringNotContainsString(
+            $fixture['outScope']->last_name,
+            $body,
+            'members outside the event scope must never appear in the attendance list'
+        );
+    }
+
+    public function testAttendanceSaveRejectsUserOutsideEventScope(): void
+    {
+        $fixture = $this->createVoiceGroupScopedAttendanceFixture();
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['can_manage_users'] = true;
+
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+
+        $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
+            'attendance' => [(string) $fixture['outScope']->id => 'present'],
+        ]);
+        $response = $controller->save($request, $this->makeResponse(), [
+            'event_id' => (string) $fixture['event']->id,
+        ]);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(
+            0,
+            Attendance::where('event_id', $fixture['event']->id)->count(),
+            'save() must reject and persist nothing for a user outside the event scope'
+        );
+    }
+
+    public function testAttendanceSaveAcceptsUserInsideEventScope(): void
+    {
+        $fixture = $this->createVoiceGroupScopedAttendanceFixture();
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['can_manage_users'] = true;
+
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+
+        $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
+            'attendance' => [(string) $fixture['inScope']->id => 'present'],
+        ]);
+        $response = $controller->save($request, $this->makeResponse(), [
+            'event_id' => (string) $fixture['event']->id,
+        ]);
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame(
+            1,
+            Attendance::where('event_id', $fixture['event']->id)
+                ->where('user_id', $fixture['inScope']->id)
+                ->where('status', 'present')
+                ->count(),
+            'save() must persist attendance for a user inside the event scope'
+        );
+    }
+
     public function testEvaluationCountsOnlyRequiredEvents(): void
     {
         $project = Project::create([
@@ -186,6 +310,11 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Probe',
             'attendance_required' => true,
         ]);
+        EventAudienceSource::create([
+            'event_id' => $requiredEvent->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $project->id,
+        ]);
 
         $notRequiredEvent = Event::create([
             'title' => 'Projektfest ohne Anwesenheitspflicht Task9',
@@ -194,6 +323,11 @@ class AttendanceRequiredFeatureTest extends TestCase
             'ends_at' => Carbon::now()->subDays(2)->setTime(23, 0),
             'type' => 'Sonstiges',
             'attendance_required' => false,
+        ]);
+        EventAudienceSource::create([
+            'event_id' => $notRequiredEvent->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $project->id,
         ]);
 
         Attendance::create([

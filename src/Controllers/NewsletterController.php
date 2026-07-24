@@ -247,10 +247,6 @@ class NewsletterController
                 if (!$event) {
                     continue;
                 }
-
-                if ($accessibleProjectIds !== [] && !in_array((int) $event->project_id, $accessibleProjectIds, true)) {
-                    continue;
-                }
             }
 
             if (
@@ -465,8 +461,7 @@ class NewsletterController
             return $response->withStatus(403);
         }
 
-        $events = Event::with('project')
-            ->whereIn('project_id', $projects->pluck('id')->toArray())
+        $events = Event::query()
             ->orderBy('starts_at', 'desc')
             ->get();
         $roles = Role::query()->orderBy('name')->get();
@@ -607,8 +602,7 @@ class NewsletterController
         $this->lockingService->acquireLock($newsletter, $userId);
 
         $project = $newsletter->project;
-        $events = Event::with('project')
-            ->whereIn('project_id', $projects->pluck('id')->toArray())
+        $events = Event::query()
             ->orderBy('starts_at', 'desc')
             ->get();
         $roles = Role::query()->orderBy('name')->get();

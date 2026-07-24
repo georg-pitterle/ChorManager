@@ -31,6 +31,7 @@ use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
+use App\Commands\RotateMailCredentialKeyCommand;
 use App\Commands\SendRegistrationRemindersCommand;
 use App\Services\RegistrationReminderService;
 use App\Services\BackupService;
@@ -111,6 +112,16 @@ return function (ContainerBuilder $containerBuilder) {
         BackupService::class => function (ContainerInterface $c) {
             $backupSettings = $c->get('settings')['backup'];
 
+            // Die Key-Id ist reine Metainformation für den Restore-Fall. Ein
+            // fehlender oder ungültiger MAIL_CREDENTIAL_KEY darf das Backup
+            // nicht blockieren, deshalb hier bewusst fail-open.
+            $mailKeyId = null;
+            try {
+                $mailKeyId = $c->get(MailCredentialCryptoService::class)->keyId();
+            } catch (\Throwable) {
+                $mailKeyId = null;
+            }
+
             return new BackupService(
                 $c->get(DumpRunnerInterface::class),
                 $c->get(LoggerInterface::class),
@@ -119,7 +130,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $backupSettings['max_auto'],
                 $backupSettings['gzip'],
                 EnvHelper::read('DB_DATABASE', 'db'),
-                $backupSettings['app_version']
+                $backupSettings['app_version'],
+                $mailKeyId
             );
         },
         BackupController::class => \DI\autowire(),
@@ -128,6 +140,7 @@ return function (ContainerBuilder $containerBuilder) {
             return new SheetArchiveService();
         },
         MailCredentialCryptoService::class => \DI\autowire(),
+        RotateMailCredentialKeyCommand::class => \DI\autowire(),
         MailBadgeService::class => function (ContainerInterface $c) {
             return new MailBadgeService(
                 $c->get(MailCredentialCryptoService::class),

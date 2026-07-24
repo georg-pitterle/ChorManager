@@ -133,64 +133,40 @@ Der SnappyMail-Container läuft als DDEV-Add-on-Service (`.ddev/docker-compose.s
 
 ### Produktiv-Deployment
 
-Die DDEV-Konfiguration (`.ddev/docker-compose.snappymail.yaml`, nginx add-on) ist **ausschließlich für lokale Entwicklung**. Für Staging und Produktion muss ein eigener SnappyMail-Service in die produktive `docker-compose.yml` eingetragen und über den zuständigen Reverse-Proxy auf `/webmail/` geroutet werden. Dieser Schritt ist **vor dem Go-Live dieses Features zwingend erforderlich** — das Feature ist noch nicht produktionsbereit, solange kein Produktiv-Container existiert.
+Die DDEV-Konfiguration (`.ddev/docker-compose.snappymail.yaml`, nginx add-on) ist **ausschließlich für lokale Entwicklung**. Für Staging und Produktion muss ein eigener SnappyMail-Service in die produktive `docker-compose.yml` eingetragen und über den zuständigen Reverse-Proxy auf `/webmail/` geroutet werden. 
 
 ### Secret Rotation
 
-**`MAIL_CREDENTIAL_KEY`**: Rotation dieses Schlüssels macht alle bestehenden `imap_password_enc`-Einträge dauerhaft unleserlich (der Crypto-Service ist fail-closed — er wirft eine Exception, statt still zu korrumpieren). Es gibt keine automatische Re-Verschlüsselung. Nach einer Rotation müssen **alle Benutzer ihr IMAP-Passwort** im Profil (`/profile`) neu speichern.
+**`MAIL_CREDENTIAL_KEY`**: Der Schlüssel lässt sich ohne Datenverlust tauschen. Gespeicherte Werte tragen die Kennung des Schlüssels, mit dem sie verschlüsselt wurden (`v2:<keyId>:<base64>`), sodass ein Rotationslauf sie gezielt neu verschlüsseln kann.
+
+**Wichtig bei Kompromittierung:** Wer den Schlüssel *und* einen Datenbank-Dump besitzt, kennt die IMAP-Passwörter bereits im Klartext. Ein Schlüsseltausch schützt rückwirkend nichts. Reihenfolge im Ernstfall:
+
+1. **IMAP-Passwörter beim Mailserver ändern** — das sind die kompromittierten Geheimnisse.
+2. Schlüssel rotieren (siehe unten).
+3. Alte Backups bewerten: Jeder Dump, der vor der Rotation gezogen wurde, ist mit dem alten Schlüssel lesbar. Die Metadatei jedes Backups nennt unter `mail_key_id`, welcher Schlüssel dazugehört.
+
+Ablauf der Rotation:
+
+```bash
+# 1. Neuen Schlüssel erzeugen
+ddev php -r "echo base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES)), PHP_EOL;"
+
+# 2. In .env: neuen Wert als MAIL_CREDENTIAL_KEY, bisherigen als MAIL_CREDENTIAL_KEY_PREVIOUS
+
+# 3. Probelauf (schreibt nichts)
+ddev php bin/rotate_mail_key.php --dry-run
+
+# 4. Echter Lauf
+ddev php bin/rotate_mail_key.php
+
+# 5. MAIL_CREDENTIAL_KEY_PREVIOUS wieder aus .env entfernen
+```
+
+Der Lauf ist idempotent — bereits migrierte Datensätze werden übersprungen. Meldet er `fehlgeschlagen: n > 0`, sind `n` Datensätze mit keinem der beiden Schlüssel lesbar; die betroffenen Benutzer müssen ihr IMAP-Passwort im Profil (`/profile`) neu speichern. Details stehen in den `mail_credential.rotate.failed`-Log-Events.
+
+**Restore eines alten Backups:** Enthält die Metadatei eine `mail_key_id`, die nicht zum aktuellen Schlüssel passt, muss der damalige Schlüssel als `MAIL_CREDENTIAL_KEY_PREVIOUS` gesetzt und nach dem Restore einmal `bin/rotate_mail_key.php` ausgeführt werden.
 
 **`SNAPPYMAIL_SSO_SECRET`**: Niedrigeres Risiko — der Schlüssel sichert nur kurzlebige (45-Sekunden-TTL) Token ohne gespeicherten Zustand. Eine Rotation macht maximal in-flight-Tokens ungültig; betroffene Benutzer landen auf dem normalen SnappyMail-Login-Screen (kein Datenverlust). Der neue Schlüssel muss **gleichzeitig** in ChorManagers `.env` und in `.ddev/.env.snappymail` (bzw. dem Produktiv-Container-Env) gesetzt werden — ein Mismatch schlägt fail-closed.
-
-### Monitoring / Log-Events
-
-Diese Feature-Komponenten loggen via `Psr\Log\LoggerInterface` (JSON zu stderr). Das SnappyMail-Plugin loggt über SnappyMails eigenem Logger (kein PSR). Keines dieser Events erfordert einen Alarm — es handelt sich ausschließlich um benutzerseitig konfigurierbare Mailbox-Zugänge, kein gemeinsam genutzter kritischer Pfad.
-
-| Event-Key | Quelle | Bedeutung |
-|-----------|--------|-----------|
-| `mail_credential.decrypt.failed` | `MailCredentialCryptoService` | Gespeichertes IMAP-Passwort konnte nicht entschlüsselt werden (falscher Key, korrupte Daten). Erwartet gelegentlich nach Key-Rotation. |
-| `mail_account.update.failed` | `ProfileController` | DB-Fehler beim Speichern der Mailbox-Einstellungen im Profil. |
-| `webmail.start.decrypt_failed` | `WebmailController` | SSO-Start fehlgeschlagen weil Passwort nicht entschlüsselt werden konnte (→ Benutzer zum Profil weitergeleitet). |
-| `webmail.start.redirected` | `WebmailController` | SSO-Token ausgestellt, Benutzer zu SnappyMail weitergeleitet. |
-| `mail_badge.refresh.failed` | `MailBadgeService` | IMAP-STATUS-Abfrage fehlgeschlagen (Netzwerk, Auth, falscher Host). Erwartet häufig wenn Mailbox unerreichbar. |
-| `mail_badge.middleware.failed` | `MailBadgeRefreshMiddleware` | Unerwarteter Fehler im Middleware-Wrapper (sollte nicht vorkommen, da `MailBadgeService::refresh()` intern bereits alle Fehler fängt). |
-| `chormanager_sso.missing_token` | SnappyMail-Plugin | SSO-Request ohne Token-Parameter. |
-| `chormanager_sso.misconfigured` | SnappyMail-Plugin | `SNAPPYMAIL_SSO_SECRET` fehlt oder hat falsche Länge im Container. |
-| `chormanager_sso.invalid_token` | SnappyMail-Plugin | Token nicht entschlüsselbar, fehlende Felder oder ungültige JTI. |
-| `chormanager_sso.expired` | SnappyMail-Plugin | Token-TTL abgelaufen (45 Sekunden). Erwartet bei langsamem Netzwerk oder mehrfachem Klick. |
-| `chormanager_sso.replay` | SnappyMail-Plugin | Token bereits verwendet (Replay-Schutz aktiv). Erwartet bei Browser-Back/Reload nach SSO. |
-| `chormanager_sso.login_attempted` | SnappyMail-Plugin | `LoginProcess()` aufgerufen (Erfolg oder IMAP-seitiger Fehler folgt im SnappyMail-Log). |
-| `chormanager_sso.login_failed` | SnappyMail-Plugin | Exception in `LoginProcess()`. |
-| `chormanager_sso.unexpected_error` | SnappyMail-Plugin | Unerwarteter Fehler im Plugin-Hook. |
-
-### Rollout-Checkliste
-
-#### Dev (abgeschlossen mit diesem Branch)
-
-- [x] DDEV-Add-on-Service (`.ddev/docker-compose.snappymail.yaml`) läuft
-- [x] `/webmail/` per nginx geroutet (`.ddev/nginx_full/nginx-site.conf`)
-- [x] Plugin aktiviert (`.ddev/snappymail-plugins/chormanager-sso/`)
-- [x] `MAIL_CREDENTIAL_KEY` und `SNAPPYMAIL_SSO_SECRET` in `.ddev/.env.snappymail` gesetzt
-- [x] Migration gelaufen (`user_mail_accounts`-Tabelle vorhanden)
-- [x] Dev-Seed enthält `user_mail_accounts`-Einträge
-
-#### Staging
-
-- [ ] Separaten SnappyMail-Service in Staging-`docker-compose.yml` eintragen und `/webmail/` routen
-- [ ] `MAIL_CREDENTIAL_KEY` und `SNAPPYMAIL_SSO_SECRET` frisch für Staging generieren (nie Dev-Werte wiederverwenden)
-- [ ] Reales (minimales) IMAP-Testpostfach aufsetzen
-- [ ] Mailbox-Einstellungen für Testbenutzer unter `/profile` konfigurieren
-- [ ] Vollständigen Auto-Login-Flow testen: Klick → SnappyMail-Inbox ohne zweiten Login-Dialog
-- [ ] Badge zeigt reale Ungelesen-Zahl aus dem Testpostfach
-- [ ] Negativpfad-Sicherheitstests: abgelaufenes Token → Redirect zu Login; wiederverwendetes Token → Replay-Fehler; manipuliertes Token → Decrypt-Fehler
-- [ ] Phinx-Migration auf Staging-DB gelaufen
-
-#### Produktion
-
-- [ ] Produktiv-SnappyMail-Service in `docker-compose.yml` eintragen (neues Kapitel in Deployment-Doku)
-- [ ] `MAIL_CREDENTIAL_KEY` und `SNAPPYMAIL_SSO_SECRET` frisch für Produktion generieren
-- [ ] `ALLOW_DEV_SEED=0` bzw. nicht gesetzt (Dev-Seed-Zugangsdaten dürfen nie in die Produktionsdatenbank)
-- [ ] Feature nach Staging-Abnahme für ausgewählte Benutzer freischalten (gestaffeltes Rollout gemäß Planempfehlung)
-- [ ] Migrations-Rollout auf Produktionsdatenbank abgeschlossen
 
 
 ## Deployment

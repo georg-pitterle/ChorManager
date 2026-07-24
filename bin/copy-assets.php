@@ -73,6 +73,22 @@ function copyAssets(): void
         throw new RuntimeException("Failed to copy $source to $dest");
     }
 
+    $source = 'node_modules/tom-select/dist/js/tom-select.complete.min.js';
+    $dest = 'public/vendor/tom-select/js/tom-select.complete.min.js';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
+
+    $source = 'node_modules/tom-select/dist/css/tom-select.bootstrap5.min.css';
+    $dest = 'public/vendor/tom-select/css/tom-select.bootstrap5.min.css';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
+
     foreach (['core', 'daygrid', 'timegrid', 'interaction', 'list'] as $pkg) {
         $source = "node_modules/@fullcalendar/{$pkg}/index.global.min.js";
         $dest   = "public/vendor/fullcalendar/{$pkg}/index.global.min.js";

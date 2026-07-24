@@ -34,7 +34,7 @@
         <div class="col-md-8 mx-auto">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <form action="/events/{{ event.id }}/update" method="post">
+                    <form action="/events/{{ event.id }}/update" method="post" class="event-audience-form">
                         <div class="mb-3">
                             <label for="title" class="form-label">Titel *</label>
                             <input type="text"
@@ -133,18 +133,7 @@
                             {% endif %}
                         {% endif %}
 
-                        <div class="mb-3">
-                            <label for="project_id" class="form-label">Projekt (Optional)</label>
-                            <select class="form-select" id="project_id" name="project_id">
-                                <option value="">Keinem Projekt zuordnen</option>
-                                {% for project in projects %}
-                                    <option value="{{ project.id }}"
-                                            {% if form.project_id|default(event.project_id) == project.id %}selected{% endif %}>
-                                        {{ project.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        {% include "events/_audience_sources.twig" %}
 
                         {% if event.series_id %}
                             <div class="mb-3 form-check">
@@ -168,3 +157,14 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="/js/tom-select-init.js"></script>
+    <script src="/js/events-audience.js"></script>
+{% endblock scripts %}

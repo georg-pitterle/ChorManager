@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Comment;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
@@ -198,6 +199,11 @@ class EventFeatureTest extends TestCase
             'event_type_id' => $eventType->id,
             'type' => 'Probe',
             'location' => null,
+        ]);
+        EventAudienceSource::create([
+            'event_id' => $oldEventInProject->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $project->id,
         ]);
 
         $oldEventOtherProject = Event::create([
@@ -647,6 +653,43 @@ class EventFeatureTest extends TestCase
         $this->assertStringNotContainsString('Termin bearbeiten', $body);
     }
 
+    public function testEventsIndexShowsAttendanceButtonWhenAttendanceRequired(): void
+    {
+        $event = Event::create([
+            'title' => 'Probe mit Anwesenheitspflicht',
+            'starts_at' => Carbon::now()->subDays(1)->setTime(19, 0),
+            'ends_at' => Carbon::now()->subDays(1)->setTime(21, 0),
+            'type' => 'Probe',
+            'attendance_required' => true,
+        ]);
+
+        $_SESSION['can_manage_users'] = true;
+
+        $body = $this->renderEventsIndex(['show_old_events' => '1']);
+
+        $this->assertStringContainsString('/attendance/' . $event->id, $body);
+    }
+
+    public function testEventsIndexHidesAttendanceButtonWhenAttendanceNotRequired(): void
+    {
+        // The attendance action 403s for attendance_required=false events, so
+        // the list must not offer a button that would fail on click.
+        $event = Event::create([
+            'title' => 'Fest ohne Anwesenheitspflicht',
+            'starts_at' => Carbon::now()->subDays(1)->setTime(18, 0),
+            'ends_at' => Carbon::now()->subDays(1)->setTime(23, 0),
+            'type' => 'Sonstiges',
+            'attendance_required' => false,
+        ]);
+
+        $_SESSION['can_manage_users'] = true;
+
+        $body = $this->renderEventsIndex(['show_old_events' => '1']);
+
+        $this->assertStringContainsString($event->title, $body);
+        $this->assertStringNotContainsString('/attendance/' . $event->id, $body);
+    }
+
     public function testAddEventNoteStoresCreatorAndPrivacyFlag(): void
     {
         $event = Event::create([
@@ -918,7 +961,7 @@ class EventFeatureTest extends TestCase
     {
         $date = (new \DateTimeImmutable($relativeDate . ' 12:00:00'))->format('Y-m-d');
 
-        return Event::create([
+        $event = Event::create([
             'title' => $title,
             'project_id' => $projectId,
             'starts_at' => $date . ' 12:00:00',
@@ -926,6 +969,16 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
             'location' => 'Test Location',
         ]);
+
+        if ($projectId !== null) {
+            EventAudienceSource::create([
+                'event_id' => $event->id,
+                'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+                'reference_id' => (int) $projectId,
+            ]);
+        }
+
+        return $event;
     }
 
     private function renderEventsIndex(array $queryParams = []): string

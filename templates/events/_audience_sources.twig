@@ -1,0 +1,80 @@
+{% set _project_ids = [] %}
+{% set _role_ids = [] %}
+{% set _voice_ids = [] %}
+{% set _user_ids = [] %}
+{% for source in audience_sources|default([]) %}
+    {% if source.type == "project_members" %}
+        {% set _project_ids = _project_ids|merge([source.reference_id]) %}
+    {% elseif source.type == "role" %}
+        {% set _role_ids = _role_ids|merge([source.reference_id]) %}
+    {% elseif source.type == "voice_group" %}
+        {% set _voice_ids = _voice_ids|merge([source.reference_id]) %}
+    {% elseif source.type == "user" %}
+        {% set _user_ids = _user_ids|merge([source.reference_id]) %}
+    {% endif %}
+{% endfor %}
+<input type="hidden" name="sources_json" class="event-audience-json" value="">
+<div class="mb-3">
+    <label class="form-label">Zielgruppe</label>
+    <p class="form-text mb-2">Keine Auswahl bedeutet: gilt für alle aktiven Mitglieder.</p>
+    <div class="mb-2">
+        <label class="form-label small" for="audience-projects">Projektmitglieder</label>
+        <select id="audience-projects"
+                class="form-select event-audience-source"
+                data-tom-select
+                data-source-type="project_members"
+                data-placeholder="Projekte wählen …"
+                multiple>
+            {% for project in projects|default([]) %}
+                <option value="{{ project.id }}"{% if project.id in _project_ids %} selected{% endif %}>
+                    {{ project.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small" for="audience-roles">Rollen</label>
+        <select id="audience-roles"
+                class="form-select event-audience-source"
+                data-tom-select
+                data-source-type="role"
+                data-placeholder="Rollen wählen …"
+                multiple>
+            {% for role in roles|default([]) %}
+                <option value="{{ role.id }}"{% if role.id in _role_ids %} selected{% endif %}>
+                    {{ role.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small" for="audience-voice-groups">Stimmgruppen</label>
+        <select id="audience-voice-groups"
+                class="form-select event-audience-source"
+                data-tom-select
+                data-source-type="voice_group"
+                data-placeholder="Stimmgruppen wählen …"
+                multiple>
+            {% for voice_group in voice_groups|default([]) %}
+                <option value="{{ voice_group.id }}"{% if voice_group.id in _voice_ids %} selected{% endif %}>
+                    {{ voice_group.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small" for="audience-users">Einzelpersonen</label>
+        <select id="audience-users"
+                class="form-select event-audience-source"
+                data-tom-select
+                data-source-type="user"
+                data-placeholder="Personen wählen …"
+                multiple>
+            {% for member in audience_users|default(users)|default([]) %}
+                <option value="{{ member.id }}"{% if member.id in _user_ids %} selected{% endif %}>
+                    {{ member.first_name }} {{ member.last_name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>

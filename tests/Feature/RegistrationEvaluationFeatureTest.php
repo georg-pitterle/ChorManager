@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
@@ -356,6 +357,12 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => true,
             'attendance_required' => false,
+        ]);
+
+        EventAudienceSource::create([
+            'event_id' => $event->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $project->id,
         ]);
 
         EventRegistration::create([

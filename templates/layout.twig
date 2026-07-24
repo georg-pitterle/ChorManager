@@ -28,6 +28,8 @@
         <link rel="stylesheet" href="{{ asset_path('/css/style.css') }}">
         <link rel="stylesheet" href="{{ asset_path('/theme.css') }}">
         <link rel="stylesheet" href="{{ asset_path('/css/table-engine.css') }}">
+        {% block styles %}
+        {% endblock styles %}
     </head>
     <body class="app-shell">
         {% if session.user_id %}

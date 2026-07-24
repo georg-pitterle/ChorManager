@@ -11,6 +11,7 @@ use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\Comment;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\EventSeries;
 use App\Models\EventType;
@@ -126,6 +127,7 @@ class DevSeedService
                 'event_types' => 0,
                 'event_series' => 0,
                 'events' => 0,
+                'event_audience_sources' => 0,
                 'attendance' => 0,
                 'event_registrations' => 0,
                 'finances' => 0,
@@ -182,6 +184,7 @@ class DevSeedService
 
             $projectEvents = $this->seedProjectEvents($projects, $eventTypes);
             $this->seedGlobalEvents($projects, $eventTypes, 12);
+            $this->seedEventAudienceSources($projectEvents, $roles, $voiceData);
             $this->configureEventRegistrations($projectEvents);
             $this->seedEventNotes($users['active']);
 
@@ -264,6 +267,7 @@ class DevSeedService
             'project_users',
             'user_voice_groups',
             'user_roles',
+            'event_audience_sources',
             'events',
             'event_series',
             'finances',
@@ -836,6 +840,61 @@ class DevSeedService
         }
 
         return $projectEvents;
+    }
+
+    /**
+     * Assign audience sources to project events. Every project event receives a
+     * project_members source for its own project (keeping attendance and
+     * eligibility consistent with the seeded project membership). A subset
+     * additionally targets a voice group or role for realistic variety; global
+     * events keep no source at all (= all active members).
+     *
+     * @param array<int, array<int, Event>> $projectEvents keyed by project id
+     * @param array<string, \App\Models\Role> $roles
+     * @param array{groups: array<string, \App\Models\VoiceGroup>, subs: mixed} $voiceData
+     */
+    private function seedEventAudienceSources(array $projectEvents, array $roles, array $voiceData): void
+    {
+        $voiceGroupIds = array_values(array_map(
+            static fn($group) => (int) $group->id,
+            $voiceData['groups'] ?? []
+        ));
+        $roleIds = array_values(array_map(
+            static fn($role) => (int) $role->id,
+            $roles
+        ));
+
+        foreach ($projectEvents as $projectId => $events) {
+            $index = 0;
+            foreach ($events as $event) {
+                EventAudienceSource::create([
+                    'event_id' => (int) $event->id,
+                    'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+                    'reference_id' => (int) $projectId,
+                ]);
+                $this->report['counts']['event_audience_sources']++;
+
+                if ($index % 5 === 0 && $voiceGroupIds !== []) {
+                    EventAudienceSource::create([
+                        'event_id' => (int) $event->id,
+                        'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
+                        'reference_id' => $voiceGroupIds[$index % count($voiceGroupIds)],
+                    ]);
+                    $this->report['counts']['event_audience_sources']++;
+                }
+
+                if ($index % 7 === 0 && $roleIds !== []) {
+                    EventAudienceSource::create([
+                        'event_id' => (int) $event->id,
+                        'source_type' => EventAudienceSource::TYPE_ROLE,
+                        'reference_id' => $roleIds[$index % count($roleIds)],
+                    ]);
+                    $this->report['counts']['event_audience_sources']++;
+                }
+
+                $index++;
+            }
+        }
     }
 
     private function seedGlobalEvents(array $projects, array $eventTypes, int $count): void

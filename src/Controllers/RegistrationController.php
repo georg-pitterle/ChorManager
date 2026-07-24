@@ -132,13 +132,20 @@ class RegistrationController
 
     public function save(Request $request, Response $response, array $args): Response
     {
+        $expectsJson = $this->expectsJson($request);
         $event = $this->findRegistrationEvent((int) $args['event_id']);
         if (!$event) {
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Termin nicht gefunden.'], 404);
+            }
             $_SESSION['error'] = 'Termin nicht gefunden oder Anmeldung nicht freigeschaltet.';
             return $response->withHeader('Location', '/registrations')->withStatus(302);
         }
 
         if (!$event->isRegistrationOpen()) {
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Der Anmeldeschluss ist vorbei.'], 403);
+            }
             $_SESSION['error'] = 'Der Anmeldeschluss für diesen Termin ist vorbei.';
             return $response
                 ->withHeader('Location', '/registrations/' . $event->id)
@@ -150,6 +157,9 @@ class RegistrationController
         $note = trim((string) ($data['note'] ?? ''));
 
         if (!in_array($status, EventRegistration::STATUSES, true)) {
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Ungültiger Anmeldestatus.'], 422);
+            }
             $_SESSION['error'] = 'Ungültiger Anmeldestatus.';
             return $response
                 ->withHeader('Location', '/registrations/' . $event->id)
@@ -171,12 +181,54 @@ class RegistrationController
                 'user_id' => $userId,
                 'exception' => $e,
             ]);
+
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Fehler beim Speichern der Anmeldung.'], 500);
+            }
             $_SESSION['error'] = 'Fehler beim Speichern der Anmeldung.';
+            return $response
+                ->withHeader('Location', '/registrations/' . $event->id)
+                ->withStatus(302);
+        }
+
+        if ($expectsJson) {
+            $counts = $this->eligibleStatusCounts($event);
+            return $this->jsonResponse($response, [
+                'success' => true,
+                'own_status' => $status,
+                'counts' => [
+                    'yes' => $counts['yes'],
+                    'no' => $counts['no'],
+                    'maybe' => $counts['maybe'],
+                    'open' => $counts['open'],
+                ],
+            ]);
         }
 
         return $response
             ->withHeader('Location', '/registrations/' . $event->id)
             ->withStatus(302);
+    }
+
+    private function expectsJson(Request $request): bool
+    {
+        if (strtolower(trim($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest') {
+            return true;
+        }
+
+        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function jsonResponse(Response $response, array $payload, int $status = 200): Response
+    {
+        $response->getBody()->write((string) json_encode($payload));
+
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus($status);
     }
 
     public function saveProxy(Request $request, Response $response, array $args): Response

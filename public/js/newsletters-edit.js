@@ -37,8 +37,19 @@ function initNewsletterEdit() {
     };
     const sourceTypes = Object.keys(sourceBadgeMap);
 
-    function getSourceCheckboxes(type) {
-        return Array.from(editForm.querySelectorAll(`input.newsletter-source-option[data-source-type="${type}"]`));
+    function getSourceSelect(type) {
+        return editForm.querySelector(`select.newsletter-source-select[data-source-type="${type}"]`);
+    }
+
+    function getSelectedReferenceIds(type) {
+        const select = getSourceSelect(type);
+        if (!select) {
+            return [];
+        }
+
+        return Array.from(select.selectedOptions)
+            .map(option => Number(option.value))
+            .filter(referenceId => Number.isInteger(referenceId) && referenceId > 0);
     }
 
     let lastSavedSnapshot = null;
@@ -71,16 +82,7 @@ function initNewsletterEdit() {
     function buildRecipientSourcesPayload() {
         const payload = [];
         sourceTypes.forEach(type => {
-            getSourceCheckboxes(type).forEach(checkbox => {
-                if (!checkbox.checked) {
-                    return;
-                }
-
-                const referenceId = Number(checkbox.value);
-                if (!Number.isInteger(referenceId) || referenceId <= 0) {
-                    return;
-                }
-
+            getSelectedReferenceIds(type).forEach(referenceId => {
                 payload.push({ type, reference_id: referenceId });
             });
         });
@@ -95,8 +97,7 @@ function initNewsletterEdit() {
                 return;
             }
 
-            const selectedCount = getSourceCheckboxes(type).filter(checkbox => checkbox.checked).length;
-            badge.textContent = String(selectedCount);
+            badge.textContent = String(getSelectedReferenceIds(type).length);
         });
     }
 
@@ -287,7 +288,7 @@ function initNewsletterEdit() {
             && typeof target === "object"
             && target.classList
             && typeof target.classList.contains === "function"
-            && target.classList.contains("newsletter-source-option")
+            && target.classList.contains("newsletter-source-select")
         );
     }
 

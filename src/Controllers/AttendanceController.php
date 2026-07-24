@@ -58,21 +58,22 @@ class AttendanceController
                 $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
                 $roleLevel = $_SESSION['role_level'] ?? 0;
 
-                // Same logic as before: If not admin/board, restrict to own voice groups
+                // Only members within the event's audience scope may appear.
+                $users = $event->eligibleUsersQuery();
+
+                // If not admin/board, additionally restrict to own voice groups.
                 if (!$canManageUsers && $roleLevel < 80) {
                     if (!empty($userVoiceGroupIds)) {
-                        $users = User::whereHas('voiceGroups', function ($q) use ($userVoiceGroupIds) {
+                        $users->whereHas('voiceGroups', function ($q) use ($userVoiceGroupIds) {
                             $q->whereIn('voice_group_id', $userVoiceGroupIds);
                         });
                     } else {
                         // Edge case: no voice group assigned but is a stimmsprecher
-                        $users = User::whereRaw('1 = 0'); // show nothing
+                        $users->whereRaw('1 = 0'); // show nothing
                     }
-                } else {
-                    $users = User::query();
                 }
 
-                $users = $users->where('is_active', 1)
+                $users = $users
                     ->with(['voiceGroups', 'subVoices.voiceGroup', 'attendances' => function ($q) use ($eventId) {
                         $q->where('event_id', $eventId);
                     }, 'eventRegistrations' => function ($q) use ($eventId) {
@@ -167,7 +168,11 @@ class AttendanceController
             return $response->withHeader('Location', '/attendance/' . $eventId)->withStatus(403);
         }
 
-        $allowedUserIds = $this->scopeService->getManageableUserIds();
+        $eligibleUserIds = $event->eligibleUsersQuery()
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+        $allowedUserIds = array_intersect($this->scopeService->getManageableUserIds(), $eligibleUserIds);
         $submittedUserIds = array_values(array_unique(array_map('intval', array_keys((array) $attendances))));
         $unauthorizedUserIds = array_diff($submittedUserIds, $allowedUserIds);
 

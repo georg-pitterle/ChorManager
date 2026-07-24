@@ -86,6 +86,60 @@ class RegistrationSaveFeatureTest extends TestCase
             ->where('user_id', $this->user->id)->count());
     }
 
+    public function testAjaxSaveReturnsJsonWithOwnStatusAndCountsWithoutRedirect(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/registrations/' . $this->event->id,
+            ['status' => 'yes'],
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json']
+        );
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('', $response->getHeaderLine('Location'), 'AJAX save must not redirect');
+
+        $payload = json_decode((string) $response->getBody(), true);
+        $this->assertTrue($payload['success']);
+        $this->assertSame('yes', $payload['own_status']);
+        $this->assertArrayHasKey('yes', $payload['counts']);
+        $this->assertArrayHasKey('no', $payload['counts']);
+        $this->assertArrayHasKey('maybe', $payload['counts']);
+        $this->assertArrayHasKey('open', $payload['counts']);
+        $this->assertGreaterThanOrEqual(1, $payload['counts']['yes']);
+
+        $row = EventRegistration::where('event_id', $this->event->id)
+            ->where('user_id', $this->user->id)->first();
+        $this->assertNotNull($row);
+        $this->assertSame('yes', $row->status);
+    }
+
+    public function testAjaxSaveClosedDeadlineReturnsJsonError(): void
+    {
+        $this->event->update(['registration_deadline' => Carbon::now()->subHour()]);
+
+        $request = $this->makeRequest(
+            'POST',
+            '/registrations/' . $this->event->id,
+            ['status' => 'yes'],
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json']
+        );
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+        $payload = json_decode((string) $response->getBody(), true);
+        $this->assertArrayHasKey('error', $payload);
+        $this->assertSame(0, EventRegistration::where('event_id', $this->event->id)->count());
+    }
+
     public function testInvalidStatusRejected(): void
     {
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id, [

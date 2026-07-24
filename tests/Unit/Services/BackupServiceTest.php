@@ -38,7 +38,7 @@ final class BackupServiceTest extends TestCase
         parent::tearDown();
     }
 
-    private function makeService(int $maxManual = 5, int $maxAuto = 5): BackupService
+    private function makeService(int $maxManual = 5, int $maxAuto = 5, ?string $mailKeyId = null): BackupService
     {
         return new BackupService(
             $this->dumpRunner,
@@ -48,7 +48,8 @@ final class BackupServiceTest extends TestCase
             $maxAuto,
             true,
             'chormanager_test',
-            'test-version'
+            'test-version',
+            $mailKeyId
         );
     }
 
@@ -181,5 +182,24 @@ final class BackupServiceTest extends TestCase
         $this->assertSame($this->backupDir . '/' . $metadata['id'] . '.sql.gz', $file['path']);
         $this->assertSame($metadata['id'] . '.sql.gz', $file['filename']);
         $this->assertSame($metadata['size'], $file['size']);
+    }
+
+    public function testMetadataContainsMailKeyIdWhenConfigured(): void
+    {
+        $service = $this->makeService(mailKeyId: 'a1b2c3d4');
+
+        $metadata = $service->create(BackupService::TYPE_MANUAL, null);
+
+        $this->assertSame('a1b2c3d4', $metadata['mail_key_id']);
+    }
+
+    public function testMetadataMailKeyIdIsNullWhenUnavailable(): void
+    {
+        $service = $this->makeService();
+
+        $metadata = $service->create(BackupService::TYPE_MANUAL, null);
+
+        $this->assertArrayHasKey('mail_key_id', $metadata);
+        $this->assertNull($metadata['mail_key_id']);
     }
 }

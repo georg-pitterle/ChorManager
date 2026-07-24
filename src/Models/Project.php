@@ -28,9 +28,18 @@ class Project extends Model
         return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
     }
 
+    /**
+     * Events targeting this project via a project_members audience source.
+     * Returns a query builder (events are no longer bound to a project by a
+     * foreign key; the link now runs through event_audience_sources).
+     */
     public function events()
     {
-        return $this->hasMany(Event::class, 'project_id', 'id');
+        return Event::query()
+            ->whereHas('audienceSources', function ($sourceQuery) {
+                $sourceQuery->where('source_type', EventAudienceSource::TYPE_PROJECT_MEMBERS)
+                    ->where('reference_id', (int) $this->id);
+            });
     }
 
     public function songs()

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\AppSetting;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\MailQueue;
 use App\Models\Project;
@@ -130,6 +131,11 @@ class RegistrationReminderServiceFeatureTest extends TestCase
         // project members may be reminded for a project-bound event.
 
         $this->event->update(['project_id' => $this->extraProject->id]);
+        EventAudienceSource::create([
+            'event_id' => $this->event->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $this->extraProject->id,
+        ]);
 
         $this->service()->processDue('https://chor.example');
 

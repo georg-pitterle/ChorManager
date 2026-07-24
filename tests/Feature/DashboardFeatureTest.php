@@ -120,6 +120,28 @@ class DashboardFeatureTest extends TestCase
         $this->assertStringNotContainsString('href="/evaluations"', $matches[1]);
     }
 
+    public function testDashboardExposesPendingRegistrationSummary(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DashboardController.php');
+        $this->assertIsString($controller);
+        $this->assertStringContainsString('PendingRegistrationSummaryService', $controller);
+        $this->assertStringContainsString("'registration_summary' => " . '$registrationSummary', $controller);
+        $this->assertStringContainsString(
+            "(bool) (\$this->settings['modules']['registration'] ?? false)",
+            $controller
+        );
+
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
+        $this->assertIsString($template);
+        $this->assertStringContainsString('{% if registration_summary %}', $template);
+        $this->assertStringContainsString('Ausstehende Anmeldungen', $template);
+        $this->assertStringContainsString('Noch nicht eingetragen: {{ registration_summary.pending }}', $template);
+        $this->assertStringContainsString('Zusagen: {{ registration_summary.yes }}', $template);
+        $this->assertStringContainsString('Absagen: {{ registration_summary.no }}', $template);
+        $this->assertStringContainsString('Vielleicht: {{ registration_summary.maybe }}', $template);
+        $this->assertStringContainsString('href="/registrations"', $template);
+    }
+
     public function testDashboardTemplateUsesNeutralCommunicationEmptyState(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');

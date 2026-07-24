@@ -62,13 +62,17 @@ final class MailDeliveryLifecycleFeatureTest extends TestCase
         parent::setUp();
         self::$capsule?->connection()->beginTransaction();
 
-        // processDueEntries() queries mail_queue globally with no per-test scoping.
-        // Stray 'queued' rows left over from outside this transaction (e.g. a real
-        // dev-seed run, or manual app usage against the shared dev database) would
-        // otherwise be swept into this test's batch and inflate its stats counts.
-        // Deleting them here is safe: it happens inside the transaction opened above
-        // and is rolled back in tearDown(), so it never affects real persisted data.
-        MailQueue::query()->where('status', 'queued')->delete();
+        // processDueEntries() queries mail_queue globally (MailQueue::dueSoon())
+        // with no per-test scoping. Any pre-existing due row left over from outside
+        // this transaction (a real dev-seed run, manual app usage against the shared
+        // dev database) would otherwise be swept into this test's batch and inflate
+        // its stats counts. dueSoon() matches 'queued' entries AND retryable 'failed'
+        // entries whose next_attempt_at has passed, so both must be cleared here — a
+        // seeded retryable failure becomes due minutes after seeding and would
+        // otherwise break the processDueEntries tests non-deterministically. Deleting
+        // via the exact dueSoon() scope is safe: it happens inside the transaction
+        // opened above and is rolled back in tearDown(), never touching persisted data.
+        MailQueue::dueSoon()->delete();
     }
 
     protected function tearDown(): void

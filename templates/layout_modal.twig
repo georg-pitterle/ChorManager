@@ -25,6 +25,8 @@
               href="/vendor/bootstrap-icons/font/bootstrap-icons.css">
         <link rel="stylesheet" href="{{ asset_path('/css/style.css') }}">
         <link rel="stylesheet" href="{{ asset_path('/theme.css') }}">
+        {% block styles %}
+        {% endblock styles %}
     </head>
     <body class="p-3">
         {% block content %}

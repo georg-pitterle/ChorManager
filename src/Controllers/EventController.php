@@ -13,11 +13,15 @@ use Slim\Views\Twig;
 use App\Models\AppSetting;
 use App\Models\Comment;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Services\CalendarSubscriptionService;
+use App\Services\EventAudienceService;
 use App\Services\ModalFormService;
 use App\Util\AppUrlResolver;
 use App\Util\Timezone;
@@ -54,7 +58,7 @@ class EventController
         }
 
         // Allowed sort columns
-        $allowedSorts = ['starts_at', 'title', 'type', 'project_name', 'location'];
+        $allowedSorts = ['starts_at', 'title', 'type', 'location'];
         if (!in_array($sort, $allowedSorts)) {
             $sort = 'starts_at';
         }
@@ -62,17 +66,19 @@ class EventController
         $query = Event::query();
 
         if (!$canManageUsers) {
-            $query->where(function ($scopedQuery) use ($accessibleProjectIds) {
-                $scopedQuery->whereNull('project_id');
-
-                if (!empty($accessibleProjectIds)) {
-                    $scopedQuery->orWhereIn('project_id', $accessibleProjectIds);
-                }
-            });
+            $visibleIds = (new EventAudienceService())
+                ->visibleEventsQuery($userId)
+                ->pluck('id')
+                ->map(static fn($id): int => (int) $id)
+                ->all();
+            $query->whereIn('id', $visibleIds === [] ? [0] : $visibleIds);
         }
 
         if ($projectId) {
-            $query->where('project_id', $projectId);
+            $query->whereHas('audienceSources', function ($sourceQuery) use ($projectId) {
+                $sourceQuery->where('source_type', 'project_members')
+                    ->where('reference_id', $projectId);
+            });
         }
         if ($eventTypeId) {
             $query->where('event_type_id', $eventTypeId);
@@ -83,11 +89,7 @@ class EventController
             $query->whereDate('starts_at', '>=', Carbon::now()->subDays(14));
         }
 
-        if ($sort === 'project_name') {
-            $query->leftJoin('projects', 'events.project_id', '=', 'projects.id')
-                ->orderBy('projects.name', $direction)
-                ->select('events.*');
-        } elseif ($sort === 'type') {
+        if ($sort === 'type') {
             $query->leftJoin('event_types', 'events.event_type_id', '=', 'event_types.id')
                 ->orderBy('event_types.name', $direction)
                 ->select('events.*');
@@ -98,27 +100,30 @@ class EventController
         $events = $query->get();
 
         // Manual eager loading to avoid PHP 8.4 deprecation in Eloquent
-        $projectIds = $events->pluck('project_id')->filter()->unique()->toArray();
         $eventTypeIds = $events->pluck('event_type_id')->filter()->unique()->toArray();
         $seriesIds = $events->pluck('series_id')->filter()->unique()->toArray();
 
-        $projectsMap = Project::whereIn('id', $projectIds)->get()->keyBy('id');
         $eventTypesMap = EventType::whereIn('id', $eventTypeIds)->get()->keyBy('id');
         $seriesMap = EventSeries::whereIn('id', $seriesIds)->get()->keyBy('id');
 
-        $events->map(function ($event) use ($projectsMap, $eventTypesMap, $seriesMap) {
-            $project = !is_null($event->project_id) ? $projectsMap->get($event->project_id) : null;
+        $scopedEventIds = EventAudienceSource::query()
+            ->whereIn('event_id', $events->pluck('id')->map(static fn($id) => (int) $id)->all())
+            ->pluck('event_id')
+            ->map(static fn($id) => (int) $id)
+            ->unique()
+            ->flip();
+
+        $events->map(function ($event) use ($eventTypesMap, $seriesMap, $scopedEventIds) {
             $eventType = !is_null($event->event_type_id) ? $eventTypesMap->get($event->event_type_id) : null;
             $series = !is_null($event->series_id) ? $seriesMap->get($event->series_id) : null;
 
-            $event->setRelation('project', $project);
             $event->setRelation('eventType', $eventType);
             $event->setRelation('series', $series);
 
             // For template compatibility
-            $event->project_name = $project ? $project->name : null;
             $event->type_name = $eventType ? $eventType->name : $event->type;
             $event->type_color = $eventType ? $eventType->color : 'info';
+            $event->audience_label = $scopedEventIds->has((int) $event->id) ? 'Ausgewählt' : 'Alle';
 
             return $event;
         });
@@ -154,6 +159,10 @@ class EventController
 
         $projects = $accessibleProjects;
         $eventTypes = EventType::orderBy('name')->get();
+        $roles = Role::query()->orderBy('name')->get();
+        $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
+        $audienceUsers = User::query()->where('is_active', 1)
+            ->orderBy('last_name')->orderBy('first_name')->get();
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -186,6 +195,9 @@ class EventController
             'view_mode' => $viewMode,
             'calendar_events' => $calendarEventsJson,
             'calendar_subscription_url' => $calendarSubscriptionUrl,
+            'roles' => $roles,
+            'voice_groups' => $voiceGroups,
+            'audience_users' => $audienceUsers,
         ]);
     }
 
@@ -236,7 +248,11 @@ class EventController
             return $response->withStatus(404);
         }
 
-        $events = $this->getAccessibleCalendarEventsForUser($user);
+        $events = (new EventAudienceService())
+            ->visibleEventsQuery((int) $user->id)
+            ->where('ends_at', '>=', Carbon::now())
+            ->orderBy('starts_at')
+            ->get();
 
         $timezone = Timezone::resolveAppTimezone();
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
@@ -268,31 +284,6 @@ class EventController
             ->withHeader('Content-Disposition', 'inline; filename="chor-manager.ics"');
     }
 
-    private function getAccessibleCalendarEventsForUser(User $user)
-    {
-        $userId = (int) $user->id;
-        $canManageUsers = $user->roles()->where('can_manage_users', 1)->exists();
-        $accessibleProjects = $this->getAccessibleProjects($userId, $canManageUsers);
-        $accessibleProjectIds = $accessibleProjects->pluck('id')->map(static fn($id) => (int) $id)->all();
-
-        $query = Event::query();
-        if (!$canManageUsers) {
-            $query->where(function ($scopedQuery) use ($accessibleProjectIds) {
-                $scopedQuery->whereNull('project_id');
-
-                if (!empty($accessibleProjectIds)) {
-                    $scopedQuery->orWhereIn('project_id', $accessibleProjectIds);
-                }
-            });
-        }
-
-        return $query
-            ->with('project')
-            ->where('ends_at', '>=', Carbon::now())
-            ->orderBy('starts_at')
-            ->get();
-    }
-
     private function buildIcsEventLines(Event $event, string $baseUrl, string $timezone): array
     {
         $lines = [
@@ -318,8 +309,9 @@ class EventController
     private function buildIcsDescription(Event $event, string $baseUrl): string
     {
         $description = 'Termin: ' . $event->title;
-        if ($event->project) {
-            $description .= '\nProjekt: ' . $event->project->name;
+        $audienceLabel = $this->buildAudienceLabel($event);
+        if ($audienceLabel !== '') {
+            $description .= '\nZielgruppe: ' . $audienceLabel;
         }
         if (!empty($event->location)) {
             $description .= '\nOrt: ' . $event->location;
@@ -336,6 +328,55 @@ class EventController
             ['\n', '\\,', '\\;'],
             $text
         );
+    }
+
+    /**
+     * Extract audience sources from a submitted event form. Prefers the
+     * JSON payload built client-side, falling back to a plain sources array.
+     *
+     * @param array<string, mixed> $data
+     * @return array<int, array{type:string, reference_id:int}>
+     */
+    private function readAudienceSources(array $data): array
+    {
+        $sourcesJson = trim((string) ($data['sources_json'] ?? ''));
+        if ($sourcesJson !== '') {
+            $decoded = json_decode($sourcesJson, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+
+            return [];
+        }
+
+        if (isset($data['sources']) && is_array($data['sources'])) {
+            return $data['sources'];
+        }
+
+        return [];
+    }
+
+    private function buildAudienceLabel(Event $event): string
+    {
+        $sources = $event->audienceSources()->get();
+        if ($sources->isEmpty()) {
+            return 'Alle Mitglieder';
+        }
+
+        $labels = [];
+        foreach ($sources as $source) {
+            $refId = (int) $source->reference_id;
+            $labels[] = match ((string) $source->source_type) {
+                'project_members' => 'Projekt: ' . (optional(Project::find($refId))->name ?? '—'),
+                'role' => 'Rolle: ' . (optional(Role::find($refId))->name ?? '—'),
+                'voice_group' => 'Stimmgruppe: ' . (optional(VoiceGroup::find($refId))->name ?? '—'),
+                'user' => 'Person: ' . trim((string) (optional(User::find($refId))->first_name . ' '
+                    . optional(User::find($refId))->last_name)),
+                default => '',
+            };
+        }
+
+        return implode(', ', array_filter($labels));
     }
 
     public function addNote(Request $request, Response $response, array $args): Response
@@ -464,7 +505,6 @@ class EventController
         $startTime = $data['start_time'] ?? '';
         $endTime = $data['end_time'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
-        $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $repeat = !empty($data['repeat']);
         $registrationEnabled = !empty($data['registration_enabled']);
         $attendanceRequired = !empty($data['attendance_required']);
@@ -484,7 +524,6 @@ class EventController
             'start_time' => $startTime,
             'end_time' => $endTime,
             'event_type_id' => $eventTypeId ?? '',
-            'project_id' => $projectId ?? '',
             'location' => trim($data['location'] ?? ''),
             'repeat' => $repeat,
             'recurrence_interval' => trim((string) ($data['recurrence_interval'] ?? '1')),
@@ -496,11 +535,8 @@ class EventController
             'attendance_required' => $attendanceRequired,
         ];
 
-        if (!$this->canAccessProjectId($projectId)) {
-            $createService = new ModalFormService('event_create');
-            $createService->setError('Zugriff verweigert.', $formData);
-            return $response->withHeader('Location', '/events')->withStatus(403);
-        }
+        $audienceService = new EventAudienceService();
+        $sources = $audienceService->normalizeSources($this->readAudienceSources($data));
 
         if (!$startsAtDate || !$startTime || !$endTime) {
             $createService = new ModalFormService('event_create');
@@ -541,18 +577,18 @@ class EventController
 
             if (!$repeat) {
                 // Single event
-                Event::create([
+                $event = Event::create([
                     'title' => $title,
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                     'event_type_id' => $eventTypeId,
-                    'project_id' => $projectId,
                     'type' => $typeName,
                     'location' => trim($data['location'] ?? ''),
                     'registration_enabled' => $registrationEnabled,
                     'registration_deadline' => $registrationDeadline,
                     'attendance_required' => $attendanceRequired,
                 ]);
+                $audienceService->setSources($event, $sources);
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
             } else {
                 // Series
@@ -596,12 +632,11 @@ class EventController
                     }
 
                     if ($shouldCreate) {
-                        Event::create([
+                        $seriesEvent = Event::create([
                             'title' => $title,
                             'starts_at' => $currentDate->format('Y-m-d') . ' ' . $startTime . ':00',
                             'ends_at' => $currentDate->format('Y-m-d') . ' ' . $endTime . ':00',
                             'event_type_id' => $eventTypeId,
-                            'project_id' => $projectId,
                             'type' => $typeName,
                             'series_id' => $series->id,
                             'location' => trim($data['location'] ?? ''),
@@ -609,6 +644,7 @@ class EventController
                             'registration_deadline' => null,
                             'attendance_required' => $attendanceRequired,
                         ]);
+                        $audienceService->setSources($seriesEvent, $sources);
                         $count++;
                     }
 
@@ -666,6 +702,11 @@ class EventController
         $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
         $projects = $this->getAccessibleProjects($userId, $canManageUsers);
         $eventTypes = EventType::orderBy('name')->get();
+        $roles = Role::query()->orderBy('name')->get();
+        $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
+        $users = User::query()->where('is_active', 1)
+            ->orderBy('last_name')->orderBy('first_name')->get();
+        $audienceSources = (new EventAudienceService())->getSources($event);
 
         // Get error and form data from ModalFormService
         $editService = new ModalFormService('event_edit');
@@ -683,7 +724,6 @@ class EventController
                 'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
                 'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
                 'event_type_id' => $event->event_type_id !== null ? (string) $event->event_type_id : '',
-                'project_id' => $event->project_id !== null ? (string) $event->project_id : '',
                 'location' => (string) ($event->location ?? ''),
                 'update_series' => false,
                 'registration_enabled' => (bool) $event->registration_enabled,
@@ -698,6 +738,10 @@ class EventController
             'event' => $event,
             'projects' => $projects,
             'event_types' => $eventTypes,
+            'roles' => $roles,
+            'voice_groups' => $voiceGroups,
+            'users' => $users,
+            'audience_sources' => $audienceSources,
             'error' => $error,
             'edit_form' => $editForm,
         ]);
@@ -723,7 +767,6 @@ class EventController
         $startTime = $data['start_time'] ?? '';
         $endTime = $data['end_time'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
-        $projectId = !empty($data['project_id']) ? (int)$data['project_id'] : null;
         $updateSeries = !empty($data['update_series']);
         $registrationEnabled = !empty($data['registration_enabled']);
         $attendanceRequired = !empty($data['attendance_required']);
@@ -743,7 +786,6 @@ class EventController
             'start_time' => $startTime,
             'end_time' => $endTime,
             'event_type_id' => $eventTypeId ?? '',
-            'project_id' => $projectId ?? '',
             'location' => trim($data['location'] ?? ''),
             'update_series' => $updateSeries,
             'registration_enabled' => $registrationEnabled,
@@ -751,11 +793,8 @@ class EventController
             'attendance_required' => $attendanceRequired,
         ];
 
-        if (!$this->canAccessProjectId($projectId)) {
-            $editService = new ModalFormService('event_edit');
-            $editService->setError('Zugriff verweigert.', $formData);
-            return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
-        }
+        $audienceService = new EventAudienceService();
+        $sources = $audienceService->normalizeSources($this->readAudienceSources($data));
 
         if (!$startsAtDate || !$startTime || !$endTime) {
             $editService = new ModalFormService('event_edit');
@@ -797,7 +836,6 @@ class EventController
             $updateData = [
                 'title' => $title,
                 'event_type_id' => $eventTypeId,
-                'project_id' => $projectId,
                 'type' => $typeName,
                 'location' => trim($data['location'] ?? ''),
                 'registration_enabled' => $registrationEnabled,
@@ -827,6 +865,7 @@ class EventController
                         'starts_at' => Carbon::parse($eventInSeries->starts_at)->setTimeFromTimeString($newStartTime),
                         'ends_at' => Carbon::parse($eventInSeries->ends_at)->setTimeFromTimeString($newEndTime),
                     ]));
+                    $audienceService->setSources($eventInSeries, $sources);
                 }
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
@@ -835,6 +874,7 @@ class EventController
                 $updateData['ends_at'] = $endsAt;
                 $updateData['registration_deadline'] = $registrationDeadline;
                 $event->update($updateData);
+                $audienceService->setSources($event, $sources);
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
             }
         } catch (Exception $e) {
@@ -894,7 +934,16 @@ class EventController
 
     private function canAccessEvent(Event $event): bool
     {
-        return $this->canAccessProjectId($event->project_id !== null ? (int) $event->project_id : null);
+        if ((bool) ($_SESSION['can_manage_users'] ?? false)) {
+            return true;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return (new EventAudienceService())->isUserEligible($event, $userId);
     }
 
     private function hydrateVisibleComments(EloquentCollection $events, int $userId): void
@@ -964,28 +1013,5 @@ class EventController
     {
         return (bool) ($_SESSION['can_manage_users'] ?? false)
             && $this->canAccessEvent($event);
-    }
-
-    private function canAccessProjectId(?int $projectId): bool
-    {
-        if ($projectId === null) {
-            return true;
-        }
-
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        if ($canManageUsers) {
-            return true;
-        }
-
-        if ($userId <= 0) {
-            return false;
-        }
-
-        return Project::query()
-            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
-            ->where('project_users.user_id', $userId)
-            ->where('projects.id', $projectId)
-            ->exists();
     }
 }

@@ -14,7 +14,6 @@ class Event extends Model
 
     protected $fillable = [
         'title',
-        'project_id',
         'starts_at',
         'ends_at',
         'event_type_id',
@@ -30,7 +29,6 @@ class Event extends Model
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
-        'project_id' => 'integer',
         'event_type_id' => 'integer',
         'series_id' => 'integer',
         'registration_enabled' => 'boolean',
@@ -49,14 +47,14 @@ class Event extends Model
         return $this->belongsTo(EventSeries::class, 'series_id', 'id');
     }
 
-    public function project()
-    {
-        return $this->belongsTo(Project::class, 'project_id', 'id');
-    }
-
     public function attendances()
     {
         return $this->hasMany(Attendance::class, 'event_id', 'id');
+    }
+
+    public function audienceSources()
+    {
+        return $this->hasMany(EventAudienceSource::class, 'event_id', 'id');
     }
 
     public function registrations()
@@ -90,22 +88,66 @@ class Event extends Model
 
     /**
      * Query for users eligible to register for / be counted for this event:
-     * active users, restricted to project members for project-bound events,
-     * otherwise all active users. This is the single source of truth for
-     * event eligibility — every caller that needs to know "who counts for
-     * this event" must build on this query rather than re-deriving the
+     * active users, restricted to the configured audience sources (union of
+     * project members, roles, voice groups and single users). An event without
+     * any source counts for all active users. This is the single source of
+     * truth for event eligibility — every caller that needs to know "who counts
+     * for this event" must build on this query rather than re-deriving the
      * predicate.
      */
     public function eligibleUsersQuery(): Builder
     {
         $query = User::where('is_active', 1);
 
-        if ($this->project_id !== null) {
-            $query->whereHas('projects', function ($projectQuery) {
-                $projectQuery->where('projects.id', (int) $this->project_id);
-            });
+        $sources = $this->relationLoaded('audienceSources')
+            ? $this->audienceSources
+            : $this->audienceSources()->get();
+
+        if ($sources->isEmpty()) {
+            return $query;
         }
 
+        $projectIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_PROJECT_MEMBERS);
+        $roleIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_ROLE);
+        $voiceGroupIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_VOICE_GROUP);
+        $userIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_USER);
+
+        $query->where(function ($grouped) use ($projectIds, $roleIds, $voiceGroupIds, $userIds) {
+            if ($projectIds !== []) {
+                $grouped->orWhereHas('projects', function ($q) use ($projectIds) {
+                    $q->whereIn('project_id', $projectIds);
+                });
+            }
+            if ($roleIds !== []) {
+                $grouped->orWhereHas('roles', function ($q) use ($roleIds) {
+                    $q->whereIn('role_id', $roleIds);
+                });
+            }
+            if ($voiceGroupIds !== []) {
+                $grouped->orWhereHas('voiceGroups', function ($q) use ($voiceGroupIds) {
+                    $q->whereIn('voice_group_id', $voiceGroupIds);
+                });
+            }
+            if ($userIds !== []) {
+                $grouped->orWhereIn('users.id', $userIds);
+            }
+        });
+
         return $query;
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, EventAudienceSource> $sources
+     * @return array<int, int>
+     */
+    private function referenceIdsFor($sources, string $type): array
+    {
+        return $sources
+            ->where('source_type', $type)
+            ->pluck('reference_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

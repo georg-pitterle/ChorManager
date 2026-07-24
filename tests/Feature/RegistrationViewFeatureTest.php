@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\RegistrationController;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
@@ -85,6 +86,32 @@ class RegistrationViewFeatureTest extends TestCase
         parent::tearDown();
     }
 
+    public function testIndexRendersThreeSegmentedStatusButtonsForOpenRow(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+
+        $_SESSION['user_id'] = (int) $fixture['maybe']->id;
+
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $request = $this->makeRequest('GET', '/registrations');
+        $response = $this->makeResponse();
+
+        $result = $controller->index($request, $response);
+        $body = (string) $result->getBody();
+
+        // All three quick-action status buttons (incl. the newly added
+        // "maybe") must post to the own-registration endpoint via a single
+        // segmented btn-group form.
+        $this->assertMatchesRegularExpression('/name="status"[^>]*value="yes"/s', $body);
+        $this->assertMatchesRegularExpression('/name="status"[^>]*value="maybe"/s', $body);
+        $this->assertMatchesRegularExpression('/name="status"[^>]*value="no"/s', $body);
+
+        // The current user answered "maybe", so that button must be shown as
+        // active (filled), the others as outline.
+        $this->assertMatchesRegularExpression('/value="maybe"[^>]*class="btn btn-warning"/s', $body);
+        $this->assertMatchesRegularExpression('/value="yes"[^>]*class="btn btn-outline-success"/s', $body);
+    }
+
     public function testIndexOpenCounterMatchesEligiblePopulationAndNeverGoesNegative(): void
     {
         $fixture = $this->createProjectBoundFixture();
@@ -113,6 +140,42 @@ class RegistrationViewFeatureTest extends TestCase
 
         $eligibleCount = $counts['yes'] + $counts['no'] + $counts['maybe'] + $counts['open'];
         $this->assertSame(4, $eligibleCount, 'yes+no+maybe+open must sum to the eligible count');
+    }
+
+    public function testDetailRendersProxyStatusAsSegmentedButtonsForManagers(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+
+        // Manager who is not an eligible participant themselves, so every
+        // rendered grid row is a proxy row (not the own-registration row).
+        $manager = $this->createUser('reg-manager', 'Verwalter');
+        $_SESSION['user_id'] = (int) $manager->id;
+        $_SESSION['can_manage_users'] = true;
+
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $request = $this->makeRequest('GET', '/registrations/' . $fixture['event']->id);
+        $response = $this->makeResponse();
+
+        $result = $controller->detail($request, $response, ['event_id' => (string) $fixture['event']->id]);
+        $body = (string) $result->getBody();
+
+        $yesId = (int) $fixture['yes']->id;
+
+        // The old select-dropdown proxy control must be gone entirely.
+        $this->assertStringNotContainsString('registration-proxy-select', $body);
+
+        // Proxy rows now use the same segmented btn-check group as attendance,
+        // posting the per-user proxy field, with the stored status pre-checked.
+        $this->assertStringContainsString('name="registration[' . $yesId . ']"', $body);
+        $this->assertStringContainsString('attendance-status-group', $body);
+        $this->assertMatchesRegularExpression(
+            '/id="reg_' . $yesId . '_yes"[^>]*checked/s',
+            $body
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/id="reg_' . $yesId . '_no"[^>]*checked/s',
+            $body
+        );
     }
 
     public function testDetailRendersVoiceGroupsCountsAndOwnRegistration(): void
@@ -248,6 +311,12 @@ class RegistrationViewFeatureTest extends TestCase
             'registration_enabled' => true,
         ]);
 
+        EventAudienceSource::create([
+            'event_id' => $event->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $project->id,
+        ]);
+
         EventRegistration::create([
             'event_id' => $event->id,
             'user_id' => $yes->id,
@@ -312,10 +381,10 @@ class RegistrationViewFeatureTest extends TestCase
     private function extractIndexCounts(string $body, int $eventId): array
     {
         $pattern = '/href="\/registrations\/' . $eventId . '".*?'
-            . 'registration-badge-yes">(\d+) Zusagen<\/span>\s*'
-            . '<span class="badge registration-badge-no">(\d+) Absagen<\/span>\s*'
-            . '<span class="badge registration-badge-maybe">(\d+) Vielleicht<\/span>\s*'
-            . '<span class="badge registration-badge-open">(\d+) Offen<\/span>/s';
+            . 'registration-badge-yes"><span data-count="yes">(\d+)<\/span> Zusagen<\/span>\s*'
+            . '<span class="badge registration-badge-no"><span data-count="no">(\d+)<\/span> Absagen<\/span>\s*'
+            . '<span class="badge registration-badge-maybe"><span data-count="maybe">(\d+)<\/span> Vielleicht<\/span>\s*'
+            . '<span class="badge registration-badge-open"><span data-count="open">(\d+)<\/span> Offen<\/span>/s';
 
         $this->assertMatchesRegularExpression($pattern, $body, 'registration card for event not found');
         preg_match($pattern, $body, $matches);

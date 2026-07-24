@@ -88,11 +88,18 @@ class DashboardController
             $deadMailCount = $this->mailQueueAdminService->countDeadLetters();
         }
 
+        $registrationModuleEnabled = (bool) ($this->settings['modules']['registration'] ?? false);
+        $registrationSummary = null;
+        if ($registrationModuleEnabled && $userId > 0) {
+            $registrationSummary = (new \App\Services\PendingRegistrationSummaryService())->forUser($userId);
+        }
+
         $data = [
             'current_project' => $currentProject,
             'upcoming_project' => $upcomingProject,
             'latest_sent_newsletter' => $latestSentNewsletter,
             'dead_mail_count' => $deadMailCount,
+            'registration_summary' => $registrationSummary,
         ];
 
         return $this->view->render($response, 'dashboard/index.twig', $data);

@@ -81,6 +81,35 @@
                     </div>
                     <a href="/evaluations" class="btn btn-outline-dark">Statistiken ansehen</a>
                 </article>
+
+                {% if registration_summary %}
+                    {% set _has_pending = registration_summary.pending > 0 %}
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">Termine</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-calendar-check"></i>
+                                Ausstehende Anmeldungen
+                                {% if _has_pending %}
+                                    <i class="bi bi-exclamation-triangle-fill text-warning"
+                                       title="Es gibt offene Anmeldungen"
+                                       aria-label="Es gibt offene Anmeldungen"></i>
+                                {% endif %}
+                            </h3>
+                            <p class="dashboard-panel__text">
+                                <span class="badge {% if _has_pending %}text-bg-warning{% else %}text-bg-success{% endif %}">
+                                    Noch nicht eingetragen: {{ registration_summary.pending }} von {{ registration_summary.total }}
+                                </span>
+                            </p>
+                            <p class="dashboard-panel__text mb-0">
+                                <span class="badge text-bg-success">Zusagen: {{ registration_summary.yes }} von {{ registration_summary.total }}</span>
+                                <span class="badge text-bg-danger">Absagen: {{ registration_summary.no }} von {{ registration_summary.total }}</span>
+                                <span class="badge text-bg-warning">Vielleicht: {{ registration_summary.maybe }} von {{ registration_summary.total }}</span>
+                            </p>
+                        </div>
+                        <a href="/registrations" class="btn btn-outline-primary">Zu den Anmeldungen</a>
+                    </article>
+                {% endif %}
             </div>
         </section>
 

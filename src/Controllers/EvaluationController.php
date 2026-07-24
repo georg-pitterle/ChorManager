@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Attendance;
 use App\Models\Event;
+use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
@@ -79,8 +80,11 @@ class EvaluationController
                         })
                         ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
                             $q->whereHas('event', function ($sq) use ($projectId) {
-                                $sq->where('project_id', $projectId)
-                                    ->where('attendance_required', true);
+                                $sq->where('attendance_required', true)
+                                    ->whereHas('audienceSources', function ($asq) use ($projectId) {
+                                        $asq->where('source_type', EventAudienceSource::TYPE_PROJECT_MEMBERS)
+                                            ->where('reference_id', $projectId);
+                                    });
                             });
                         }])
                         ->orderBy('last_name')

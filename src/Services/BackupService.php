@@ -23,7 +23,8 @@ class BackupService
         private readonly int $maxAuto,
         private readonly bool $gzip,
         private readonly string $dbDatabase,
-        private readonly string $appVersion
+        private readonly string $appVersion,
+        private readonly ?string $mailKeyId = null
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
@@ -116,6 +117,7 @@ class BackupService
             'sha256' => hash_file('sha256', $dataPath),
             'app_version' => $this->appVersion,
             'db_name' => $this->dbDatabase,
+            'mail_key_id' => $this->mailKeyId,
             'gzip' => $this->gzip,
         ];
 
