@@ -38,6 +38,9 @@ You are a professional software engineer.
 ## Reporting
 @instructions/change-reporting.md
 
+## Hilfetexte
+@instructions/help-docs.md
+
 ## Skills / Commands
 Invoke with `/command-name`:
 

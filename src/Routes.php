@@ -23,6 +23,7 @@ use App\Controllers\WebmailController;
 use App\Controllers\AppSettingController;
 use App\Controllers\EventTypeController;
 use App\Controllers\DevSeedController;
+use App\Controllers\HelpController;
 use App\Controllers\SponsoringDashboardController;
 use App\Controllers\SponsorController;
 use App\Controllers\SponsorshipController;
@@ -159,6 +160,15 @@ return function (App $app) {
                 [DownloadController::class, 'downloadAttachment']
             );
             $group->get('/downloads/attachments/{attachment_id:[0-9]+}/stream', [DownloadController::class, 'streamAttachment']);
+
+            // Help pages (Markdown guides under docs/) - accessible for all logged-in users,
+            // independent of tenant modules/roles.
+            $group->get('/hilfe', [HelpController::class, 'index']);
+            $group->get(
+                '/hilfe/images/{file:[A-Za-z0-9_\-\/]+\.(?:png|jpg|jpeg|gif|svg|webp)}',
+                [HelpController::class, 'image']
+            );
+            $group->get('/hilfe/{slug:[a-z0-9\-]+}', [HelpController::class, 'show']);
 
             // Evaluations - accessible for all logged-in users
             $group->get('/evaluations', [EvaluationController::class, 'index']);

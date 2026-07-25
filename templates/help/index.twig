@@ -1,0 +1,77 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Hilfe - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Hilfe</p>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-question-circle me-2"></i>Hilfe &amp; Anleitungen
+            </h1>
+            <p class="text-muted mb-0">Schritt-für-Schritt-Anleitungen für die Module im Chor-Manager.</p>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context" aria-labelledby="help-guides-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="help-guides-title">Anleitungen</h2>
+                <p class="dashboard-section-lead mb-0">Wähle eine Kategorie, um die passenden Anleitungen zu öffnen.</p>
+            </div>
+
+            {% if categories|length > 0 %}
+                <div class="accordion" id="helpCategoriesAccordion">
+                    {% for category in categories %}
+                        {% if category.items|length > 1 %}
+                            <div class="accordion-item mb-3 border-0 shadow-sm">
+                                <h2 class="accordion-header" id="help-category-heading-{{ category.slug }}">
+                                    <button class="accordion-button collapsed"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#help-category-collapse-{{ category.slug }}"
+                                            aria-expanded="false"
+                                            aria-controls="help-category-collapse-{{ category.slug }}">
+                                        <i class="bi bi-folder2 me-2"></i>
+                                        <span class="fw-semibold">{{ category.title }}</span>
+                                    </button>
+                                </h2>
+                                <div class="accordion-collapse collapse"
+                                     id="help-category-collapse-{{ category.slug }}"
+                                     aria-labelledby="help-category-heading-{{ category.slug }}">
+                                    <div class="accordion-body p-0">
+                                        <ul class="list-group list-group-flush">
+                                            {% for item in category.items %}
+                                                <li class="list-group-item">
+                                                    <a href="/hilfe/{{ item.slug }}" class="text-decoration-none stretched-link">
+                                                        <i class="bi bi-file-text me-2 text-primary"></i>{{ item.title }}
+                                                    </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <a href="/hilfe/{{ category.slug }}"
+                               class="card border-0 shadow-sm mb-3 text-decoration-none help-guide-card">
+                                <div class="card-body d-flex align-items-center">
+                                    <i class="bi bi-file-text fs-5 text-primary me-3"></i>
+                                    <span class="fw-semibold text-body">{{ category.title }}</span>
+                                </div>
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-muted">Aktuell sind keine Anleitungen verfügbar.</div>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+{% endblock content %}

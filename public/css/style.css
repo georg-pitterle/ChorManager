@@ -1454,3 +1454,61 @@ a:hover {
     width: 14rem;
     max-width: 100%;
 }
+
+/* Hilfe / How-To-Anleitungen */
+.help-guide-card {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.help-guide-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    border-color: color-mix(in srgb, var(--theme-primary, #E8A817) 40%, var(--theme-border, #d9dee7));
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.markdown-content h1:first-child,
+.markdown-content h2:first-child,
+.markdown-content h3:first-child {
+    margin-top: 0;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--theme-border, #d9dee7);
+    border-radius: 0.5rem;
+    margin: 0.5rem 0 1.25rem;
+}
+
+.markdown-content table {
+    width: 100%;
+    margin-bottom: 1.25rem;
+}
+
+.markdown-content table,
+.markdown-content th,
+.markdown-content td {
+    border: 1px solid var(--theme-border, #d9dee7);
+    border-collapse: collapse;
+    padding: 0.5rem 0.75rem;
+}
+
+.markdown-content blockquote {
+    border-left: 3px solid var(--theme-primary, #E8A817);
+    padding-left: 1rem;
+    color: var(--bs-secondary-color);
+}
+
+.markdown-content pre {
+    background: var(--bs-tertiary-bg, #f5f6f8);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+}

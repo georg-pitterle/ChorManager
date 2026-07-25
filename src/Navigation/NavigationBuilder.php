@@ -354,6 +354,15 @@ final class NavigationBuilder
                     ],
                 ],
             ],
+            [
+                'kind' => 'link',
+                'label' => 'Hilfe',
+                'url' => '/hilfe',
+                'icon' => 'bi-question-circle',
+                'prefixes' => ['/hilfe'],
+                'navKeys' => ['help'],
+                'visible' => $always,
+            ],
         ];
     }
 }

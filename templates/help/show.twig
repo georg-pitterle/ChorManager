@@ -1,0 +1,33 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    {{ title }} - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">
+                <a href="/hilfe" class="text-muted text-decoration-none">Hilfe</a>
+            </p>
+            <h1 class="h2 mb-1">{{ title }}</h1>
+        </div>
+        <div class="page-actions">
+            <a href="/hilfe" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Zur Übersicht
+            </a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body markdown-content">
+                    {{ content_html|raw }}
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock content %}
