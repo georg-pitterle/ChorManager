@@ -24,6 +24,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresMailQueueManagement;
     private bool $requiresTaskManagement;
     private bool $requiresAttendanceManagement;
+    private bool $requiresEventManagement;
     private bool $requiresFinanceRead;
     private bool $requiresSheetArchiveManagement;
     private bool $requiresBudgetManagement;
@@ -47,7 +48,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresSheetArchiveManagement = false,
         bool $requiresBudgetManagement = false,
         bool $requiresBudgetRead = false,
-        bool $requiresBackupManagement = false
+        bool $requiresBackupManagement = false,
+        bool $requiresEventManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -66,6 +68,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresBudgetManagement = $requiresBudgetManagement;
         $this->requiresBudgetRead = $requiresBudgetRead;
         $this->requiresBackupManagement = $requiresBackupManagement;
+        $this->requiresEventManagement = $requiresEventManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -88,6 +91,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageBudget = $_SESSION['can_manage_budget'] ?? false;
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
+        $canManageEvents = $_SESSION['can_manage_events'] ?? false;
         $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
         $canManageOwnVoiceGroup = $_SESSION['can_manage_own_voice_group'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
@@ -95,6 +99,14 @@ class RoleMiddleware implements MiddlewareInterface
         if ($this->requiresTaskManagement && !$canManageTasks) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.");
+            return $response->withStatus(403);
+        }
+
+        // Terminverwaltung ist bewusst ohne Admin-Fallback: sie soll vergeben werden koennen,
+        // ohne gleichzeitig Mitglieder-, Rollen- und Projektverwaltung mitzuliefern.
+        if ($this->requiresEventManagement && !$canManageEvents) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Terminverwaltung.");
             return $response->withStatus(403);
         }
 

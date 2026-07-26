@@ -16,6 +16,7 @@ class SessionAuthService
         $canManageUsers = false;
         $canEditUsers = false;
         $canManageAttendance = false;
+        $canManageEvents = false;
         $canManageProjectMembers = false;
         $canReadFinances = false;
         $canManageFinances = false;
@@ -47,6 +48,9 @@ class SessionAuthService
             }
             if ($role->can_manage_attendance) {
                 $canManageAttendance = true;
+            }
+            if (($role->can_manage_events ?? false)) {
+                $canManageEvents = true;
             }
             if ($role->can_manage_project_members) {
                 $canManageProjectMembers = true;
@@ -97,6 +101,7 @@ class SessionAuthService
         $_SESSION['can_manage_users'] = $canManageUsers;
         $_SESSION['can_edit_users'] = $canEditUsers;
         $_SESSION['can_manage_attendance'] = $canManageAttendance;
+        $_SESSION['can_manage_events'] = $canManageEvents;
         $_SESSION['can_manage_project_members'] = $canManageProjectMembers;
         $_SESSION['can_read_finances'] = $canReadFinances;
         $_SESSION['can_manage_finances'] = $canManageFinances;

@@ -17,6 +17,7 @@ class Role extends Model
         'can_manage_users',
         'can_edit_users',
         'can_manage_attendance',
+        'can_manage_events',
         'can_manage_project_members',
         'can_read_finances',
         'can_manage_finances',

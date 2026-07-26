@@ -105,6 +105,18 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
+                                        <th scope="row">Termine verwalten</th>
+                                        {% for role in roles %}
+                                            <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                {% if role.can_manage_events %}
+                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
                                         <th scope="row">Anwesenheit</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
@@ -321,6 +333,7 @@
                                                             data-manage="{{ role.can_manage_users ? '1' : '0' }}"
                                                             data-edit="{{ role.can_edit_users ? '1' : '0' }}"
                                                             data-attendance="{{ role.can_manage_attendance ? '1' : '0' }}"
+                                                            data-events="{{ role.can_manage_events ? '1' : '0' }}"
                                                             data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
                                                             data-finance-read="{{ role.can_read_finances ? '1' : '0' }}"
                                                             data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
@@ -425,6 +438,21 @@
                         <label class="form-check-label fw-bold text-info"
                                for="can_manage_project_members">Projektmitglieder verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_events"
+                               name="can_manage_events"
+                               value="1">
+                        <label class="form-check-label fw-bold text-secondary"
+                               for="can_manage_events">Termine verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person Termine anlegen, bearbeiten und löschen, öffentliche
+                            Bemerkungen moderieren und die Termin-Typen pflegen.
+                        </div>
                     </div>
 
                     <div class="form-check form-switch mb-3">
@@ -698,6 +726,21 @@
                         <label class="form-check-label fw-bold text-info"
                                for="edit_can_manage_project_members">Projektmitglieder verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_events"
+                               name="can_manage_events"
+                               value="1">
+                        <label class="form-check-label fw-bold text-secondary"
+                               for="edit_can_manage_events">Termine verwalten</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person Termine anlegen, bearbeiten und löschen, öffentliche
+                            Bemerkungen moderieren und die Termin-Typen pflegen.
+                        </div>
                     </div>
 
                     <div class="form-check form-switch mb-3">

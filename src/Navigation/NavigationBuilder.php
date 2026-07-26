@@ -320,8 +320,7 @@ final class NavigationBuilder
                         'prefixes' => ['/event-types'],
                         'navKeys' => ['event_types'],
                         'section' => 'core',
-                        'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_master_data') || $c->can('can_manage_users'),
+                        'visible' => static fn(NavigationContext $c): bool => $c->can('can_manage_events'),
                     ],
                     [
                         'label' => 'App-Einstellungen',

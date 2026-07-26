@@ -63,6 +63,7 @@ class EventFeatureTest extends TestCase
         $_SESSION = [
             'user_id' => 1,
             'can_manage_users' => true,
+            'can_manage_events' => true,
         ];
 
         self::$capsule?->connection()->beginTransaction();
@@ -264,6 +265,7 @@ class EventFeatureTest extends TestCase
 
         $_SESSION['user_id'] = (int) $user->id;
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
 
         $body = $this->renderEventsIndex();
 
@@ -543,6 +545,7 @@ class EventFeatureTest extends TestCase
 
         $_SESSION['user_id'] = (int) $creator->id;
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
 
         $creatorIndexBody = $this->renderEventsIndex(['show_old_events' => '1']);
         $creatorBody = $this->renderEventDetail($event->id);
@@ -577,7 +580,9 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        $_SESSION['can_manage_users'] = true;
+        // Terminverwaltung haengt am Einzelrecht, nicht an der Mitgliederverwaltung.
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = true;
         $_SESSION['role_level'] = 10;
 
         $body = $this->renderEventDetail($event->id);
@@ -596,6 +601,7 @@ class EventFeatureTest extends TestCase
         ]);
 
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
         $_SESSION['role_level'] = 10;
 
         $body = $this->renderEventDetail($event->id);
@@ -604,11 +610,11 @@ class EventFeatureTest extends TestCase
         $this->assertStringNotContainsString('Termin bearbeiten', $body);
     }
 
-    public function testEventDetailHidesEditButtonForHighRoleLevelWithoutManageUsers(): void
+    public function testEventDetailHidesEditButtonForHighRoleLevelWithoutEventPermission(): void
     {
         // The edit route (/events/{id}/edit) is gated by RoleMiddleware on
-        // can_manage_users only, not on role_level. A voice-group rep (role_level
-        // 40) without can_manage_users must not see a control that 403s on click.
+        // can_manage_events only, not on role_level. A voice-group rep (role_level
+        // 40) without can_manage_events must not see a control that 403s on click.
         $event = Event::create([
             'title' => 'High Level Non Editor Detail Event',
             'starts_at' => '2026-05-01 19:00:00',
@@ -617,6 +623,7 @@ class EventFeatureTest extends TestCase
         ]);
 
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
         $_SESSION['role_level'] = 40;
 
         $body = $this->renderEventDetail($event->id);
@@ -629,7 +636,8 @@ class EventFeatureTest extends TestCase
     {
         $this->createEvent('Editable Index Event', '-1 days');
 
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = true;
         $_SESSION['role_level'] = 10;
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
@@ -638,19 +646,56 @@ class EventFeatureTest extends TestCase
         $this->assertStringContainsString('Termin bearbeiten', $body);
     }
 
-    public function testEventsIndexHidesEditControlForHighRoleLevelWithoutManageUsers(): void
+    public function testEventsIndexHidesEditControlForHighRoleLevelWithoutEventPermission(): void
     {
         // Same route-gate mismatch as above, exercised on the list view's
         // split-button dropdown: role_level alone must never unlock it.
         $this->createEvent('High Level Non Editor Index Event', '-1 days');
 
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
         $_SESSION['role_level'] = 40;
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
 
         $this->assertStringNotContainsString('dropdown-toggle-split', $body);
         $this->assertStringNotContainsString('Termin bearbeiten', $body);
+    }
+
+    public function testEventsIndexShowsCalendarSubscriptionButtonWithoutEventPermission(): void
+    {
+        // Das Abo ist ein reiner Lese-Feed: wer die Termine sieht, darf ihn abonnieren.
+        $this->createEvent('Abo Index Event', '+3 days');
+
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
+        $_SESSION['role_level'] = 10;
+
+        $body = $this->renderEventsIndex();
+
+        $this->assertStringContainsString('Kalender abonnieren', $body);
+        $this->assertStringContainsString('data-bs-target="#calendarSubscriptionModal"', $body);
+        $this->assertStringContainsString('id="calendarSubscriptionUrlInput"', $body);
+        $this->assertStringNotContainsString('Termin erstellen', $body);
+    }
+
+    public function testEventDetailShowsCalendarSubscriptionButtonWithoutEventPermission(): void
+    {
+        $event = Event::create([
+            'title' => 'Abo Detail Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
+        $_SESSION['role_level'] = 10;
+
+        $body = $this->renderEventDetail($event->id);
+
+        $this->assertStringContainsString('Kalender abonnieren', $body);
+        $this->assertStringContainsString('data-bs-target="#calendarSubscriptionModal"', $body);
     }
 
     public function testEventsIndexShowsAttendanceButtonWhenAttendanceRequired(): void
@@ -702,6 +747,7 @@ class EventFeatureTest extends TestCase
         $user = $this->createUser('note-author');
         $_SESSION['user_id'] = (int) $user->id;
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
 
         $controller = new EventController($this->createTwig());
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
@@ -729,6 +775,7 @@ class EventFeatureTest extends TestCase
         $user = $this->createUser('private-owner');
         $_SESSION['user_id'] = (int) $user->id;
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
 
         $event = Event::create([
             'title' => 'Event For Private Note',
@@ -796,6 +843,7 @@ class EventFeatureTest extends TestCase
 
         $_SESSION['user_id'] = (int) $otherUser->id;
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
 
         $controller = new EventController($this->createTwig());
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
@@ -828,6 +876,7 @@ class EventFeatureTest extends TestCase
         $user = $this->createUser('public-owner');
         $_SESSION['user_id'] = (int) $user->id;
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
 
         $event = Event::create([
             'title' => 'Public Note Event',
@@ -891,7 +940,8 @@ class EventFeatureTest extends TestCase
         ]);
 
         $_SESSION['user_id'] = (int) $editor->id;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = true;
 
         $controller = new EventController($this->createTwig());
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
@@ -1104,6 +1154,7 @@ class EventFeatureTest extends TestCase
     public function testNonAdminDoesNotSeeCalendarAdminMarker(): void
     {
         $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
         $body = $this->renderEventsIndex(['view' => 'calendar']);
         $this->assertStringNotContainsString('data-calendar-admin', $body);
     }

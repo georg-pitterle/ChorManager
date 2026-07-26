@@ -40,8 +40,8 @@ class EventController
     {
         $queryParams = $request->getQueryParams();
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        $accessibleProjects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $seesAllEvents = (bool) ($_SESSION['can_manage_users'] ?? false) || $this->canManageEvents();
+        $accessibleProjects = $this->getAccessibleProjects($userId, $seesAllEvents);
         $accessibleProjectIds = $accessibleProjects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
@@ -53,7 +53,7 @@ class EventController
             ? $queryParams['view']
             : 'list';
 
-        if ($projectId !== null && $projectId > 0 && !$canManageUsers && !in_array($projectId, $accessibleProjectIds, true)) {
+        if ($projectId !== null && $projectId > 0 && !$seesAllEvents && !in_array($projectId, $accessibleProjectIds, true)) {
             return $response->withStatus(403);
         }
 
@@ -65,7 +65,7 @@ class EventController
 
         $query = Event::query();
 
-        if (!$canManageUsers) {
+        if (!$seesAllEvents) {
             $visibleIds = (new EventAudienceService())
                 ->visibleEventsQuery($userId)
                 ->pluck('id')
@@ -478,9 +478,9 @@ class EventController
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
 
-    private function getAccessibleProjects(int $userId, bool $canManageUsers)
+    private function getAccessibleProjects(int $userId, bool $seesAllEvents)
     {
-        if ($canManageUsers) {
+        if ($seesAllEvents) {
             return Project::orderBy('name')->get();
         }
 
@@ -699,8 +699,8 @@ class EventController
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        $projects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $seesAllEvents = (bool) ($_SESSION['can_manage_users'] ?? false) || $this->canManageEvents();
+        $projects = $this->getAccessibleProjects($userId, $seesAllEvents);
         $eventTypes = EventType::orderBy('name')->get();
         $roles = Role::query()->orderBy('name')->get();
         $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
@@ -934,7 +934,9 @@ class EventController
 
     private function canAccessEvent(Event $event): bool
     {
-        if ((bool) ($_SESSION['can_manage_users'] ?? false)) {
+        // Terminverwalter muessen auch Termine ausserhalb ihrer eigenen Zielgruppe sehen,
+        // sonst koennten sie genau die Termine nicht pflegen, fuer die sie zustaendig sind.
+        if ((bool) ($_SESSION['can_manage_users'] ?? false) || $this->canManageEvents()) {
             return true;
         }
 
@@ -1011,7 +1013,11 @@ class EventController
 
     private function canEditEvent(Event $event): bool
     {
-        return (bool) ($_SESSION['can_manage_users'] ?? false)
-            && $this->canAccessEvent($event);
+        return $this->canManageEvents() && $this->canAccessEvent($event);
+    }
+
+    private function canManageEvents(): bool
+    {
+        return (bool) ($_SESSION['can_manage_events'] ?? false);
     }
 }

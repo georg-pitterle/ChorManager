@@ -174,17 +174,24 @@ return function (App $app) {
             $group->get('/evaluations', [EvaluationController::class, 'index']);
             $group->get('/evaluations/project-members', [EvaluationController::class, 'projectMembers']);
 
-            // Items requiring user management rights (Obmann, Chorleiter)
+            // Terminverwaltung als eigenstaendiges Recht - inklusive der Terminarten, die
+            // fachlich zur Terminplanung und nicht zu den uebrigen Stammdaten gehoeren.
             $group->group(
                 '',
-                function (RouteCollectorProxy $adminGroup) {
-                    $adminGroup->post('/events', [EventController::class, 'create']);
-                    $adminGroup->get('/events/{id:[0-9]+}/edit', [EventController::class, 'edit']);
-                    $adminGroup->post('/events/{id:[0-9]+}/update', [EventController::class, 'update']);
-                    $adminGroup->post('/events/{id:[0-9]+}/delete', [EventController::class, 'delete']);
-                    $adminGroup->post('/events/{id:[0-9]+}/delete-series', [EventController::class, 'deleteSeries']);
+                function (RouteCollectorProxy $eventGroup) {
+                    $eventGroup->post('/events', [EventController::class, 'create']);
+                    $eventGroup->get('/events/{id:[0-9]+}/edit', [EventController::class, 'edit']);
+                    $eventGroup->post('/events/{id:[0-9]+}/update', [EventController::class, 'update']);
+                    $eventGroup->post('/events/{id:[0-9]+}/delete', [EventController::class, 'delete']);
+                    $eventGroup->post('/events/{id:[0-9]+}/delete-series', [EventController::class, 'deleteSeries']);
+
+                    // Event Type Management
+                    $eventGroup->get('/event-types', [EventTypeController::class, 'index']);
+                    $eventGroup->post('/event-types', [EventTypeController::class, 'create']);
+                    $eventGroup->post('/event-types/{id:[0-9]+}/update', [EventTypeController::class, 'update']);
+                    $eventGroup->post('/event-types/{id:[0-9]+}/delete', [EventTypeController::class, 'delete']);
                 }
-            )->add(new RoleMiddleware(requiresUserManagement: true)); // Global "manage users" level
+            )->add(new RoleMiddleware(requiresEventManagement: true));
 
             // Role Management is privilege-granting (it can hand out can_manage_users, hierarchy, etc.),
             // so it is restricted to user administrators rather than general master-data editors.
@@ -232,12 +239,6 @@ return function (App $app) {
                             'deleteSubVoice'
                         ]
                     );
-
-                    // Event Type Management
-                    $masterGroup->get('/event-types', [EventTypeController::class, 'index']);
-                    $masterGroup->post('/event-types', [EventTypeController::class, 'create']);
-                    $masterGroup->post('/event-types/{id:[0-9]+}/update', [EventTypeController::class, 'update']);
-                    $masterGroup->post('/event-types/{id:[0-9]+}/delete', [EventTypeController::class, 'delete']);
 
                     // App Settings
                     $masterGroup->get('/settings', [AppSettingController::class, 'index']);

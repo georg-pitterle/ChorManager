@@ -24,7 +24,7 @@
                         <i class="bi bi-calendar2-week me-1"></i> Kalender abonnieren
                     </button>
                 {% endif %}
-                {% if session.can_manage_users %}
+                {% if session.can_manage_events %}
                     <a href="/events/{{ event.id }}/edit" class="btn btn-primary">Termin bearbeiten</a>
                 {% endif %}
             </div>
@@ -103,7 +103,7 @@
                         <p class="mb-2">{{ note.comment|nl2br }}</p>
 
                         {% set can_edit_private_note = note.is_private and note.user_id == session.user_id %}
-                        {% set can_edit_public_note = (not note.is_private) and session.can_manage_users %}
+                        {% set can_edit_public_note = (not note.is_private) and session.can_manage_events %}
 
                         {% if can_edit_private_note or can_edit_public_note %}
                             <form action="/events/{{ event.id }}/notes/{{ note.id }}/update"

@@ -24,21 +24,21 @@
                     <i class="bi bi-calendar3"></i> Kalender
                 </a>
             </div>
-            {% if session.can_manage_users %}
+            {% if calendar_subscription_url %}
+                <button type="button"
+                        class="btn btn-outline-secondary me-2"
+                        data-bs-toggle="modal"
+                        data-bs-target="#calendarSubscriptionModal">
+                    <i class="bi bi-calendar2-week me-1"></i> Kalender abonnieren
+                </button>
+            {% endif %}
+            {% if session.can_manage_events %}
                 <button type="button"
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#addEventModal">
                     <i class="bi bi-calendar-plus"></i> Termin erstellen
                 </button>
-                {% if calendar_subscription_url %}
-                    <button type="button"
-                            class="btn btn-outline-secondary me-2"
-                            data-bs-toggle="modal"
-                            data-bs-target="#calendarSubscriptionModal">
-                        <i class="bi bi-calendar2-week me-1"></i> Kalender abonnieren
-                    </button>
-                {% endif %}
             {% endif %}
         </div>
     </section>
@@ -228,7 +228,7 @@
                                                             <i class="bi bi-person-check"></i> Anwesenheit
                                                         </a>
                                                     {% endif %}
-                                                    {% if session.can_manage_users %}
+                                                    {% if session.can_manage_events %}
                                                         <button type="button"
                                                                 class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
                                                                 data-bs-toggle="dropdown"
@@ -291,14 +291,14 @@
                     <div class="card-body">
                         <div id="event-calendar"
                              data-calendar-events="{{ calendar_events|e('html_attr') }}"
-                             {% if session.can_manage_users %}data-calendar-admin="1"{% endif %}></div>
+                             {% if session.can_manage_events %}data-calendar-admin="1"{% endif %}></div>
                     </div>
                 </div>
             </section>
         {% endif %}
     </div>
 
-    {% if session.can_manage_users %}
+    {% if session.can_manage_events %}
         <!-- Add Event Modal -->
         <div class="modal fade"
              id="addEventModal"
