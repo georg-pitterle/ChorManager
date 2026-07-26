@@ -37,8 +37,8 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | ---------------------- | -------------------------------------- | --------------- | -------- |
 | `APP_IMAGE_TAG`        | Image tag from GHCR                    | `latest`        | No       |
 | `STACK_ID`             | Suffix for the shared-network aliases  | `prod`          | No       |
-| `DB_DATABASE`          | MySQL database name                    | `choir_db`      | No       |
-| `DB_USERNAME`          | MySQL user                             | `choir_user`    | No       |
+| `DB_DATABASE`          | MySQL database name                    | -               | **Yes**  |
+| `DB_USERNAME`          | MySQL user                             | -               | **Yes**  |
 | `DB_PASSWORD`          | MySQL password                         | -               | **Yes**  |
 | `DB_PORT`              | Database port used by the app config   | `3306`          | No       |
 | `MYSQL_ROOT_PASSWORD`  | MySQL root password                    | -               | **Yes**  |

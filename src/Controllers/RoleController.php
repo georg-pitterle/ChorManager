@@ -11,21 +11,44 @@ use App\Models\Role;
 
 class RoleController
 {
-    private Twig $view;
+    /**
+     * Permissions whose form controls only exist while their module is active.
+     *
+     * @var array<string,string>
+     */
+    private const MODULE_GATED_PERMISSIONS = [
+        'can_read_finances' => 'finance',
+        'can_manage_finances' => 'finance',
+        'can_manage_budget' => 'budget',
+        'can_manage_sponsoring' => 'sponsoring',
+        'can_manage_newsletters' => 'newsletter',
+        'can_manage_sheet_archive' => 'sheet_archive',
+        'can_manage_tasks' => 'tasks',
+    ];
 
-    public function __construct(Twig $view)
+    private Twig $view;
+    private array $settings;
+
+    public function __construct(Twig $view, array $settings = [])
     {
         $this->view = $view;
+        $this->settings = $settings;
     }
 
     /**
+     * @param array<string,mixed> $data submitted form data
+     * @param array<string,bool>|null $modules active module flags, null disables module gating
+     * @param array<string,mixed> $existing current permission values of the edited role
      * @return array<string,int>
      */
-    public static function buildPermissionFlags(array $data): array
-    {
+    public static function buildPermissionFlags(
+        array $data,
+        ?array $modules = null,
+        array $existing = []
+    ): array {
         $canReadFinances = isset($data['can_read_finances']) || isset($data['can_manage_finances']);
 
-        return [
+        $flags = [
             'can_manage_users' => isset($data['can_manage_users']) ? 1 : 0,
             'can_edit_users' => isset($data['can_edit_users']) ? 1 : 0,
             'can_manage_attendance' => isset($data['can_manage_attendance']) ? 1 : 0,
@@ -43,6 +66,33 @@ class RoleController
             'can_manage_backups' => isset($data['can_manage_backups']) ? 1 : 0,
             'can_manage_own_voice_group' => isset($data['can_manage_own_voice_group']) ? 1 : 0,
         ];
+
+        if ($modules === null) {
+            return $flags;
+        }
+
+        // A permission belonging to an inactive module has no checkbox in the form, so every
+        // save would submit it as absent and silently clear the right. Keep the stored value
+        // instead and ignore anything submitted for it - the field can only be forged.
+        foreach (self::MODULE_GATED_PERMISSIONS as $permission => $module) {
+            if ((bool) ($modules[$module] ?? false)) {
+                continue;
+            }
+
+            $flags[$permission] = (int) ($existing[$permission] ?? 0);
+        }
+
+        return $flags;
+    }
+
+    /**
+     * @return array<string,bool>
+     */
+    private function moduleFlags(): array
+    {
+        $modules = $this->settings['modules'] ?? [];
+
+        return is_array($modules) ? $modules : [];
     }
 
     public function index(Request $request, Response $response): Response
@@ -71,7 +121,7 @@ class RoleController
         $data = (array) $request->getParsedBody();
         $name = trim($data['name'] ?? '');
         $hierarchyLevel = (int) ($data['hierarchy_level'] ?? 0);
-        $permissions = self::buildPermissionFlags($data);
+        $permissions = self::buildPermissionFlags($data, $this->moduleFlags());
 
         if (!$name) {
             $_SESSION['error'] = 'Der Rollenname darf nicht leer sein.';
@@ -123,7 +173,6 @@ class RoleController
         $data = (array) $request->getParsedBody();
         $name = trim($data['name'] ?? '');
         $hierarchyLevel = (int) ($data['hierarchy_level'] ?? 0);
-        $permissions = self::buildPermissionFlags($data);
 
         if (!$name) {
             $_SESSION['error'] = 'Der Rollenname darf nicht leer sein.';
@@ -135,6 +184,12 @@ class RoleController
             $_SESSION['error'] = 'Rolle nicht gefunden.';
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
+
+        $permissions = self::buildPermissionFlags(
+            $data,
+            $this->moduleFlags(),
+            $existingRole->getAttributes()
+        );
 
         // A user administrator may neither modify a role that already outranks their own
         // hierarchy level nor lift a role above it - both would be a privilege escalation.

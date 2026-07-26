@@ -29,6 +29,7 @@ use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
+use App\Controllers\RoleController;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
 use App\Commands\RotateMailCredentialKeyCommand;
@@ -97,6 +98,12 @@ return function (ContainerBuilder $containerBuilder) {
             return new DashboardController(
                 $c->get(Twig::class),
                 $c->get(MailQueueAdminService::class),
+                $c->get('settings')
+            );
+        },
+        RoleController::class => function (ContainerInterface $c) {
+            return new RoleController(
+                $c->get(Twig::class),
                 $c->get('settings')
             );
         },
