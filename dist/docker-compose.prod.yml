@@ -25,11 +25,11 @@ x-app-environment: &app-environment
   FEATURE_SPONSORING: ${FEATURE_SPONSORING:-false}
   FEATURE_TASKS: ${FEATURE_TASKS:-false}
   FEATURE_REGISTRATION: ${FEATURE_REGISTRATION:-false}
-  # Mailbox / SnappyMail webmail feature
   MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
   SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
   APP_URL: ${APP_URL:?set in Portainer}
   MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-0}
+
 
 services:
   app:
@@ -162,6 +162,9 @@ volumes:
 
 
 networks:
+  # No explicit name: Compose prefixes it with the stack name, so duplicated
+  # stacks never share this network. A fixed name would let the chormanager-fpm
+  # alias resolve across stacks and point web at the wrong app container.
   internal:
     driver: bridge
     internal: true

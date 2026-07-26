@@ -111,6 +111,29 @@ suffixed with `STACK_ID`. So for a duplicate you only change `.env`:
 
 No compose edits are needed.
 
+### Troubleshooting a duplicated stack
+
+`app` restarting with `Access denied for user '<user>'@'<ip>'` while `db` reports
+healthy: MySQL only evaluates `MYSQL_USER` / `MYSQL_PASSWORD` on the very first
+start with an empty data directory. If the stack was deployed once before with
+different credentials, the volume keeps the old password and later env changes
+are ignored silently. Either fix the user in place:
+
+```bash
+docker exec -it <stack>-db-1 sh -c '
+  mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
+    ALTER USER \"$MYSQL_USER\"@\"%\" IDENTIFIED BY \"$MYSQL_PASSWORD\";
+    FLUSH PRIVILEGES;"'
+```
+
+or remove the stack's `db_data` volume and redeploy (destroys that stack's
+database). Note that `$` in a password is interpolated by Portainer and Compose;
+escape it as `$$` or avoid the character.
+
+A failing `app` no longer takes the rest of the stack down: `web` resolves the
+FastCGI upstream at request time, so it stays up and answers 502 until `app`
+recovers.
+
 The `web` service's own Nginx layer has a fixed `client_max_body_size 100m;` baked
 into the image (`nginx.conf`). Keep the SWAG `client_max_body_size` at or below
 that value — the effective upload limit is the smallest limit in the proxy chain.
