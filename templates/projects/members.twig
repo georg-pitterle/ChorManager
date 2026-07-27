@@ -15,13 +15,32 @@
             {% endif %}
         </div>
         {% if available_users|length > 0 %}
+            {% set active_users = available_users|filter(u => u.is_active) %}
+            {% set archived_users = available_users|filter(u => not u.is_active) %}
             <div class="page-actions">
                 <form action="/projects/{{ project.id }}/members"
                       method="post"
                       class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-                    <select name="user_id" class="form-select select-min-220" required>
+                    <select name="user_id"
+                            class="form-select select-min-220"
+                            data-tom-select
+                            data-placeholder="Mitglied suchen ..."
+                            required>
                         <option value="">-- Mitglied hinzufügen --</option>
-                        {% for u in available_users %}<option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }}</option>{% endfor %}
+                        {% if active_users|length > 0 %}
+                            <optgroup label="Aktive Mitglieder">
+                                {% for u in active_users %}
+                                    <option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                        {% if archived_users|length > 0 %}
+                            <optgroup label="Archivierte Mitglieder (werden bei Zuweisung reaktiviert)">
+                                {% for u in archived_users %}
+                                    <option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }} (archiviert)</option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
                     </select>
                     <button type="submit" class="btn btn-primary flex-shrink-0">
                         <i class="bi bi-person-plus"></i> Hinzufügen
@@ -123,3 +142,12 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
+{% block scripts %}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="{{ asset_path('/js/tom-select-init.js') }}"></script>
+{% endblock scripts %}

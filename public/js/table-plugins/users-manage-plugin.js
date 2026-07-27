@@ -70,21 +70,6 @@
             return { group: group, select: select };
         }
 
-        function createResetControl() {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'btn btn-sm btn-outline-secondary';
-            button.innerHTML = '<i class="bi bi-x-circle"></i> Reset';
-            button.addEventListener('click', function () {
-                state = { role: '', voice: '', project: '' };
-                if (controls) {
-                    controls.reset();
-                }
-                context.onPluginStateChange();
-            });
-            return { button: button };
-        }
-
         function rowHasToken(row, key, token) {
             const expected = normalizeText(token);
             if (!expected) {
@@ -112,11 +97,9 @@
             const voiceSelectControl = createSelect('Stimme', voiceOptions, 'voice');
             const projectSelectControl = createSelect('Projekt', projectOptions, 'project');
 
-            const resetControl = createResetControl();
             root.appendChild(roleSelectControl.group);
             root.appendChild(voiceSelectControl.group);
             root.appendChild(projectSelectControl.group);
-            root.appendChild(resetControl.button);
             context.pluginSlot.appendChild(root);
 
             controls = {

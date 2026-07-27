@@ -9,12 +9,29 @@ use App\Models\User;
 
 class ProjectPersistence
 {
-    public function addProjectMember(int $projectId, int $userId): void
+    /**
+     * Assigns a user to a project. Archived (inactive) users are reactivated by the assignment.
+     *
+     * @return bool True if the user was reactivated by this assignment.
+     */
+    public function addProjectMember(int $projectId, int $userId): bool
     {
         $project = Project::find($projectId);
-        if ($project) {
-            $project->users()->syncWithoutDetaching([$userId]);
+        if (!$project) {
+            return false;
         }
+
+        $project->users()->syncWithoutDetaching([$userId]);
+
+        $user = User::find($userId);
+        if (!$user || (bool)$user->is_active) {
+            return false;
+        }
+
+        $user->is_active = 1;
+        $user->save();
+
+        return true;
     }
 
     public function removeProjectMember(int $projectId, int $userId): void

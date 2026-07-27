@@ -51,7 +51,18 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringContainsString('data-table-page-prev', $toolbarContent);
         $this->assertStringContainsString('data-table-page-next', $toolbarContent);
         $this->assertStringContainsString('data-table-page-label', $toolbarContent);
-        $this->assertStringContainsString('>Zuruecksetzen<', $toolbarContent);
+        $this->assertStringContainsString('>Zurücksetzen<', $toolbarContent);
+    }
+
+    public function testUsersManagePluginHasNoOwnResetButton(): void
+    {
+        $pluginContent = file_get_contents(
+            dirname(__DIR__) . '/../public/js/table-plugins/users-manage-plugin.js'
+        );
+
+        $this->assertIsString($pluginContent);
+        $this->assertStringNotContainsString('createResetControl', $pluginContent);
+        $this->assertStringNotContainsString('Reset', $pluginContent);
     }
 
     public function testUsersManagePluginAssetIsLoadedFromLayout(): void

@@ -46,12 +46,15 @@ class ProjectQuery
             })->exists();
     }
 
+    /**
+     * Returns all users that are not yet assigned to the project, including archived (inactive) ones.
+     * Archived users can be assigned to a project and are reactivated on assignment.
+     */
     public function getUsersNotInProject(int $projectId): Collection
     {
         return User::whereDoesntHave('projects', function ($query) use ($projectId) {
             $query->where('project_id', $projectId);
         })
-            ->where('is_active', 1)
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();

@@ -187,8 +187,10 @@ class ProjectController
             return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
         }
 
-        $this->projectPersistence->addProjectMember($projectId, $userId);
-        $_SESSION['success'] = 'Mitglied dem Projekt hinzugefügt.';
+        $reactivated = $this->projectPersistence->addProjectMember($projectId, $userId);
+        $_SESSION['success'] = $reactivated
+            ? 'Mitglied dem Projekt hinzugefügt und wieder aktiviert.'
+            : 'Mitglied dem Projekt hinzugefügt.';
         return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
     }
 
