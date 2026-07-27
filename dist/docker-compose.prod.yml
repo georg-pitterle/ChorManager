@@ -71,7 +71,15 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-name-resolve
+      # mysql_native_password is disabled by default in MySQL 8.4; enable it so
+      # the plugin exists at all.
       - --mysql-native-password=ON
+      # Force new accounts (incl. the MYSQL_USER created on first init) to use
+      # mysql_native_password instead of the 8.4 default caching_sha2_password.
+      # The app image's dump tool is the Alpine MariaDB client, which cannot
+      # load the caching_sha2_password client plugin, so backups would otherwise
+      # fail to authenticate (error 1045). See dist/README.md.
+      - --authentication-policy=mysql_native_password
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:?set in Portainer}
       MYSQL_USER: ${DB_USERNAME:?set in Portainer}

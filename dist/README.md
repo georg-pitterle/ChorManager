@@ -229,6 +229,29 @@ docker compose -f docker-compose.prod.yml exec -T db \
   mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$DB_DATABASE" < backup.sql
 ```
 
+### In-app backup and the auth plugin
+
+The in-app backup feature shells out to `mysqldump` from the `app` image. That
+image is Alpine-based, whose `mysql-client` is really the MariaDB client. It
+cannot load the `caching_sha2_password` client plugin, so if the DB user
+authenticates with `caching_sha2_password` (the MySQL 8.4 default), backups fail
+with `error 1045 ... Plugin caching_sha2_password could not be loaded`.
+
+The compose file pins `--authentication-policy=mysql_native_password`, so users
+created on a **fresh** `db_data` volume use `mysql_native_password` and backups
+work out of the box. A volume initialised **before** this setting was added keeps
+the old plugin; fix the existing user once:
+
+```bash
+docker exec -it <stack>-db-1 sh -c '
+  mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
+    ALTER USER \"$MYSQL_USER\"@\"%\" IDENTIFIED WITH mysql_native_password BY \"$MYSQL_PASSWORD\";
+    FLUSH PRIVILEGES;"'
+```
+
+Verify with `SELECT user, host, plugin FROM mysql.user WHERE user = \"$MYSQL_USER\";`
+— `plugin` must read `mysql_native_password`.
+
 ## Security Notes
 
 - Keep all secrets in Portainer stack variables or an external secret store, never in Git.
