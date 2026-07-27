@@ -2,6 +2,7 @@
 vendor/
 .env
 .ddev/.env*
+.ddev/config.local.yaml
 ChorManager.code-workspace
 .twig-cs-fixer.cache
 .playwright-mcp/
