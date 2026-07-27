@@ -46,6 +46,7 @@ use App\Navigation\NavigationContext;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
+use App\Policies\UserEditPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
 use App\Util\Csrf;
@@ -166,6 +167,7 @@ return function (ContainerBuilder $containerBuilder) {
         },
         ProjectMemberPolicy::class => \DI\autowire(),
         TaskPolicy::class => \DI\autowire(),
+        UserEditPolicy::class => \DI\autowire(),
 
         Twig::class => function (ContainerInterface $c) {
             $allSettings = $c->get('settings');

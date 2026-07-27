@@ -11,8 +11,13 @@ if command -v php >/dev/null 2>&1; then
 fi
 
 if command -v ddev >/dev/null 2>&1; then
-	ddev exec php bin/normalize_lf_staged.php
-	ddev exec php bin/check_lf_repo.php
+	# In einem Worktree zeigt --show-toplevel auf das Worktree-Verzeichnis,
+	# nicht auf das Haupt-Checkout. DDEV ist aber nur im Haupt-Checkout
+	# konfiguriert. Deshalb den gemeinsamen Git-Ordner auflösen.
+	GIT_COMMON=$(git rev-parse --git-common-dir)
+	DDEV_ROOT=$(cd "$GIT_COMMON/.." && pwd -P)
+	(cd "$DDEV_ROOT" && ddev exec php bin/normalize_lf_staged.php)
+	(cd "$DDEV_ROOT" && ddev exec php bin/check_lf_repo.php)
 	exit 0
 fi
 
