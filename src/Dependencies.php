@@ -50,6 +50,8 @@ use App\Policies\UserEditPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
 use App\Util\Csrf;
+use App\Services\NameFormatterService;
+use Twig\TwigFilter;
 
 return function (ContainerBuilder $containerBuilder) {
     $containerBuilder->addDefinitions([
@@ -169,6 +171,19 @@ return function (ContainerBuilder $containerBuilder) {
         TaskPolicy::class => \DI\autowire(),
         UserEditPolicy::class => \DI\autowire(),
 
+        NameFormatterService::class => function (ContainerInterface $c): NameFormatterService {
+            // Falls die Tabelle noch nicht existiert (frische Installation),
+            // greift der Default des Service.
+            try {
+                $stored = \App\Models\AppSetting::query()
+                    ->find('name_display_format')?->setting_value;
+            } catch (\Throwable $e) {
+                $stored = null;
+            }
+
+            return new NameFormatterService($stored !== null ? (string) $stored : null);
+        },
+
         Twig::class => function (ContainerInterface $c) {
             $allSettings = $c->get('settings');
             $settings = $allSettings['view'];
@@ -260,6 +275,13 @@ return function (ContainerBuilder $containerBuilder) {
 
                     return (new NavigationBuilder())->build($context);
                 }
+            ));
+
+            $nameFormatter = $c->get(NameFormatterService::class);
+            $environment->addGlobal('name_display_format', $nameFormatter->getFormat());
+            $environment->addFilter(new TwigFilter(
+                'person_name',
+                static fn (mixed $person): string => $nameFormatter->formatPerson($person)
             ));
 
             return $twig;
