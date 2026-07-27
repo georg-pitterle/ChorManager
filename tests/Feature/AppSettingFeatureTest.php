@@ -98,4 +98,39 @@ class AppSettingFeatureTest extends TestCase
         $this->assertStringContainsString('normalizeMailQueueTriggerMode', $controllerContent);
         $this->assertStringContainsString('normalizePositiveInteger', $controllerContent);
     }
+
+    public function testSettingsTemplateOffersNameDisplayFormatField(): void
+    {
+        $template = file_get_contents(
+            dirname(__DIR__) . '/../templates/settings/index.twig'
+        );
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString('name="name_display_format"', $template);
+        $this->assertStringContainsString('first_last', $template);
+        $this->assertStringContainsString('last_first', $template);
+    }
+
+    public function testSaveNormalizesNameDisplayFormat(): void
+    {
+        $controller = file_get_contents(
+            dirname(__DIR__) . '/../src/Controllers/AppSettingController.php'
+        );
+
+        $this->assertIsString($controller);
+        $this->assertStringContainsString('name_display_format', $controller);
+        $this->assertStringContainsString('NameFormatterService::normalizeFormat', $controller);
+    }
+
+    public function testNameDisplayFormatWhitelistRejectsUnknownValues(): void
+    {
+        $this->assertSame(
+            'first_last',
+            \App\Services\NameFormatterService::normalizeFormat('irgendwas')
+        );
+        $this->assertSame(
+            'last_first',
+            \App\Services\NameFormatterService::normalizeFormat('last_first')
+        );
+    }
 }

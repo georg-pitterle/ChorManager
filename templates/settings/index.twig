@@ -172,6 +172,30 @@
                             {% endif %}
                         {% endif %}
 
+                        <hr class="my-4">
+
+                        <h2 class="h5 mb-3">Darstellung</h2>
+
+                        {% set _name_format = settings_values.name_display_format|default("first_last") %}
+                        <div class="mb-4">
+                            <label for="name_display_format" class="form-label fw-bold">Namensdarstellung</label>
+                            <select class="form-select"
+                                    id="name_display_format"
+                                    name="name_display_format">
+                                <option value="first_last"
+                                        {% if _name_format == "first_last" %}selected{% endif %}>
+                                    Vorname Nachname
+                                </option>
+                                <option value="last_first"
+                                        {% if _name_format == "last_first" %}selected{% endif %}>
+                                    Nachname, Vorname
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                Gilt für alle Listen, Auswahlfelder und Sortierungen der App.
+                            </div>
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
                             <button type="submit" class="btn btn-primary">

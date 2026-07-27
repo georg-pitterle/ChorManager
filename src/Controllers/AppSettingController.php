@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\AppSetting;
 use App\Util\UploadValidator;
+use App\Services\NameFormatterService;
 
 class AppSettingController
 {
@@ -56,6 +57,7 @@ class AppSettingController
         );
         $mailQueueBatchSize = self::normalizePositiveInteger($data['mailqueue_batch_size'] ?? null, 50);
         $registrationReminderDaysBefore = max(0, (int) ($data['registration_reminder_days_before'] ?? 0));
+        $nameDisplayFormat = NameFormatterService::normalizeFormat($data['name_display_format'] ?? null);
 
         try {
             if ($appName) {
@@ -109,6 +111,15 @@ class AppSettingController
                 ['setting_key' => 'registration_reminder_days_before'],
                 [
                     'setting_value' => (string) $registrationReminderDaysBefore,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'name_display_format'],
+                [
+                    'setting_value' => $nameDisplayFormat,
                     'binary_content' => '',
                     'mime_type' => 'text/plain',
                 ]
