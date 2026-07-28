@@ -14,7 +14,6 @@ use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
 use App\Util\TableQueryParams;
@@ -24,18 +23,15 @@ class EvaluationController
 {
     private Twig $view;
     private ProjectQuery $projectQuery;
-    private UserEditPolicy $userEditPolicy;
     private NameFormatterService $nameFormatter;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
-        UserEditPolicy $userEditPolicy,
         NameFormatterService $nameFormatter
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
-        $this->userEditPolicy = $userEditPolicy;
         $this->nameFormatter = $nameFormatter;
     }
 
@@ -139,7 +135,6 @@ class EvaluationController
             'stats' => $stats,
             'total_events' => $totalEvents,
             'table_params' => $tableParams,
-            'can_edit_member' => $this->userEditPolicy->editableUserIdMap($_SESSION),
         ]);
     }
 
@@ -193,7 +188,6 @@ class EvaluationController
             'projects' => $projects,
             'selected_project' => $selectedProject,
             'grouped_members' => $groupedMembers,
-            'can_edit_member' => $this->userEditPolicy->editableUserIdMap($_SESSION),
         ]);
     }
 

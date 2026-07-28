@@ -7,12 +7,18 @@ namespace Tests\Feature;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Pins the scope of the member edit deep link: only the Mitgliederliste
+ * (templates/users/manage.twig) turns member names into edit links. Alle anderen
+ * Listen zeigen den Namen als reinen Text, damit die Bearbeitung ein bewusster
+ * Einstieg über die Mitgliederliste bleibt.
+ */
 final class MemberLinkCoverageFeatureTest extends TestCase
 {
     /**
      * @return array<int, array{0: string}>
      */
-    public static function managementTemplates(): array
+    public static function listTemplatesWithoutEditLink(): array
     {
         return [
             ['templates/attendance/show.twig'],
@@ -22,10 +28,20 @@ final class MemberLinkCoverageFeatureTest extends TestCase
         ];
     }
 
-    #[DataProvider('managementTemplates')]
-    public function testManagementTemplatesUseMemberLinkMacro(string $relativePath): void
+    #[DataProvider('listTemplatesWithoutEditLink')]
+    public function testListTemplatesRenderNamesWithoutEditLink(string $relativePath): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../' . $relativePath);
+
+        $this->assertIsString($template);
+        $this->assertStringNotContainsString('person.member_link(', $template);
+        $this->assertStringNotContainsString('can_edit_member', $template);
+        $this->assertStringContainsString('person_name', $template);
+    }
+
+    public function testMemberListKeepsEditLink(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
 
         $this->assertIsString($template);
         $this->assertStringContainsString('macros/person.twig', $template);
@@ -35,7 +51,7 @@ final class MemberLinkCoverageFeatureTest extends TestCase
     /**
      * @return array<int, array{0: string}>
      */
-    public static function controllers(): array
+    public static function controllersWithoutEditableMap(): array
     {
         return [
             ['src/Controllers/AttendanceController.php'],
@@ -44,13 +60,13 @@ final class MemberLinkCoverageFeatureTest extends TestCase
         ];
     }
 
-    #[DataProvider('controllers')]
-    public function testControllersProvideEditableMemberMap(string $relativePath): void
+    #[DataProvider('controllersWithoutEditableMap')]
+    public function testListControllersDoNotProvideEditableMemberMap(string $relativePath): void
     {
         $source = file_get_contents(dirname(__DIR__) . '/../' . $relativePath);
 
         $this->assertIsString($source);
-        $this->assertStringContainsString('editableUserIdMap', $source);
-        $this->assertStringContainsString('can_edit_member', $source);
+        $this->assertStringNotContainsString('editableUserIdMap', $source);
+        $this->assertStringNotContainsString('can_edit_member', $source);
     }
 }

@@ -6,15 +6,25 @@ namespace Tests\Feature;
 
 use App\Models\Event;
 use App\Models\EventAudienceSource;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
 class EventAudienceSourceMigrationFeatureTest extends TestCase
 {
+    use EventScopeFixtures;
+
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        $this->beginFixtureTransaction();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->rollBackFixtureTransaction();
+        parent::tearDown();
     }
 
     public function testTableExists(): void
@@ -24,7 +34,13 @@ class EventAudienceSourceMigrationFeatureTest extends TestCase
 
     public function testEventHasAudienceSourcesRelation(): void
     {
-        $event = Event::query()->firstOrFail();
+        $event = Event::create([
+            'title' => 'Audience-Relation-Termin ' . bin2hex(random_bytes(4)),
+            'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
+            'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
+            'type' => 'Probe',
+        ]);
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Collection::class,
             $event->audienceSources

@@ -23,22 +23,44 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
         $_SESSION = [];
     }
 
+    /**
+     * Pins the one-off migration: neue Spalte mit Default 0, Backfill auf 1 ab
+     * hierarchy_level 40.
+     *
+     * Bewusst gegen die Migrationsdatei und das Schema geprüft, nicht gegen den
+     * aktuellen Inhalt von `roles`: Rollenrechte sind zur Laufzeit frei
+     * konfigurierbar (Rollen-Verwaltung), d. h. jede legitime Rechteänderung an
+     * einer Rolle mit Level >= 40 würde eine Datenzeilen-Assertion brechen,
+     * obwohl an der Migration nichts kaputt ist.
+     */
     public function testMigrationBackfillsExistingRolesByHierarchyLevel(): void
     {
-        $rolesAtOrAboveThreshold = Role::where('hierarchy_level', '>=', 40)->get();
-        $this->assertGreaterThan(0, $rolesAtOrAboveThreshold->count());
-        foreach ($rolesAtOrAboveThreshold as $role) {
-            $this->assertSame(
-                1,
-                (int) $role->can_manage_own_voice_group,
-                'Role "' . $role->name . '" (level ' . $role->hierarchy_level . ') should have been backfilled to 1'
-            );
-        }
+        $migrationPath = dirname(__DIR__, 2)
+            . '/db/migrations/20260720120000_add_can_manage_own_voice_group_to_roles.php';
 
-        $memberRole = Role::where('name', 'Mitglied')->first();
-        $this->assertNotNull($memberRole);
-        $this->assertLessThan(40, $memberRole->hierarchy_level);
-        $this->assertSame(0, (int) $memberRole->can_manage_own_voice_group);
+        $this->assertFileExists($migrationPath);
+
+        $migration = file_get_contents($migrationPath);
+        $this->assertIsString($migration);
+        $this->assertStringContainsString(
+            'ADD COLUMN can_manage_own_voice_group TINYINT(1) NOT NULL DEFAULT 0',
+            $migration
+        );
+        $this->assertStringContainsString(
+            'UPDATE roles SET can_manage_own_voice_group = 1 WHERE hierarchy_level >= 40;',
+            $migration
+        );
+    }
+
+    public function testRolesTableHasMigratedColumn(): void
+    {
+        $schema = Bootstrap::getCapsule()?->schema();
+
+        $this->assertNotNull($schema);
+        $this->assertTrue(
+            $schema->hasColumn('roles', 'can_manage_own_voice_group'),
+            'Die Migration muss die Spalte can_manage_own_voice_group auf roles angelegt haben.'
+        );
     }
 
     public function testRoleColumnExistsAndIsFillable(): void

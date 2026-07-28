@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Policies\UserEditPolicy;
 use App\Controllers\ProjectController;
 use App\Policies\ProjectMemberPolicy;
 use Illuminate\Database\Eloquent\Collection;
@@ -56,7 +55,7 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->with(42)
             ->willReturn(true);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('GET', '/projects/42/members');
         $response = $this->makeResponse();
 
@@ -81,7 +80,7 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->with(5)
             ->willReturn(true);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('POST', '/projects/5/members/add', ['user_id' => 3]);
         $response = $this->makeResponse();
 
@@ -106,7 +105,7 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->with(7)
             ->willReturn(true);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('POST', '/projects/7/members/11/remove');
         $response = $this->makeResponse();
 

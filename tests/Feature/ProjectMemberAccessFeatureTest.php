@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Policies\UserEditPolicy;
 use App\Controllers\ProjectController;
 use App\Policies\ProjectMemberPolicy;
 use PHPUnit\Framework\TestCase;
@@ -37,7 +36,7 @@ class ProjectMemberAccessFeatureTest extends TestCase
             ->with(5)
             ->willReturn(false);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('GET', '/projects/5/members');
         $response = $this->makeResponse();
 
@@ -60,7 +59,7 @@ class ProjectMemberAccessFeatureTest extends TestCase
             ->with(12)
             ->willReturn(false);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('POST', '/projects/12/members/add', ['user_id' => 99]);
         $response = $this->makeResponse();
 
@@ -83,7 +82,7 @@ class ProjectMemberAccessFeatureTest extends TestCase
             ->with(9)
             ->willReturn(false);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('POST', '/projects/9/members/7/remove');
         $response = $this->makeResponse();
 

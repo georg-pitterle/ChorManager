@@ -179,6 +179,14 @@ final class NavigationBuilder
                             $c->can('can_manage_project_members') && !$c->can('can_manage_master_data'),
                     ],
                     [
+                        'label' => 'Projektmitglieder',
+                        'url' => '/evaluations/project-members',
+                        'icon' => 'bi-people-fill',
+                        'prefixes' => ['/evaluations/project-members'],
+                        'navKeys' => ['evaluations_project_members'],
+                        'visible' => $always,
+                    ],
+                    [
                         'label' => 'Kassa',
                         'url' => '/finances',
                         'icon' => 'bi-bank',
@@ -259,14 +267,6 @@ final class NavigationBuilder
                         'excl' => ['/evaluations/project-members', '/evaluations/registrations'],
                         'visible' => static fn(NavigationContext $c): bool =>
                             $c->can('can_manage_users') || $c->can('can_manage_own_voice_group'),
-                    ],
-                    [
-                        'label' => 'Projektmitglieder',
-                        'url' => '/evaluations/project-members',
-                        'icon' => 'bi-people-fill',
-                        'prefixes' => ['/evaluations/project-members'],
-                        'navKeys' => ['evaluations_project_members'],
-                        'visible' => $always,
                     ],
                     [
                         'label' => 'Anmeldungen',

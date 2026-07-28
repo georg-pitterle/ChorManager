@@ -8,19 +8,24 @@ use App\Models\Event;
 use App\Models\EventAudienceSource;
 use App\Models\User;
 use App\Services\EventAudienceService;
+use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
 class EventScopeVisibilityFeatureTest extends TestCase
 {
+    use EventScopeFixtures;
+
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        $this->beginFixtureTransaction();
         $_SESSION = [];
     }
 
     protected function tearDown(): void
     {
+        $this->rollBackFixtureTransaction();
         $_SESSION = [];
     }
 
@@ -34,10 +39,14 @@ class EventScopeVisibilityFeatureTest extends TestCase
 
     public function testUserOutsideScopeIsNotEligible(): void
     {
-        $users = User::where('is_active', 1)->orderBy('id')->take(2)->get();
-        [$in, $out] = [$users[0], $users[1]];
-        $event = Event::query()->firstOrFail();
-        EventAudienceSource::where('event_id', $event->id)->delete();
+        $in = $this->createUser();
+        $out = $this->createUser();
+        $event = Event::create([
+            'title' => 'Sichtbarkeits-Termin ' . bin2hex(random_bytes(4)),
+            'starts_at' => Carbon::now()->addDays(6)->setTime(19, 0),
+            'ends_at' => Carbon::now()->addDays(6)->setTime(21, 0),
+            'type' => 'Probe',
+        ]);
 
         $service = new EventAudienceService();
         $service->setSources($event, [
@@ -46,5 +55,16 @@ class EventScopeVisibilityFeatureTest extends TestCase
 
         $this->assertTrue($service->isUserEligible($event->fresh(), (int) $in->id));
         $this->assertFalse($service->isUserEligible($event->fresh(), (int) $out->id));
+    }
+
+    private function createUser(): User
+    {
+        return User::create([
+            'first_name' => 'Sicht',
+            'last_name' => 'Testperson',
+            'email' => 'sicht-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
     }
 }

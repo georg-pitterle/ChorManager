@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Policies\UserEditPolicy;
 use App\Controllers\AttendanceController;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -220,7 +219,6 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
         $controller = new AttendanceController(
             $this->createTwig($registrationFeatureEnabled),
             new AttendanceScopeService(),
-            new UserEditPolicy(),
             new \App\Services\NameFormatterService()
         );
 

@@ -71,6 +71,37 @@ class NavigationBuilderFeatureTest extends TestCase
         $this->assertNull($this->group($tree, 'Verwaltung'));
     }
 
+    /**
+     * Pins the group placement of the Projektmitglieder-Ansicht: it belongs to "Bereiche"
+     * (Inhalte fuer alle Mitglieder) und nicht zu "Auswertungen" (auswertende Sichten fuer
+     * Verwaltungsrechte). Ein reines Mitglied ohne Rechte darf den Punkt sehen, ohne dass
+     * dafuer die Auswertungen-Gruppe aufgeklappt wird.
+     */
+    public function testProjectMembersLinkLivesInBereicheGroup(): void
+    {
+        $tree = $this->build([], ['registration' => false]);
+
+        $bereiche = $this->group($tree, 'Bereiche');
+        $this->assertNotNull($bereiche);
+        $this->assertContains('/evaluations/project-members', array_column($bereiche['items'], 'url'));
+
+        $auswertungen = $this->group($tree, 'Auswertungen');
+        $this->assertNull($auswertungen, 'Auswertungen darf fuer ein rechteloses Mitglied leer bleiben.');
+    }
+
+    public function testProjectMembersLinkNotInAuswertungenGroupForAdmin(): void
+    {
+        $tree = $this->build(['can_manage_users' => true], ['registration' => true]);
+
+        $auswertungen = $this->group($tree, 'Auswertungen');
+        $this->assertNotNull($auswertungen);
+        $this->assertNotContains('/evaluations/project-members', array_column($auswertungen['items'], 'url'));
+
+        $bereiche = $this->group($tree, 'Bereiche');
+        $this->assertNotNull($bereiche);
+        $this->assertContains('/evaluations/project-members', array_column($bereiche['items'], 'url'));
+    }
+
     public function testRegistrationModuleTogglesRegistrationLinks(): void
     {
         $on = $this->urls($this->build([], ['registration' => true]));

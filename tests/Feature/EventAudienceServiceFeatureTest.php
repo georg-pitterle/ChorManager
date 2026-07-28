@@ -9,27 +9,34 @@ use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\EventAudienceService;
+use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
+/**
+ * Legt alle Fixtures selbst an und rollt sie nach jedem Test zurueck, damit die
+ * Tests nicht vom aktuellen Dev-Seed-Stand der Datenbank abhaengen.
+ */
 class EventAudienceServiceFeatureTest extends TestCase
 {
+    use EventScopeFixtures;
+
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        $this->beginFixtureTransaction();
     }
 
-    private function cleanEvent(): Event
+    protected function tearDown(): void
     {
-        $event = Event::query()->firstOrFail();
-        EventAudienceSource::where('event_id', $event->id)->delete();
-        return $event->fresh();
+        $this->rollBackFixtureTransaction();
+        parent::tearDown();
     }
 
     public function testSetAndGetSourcesRoundTrip(): void
     {
-        $project = Project::query()->firstOrFail();
-        $event = $this->cleanEvent();
+        $project = $this->createProject();
+        $event = $this->createEvent();
         $service = new EventAudienceService();
 
         $service->setSources($event, [
@@ -45,9 +52,9 @@ class EventAudienceServiceFeatureTest extends TestCase
 
     public function testSetSourcesReplacesPrevious(): void
     {
-        $project = Project::query()->firstOrFail();
-        $user = User::where('is_active', 1)->firstOrFail();
-        $event = $this->cleanEvent();
+        $project = $this->createProject();
+        $user = $this->createUser();
+        $event = $this->createEvent();
         $service = new EventAudienceService();
 
         $service->setSources($event, [
@@ -78,7 +85,7 @@ class EventAudienceServiceFeatureTest extends TestCase
 
     public function testNormalizeDeduplicates(): void
     {
-        $project = Project::query()->firstOrFail();
+        $project = $this->createProject();
         $service = new EventAudienceService();
         $normalized = $service->normalizeSources([
             ['type' => 'project_members', 'reference_id' => (int) $project->id],
@@ -90,8 +97,8 @@ class EventAudienceServiceFeatureTest extends TestCase
 
     public function testIsUserEligibleForEmptyScopeIsTrue(): void
     {
-        $event = $this->cleanEvent();
-        $user = User::where('is_active', 1)->firstOrFail();
+        $event = $this->createEvent();
+        $user = $this->createUser();
         $service = new EventAudienceService();
 
         $this->assertTrue($service->isUserEligible($event, (int) $user->id));
@@ -99,8 +106,8 @@ class EventAudienceServiceFeatureTest extends TestCase
 
     public function testVisibleEventsQueryIncludesEmptyScopeEvent(): void
     {
-        $event = $this->cleanEvent();
-        $user = User::where('is_active', 1)->firstOrFail();
+        $event = $this->createEvent();
+        $user = $this->createUser();
         $service = new EventAudienceService();
 
         $ids = $service->visibleEventsQuery((int) $user->id)->pluck('id')
@@ -111,11 +118,10 @@ class EventAudienceServiceFeatureTest extends TestCase
 
     public function testVisibleEventsQueryExcludesNonMatchingUserScope(): void
     {
-        $users = User::where('is_active', 1)->orderBy('id')->take(2)->get();
-        $this->assertCount(2, $users);
-        [$inScope, $outScope] = [$users[0], $users[1]];
+        $inScope = $this->createUser();
+        $outScope = $this->createUser();
 
-        $event = $this->cleanEvent();
+        $event = $this->createEvent();
         $service = new EventAudienceService();
         $service->setSources($event, [
             ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $inScope->id],
@@ -128,5 +134,35 @@ class EventAudienceServiceFeatureTest extends TestCase
 
         $this->assertNotContains((int) $event->id, $visibleForOut);
         $this->assertContains((int) $event->id, $visibleForIn);
+    }
+
+    private function createProject(): Project
+    {
+        return Project::create([
+            'name' => 'Audience-Test-Projekt ' . bin2hex(random_bytes(4)),
+            'start_date' => Carbon::now()->subMonth()->toDateString(),
+            'end_date' => Carbon::now()->addMonth()->toDateString(),
+        ]);
+    }
+
+    private function createEvent(): Event
+    {
+        return Event::create([
+            'title' => 'Audience-Test-Termin ' . bin2hex(random_bytes(4)),
+            'starts_at' => Carbon::now()->addDays(5)->setTime(19, 0),
+            'ends_at' => Carbon::now()->addDays(5)->setTime(21, 0),
+            'type' => 'Probe',
+        ]);
+    }
+
+    private function createUser(): User
+    {
+        return User::create([
+            'first_name' => 'Audience',
+            'last_name' => 'Testperson',
+            'email' => 'audience-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
     }
 }

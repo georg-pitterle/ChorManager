@@ -1,7 +1,5 @@
 {% extends "layout.twig" %}
 
-{% import "macros/person.twig" as person %}
-
 {% block title %}
     Auswertungen - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -71,7 +69,7 @@
                                     data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
                                     data-sort-percentage="{{ stat.percentage|default(0) }}">
                                     <td data-label="Name">
-                                        <strong>{{ person.member_link(stat, stat.user_id, can_edit_member) }}</strong>
+                                        <strong>{{ stat|person_name }}</strong>
                                     </td>
                                     <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
                                     <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
