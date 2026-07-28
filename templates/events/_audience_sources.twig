@@ -72,7 +72,7 @@
                 multiple>
             {% for member in audience_users|default(users)|default([]) %}
                 <option value="{{ member.id }}"{% if member.id in _user_ids %} selected{% endif %}>
-                    {{ member.first_name }} {{ member.last_name }}
+                    {{ member|person_name }}
                 </option>
             {% endfor %}
         </select>

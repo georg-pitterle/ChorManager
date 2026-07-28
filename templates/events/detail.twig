@@ -92,7 +92,7 @@
                     <div class="border rounded-3 p-3 bg-light-subtle">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>
-                                <div class="fw-semibold">{{ note.user.first_name }} {{ note.user.last_name }}</div>
+                                <div class="fw-semibold">{{ note.user|person_name }}</div>
                                 <span class="badge {% if note.is_private %}text-bg-warning{% else %}text-bg-info{% endif %}">
                                     {{ note.is_private ? 'Privat' : 'Öffentlich' }}
                                 </span>

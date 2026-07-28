@@ -113,7 +113,7 @@
                             {% set proxy_editable = _proxy_ok and not is_self %}
                             <li class="list-group-item">
                                 <div class="fw-bold mb-1">
-                                    {{ member.last_name }}, {{ member.first_name }}
+                                    {{ member|person_name }}
                                     {% if not proxy_editable %}
                                         {% if member.status == "yes" %}
                                             <span class="badge registration-badge-yes">Zusage</span>

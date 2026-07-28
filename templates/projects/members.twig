@@ -32,14 +32,14 @@
                         {% if active_users|length > 0 %}
                             <optgroup label="Aktive Mitglieder">
                                 {% for u in active_users %}
-                                    <option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }}</option>
+                                    <option value="{{ u.id }}">{{ u|person_name }}</option>
                                 {% endfor %}
                             </optgroup>
                         {% endif %}
                         {% if archived_users|length > 0 %}
                             <optgroup label="Archivierte Mitglieder (werden bei Zuweisung reaktiviert)">
                                 {% for u in archived_users %}
-                                    <option value="{{ u.id }}">{{ u.last_name }}, {{ u.first_name }} (archiviert)</option>
+                                    <option value="{{ u.id }}">{{ u|person_name }} (archiviert)</option>
                                 {% endfor %}
                             </optgroup>
                         {% endif %}
@@ -117,10 +117,10 @@
                                     <td data-label="Aktionen" class="text-end">
                                         <div class="btn-group"
                                              role="group"
-                                             aria-label="Aktionen für {{ m.first_name }} {{ m.last_name }}">
+                                             aria-label="Aktionen für {{ m|person_name }}">
                                             <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove"
                                                   method="post"
-                                                  data-confirm="{{ m.first_name }} {{ m.last_name }} wirklich vom Projekt entfernen?">
+                                                  data-confirm="{{ m|person_name }} wirklich vom Projekt entfernen?">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                                     <i class="bi bi-person-dash"></i> Entfernen
                                                 </button>

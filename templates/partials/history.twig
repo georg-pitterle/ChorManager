@@ -10,7 +10,7 @@
                 <div class="timeline-item pb-3 border-start ms-2 ps-3 position-relative border-secondary">
                     <div class="timeline-marker bg-secondary rounded-circle position-absolute start-0 translate-middle timeline-dot"></div>
                     <div class="d-flex justify-content-between">
-                        <strong class="small">{{ activity.user.first_name }} {{ activity.user.last_name }}</strong>
+                        <strong class="small">{{ activity.user|person_name }}</strong>
                         <small class="text-muted">{{ activity.created_at|date('d.m.Y H:i') }}</small>
                     </div>
                     <p class="mb-0 small text-muted">{{ activity.description }}</p>

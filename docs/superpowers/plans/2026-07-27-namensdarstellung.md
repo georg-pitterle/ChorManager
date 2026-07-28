@@ -1404,7 +1404,7 @@ git commit -m "feat: Namenssortierung folgt der eingestellten Darstellung"
 - Consumes: Filter `person_name` (Task 2)
 - Produces: keine neuen Signaturen
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/NameDisplayCoverageFeatureTest.php`:
 
@@ -1477,12 +1477,12 @@ final class NameDisplayCoverageFeatureTest extends TestCase
 
 Hinweis: `templates/users/manage.twig` steht auf der Ausnahmeliste, weil dort die Formularfelder des Anlegen- und Bearbeiten-Modals `first_name`/`last_name` enthalten; die Namensspalte ist bereits in Task 6 umgestellt.
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameDisplayCoverageFeatureTest`
 Expected: FAIL mit einer Liste der noch nicht umgestellten Templates.
 
-- [ ] **Step 3: Templates umstellen**
+- [x] **Step 3: Templates umstellen**
 
 Jede gemeldete Fundstelle nach diesem Muster ersetzen:
 
@@ -1509,7 +1509,7 @@ Jede gemeldete Fundstelle nach diesem Muster ersetzen:
 
 Nicht anfassen: Initialen-Avatare wie `{{ comment.user.first_name|first }}{{ comment.user.last_name|first }}` und `{{ task.assignee.first_name|slice(0, 1) }}{{ task.assignee.last_name|slice(0, 1) }}`. Die `title`-Attribute daneben werden dagegen auf `{{ task.assignee|person_name }}` umgestellt.
 
-- [ ] **Step 4: LF normalisieren, Twig-Gate und Tests laufen lassen**
+- [x] **Step 4: LF normalisieren, Twig-Gate und Tests laufen lassen**
 
 ```powershell
 Get-ChildItem "d:\Proggen\ChorManager\templates" -Recurse -Filter *.twig | ForEach-Object { [System.IO.File]::WriteAllText($_.FullName, ((Get-Content $_.FullName -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false)) }
@@ -1521,7 +1521,7 @@ Expected: keine blockierenden Verstöße. Bei Bedarf `ddev composer twigcbf` und
 Run: `ddev exec ./vendor/bin/phpunit --filter NameDisplayCoverageFeatureTest`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add templates tests/Feature/NameDisplayCoverageFeatureTest.php
