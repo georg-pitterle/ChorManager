@@ -1,0 +1,8 @@
+{% macro member_link(person, member_id=null, can_edit_map={}) %}
+    {%- set _can_edit = member_id is not null and can_edit_map[member_id]|default(false) -%}
+    {%- if _can_edit -%}
+        <a href="/users?edit={{ member_id }}" class="member-edit-link">{{ person|person_name }}</a>
+    {%- else -%}
+        {{- person|person_name -}}
+    {%- endif -%}
+{% endmacro %}

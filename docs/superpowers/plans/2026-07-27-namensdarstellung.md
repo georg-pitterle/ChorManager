@@ -60,7 +60,7 @@
   - `public function formatPerson(mixed $person): string`
   - `public function orderColumns(): array` (Werte `['first_name','last_name']` oder `['last_name','first_name']`)
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Unit/Services/NameFormatterServiceTest.php`:
 
@@ -138,12 +138,12 @@ final class NameFormatterServiceTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameFormatterServiceTest`
 Expected: FAIL mit `Class "App\Services\NameFormatterService" not found`
 
-- [ ] **Step 3: Service implementieren**
+- [x] **Step 3: Service implementieren**
 
 Datei `src/Services/NameFormatterService.php`:
 
@@ -231,19 +231,19 @@ class NameFormatterService
 }
 ```
 
-- [ ] **Step 4: LF normalisieren**
+- [x] **Step 4: LF normalisieren**
 
 ```powershell
 $f = "d:\Proggen\ChorManager\src\Services\NameFormatterService.php"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
 $f = "d:\Proggen\ChorManager\tests\Unit\Services\NameFormatterServiceTest.php"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
 ```
 
-- [ ] **Step 5: Test laufen lassen, Erfolg bestätigen**
+- [x] **Step 5: Test laufen lassen, Erfolg bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameFormatterServiceTest`
 Expected: PASS, 6 Tests
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Services/NameFormatterService.php tests/Unit/Services/NameFormatterServiceTest.php
@@ -265,7 +265,7 @@ git commit -m "feat: NameFormatterService für konfigurierbare Namensdarstellung
   - Twig-Filter `person_name` (nimmt Model, Array oder `stdClass`, liefert String)
   - Twig-Global `name_display_format`
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/NameFormatterWiringFeatureTest.php`:
 
@@ -312,12 +312,12 @@ final class NameFormatterWiringFeatureTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameFormatterWiringFeatureTest`
 Expected: FAIL im ersten Test, weil `NameFormatterService::class` in `src/Dependencies.php` fehlt.
 
-- [ ] **Step 3: Container-Eintrag ergänzen**
+- [x] **Step 3: Container-Eintrag ergänzen**
 
 In `src/Dependencies.php` bei den übrigen `use`-Statements ergänzen:
 
@@ -343,7 +343,7 @@ Direkt vor dem `Twig::class`-Eintrag (nach `TaskPolicy::class => \DI\autowire(),
         },
 ```
 
-- [ ] **Step 4: Twig-Filter und Global registrieren**
+- [x] **Step 4: Twig-Filter und Global registrieren**
 
 In `src/Dependencies.php` im `Twig::class`-Closure direkt vor `return $twig;` einfügen:
 
@@ -356,7 +356,7 @@ In `src/Dependencies.php` im `Twig::class`-Closure direkt vor `return $twig;` ei
             ));
 ```
 
-- [ ] **Step 5: LF normalisieren, Tests laufen lassen**
+- [x] **Step 5: LF normalisieren, Tests laufen lassen**
 
 ```powershell
 $f = "d:\Proggen\ChorManager\src\Dependencies.php"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
@@ -366,7 +366,7 @@ $f = "d:\Proggen\ChorManager\tests\Feature\NameFormatterWiringFeatureTest.php"; 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameFormatterWiringFeatureTest`
 Expected: PASS, 2 Tests
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Dependencies.php tests/Feature/NameFormatterWiringFeatureTest.php
@@ -386,7 +386,7 @@ git commit -m "feat: NameFormatterService im Container und als Twig-Filter regis
 - Consumes: `NameFormatterService::normalizeFormat()` aus Task 1
 - Produces: `app_settings`-Key `name_display_format`; Formularfeld `name="name_display_format"` unter `/settings`
 
-- [ ] **Step 1: Failing Tests schreiben**
+- [x] **Step 1: Failing Tests schreiben**
 
 An `tests/Feature/AppSettingFeatureTest.php` anhängen (vor der schließenden Klammer der Klasse):
 
@@ -427,12 +427,12 @@ An `tests/Feature/AppSettingFeatureTest.php` anhängen (vor der schließenden Kl
     }
 ```
 
-- [ ] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter AppSettingFeatureTest`
 Expected: FAIL, `name="name_display_format"` nicht im Template gefunden.
 
-- [ ] **Step 3: Controller erweitern**
+- [x] **Step 3: Controller erweitern**
 
 In `src/Controllers/AppSettingController.php` bei den `use`-Statements ergänzen:
 
@@ -459,7 +459,7 @@ Im `try`-Block nach dem `registration_reminder_days_before`-Block ergänzen:
             );
 ```
 
-- [ ] **Step 4: Auswahlfeld im Template ergänzen**
+- [x] **Step 4: Auswahlfeld im Template ergänzen**
 
 In `templates/settings/index.twig` direkt vor dem `<div class="d-grid gap-2 d-md-flex justify-content-md-end">` am Ende des Formulars einfügen:
 
@@ -489,7 +489,7 @@ In `templates/settings/index.twig` direkt vor dem `<div class="d-grid gap-2 d-md
                         </div>
 ```
 
-- [ ] **Step 5: LF normalisieren und Tests laufen lassen**
+- [x] **Step 5: LF normalisieren und Tests laufen lassen**
 
 ```powershell
 $f = "d:\Proggen\ChorManager\src\Controllers\AppSettingController.php"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
@@ -500,7 +500,7 @@ $f = "d:\Proggen\ChorManager\tests\Feature\AppSettingFeatureTest.php"; [System.I
 Run: `ddev exec ./vendor/bin/phpunit --filter AppSettingFeatureTest`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Controllers/AppSettingController.php templates/settings/index.twig tests/Feature/AppSettingFeatureTest.php
@@ -528,7 +528,7 @@ Regel (identisch zur heutigen Logik in `UserController::index()`):
 3. Sonst: Stimmgruppen-Vertreter, wenn `voice_group_ids` der Session und Stimmgruppen des Ziels sich schneiden.
 4. Sonst: nicht bearbeitbar.
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Unit/Policies/UserEditPolicyTest.php`:
 
@@ -613,12 +613,12 @@ final class UserEditPolicyTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter UserEditPolicyTest`
 Expected: FAIL mit `Class "App\Policies\UserEditPolicy" not found`
 
-- [ ] **Step 3: Policy implementieren**
+- [x] **Step 3: Policy implementieren**
 
 Datei `src/Policies/UserEditPolicy.php`:
 
@@ -714,7 +714,7 @@ class UserEditPolicy
 }
 ```
 
-- [ ] **Step 4: Im Container registrieren**
+- [x] **Step 4: Im Container registrieren**
 
 In `src/Dependencies.php` neben `ProjectMemberPolicy::class => \DI\autowire(),` ergänzen:
 
@@ -722,7 +722,7 @@ In `src/Dependencies.php` neben `ProjectMemberPolicy::class => \DI\autowire(),` 
         \App\Policies\UserEditPolicy::class => \DI\autowire(),
 ```
 
-- [ ] **Step 5: LF normalisieren, Test laufen lassen**
+- [x] **Step 5: LF normalisieren, Test laufen lassen**
 
 ```powershell
 $f = "d:\Proggen\ChorManager\src\Policies\UserEditPolicy.php"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
@@ -733,7 +733,7 @@ $f = "d:\Proggen\ChorManager\src\Dependencies.php"; [System.IO.File]::WriteAllTe
 Run: `ddev exec ./vendor/bin/phpunit --filter UserEditPolicyTest`
 Expected: PASS, 6 Tests
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Policies/UserEditPolicy.php src/Dependencies.php tests/Unit/Policies/UserEditPolicyTest.php
