@@ -37,7 +37,7 @@ final class SessionAuthServiceBackupPermissionTest extends TestCase
         $user->roles()->attach($role->id);
         $user->load('roles', 'voiceGroups');
 
-        (new SessionAuthService())->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
 
         $this->assertTrue($_SESSION['can_manage_backups']);
 
@@ -62,7 +62,7 @@ final class SessionAuthServiceBackupPermissionTest extends TestCase
         $user->roles()->attach($role->id);
         $user->load('roles', 'voiceGroups');
 
-        $service = new SessionAuthService();
+        $service = new SessionAuthService(new \App\Services\NameFormatterService());
         $service->setAuthenticatedUser($user);
         $firstEpoch = $_SESSION['auth_epoch'];
 

@@ -376,8 +376,7 @@ class EventController
                 'project_members' => 'Projekt: ' . (optional(Project::find($refId))->name ?? '—'),
                 'role' => 'Rolle: ' . (optional(Role::find($refId))->name ?? '—'),
                 'voice_group' => 'Stimmgruppe: ' . (optional(VoiceGroup::find($refId))->name ?? '—'),
-                'user' => 'Person: ' . trim((string) (optional(User::find($refId))->first_name . ' '
-                    . optional(User::find($refId))->last_name)),
+                'user' => 'Person: ' . $this->nameFormatter->formatPerson(User::find($refId)),
                 default => '',
             };
         }

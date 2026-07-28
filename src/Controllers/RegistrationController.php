@@ -412,6 +412,6 @@ class RegistrationController
 
         $updatedBy = User::find($registration->updated_by);
 
-        return $updatedBy ? trim($updatedBy->first_name . ' ' . $updatedBy->last_name) : null;
+        return $updatedBy ? $this->nameFormatter->formatPerson($updatedBy) : null;
     }
 }

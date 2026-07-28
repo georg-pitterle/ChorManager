@@ -10,15 +10,18 @@ use Slim\Views\Twig;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
+use App\Services\NameFormatterService;
 use Carbon\Carbon;
 
 class SponsoringDashboardController
 {
     private Twig $view;
+    private NameFormatterService $nameFormatter;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, NameFormatterService $nameFormatter)
     {
         $this->view = $view;
+        $this->nameFormatter = $nameFormatter;
     }
 
     public function index(Request $request, Response $response): Response
@@ -148,6 +151,6 @@ class SponsoringDashboardController
             return '-';
         }
 
-        return trim((string) $contact->user->first_name . ' ' . (string) $contact->user->last_name);
+        return $this->nameFormatter->formatPerson($contact->user);
     }
 }

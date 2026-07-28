@@ -97,7 +97,7 @@ final class EventManagementPermissionFeatureTest extends TestCase
         $user->roles()->attach($role->id);
         $user->load('roles', 'voiceGroups');
 
-        (new SessionAuthService())->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
 
         $this->assertTrue($_SESSION['can_manage_events']);
         $this->assertFalse($_SESSION['can_manage_users']);

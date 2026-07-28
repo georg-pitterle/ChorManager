@@ -1540,7 +1540,7 @@ git commit -m "feat: Namensausgabe in allen Templates über person_name"
 - Consumes: `NameFormatterService::formatPerson()` (Task 1)
 - Produces: `SessionAuthService::__construct(NameFormatterService $nameFormatter)`
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/NameDisplayPhpCoverageFeatureTest.php`:
 
@@ -1609,12 +1609,12 @@ final class NameDisplayPhpCoverageFeatureTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameDisplayPhpCoverageFeatureTest`
 Expected: FAIL, `formatPerson` fehlt in den Quellen und `SessionAuthService` hat keinen Konstruktor.
 
-- [ ] **Step 3: SessionAuthService umstellen**
+- [x] **Step 3: SessionAuthService umstellen**
 
 ```php
 use App\Services\NameFormatterService;
@@ -1636,7 +1636,7 @@ class SessionAuthService
 
 Der Service wird bereits per Autowiring in `AuthController` und `AuthMiddleware` injiziert; durch die Container-Registrierung aus Task 2 löst PHP-DI die neue Abhängigkeit automatisch auf.
 
-- [ ] **Step 4: Restliche PHP-Stellen umstellen**
+- [x] **Step 4: Restliche PHP-Stellen umstellen**
 
 In den vier Controllern `NameFormatterService` per Konstruktor injizieren (Property + Zuweisung) und ersetzen:
 
@@ -1661,7 +1661,7 @@ In den vier Controllern `NameFormatterService` per Konstruktor injizieren (Prope
 
 `TaskController` bleibt unverändert – der Aktivitätstext nutzt bewusst nur den Vornamen.
 
-- [ ] **Step 5: LF normalisieren und Tests laufen lassen**
+- [x] **Step 5: LF normalisieren und Tests laufen lassen**
 
 ```powershell
 Get-ChildItem "d:\Proggen\ChorManager\src\Services\SessionAuthService.php","d:\Proggen\ChorManager\src\Controllers\NewsletterController.php","d:\Proggen\ChorManager\src\Controllers\RegistrationController.php","d:\Proggen\ChorManager\src\Controllers\SponsoringDashboardController.php","d:\Proggen\ChorManager\src\Controllers\EventController.php","d:\Proggen\ChorManager\tests\Feature\NameDisplayPhpCoverageFeatureTest.php" | ForEach-Object { [System.IO.File]::WriteAllText($_.FullName, ((Get-Content $_.FullName -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false)) }
@@ -1670,7 +1670,7 @@ Get-ChildItem "d:\Proggen\ChorManager\src\Services\SessionAuthService.php","d:\P
 Run: `ddev exec ./vendor/bin/phpunit`
 Expected: PASS. Schlägt ein bestehender Test wegen des neuen `SessionAuthService`-Konstruktors fehl, dort `new SessionAuthService(new NameFormatterService())` übergeben.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Services/SessionAuthService.php src/Controllers tests/Feature/NameDisplayPhpCoverageFeatureTest.php

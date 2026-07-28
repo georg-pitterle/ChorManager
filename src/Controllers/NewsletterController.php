@@ -937,7 +937,9 @@ class NewsletterController
 
         return $this->jsonResponse($response, [
             'locked' => true,
-            'locked_by_user' => $lockedByUser ? $lockedByUser->first_name . ' ' . $lockedByUser->last_name : 'Unknown',
+            'locked_by_user' => $lockedByUser
+                ? $this->nameFormatter->formatPerson($lockedByUser)
+                : 'Unknown',
             'locked_at' => $newsletter->locked_at->format('Y-m-d H:i:s'),
             'is_me' => $newsletter->locked_by === $userId,
         ]);

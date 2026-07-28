@@ -8,10 +8,17 @@ use App\Models\User;
 
 class SessionAuthService
 {
+    private NameFormatterService $nameFormatter;
+
+    public function __construct(NameFormatterService $nameFormatter)
+    {
+        $this->nameFormatter = $nameFormatter;
+    }
+
     public function setAuthenticatedUser(User $user): void
     {
         $_SESSION['user_id'] = (int) $user->id;
-        $_SESSION['user_name'] = $user->first_name . ' ' . $user->last_name;
+        $_SESSION['user_name'] = $this->nameFormatter->formatPerson($user);
 
         $canManageUsers = false;
         $canEditUsers = false;

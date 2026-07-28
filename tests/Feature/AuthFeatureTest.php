@@ -48,7 +48,7 @@ class AuthFeatureTest extends TestCase
 
     public function testSessionAuthServiceSetsFlagsFromRolesAndVoiceGroups(): void
     {
-        $service = new SessionAuthService();
+        $service = new SessionAuthService(new \App\Services\NameFormatterService());
         $user = new User();
         $user->id = 7;
         $user->first_name = 'Test';
@@ -124,7 +124,7 @@ class AuthFeatureTest extends TestCase
 
     public function testSessionAuthServiceSetsFinanceReadWhenRoleCanOnlyRead(): void
     {
-        $service = new SessionAuthService();
+        $service = new SessionAuthService(new \App\Services\NameFormatterService());
         $user = new User();
         $user->id = 9;
         $user->first_name = 'Read';

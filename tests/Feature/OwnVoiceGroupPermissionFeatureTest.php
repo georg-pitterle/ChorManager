@@ -71,7 +71,7 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
         ]);
         $user->roles()->attach($role->id);
 
-        (new SessionAuthService())->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
 
         $this->assertTrue($_SESSION['can_manage_own_voice_group']);
 
@@ -96,7 +96,7 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
         ]);
         $user->roles()->attach($role->id);
 
-        (new SessionAuthService())->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
 
         $this->assertFalse($_SESSION['can_manage_own_voice_group']);
 

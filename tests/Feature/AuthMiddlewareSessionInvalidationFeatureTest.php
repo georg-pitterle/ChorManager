@@ -77,7 +77,7 @@ final class AuthMiddlewareSessionInvalidationFeatureTest extends TestCase
         $this->middleware = new AuthMiddleware(
             new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
-            new SessionAuthService()
+            new SessionAuthService(new \App\Services\NameFormatterService())
         );
 
         if (session_status() === PHP_SESSION_NONE) {
