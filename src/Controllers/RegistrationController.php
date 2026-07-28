@@ -9,6 +9,7 @@ use App\Models\EventRegistration;
 use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
+use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -21,7 +22,8 @@ class RegistrationController
     public function __construct(
         private readonly Twig $view,
         private readonly AttendanceScopeService $scopeService,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly NameFormatterService $nameFormatter
     ) {
     }
 
@@ -394,7 +396,7 @@ class RegistrationController
                 'eventRegistrations' => fn($q) => $q->where('event_id', (int) $event->id),
             ])
             ->get()
-            ->sortBy(['last_name', 'first_name'])
+            ->sortBy($this->nameFormatter->orderColumns())
             ->values();
     }
 

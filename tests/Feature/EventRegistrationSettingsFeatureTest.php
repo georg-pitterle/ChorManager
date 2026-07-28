@@ -50,7 +50,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
 
     private function controller(): EventController
     {
-        return new EventController(Twig::create(dirname(__DIR__) . '/../templates'));
+        return new EventController(Twig::create(dirname(__DIR__) . '/../templates'), new \App\Services\NameFormatterService());
     }
 
     /**

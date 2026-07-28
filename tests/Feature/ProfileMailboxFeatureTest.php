@@ -34,7 +34,7 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->twigMock = $this->createStub(Twig::class);
         $this->controller = new ProfileController(
             $this->twigMock,
-            new UserQuery(),
+            new UserQuery(new \App\Services\NameFormatterService()),
             new PasswordPolicyService(),
             new NullLogger(),
             $this->crypto

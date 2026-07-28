@@ -83,7 +83,7 @@ class ProjectMemberArchivedFeatureTest extends TestCase
 
     public function testUsersNotInProjectIncludesArchivedMembers(): void
     {
-        $query = new ProjectQuery();
+        $query = new ProjectQuery(new \App\Services\NameFormatterService());
 
         $available = $query->getUsersNotInProject(10);
         $ids = $available->pluck('id')->map(fn($id) => (int) $id)->all();

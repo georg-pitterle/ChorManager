@@ -220,7 +220,8 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
         $controller = new AttendanceController(
             $this->createTwig($registrationFeatureEnabled),
             new AttendanceScopeService(),
-            new UserEditPolicy()
+            new UserEditPolicy(),
+            new \App\Services\NameFormatterService()
         );
 
         $request = $this->makeRequest('GET', '/attendance/' . $event->id);

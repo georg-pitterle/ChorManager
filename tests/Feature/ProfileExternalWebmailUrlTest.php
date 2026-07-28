@@ -40,7 +40,7 @@ final class ProfileExternalWebmailUrlTest extends TestCase
 
         $this->controller = new ProfileController(
             $this->createStub(Twig::class),
-            new UserQuery(),
+            new UserQuery(new \App\Services\NameFormatterService()),
             new PasswordPolicyService(),
             new NullLogger(),
             new MailCredentialCryptoService()

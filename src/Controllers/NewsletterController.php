@@ -20,6 +20,7 @@ use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
 use App\Services\HtmlSanitizer;
+use App\Services\NameFormatterService;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Util\EnvHelper;
@@ -36,6 +37,7 @@ class NewsletterController
     private NewsletterTemplateQuery $templateQuery;
     private NewsletterTemplatePersistence $templatePersistence;
     private LoggerInterface $logger;
+    private NameFormatterService $nameFormatter;
 
     public function __construct(
         Twig $view,
@@ -45,7 +47,8 @@ class NewsletterController
         HtmlSanitizer $htmlSanitizer,
         NewsletterTemplateQuery $templateQuery,
         NewsletterTemplatePersistence $templatePersistence,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        NameFormatterService $nameFormatter
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -55,6 +58,21 @@ class NewsletterController
         $this->templateQuery = $templateQuery;
         $this->templatePersistence = $templatePersistence;
         $this->logger = $logger;
+        $this->nameFormatter = $nameFormatter;
+    }
+
+    /**
+     * Active users ordered by the configured name display format.
+     */
+    private function activeUsersInNameOrder(): Collection
+    {
+        $query = User::query()->where('is_active', 1);
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -465,7 +483,7 @@ class NewsletterController
             ->orderBy('starts_at', 'desc')
             ->get();
         $roles = Role::query()->orderBy('name')->get();
-        $users = User::query()->where('is_active', 1)->orderBy('last_name')->orderBy('first_name')->get();
+        $users = $this->activeUsersInNameOrder();
         $templates = NewsletterTemplate::where('project_id', $projectId)
             ->orWhereNull('project_id')
             ->orderBy('name')
@@ -606,7 +624,7 @@ class NewsletterController
             ->orderBy('starts_at', 'desc')
             ->get();
         $roles = Role::query()->orderBy('name')->get();
-        $users = User::query()->where('is_active', 1)->orderBy('last_name')->orderBy('first_name')->get();
+        $users = $this->activeUsersInNameOrder();
         $sources = $this->recipientService->getSources($newsletter);
         if ($sources === []) {
             $sources = [[

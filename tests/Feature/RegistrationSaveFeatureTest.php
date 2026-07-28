@@ -53,7 +53,8 @@ class RegistrationSaveFeatureTest extends TestCase
         return new RegistrationController(
             Twig::create(dirname(__DIR__) . '/../templates'),
             new AttendanceScopeService(),
-            new NullLogger()
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
         );
     }
 

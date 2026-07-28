@@ -23,6 +23,7 @@ use App\Models\VoiceGroup;
 use App\Services\CalendarSubscriptionService;
 use App\Services\EventAudienceService;
 use App\Services\ModalFormService;
+use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
 use App\Util\Timezone;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -30,10 +31,12 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 class EventController
 {
     private Twig $view;
+    private NameFormatterService $nameFormatter;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, NameFormatterService $nameFormatter)
     {
         $this->view = $view;
+        $this->nameFormatter = $nameFormatter;
     }
 
     public function index(Request $request, Response $response): Response
@@ -161,8 +164,11 @@ class EventController
         $eventTypes = EventType::orderBy('name')->get();
         $roles = Role::query()->orderBy('name')->get();
         $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
-        $audienceUsers = User::query()->where('is_active', 1)
-            ->orderBy('last_name')->orderBy('first_name')->get();
+        $audienceUsersQuery = User::query()->where('is_active', 1);
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $audienceUsersQuery->orderBy($column);
+        }
+        $audienceUsers = $audienceUsersQuery->get();
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -704,8 +710,11 @@ class EventController
         $eventTypes = EventType::orderBy('name')->get();
         $roles = Role::query()->orderBy('name')->get();
         $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
-        $users = User::query()->where('is_active', 1)
-            ->orderBy('last_name')->orderBy('first_name')->get();
+        $usersQuery = User::query()->where('is_active', 1);
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $usersQuery->orderBy($column);
+        }
+        $users = $usersQuery->get();
         $audienceSources = (new EventAudienceService())->getSources($event);
 
         // Get error and form data from ModalFormService

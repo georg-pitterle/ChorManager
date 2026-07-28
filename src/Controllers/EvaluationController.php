@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
+use App\Services\NameFormatterService;
 use App\Util\TableQueryParams;
 use Carbon\Carbon;
 
@@ -24,15 +25,18 @@ class EvaluationController
     private Twig $view;
     private ProjectQuery $projectQuery;
     private UserEditPolicy $userEditPolicy;
+    private NameFormatterService $nameFormatter;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
-        UserEditPolicy $userEditPolicy
+        UserEditPolicy $userEditPolicy,
+        NameFormatterService $nameFormatter
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->userEditPolicy = $userEditPolicy;
+        $this->nameFormatter = $nameFormatter;
     }
 
     public function index(Request $request, Response $response): Response
@@ -40,7 +44,10 @@ class EvaluationController
         $params = $request->getQueryParams();
         $tableParams = TableQueryParams::from(
             $params,
-            ['last_name', 'first_name', 'percentage', 'present_count', 'excused_count', 'unexcused_count']
+            array_merge(
+                $this->nameFormatter->orderColumns(),
+                ['percentage', 'present_count', 'excused_count', 'unexcused_count']
+            )
         );
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
@@ -80,7 +87,7 @@ class EvaluationController
 
                 if ($totalEvents > 0) {
                     // Get all active users, eager load their attendances for this specific project's events
-                    $users = User::where('is_active', 1)
+                    $userQuery = User::where('is_active', 1)
                         ->whereHas('projects', function ($projectQuery) use ($projectId) {
                             $projectQuery->where('projects.id', $projectId);
                         })
@@ -92,10 +99,13 @@ class EvaluationController
                                             ->where('reference_id', $projectId);
                                     });
                             });
-                        }])
-                        ->orderBy('last_name')
-                        ->orderBy('first_name')
-                        ->get();
+                        }]);
+
+                    foreach ($this->nameFormatter->orderColumns() as $column) {
+                        $userQuery->orderBy($column);
+                    }
+
+                    $users = $userQuery->get();
 
                     foreach ($users as $user) {
                         $vgName = $user->voiceGroups->pluck('name')->implode(', ');

@@ -1236,7 +1236,7 @@ git commit -m "feat: Namenslinks in Anwesenheits-, Auswertungs- und Projektliste
 - Consumes: `NameFormatterService::orderColumns()` (Task 1)
 - Produces: keine neuen öffentlichen Signaturen; alle Namenssortierungen laufen über `orderColumns()`
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/NameSortOrderFeatureTest.php`:
 
@@ -1284,12 +1284,12 @@ final class NameSortOrderFeatureTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameSortOrderFeatureTest`
 Expected: FAIL für alle acht Dateien.
 
-- [ ] **Step 3: Queries umstellen**
+- [x] **Step 3: Queries umstellen**
 
 `src/Queries/UserQuery.php` – Konstruktor ergänzen und beide Methoden anpassen:
 
@@ -1340,7 +1340,7 @@ class UserQuery
         }
 ```
 
-- [ ] **Step 4: Controller umstellen**
+- [x] **Step 4: Controller umstellen**
 
 In allen sechs Controllern `use App\Services\NameFormatterService;` ergänzen, Service als letzten Konstruktorparameter injizieren (Property `private NameFormatterService $nameFormatter;`) und die Sortierungen ersetzen:
 
@@ -1362,7 +1362,7 @@ In allen sechs Controllern `use App\Services\NameFormatterService;` ergänzen, S
   und den `orderBy('first_name')`-Aufruf durch die `foreach`-Schleife über `orderColumns()` ersetzen.
 - `EventController` (zwei Stellen `->orderBy('last_name')->orderBy('first_name')->get()`), `NewsletterController` (zwei Stellen), `TaskController` (zwei Stellen `orderBy('first_name')`): jeweils Query in eine Variable ziehen und die `foreach`-Schleife über `orderColumns()` anwenden, dann `->get()`.
 
-- [ ] **Step 5: Twig-Sortierattribute angleichen**
+- [x] **Step 5: Twig-Sortierattribute angleichen**
 
 In `templates/projects/tasks.twig` Zeile 98:
 
@@ -1376,7 +1376,7 @@ In `templates/newsletters/index.twig` Zeile 167:
                                                 data-sort-sender="{{ newsletter.createdBy|person_name|lower }}"
 ```
 
-- [ ] **Step 6: LF normalisieren und Tests laufen lassen**
+- [x] **Step 6: LF normalisieren und Tests laufen lassen**
 
 ```powershell
 Get-ChildItem "d:\Proggen\ChorManager\src\Queries\UserQuery.php","d:\Proggen\ChorManager\src\Queries\ProjectQuery.php","d:\Proggen\ChorManager\src\Controllers\AttendanceController.php","d:\Proggen\ChorManager\src\Controllers\EvaluationController.php","d:\Proggen\ChorManager\src\Controllers\EventController.php","d:\Proggen\ChorManager\src\Controllers\NewsletterController.php","d:\Proggen\ChorManager\src\Controllers\RegistrationController.php","d:\Proggen\ChorManager\src\Controllers\TaskController.php","d:\Proggen\ChorManager\templates\projects\tasks.twig","d:\Proggen\ChorManager\templates\newsletters\index.twig","d:\Proggen\ChorManager\tests\Feature\NameSortOrderFeatureTest.php" | ForEach-Object { [System.IO.File]::WriteAllText($_.FullName, ((Get-Content $_.FullName -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false)) }
@@ -1385,7 +1385,7 @@ Get-ChildItem "d:\Proggen\ChorManager\src\Queries\UserQuery.php","d:\Proggen\Cho
 Run: `ddev exec ./vendor/bin/phpunit`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/Queries src/Controllers templates/projects/tasks.twig templates/newsletters/index.twig tests/Feature/NameSortOrderFeatureTest.php

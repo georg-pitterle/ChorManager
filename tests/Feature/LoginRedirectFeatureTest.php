@@ -54,7 +54,7 @@ class LoginRedirectFeatureTest extends TestCase
             . 'chormanager_login_redirect_test_' . bin2hex(random_bytes(4));
 
         $this->middleware = new AuthMiddleware(
-            new UserQuery(),
+            new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
             new SessionAuthService()
         );
@@ -85,7 +85,7 @@ class LoginRedirectFeatureTest extends TestCase
     {
         return new AuthController(
             $view,
-            new UserQuery(),
+            new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
             new SessionAuthService(),
             new RateLimiterService($this->rateLimiterStoreDir),

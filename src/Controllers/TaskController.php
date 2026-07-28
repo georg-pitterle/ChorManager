@@ -11,6 +11,7 @@ use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\User;
 use App\Services\HtmlSanitizer;
+use App\Services\NameFormatterService;
 use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -24,12 +25,32 @@ class TaskController
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
     private TaskPolicy $policy;
+    private NameFormatterService $nameFormatter;
 
-    public function __construct(Twig $view, HtmlSanitizer $htmlSanitizer, TaskPolicy $policy)
-    {
+    public function __construct(
+        Twig $view,
+        HtmlSanitizer $htmlSanitizer,
+        TaskPolicy $policy,
+        NameFormatterService $nameFormatter
+    ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
         $this->policy = $policy;
+        $this->nameFormatter = $nameFormatter;
+    }
+
+    /**
+     * Project members ordered by the configured name display format.
+     */
+    private function projectUsersInNameOrder(Project $project): \Illuminate\Database\Eloquent\Collection
+    {
+        $query = $project->users();
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     private function validateStatus(string $status): string
@@ -67,7 +88,7 @@ class TaskController
             ->orderBy('end_date', 'asc')
             ->get();
 
-        $projectUsers = $project->users()->orderBy('first_name')->get();
+        $projectUsers = $this->projectUsersInNameOrder($project);
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
@@ -100,7 +121,7 @@ class TaskController
         return $this->view->render($response, 'projects/task_detail.twig', [
             'task'    => $task,
             'project' => $task->project,
-            'projectUsers' => $task->project->users()->orderBy('first_name')->get(),
+            'projectUsers' => $this->projectUsersInNameOrder($task->project),
             'success' => $success,
             'error'   => $error,
         ]);

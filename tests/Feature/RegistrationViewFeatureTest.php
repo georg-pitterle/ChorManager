@@ -92,7 +92,7 @@ class RegistrationViewFeatureTest extends TestCase
 
         $_SESSION['user_id'] = (int) $fixture['maybe']->id;
 
-        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger(), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/registrations');
         $response = $this->makeResponse();
 
@@ -118,7 +118,7 @@ class RegistrationViewFeatureTest extends TestCase
 
         $_SESSION['user_id'] = (int) $fixture['yes']->id;
 
-        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger(), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/registrations');
         $response = $this->makeResponse();
 
@@ -152,7 +152,7 @@ class RegistrationViewFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $manager->id;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger(), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/registrations/' . $fixture['event']->id);
         $response = $this->makeResponse();
 
@@ -191,7 +191,7 @@ class RegistrationViewFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $fixture['yes']->id;
         $_SESSION['can_manage_users'] = false;
 
-        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger(), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/registrations/' . $fixture['event']->id);
         $response = $this->makeResponse();
 
@@ -235,7 +235,7 @@ class RegistrationViewFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $fixture['yes']->id;
         $_SESSION['can_manage_users'] = false;
 
-        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger());
+        $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger(), new \App\Services\NameFormatterService());
 
         $projectEventResult = $controller->detail(
             $this->makeRequest('GET', '/registrations/' . $fixture['event']->id),

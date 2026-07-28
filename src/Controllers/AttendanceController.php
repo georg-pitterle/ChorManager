@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Attendance;
 use App\Policies\UserEditPolicy;
 use App\Services\AttendanceScopeService;
+use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
@@ -21,15 +22,18 @@ class AttendanceController
     private Twig $view;
     private AttendanceScopeService $scopeService;
     private UserEditPolicy $userEditPolicy;
+    private NameFormatterService $nameFormatter;
 
     public function __construct(
         Twig $view,
         AttendanceScopeService $scopeService,
-        UserEditPolicy $userEditPolicy
+        UserEditPolicy $userEditPolicy,
+        NameFormatterService $nameFormatter
     ) {
         $this->view = $view;
         $this->scopeService = $scopeService;
         $this->userEditPolicy = $userEditPolicy;
+        $this->nameFormatter = $nameFormatter;
     }
 
     public function show(Request $request, Response $response, array $args): Response
@@ -86,7 +90,7 @@ class AttendanceController
                         $q->where('event_id', $eventId);
                     }])
                     ->get()
-                    ->sortBy(['last_name', 'first_name']);
+                    ->sortBy($this->nameFormatter->orderColumns());
 
                 foreach ($users as $u) {
                     $vgName = 'Ohne Stimmgruppe';

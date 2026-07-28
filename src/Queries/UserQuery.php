@@ -6,10 +6,18 @@ namespace App\Queries;
 
 use App\Models\User;
 use App\Models\Role;
+use App\Services\NameFormatterService;
 use Illuminate\Database\Eloquent\Collection;
 
 class UserQuery
 {
+    private NameFormatterService $nameFormatter;
+
+    public function __construct(NameFormatterService $nameFormatter)
+    {
+        $this->nameFormatter = $nameFormatter;
+    }
+
     public function findByEmail(string $email): ?User
     {
         return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
@@ -26,20 +34,26 @@ class UserQuery
 
     public function getAllUsers(): Collection
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
-            ->where('is_active', 1)
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
+        $query = User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
+            ->where('is_active', 1);
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     public function getArchivedUsers(): Collection
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
-            ->where('is_active', 0)
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
+        $query = User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
+            ->where('is_active', 0);
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     public function getRole(int $roleId): ?Role

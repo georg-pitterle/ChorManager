@@ -75,7 +75,7 @@ final class AuthMiddlewareSessionInvalidationFeatureTest extends TestCase
         $this->user->roles()->attach($this->role->id);
 
         $this->middleware = new AuthMiddleware(
-            new UserQuery(),
+            new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
             new SessionAuthService()
         );

@@ -102,7 +102,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy(), new \App\Services\NameFormatterService());
 
         $request = $this->makeRequest('POST', '/attendance/' . $event->id, [
             'attendance' => ['1' => 'present'],
@@ -140,7 +140,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy(), new \App\Services\NameFormatterService());
 
         $request = $this->makeRequest('GET', '/attendance/' . $requiredEvent->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -212,7 +212,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy(), new \App\Services\NameFormatterService());
 
         $request = $this->makeRequest('GET', '/attendance/' . $fixture['event']->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -239,7 +239,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy(), new \App\Services\NameFormatterService());
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['outScope']->id => 'present'],
@@ -263,7 +263,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy(), new \App\Services\NameFormatterService());
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['inScope']->id => 'present'],
@@ -348,7 +348,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = $member->id;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(), new UserEditPolicy());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new UserEditPolicy(), new \App\Services\NameFormatterService());
 
         $request = $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $project->id]);
         $response = $controller->index($request, $this->makeResponse());

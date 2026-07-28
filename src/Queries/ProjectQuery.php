@@ -6,10 +6,18 @@ namespace App\Queries;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Services\NameFormatterService;
 use Illuminate\Database\Eloquent\Collection;
 
 class ProjectQuery
 {
+    private NameFormatterService $nameFormatter;
+
+    public function __construct(NameFormatterService $nameFormatter)
+    {
+        $this->nameFormatter = $nameFormatter;
+    }
+
     public function findById(int $id): ?Project
     {
         return Project::find($id);
@@ -22,7 +30,7 @@ class ProjectQuery
 
     public function getProjectMembers(int $projectId): Collection
     {
-        return User::whereHas('projects', function ($query) use ($projectId) {
+        $query = User::whereHas('projects', function ($query) use ($projectId) {
             $query->where('project_id', $projectId);
         })
             ->where('is_active', 1)
@@ -32,10 +40,13 @@ class ProjectQuery
                         ->withPivot('sub_voice_id');
                 },
                 'subVoices'
-            ])
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
+            ]);
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     public function isProjectMember(int $projectId, int $userId): bool
@@ -52,12 +63,15 @@ class ProjectQuery
      */
     public function getUsersNotInProject(int $projectId): Collection
     {
-        return User::whereDoesntHave('projects', function ($query) use ($projectId) {
+        $query = User::whereDoesntHave('projects', function ($query) use ($projectId) {
             $query->where('project_id', $projectId);
-        })
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
+        });
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     public function getUserProjectIds(int $userId): array
@@ -86,7 +100,11 @@ class ProjectQuery
             });
         }
 
-        $users = $query->orderBy('last_name')->orderBy('first_name')->get();
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        $users = $query->get();
 
         $grouped = [];
         foreach ($users as $user) {
