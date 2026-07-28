@@ -11,6 +11,7 @@ use App\Queries\UserQuery;
 use App\Queries\ProjectQuery;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
+use App\Policies\UserEditPolicy;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\VoiceGroup;
@@ -35,6 +36,7 @@ class UserController
     private PasswordPolicyService $passwordPolicyService;
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
+    private UserEditPolicy $userEditPolicy;
 
     public function __construct(
         Twig $view,
@@ -44,7 +46,8 @@ class UserController
         ProjectPersistence $projectPersistence,
         PasswordPolicyService $passwordPolicyService,
         MailQueueService $mailQueueService,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        UserEditPolicy $userEditPolicy
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
@@ -54,6 +57,7 @@ class UserController
         $this->passwordPolicyService = $passwordPolicyService;
         $this->mailQueueService = $mailQueueService;
         $this->logger = $logger;
+        $this->userEditPolicy = $userEditPolicy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -133,6 +137,19 @@ class UserController
         $hasModalError = $createState['open_modal']
             || !empty(array_filter($editStates, fn($s) => $s['open_modal']));
 
+        $canEditMember = [];
+        foreach ($users as $user) {
+            if ($this->userEditPolicy->canEdit($_SESSION, $user)) {
+                $canEditMember[(int) $user->id] = true;
+            }
+        }
+
+        $openEditUserId = null;
+        $requestedEditId = (int) ($params['edit'] ?? 0);
+        if ($requestedEditId > 0 && !$showArchived && isset($canEditMember[$requestedEditId])) {
+            $openEditUserId = $requestedEditId;
+        }
+
         return $this->view->render($response, 'users/manage.twig', [
             'users' => $users,
             'roles' => $roles,
@@ -146,7 +163,9 @@ class UserController
             'error' => $error,
             'has_modal_error' => $hasModalError,
             'modal_form_create' => $createState,
-            'modal_form_edits' => $editStates
+            'modal_form_edits' => $editStates,
+            'can_edit_member' => $canEditMember,
+            'open_edit_user_id' => $openEditUserId,
         ]);
     }
 

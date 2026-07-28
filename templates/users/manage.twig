@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import 'macros/modal_form.twig' as modal %}
+{% import "macros/person.twig" as person %}
 
 {% block title %}
     Mitgliederverwaltung - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -169,7 +170,7 @@
                                     <tr data-role="{{ role_filter_ids }}"
                                         data-voice="{{ voice_filter_ids }}"
                                         data-project="{{ project_filter_ids }}"
-                                        data-sort-name="{{ (user.first_name ~ ' ' ~ user.last_name)|lower }}"
+                                        data-sort-name="{{ user|person_name|lower }}"
                                         data-sort-email="{{ user.email|lower }}"
                                         data-sort-role="{{ role_filter|trim }}"
                                         data-sort-voice="{{ voice_filter|trim }}"
@@ -183,7 +184,7 @@
                                                        aria-label="Mitglied auswählen">
                                             </td>
                                         {% endif %}
-                                        <td data-label="Name">{{ user.first_name }} {{ user.last_name }}</td>
+                                        <td data-label="Name">{{ person.member_link(user, user.id, can_edit_member) }}</td>
                                         <td data-label="E-Mail">{{ user.email }}</td>
                                         <td data-label="Rolle">
                                             {% for role in user.roles %}<span class="badge bg-secondary me-1">{{ role.name }}</span>{% endfor %}
@@ -424,9 +425,12 @@
     {% if can_edit_users and not show_archived %}
         {% for user in users %}
             <!-- Edit User Modal -->
+            {% set _open_by_error = modal_form_edits[user.id].open_modal|default(false) %}
+            {% set _open_by_link = open_edit_user_id|default(null) == user.id %}
+            {% set _open_edit_modal = _open_by_error or _open_by_link %}
             <div class="modal fade"
                  id="editUserModal{{ user.id }}"
-                 data-open-edit-modal="{{ modal_form_edits[user.id].open_modal ? '1' : '0' }}"
+                 data-open-edit-modal="{{ _open_edit_modal ? '1' : '0' }}"
                  tabindex="-1"
                  aria-labelledby="editUserModalLabel{{ user.id }}"
                  aria-hidden="true">

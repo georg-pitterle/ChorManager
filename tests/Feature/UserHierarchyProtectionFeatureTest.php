@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
+use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
@@ -100,7 +101,8 @@ class UserHierarchyProtectionFeatureTest extends TestCase
             $projectPersistence,
             $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class)
+            $this->createStub(LoggerInterface::class),
+            new UserEditPolicy()
         );
     }
 

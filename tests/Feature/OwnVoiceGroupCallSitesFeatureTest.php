@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
+use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\AttendanceScopeService;
@@ -185,7 +186,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class),
             $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class)
+            $this->createStub(LoggerInterface::class),
+            new UserEditPolicy()
         );
     }
 
@@ -319,7 +321,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $projectPersistence,
             $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class)
+            $this->createStub(LoggerInterface::class),
+            new UserEditPolicy()
         );
     }
 
@@ -561,7 +564,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class),
             $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class)
+            $this->createStub(LoggerInterface::class),
+            new UserEditPolicy()
         );
     }
 

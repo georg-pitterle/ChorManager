@@ -8,6 +8,7 @@ use App\Controllers\UserController;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
+use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
@@ -132,7 +133,8 @@ class UserProjectScopeFeatureTest extends TestCase
             $projectPersistence,
             $passwordPolicyService,
             $mailQueueService,
-            $logger
+            $logger,
+            new UserEditPolicy()
         );
 
         $request = $this->makeRequest('POST', '/users/5', [
@@ -208,7 +210,8 @@ class UserProjectScopeFeatureTest extends TestCase
             $projectPersistence,
             $passwordPolicyService,
             $mailQueueService,
-            $logger
+            $logger,
+            new UserEditPolicy()
         );
 
         $request = $this->makeRequest('POST', '/users/5', [

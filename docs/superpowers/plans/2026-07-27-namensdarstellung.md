@@ -754,7 +754,7 @@ git commit -m "feat: UserEditPolicy für Bearbeitungsrecht je Mitglied"
   - rendert `<a href="/users?edit={id}" class="member-edit-link">Name</a>`, wenn `can_edit_map[member_id]` wahr ist
   - sonst reinen Text
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/PersonMacroFeatureTest.php`:
 
@@ -838,12 +838,12 @@ final class PersonMacroFeatureTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter PersonMacroFeatureTest`
 Expected: FAIL mit `Unable to find template "macros/person.twig"`
 
-- [ ] **Step 3: Makro implementieren**
+- [x] **Step 3: Makro implementieren**
 
 Datei `templates/macros/person.twig`:
 
@@ -858,7 +858,7 @@ Datei `templates/macros/person.twig`:
 {% endmacro %}
 ```
 
-- [ ] **Step 4: LF normalisieren, Test laufen lassen**
+- [x] **Step 4: LF normalisieren, Test laufen lassen**
 
 ```powershell
 $f = "d:\Proggen\ChorManager\templates\macros\person.twig"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
@@ -868,7 +868,7 @@ $f = "d:\Proggen\ChorManager\tests\Feature\PersonMacroFeatureTest.php"; [System.
 Run: `ddev exec ./vendor/bin/phpunit --filter PersonMacroFeatureTest`
 Expected: PASS, 3 Tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add templates/macros/person.twig tests/Feature/PersonMacroFeatureTest.php
@@ -888,7 +888,7 @@ git commit -m "feat: Twig-Makro für Mitgliedsnamen mit optionalem Bearbeiten-Li
 - Consumes: `UserEditPolicy::canEdit()` (Task 4), Makro `member_link` (Task 5), Filter `person_name` (Task 2)
 - Produces: Template-Variablen `open_edit_user_id` (int|null) und `can_edit_member` (`array<int, true>`) in `users/manage.twig`
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/UserEditDeepLinkFeatureTest.php`:
 
@@ -947,12 +947,12 @@ final class UserEditDeepLinkFeatureTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter UserEditDeepLinkFeatureTest`
 Expected: FAIL, `$params['edit']` fehlt im Controller.
 
-- [ ] **Step 3: Controller anpassen**
+- [x] **Step 3: Controller anpassen**
 
 In `src/Controllers/UserController.php` bei den `use`-Statements ergänzen:
 
@@ -1002,7 +1002,7 @@ Und im Render-Array ergänzen:
             'open_edit_user_id' => $openEditUserId,
 ```
 
-- [ ] **Step 4: Template anpassen**
+- [x] **Step 4: Template anpassen**
 
 In `templates/users/manage.twig` unter dem bestehenden `{% import "macros/modal_form.twig" as modal %}` ergänzen:
 
@@ -1038,7 +1038,7 @@ und das Attribut ersetzen:
 
 Die vorhandene Logik in `public/js/users.js` (`[id^="editUserModal"][data-open-edit-modal="1"]`) öffnet das Modal dadurch ohne Änderung.
 
-- [ ] **Step 5: LF normalisieren und Tests laufen lassen**
+- [x] **Step 5: LF normalisieren und Tests laufen lassen**
 
 ```powershell
 $f = "d:\Proggen\ChorManager\src\Controllers\UserController.php"; [System.IO.File]::WriteAllText($f, ((Get-Content $f -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
@@ -1052,7 +1052,7 @@ Expected: PASS, 3 Tests
 Run: `ddev exec ./vendor/bin/phpunit`
 Expected: PASS (keine Regression durch den geänderten Konstruktor)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Controllers/UserController.php templates/users/manage.twig tests/Feature/UserEditDeepLinkFeatureTest.php
