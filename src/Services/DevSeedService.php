@@ -1451,6 +1451,7 @@ class DevSeedService
             'mailqueue_opportunistic_rate_limit' => '10',
             'mailqueue_batch_size' => '50',
             'registration_reminder_days_before' => '3',
+            'name_display_format' => 'first_last',
         ];
 
         foreach ($settings as $key => $value) {

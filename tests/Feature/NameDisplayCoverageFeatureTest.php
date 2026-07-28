@@ -46,6 +46,7 @@ final class NameDisplayCoverageFeatureTest extends TestCase
             $content = (string) file_get_contents($file->getPathname());
             $patterns = [
                 '/first_name\s*\}\}\s*\{\{\s*[\w.]+\.last_name/',
+                '/first_name\|default\([^)]*\)\s*\}\}\s*\{\{\s*[\w.]+\.last_name/',
                 '/last_name\s*\}\},\s*\{\{\s*[\w.]+\.first_name/',
                 '/first_name[^}]*~\s*["\'][ ,]+["\']\s*~[^}]*last_name/',
                 '/last_name[^}]*~\s*["\'][ ,]+["\']\s*~[^}]*first_name/',

@@ -1689,7 +1689,7 @@ git commit -m "feat: PHP-seitige Namensausgabe über NameFormatterService"
 - Consumes: Einstellungs-Key aus Task 3
 - Produces: Seed-Wert `name_display_format = first_last`
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 An `tests/Feature/NameFormatterWiringFeatureTest.php` anhängen:
 
@@ -1703,12 +1703,12 @@ An `tests/Feature/NameFormatterWiringFeatureTest.php` anhängen:
     }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter NameFormatterWiringFeatureTest`
 Expected: FAIL, `name_display_format` fehlt in `DevSeedService`.
 
-- [ ] **Step 3: Seed ergänzen**
+- [x] **Step 3: Seed ergänzen**
 
 In `src/Services/DevSeedService.php` im Array der App-Einstellungen (bei `AppSetting::updateOrCreate`, rund um Zeile 1457) einen weiteren Eintrag ergänzen:
 
@@ -1723,7 +1723,7 @@ In `src/Services/DevSeedService.php` im Array der App-Einstellungen (bei `AppSet
 
 Den zugehörigen Zähler im Seed-Report von `run()` mitführen, so wie es die übrigen App-Einstellungen tun. Keine neue Tabelle, daher kein Eintrag in `resetSeedData()`.
 
-- [ ] **Step 4: Dev-Seed real ausführen und Report prüfen**
+- [x] **Step 4: Dev-Seed real ausführen und Report prüfen**
 
 Run: `ddev exec php bin/dev_seed.php`
 Expected: Lauf ohne Fehler; im Report ist die Zahl der App-Einstellungen um eins höher als vorher.
@@ -1733,7 +1733,7 @@ Prüfen:
 Run: `ddev exec php -r "require 'vendor/autoload.php';" && ddev mysql -e "SELECT setting_key, setting_value FROM app_settings WHERE setting_key='name_display_format';"`
 Expected: eine Zeile mit `first_last`.
 
-- [ ] **Step 5: Abschluss-Grep gegen übersehene Fundstellen**
+- [x] **Step 5: Abschluss-Grep gegen übersehene Fundstellen**
 
 Run: `ddev exec grep -rn "first_name" templates src --include=*.twig --include=*.php`
 Erwartet werden nur noch:
@@ -1745,7 +1745,7 @@ Erwartet werden nur noch:
 
 Jede andere Fundstelle nachziehen und den passenden Test aus Task 9 oder 10 erweitern.
 
-- [ ] **Step 6: Qualitätstore**
+- [x] **Step 6: Qualitätstore**
 
 Run: `ddev composer phpcs`
 Expected: 0 Errors. Bei Verstößen `ddev composer phpcbf` und erneut prüfen.
@@ -1756,11 +1756,11 @@ Expected: keine blockierenden Verstöße. Bei Verstößen `ddev composer twigcbf
 Run: `ddev exec ./vendor/bin/phpunit`
 Expected: gesamte Suite grün.
 
-- [ ] **Step 7: Manuelle Gegenprobe beider Formate**
+- [x] **Step 7: Manuelle Gegenprobe beider Formate**
 
 In den Stammdaten auf `Nachname, Vorname` umstellen, speichern und `/users`, `/attendance`, `/evaluations` sowie eine Projektmitgliederliste aufrufen. Erwartet: Anzeige und Sortierreihenfolge drehen gemeinsam. Danach zurück auf `Vorname Nachname` stellen.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/Services/DevSeedService.php tests/Feature/NameFormatterWiringFeatureTest.php

@@ -37,4 +37,12 @@ final class NameFormatterWiringFeatureTest extends TestCase
 
         $this->assertSame('Müller, Anna', $rendered);
     }
+
+    public function testSeedProvidesNameDisplayFormat(): void
+    {
+        $seed = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
+
+        $this->assertIsString($seed);
+        $this->assertStringContainsString('name_display_format', $seed);
+    }
 }

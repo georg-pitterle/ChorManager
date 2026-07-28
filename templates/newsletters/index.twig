@@ -172,7 +172,7 @@
                                                     <strong>{{ newsletter.title }}</strong>
                                                 </td>
                                                 <td data-label="Erstellt von">
-                                                    {{ newsletter.createdBy.first_name|default('') }} {{ newsletter.createdBy.last_name|default('') }}
+                                                    {{ newsletter.createdBy|person_name }}
                                                 </td>
                                                 <td data-label="Empfänger">
                                                     <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
