@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Policies\UserEditPolicy;
 use App\Controllers\AttendanceController;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
@@ -101,7 +102,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
 
         $request = $this->makeRequest('POST', '/attendance/' . $event->id, [
             'attendance' => ['1' => 'present'],
@@ -139,7 +140,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
 
         $request = $this->makeRequest('GET', '/attendance/' . $requiredEvent->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -211,7 +212,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
 
         $request = $this->makeRequest('GET', '/attendance/' . $fixture['event']->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -238,7 +239,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['outScope']->id => 'present'],
@@ -262,7 +263,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService());
+        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new UserEditPolicy());
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['inScope']->id => 'present'],
@@ -347,7 +348,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = $member->id;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(), new UserEditPolicy());
 
         $request = $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $project->id]);
         $response = $controller->index($request, $this->makeResponse());
@@ -379,7 +380,7 @@ class AttendanceRequiredFeatureTest extends TestCase
      */
     private function extractMemberPresentAndPercentage(string $body, User $member): array
     {
-        $sortName = strtolower($member->last_name . ', ' . $member->first_name);
+        $sortName = strtolower((new \App\Services\NameFormatterService())->formatPerson($member));
         $pattern = '/data-sort-name="' . preg_quote($sortName, '/') . '"[^>]*'
             . 'data-sort-present="(\d+)"[^>]*data-sort-percentage="([\d.]+)"/s';
 
@@ -393,6 +394,10 @@ class AttendanceRequiredFeatureTest extends TestCase
     {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
         $environment = $twig->getEnvironment();
+        $environment->addFilter(new \Twig\TwigFilter(
+            'person_name',
+            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
+        ));
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('current_path', '/attendance');
         $environment->addGlobal('app_settings', []);

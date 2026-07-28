@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Policies\UserEditPolicy;
 use App\Controllers\AttendanceController;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -218,7 +219,8 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig($registrationFeatureEnabled),
-            new AttendanceScopeService()
+            new AttendanceScopeService(),
+            new UserEditPolicy()
         );
 
         $request = $this->makeRequest('GET', '/attendance/' . $event->id);
@@ -233,6 +235,10 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
     {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
         $environment = $twig->getEnvironment();
+        $environment->addFilter(new \Twig\TwigFilter(
+            'person_name',
+            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
+        ));
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('current_path', '/attendance');
         $environment->addGlobal('app_settings', []);

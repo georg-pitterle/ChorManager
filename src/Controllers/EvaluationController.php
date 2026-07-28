@@ -14,6 +14,7 @@ use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Util\TableQueryParams;
 use Carbon\Carbon;
@@ -22,11 +23,16 @@ class EvaluationController
 {
     private Twig $view;
     private ProjectQuery $projectQuery;
+    private UserEditPolicy $userEditPolicy;
 
-    public function __construct(Twig $view, ProjectQuery $projectQuery)
-    {
+    public function __construct(
+        Twig $view,
+        ProjectQuery $projectQuery,
+        UserEditPolicy $userEditPolicy
+    ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
+        $this->userEditPolicy = $userEditPolicy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -102,6 +108,7 @@ class EvaluationController
                         $percentage = $totalEvents > 0 ? round(($present / $totalEvents) * 100, 1) : 0;
 
                         $stats[] = [
+                            'user_id' => (int) $user->id,
                             'first_name' => $user->first_name,
                             'last_name' => $user->last_name,
                             'voice_group_name' => $vgName,
@@ -122,6 +129,7 @@ class EvaluationController
             'stats' => $stats,
             'total_events' => $totalEvents,
             'table_params' => $tableParams,
+            'can_edit_member' => $this->userEditPolicy->editableUserIdMap($_SESSION),
         ]);
     }
 
@@ -174,7 +182,8 @@ class EvaluationController
         return $this->view->render($response, 'evaluations/project_members.twig', [
             'projects' => $projects,
             'selected_project' => $selectedProject,
-            'grouped_members' => $groupedMembers
+            'grouped_members' => $groupedMembers,
+            'can_edit_member' => $this->userEditPolicy->editableUserIdMap($_SESSION),
         ]);
     }
 

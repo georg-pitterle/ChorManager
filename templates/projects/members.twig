@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/person.twig" as person %}
+
 {% block title %}
     Projektmitglieder: {{ project.name }} - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -104,11 +106,11 @@
                         <tbody>
                             {% set seen_ids = [] %}
                             {% for m in members %}
-                                <tr data-sort-member_name="{{ (m.last_name ~ ', ' ~ m.first_name)|lower }}"
+                                <tr data-sort-member_name="{{ m|person_name|lower }}"
                                     data-sort-email="{{ m.email|lower }}"
                                     data-sort-voice="{{ m.voice_groups_display|default('')|lower }}">
                                     <td data-label="Name">
-                                        <strong>{{ m.last_name }}, {{ m.first_name }}</strong>
+                                        <strong>{{ person.member_link(m, m.id, can_edit_member) }}</strong>
                                     </td>
                                     <td data-label="E-Mail">{{ m.email }}</td>
                                     <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>

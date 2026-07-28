@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Policies\UserEditPolicy;
 use App\Controllers\ProjectController;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
@@ -130,7 +131,7 @@ class ProjectMemberArchivedFeatureTest extends TestCase
             ->with(10)
             ->willReturn(true);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
         $request = $this->makeRequest('POST', '/projects/10/members', ['user_id' => 2]);
         $response = $this->makeResponse();
 

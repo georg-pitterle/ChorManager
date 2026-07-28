@@ -70,6 +70,10 @@ class NavigationLayoutSeamFeatureTest extends TestCase
     {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
         $environment = $twig->getEnvironment();
+        $environment->addFilter(new \Twig\TwigFilter(
+            'person_name',
+            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
+        ));
         $environment->addGlobal('settings', $settings);
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('app_settings', []);

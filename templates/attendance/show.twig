@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/person.twig" as person %}
+
 {% block title %}
     Anwesenheitsliste - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -87,7 +89,7 @@
                                 {% for member in members %}
                                     <li class="list-group-item">
                                         <div class="fw-bold mb-1">
-                                            {{ member.last_name }}, {{ member.first_name }}
+                                            {{ person.member_link(member, member.user_id, can_edit_member) }}
                                             {% if member.sub_voice_name %}<small class="text-muted fw-normal">({{ member.sub_voice_name }})</small>{% endif %}
                                             {% if show_registration %}
                                                 {% if member.registration_status == "yes" %}

@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Project;
 use App\Policies\ProjectMemberPolicy;
+use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Persistence\ProjectPersistence;
 
@@ -18,17 +19,20 @@ class ProjectController
     private ProjectQuery $projectQuery;
     private ProjectPersistence $projectPersistence;
     private ProjectMemberPolicy $policy;
+    private UserEditPolicy $userEditPolicy;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
         ProjectPersistence $projectPersistence,
-        ProjectMemberPolicy $policy
+        ProjectMemberPolicy $policy,
+        UserEditPolicy $userEditPolicy
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->projectPersistence = $projectPersistence;
         $this->policy = $policy;
+        $this->userEditPolicy = $userEditPolicy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -154,6 +158,7 @@ class ProjectController
             'project' => $project,
             'members' => $mappedMembers,
             'available_users' => $availableUsers,
+            'can_edit_member' => $this->userEditPolicy->editableUserIdMap($_SESSION),
             'success' => $success,
             'error' => $error
         ]);

@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/person.twig" as person %}
+
 {% block title %}
     Projektmitglieder - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -82,7 +84,7 @@
                                 <ul class="list-group list-group-flush">
                                     {% for m in members %}
                                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <span><strong>{{ m.last_name }}, {{ m.first_name }}</strong></span>
+                                            <span><strong>{{ person.member_link(m, m.id, can_edit_member) }}</strong></span>
                                         </li>
                                     {% endfor %}
                                 </ul>

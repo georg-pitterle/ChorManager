@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Policies\UserEditPolicy;
 use App\Controllers\ProjectController;
 use App\Policies\ProjectMemberPolicy;
 use Illuminate\Database\Eloquent\Collection;
@@ -79,7 +80,7 @@ class ProjectFeatureTest extends TestCase
             ->method('getAccessibleProjectIds')
             ->willReturn([2]);
 
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
         $request = $this->makeRequest('GET', '/projects/members');
         $response = $this->makeResponse();
 
@@ -94,7 +95,7 @@ class ProjectFeatureTest extends TestCase
         $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
         $projectPersistence = $this->createStub(\App\Persistence\ProjectPersistence::class);
         $policy = $this->createStub(ProjectMemberPolicy::class);
-        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, new UserEditPolicy());
 
         $request = $this->makeRequest('POST', '/projects/1/update', ['name' => '   ']);
         $response = $this->makeResponse();

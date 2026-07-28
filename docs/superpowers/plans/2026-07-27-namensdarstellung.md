@@ -1074,7 +1074,7 @@ git commit -m "feat: Mitgliedsname verlinkt auf Bearbeiten-Modal inkl. Deep-Link
 - Consumes: `UserEditPolicy::editableUserIdMap()` (Task 4), Makro `member_link` (Task 5)
 - Produces: Template-Variable `can_edit_member` (`array<int, true>`) in den vier Templates
 
-- [ ] **Step 1: Failing Test schreiben**
+- [x] **Step 1: Failing Test schreiben**
 
 Datei `tests/Feature/MemberLinkCoverageFeatureTest.php`:
 
@@ -1140,12 +1140,12 @@ final class MemberLinkCoverageFeatureTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit --filter MemberLinkCoverageFeatureTest`
 Expected: FAIL, `macros/person.twig` fehlt in `templates/attendance/show.twig`.
 
-- [ ] **Step 3: Controller mit `can_edit_member` versorgen**
+- [x] **Step 3: Controller mit `can_edit_member` versorgen**
 
 In allen drei Controllern `use App\Policies\UserEditPolicy;` ergänzen, die Policy als letzten Konstruktorparameter injizieren (Property `private UserEditPolicy $userEditPolicy;`, Zuweisung im Rumpf) und im jeweiligen Render-Array ergänzen:
 
@@ -1159,7 +1159,7 @@ Betroffene Render-Aufrufe:
 - `EvaluationController` → `evaluations/project_members.twig`
 - `ProjectController::showMembers()` → `projects/members.twig`
 
-- [ ] **Step 4: Templates auf das Makro umstellen**
+- [x] **Step 4: Templates auf das Makro umstellen**
 
 Jeweils unterhalb der bestehenden `{% extends %}`- bzw. `{% import %}`-Zeilen ergänzen:
 
@@ -1207,7 +1207,7 @@ Jeweils unterhalb der bestehenden `{% extends %}`- bzw. `{% import %}`-Zeilen er
                                         <strong>{{ person.member_link(m, m.id, can_edit_member) }}</strong>
 ```
 
-- [ ] **Step 5: LF normalisieren und Tests laufen lassen**
+- [x] **Step 5: LF normalisieren und Tests laufen lassen**
 
 ```powershell
 Get-ChildItem "d:\Proggen\ChorManager\templates\attendance\show.twig","d:\Proggen\ChorManager\templates\evaluations\index.twig","d:\Proggen\ChorManager\templates\evaluations\project_members.twig","d:\Proggen\ChorManager\templates\projects\members.twig","d:\Proggen\ChorManager\src\Controllers\AttendanceController.php","d:\Proggen\ChorManager\src\Controllers\EvaluationController.php","d:\Proggen\ChorManager\src\Controllers\ProjectController.php","d:\Proggen\ChorManager\tests\Feature\MemberLinkCoverageFeatureTest.php" | ForEach-Object { [System.IO.File]::WriteAllText($_.FullName, ((Get-Content $_.FullName -Raw) -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false)) }
@@ -1216,7 +1216,7 @@ Get-ChildItem "d:\Proggen\ChorManager\templates\attendance\show.twig","d:\Progge
 Run: `ddev exec ./vendor/bin/phpunit`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/Controllers/AttendanceController.php src/Controllers/EvaluationController.php src/Controllers/ProjectController.php templates/attendance/show.twig templates/evaluations/index.twig templates/evaluations/project_members.twig templates/projects/members.twig tests/Feature/MemberLinkCoverageFeatureTest.php

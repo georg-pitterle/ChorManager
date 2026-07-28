@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Policies\UserEditPolicy;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
 use App\Models\Event;
@@ -159,7 +160,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         $sopranIndex = array_search($fixture['sopran']->name, $voiceGroupNames, true);
         $altIndex = array_search($fixture['alt']->name, $voiceGroupNames, true);
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(), new UserEditPolicy());
         $request = $this->makeRequest('GET', '/evaluations/registrations');
         $response = $controller->registrations($request, $this->makeResponse());
         $body = (string) $response->getBody();
@@ -196,7 +197,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         $voiceGroupNames = VoiceGroup::orderBy('name')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(), new UserEditPolicy());
         $request = $this->makeRequest('GET', '/evaluations/registrations');
         $response = $controller->registrations($request, $this->makeResponse());
         $body = (string) $response->getBody();
@@ -226,7 +227,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'attendance_required' => false,
         ]);
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(), new UserEditPolicy());
 
         $defaultResponse = $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations'),
@@ -280,7 +281,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'attendance_required' => true,
         ]);
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(), new UserEditPolicy());
         $response = $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations', [], ['include_past' => '1']),
             $this->makeResponse()
@@ -453,6 +454,10 @@ class RegistrationEvaluationFeatureTest extends TestCase
     {
         $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
         $environment = $twig->getEnvironment();
+        $environment->addFilter(new \Twig\TwigFilter(
+            'person_name',
+            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
+        ));
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('current_path', '/evaluations/registrations');
         $environment->addGlobal('app_settings', []);

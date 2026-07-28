@@ -10,6 +10,7 @@ use Slim\Views\Twig;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\Attendance;
+use App\Policies\UserEditPolicy;
 use App\Services\AttendanceScopeService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -19,11 +20,16 @@ class AttendanceController
 
     private Twig $view;
     private AttendanceScopeService $scopeService;
+    private UserEditPolicy $userEditPolicy;
 
-    public function __construct(Twig $view, AttendanceScopeService $scopeService)
-    {
+    public function __construct(
+        Twig $view,
+        AttendanceScopeService $scopeService,
+        UserEditPolicy $userEditPolicy
+    ) {
         $this->view = $view;
         $this->scopeService = $scopeService;
+        $this->userEditPolicy = $userEditPolicy;
     }
 
     public function show(Request $request, Response $response, array $args): Response
@@ -140,6 +146,7 @@ class AttendanceController
             'previous_event_id' => $previousEventId,
             'next_event_id' => $nextEventId,
             'voice_groups' => $voiceGroups,
+            'can_edit_member' => $this->userEditPolicy->editableUserIdMap($_SESSION),
             'success' => $success,
             'error' => $error
         ]);
