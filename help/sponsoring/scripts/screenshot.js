@@ -2,10 +2,10 @@
 
 /**
  * Erstellt Screenshots aller relevanten Ansichten des Sponsoring-Moduls
- * für die How-To-Dokumentation (docs/sponsoring.md).
+ * für die How-To-Dokumentation (help/sponsoring/docs/).
  *
  * Nutzung:
- *   node docs/scripts/screenshot-sponsoring.js
+ *   node help/sponsoring/scripts/screenshot.js
  *
  * Optional per Umgebungsvariable überschreibbar:
  *   BASE_URL   Basis-URL der Dev-Umgebung (Default: https://chormanager.ddev.site)
@@ -19,7 +19,7 @@ const { chromium } = require('playwright');
 const BASE_URL = process.env.BASE_URL || 'https://chormanager.ddev.site';
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL || 'seed.001@chor.local';
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'seed';
-const IMAGES_DIR = path.join(__dirname, '..', 'images', 'sponsoring');
+const IMAGES_DIR = path.join(__dirname, '..', 'screenshots');
 
 const VIEWPORT = { width: 1440, height: 900 };
 

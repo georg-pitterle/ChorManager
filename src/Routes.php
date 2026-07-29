@@ -161,7 +161,7 @@ return function (App $app) {
             );
             $group->get('/downloads/attachments/{attachment_id:[0-9]+}/stream', [DownloadController::class, 'streamAttachment']);
 
-            // Help pages (Markdown guides under docs/) - accessible for all logged-in users,
+            // Help pages (Markdown guides under help/) - accessible for all logged-in users,
             // independent of tenant modules/roles.
             $group->get('/hilfe', [HelpController::class, 'index']);
             $group->get(

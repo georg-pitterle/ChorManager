@@ -21,20 +21,18 @@ class HelpController
     ];
 
     private Twig $view;
-    private string $docsDir;
-    private string $imagesDir;
+    private string $helpDir;
 
-    public function __construct(Twig $view, ?string $docsDir = null, ?string $imagesDir = null)
+    public function __construct(Twig $view, ?string $helpDir = null)
     {
         $this->view = $view;
-        $this->docsDir = $docsDir ?? dirname(__DIR__, 2) . '/docs';
-        $this->imagesDir = $imagesDir ?? $this->docsDir . '/images';
+        $this->helpDir = $helpDir ?? dirname(__DIR__, 2) . '/help';
     }
 
     public function index(Request $request, Response $response): Response
     {
         $guides = [];
-        foreach (glob($this->docsDir . '/*.md') ?: [] as $path) {
+        foreach (glob($this->helpDir . '/*/docs/*.md') ?: [] as $path) {
             $slug = basename($path, '.md');
             $guides[$slug] = [
                 'slug'  => $slug,
@@ -129,20 +127,24 @@ class HelpController
         $extension = strtolower((string) pathinfo($file, PATHINFO_EXTENSION));
         $mimeType = self::IMAGE_MIME_TYPES[$extension] ?? null;
 
-        // Category subfolders (e.g. images/sponsoring/x.png) are allowed; ".." segments
-        // and absolute paths are not. The realpath containment check below is the actual
-        // security boundary - this is just an early, cheap rejection.
         if ($mimeType === null || str_contains($file, '..') || str_starts_with($file, '/')) {
             return $response->withStatus(404);
         }
 
-        $realImagesDir = realpath($this->imagesDir);
-        $realPath = realpath($this->imagesDir . '/' . $file);
+        // file is "topic/filename.png"; map to help/topic/screenshots/filename.png
+        $parts = explode('/', $file, 2);
+        if (count($parts) !== 2) {
+            return $response->withStatus(404);
+        }
+        [$topic, $filename] = $parts;
+
+        $realHelpDir = realpath($this->helpDir);
+        $realPath = realpath($this->helpDir . '/' . $topic . '/screenshots/' . $filename);
 
         if (
-            $realImagesDir === false
+            $realHelpDir === false
             || $realPath === false
-            || !str_starts_with($realPath, $realImagesDir . DIRECTORY_SEPARATOR)
+            || !str_starts_with($realPath, $realHelpDir . DIRECTORY_SEPARATOR)
         ) {
             return $response->withStatus(404);
         }
@@ -160,18 +162,19 @@ class HelpController
             return null;
         }
 
-        $realDocsDir = realpath($this->docsDir);
-        $realPath = realpath($this->docsDir . '/' . $slug . '.md');
-
-        if (
-            $realDocsDir === false
-            || $realPath === false
-            || !str_starts_with($realPath, $realDocsDir . DIRECTORY_SEPARATOR)
-        ) {
+        $realHelpDir = realpath($this->helpDir);
+        if ($realHelpDir === false) {
             return null;
         }
 
-        return $realPath;
+        foreach (glob($this->helpDir . '/*/docs/' . $slug . '.md') ?: [] as $candidate) {
+            $realPath = realpath($candidate);
+            if ($realPath !== false && str_starts_with($realPath, $realHelpDir . DIRECTORY_SEPARATOR)) {
+                return $realPath;
+            }
+        }
+
+        return null;
     }
 
     private function extractTitle(string $path, string $fallbackSlug): string
