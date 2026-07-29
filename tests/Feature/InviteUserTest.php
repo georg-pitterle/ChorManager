@@ -89,6 +89,18 @@ class InviteUserTest extends TestCase
         $content = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
         $this->assertIsString($content);
         $this->assertStringNotContainsString('Initiales Passwort', $content);
+        $this->assertStringNotContainsString('Neues Passwort setzen', $content);
+        $this->assertStringNotContainsString('name="password"', $content);
+        $this->assertStringNotContainsString('type="password"', $content);
+    }
+
+    public function testUpdateNoLongerHandlesPasswords(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/UserController.php');
+        $this->assertIsString($controller);
+        $this->assertStringNotContainsString("\$data['password']", $controller);
+        $this->assertStringNotContainsString('passwordPolicyService', $controller);
+        $this->assertStringNotContainsString('PasswordPolicyService', $controller);
     }
 
     public function testUsersJsTogglesSubVoiceVisibilityClass(): void

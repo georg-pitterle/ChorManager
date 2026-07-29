@@ -16,7 +16,6 @@ use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\AttendanceScopeService;
 use App\Services\MailQueueService;
-use App\Services\PasswordPolicyService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
@@ -184,7 +183,6 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectQuery::class),
             $userPersistence,
             $this->createStub(ProjectPersistence::class),
-            $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
             new UserEditPolicy()
@@ -319,7 +317,6 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectQuery::class),
             $userPersistence,
             $projectPersistence,
-            $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
             new UserEditPolicy()
@@ -562,7 +559,6 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectQuery::class),
             $this->createStub(UserPersistence::class),
             $this->createStub(ProjectPersistence::class),
-            $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
             new UserEditPolicy()

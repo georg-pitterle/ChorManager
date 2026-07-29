@@ -13,7 +13,6 @@ use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
-use App\Services\PasswordPolicyService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
@@ -99,7 +98,6 @@ class UserHierarchyProtectionFeatureTest extends TestCase
             $this->createStub(ProjectQuery::class),
             $userPersistence,
             $projectPersistence,
-            $this->createStub(PasswordPolicyService::class),
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
             new UserEditPolicy()
@@ -230,6 +228,50 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
+    }
+
+    public function testUpdateIgnoresSubmittedPassword(): void
+    {
+        $_SESSION['user_id'] = 10;
+        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_edit_users'] = true;
+        $_SESSION['can_manage_project_members'] = false;
+        $_SESSION['role_level'] = 80;
+        $_SESSION['voice_group_ids'] = [];
+
+        $target = $this->makeTarget([80]);
+        $existingHash = password_hash('original-secret', PASSWORD_DEFAULT);
+        $target->password = $existingHash;
+
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findById')->willReturn($target);
+
+        $userPersistence = $this->createMock(UserPersistence::class);
+        $userPersistence->expects($this->once())->method('save')->with($target);
+
+        $controller = $this->makeController(
+            $userQuery,
+            $userPersistence,
+            $this->createMock(ProjectPersistence::class)
+        );
+
+        // Passwords are only ever set by the member via the invitation or reset link.
+        $request = $this->makeRequest('POST', '/users/5', [
+            'first_name' => 'Target',
+            'last_name' => 'User',
+            'email' => 'target@example.test',
+            'password' => 'Injected-Secret-123!',
+            'roles' => [3],
+            'voice_groups' => [],
+            'sub_voices' => [],
+            'projects' => [],
+        ]);
+
+        $result = $controller->update($request, $this->makeResponse(), ['id' => '5']);
+
+        $this->assertRedirect($result, '/users');
+        $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
+        $this->assertSame($existingHash, $target->password);
     }
 
     public function testDeactivateDeniesMemberThatOutranksActor(): void

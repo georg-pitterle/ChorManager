@@ -17,7 +17,6 @@ use App\Models\Role;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Models\Project;
-use App\Services\PasswordPolicyService;
 use App\Services\ModalFormService;
 use App\Models\AppSetting;
 use App\Models\InvitationToken;
@@ -33,7 +32,6 @@ class UserController
     private ProjectQuery $projectQuery;
     private UserPersistence $userPersistence;
     private ProjectPersistence $projectPersistence;
-    private PasswordPolicyService $passwordPolicyService;
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
     private UserEditPolicy $userEditPolicy;
@@ -44,7 +42,6 @@ class UserController
         ProjectQuery $projectQuery,
         UserPersistence $userPersistence,
         ProjectPersistence $projectPersistence,
-        PasswordPolicyService $passwordPolicyService,
         MailQueueService $mailQueueService,
         LoggerInterface $logger,
         UserEditPolicy $userEditPolicy
@@ -54,7 +51,6 @@ class UserController
         $this->projectQuery = $projectQuery;
         $this->userPersistence = $userPersistence;
         $this->projectPersistence = $projectPersistence;
-        $this->passwordPolicyService = $passwordPolicyService;
         $this->mailQueueService = $mailQueueService;
         $this->logger = $logger;
         $this->userEditPolicy = $userEditPolicy;
@@ -309,7 +305,6 @@ class UserController
         $firstName = trim($data['first_name'] ?? '');
         $lastName = trim($data['last_name'] ?? '');
         $email = trim($data['email'] ?? '');
-        $password = $data['password'] ?? '';
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
@@ -363,19 +358,9 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        if ($password !== '') {
-            $passwordError = $this->passwordPolicyService->validate($password);
-            if ($passwordError !== null) {
-                $editService = new ModalFormService('user_edit_' . $userId);
-                $editService->setError($passwordError, $formData);
-                return $response->withHeader('Location', '/users')->withStatus(302);
-            }
-        }
-
         try {
-            if ($password) {
-                $targetUser->password = password_hash($password, PASSWORD_DEFAULT);
-            }
+            // Passwords are never set here - members choose their own via the invitation
+            // or password reset link, so no administrator ever learns another member's password.
             $targetUser->first_name = $firstName;
             $targetUser->last_name = $lastName;
             $targetUser->email = $email;

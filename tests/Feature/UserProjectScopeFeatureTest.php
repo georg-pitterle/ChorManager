@@ -12,7 +12,6 @@ use App\Policies\UserEditPolicy;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
-use App\Services\PasswordPolicyService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
@@ -121,7 +120,6 @@ class UserProjectScopeFeatureTest extends TestCase
             ->method('setUserProjects')
             ->with(5, [2, 4]);
 
-        $passwordPolicyService = $this->createStub(PasswordPolicyService::class);
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);
 
@@ -131,7 +129,6 @@ class UserProjectScopeFeatureTest extends TestCase
             $projectQuery,
             $userPersistence,
             $projectPersistence,
-            $passwordPolicyService,
             $mailQueueService,
             $logger,
             new UserEditPolicy()
@@ -198,7 +195,6 @@ class UserProjectScopeFeatureTest extends TestCase
             ->method('setUserProjects')
             ->with(5, [2, 3, 4]);
 
-        $passwordPolicyService = $this->createStub(PasswordPolicyService::class);
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);
 
@@ -208,7 +204,6 @@ class UserProjectScopeFeatureTest extends TestCase
             $projectQuery,
             $userPersistence,
             $projectPersistence,
-            $passwordPolicyService,
             $mailQueueService,
             $logger,
             new UserEditPolicy()
