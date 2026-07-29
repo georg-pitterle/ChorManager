@@ -30,6 +30,18 @@ mkdir -p "${BACKUP_DIR}"
 chown -R www-data:www-data "${BACKUP_DIR}"
 chmod 750 "${BACKUP_DIR}"
 
+# PHP keeps session files in the container's writable layer by default, so every
+# image update or recreate logs every user out. SESSION_SAVE_PATH moves them into
+# a named volume; like the backup volume it arrives as root:root, so it has to be
+# handed to the PHP-FPM worker user. An empty value keeps the PHP default, which
+# is what local/dev containers use.
+SESSION_SAVE_PATH="${SESSION_SAVE_PATH:-}"
+if [ -n "${SESSION_SAVE_PATH}" ]; then
+  mkdir -p "${SESSION_SAVE_PATH}"
+  chown -R www-data:www-data "${SESSION_SAVE_PATH}"
+  chmod 700 "${SESSION_SAVE_PATH}"
+fi
+
 MAIL_QUEUE_WORKER_INTERVAL="${MAIL_QUEUE_WORKER_INTERVAL:-20}"
 
 /usr/local/bin/mail-queue-worker.sh &

@@ -35,6 +35,10 @@ x-app-environment: &app-environment
   BACKUP_DIR: ${BACKUP_DIR:-/var/backups/chormanager}
   BACKUP_MAX_MANUAL: ${BACKUP_MAX_MANUAL:-5}
   BACKUP_MAX_AUTO: ${BACKUP_MAX_AUTO:-7}
+  # Must point into the session_data volume mounted on the app service. PHP's
+  # default location lives in the container's writable layer, so every recreate
+  # discarded all sessions and logged every user out.
+  SESSION_SAVE_PATH: ${SESSION_SAVE_PATH:-/var/lib/php-sessions}
 
 
 services:
@@ -47,6 +51,8 @@ services:
       # Keeps in-app backups across image updates and stack recreations. The
       # entrypoint hands the mount to www-data on every start.
       - backup_data:${BACKUP_DIR:-/var/backups/chormanager}
+      # Keeps login sessions alive across image updates and stack recreations.
+      - session_data:${SESSION_SAVE_PATH:-/var/lib/php-sessions}
     depends_on:
       db:
         condition: service_healthy 
@@ -178,6 +184,7 @@ volumes:
   db_data:
   snappymail_data:
   backup_data:
+  session_data:
 
 
 networks:

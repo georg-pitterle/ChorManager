@@ -1,5 +1,8 @@
-{% if mail_badge_unseen_count is not null and mail_badge_unseen_count > 0 %}
-    {% set _badge_label = mail_badge_unseen_count > 99 ? "99+" : mail_badge_unseen_count %}
+{% set _mail_badge = mail_badge() %}
+{% set _unseen_count = _mail_badge.unseen_count %}
+{% set _external_webmail_url = _mail_badge.external_webmail_url %}
+{% if _unseen_count is not null and _unseen_count > 0 %}
+    {% set _badge_label = _unseen_count > 99 ? "99+" : _unseen_count %}
     {% if settings.modules.webmail %}
         <form action="/profile/webmail/start" method="post" class="m-0 me-3" target="_blank">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -8,8 +11,8 @@
                 <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
             </button>
         </form>
-    {% elseif mail_external_webmail_url %}
-        <a href="{{ mail_external_webmail_url }}"
+    {% elseif _external_webmail_url %}
+        <a href="{{ _external_webmail_url }}"
            class="btn btn-link text-white p-0 mail-badge-trigger me-3"
            target="_blank"
            rel="noopener noreferrer"

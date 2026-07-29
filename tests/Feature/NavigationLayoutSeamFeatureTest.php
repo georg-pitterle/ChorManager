@@ -33,6 +33,7 @@ use Twig\TwigFunction;
 class NavigationLayoutSeamFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     protected function setUp(): void
     {
@@ -76,6 +77,7 @@ class NavigationLayoutSeamFeatureTest extends TestCase
         ));
         $environment->addGlobal('settings', $settings);
         $environment->addGlobal('session', $_SESSION);
+        $this->registerMailBadgeStub($environment);
         $environment->addGlobal('app_settings', []);
         $environment->addGlobal('csrf_token', 'test-token');
         $environment->addFunction(new TwigFunction(

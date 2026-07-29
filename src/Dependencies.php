@@ -39,8 +39,10 @@ use App\Services\BackupService;
 use App\Services\DumpRunnerInterface;
 use App\Services\MysqldumpRunner;
 use App\Services\MailBadgeService;
+use App\Services\MailBadgeViewService;
 use App\Services\MailCredentialCryptoService;
 use App\Middleware\MailBadgeRefreshMiddleware;
+use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Util\EnvHelper;
@@ -50,6 +52,7 @@ use App\Policies\UserEditPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Twig\TwigFunction;
 use App\Util\Csrf;
+use App\Util\SessionView;
 use App\Services\NameFormatterService;
 use Twig\TwigFilter;
 
@@ -158,12 +161,23 @@ return function (ContainerBuilder $containerBuilder) {
                 3
             );
         },
+        MailBadgeViewService::class => \DI\autowire(),
         MailBadgeRefreshMiddleware::class => function (ContainerInterface $c) {
             // Resolve MailBadgeService lazily so a missing/invalid
             // MAIL_CREDENTIAL_KEY degrades the badge only, instead of throwing
             // during middleware construction and 500-ing every request.
             return new MailBadgeRefreshMiddleware(
                 static fn (): MailBadgeService => $c->get(MailBadgeService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
+        RegistrationReminderMiddleware::class => function (ContainerInterface $c) {
+            // Resolve the reminder service lazily: it depends on Twig, and this
+            // global middleware runs before the route-level AuthMiddleware. Building
+            // Twig that early froze its session state before a remember-me login was
+            // restored, which dropped the navbar for that request.
+            return new RegistrationReminderMiddleware(
+                static fn (): RegistrationReminderService => $c->get(RegistrationReminderService::class),
                 $c->get(LoggerInterface::class)
             );
         },
@@ -204,7 +218,11 @@ return function (ContainerBuilder $containerBuilder) {
                 session_start();
             }
             $environment->addGlobal('settings', $allSettings);
-            $environment->addGlobal('session', $_SESSION);
+            // Live view instead of a by-value copy of $_SESSION: this factory can
+            // run before the request is authenticated (global middleware resolves
+            // Twig before the route-level AuthMiddleware restores a remember-me
+            // login), and a frozen snapshot then hid the whole navbar.
+            $environment->addGlobal('session', new SessionView());
             $environment->addGlobal('csrf_token', Csrf::ensureToken());
 
             $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -222,28 +240,14 @@ return function (ContainerBuilder $containerBuilder) {
             }
             $environment->addGlobal('app_settings', $appSettings);
 
-            // Add the current user's cached unread-mail badge count to Twig
-            try {
-                $mailBadgeUnseenCount = null;
-                $mailExternalWebmailUrl = null;
-                if (isset($_SESSION['user_id'])) {
-                    $mailAccount = \App\Models\UserMailAccount::where('user_id', (int) $_SESSION['user_id'])
-                        ->first();
-                    if (
-                        $mailAccount !== null
-                        && $mailAccount->imap_enabled
-                        && $mailAccount->mail_badge_enabled
-                    ) {
-                        $mailBadgeUnseenCount = (int) $mailAccount->mail_last_unseen_count;
-                        $mailExternalWebmailUrl = $mailAccount->external_webmail_url ?: null;
-                    }
-                }
-            } catch (\Exception $e) {
-                $mailBadgeUnseenCount = null;
-                $mailExternalWebmailUrl = null;
-            }
-            $environment->addGlobal('mail_badge_unseen_count', $mailBadgeUnseenCount);
-            $environment->addGlobal('mail_external_webmail_url', $mailExternalWebmailUrl);
+            // The current user's cached unread-mail badge, resolved at render time:
+            // this factory can run before the request is authenticated, so a value
+            // computed here would describe an anonymous request.
+            $mailBadgeView = $c->get(MailBadgeViewService::class);
+            $environment->addFunction(new TwigFunction(
+                'mail_badge',
+                static fn (): array => $mailBadgeView->forCurrentUser()
+            ));
 
             $publicRoot = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public';
 

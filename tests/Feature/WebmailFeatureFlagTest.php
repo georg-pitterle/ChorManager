@@ -121,11 +121,18 @@ final class WebmailFeatureFlagTest extends TestCase
         $this->assertStringContainsString('rel="noopener noreferrer"', $template);
     }
 
-    public function testDependenciesExposeExternalWebmailUrlGlobal(): void
+    /**
+     * The badge (including the external webmail URL) is exposed as a Twig function,
+     * not as a global: globals are evaluated while Twig is built, which can happen
+     * before the request is authenticated.
+     */
+    public function testDependenciesExposeTheMailBadgeAsALazyFunction(): void
     {
         $content = file_get_contents(dirname(__DIR__) . '/../src/Dependencies.php');
         $this->assertIsString($content);
-        $this->assertStringContainsString("addGlobal('mail_external_webmail_url'", $content);
+        $this->assertStringContainsString("'mail_badge',", $content);
+        $this->assertStringNotContainsString("addGlobal('mail_external_webmail_url'", $content);
+        $this->assertStringNotContainsString("addGlobal('mail_badge_unseen_count'", $content);
     }
 
     public function testUserMenuBadgeCoversAllThreeWebmailCases(): void
@@ -141,8 +148,9 @@ final class WebmailFeatureFlagTest extends TestCase
         );
 
         // Fall 2: Flag aus + externe URL -> Link.
-        $this->assertStringContainsString('{% elseif mail_external_webmail_url %}', $template);
-        $this->assertStringContainsString('href="{{ mail_external_webmail_url }}"', $template);
+        $this->assertStringContainsString('{% set _mail_badge = mail_badge() %}', $template);
+        $this->assertStringContainsString('{% elseif _external_webmail_url %}', $template);
+        $this->assertStringContainsString('href="{{ _external_webmail_url }}"', $template);
         $this->assertStringContainsString('rel="noopener noreferrer"', $template);
 
         // Fall 3: Flag aus, keine URL -> reiner Indikator ohne Form/Link.

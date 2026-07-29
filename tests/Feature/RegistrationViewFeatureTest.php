@@ -33,6 +33,7 @@ use Twig\TwigFunction;
 class RegistrationViewFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private static ?Capsule $capsule = null;
 
@@ -406,6 +407,7 @@ class RegistrationViewFeatureTest extends TestCase
             static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
         ));
         $environment->addGlobal('session', $_SESSION);
+        $this->registerMailBadgeStub($environment);
         $environment->addGlobal('current_path', '/registrations');
         $environment->addGlobal('app_settings', []);
         $environment->addFunction(new TwigFunction(

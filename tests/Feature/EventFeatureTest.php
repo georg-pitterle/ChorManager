@@ -24,6 +24,7 @@ use Twig\TwigFunction;
 class EventFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private static ?Capsule $capsule = null;
 
@@ -979,6 +980,7 @@ class EventFeatureTest extends TestCase
             static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
         ));
         $environment->addGlobal('session', $_SESSION);
+        $this->registerMailBadgeStub($environment);
         $environment->addGlobal('current_path', '/events');
         $environment->addGlobal('app_settings', []);
         $environment->addFunction(new TwigFunction(

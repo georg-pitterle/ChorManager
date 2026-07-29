@@ -8,6 +8,7 @@ use App\Models\AppSetting;
 use App\Services\RegistrationReminderService;
 use App\Util\AppUrlResolver;
 use Carbon\Carbon;
+use Closure;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -18,8 +19,18 @@ class RegistrationReminderMiddleware implements MiddlewareInterface
 {
     private const CHECK_INTERVAL_SECONDS = 3600;
 
+    /**
+     * The reminder service is resolved through a factory (rather than injected
+     * directly) because it depends on Twig. This middleware is global, so it runs
+     * before the route-level AuthMiddleware: building Twig here captured the view
+     * layer's session state while the request was still unauthenticated, and a
+     * remember-me login restored afterwards no longer reached the templates - the
+     * navbar silently disappeared for that request.
+     *
+     * @param Closure(): RegistrationReminderService $reminderServiceFactory
+     */
     public function __construct(
-        private readonly RegistrationReminderService $reminderService,
+        private readonly Closure $reminderServiceFactory,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -54,7 +65,8 @@ class RegistrationReminderMiddleware implements MiddlewareInterface
                 ]
             );
 
-            $this->reminderService->processDue(AppUrlResolver::resolveBaseUrl($request));
+            $reminderService = ($this->reminderServiceFactory)();
+            $reminderService->processDue(AppUrlResolver::resolveBaseUrl($request));
         } catch (\Throwable $exception) {
             $this->logger->error('Opportunistic registration reminder processing failed.', [
                 'event' => 'registration_reminder.opportunistic.failed',

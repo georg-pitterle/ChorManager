@@ -11,3 +11,4 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 
 // Load shared test helpers that are not autoloaded via Composer.
 require_once __DIR__ . '/Feature/TestHttpHelpers.php';
+require_once __DIR__ . '/Feature/TwigViewStubs.php';

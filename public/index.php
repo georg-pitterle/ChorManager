@@ -3,6 +3,7 @@
 use DI\ContainerBuilder;
 use Slim\Factory\AppFactory;
 use Dotenv\Dotenv;
+use App\Util\SessionConfig;
 use App\Util\Timezone;
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -13,6 +14,10 @@ if (file_exists($envPath)) {
 }
 
 date_default_timezone_set(Timezone::resolveAppTimezone());
+
+// Must run before any session is started: keeps session files out of the
+// container's writable layer so a redeploy does not log every user out.
+SessionConfig::applySavePath();
 
 $secureSessionCookie = (getenv('APP_ENV') === 'production')
     || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
