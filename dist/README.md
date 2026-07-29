@@ -58,6 +58,9 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `MAIL_ALLOW_PRIVATE_HOSTS`| Allow IMAP hosts on private/loopback networks (SSRF guard opt-out)   | `0`             | No       |
 | `SNAPPYMAIL_UPLOAD_MAX_SIZE` | Upload limit inside the SnappyMail container                     | `25M`           | No       |
 | `SNAPPYMAIL_MEMORY_LIMIT` | PHP memory limit inside the SnappyMail container                     | `128M`          | No       |
+| `BACKUP_DIR`              | In-app backup directory; must be inside the `backup_data` volume     | `/var/backups/chormanager` | No |
+| `BACKUP_MAX_MANUAL`       | Manual backups kept; new ones are refused at the limit               | `5`             | No       |
+| `BACKUP_MAX_AUTO`         | Automatic backups kept; the oldest is rotated out                    | `7`             | No       |
 
 SMTP is configured exclusively via environment variables. It is no longer managed in the application UI.
 
@@ -216,6 +219,41 @@ docker compose -f docker-compose.prod.yml logs -f db
 ```
 
 ## Backup
+
+### Where in-app backups live
+
+Backups created in the application are stored in the `backup_data` volume,
+mounted at `BACKUP_DIR` (default `/var/backups/chormanager`) on the `app`
+service. The volume is what makes them survive image updates and stack
+recreations — a backup directory in the container's writable layer is discarded
+on every recreate, and the application would silently start over with an empty
+list. The entrypoint runs `mkdir -p` plus `chown -R www-data:www-data` on that
+path at every start, so a freshly created (root-owned) volume needs no manual
+preparation.
+
+Upgrading a stack that predates the volume: the existing backups are inside the
+old container and are lost on redeploy. Download the ones you want to keep
+**before** applying the new compose file.
+
+### Restoring a downloaded backup
+
+The download only yields the `.sql.gz` dump, not its `.json` metadata sidecar,
+which the application needs to list and verify the backup. To make a downloaded
+dump restorable again, put both files back into `BACKUP_DIR` under their
+original names and recreate the sidecar if you no longer have it:
+
+```bash
+docker cp backup_manual_<timestamp>_<hash>.sql.gz <stack>-app-1:/var/backups/chormanager/
+docker cp backup_manual_<timestamp>_<hash>.json   <stack>-app-1:/var/backups/chormanager/
+docker exec <stack>-app-1 chown www-data:www-data /var/backups/chormanager/backup_manual_<timestamp>_<hash>.*
+```
+
+The `sha256` in the sidecar must match the dump (`sha256sum`), otherwise the
+restore aborts with an integrity error. Stored IMAP passwords only decrypt if
+`MAIL_CREDENTIAL_KEY` still matches the `mail_key_id` recorded in the sidecar;
+see the key rotation section in the main `README.md`.
+
+### Manual dump / restore
 
 ```bash
 docker compose -f docker-compose.prod.yml exec db \

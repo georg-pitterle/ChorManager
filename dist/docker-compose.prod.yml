@@ -29,6 +29,12 @@ x-app-environment: &app-environment
   SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
   APP_URL: ${APP_URL:?set in Portainer}
   MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-0}
+  # Must point into the backup_data volume mounted on the app service. The
+  # application default lives inside the container's writable layer, where every
+  # recreate would discard all backups.
+  BACKUP_DIR: ${BACKUP_DIR:-/var/backups/chormanager}
+  BACKUP_MAX_MANUAL: ${BACKUP_MAX_MANUAL:-5}
+  BACKUP_MAX_AUTO: ${BACKUP_MAX_AUTO:-7}
 
 
 services:
@@ -37,6 +43,10 @@ services:
     restart: unless-stopped
     working_dir: /var/www/html
     environment: *app-environment
+    volumes:
+      # Keeps in-app backups across image updates and stack recreations. The
+      # entrypoint hands the mount to www-data on every start.
+      - backup_data:${BACKUP_DIR:-/var/backups/chormanager}
     depends_on:
       db:
         condition: service_healthy 
@@ -167,6 +177,7 @@ services:
 volumes:
   db_data:
   snappymail_data:
+  backup_data:
 
 
 networks:

@@ -21,6 +21,15 @@ php vendor/bin/phinx migrate
 # Ensure public vendor assets are present for static delivery
 php bin/copy-assets.php
 
+# Ensure the backup directory exists and belongs to the PHP-FPM worker user.
+# A freshly created named volume is mounted as root:root, so without this the
+# app could not write backups into it. Recursive because files copied into the
+# volume from outside the app (e.g. a manually restored dump) arrive as root.
+BACKUP_DIR="${BACKUP_DIR:-/var/www/html/var/backups}"
+mkdir -p "${BACKUP_DIR}"
+chown -R www-data:www-data "${BACKUP_DIR}"
+chmod 750 "${BACKUP_DIR}"
+
 MAIL_QUEUE_WORKER_INTERVAL="${MAIL_QUEUE_WORKER_INTERVAL:-20}"
 
 /usr/local/bin/mail-queue-worker.sh &
