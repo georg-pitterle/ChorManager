@@ -45,6 +45,14 @@ class RegistrationReminderMiddleware implements MiddlewareInterface
     private function processIfDue(Request $request): void
     {
         try {
+            $triggerMode = (string) (AppSetting::query()
+                ->where('setting_key', 'mailqueue_trigger_mode')
+                ->value('setting_value') ?? 'hybrid');
+
+            if (!in_array($triggerMode, ['hybrid', 'opportunistic'], true)) {
+                return;
+            }
+
             $lastRunRaw = AppSetting::query()
                 ->where('setting_key', 'registration_reminder_last_check_at')
                 ->value('setting_value');

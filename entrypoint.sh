@@ -43,15 +43,20 @@ if [ -n "${SESSION_SAVE_PATH}" ]; then
 fi
 
 MAIL_QUEUE_WORKER_INTERVAL="${MAIL_QUEUE_WORKER_INTERVAL:-20}"
+REGISTRATION_REMINDER_WORKER_INTERVAL="${REGISTRATION_REMINDER_WORKER_INTERVAL:-3600}"
 
 /usr/local/bin/mail-queue-worker.sh &
 mail_queue_worker_pid=$!
+
+/usr/local/bin/registration-reminder-worker.sh &
+registration_reminder_worker_pid=$!
 
 php-fpm -F &
 php_fpm_pid=$!
 
 shutdown() {
   kill "${mail_queue_worker_pid}" 2>/dev/null || true
+  kill "${registration_reminder_worker_pid}" 2>/dev/null || true
   kill "${php_fpm_pid}" 2>/dev/null || true
 }
 

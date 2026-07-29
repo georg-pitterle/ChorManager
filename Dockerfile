@@ -71,7 +71,8 @@ RUN php bin/copy-assets.php
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY bin/mail-queue-worker.sh /usr/local/bin/mail-queue-worker.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/mail-queue-worker.sh
+COPY bin/registration-reminder-worker.sh /usr/local/bin/registration-reminder-worker.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/mail-queue-worker.sh /usr/local/bin/registration-reminder-worker.sh
 
 # PHP upload limits are set to unlimited (0) because the Nginx layer already
 # enforces the effective request body size limit via the fixed
