@@ -99,7 +99,7 @@ async function main() {
         // 2. Sponsorenübersicht
         await page.goto(`${BASE_URL}/sponsoring/sponsors`, { waitUntil: 'networkidle' });
         await page.locator('#sponsorsTable').waitFor({ state: 'visible' });
-        await shot(page, '02-sponsoren-liste');
+        await shot(page, '02-sponsors-list');
 
         // 3. Modal: Neuer Sponsor
         await clickAndWaitForEvent(
@@ -108,7 +108,7 @@ async function main() {
             '#createSponsorModal',
             'shown.bs.modal'
         );
-        await shot(page, '03-neuer-sponsor-modal');
+        await shot(page, '03-new-sponsor-modal');
         await clickAndWaitForEvent(
             page,
             page.locator('#createSponsorModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -120,11 +120,11 @@ async function main() {
         await page.locator('#sponsorsTable tbody tr').first().locator('a.fw-semibold').click();
         await page.waitForLoadState('networkidle');
         await page.locator('#pane-stammdaten').waitFor({ state: 'visible' });
-        await shot(page, '04-sponsor-detail-stammdaten');
+        await shot(page, '04-sponsor-detail-master-data');
 
         // 5. Sponsor-Detail: Vereinbarungen
         await clickAndWaitForTabPane(page, page.locator('#tab-vereinbarungen'), '#pane-vereinbarungen');
-        await shot(page, '05-sponsor-detail-vereinbarungen');
+        await shot(page, '05-sponsor-detail-agreements');
 
         // 6. Modal: Neue Vereinbarung
         await clickAndWaitForEvent(
@@ -133,7 +133,7 @@ async function main() {
             '#newSponsorshipModal',
             'shown.bs.modal'
         );
-        await shot(page, '06-neue-vereinbarung-modal');
+        await shot(page, '06-new-agreement-modal');
         await clickAndWaitForEvent(
             page,
             page.locator('#newSponsorshipModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -143,7 +143,7 @@ async function main() {
 
         // 7. Sponsor-Detail: Kontakthistorie
         await clickAndWaitForTabPane(page, page.locator('#tab-kontakte'), '#pane-kontakte');
-        await shot(page, '07-sponsor-detail-kontakte');
+        await shot(page, '07-sponsor-detail-contacts');
 
         // 8. Modal: Kontakt protokollieren
         await clickAndWaitForEvent(
@@ -152,7 +152,7 @@ async function main() {
             '#newContactModal',
             'shown.bs.modal'
         );
-        await shot(page, '08-neuer-kontakt-modal');
+        await shot(page, '08-new-contact-modal');
         await clickAndWaitForEvent(
             page,
             page.locator('#newContactModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -163,7 +163,7 @@ async function main() {
         // 9. Paketverwaltung
         await page.goto(`${BASE_URL}/sponsoring/packages`, { waitUntil: 'networkidle' });
         await page.locator('#sponsorPackagesTable').waitFor({ state: 'visible' });
-        await shot(page, '09-pakete');
+        await shot(page, '09-packages');
 
         console.log('Fertig: alle Sponsoring-Screenshots erstellt.');
     } finally {

@@ -163,12 +163,12 @@ return function (App $app) {
 
             // Help pages (Markdown guides under help/) - accessible for all logged-in users,
             // independent of tenant modules/roles.
-            $group->get('/hilfe', [HelpController::class, 'index']);
+            $group->get('/help', [HelpController::class, 'index']);
             $group->get(
-                '/hilfe/images/{file:[A-Za-z0-9_\-\/]+\.(?:png|jpg|jpeg|gif|svg|webp)}',
+                '/help/images/{file:[A-Za-z0-9_\-\/]+\.(?:png|jpg|jpeg|gif|svg|webp)}',
                 [HelpController::class, 'image']
             );
-            $group->get('/hilfe/{slug:[a-z0-9\-]+}', [HelpController::class, 'show']);
+            $group->get('/help/{slug:[a-z0-9\-]+}', [HelpController::class, 'show']);
 
             // Evaluations - accessible for all logged-in users
             $group->get('/evaluations', [EvaluationController::class, 'index']);

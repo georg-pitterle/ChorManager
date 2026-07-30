@@ -3,10 +3,10 @@
 /**
  * Erstellt Screenshots aller relevanten Ansichten des Termine-Moduls
  * (Events, Anwesenheit, Anmeldungen, Termin-Typen) fuer die Hilfe-Dokumentation
- * (help/termine/docs/).
+ * (help/events/docs/).
  *
  * Nutzung:
- *   node help/termine/scripts/screenshot.js
+ *   node help/events/scripts/screenshot.js
  *
  * Optional per Umgebungsvariable ueberschreibbar:
  *   BASE_URL   Basis-URL der Dev-Umgebung (Default: https://chormanager.ddev.site)
@@ -76,12 +76,12 @@ async function main() {
         // 1. Terminliste
         await page.goto(`${BASE_URL}/events?view=list`, { waitUntil: 'networkidle' });
         await page.locator('#eventsTable').waitFor({ state: 'visible' });
-        await shot(page, '01-liste');
+        await shot(page, '01-list');
 
         // 2. Kalenderansicht
         await page.goto(`${BASE_URL}/events?view=calendar`, { waitUntil: 'networkidle' });
         await page.locator('#event-calendar .fc-toolbar').waitFor({ state: 'visible' });
-        await shot(page, '02-kalender');
+        await shot(page, '02-calendar');
 
         // 3. Modal: Neuen Termin anlegen (inkl. Wiederholung aufgeklappt)
         await page.goto(`${BASE_URL}/events?view=list`, { waitUntil: 'networkidle' });
@@ -93,7 +93,7 @@ async function main() {
         );
         await page.locator('#repeat_event').check();
         await page.locator('#recurrence_options').waitFor({ state: 'visible' });
-        await shot(page, '03-neuer-termin-modal', { fullPage: false });
+        await shot(page, '03-new-event-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#addEventModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -108,13 +108,13 @@ async function main() {
         await editHref.click();
         await page.waitForLoadState('networkidle');
         await page.locator('#update_series').waitFor({ state: 'visible' });
-        await shot(page, '04-termin-bearbeiten');
+        await shot(page, '04-edit-event');
 
         // 5. Termin-Detail mit Bemerkungen
         await page.goto(`${BASE_URL}/events?view=list`, { waitUntil: 'networkidle' });
         await page.locator('#eventsTable tbody tr').first().locator('a.btn-outline-secondary').first().click();
         await page.waitForLoadState('networkidle');
-        await shot(page, '05-termin-detail');
+        await shot(page, '05-event-detail');
 
         // 6. Kalender abonnieren (iCal-Link)
         await clickAndWaitForEvent(
@@ -123,7 +123,7 @@ async function main() {
             '#calendarSubscriptionModal',
             'shown.bs.modal'
         );
-        await shot(page, '06-kalender-abo-modal', { fullPage: false });
+        await shot(page, '06-calendar-subscription-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#calendarSubscriptionModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -134,7 +134,7 @@ async function main() {
         // 7. Termin-Typen verwalten
         await page.goto(`${BASE_URL}/event-types`, { waitUntil: 'networkidle' });
         await page.locator('.dashboard-shell').waitFor({ state: 'visible' });
-        await shot(page, '07-termin-typen');
+        await shot(page, '07-event-types');
 
         // 8. Anwesenheitsliste
         await page.goto(`${BASE_URL}/events?view=list&show_old_events=1`, { waitUntil: 'networkidle' });
@@ -142,17 +142,17 @@ async function main() {
         await attendanceLink.click();
         await page.waitForLoadState('networkidle');
         await page.locator('.attendance-status-group').first().waitFor({ state: 'visible' });
-        await shot(page, '08-anwesenheit-liste');
+        await shot(page, '08-attendance-list');
 
         // 9. Anmeldungen-Übersicht
         await page.goto(`${BASE_URL}/registrations`, { waitUntil: 'networkidle' });
-        await shot(page, '09-anmeldungen-liste');
+        await shot(page, '09-registrations-list');
 
         // 10. Anmeldung-Detail (Vertretung/Proxy-Ansicht als Admin)
         const detailLink = page.locator('.registration-card a.btn-outline-secondary', { hasText: 'Details' }).first();
         await detailLink.click();
         await page.waitForLoadState('networkidle');
-        await shot(page, '10-anmeldung-detail');
+        await shot(page, '10-registration-detail');
 
         console.log('Fertig: alle Termine-Screenshots erstellt.');
     } finally {

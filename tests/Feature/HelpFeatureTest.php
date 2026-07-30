@@ -98,7 +98,7 @@ class HelpFeatureTest extends TestCase
     public function testIndexListsGuidesWithTitleFromH1AndFallbackForMissingHeading(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe');
+        $request = $this->makeRequest('GET', '/help');
 
         $response = $controller->index($request, $this->makeResponse());
         $body = (string) $response->getBody();
@@ -106,8 +106,8 @@ class HelpFeatureTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('Sponsoring – Anleitung', $body);
         $this->assertStringContainsString('Alpha Guide', $body);
-        $this->assertStringContainsString('/hilfe/sponsoring', $body);
-        $this->assertStringContainsString('/hilfe/alpha-guide', $body);
+        $this->assertStringContainsString('/help/sponsoring', $body);
+        $this->assertStringContainsString('/help/alpha-guide', $body);
         // Fallback title derived from slug when the file has no H1 heading.
         $this->assertStringContainsString('No Heading', $body);
     }
@@ -115,7 +115,7 @@ class HelpFeatureTest extends TestCase
     public function testIndexGroupsGuidesSharingSlugPrefixIntoOneCollapsibleCategory(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe');
+        $request = $this->makeRequest('GET', '/help');
 
         $response = $controller->index($request, $this->makeResponse());
         $body = (string) $response->getBody();
@@ -124,45 +124,45 @@ class HelpFeatureTest extends TestCase
         // "modul-a.md" is the category root; "modul-a-eins.md" / "modul-a-zwei.md" are its children.
         $this->assertStringContainsString('id="help-category-collapse-modul-a"', $body);
         $this->assertStringContainsString('Modul A', $body);
-        $this->assertStringContainsString('/hilfe/modul-a-eins', $body);
-        $this->assertStringContainsString('/hilfe/modul-a-zwei', $body);
+        $this->assertStringContainsString('/help/modul-a-eins', $body);
+        $this->assertStringContainsString('/help/modul-a-zwei', $body);
     }
 
     public function testIndexRendersGuideWithoutSiblingsAsPlainLinkNotAccordion(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe');
+        $request = $this->makeRequest('GET', '/help');
 
         $response = $controller->index($request, $this->makeResponse());
         $body = (string) $response->getBody();
 
         // alpha-guide.md has no "alpha-guide-*.md" siblings, so it is a single-page
         // category and must render as a direct link, not a collapsible group.
-        $this->assertStringContainsString('/hilfe/alpha-guide', $body);
+        $this->assertStringContainsString('/help/alpha-guide', $body);
         $this->assertStringNotContainsString('id="help-category-collapse-alpha-guide"', $body);
     }
 
     public function testRealDocsSponsoringFamilyGroupsIntoOneCategory(): void
     {
         // Integration check: the naming convention behind docs/sponsoring.md,
-        // docs/sponsoring-sponsoren.md and docs/sponsoring-pakete.md must produce a
+        // docs/sponsoring-sponsors.md and docs/sponsoring-packages.md must produce a
         // single collapsible "Sponsoring" category (the user's example case).
         $controller = new HelpController($this->createTwig());
-        $request = $this->makeRequest('GET', '/hilfe');
+        $request = $this->makeRequest('GET', '/help');
 
         $response = $controller->index($request, $this->makeResponse());
         $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('id="help-category-collapse-sponsoring"', $body);
-        $this->assertStringContainsString('/hilfe/sponsoring-sponsoren', $body);
-        $this->assertStringContainsString('/hilfe/sponsoring-pakete', $body);
+        $this->assertStringContainsString('/help/sponsoring-sponsors', $body);
+        $this->assertStringContainsString('/help/sponsoring-packages', $body);
     }
 
     public function testShowRendersMarkdownAsHtmlWithTitleFromH1(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/alpha-guide');
+        $request = $this->makeRequest('GET', '/help/alpha-guide');
 
         $response = $controller->show($request, $this->makeResponse(), ['slug' => 'alpha-guide']);
         $body = (string) $response->getBody();
@@ -175,20 +175,20 @@ class HelpFeatureTest extends TestCase
     public function testShowKeepsRelativeImagePathSoBrowserResolvesItAgainstHelpImageRoute(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/sponsoring');
+        $request = $this->makeRequest('GET', '/help/sponsoring');
 
         $response = $controller->show($request, $this->makeResponse(), ['slug' => 'sponsoring']);
         $body = (string) $response->getBody();
 
-        // Relative to /hilfe/sponsoring, "images/sponsoring/x.png" resolves in the browser to
-        // /hilfe/images/sponsoring/x.png, which the image() route handles - no server-side rewriting.
+        // Relative to /help/sponsoring, "images/sponsoring/x.png" resolves in the browser to
+        // /help/images/sponsoring/x.png, which the image() route handles - no server-side rewriting.
         $this->assertStringContainsString('<img src="images/sponsoring/01-dashboard.png"', $body);
     }
 
     public function testShowReturns404ForUnknownSlug(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/does-not-exist');
+        $request = $this->makeRequest('GET', '/help/does-not-exist');
 
         $response = $controller->show($request, $this->makeResponse(), ['slug' => 'does-not-exist']);
 
@@ -198,7 +198,7 @@ class HelpFeatureTest extends TestCase
     public function testShowRejectsPathTraversalInSlug(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/..%2f..%2fcomposer');
+        $request = $this->makeRequest('GET', '/help/..%2f..%2fcomposer');
 
         $response = $controller->show($request, $this->makeResponse(), ['slug' => '../../composer']);
 
@@ -208,7 +208,7 @@ class HelpFeatureTest extends TestCase
     public function testImageServesFileFromCategorySubfolderWithCorrectContentType(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/images/sponsoring/01-dashboard.png');
+        $request = $this->makeRequest('GET', '/help/images/sponsoring/01-dashboard.png');
 
         $response = $controller->image($request, $this->makeResponse(), ['file' => 'sponsoring/01-dashboard.png']);
 
@@ -220,7 +220,7 @@ class HelpFeatureTest extends TestCase
     public function testImageReturns404ForMissingFile(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/images/sponsoring/does-not-exist.png');
+        $request = $this->makeRequest('GET', '/help/images/sponsoring/does-not-exist.png');
 
         $response = $controller->image($request, $this->makeResponse(), ['file' => 'sponsoring/does-not-exist.png']);
 
@@ -230,7 +230,7 @@ class HelpFeatureTest extends TestCase
     public function testImageRejectsPathTraversalAttempt(): void
     {
         $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/hilfe/images/sponsoring/..%2f..%2fcomposer.json');
+        $request = $this->makeRequest('GET', '/help/images/sponsoring/..%2f..%2fcomposer.json');
 
         $response = $controller->image(
             $request,
@@ -246,9 +246,9 @@ class HelpFeatureTest extends TestCase
         $routesContent = file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
 
         $this->assertIsString($routesContent);
-        $this->assertStringContainsString("'/hilfe'", $routesContent);
-        $this->assertStringContainsString('/hilfe/{slug:', $routesContent);
-        $this->assertStringContainsString('/hilfe/images/{file:', $routesContent);
+        $this->assertStringContainsString("'/help'", $routesContent);
+        $this->assertStringContainsString('/help/{slug:', $routesContent);
+        $this->assertStringContainsString('/help/images/{file:', $routesContent);
     }
 
     public function testNavigationBuilderIncludesHelpLink(): void
@@ -256,7 +256,7 @@ class HelpFeatureTest extends TestCase
         $navigationContent = file_get_contents(dirname(__DIR__, 2) . '/src/Navigation/NavigationBuilder.php');
 
         $this->assertIsString($navigationContent);
-        $this->assertStringContainsString("'/hilfe'", $navigationContent);
+        $this->assertStringContainsString("'/help'", $navigationContent);
     }
 
     public function testComposerRequiresParsedown(): void
@@ -267,12 +267,12 @@ class HelpFeatureTest extends TestCase
         $this->assertStringContainsString('erusev/parsedown', $composerContent);
     }
 
-    public function testRealDocsDirectoryExposesSponsoringGuideForHilfeSponsoringRoute(): void
+    public function testRealDocsDirectoryExposesSponsoringGuideForHelpSponsoringRoute(): void
     {
-        // Integration check tying Part 1 (docs/sponsoring.md) to Part 2 (the /hilfe/{slug} route):
+        // Integration check tying Part 1 (docs/sponsoring.md) to Part 2 (the /help/{slug} route):
         // the real docs/ directory (default constructor path) must serve the sponsoring guide.
         $controller = new HelpController($this->createTwig());
-        $request = $this->makeRequest('GET', '/hilfe/sponsoring');
+        $request = $this->makeRequest('GET', '/help/sponsoring');
 
         $response = $controller->show($request, $this->makeResponse(), ['slug' => 'sponsoring']);
         $body = (string) $response->getBody();

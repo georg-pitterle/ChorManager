@@ -6,7 +6,7 @@ Sponsoring-Pakete sind Vorlagen wie Bronze, Silber, Gold oder Hauptsponsor, die 
 
 Klicke im Sponsoring-Dashboard oben rechts auf **Pakete**. Für jedes Paket sind Name, Beschreibung, Mindestbetrag und eine Farbe für die Anzeige als Badge hinterlegt.
 
-![Paketübersicht](images/sponsoring/09-pakete.png)
+![Paketübersicht](images/sponsoring/09-packages.png)
 
 - Ein **neues Paket** legst du über die Eingabezeile am Ende der Tabelle an.
 - Ein bestehendes Paket bearbeitest du über **Bearbeiten**.

@@ -6,39 +6,39 @@ Diese Anleitung zeigt, wie du Sponsoren anlegst, ihre Daten pflegst, Vereinbarun
 
 Klicke im Sponsoring-Dashboard oben rechts auf **Sponsoren**, um zur Liste aller Sponsoren zu gelangen. Über die Tabellenleiste kannst du nach Namen suchen und nach Status filtern. Ein Klick auf einen Sponsor-Namen öffnet dessen Detailseite.
 
-![Sponsorenübersicht](images/sponsoring/02-sponsoren-liste.png)
+![Sponsorenübersicht](images/sponsoring/02-sponsors-list.png)
 
 ## 2. Neuen Sponsor anlegen
 
 Klicke oben rechts auf **Neuer Sponsor**. Im Dialog trägst du die Stammdaten ein: Typ (Organisation/Firma oder Einzelperson), Status, Name, Kontaktperson, E-Mail, Telefon, Website und Adresse. Mit **Anlegen** wird der Sponsor gespeichert.
 
-![Dialog "Neuer Sponsor"](images/sponsoring/03-neuer-sponsor-modal.png)
+![Dialog "Neuer Sponsor"](images/sponsoring/03-new-sponsor-modal.png)
 
 ## 3. Stammdaten ansehen und bearbeiten
 
 Auf der Detailseite eines Sponsors findest du drei Reiter: **Stammdaten**, **Vereinbarungen** und **Kontakthistorie**. Im Reiter Stammdaten bearbeitest du Kontakt- und Adressdaten und übernimmst sie mit **Speichern**.
 
-![Sponsor-Detail – Stammdaten](images/sponsoring/04-sponsor-detail-stammdaten.png)
+![Sponsor-Detail – Stammdaten](images/sponsoring/04-sponsor-detail-master-data.png)
 
 ## 4. Vereinbarung anlegen
 
 Wechsle zum Reiter **Vereinbarungen**. Hier siehst du bestehende Vereinbarungen mit Paket, Status, Betrag, Projekt, Zuständigkeit, Zeitraum und Anhängen.
 
-![Reiter Vereinbarungen](images/sponsoring/05-sponsor-detail-vereinbarungen.png)
+![Reiter Vereinbarungen](images/sponsoring/05-sponsor-detail-agreements.png)
 
 Klicke auf **Neue Vereinbarung**, um eine weitere Vereinbarung zu erfassen: Paket, Status, Betrag, Zuständige Person, Projekt, Zeitraum, Notizen sowie optional Anhänge (z. B. ein unterschriebener Vertrag als PDF). Mit **Anlegen** wird die Vereinbarung gespeichert.
 
-![Dialog "Neue Vereinbarung"](images/sponsoring/06-neue-vereinbarung-modal.png)
+![Dialog "Neue Vereinbarung"](images/sponsoring/06-new-agreement-modal.png)
 
 ## 5. Kontakt protokollieren
 
 Wechsle zum Reiter **Kontakthistorie**, um alle bisherigen Kontakte mit dem Sponsor einzusehen.
 
-![Reiter Kontakthistorie](images/sponsoring/07-sponsor-detail-kontakte.png)
+![Reiter Kontakthistorie](images/sponsoring/07-sponsor-detail-contacts.png)
 
 Über **Kontakt protokollieren** erfasst du einen neuen Kontakt: Datum, Art (Anruf, E-Mail, Treffen, Brief, Sonstiges), optional die zugehörige Vereinbarung, eine Zusammenfassung und optional ein Datum für eine Wiedervorlage. Diese Wiedervorlage erscheint danach im Dashboard, sobald sie fällig wird.
 
-![Dialog "Kontakt protokollieren"](images/sponsoring/08-neuer-kontakt-modal.png)
+![Dialog "Kontakt protokollieren"](images/sponsoring/08-new-contact-modal.png)
 
 ## Häufige Stolperfallen
 

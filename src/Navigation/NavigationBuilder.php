@@ -356,9 +356,9 @@ final class NavigationBuilder
             [
                 'kind' => 'link',
                 'label' => 'Hilfe',
-                'url' => '/hilfe',
+                'url' => '/help',
                 'icon' => 'bi-question-circle',
-                'prefixes' => ['/hilfe'],
+                'prefixes' => ['/help'],
                 'navKeys' => ['help'],
                 'visible' => $always,
             ],

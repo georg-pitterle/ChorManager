@@ -1,9 +1,9 @@
 ---
-name: help-thema-erstellen
+name: create-help-topic
 description: >
-  Workflow for creating a new help topic (Hilfethema) in ChorManager's `/hilfe` system.
+  Workflow for creating a new help topic (Hilfethema) in ChorManager's `/help` system.
   Use this skill whenever the user wants to document a feature, write a how-to guide,
-  create screenshots for documentation, or add a new page under `/hilfe`. Trigger on
+  create screenshots for documentation, or add a new page under `/help`. Trigger on
   phrases like "hilfe-thema", "help topic", "Dokumentation erstellen", "Anleitung schreiben",
   "Screenshots für Doku", or any request to document a ChorManager module or feature.
   This skill is mandatory when creating or updating help/ markdown files with screenshots.
@@ -19,7 +19,7 @@ Vollständiger Workflow zum Erstellen eines neuen Hilfe-Themas inkl. Screenshots
 2. **Screenshot-Skript** schreiben oder anpassen
 3. **Screenshots aufnehmen**
 4. **Markdown-Datei** schreiben
-5. **Ergebnis prüfen** unter `/hilfe/{slug}`
+5. **Ergebnis prüfen** unter `/help/{slug}`
 
 ---
 
@@ -49,9 +49,10 @@ Referenzbeispiel: `help/sponsoring/`
 
 Vor dem Start folgende Punkte klären (wenn nicht bereits aus dem Kontext bekannt):
 
-- **Slug**: Wie heißt das Thema in der URL? (z. B. `mitglieder`, `finanzen`)
+- **Slug**: Wie heißt das Thema in der URL? (z. B. `members`, `finance`)
   - Nur Kleinbuchstaben, Ziffern, Bindestriche; keine Umlaute
-  - Oberthema = `{slug}.md`; Unterthema = `{slug}-{bereich}.md`
+  - **Immer englisch**, auch wenn das Feature/Modul einen deutschen Namen hat (z. B. `events` statt `termine`, `members` statt `mitglieder`). Das gilt für den Ordnernamen `help/{slug}/`, alle `docs/*.md`-Dateinamen und alle Screenshot-Dateinamen — nur der Markdown-**Inhalt** ist deutsch.
+  - Oberthema = `{slug}.md`; Unterthema = `{slug}-{bereich}.md` (Bereich ebenfalls englisch, z. B. `events-attendance`, nicht `termine-anwesenheit`)
 - **Scope**: Welche Seiten/Ansichten sollen dokumentiert werden?
 - **Berechtigung**: Welches Recht steuert die Sichtbarkeit des Moduls?
   - Berechtigung **nie** als Rollennamen nennen (z. B. nie "Admin" oder "Vorstand")
@@ -120,13 +121,13 @@ await clickAndWaitForTabPane(page, page.locator('#tab-foo'), '#pane-foo');
 
 ### Screenshot-Benennung
 
-Nummeriert, sprechend:
+Nummeriert, sprechend, **englisch** (auch wenn das Modul einen deutschen Namen hat):
 
 ```
 01-dashboard.png
-02-liste.png
-03-neu-modal.png
-04-detail-stammdaten.png
+02-list.png
+03-new-modal.png
+04-detail-master-data.png
 ```
 
 ### Skript ausführen
@@ -181,7 +182,7 @@ Text. Klickpfad: **Bereiche → {Modulname}**.
 
 ### Bildpfade in Markdown
 
-Screenshots werden im Browser über `/hilfe/images/{slug}/{datei}.png` geladen.
+Screenshots werden im Browser über `/help/images/{slug}/{datei}.png` geladen.
 In Markdown immer als **relative URL** ohne führenden Slash schreiben:
 
 ```markdown
@@ -191,7 +192,7 @@ In Markdown immer als **relative URL** ohne führenden Slash schreiben:
 ### Regeln
 
 - Keine Rollennamen ("Admin", "Vorstand", "Kassier") — nur Recht-Labels
-- Sprache: Deutsch, Du-Form
+- Sprache: Deutsch, Du-Form (Inhalt) — Dateiname/Slug trotzdem immer englisch
 - Berechtigung immer im ersten Abschnitt als Blockquote
 - Screenshots direkt nach dem erklärenden Absatz einbetten
 
@@ -200,14 +201,14 @@ In Markdown immer als **relative URL** ohne führenden Slash schreiben:
 ## Schritt 5 – Ergebnis prüfen
 
 ```powershell
-Start-Process "https://chormanager.ddev.site/hilfe/{slug}"
+Start-Process "https://chormanager.ddev.site/help/{slug}"
 ```
 
 Checkliste:
 - [ ] Seite lädt ohne Fehler
 - [ ] Titel korrekt (aus `# Überschrift` in der Markdown-Datei)
 - [ ] Alle Screenshots sichtbar (keine kaputten Bildlinks)
-- [ ] Navigation unter `/hilfe` zeigt das neue Thema in der richtigen Gruppe
+- [ ] Navigation unter `/help` zeigt das neue Thema in der richtigen Gruppe
 - [ ] Berechtigungshinweis vorhanden und korrekt formuliert
 
 ---
@@ -217,7 +218,7 @@ Checkliste:
 | Problem | Ursache | Fix |
 |---------|---------|-----|
 | Screenshot zeigt leere/falsche Daten | Seed vergessen oder veraltete Daten | Seed-Lauf wiederholen (`reset-and-seed`) |
-| Bild erscheint nicht in `/hilfe` | Bildpfad falsch | Pfad in Markdown prüfen: `images/{slug}/datei.png` |
+| Bild erscheint nicht in `/help` | Bildpfad falsch | Pfad in Markdown prüfen: `images/{slug}/datei.png` |
 | Thema erscheint nicht in Index | Datei liegt nicht in `help/{slug}/docs/` oder hat keine `# Überschrift` | Pfad und erste Zeile prüfen |
 | Modal-Screenshot zu früh | CSS-Transition noch aktiv | `clickAndWaitForEvent` mit `shown.bs.modal` verwenden |
 | Tab-Inhalt fehlt im Screenshot | Tab-Transition noch aktiv | `clickAndWaitForTabPane` mit opacity-Check verwenden |

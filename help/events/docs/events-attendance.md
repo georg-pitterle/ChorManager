@@ -8,7 +8,7 @@ Für Termine mit aktivierter Anwesenheitsliste kannst du strukturiert erfassen, 
 
 Unter **Termine → Anwesenheit** wählst du über das Dropdown-Menü einen Termin aus, oder navigierst über die Buttons **Vorheriger Termin** / **Nächster Termin** durch alle Termine mit aktivierter Anwesenheitsliste. Alternativ gelangst du direkt über den Button **Anwesenheit** in der Terminliste zu einem konkreten Termin.
 
-![Anwesenheitsliste eines Termins nach Stimmgruppen sortiert](images/termine/08-anwesenheit-liste.png)
+![Anwesenheitsliste eines Termins nach Stimmgruppen sortiert](images/events/08-attendance-list.png)
 
 ## 2. Status je Mitglied erfassen
 
@@ -25,4 +25,4 @@ Optional kannst du je Mitglied eine kurze Notiz hinterlegen (z. B. den Grund ein
 ## Häufige Stolperfallen
 
 - **Keine Mitglieder sichtbar?** Prüfe, ob dem Termin eine Zielgruppe zugeordnet ist und ob deine Berechtigungen die betroffenen Stimmgruppen/Rollen abdecken.
-- Ohne aktivierte **"Anwesenheitsliste führen"**-Option im Termin (siehe [Termine](termine)) erscheint der Termin nicht in der Auswahl.
+- Ohne aktivierte **"Anwesenheitsliste führen"**-Option im Termin (siehe [Termine](events)) erscheint der Termin nicht in der Auswahl.

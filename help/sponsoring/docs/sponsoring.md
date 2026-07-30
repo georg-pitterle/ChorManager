@@ -23,5 +23,5 @@ Das Dashboard zeigt dir:
 
 ## Anleitungen
 
-- [Sponsoren verwalten](sponsoring-sponsoren) – Sponsoren anlegen, Stammdaten pflegen, Vereinbarungen anlegen, Kontakte protokollieren
-- [Sponsoring-Pakete verwalten](sponsoring-pakete) – Pakete wie Bronze, Silber, Gold oder Hauptsponsor anlegen und pflegen
+- [Sponsoren verwalten](sponsoring-sponsors) – Sponsoren anlegen, Stammdaten pflegen, Vereinbarungen anlegen, Kontakte protokollieren
+- [Sponsoring-Pakete verwalten](sponsoring-packages) – Pakete wie Bronze, Silber, Gold oder Hauptsponsor anlegen und pflegen
