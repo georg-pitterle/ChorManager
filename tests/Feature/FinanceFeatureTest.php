@@ -77,7 +77,7 @@ class FinanceFeatureTest extends TestCase
 
         $this->assertIsString($template);
         $this->assertStringContainsString(
-            '{% set can_write_finances = session.can_manage_finances or session.can_manage_users %}',
+            '{% set can_write_finances = session.can_manage_finances %}',
             $template
         );
         $this->assertStringContainsString('{% if can_write_finances %}', $template);
@@ -109,12 +109,11 @@ class FinanceFeatureTest extends TestCase
 
         $this->assertMatchesRegularExpression(
             "/'url' => '\/finances'.*?"
-                . "\\\$c->can\\('can_read_finances'\\).*?\\\$c->can\\('can_manage_finances'\\).*?"
-                . "\\\$c->can\\('can_manage_users'\\)/s",
+                . "\\\$c->can\\('can_read_finances'\\).*?\\\$c->can\\('can_manage_finances'\\)/s",
             $kassaBlock
         );
         $this->assertStringContainsString(
-            'session.can_read_finances or session.can_manage_finances or session.can_manage_users',
+            'session.can_read_finances or session.can_manage_finances',
             $dashboard
         );
     }

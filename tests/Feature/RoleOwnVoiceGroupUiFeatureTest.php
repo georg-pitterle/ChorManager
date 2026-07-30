@@ -51,7 +51,7 @@ class RoleOwnVoiceGroupUiFeatureTest extends TestCase
         // The per-role ✓/✗ matrix row is distinct from the modal checkboxes asserted above:
         // an admin comparing roles must be able to see who holds this right without opening
         // the edit modal for every role.
-        $rowPattern = '#<th scope="row">Eigene Stimmgruppe verwalten</th>\s*'
+        $rowPattern = '#<th scope="row" class="roles-matrix-label">Eigene Stimmgruppe verwalten</th>\s*'
             . '\{% for role in roles %\}\s*'
             . '<td[^>]*>\s*'
             . '\{% if role\.can_manage_own_voice_group %\}#s';

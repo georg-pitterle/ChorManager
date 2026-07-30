@@ -2,7 +2,7 @@
 
 {# djlint:off J018 #}
 
-{% set can_write = session.can_manage_budget or session.can_manage_users %}
+{% set can_write = session.can_manage_budget %}
 
 {% block title %}
     Budget - {{ app_settings.app_name|default('Chor-Manager') }}

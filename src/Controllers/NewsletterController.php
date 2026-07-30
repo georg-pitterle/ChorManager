@@ -115,10 +115,6 @@ class NewsletterController
             return Project::query()->whereRaw('1 = 0')->get();
         }
 
-        if ((bool) ($_SESSION['can_manage_users'] ?? false)) {
-            return Project::query()->orderBy('name')->get();
-        }
-
         $user = User::find($userId);
         if (!$user) {
             return Project::query()->whereRaw('1 = 0')->get();

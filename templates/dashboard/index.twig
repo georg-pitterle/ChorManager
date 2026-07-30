@@ -26,7 +26,7 @@
             </div>
 
             <div class="dashboard-action-grid">
-                {% if session.can_manage_attendance or session.can_manage_users %}
+                {% if session.can_manage_attendance or session.can_manage_attendance_all %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
                             <p class="dashboard-panel__eyebrow">Organisation</p>
@@ -40,7 +40,7 @@
                     </article>
                 {% endif %}
 
-                {% set _finance_perm = session.can_read_finances or session.can_manage_finances or session.can_manage_users %}
+                {% set _finance_perm = session.can_read_finances or session.can_manage_finances %}
                 {% set _finance_panel_visible = settings.modules.finance and _finance_perm %}
                 {% if _finance_panel_visible %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">

@@ -41,6 +41,7 @@ class RoleFeatureTest extends TestCase
         $this->assertSame(1, $flags['can_manage_users']);
         $this->assertSame(0, $flags['can_edit_users']);
         $this->assertSame(0, $flags['can_manage_attendance']);
+        $this->assertSame(0, $flags['can_manage_attendance_all']);
         $this->assertSame(0, $flags['can_manage_project_members']);
         $this->assertSame(1, $flags['can_manage_finances']);
         $this->assertSame(0, $flags['can_manage_master_data']);
@@ -49,6 +50,16 @@ class RoleFeatureTest extends TestCase
         $this->assertSame(0, $flags['can_manage_newsletters']);
         $this->assertSame(0, $flags['can_manage_mail_queue']);
         $this->assertSame(0, $flags['can_manage_tasks']);
+    }
+
+    public function testBuildPermissionFlagsMapsAttendanceAllIndependentlyOfAttendance(): void
+    {
+        $flags = RoleController::buildPermissionFlags([
+            'can_manage_attendance_all' => '1',
+        ]);
+
+        $this->assertSame(0, $flags['can_manage_attendance']);
+        $this->assertSame(1, $flags['can_manage_attendance_all']);
     }
 
     public function testBuildPermissionFlagsAddsFinanceReadFlagAndWriteImpliesRead(): void

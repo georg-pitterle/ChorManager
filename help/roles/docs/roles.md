@@ -27,7 +27,7 @@ Unter **Verwaltung → Rollen** siehst du alle Rollen deiner Installation nebene
 
 ### Mitgliederverwaltung erlauben
 
-Dieses Recht ist das mächtigste Einzelrecht im System. Ist es aktiv, erhält die Rolle Zugriff auf die komplette globale Verwaltung: Rollen anlegen und bearbeiten, Projekte verwalten und Termine anlegen. Da dieses Recht selbst wieder Rechte vergeben kann, sollte es nur an wenige, vertrauenswürdige Rollen (z. B. Vorstand oder Administration) vergeben werden.
+Dieses Recht schaltet die Mitgliederverwaltung selbst frei (Mitglieder anlegen, bearbeiten, archivieren) sowie die Rollenverwaltung, da Rollen wiederum Rechte vergeben. Es gilt bewusst nur für diese beiden Bereiche – Projekte, Termine, Finanzen und alle anderen Module verlangen ihr jeweils eigenes Recht. Da dieses Recht selbst wieder Rechte vergeben kann, sollte es nur an wenige, vertrauenswürdige Rollen vergeben werden.
 
 ### Mitglieder editieren erlauben
 
@@ -41,9 +41,13 @@ Ist dieses Recht aktiv, darf die Rolle Mitglieder einzelnen Projekten (z. B. ein
 
 Mit diesem Recht darf die Rolle Termine anlegen, bearbeiten und löschen, öffentliche Bemerkungen zu Terminen moderieren und die verfügbaren Termin-Typen pflegen. Das macht diese Rolle zur zentralen Ansprechperson für die Terminplanung des Chors.
 
-### Anwesenheit eintragen
+### Anwesenheit/Anmeldung verwalten (eigene Stimmgruppe)
 
-Dieses Recht erlaubt der Rolle, Anwesenheiten bei Terminen zu erfassen und nachträglich zu aktualisieren. Es ist unabhängig von der Terminverwaltung nutzbar, sodass z. B. eine Stimmgruppenleitung nur Anwesenheiten pflegen kann, ohne Termine selbst anlegen zu dürfen.
+Dieses Recht erlaubt der Rolle, Anwesenheiten und Anmeldungen für die eigene Stimmgruppe zu erfassen und nachträglich zu aktualisieren. Es ist unabhängig von der Terminverwaltung nutzbar, sodass z. B. eine Stimmgruppenleitung nur Anwesenheiten der eigenen Gruppe pflegen kann, ohne Termine selbst anlegen zu dürfen oder Zugriff auf andere Stimmgruppen zu erhalten.
+
+### Anwesenheit/Anmeldung verwalten (alle Mitglieder)
+
+Dieses Recht erweitert das vorige: Die Rolle sieht und pflegt Anwesenheiten und Anmeldungen für alle Mitglieder, nicht nur die eigene Stimmgruppe. Es eignet sich für Personen mit Überblick über den gesamten Chor, z. B. für die Terminkoordination.
 
 ### Eigene Stimmgruppe verwalten
 
@@ -81,13 +85,13 @@ Mit diesem Recht darf die Rolle Newsletter erstellen, bearbeiten und verschicken
 
 Dieses Recht gibt der Rolle Einblick in die Mail-Queue des Systems und erlaubt es, fehlgeschlagene Zustellungen (Dead-Letter) erneut zu versenden. Es richtet sich an technisch verantwortliche Personen, die den E-Mail-Versand der Installation überwachen.
 
-### Aufgaben/Planung
+### Projektplanung (Aufgaben)
 
 Ist dieses Recht aktiv, darf die Rolle Aufgaben verwalten – auch projektübergreifend. Es erscheint nur, wenn das Aufgaben-Modul aktiviert ist, und eignet sich für Personen, die die Projektplanung koordinieren.
 
 ### Stammdaten verwalten
 
-Mit diesem Recht darf die Rolle grundlegende Stammdaten der Installation bearbeiten: Projekte, Rollen, Stimmgruppen und App-Einstellungen. Da hierüber auch Rollen selbst verändert werden können, sollte dieses Recht ähnlich sparsam vergeben werden wie die Mitgliederverwaltung.
+Mit diesem Recht darf die Rolle grundlegende Stammdaten der Installation bearbeiten: Projekte, Stimmgruppen und App-Einstellungen. Da hierüber auch App-Einstellungen verändert werden können, sollte dieses Recht ähnlich sparsam vergeben werden wie die Mitgliederverwaltung.
 
 ### Backup-Verwaltung
 

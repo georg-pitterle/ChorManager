@@ -15,14 +15,12 @@ use App\Models\User;
 class ProjectMemberPolicy
 {
     private int $userId;
-    private bool $isGlobalAdmin;
     private bool $canManageProjectMembers;
     private ?array $accessibleProjectIdsCache = null;
 
     public function __construct()
     {
         $this->userId = (int) ($_SESSION['user_id'] ?? 0);
-        $this->isGlobalAdmin = ($_SESSION['can_manage_users'] ?? false) === true;
         $this->canManageProjectMembers = ($_SESSION['can_manage_project_members'] ?? false) === true;
     }
 
@@ -31,10 +29,6 @@ class ProjectMemberPolicy
      */
     public function canViewMembers(int $projectId): bool
     {
-        if ($this->isGlobalAdmin) {
-            return true;
-        }
-
         if (!$this->canManageProjectMembers) {
             return false;
         }
@@ -61,7 +55,7 @@ class ProjectMemberPolicy
     /**
      * Check if the user can view all active users as candidates for the specified project.
      *
-     * Global admins and project-scoped managers can see all candidates.
+     * Project-scoped managers can see all candidates for projects they are accessible for.
      * Others are restricted (voice group scope would apply, but not relevant for flag holders).
      */
     public function canViewAllCandidates(int $projectId): bool
@@ -77,14 +71,6 @@ class ProjectMemberPolicy
     public function getAccessibleProjectIds(): array
     {
         if ($this->accessibleProjectIdsCache !== null) {
-            return $this->accessibleProjectIdsCache;
-        }
-
-        // Global admins have access to all projects
-        if ($this->isGlobalAdmin) {
-            $this->accessibleProjectIdsCache = \App\Models\Project::query()
-                ->pluck('id')
-                ->toArray();
             return $this->accessibleProjectIdsCache;
         }
 

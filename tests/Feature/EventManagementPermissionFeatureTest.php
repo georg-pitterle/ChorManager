@@ -148,7 +148,7 @@ final class EventManagementPermissionFeatureTest extends TestCase
         $this->assertStringContainsString('name="can_manage_events"', $template);
         $this->assertStringContainsString('data-events="', $template);
 
-        $rowPattern = '#<th scope="row">Termine verwalten</th>\s*'
+        $rowPattern = '#<th scope="row" class="roles-matrix-label">Termine verwalten</th>\s*'
             . '\{% for role in roles %\}\s*'
             . '<td[^>]*>\s*'
             . '\{% if role\.can_manage_events %\}#s';

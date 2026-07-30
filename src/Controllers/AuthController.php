@@ -174,6 +174,7 @@ class AuthController
                 'can_manage_users' => 1,
                 'can_edit_users' => 1,
                 'can_manage_attendance' => 1,
+                'can_manage_attendance_all' => 1,
                 'can_manage_project_members' => 1,
                 'can_read_finances' => 1,
                 'can_manage_finances' => 1,

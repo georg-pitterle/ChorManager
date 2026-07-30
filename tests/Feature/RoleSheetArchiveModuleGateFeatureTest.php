@@ -20,7 +20,7 @@ class RoleSheetArchiveModuleGateFeatureTest extends TestCase
     {
         $pattern = '#\{% if settings\.modules\.sheet_archive %\}\s*'
             . '<tr>\s*'
-            . '<th scope="row">Notenarchiv verwalten</th>#s';
+            . '<th scope="row" class="roles-matrix-label">Notenarchiv verwalten</th>#s';
 
         $this->assertMatchesRegularExpression(
             $pattern,

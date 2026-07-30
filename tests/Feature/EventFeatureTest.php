@@ -709,7 +709,7 @@ class EventFeatureTest extends TestCase
             'attendance_required' => true,
         ]);
 
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance'] = true;
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
 

@@ -31,12 +31,11 @@ class DashboardController
     {
         $today = date('Y-m-d');
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
         $canManageTasks = (bool) ($_SESSION['can_manage_tasks'] ?? false);
         $tasksModuleEnabled = (bool) ($this->settings['modules']['tasks'] ?? false);
         $newsletterModuleEnabled = (bool) ($this->settings['modules']['newsletter'] ?? false);
         $canViewNewsletterArea = $newsletterModuleEnabled
-            && ((bool) ($_SESSION['can_manage_newsletters'] ?? false) || $canManageUsers);
+            && (bool) ($_SESSION['can_manage_newsletters'] ?? false);
 
         $currentProject = null;
         $upcomingProject = null;
@@ -60,20 +59,18 @@ class DashboardController
                 ->where('status', Newsletter::STATUS_SENT)
                 ->with(['project', 'recipientSources']);
 
-            if (!$canManageUsers) {
-                $user = User::find($userId);
-                $accessibleProjectIds = $user
-                    ? $user->projects()
-                        ->pluck('projects.id')
-                        ->map(fn($id) => (int) $id)
-                        ->all()
-                    : [];
+            $user = User::find($userId);
+            $accessibleProjectIds = $user
+                ? $user->projects()
+                    ->pluck('projects.id')
+                    ->map(fn($id) => (int) $id)
+                    ->all()
+                : [];
 
-                if ($accessibleProjectIds === []) {
-                    $newsletterQuery = null;
-                } else {
-                    $newsletterQuery->whereIn('project_id', $accessibleProjectIds);
-                }
+            if ($accessibleProjectIds === []) {
+                $newsletterQuery = null;
+            } else {
+                $newsletterQuery->whereIn('project_id', $accessibleProjectIds);
             }
 
             if ($newsletterQuery !== null) {
@@ -84,7 +81,7 @@ class DashboardController
             }
         }
 
-        if ((bool) ($_SESSION['can_manage_mail_queue'] ?? false) || $canManageUsers) {
+        if ((bool) ($_SESSION['can_manage_mail_queue'] ?? false)) {
             $deadMailCount = $this->mailQueueAdminService->countDeadLetters();
         }
 

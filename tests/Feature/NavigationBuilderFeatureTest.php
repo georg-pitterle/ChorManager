@@ -247,14 +247,14 @@ class NavigationBuilderFeatureTest extends TestCase
         $this->assertContains('/finances', $urls);
     }
 
-    public function testUserManagerSeesFinancesWithoutFinancePermissions(): void
+    public function testUserManagerDoesNotSeeFinancesWithoutFinancePermissions(): void
     {
         $urls = $this->urls($this->build(
             ['can_manage_users' => true],
             ['finance' => true]
         ));
 
-        $this->assertContains('/finances', $urls);
+        $this->assertNotContains('/finances', $urls);
     }
 
     /**
@@ -301,6 +301,7 @@ class NavigationBuilderFeatureTest extends TestCase
             'user_id' => 42,
             'can_manage_users' => true,
             'can_manage_backups' => true,
+            'can_manage_finances' => true,
         ];
         $settings = ['modules' => ['finance' => true, 'newsletter' => true]];
 

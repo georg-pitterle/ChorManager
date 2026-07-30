@@ -116,4 +116,65 @@ final class RoleMiddlewareFeatureTest extends TestCase
 
         $this->assertSame(403, $response->getStatusCode());
     }
+
+    public function testUserWithAttendanceAllButNotOwnAttendanceCanPassAttendanceGate(): void
+    {
+        $_SESSION['can_manage_attendance'] = false;
+        $_SESSION['can_manage_attendance_all'] = true;
+        $_SESSION['can_manage_users'] = false;
+
+        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testUserManagerWithoutMasterDataPermissionGetsForbiddenOnMasterDataGate(): void
+    {
+        $_SESSION['can_manage_master_data'] = false;
+        // can_manage_users must no longer act as an implicit fallback for Stammdaten/Projekte.
+        $_SESSION['can_manage_users'] = true;
+
+        $middleware = new RoleMiddleware(requiresMasterDataManagement: true);
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/projects'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+    }
+
+    public function testUserWithNeitherAttendanceRightGetsForbiddenOnAttendanceGateEvenAsUserManager(): void
+    {
+        $_SESSION['can_manage_attendance'] = false;
+        $_SESSION['can_manage_attendance_all'] = false;
+        // can_manage_users must no longer act as an implicit fallback for Anwesenheit.
+        $_SESSION['can_manage_users'] = true;
+
+        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+    }
 }

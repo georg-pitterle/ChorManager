@@ -40,7 +40,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
         Bootstrap::setupTestDatabase();
         $_SESSION = [];
         // Termin-Bearbeitung ist Verwaltern vorbehalten: Zugriff scope-basiert.
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_events'] = true;
     }
 
     protected function tearDown(): void

@@ -52,10 +52,12 @@ class DashboardFeatureTest extends TestCase
 
         $this->assertIsString($template);
 
-        $this->assertStringContainsString('{% if session.can_manage_attendance or session.can_manage_users %}', $template);
         $this->assertStringContainsString(
-            '{% set _finance_perm = session.can_read_finances or session.can_manage_finances'
-                . ' or session.can_manage_users %}',
+            '{% if session.can_manage_attendance or session.can_manage_attendance_all %}',
+            $template
+        );
+        $this->assertStringContainsString(
+            '{% set _finance_perm = session.can_read_finances or session.can_manage_finances %}',
             $template
         );
         $this->assertStringContainsString(
@@ -101,7 +103,7 @@ class DashboardFeatureTest extends TestCase
 
         $this->assertStringNotContainsString("'Admin'", $dashboardController);
         $this->assertStringNotContainsString("where('name', 'Admin')", $newsletterController);
-        $this->assertStringContainsString("\$_SESSION['can_manage_users']", $newsletterController);
+        $this->assertStringNotContainsString("\$_SESSION['can_manage_users']", $newsletterController);
     }
 
     public function testDashboardTemplateShowsEvaluationsCardForAllUsers(): void

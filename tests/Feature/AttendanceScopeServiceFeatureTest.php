@@ -22,9 +22,9 @@ class AttendanceScopeServiceFeatureTest extends TestCase
         $_SESSION = [];
     }
 
-    public function testAdminManagesAllActiveUsers(): void
+    public function testAttendanceAllManagesAllActiveUsers(): void
     {
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $service = new AttendanceScopeService();
         $ids = $service->getManageableUserIds();
@@ -40,7 +40,7 @@ class AttendanceScopeServiceFeatureTest extends TestCase
             ->firstOrFail();
         $groupIds = $rep->voiceGroups->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_attendance_all'] = false;
         $_SESSION['role_level'] = 50;
         $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['voice_group_ids'] = $groupIds;

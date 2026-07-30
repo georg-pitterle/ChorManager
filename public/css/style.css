@@ -395,6 +395,11 @@ body.app-shell {
     margin-bottom: 0;
 }
 
+.roles-matrix-label {
+    max-width: 220px;
+    white-space: normal;
+}
+
 .downloads-section .accordion-button {
     gap: 0.5rem;
     flex-wrap: wrap;

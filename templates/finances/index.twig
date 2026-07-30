@@ -1,6 +1,6 @@
 {% extends "layout.twig" %}
 
-{% set can_write_finances = session.can_manage_finances or session.can_manage_users %}
+{% set can_write_finances = session.can_manage_finances %}
 
 {% block title %}
     Kassabuch - {{ app_settings.app_name|default('Chor-Manager') }}

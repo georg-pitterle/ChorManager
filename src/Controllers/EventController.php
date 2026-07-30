@@ -43,7 +43,7 @@ class EventController
     {
         $queryParams = $request->getQueryParams();
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $seesAllEvents = (bool) ($_SESSION['can_manage_users'] ?? false) || $this->canManageEvents();
+        $seesAllEvents = $this->canManageEvents();
         $accessibleProjects = $this->getAccessibleProjects($userId, $seesAllEvents);
         $accessibleProjectIds = $accessibleProjects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
@@ -704,7 +704,7 @@ class EventController
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $seesAllEvents = (bool) ($_SESSION['can_manage_users'] ?? false) || $this->canManageEvents();
+        $seesAllEvents = $this->canManageEvents();
         $projects = $this->getAccessibleProjects($userId, $seesAllEvents);
         $eventTypes = EventType::orderBy('name')->get();
         $roles = Role::query()->orderBy('name')->get();
@@ -944,7 +944,7 @@ class EventController
     {
         // Terminverwalter muessen auch Termine ausserhalb ihrer eigenen Zielgruppe sehen,
         // sonst koennten sie genau die Termine nicht pflegen, fuer die sie zustaendig sind.
-        if ((bool) ($_SESSION['can_manage_users'] ?? false) || $this->canManageEvents()) {
+        if ($this->canManageEvents()) {
             return true;
         }
 

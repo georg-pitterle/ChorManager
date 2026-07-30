@@ -151,7 +151,7 @@ class RegistrationViewFeatureTest extends TestCase
         // rendered grid row is a proxy row (not the own-registration row).
         $manager = $this->createUser('reg-manager', 'Verwalter');
         $_SESSION['user_id'] = (int) $manager->id;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new RegistrationController($this->createTwig(), new AttendanceScopeService(), new NullLogger(), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/registrations/' . $fixture['event']->id);

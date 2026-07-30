@@ -81,7 +81,7 @@
                                         <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Mitgliederverwaltung</th>
                                     </tr>
                                     <tr>
-                                        <th scope="row">Admin-Rechte</th>
+                                        <th scope="row" class="roles-matrix-label">Mitgliederverwaltung erlauben</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_users %}
@@ -93,7 +93,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Edit-Rechte</th>
+                                        <th scope="row" class="roles-matrix-label">Mitglieder editieren erlauben</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_edit_users %}
@@ -105,7 +105,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Termine verwalten</th>
+                                        <th scope="row" class="roles-matrix-label">Termine verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_events %}
@@ -117,7 +117,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Anwesenheit</th>
+                                        <th scope="row" class="roles-matrix-label">Anwesenheit/Anmeldung verwalten (eigene Stimmgruppe)</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_attendance %}
@@ -129,7 +129,19 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Projektmitglieder</th>
+                                        <th scope="row" class="roles-matrix-label">Anwesenheit/Anmeldung verwalten (alle Mitglieder)</th>
+                                        {% for role in roles %}
+                                            <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                {% if role.can_manage_attendance_all %}
+                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                        <th scope="row" class="roles-matrix-label">Projektmitglieder verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_project_members %}
@@ -141,7 +153,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Eigene Stimmgruppe verwalten</th>
+                                        <th scope="row" class="roles-matrix-label">Eigene Stimmgruppe verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_own_voice_group %}
@@ -157,7 +169,7 @@
                                             <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Finanzen</th>
                                         </tr>
                                         <tr>
-                                            <th scope="row">Finanzen nur lesen</th>
+                                            <th scope="row" class="roles-matrix-label">Finanzen nur lesen</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_read_finances %}
@@ -169,7 +181,7 @@
                                             {% endfor %}
                                         </tr>
                                         <tr>
-                                            <th scope="row">Finanzen lesen und schreiben</th>
+                                            <th scope="row" class="roles-matrix-label">Finanzen lesen und schreiben</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_manage_finances %}
@@ -183,7 +195,7 @@
                                     {% endif %}
                                     {% if settings.modules.budget %}
                                         <tr>
-                                            <th scope="row">Budget verwalten</th>
+                                            <th scope="row" class="roles-matrix-label">Budget verwalten</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_manage_budget %}
@@ -200,7 +212,7 @@
                                     </tr>
                                     {% if settings.modules.sponsoring %}
                                         <tr>
-                                            <th scope="row">Sponsoring</th>
+                                            <th scope="row" class="roles-matrix-label">Sponsoring verwalten</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_manage_sponsoring %}
@@ -213,7 +225,7 @@
                                         </tr>
                                     {% endif %}
                                     <tr>
-                                        <th scope="row">Repertoire</th>
+                                        <th scope="row" class="roles-matrix-label">Repertoire verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_song_library %}
@@ -226,7 +238,7 @@
                                     </tr>
                                     {% if settings.modules.sheet_archive %}
                                         <tr>
-                                            <th scope="row">Notenarchiv verwalten</th>
+                                            <th scope="row" class="roles-matrix-label">Notenarchiv verwalten</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_manage_sheet_archive %}
@@ -243,7 +255,7 @@
                                     </tr>
                                     {% if settings.modules.newsletter %}
                                         <tr>
-                                            <th scope="row">Newsletter</th>
+                                            <th scope="row" class="roles-matrix-label">Newsletter verwalten</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_manage_newsletters %}
@@ -256,7 +268,7 @@
                                         </tr>
                                     {% endif %}
                                     <tr>
-                                        <th scope="row">Mailversand verwalten</th>
+                                        <th scope="row" class="roles-matrix-label">Mailversand verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_mail_queue %}
@@ -269,7 +281,7 @@
                                     </tr>
                                     {% if settings.modules.tasks %}
                                         <tr>
-                                            <th scope="row">Aufgaben/Planung</th>
+                                            <th scope="row" class="roles-matrix-label">Projektplanung (Aufgaben)</th>
                                             {% for role in roles %}
                                                 <td data-label="{{ role.name }}" class="text-center align-middle">
                                                     {% if role.can_manage_tasks %}
@@ -285,7 +297,7 @@
                                         <th colspan="{{ roles|length + 1 }}" class="small text-uppercase fw-bold">Stammdaten &amp; System</th>
                                     </tr>
                                     <tr>
-                                        <th scope="row">Stammdaten</th>
+                                        <th scope="row" class="roles-matrix-label">Stammdaten verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_master_data %}
@@ -297,7 +309,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Backup-Verwaltung</th>
+                                        <th scope="row" class="roles-matrix-label">Backup-Verwaltung</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 {% if role.can_manage_backups %}
@@ -309,7 +321,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Aktive Mitglieder</th>
+                                        <th scope="row" class="roles-matrix-label">Aktive Mitglieder</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 <span class="badge bg-primary rounded-pill text-center">{{ role.active_users_count }}</span>
@@ -317,7 +329,7 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        <th scope="row">Aktionen</th>
+                                        <th scope="row" class="roles-matrix-label">Aktionen</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
                                                 <div class="btn-group"
@@ -333,6 +345,7 @@
                                                             data-manage="{{ role.can_manage_users ? '1' : '0' }}"
                                                             data-edit="{{ role.can_edit_users ? '1' : '0' }}"
                                                             data-attendance="{{ role.can_manage_attendance ? '1' : '0' }}"
+                                                            data-attendance-all="{{ role.can_manage_attendance_all ? '1' : '0' }}"
                                                             data-events="{{ role.can_manage_events ? '1' : '0' }}"
                                                             data-project-members="{{ role.can_manage_project_members ? '1' : '0' }}"
                                                             data-finance-read="{{ role.can_read_finances ? '1' : '0' }}"
@@ -463,8 +476,20 @@
                                name="can_manage_attendance"
                                value="1">
                         <label class="form-check-label fw-bold text-secondary"
-                               for="can_manage_attendance">Anwesenheit eintragen</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
+                               for="can_manage_attendance">Anwesenheit/Anmeldung verwalten (eigene Stimmgruppe)</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten und Anmeldungen für die eigene Stimmgruppe erfassen und aktualisieren.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_manage_attendance_all"
+                               name="can_manage_attendance_all"
+                               value="1">
+                        <label class="form-check-label fw-bold text-secondary"
+                               for="can_manage_attendance_all">Anwesenheit/Anmeldung verwalten (alle Mitglieder)</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten und Anmeldungen für alle Mitglieder erfassen und aktualisieren.</div>
                     </div>
 
                     {% if settings.modules.finance %}
@@ -751,8 +776,20 @@
                                name="can_manage_attendance"
                                value="1">
                         <label class="form-check-label fw-bold text-secondary"
-                               for="edit_can_manage_attendance">Anwesenheit eintragen</label>
-                        <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten erfassen und aktualisieren.</div>
+                               for="edit_can_manage_attendance">Anwesenheit/Anmeldung verwalten (eigene Stimmgruppe)</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten und Anmeldungen für die eigene Stimmgruppe erfassen und aktualisieren.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_attendance_all"
+                               name="can_manage_attendance_all"
+                               value="1">
+                        <label class="form-check-label fw-bold text-secondary"
+                               for="edit_can_manage_attendance_all">Anwesenheit/Anmeldung verwalten (alle Mitglieder)</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person Anwesenheiten und Anmeldungen für alle Mitglieder erfassen und aktualisieren.</div>
                     </div>
 
                     {% if settings.modules.finance %}

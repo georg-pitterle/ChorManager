@@ -210,7 +210,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $fixture = $this->createVoiceGroupScopedAttendanceFixture();
 
         $_SESSION['user_id'] = 1;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
 
@@ -237,7 +237,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $fixture = $this->createVoiceGroupScopedAttendanceFixture();
 
         $_SESSION['user_id'] = 1;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
 
@@ -261,7 +261,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $fixture = $this->createVoiceGroupScopedAttendanceFixture();
 
         $_SESSION['user_id'] = 1;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
 

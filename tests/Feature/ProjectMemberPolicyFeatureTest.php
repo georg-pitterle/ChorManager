@@ -36,7 +36,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $this->assertSame([], $policy->getAccessibleProjectIds());
     }
 
-    public function testPolicyGrantsAccessToGlobalAdmin(): void
+    public function testPolicyDeniesAccessToUserManagerWithoutProjectMemberPermission(): void
     {
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
@@ -44,12 +44,12 @@ class ProjectMemberPolicyFeatureTest extends TestCase
 
         $policy = new ProjectMemberPolicy();
 
-        // Global admin should have access regardless of project membership
-        // Note: getAccessibleProjectIds() requires database access, so we only test the permission check methods
-        $this->assertTrue($policy->canViewMembers(999));
-        $this->assertTrue($policy->canAddMember(999));
-        $this->assertTrue($policy->canRemoveMember(999));
-        $this->assertTrue($policy->canViewAllCandidates(999));
+        // can_manage_users no longer implies project-member access; the dedicated
+        // can_manage_project_members permission is required.
+        $this->assertFalse($policy->canViewMembers(999));
+        $this->assertFalse($policy->canAddMember(999));
+        $this->assertFalse($policy->canRemoveMember(999));
+        $this->assertFalse($policy->canViewAllCandidates(999));
     }
 
     public function testProjectMemberManagerWithoutAccessibleProjectsDeniesAllPermissions(): void

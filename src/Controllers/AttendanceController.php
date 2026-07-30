@@ -60,7 +60,7 @@ class AttendanceController
             if ($event) {
                 [$previousEventId, $nextEventId] = $this->getPreviousAndNextEventIds($events, (int) $event->id);
 
-                $canManageUsers = $_SESSION['can_manage_users'] ?? false;
+                $canManageAttendanceAll = $_SESSION['can_manage_attendance_all'] ?? false;
                 $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
                 $roleLevel = $_SESSION['role_level'] ?? 0;
 
@@ -68,7 +68,7 @@ class AttendanceController
                 $users = $event->eligibleUsersQuery();
 
                 // If not admin/board, additionally restrict to own voice groups.
-                if (!$canManageUsers && $roleLevel < 80) {
+                if (!$canManageAttendanceAll && $roleLevel < 80) {
                     if (!empty($userVoiceGroupIds)) {
                         $users->whereHas('voiceGroups', function ($q) use ($userVoiceGroupIds) {
                             $q->whereIn('voice_group_id', $userVoiceGroupIds);
@@ -304,7 +304,7 @@ class AttendanceController
 
     private function canAccessAttendanceEvent(Event $event): bool
     {
-        if ((bool) ($_SESSION['can_manage_users'] ?? false)) {
+        if ((bool) ($_SESSION['can_manage_attendance_all'] ?? false)) {
             return true;
         }
 

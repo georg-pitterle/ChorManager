@@ -143,7 +143,7 @@ final class NavigationBuilder
                         'prefixes' => ['/attendance'],
                         'navKeys' => ['attendance'],
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_attendance') || $c->can('can_manage_users'),
+                            $c->can('can_manage_attendance') || $c->can('can_manage_attendance_all'),
                     ],
                     [
                         'label' => 'Anmeldungen',
@@ -194,8 +194,7 @@ final class NavigationBuilder
                         'navKeys' => ['finances'],
                         'visible' => static fn(NavigationContext $c): bool =>
                             $c->module('finance')
-                            && ($c->can('can_read_finances') || $c->can('can_manage_finances')
-                                || $c->can('can_manage_users')),
+                            && ($c->can('can_read_finances') || $c->can('can_manage_finances')),
                     ],
                     [
                         'label' => 'Budget',
@@ -206,7 +205,7 @@ final class NavigationBuilder
                         'visible' => static fn(NavigationContext $c): bool =>
                             $c->module('budget')
                             && ($c->can('can_read_finances') || $c->can('can_manage_finances')
-                                || $c->can('can_manage_users') || $c->can('can_manage_budget')),
+                                || $c->can('can_manage_budget')),
                     ],
                     [
                         'label' => 'Sponsoring',
@@ -292,7 +291,7 @@ final class NavigationBuilder
                         'excl' => ['/projects/members'],
                         'section' => 'core',
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_master_data') || $c->can('can_manage_users'),
+                            $c->can('can_manage_master_data'),
                     ],
                     [
                         'label' => 'Rollen',
@@ -311,7 +310,7 @@ final class NavigationBuilder
                         'navKeys' => ['voice_groups'],
                         'section' => 'core',
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_master_data') || $c->can('can_manage_users'),
+                            $c->can('can_manage_master_data'),
                     ],
                     [
                         'label' => 'Termin-Typen',
@@ -330,7 +329,7 @@ final class NavigationBuilder
                         'navKeys' => ['settings'],
                         'section' => 'settings',
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_master_data') || $c->can('can_manage_users'),
+                            $c->can('can_manage_master_data'),
                     ],
                     [
                         'label' => 'Mailversand',
@@ -340,7 +339,7 @@ final class NavigationBuilder
                         'navKeys' => ['mail_queue'],
                         'section' => 'mailqueue',
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_mail_queue') || $c->can('can_manage_users'),
+                            $c->can('can_manage_mail_queue'),
                     ],
                     [
                         'label' => 'Backup-Verwaltung',

@@ -91,6 +91,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageBudget = $_SESSION['can_manage_budget'] ?? false;
         $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
         $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
+        $canManageAttendanceAll = $_SESSION['can_manage_attendance_all'] ?? false;
         $canManageEvents = $_SESSION['can_manage_events'] ?? false;
         $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
         $canManageOwnVoiceGroup = $_SESSION['can_manage_own_voice_group'] ?? false;
@@ -110,37 +111,37 @@ class RoleMiddleware implements MiddlewareInterface
             return $response->withStatus(403);
         }
 
-        if ($this->requiresAttendanceManagement && !$canManageAttendance && !$canManageUsers) {
+        if ($this->requiresAttendanceManagement && !$canManageAttendance && !$canManageAttendanceAll) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresSongLibraryManagement && !$canManageSongLibrary && !$canManageUsers) {
+        if ($this->requiresSongLibraryManagement && !$canManageSongLibrary) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Repertoire-Verwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresNewsletterManagement && !$canManageNewsletters && !$canManageUsers) {
+        if ($this->requiresNewsletterManagement && !$canManageNewsletters) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Newsletter-Verwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresMailQueueManagement && !$canManageMailQueue && !$canManageUsers) {
+        if ($this->requiresMailQueueManagement && !$canManageMailQueue) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Mailversand-Verwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresSheetArchiveManagement && !$canManageSheetArchive && !$canManageUsers) {
+        if ($this->requiresSheetArchiveManagement && !$canManageSheetArchive) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Notenarchiv-Verwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresBudgetManagement && !$canManageBudget && !$canManageUsers) {
+        if ($this->requiresBudgetManagement && !$canManageBudget) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.");
             return $response->withStatus(403);
@@ -156,38 +157,38 @@ class RoleMiddleware implements MiddlewareInterface
         // read-only even without budget management rights.
         if (
             $this->requiresBudgetRead
-            && !$canReadFinances && !$canManageFinances && !$canManageBudget && !$canManageUsers
+            && !$canReadFinances && !$canManageFinances && !$canManageBudget
         ) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresSponsoringManagement && !$canManageSponsoring && !$canManageUsers) {
+        if ($this->requiresSponsoringManagement && !$canManageSponsoring) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Sponsoring-Verwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresMasterDataManagement && !$canManageMasterData && !$canManageUsers) {
+        if ($this->requiresMasterDataManagement && !$canManageMasterData) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Stammdatenverwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresFinanceRead && !$canReadFinances && !$canManageFinances && !$canManageUsers) {
+        if ($this->requiresFinanceRead && !$canReadFinances && !$canManageFinances) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Finanzansicht.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresFinanceManagement && !$canManageFinances && !$canManageUsers) {
+        if ($this->requiresFinanceManagement && !$canManageFinances) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Finanzverwaltung.");
             return $response->withStatus(403);
         }
 
-        if ($this->requiresProjectMemberManagement && !$canManageProjectMembers && !$canManageUsers) {
+        if ($this->requiresProjectMemberManagement && !$canManageProjectMembers) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.");
             return $response->withStatus(403);

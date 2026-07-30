@@ -59,7 +59,7 @@ class RegistrationProxyFeatureTest extends TestCase
             ->where('id', '!=', $admin->id)->firstOrFail();
 
         $_SESSION['user_id'] = (int) $admin->id;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', [
             'registration' => [(string) $member->id => 'maybe'],

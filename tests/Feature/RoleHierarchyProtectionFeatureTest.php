@@ -36,6 +36,7 @@ class RoleHierarchyProtectionFeatureTest extends TestCase
             $table->boolean('can_manage_users')->default(false);
             $table->boolean('can_edit_users')->default(false);
             $table->boolean('can_manage_attendance')->default(false);
+            $table->boolean('can_manage_attendance_all')->default(false);
             $table->boolean('can_manage_events')->default(false);
             $table->boolean('can_manage_project_members')->default(false);
             $table->boolean('can_read_finances')->default(false);

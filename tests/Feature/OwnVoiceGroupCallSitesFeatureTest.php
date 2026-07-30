@@ -100,7 +100,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
 
     public function testAdminStillManagesOthers(): void
     {
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
         $_SESSION['can_manage_own_voice_group'] = false;
 
         $this->assertTrue((new AttendanceScopeService())->canManageOthers());

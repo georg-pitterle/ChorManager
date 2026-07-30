@@ -215,7 +215,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
         }
 
         $_SESSION['user_id'] = $member->id;
-        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new AttendanceController(
             $this->createTwig($registrationFeatureEnabled),

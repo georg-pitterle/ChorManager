@@ -14,10 +14,10 @@ class AttendanceScopeService
 {
     public function canManageOthers(): bool
     {
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
         $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
+        $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
 
-        return $canManageUsers || $canManageOwnVoiceGroup;
+        return $canManageOwnVoiceGroup || $canManageAttendanceAll;
     }
 
     /**
@@ -25,11 +25,11 @@ class AttendanceScopeService
      */
     public function getManageableUserIds(): array
     {
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
+        $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
         $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
         $roleLevel = (int) ($_SESSION['role_level'] ?? 0);
 
-        if (!$canManageUsers && $roleLevel < 80) {
+        if (!$canManageAttendanceAll && $roleLevel < 80) {
             if (empty($userVoiceGroupIds)) {
                 return [];
             }
