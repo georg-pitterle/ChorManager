@@ -14,7 +14,6 @@ class HelpFeatureTest extends TestCase
     use TestHttpHelpers;
 
     private string $docsDir;
-    private string $imagesDir;
 
     protected function setUp(): void
     {
@@ -22,25 +21,29 @@ class HelpFeatureTest extends TestCase
         $_SESSION = [];
 
         $this->docsDir = sys_get_temp_dir() . '/chormanager_help_test_' . bin2hex(random_bytes(4));
-        $this->imagesDir = $this->docsDir . '/images';
-        mkdir($this->imagesDir . '/sponsoring', 0755, true);
+
+        mkdir($this->docsDir . '/sponsoring/docs', 0755, true);
+        mkdir($this->docsDir . '/sponsoring/screenshots', 0755, true);
+        mkdir($this->docsDir . '/alpha-guide/docs', 0755, true);
+        mkdir($this->docsDir . '/no-heading/docs', 0755, true);
+        mkdir($this->docsDir . '/modul-a/docs', 0755, true);
 
         file_put_contents(
-            $this->docsDir . '/sponsoring.md',
+            $this->docsDir . '/sponsoring/docs/sponsoring.md',
             "# Sponsoring – Anleitung\n\nEinleitungstext.\n\n![Dashboard](images/sponsoring/01-dashboard.png)\n"
         );
         file_put_contents(
-            $this->docsDir . '/alpha-guide.md',
+            $this->docsDir . '/alpha-guide/docs/alpha-guide.md',
             "# Alpha Guide\n\nInhalt **fett**.\n"
         );
         file_put_contents(
-            $this->docsDir . '/no-heading.md',
+            $this->docsDir . '/no-heading/docs/no-heading.md',
             "Nur Fliesstext ohne Ueberschrift.\n"
         );
-        file_put_contents($this->docsDir . '/modul-a.md', "# Modul A\n\nEinleitung.\n");
-        file_put_contents($this->docsDir . '/modul-a-eins.md', "# Eins\n\nInhalt Eins.\n");
-        file_put_contents($this->docsDir . '/modul-a-zwei.md', "# Zwei\n\nInhalt Zwei.\n");
-        file_put_contents($this->imagesDir . '/sponsoring/01-dashboard.png', 'fake-png-bytes');
+        file_put_contents($this->docsDir . '/modul-a/docs/modul-a.md', "# Modul A\n\nEinleitung.\n");
+        file_put_contents($this->docsDir . '/modul-a/docs/modul-a-eins.md', "# Eins\n\nInhalt Eins.\n");
+        file_put_contents($this->docsDir . '/modul-a/docs/modul-a-zwei.md', "# Zwei\n\nInhalt Zwei.\n");
+        file_put_contents($this->docsDir . '/sponsoring/screenshots/01-dashboard.png', 'fake-png-bytes');
     }
 
     protected function tearDown(): void
@@ -69,7 +72,7 @@ class HelpFeatureTest extends TestCase
 
     private function controller(): HelpController
     {
-        return new HelpController($this->createTwig(), $this->docsDir, $this->imagesDir);
+        return new HelpController($this->createTwig(), $this->docsDir);
     }
 
     /**

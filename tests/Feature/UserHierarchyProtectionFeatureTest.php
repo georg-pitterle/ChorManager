@@ -252,7 +252,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $controller = $this->makeController(
             $userQuery,
             $userPersistence,
-            $this->createMock(ProjectPersistence::class)
+            $this->createStub(ProjectPersistence::class)
         );
 
         // Passwords are only ever set by the member via the invitation or reset link.

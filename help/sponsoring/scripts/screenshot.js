@@ -23,9 +23,9 @@ const IMAGES_DIR = path.join(__dirname, '..', 'screenshots');
 
 const VIEWPORT = { width: 1440, height: 900 };
 
-async function shot(page, name) {
+async function shot(page, name, { fullPage = true } = {}) {
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
-    await page.screenshot({ path: filePath, fullPage: true });
+    await page.screenshot({ path: filePath, fullPage });
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
 }
 
@@ -108,7 +108,7 @@ async function main() {
             '#createSponsorModal',
             'shown.bs.modal'
         );
-        await shot(page, '03-new-sponsor-modal');
+        await shot(page, '03-new-sponsor-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#createSponsorModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -133,7 +133,7 @@ async function main() {
             '#newSponsorshipModal',
             'shown.bs.modal'
         );
-        await shot(page, '06-new-agreement-modal');
+        await shot(page, '06-new-agreement-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#newSponsorshipModal .btn-secondary[data-bs-dismiss="modal"]'),
@@ -152,7 +152,7 @@ async function main() {
             '#newContactModal',
             'shown.bs.modal'
         );
-        await shot(page, '08-new-contact-modal');
+        await shot(page, '08-new-contact-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#newContactModal .btn-secondary[data-bs-dismiss="modal"]'),

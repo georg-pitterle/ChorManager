@@ -119,6 +119,41 @@ await clickAndWaitForEvent(page, dismissLocator, '#myModal', 'hidden.bs.modal');
 await clickAndWaitForTabPane(page, page.locator('#tab-foo'), '#pane-foo');
 ```
 
+### Screenshot-Funktion: `fullPage` vs. Modal
+
+`page.screenshot({ fullPage: true })` stitcht mehrere Scroll-Positionen zu einem Bild
+zusammen. Dabei werden `position: fixed`-Elemente (Navbar, Modal-Backdrop, das Modal
+selbst) bei jeder Scroll-Position neu eingezeichnet und erscheinen im Ergebnisbild
+**mehrfach übereinander** — sichtbar z. B. als doppelte Navbar mitten im Bild.
+Ein Element-Screenshot auf `.modal-content` löst das Problem NICHT: Bootstrap scrollt
+bei langen Formularen den `.modal`-Container selbst, wodurch das Element zwar die
+volle Inhaltshöhe hat, aber nur der aktuell sichtbare Ausschnitt tatsächlich gerendert
+ist — der Rest bleibt weiß im Bild.
+
+Deshalb zwei getrennte Screenshot-Helfer verwenden:
+
+```js
+// Normale Seiten/Listen: volle Seite inkl. Scroll-Inhalt
+async function shot(page, name) {
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await page.screenshot({ path: filePath, fullPage: true });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
+}
+
+// Bei offenem Modal: EIN einzelnes Viewport-Bild (kein fullPage, kein
+// Scroll-Stitching). Zeigt exakt das, was die Nutzerin auch sieht;
+// Inhalt unterhalb des Viewports wird schlicht nicht mitgeschossen,
+// das ist für die Doku ausreichend.
+async function shotModal(page, name) {
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await page.screenshot({ path: filePath, fullPage: false });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
+}
+```
+
+Regel: **Sobald ein Modal offen ist, `shotModal` statt `shot` verwenden.** Referenz:
+`help/roles/scripts/screenshot.js`.
+
 ### Screenshot-Benennung
 
 Nummeriert, sprechend, **englisch** (auch wenn das Modul einen deutschen Namen hat):
@@ -222,3 +257,4 @@ Checkliste:
 | Thema erscheint nicht in Index | Datei liegt nicht in `help/{slug}/docs/` oder hat keine `# Überschrift` | Pfad und erste Zeile prüfen |
 | Modal-Screenshot zu früh | CSS-Transition noch aktiv | `clickAndWaitForEvent` mit `shown.bs.modal` verwenden |
 | Tab-Inhalt fehlt im Screenshot | Tab-Transition noch aktiv | `clickAndWaitForTabPane` mit opacity-Check verwenden |
+| Navbar/Modal erscheint doppelt im Screenshot | `fullPage: true` bei offenem Modal — Scroll-Stitching zeichnet `position: fixed`-Elemente mehrfach | Bei offenem Modal `shotModal` (kein `fullPage`) statt `shot` verwenden, siehe oben |
