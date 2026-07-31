@@ -76,6 +76,13 @@ class RegistrationController
             return $response->withHeader('Location', '/registrations')->withStatus(302);
         }
 
+        // Die Anmeldeliste zeigt Namen, Status und Notizen aller Betroffenen - sie ist nur
+        // fuer Mitglieder der Zielgruppe und fuer deren Verwalter bestimmt.
+        if (!$this->scopeService->canAccessEvent($event)) {
+            $_SESSION['error'] = 'Du gehörst nicht zur Zielgruppe dieses Termins.';
+            return $response->withHeader('Location', '/registrations')->withStatus(403);
+        }
+
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $manageableIds = $this->scopeService->getManageableUserIds();
         $users = $this->eligibleUsers($event);
@@ -264,7 +271,7 @@ class RegistrationController
                 ->withStatus(403);
         }
 
-        if (!$this->scopeService->canManageOthers()) {
+        if (!$this->scopeService->canManageOthers() || !$this->scopeService->canAccessEvent($event)) {
             $_SESSION['error'] = 'Zugriff verweigert: Keine Berechtigung für Vertretungseinträge.';
             return $response
                 ->withHeader('Location', '/registrations/' . $event->id)
@@ -275,7 +282,13 @@ class RegistrationController
         $registrations = (array) ($data['registration'] ?? []);
         $notes = (array) ($data['note'] ?? []);
 
-        $allowedUserIds = $this->scopeService->getManageableUserIds();
+        // Vertretungseintraege sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
+        // auf die Zielgruppe des Termins - sonst entstuenden Anmeldungen fuer Unbeteiligte.
+        $eligibleUserIds = $event->eligibleUsersQuery()
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+        $allowedUserIds = array_intersect($this->scopeService->getManageableUserIds(), $eligibleUserIds);
         $submittedUserIds = array_values(array_unique(array_map('intval', array_keys($registrations))));
         $unauthorized = array_diff($submittedUserIds, $allowedUserIds);
 

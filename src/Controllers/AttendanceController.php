@@ -8,7 +8,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Event;
-use App\Models\User;
 use App\Models\Attendance;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
@@ -40,7 +39,14 @@ class AttendanceController
             ? (int) $queryParams['event_id']
             : null;
 
-        $events = Event::where('attendance_required', true)->orderBy('starts_at', 'asc')->get();
+        // Nur Termine, zu denen der Nutzer selbst gehoert oder in denen er mindestens ein
+        // verwaltbares Mitglied betreut - "alle Mitglieder verwalten" sieht jeden Termin.
+        $events = Event::where('attendance_required', true)
+            ->with('audienceSources')
+            ->orderBy('starts_at', 'asc')
+            ->get()
+            ->filter(fn(Event $event): bool => $this->scopeService->canAccessEvent($event))
+            ->values();
 
         $eventId = $this->resolveSelectedEventId($routeEventId, $queryEventId, $events);
         if ($eventId !== null) {
@@ -60,22 +66,18 @@ class AttendanceController
             if ($event) {
                 [$previousEventId, $nextEventId] = $this->getPreviousAndNextEventIds($events, (int) $event->id);
 
-                $canManageAttendanceAll = $_SESSION['can_manage_attendance_all'] ?? false;
-                $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
-                $roleLevel = $_SESSION['role_level'] ?? 0;
+                $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
 
                 // Only members within the event's audience scope may appear.
                 $users = $event->eligibleUsersQuery();
 
-                // If not admin/board, additionally restrict to own voice groups.
-                if (!$canManageAttendanceAll && $roleLevel < 80) {
-                    if (!empty($userVoiceGroupIds)) {
-                        $users->whereHas('voiceGroups', function ($q) use ($userVoiceGroupIds) {
-                            $q->whereIn('voice_group_id', $userVoiceGroupIds);
-                        });
+                // Ohne das Recht fuer alle Mitglieder bleibt nur der eigene Stimmgruppen-Scope.
+                if (!$canManageAttendanceAll) {
+                    $manageableUserIds = $this->scopeService->getManageableUserIds();
+                    if ($manageableUserIds === []) {
+                        $users->whereRaw('1 = 0');
                     } else {
-                        // Edge case: no voice group assigned but is a stimmsprecher
-                        $users->whereRaw('1 = 0'); // show nothing
+                        $users->whereIn('users.id', $manageableUserIds);
                     }
                 }
 
@@ -304,24 +306,6 @@ class AttendanceController
 
     private function canAccessAttendanceEvent(Event $event): bool
     {
-        if ((bool) ($_SESSION['can_manage_attendance_all'] ?? false)) {
-            return true;
-        }
-
-        if ($event->project_id === null) {
-            return true;
-        }
-
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        if ($userId <= 0) {
-            return false;
-        }
-
-        return User::query()
-            ->where('users.id', $userId)
-            ->whereHas('projects', function ($projectQuery) use ($event) {
-                $projectQuery->where('projects.id', (int) $event->project_id);
-            })
-            ->exists();
+        return $this->scopeService->canAccessEvent($event);
     }
 }

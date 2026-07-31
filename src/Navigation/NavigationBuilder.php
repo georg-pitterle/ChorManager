@@ -264,8 +264,9 @@ final class NavigationBuilder
                         'prefixes' => ['/evaluations'],
                         'navKeys' => ['evaluations'],
                         'excl' => ['/evaluations/project-members', '/evaluations/registrations'],
-                        'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_users') || $c->can('can_manage_own_voice_group'),
+                        // Auswertungen sind bewusst fuer alle angemeldeten Mitglieder offen -
+                        // das Menue bildet genau das ab, was die Route zulaesst.
+                        'visible' => $always,
                     ],
                     [
                         'label' => 'Anmeldungen',
@@ -300,7 +301,7 @@ final class NavigationBuilder
                         'prefixes' => ['/roles'],
                         'navKeys' => ['roles'],
                         'section' => 'core',
-                        'visible' => static fn(NavigationContext $c): bool => $c->can('can_manage_users'),
+                        'visible' => static fn(NavigationContext $c): bool => $c->can('can_manage_roles'),
                     ],
                     [
                         'label' => 'Stimmgruppen',

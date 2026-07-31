@@ -86,7 +86,9 @@ class NavigationBuilderFeatureTest extends TestCase
         $this->assertContains('/evaluations/project-members', array_column($bereiche['items'], 'url'));
 
         $auswertungen = $this->group($tree, 'Auswertungen');
-        $this->assertNull($auswertungen, 'Auswertungen darf fuer ein rechteloses Mitglied leer bleiben.');
+        $this->assertNotNull($auswertungen, 'Anwesenheitsquoten sind fuer alle Mitglieder offen.');
+        $this->assertNotContains('/evaluations/project-members', array_column($auswertungen['items'], 'url'));
+        $this->assertContains('/evaluations', array_column($auswertungen['items'], 'url'));
     }
 
     public function testProjectMembersLinkNotInAuswertungenGroupForAdmin(): void
@@ -162,6 +164,7 @@ class NavigationBuilderFeatureTest extends TestCase
     {
         $tree = $this->build([
             'can_manage_users' => true,
+            'can_manage_roles' => true,
             'can_manage_master_data' => true,
             'can_manage_mail_queue' => true,
             'can_manage_backups' => true,

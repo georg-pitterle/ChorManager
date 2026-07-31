@@ -99,10 +99,13 @@ class AuthFeatureTest extends TestCase
 
         $this->assertSame(7, $_SESSION['user_id']);
         $this->assertSame('Test User', $_SESSION['user_name']);
-        $this->assertTrue($_SESSION['can_manage_users']);
+        // Das Hierarchie-Level 85 vergibt bewusst keine Rechte mehr: gesetzt ist nur,
+        // was in mindestens einer der beiden Rollen angehakt ist.
+        $this->assertFalse($_SESSION['can_manage_users']);
+        $this->assertFalse($_SESSION['can_manage_roles']);
+        $this->assertFalse($_SESSION['can_manage_project_members']);
         $this->assertTrue($_SESSION['can_edit_users']);
         $this->assertTrue($_SESSION['can_manage_attendance']);
-        $this->assertTrue($_SESSION['can_manage_project_members']);
         $this->assertTrue($_SESSION['can_manage_finances']);
         $this->assertTrue($_SESSION['can_manage_master_data']);
         $this->assertTrue($_SESSION['can_manage_sponsoring']);

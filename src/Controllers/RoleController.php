@@ -50,6 +50,7 @@ class RoleController
 
         $flags = [
             'can_manage_users' => isset($data['can_manage_users']) ? 1 : 0,
+            'can_manage_roles' => isset($data['can_manage_roles']) ? 1 : 0,
             'can_edit_users' => isset($data['can_edit_users']) ? 1 : 0,
             'can_manage_attendance' => isset($data['can_manage_attendance']) ? 1 : 0,
             'can_manage_attendance_all' => isset($data['can_manage_attendance_all']) ? 1 : 0,
@@ -102,7 +103,9 @@ class RoleController
         $roles = Role::withCount([
             'users as active_users_count' => function ($query) {
                 $query->where('is_active', 1);
-            }
+            },
+            // Fuer das Loeschen zaehlt jede Zuweisung, auch die eines archivierten Mitglieds.
+            'users as assigned_users_count',
         ])->orderBy('hierarchy_level', 'desc')->get();
 
         $success = $_SESSION['success'] ?? null;
@@ -141,6 +144,7 @@ class RoleController
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
                 'can_manage_users' => $permissions['can_manage_users'],
+                'can_manage_roles' => $permissions['can_manage_roles'],
                 'can_edit_users' => $permissions['can_edit_users'],
                 'can_manage_attendance' => $permissions['can_manage_attendance'],
                 'can_manage_attendance_all' => $permissions['can_manage_attendance_all'],
@@ -209,6 +213,7 @@ class RoleController
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
                 'can_manage_users' => $permissions['can_manage_users'],
+                'can_manage_roles' => $permissions['can_manage_roles'],
                 'can_edit_users' => $permissions['can_edit_users'],
                 'can_manage_attendance' => $permissions['can_manage_attendance'],
                 'can_manage_attendance_all' => $permissions['can_manage_attendance_all'],
@@ -234,6 +239,44 @@ class RoleController
             } else {
                 $_SESSION['error'] = 'Datenbankfehler beim Aktualisieren: ';
             }
+        }
+
+        return $response->withHeader('Location', '/roles')->withStatus(302);
+    }
+
+    public function delete(Request $request, Response $response, array $args): Response
+    {
+        $roleId = (int) $args['id'];
+        $role = Role::find($roleId);
+
+        if (!$role) {
+            $_SESSION['error'] = 'Rolle nicht gefunden.';
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
+
+        // Wie beim Bearbeiten: eine hoeher eingestufte Rolle bleibt unantastbar.
+        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
+        if ((int) $role->hierarchy_level > $actorLevel) {
+            $_SESSION['error'] = 'Du kannst keine Rolle oberhalb deines eigenen Levels löschen.';
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
+
+        // Jede Zuweisung zaehlt, auch die eines archivierten Mitglieds: sonst stuende es
+        // nach dem Wiederherstellen ohne Rolle da.
+        $assignedUsers = $role->users()->count();
+        if ($assignedUsers > 0) {
+            $_SESSION['error'] = sprintf(
+                'Die Rolle ist noch %d Mitglied(ern) zugewiesen und kann deshalb nicht gelöscht werden.',
+                $assignedUsers
+            );
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
+
+        try {
+            $role->delete();
+            $_SESSION['success'] = 'Rolle erfolgreich gelöscht.';
+        } catch (\Exception $e) {
+            $_SESSION['error'] = 'Datenbankfehler beim Löschen: ';
         }
 
         return $response->withHeader('Location', '/roles')->withStatus(302);

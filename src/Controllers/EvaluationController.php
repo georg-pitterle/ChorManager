@@ -47,8 +47,7 @@ class EvaluationController
         );
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        $projects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $projects = $this->getAccessibleProjects($userId, $this->canSeeAllProjects());
         $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         if ($projectId <= 0 && $userId > 0) {
@@ -143,8 +142,7 @@ class EvaluationController
         $params = $request->getQueryParams();
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
-        $canManageUsers = (bool) ($_SESSION['can_manage_users'] ?? false);
-        $projects = $this->getAccessibleProjects($userId, $canManageUsers);
+        $projects = $this->getAccessibleProjects($userId, $this->canSeeAllProjects());
         $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         if ($projectId <= 0 && $userId > 0) {
@@ -164,14 +162,10 @@ class EvaluationController
 
             $selectedProject = Project::find($projectId);
             if ($selectedProject) {
-                $roleLevel = (int)($_SESSION['role_level'] ?? 0);
-                $filterVoiceGroupIds = null;
-                if ($roleLevel < 80) {
-                    $filterVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
-                }
-
+                // Die Besetzung eines Projekts ist fuer alle Mitglieder des Projekts einsehbar;
+                // ein Stimmgruppen-Filter haette hier frueher nur am Hierarchie-Level gehangen.
                 $groupedMembers = $this->projectQuery
-                    ->getProjectMembersGroupedByVoice($projectId, $filterVoiceGroupIds);
+                    ->getProjectMembersGroupedByVoice($projectId, null);
 
                 if ($userId > 0) {
                     $user = User::find($userId);
@@ -290,9 +284,18 @@ class EvaluationController
         ];
     }
 
-    private function getAccessibleProjects(int $userId, bool $canManageUsers)
+    /**
+     * Auswertungen sind Anwesenheits-/Anmeldedaten: projektuebergreifend sieht sie, wer
+     * Anwesenheit fuer alle Mitglieder verwalten darf - nicht, wer Mitglieder verwaltet.
+     */
+    private function canSeeAllProjects(): bool
     {
-        if ($canManageUsers) {
+        return (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
+    }
+
+    private function getAccessibleProjects(int $userId, bool $canSeeAllProjects)
+    {
+        if ($canSeeAllProjects) {
             return Project::orderBy('name')->get();
         }
 

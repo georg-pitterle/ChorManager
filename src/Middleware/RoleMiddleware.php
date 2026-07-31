@@ -30,6 +30,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresBudgetManagement;
     private bool $requiresBudgetRead;
     private bool $requiresBackupManagement;
+    private bool $requiresRoleManagement;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -49,7 +50,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresBudgetManagement = false,
         bool $requiresBudgetRead = false,
         bool $requiresBackupManagement = false,
-        bool $requiresEventManagement = false
+        bool $requiresEventManagement = false,
+        bool $requiresRoleManagement = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -69,6 +71,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresBudgetRead = $requiresBudgetRead;
         $this->requiresBackupManagement = $requiresBackupManagement;
         $this->requiresEventManagement = $requiresEventManagement;
+        $this->requiresRoleManagement = $requiresRoleManagement;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -79,6 +82,7 @@ class RoleMiddleware implements MiddlewareInterface
         }
 
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
+        $canManageRoles = $_SESSION['can_manage_roles'] ?? false;
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
         $canReadFinances = $_SESSION['can_read_finances'] ?? false;
         $canManageFinances = $_SESSION['can_manage_finances'] ?? false;
@@ -111,9 +115,19 @@ class RoleMiddleware implements MiddlewareInterface
             return $response->withStatus(403);
         }
 
+        // Die Anwesenheitsliste verlangt eines der beiden Anwesenheitsrechte; den Umfang
+        // (eigene Stimmgruppe oder alle Mitglieder) setzt der AttendanceScopeService durch.
+        // can_manage_own_voice_group deckt die Mitgliederpflege und Vertretungs-Anmeldungen
+        // der eigenen Stimmgruppe ab, nicht die Anwesenheitsliste selbst.
         if ($this->requiresAttendanceManagement && !$canManageAttendance && !$canManageAttendanceAll) {
             $response = new SlimResponse();
             $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->requiresRoleManagement && !$canManageRoles) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Rollenverwaltung.");
             return $response->withStatus(403);
         }
 
@@ -194,25 +208,25 @@ class RoleMiddleware implements MiddlewareInterface
             return $response->withStatus(403);
         }
 
-        if ($this->allowVoiceGroupReps) {
-            // Must have global manage OR the own-voice-group capability
-            if (!$canManageUsers && !$canManageOwnVoiceGroup) {
-                $response = new SlimResponse();
-                $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
-                return $response->withStatus(403);
-            }
-        } else {
-            if ($this->requiresUserManagement && !$canManageUsers) {
-                $response = new SlimResponse();
-                $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
-                return $response->withStatus(403);
-            }
+        // Jedes Gate wird eigenstaendig geprueft: frueher hat allowVoiceGroupReps die beiden
+        // folgenden Pruefungen komplett uebersprungen, sodass eine Kombination der Flags
+        // stillschweigend Rechte verschenkt haette.
+        if ($this->allowVoiceGroupReps && !$canManageUsers && !$canManageOwnVoiceGroup) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
+            return $response->withStatus(403);
+        }
 
-            if ($this->minHierarchyLevel > 0 && $userLevel < $this->minHierarchyLevel) {
-                $response = new SlimResponse();
-                $response->getBody()->write("Zugriff verweigert: Ihre Rolle reicht für diese Ansicht nicht aus.");
-                return $response->withStatus(403);
-            }
+        if ($this->requiresUserManagement && !$canManageUsers) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
+            return $response->withStatus(403);
+        }
+
+        if ($this->minHierarchyLevel > 0 && $userLevel < $this->minHierarchyLevel) {
+            $response = new SlimResponse();
+            $response->getBody()->write("Zugriff verweigert: Ihre Rolle reicht für diese Ansicht nicht aus.");
+            return $response->withStatus(403);
         }
 
         return $handler->handle($request);

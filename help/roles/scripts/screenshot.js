@@ -22,6 +22,7 @@ const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'seed';
 const IMAGES_DIR = path.join(__dirname, '..', 'screenshots');
 
 const VIEWPORT = { width: 1440, height: 900 };
+const EXAMPLE_ROLE_NAME = 'Beispielrolle';
 
 async function shot(page, name) {
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
@@ -69,6 +70,21 @@ async function clickAndWaitForEvent(page, triggerLocator, eventTargetSelector, e
     await eventPromise;
 }
 
+async function createExampleRole(page, name) {
+    await clickAndWaitForEvent(
+        page,
+        page.locator('[data-bs-target="#addRoleModal"]'),
+        '#addRoleModal',
+        'shown.bs.modal'
+    );
+    await page.locator('#addRoleModal #name').fill(name);
+    await page.locator('#addRoleModal #hierarchy_level').fill('10');
+    await Promise.all([
+        page.waitForURL(`${BASE_URL}/roles`, { waitUntil: 'networkidle' }),
+        page.locator('#addRoleModal button[type="submit"]').click(),
+    ]);
+}
+
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
@@ -113,6 +129,29 @@ async function main() {
             'shown.bs.modal'
         );
         await shotModal(page, '03-edit-role-modal');
+        await clickAndWaitForEvent(
+            page,
+            page.locator('#editRoleModal .btn-secondary[data-bs-dismiss="modal"]'),
+            '#editRoleModal',
+            'hidden.bs.modal'
+        );
+
+        // 4. Modal: Rolle loeschen. Alle Seed-Rollen sind Mitgliedern zugewiesen und
+        //    haben deshalb keinen Loeschen-Button - fuer den Screenshot legen wir eine
+        //    unbesetzte Beispielrolle an und loeschen sie im selben Zug wieder.
+        await createExampleRole(page, EXAMPLE_ROLE_NAME);
+        const exampleRow = page.locator('#rolesTable thead th', { hasText: EXAMPLE_ROLE_NAME });
+        await exampleRow.waitFor({ state: 'visible' });
+
+        const deleteTrigger = page.locator('[data-bs-target^="#deleteRoleModal"]').last();
+        const deleteModalId = await deleteTrigger.getAttribute('data-bs-target');
+        await clickAndWaitForEvent(page, deleteTrigger, deleteModalId, 'shown.bs.modal');
+        await shotModal(page, '04-delete-role-modal');
+
+        await Promise.all([
+            page.waitForURL(`${BASE_URL}/roles`, { waitUntil: 'networkidle' }),
+            page.locator(`${deleteModalId} button[type="submit"]`).click(),
+        ]);
 
         console.log('Fertig: alle Rollen-Screenshots erstellt.');
     } finally {

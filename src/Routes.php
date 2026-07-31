@@ -193,16 +193,18 @@ return function (App $app) {
                 }
             )->add(new RoleMiddleware(requiresEventManagement: true));
 
-            // Role Management is privilege-granting (it can hand out can_manage_users, hierarchy, etc.),
-            // so it is restricted to user administrators rather than general master-data editors.
+            // Rollenverwaltung vergibt Rechte und ist deshalb ein eigenes Recht: can_manage_users
+            // darf Rollen nur noch zuweisen (begrenzt auf das eigene Hierarchie-Level), waehrend
+            // das Anlegen und Bearbeiten von Rollen can_manage_roles verlangt.
             $group->group(
                 '/roles',
                 function (RouteCollectorProxy $roleGroup) {
                     $roleGroup->get('', [RoleController::class, 'index']);
                     $roleGroup->post('', [RoleController::class, 'create']);
                     $roleGroup->post('/{id:[0-9]+}', [RoleController::class, 'update']);
+                    $roleGroup->post('/{id:[0-9]+}/delete', [RoleController::class, 'delete']);
                 }
-            )->add(new RoleMiddleware(requiresUserManagement: true));
+            )->add(new RoleMiddleware(requiresRoleManagement: true));
 
             // Stammdaten Management (dedicated permission)
             $group->group(

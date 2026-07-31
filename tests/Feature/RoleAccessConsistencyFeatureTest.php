@@ -54,24 +54,24 @@ final class RoleAccessConsistencyFeatureTest extends TestCase
         $this->assertStringContainsString('new RoleMiddleware(requiresFinanceRead: true)', $routes);
     }
 
-    public function testRoleManagementIsBoundToUserManagementPermission(): void
+    public function testRoleManagementIsBoundToRoleManagementPermission(): void
     {
         $routes = $this->routes();
 
         $this->assertMatchesRegularExpression(
-            "/\\\$group->group\(\s*'\/roles',.*?new RoleMiddleware\(requiresUserManagement: true\)/s",
+            "/\\\$group->group\(\s*'\/roles',.*?new RoleMiddleware\(requiresRoleManagement: true\)/s",
             $routes,
-            'Role management must be restricted to user administrators (can_manage_users).'
+            'Role management grants permissions and therefore requires can_manage_roles.'
         );
     }
 
-    public function testAdminNavHidesRoleLinkBehindUserManagementPermission(): void
+    public function testAdminNavHidesRoleLinkBehindRoleManagementPermission(): void
     {
         $nav = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
         $this->assertIsString($nav);
 
         $this->assertMatchesRegularExpression(
-            "/'label' => 'Rollen',.*?'url' => '\/roles',.*?\\\$c->can\('can_manage_users'\)/s",
+            "/'label' => 'Rollen',.*?'url' => '\/roles',.*?\\\$c->can\('can_manage_roles'\)/s",
             $nav
         );
     }

@@ -15,6 +15,7 @@ class Role extends Model
         'name',
         'hierarchy_level',
         'can_manage_users',
+        'can_manage_roles',
         'can_edit_users',
         'can_manage_attendance',
         'can_manage_attendance_all',

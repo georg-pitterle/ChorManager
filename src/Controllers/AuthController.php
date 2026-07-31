@@ -169,16 +169,29 @@ class AuthController
 
         try {
             // First create the Admin Role
+            // Die Erstinstallation braucht eine Rolle mit allen Rechten: seit dem Wegfall der
+            // impliziten Level- und Admin-Fallbacks schaltet kein Recht mehr ein anderes frei.
             $adminRole = Role::firstOrCreate(['name' => 'Admin'], [
                 'hierarchy_level' => 100,
                 'can_manage_users' => 1,
+                'can_manage_roles' => 1,
                 'can_edit_users' => 1,
                 'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 1,
+                'can_manage_events' => 1,
                 'can_manage_project_members' => 1,
                 'can_read_finances' => 1,
                 'can_manage_finances' => 1,
-                'can_manage_master_data' => 1
+                'can_manage_master_data' => 1,
+                'can_manage_sponsoring' => 1,
+                'can_manage_song_library' => 1,
+                'can_manage_newsletters' => 1,
+                'can_manage_mail_queue' => 1,
+                'can_manage_sheet_archive' => 1,
+                'can_manage_budget' => 1,
+                'can_manage_tasks' => 1,
+                'can_manage_backups' => 1,
+                'can_manage_own_voice_group' => 1
             ]);
 
             // Create the first user

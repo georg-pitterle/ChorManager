@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('edit_name').value = this.getAttribute('data-name');
                 document.getElementById('edit_hierarchy_level').value = this.getAttribute('data-level');
                 setCheckedIfPresent('edit_can_manage_users', this.getAttribute('data-manage') === '1');
+                setCheckedIfPresent('edit_can_manage_roles', this.getAttribute('data-roles') === '1');
                 setCheckedIfPresent('edit_can_edit_users', this.getAttribute('data-edit') === '1');
                 setCheckedIfPresent('edit_can_manage_events', this.getAttribute('data-events') === '1');
                 setCheckedIfPresent('edit_can_manage_attendance', this.getAttribute('data-attendance') === '1');

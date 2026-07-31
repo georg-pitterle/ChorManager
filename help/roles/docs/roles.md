@@ -2,7 +2,7 @@
 
 Über **Rollen** legst du fest, was Mitglieder in deiner Installation sehen und tun dürfen. Jede Rolle hat einen Namen, ein Hierarchie-Level (0–100) und eine Reihe von Einzelrechten, die du unabhängig voneinander ein- oder ausschalten kannst. Ein Mitglied kann mehrere Rollen haben – es erhält dann die Vereinigung aller zugehörigen Rechte.
 
-> **Berechtigung:** Dieses Modul ist nur sichtbar, wenn deine Rolle das Recht **"Mitgliederverwaltung erlauben"** hat.
+> **Berechtigung:** Dieses Modul ist nur sichtbar, wenn deine Rolle das Recht **"Rollen verwalten"** hat.
 > Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
 
 ## 1. Berechtigungsmatrix
@@ -13,7 +13,9 @@ Unter **Verwaltung → Rollen** siehst du alle Rollen deiner Installation nebene
 
 ## 2. Neue Rolle anlegen
 
-Über den Button **"Neue Rolle"** öffnest du ein Formular, in dem du einen Rollennamen, ein Hierarchie-Level sowie die gewünschten Rechte per Schalter aktivierst. Höhere Hierarchie-Level (z. B. 80–100) stehen typischerweise für Vorstand und Chorleitung, während ein einfaches Mitglied oft Level 0 hat. Das Hierarchie-Level wird u. a. verwendet, um zu bestimmen, wer wen bearbeiten oder in Auswertungen sehen darf.
+Über den Button **"Neue Rolle"** öffnest du ein Formular, in dem du einen Rollennamen, ein Hierarchie-Level sowie die gewünschten Rechte per Schalter aktivierst. Höhere Hierarchie-Level stehen typischerweise für Leitungsfunktionen, während ein einfaches Mitglied oft Level 0 hat.
+
+Das Hierarchie-Level vergibt **keine** Rechte. Es hat genau eine Aufgabe: Wer ein Mitglied bearbeiten oder ihm Rollen zuweisen will, kommt an niemanden heran, der eine höher eingestufte Rolle besitzt – und kann auch keine Rolle oberhalb des eigenen Levels anlegen, bearbeiten oder vergeben.
 
 ![Formular zum Anlegen einer neuen Rolle](images/roles/02-new-role-modal.png)
 
@@ -23,11 +25,23 @@ Unter **Verwaltung → Rollen** siehst du alle Rollen deiner Installation nebene
 
 ![Formular zum Bearbeiten einer bestehenden Rolle](images/roles/03-edit-role-modal.png)
 
+## 4. Rolle löschen
+
+Der Button **"Löschen"** erscheint nur bei Rollen, denen aktuell kein einziges Mitglied zugewiesen ist – archivierte Mitglieder zählen dabei mit, damit nach einer Wiederherstellung niemand ohne Rolle dasteht. Ist die Rolle noch vergeben, entziehe sie zuerst in der Mitgliederverwaltung. Auch beim Löschen gilt die Level-Grenze: Rollen oberhalb des eigenen Hierarchie-Levels lassen sich nicht entfernen.
+
+![Sicherheitsabfrage vor dem Löschen einer Rolle](images/roles/04-delete-role-modal.png)
+
 ## Die einzelnen Rechte im Detail
 
 ### Mitgliederverwaltung erlauben
 
-Dieses Recht schaltet die Mitgliederverwaltung selbst frei (Mitglieder anlegen, bearbeiten, archivieren) sowie die Rollenverwaltung, da Rollen wiederum Rechte vergeben. Es gilt bewusst nur für diese beiden Bereiche – Projekte, Termine, Finanzen und alle anderen Module verlangen ihr jeweils eigenes Recht. Da dieses Recht selbst wieder Rechte vergeben kann, sollte es nur an wenige, vertrauenswürdige Rollen vergeben werden.
+Dieses Recht schaltet die Mitgliederverwaltung frei: Mitglieder anlegen, bearbeiten, einladen und archivieren sowie ihnen Rollen zuweisen. Zuweisbar sind dabei nur Rollen bis zum eigenen Hierarchie-Level, und Mitglieder mit einer höher eingestuften Rolle bleiben unantastbar. Es gilt bewusst nur für diesen Bereich – Rollen selbst zu bearbeiten, Projekte, Termine, Finanzen und alle anderen Module verlangen ihr jeweils eigenes Recht.
+
+### Rollen verwalten
+
+Mit diesem Recht darf die Rolle neue Rollen anlegen und bestehende Rollen bearbeiten. Wer Rollen bearbeiten darf, kann jedes Recht der Installation vergeben – auch an die eigene Rolle und damit an sich selbst. Es ist deshalb das mächtigste Recht überhaupt und sollte nur an wenige, ausdrücklich vertrauenswürdige Rollen gehen. Die einzige Grenze ist das Hierarchie-Level: Rollen oberhalb des eigenen Levels lassen sich weder anlegen noch bearbeiten.
+
+Das Zuweisen von Rollen an Mitglieder gehört dagegen zur **"Mitgliederverwaltung erlauben"** – beide Rechte sind unabhängig voneinander vergebbar.
 
 ### Mitglieder editieren erlauben
 
@@ -45,13 +59,15 @@ Mit diesem Recht darf die Rolle Termine anlegen, bearbeiten und löschen, öffen
 
 Dieses Recht erlaubt der Rolle, Anwesenheiten und Anmeldungen für die eigene Stimmgruppe zu erfassen und nachträglich zu aktualisieren. Es ist unabhängig von der Terminverwaltung nutzbar, sodass z. B. eine Stimmgruppenleitung nur Anwesenheiten der eigenen Gruppe pflegen kann, ohne Termine selbst anlegen zu dürfen oder Zugriff auf andere Stimmgruppen zu erhalten.
 
+Sichtbar sind dabei nur Termine, zu deren Zielgruppe man selbst gehört oder in denen mindestens ein Mitglied der eigenen Stimmgruppe eingeladen ist – Termine ganz anderer Gruppen tauchen weder in der Anwesenheits- noch in der Anmeldeliste auf.
+
 ### Anwesenheit/Anmeldung verwalten (alle Mitglieder)
 
-Dieses Recht erweitert das vorige: Die Rolle sieht und pflegt Anwesenheiten und Anmeldungen für alle Mitglieder, nicht nur die eigene Stimmgruppe. Es eignet sich für Personen mit Überblick über den gesamten Chor, z. B. für die Terminkoordination.
+Dieses Recht erweitert das vorige: Die Rolle sieht und pflegt Anwesenheiten und Anmeldungen für alle Mitglieder und für jeden Termin, nicht nur für die eigene Stimmgruppe. Es eignet sich für Personen mit Überblick über den gesamten Chor, z. B. für die Terminkoordination.
 
 ### Eigene Stimmgruppe verwalten
 
-Ist dieses Recht aktiv, darf die Rolle die Anwesenheit und Anmeldungen der eigenen Stimmgruppe verwalten (Stimmvertretung) – unabhängig vom Hierarchie-Level der Rolle. Damit können auch Rollen mit niedrigem Level eingeschränkt Verantwortung für ihre eigene Gruppe übernehmen, ohne Zugriff auf andere Stimmgruppen zu erhalten.
+Ist dieses Recht aktiv, darf die Rolle die Mitglieder der eigenen Stimmgruppe pflegen (anlegen, bearbeiten, einladen, archivieren) und für sie Anmeldungen als Vertretung eintragen – unabhängig vom Hierarchie-Level der Rolle. Damit können auch Rollen mit niedrigem Level Verantwortung für ihre eigene Gruppe übernehmen, ohne Zugriff auf andere Stimmgruppen zu erhalten. Für die Anwesenheitsliste selbst braucht es zusätzlich eines der beiden Anwesenheitsrechte.
 
 ### Finanzen nur lesen
 
@@ -91,7 +107,7 @@ Ist dieses Recht aktiv, darf die Rolle Aufgaben verwalten – auch projektüberg
 
 ### Stammdaten verwalten
 
-Mit diesem Recht darf die Rolle grundlegende Stammdaten der Installation bearbeiten: Projekte, Stimmgruppen und App-Einstellungen. Da hierüber auch App-Einstellungen verändert werden können, sollte dieses Recht ähnlich sparsam vergeben werden wie die Mitgliederverwaltung.
+Mit diesem Recht darf die Rolle grundlegende Stammdaten der Installation ansehen und speichern: Projekte, Stimmgruppen und App-Einstellungen. Mehr nicht – es schaltet keine Mitglieder-, Rollen- oder Modulrechte zusätzlich frei. Da hierüber auch App-Einstellungen verändert werden können, sollte es trotzdem sparsam vergeben werden.
 
 ### Backup-Verwaltung
 
@@ -99,6 +115,7 @@ Dieses Recht erlaubt der Rolle, Datenbank-Backups zu erstellen, herunterzuladen,
 
 ## Häufige Stolperfallen
 
-- **Level bestimmt Hierarchie, nicht automatisch Rechte** – ein hohes Hierarchie-Level allein schaltet keine Rechte frei. Rechte müssen für jede Rolle einzeln aktiviert werden.
-- **Mitgliederverwaltung und Stammdaten sind privilegiert** – wer eines dieser beiden Rechte vergibt, ermöglicht der Rolle indirekt, weitere Rechte an sich selbst oder andere zu vergeben. Vorsicht bei der Vergabe.
+- **Level bestimmt Hierarchie, nicht Rechte** – ein hohes Hierarchie-Level allein schaltet nichts frei. Jedes Recht muss für jede Rolle einzeln aktiviert werden; das Level schützt nur höher eingestufte Mitglieder und Rollen vor Änderungen von unten.
+- **"Rollen verwalten" ist das mächtigste Recht** – wer es besitzt, kann sich über die eigene Rolle jedes andere Recht selbst geben. Sparsam vergeben und regelmäßig in der Matrix prüfen, welche Rollen es haben.
+- **Kein Recht schaltet ein anderes mit frei** – Mitgliederverwaltung öffnet keine Finanzen, Stammdaten öffnen keine Module. Fehlt einer Rolle etwas, muss genau dieses Recht angehakt werden.
 - **Modulabhängige Rechte** – Rechte wie Budget, Sponsoring, Notenarchiv, Newsletter oder Aufgaben erscheinen nur, wenn das jeweilige Modul in den App-Einstellungen aktiviert ist.

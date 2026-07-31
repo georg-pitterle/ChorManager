@@ -21,6 +21,7 @@ class SessionAuthService
         $_SESSION['user_name'] = $this->nameFormatter->formatPerson($user);
 
         $canManageUsers = false;
+        $canManageRoles = false;
         $canEditUsers = false;
         $canManageAttendance = false;
         $canManageAttendanceAll = false;
@@ -40,16 +41,15 @@ class SessionAuthService
         $canManageOwnVoiceGroup = false;
         $maxRoleLevel = 0;
 
+        // Das Hierarchie-Level vergibt bewusst keine Rechte. Es entscheidet ausschliesslich
+        // darueber, wessen Zuordnungen ein Mitglied noch aendern darf (siehe UserController
+        // und RoleController) - jedes Recht muss einzeln an der Rolle gesetzt sein.
         foreach ($user->roles as $role) {
-            if ($role->hierarchy_level >= 80) {
-                $canManageUsers = true;
-                $canEditUsers = true;
-                $canManageProjectMembers = true;
-                $canManageTasks = true;
-            }
-
             if ($role->can_manage_users) {
                 $canManageUsers = true;
+            }
+            if (($role->can_manage_roles ?? false)) {
+                $canManageRoles = true;
             }
             if ($role->can_edit_users) {
                 $canEditUsers = true;
@@ -110,6 +110,7 @@ class SessionAuthService
         }
 
         $_SESSION['can_manage_users'] = $canManageUsers;
+        $_SESSION['can_manage_roles'] = $canManageRoles;
         $_SESSION['can_edit_users'] = $canEditUsers;
         $_SESSION['can_manage_attendance'] = $canManageAttendance;
         $_SESSION['can_manage_attendance_all'] = $canManageAttendanceAll;

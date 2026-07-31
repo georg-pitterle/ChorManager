@@ -16,14 +16,12 @@ use App\Models\Project;
 class TaskPolicy
 {
     private int $userId;
-    private bool $isGlobalAdmin;
     private bool $canManageTasks;
     private array $projectMemberCache = [];
 
     public function __construct()
     {
         $this->userId = (int) ($_SESSION['user_id'] ?? 0);
-        $this->isGlobalAdmin = ($_SESSION['can_manage_users'] ?? false) === true;
         $this->canManageTasks = ($_SESSION['can_manage_tasks'] ?? false) === true;
     }
 
@@ -31,16 +29,12 @@ class TaskPolicy
      * Check if the user can manage tasks in a specific project.
      *
      * User must:
-     * 1. Have can_manage_tasks permission, OR be a global admin
+     * 1. Have the explicit can_manage_tasks permission - Mitgliederverwaltung ist kein
+     *    Ersatz dafuer, sonst haetten Rollenverwalter still Zugriff auf Projektaufgaben
      * 2. Be a member of the project
      */
     public function canManageTasks(int $projectId): bool
     {
-        // Global admins can manage all tasks
-        if ($this->isGlobalAdmin) {
-            return true;
-        }
-
         // User must have explicit task management permission
         if (!$this->canManageTasks) {
             return false;
