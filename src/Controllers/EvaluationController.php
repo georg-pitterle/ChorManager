@@ -50,11 +50,8 @@ class EvaluationController
         $projects = $this->getAccessibleProjects($userId, $this->canSeeAllProjects());
         $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
-        if ($projectId <= 0 && $userId > 0) {
-            $user = User::find($userId);
-            if ($user && $user->last_project_id > 0) {
-                $projectId = $user->last_project_id;
-            }
+        if ($projectId <= 0) {
+            $projectId = $this->resolveDefaultProjectId($accessibleProjectIds, $userId);
         }
 
         $stats = [];
@@ -145,11 +142,8 @@ class EvaluationController
         $projects = $this->getAccessibleProjects($userId, $this->canSeeAllProjects());
         $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
-        if ($projectId <= 0 && $userId > 0) {
-            $user = User::find($userId);
-            if ($user && $user->last_project_id > 0) {
-                $projectId = $user->last_project_id;
-            }
+        if ($projectId <= 0) {
+            $projectId = $this->resolveDefaultProjectId($accessibleProjectIds, $userId);
         }
 
         $selectedProject = null;
@@ -282,6 +276,31 @@ class EvaluationController
             'response_rate' => $eligible > 0 ? (int) round($answered * 100 / $eligible) : 0,
             'attendance_comparison' => $attendanceComparison,
         ];
+    }
+
+    /**
+     * Vorauswahl ohne project_id-Parameter: zuerst das aktuell laufende Projekt,
+     * danach die zuletzt gewaehlte Auswahl des Nutzers. Beide Kandidaten muessen
+     * in den fuer den Nutzer zugaenglichen Projekten liegen.
+     *
+     * @param int[] $accessibleProjectIds
+     */
+    private function resolveDefaultProjectId(array $accessibleProjectIds, int $userId): int
+    {
+        $currentProjectId = $this->projectQuery->findCurrentProjectId($accessibleProjectIds);
+        if ($currentProjectId > 0) {
+            return $currentProjectId;
+        }
+
+        if ($userId > 0) {
+            $user = User::find($userId);
+            $lastProjectId = $user ? (int) $user->last_project_id : 0;
+            if ($lastProjectId > 0 && in_array($lastProjectId, $accessibleProjectIds, true)) {
+                return $lastProjectId;
+            }
+        }
+
+        return 0;
     }
 
     /**

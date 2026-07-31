@@ -28,6 +28,33 @@ class ProjectQuery
         return Project::orderBy('start_date', 'desc')->get();
     }
 
+    /**
+     * Returns the id of the project running today (start_date <= today <= end_date),
+     * restricted to the given accessible project ids. If several projects run in
+     * parallel, the one ending first wins. Returns 0 if none is running.
+     *
+     * @param int[] $accessibleProjectIds
+     */
+    public function findCurrentProjectId(array $accessibleProjectIds): int
+    {
+        if ($accessibleProjectIds === []) {
+            return 0;
+        }
+
+        $today = date('Y-m-d');
+
+        $project = Project::whereIn('id', $accessibleProjectIds)
+            ->whereNotNull('start_date')
+            ->whereNotNull('end_date')
+            ->where('start_date', '<=', $today)
+            ->where('end_date', '>=', $today)
+            ->orderBy('end_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+
+        return $project ? (int) $project->id : 0;
+    }
+
     public function getProjectMembers(int $projectId): Collection
     {
         $query = User::whereHas('projects', function ($query) use ($projectId) {
