@@ -45,6 +45,15 @@ services:
   app:
     image: ghcr.io/georg-pitterle/chormanager-app:latest
     restart: unless-stopped
+    # Opt-in for the central Grafana Alloy running in the Loki stack. Alloy
+    # discovers containers host-wide via the Docker socket; these labels tell it
+    # which streams belong together and how to parse them. logs.format=monolog
+    # switches on JSON parsing for this container only.
+    labels:
+      logs.job: "chormanager"
+      logs.stack: "${STACK_ID:-prod}"
+      logs.service: "app"
+      logs.format: "monolog"
     working_dir: /var/www/html
     environment: *app-environment
     volumes:
@@ -83,6 +92,11 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    labels:
+      logs.job: "chormanager"
+      logs.stack: "${STACK_ID:-prod}"
+      logs.service: "db"
+      logs.format: "raw"
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -125,6 +139,11 @@ services:
     image: ghcr.io/georg-pitterle/chormanager-web:latest
     hostname: chormanager-web-${STACK_ID:-prod}
     restart: unless-stopped
+    labels:
+      logs.job: "chormanager"
+      logs.stack: "${STACK_ID:-prod}"
+      logs.service: "web"
+      logs.format: "raw"
     depends_on:
       - app
     networks:
@@ -155,6 +174,11 @@ services:
   snappymail:
     image: ghcr.io/georg-pitterle/chormanager-snappymail:latest
     restart: unless-stopped
+    labels:
+      logs.job: "chormanager"
+      logs.stack: "${STACK_ID:-prod}"
+      logs.service: "snappymail"
+      logs.format: "raw"
     environment:
       UPLOAD_MAX_SIZE: ${SNAPPYMAIL_UPLOAD_MAX_SIZE:-25M}
       MEMORY_LIMIT: ${SNAPPYMAIL_MEMORY_LIMIT:-128M}
