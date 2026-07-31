@@ -218,6 +218,38 @@ docker compose -f docker-compose.prod.yml logs -f app
 docker compose -f docker-compose.prod.yml logs -f db
 ```
 
+### Central log shipping (Grafana Alloy)
+
+A Grafana Alloy instance running in the Loki stack discovers containers
+host-wide through the Docker socket and ships their logs to Loki. This stack does
+**not** run its own Alloy: Docker discovery is host-wide, so a second instance
+would see the same containers and write every line twice.
+
+Each service opts in through Docker labels:
+
+| Label          | Value                 | Purpose                                            |
+|----------------|-----------------------|----------------------------------------------------|
+| `logs.job`     | `chormanager`         | Opt-in switch. Without it, Alloy skips the rules.   |
+| `logs.stack`   | `${STACK_ID:-prod}`   | Separates duplicated stacks (prod vs. test).        |
+| `logs.service` | `app` \| `web` \| `db` \| `snappymail` | Stable across stacks, unlike the container name. |
+| `logs.format`  | `monolog` \| `raw`    | Selects the parsing stage. Only `app` writes JSON.  |
+
+`logs.service` is deliberately not the container name: that name is unique per
+stack (`chormanager-prod-app-1`) and therefore useless for comparing prod against
+test.
+
+Query the result in Grafana with `{job="chormanager"}`, narrow it down with
+`{job="chormanager", service="app", level="ERROR"}`. The log line stays full JSON,
+so the Monolog context remains reachable via `| json | event="..."`.
+
+**The logging driver of every service must stay `json-file`.** Alloy reads the
+logs through the Docker API; any other driver makes these containers invisible to
+it and the stack silently disappears from Loki.
+
+The `web` service has `access_log off;` set in `nginx.conf` because the reverse
+proxy already logs every request with the real client IP. Only its error log is
+shipped.
+
 ## Backup
 
 ### Where in-app backups live
