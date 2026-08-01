@@ -246,9 +246,14 @@ so the Monolog context remains reachable via `| json | event="..."`.
 logs through the Docker API; any other driver makes these containers invisible to
 it and the stack silently disappears from Loki.
 
-The `web` service has `access_log off;` set in `nginx.conf` because the reverse
-proxy already logs every request with the real client IP. Only its error log is
-shipped.
+Request logging is switched off on both request-handling services, because the
+reverse proxy already logs every request with the real client IP:
+
+- `web` sets `access_log off;` in `nginx.conf`, so only its error log is shipped.
+- `app` sets `access.log = /dev/null` in `php-fpm.d/zz-access-log.conf`, which
+  overrides the base image's `docker.conf`. Without it, the FastCGI access log
+  would write a plain-text line per request into the same stream as the Monolog
+  JSON.
 
 ## Backup
 

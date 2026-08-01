@@ -87,6 +87,14 @@ RUN echo "upload_max_filesize = 0" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "max_execution_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "max_input_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini
 
+# The base image's php-fpm.d/docker.conf points the FastCGI access log at
+# stderr, so every request adds a plain-text line to the same container stream
+# that carries the structured Monolog JSON. The reverse proxy already logs every
+# request with the real client IP, so this pool override drops the duplicate and
+# keeps the app stream to application events. Filename starts with zz- because
+# php-fpm.d/*.conf is read in alphabetical order and the last value wins.
+RUN printf '[www]\naccess.log = /dev/null\n' > /usr/local/etc/php-fpm.d/zz-access-log.conf
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
