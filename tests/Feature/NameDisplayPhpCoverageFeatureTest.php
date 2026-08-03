@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Logging\RequestContext;
 use App\Models\User;
 use App\Services\NameFormatterService;
 use App\Services\SessionAuthService;
@@ -52,7 +53,8 @@ final class NameDisplayPhpCoverageFeatureTest extends TestCase
 
         $_SESSION = [];
         $service = new SessionAuthService(
-            new NameFormatterService(NameFormatterService::FORMAT_LAST_FIRST)
+            new NameFormatterService(NameFormatterService::FORMAT_LAST_FIRST),
+            new RequestContext()
         );
         $service->setAuthenticatedUser($user);
 

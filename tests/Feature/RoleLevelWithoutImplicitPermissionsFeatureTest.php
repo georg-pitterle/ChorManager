@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Logging\RequestContext;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -49,7 +50,7 @@ final class RoleLevelWithoutImplicitPermissionsFeatureTest extends TestCase
         $user->roles()->attach($role->id);
         $user->load('roles', 'voiceGroups');
 
-        (new SessionAuthService(new NameFormatterService()))->setAuthenticatedUser($user);
+        (new SessionAuthService(new NameFormatterService(), new RequestContext()))->setAuthenticatedUser($user);
 
         $this->assertSame(100, $_SESSION['role_level']);
         $this->assertFalse($_SESSION['can_manage_users']);

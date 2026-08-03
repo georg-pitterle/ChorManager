@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\PasswordResetController;
+use App\Models\InvitationToken;
+use App\Models\PasswordReset;
+use App\Models\User;
 use App\Services\MailQueueService;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Schema\Blueprint;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class PasswordResetFeatureTest extends TestCase
 {
@@ -219,5 +225,150 @@ class PasswordResetFeatureTest extends TestCase
         $this->assertIsString($controllerSource);
         $this->assertStringContainsString('InvitationToken', $controllerSource);
         $this->assertStringContainsString('token_hash', $controllerSource);
+    }
+
+    public function testSendResetLinkLogsRequestedEvent(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        $twig = $this->createStub(Twig::class);
+        $controller = new PasswordResetController($twig, null, null, null, null, $logger);
+
+        $email = 'reset.request.' . bin2hex(random_bytes(4)) . '@example.test';
+        $request = $this->makeRequest('POST', '/forgot-password', ['email' => $email]);
+        $response = $this->makeResponse();
+
+        $controller->sendResetLink($request, $response);
+
+        $records = $handler->getRecords();
+        $match = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'auth.password_reset.requested'
+        ));
+
+        $this->assertNotEmpty($match);
+        $this->assertSame($email, $match[0]->context['email']);
+    }
+
+    public function testProcessResetLogsCompletedEvent(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        $email = 'reset.complete.' . bin2hex(random_bytes(4)) . '@example.test';
+        $user = User::create([
+            'first_name' => 'Reset',
+            'last_name' => 'Completer',
+            'email' => $email,
+            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+
+        $token = bin2hex(random_bytes(32));
+        PasswordReset::create([
+            'email' => $email,
+            'token' => password_hash($token, PASSWORD_DEFAULT),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $twig = $this->createStub(Twig::class);
+        $controller = new PasswordResetController($twig, null, null, null, null, $logger);
+
+        $request = $this->makeRequest('POST', '/reset-password', [
+            'token' => $token,
+            'email' => $email,
+            'password' => 'Correct-Horse-2',
+            'password_confirm' => 'Correct-Horse-2',
+        ]);
+        $response = $this->makeResponse();
+
+        $controller->processReset($request, $response);
+
+        $records = $handler->getRecords();
+        $match = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'auth.password_reset.completed'
+        ));
+
+        $this->assertNotEmpty($match);
+        $this->assertSame((int) $user->id, $match[0]->context['user_id']);
+
+        foreach ($records as $record) {
+            $this->assertStringNotContainsString('Correct-Horse-2', (string) json_encode($record->context));
+            $this->assertStringNotContainsString($token, (string) json_encode($record->context));
+        }
+
+        $user->delete();
+    }
+
+    public function testProcessResetLogsInvitationConsumedEventWithEmailNeverToken(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        $email = 'invite.consume.' . bin2hex(random_bytes(4)) . '@example.test';
+        $user = User::create([
+            'first_name' => 'Invite',
+            'last_name' => 'Consumer',
+            'email' => $email,
+            'password' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+
+        $token = bin2hex(random_bytes(32));
+        InvitationToken::create([
+            'user_id' => $user->id,
+            'selector' => bin2hex(random_bytes(9)),
+            'token_hash' => password_hash($token, PASSWORD_DEFAULT),
+            'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $twig = $this->createStub(Twig::class);
+        $controller = new PasswordResetController($twig, null, null, null, null, $logger);
+
+        $request = $this->makeRequest('POST', '/reset-password', [
+            'token' => $token,
+            'email' => $email,
+            'password' => 'First-Password-1',
+            'password_confirm' => 'First-Password-1',
+        ]);
+        $response = $this->makeResponse();
+
+        $controller->processReset($request, $response);
+
+        $records = $handler->getRecords();
+        $match = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'invitation.consumed'
+        ));
+
+        $this->assertNotEmpty($match);
+        $this->assertSame($email, $match[0]->context['email']);
+
+        // auth.password_reset.completed is for the forgot-password flow only, not for
+        // first-time invitation set-password.
+        $completed = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'auth.password_reset.completed'
+        ));
+        $this->assertEmpty($completed);
+
+        foreach ($records as $record) {
+            $this->assertStringNotContainsString('First-Password-1', (string) json_encode($record->context));
+            $this->assertStringNotContainsString($token, (string) json_encode($record->context));
+        }
+
+        $user->delete();
     }
 }

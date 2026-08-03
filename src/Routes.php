@@ -42,6 +42,7 @@ use App\Controllers\BackupController;
 use App\Controllers\DownloadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
+use Psr\Log\LoggerInterface;
 use Slim\Routing\RouteCollectorProxy;
 
 return function (App $app) {
@@ -55,6 +56,21 @@ return function (App $app) {
             }
         } catch (\Throwable) {
             $settings = [];
+        }
+    }
+
+    // RoleMiddleware wird an jeder Route per `new RoleMiddleware(...)` gebaut, nicht ueber den
+    // Container - daher hier einmalig den echten Logger setzen, statt jede Instanziierung
+    // anzufassen (deren exakter Aufruftext von mehreren Tests woertlich geprueft wird).
+    if ($container instanceof ContainerInterface) {
+        try {
+            $resolvedLogger = $container->get(LoggerInterface::class);
+            if ($resolvedLogger instanceof LoggerInterface) {
+                RoleMiddleware::setDefaultLogger($resolvedLogger);
+            }
+        } catch (\Throwable) {
+            // Kein Logger im Container (z. B. Minimal-Container in Tests): RoleMiddleware
+            // faellt intern auf den NullLogger zurueck.
         }
     }
 

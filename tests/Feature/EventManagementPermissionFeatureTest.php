@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\RoleController;
+use App\Logging\RequestContext;
 use App\Middleware\RoleMiddleware;
 use App\Models\Role;
 use App\Models\User;
@@ -97,7 +98,8 @@ final class EventManagementPermissionFeatureTest extends TestCase
         $user->roles()->attach($role->id);
         $user->load('roles', 'voiceGroups');
 
-        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext()))
+            ->setAuthenticatedUser($user);
 
         $this->assertTrue($_SESSION['can_manage_events']);
         $this->assertFalse($_SESSION['can_manage_users']);

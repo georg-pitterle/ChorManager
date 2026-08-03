@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\AuthController;
+use App\Logging\RequestContext;
 use App\Middleware\AuthMiddleware;
 use App\Models\Role;
 use App\Models\User;
@@ -56,7 +57,7 @@ class LoginRedirectFeatureTest extends TestCase
         $this->middleware = new AuthMiddleware(
             new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
-            new SessionAuthService(new \App\Services\NameFormatterService())
+            new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext())
         );
 
         if (session_status() === PHP_SESSION_NONE) {
@@ -87,7 +88,7 @@ class LoginRedirectFeatureTest extends TestCase
             $view,
             new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
-            new SessionAuthService(new \App\Services\NameFormatterService()),
+            new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext()),
             new RateLimiterService($this->rateLimiterStoreDir),
             new PasswordPolicyService(),
             new NullLogger()

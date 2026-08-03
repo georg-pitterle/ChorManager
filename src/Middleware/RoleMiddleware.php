@@ -8,10 +8,28 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Psr7\Response as SlimResponse;
 
 class RoleMiddleware implements MiddlewareInterface
 {
+    /**
+     * Fallback fuer Instanzen, die - wie an allen Routen in Routes.php - per
+     * `new RoleMiddleware(...)` statt ueber den DI-Container gebaut werden.
+     * Der DI-Container kann hier nicht helfen: Routes.php uebergibt an jeder
+     * der 21 Stellen bereits fertig gebaute Objekte an `->add(...)`, keine
+     * Klassennamen, die der Container aufloesen wuerde. Routes.php setzt
+     * diesen Wert einmalig auf den echten Container-Logger, bevor die Routen
+     * registriert werden (siehe dortiger `setDefaultLogger`-Aufruf); ohne
+     * diesen Aufruf (z. B. in Tests mit einem Minimal-Container) bleibt es
+     * beim NullLogger. Dieser Zustand ist statisch und damit prozessweit
+     * geteilt - `setDefaultLogger(null)` setzt ihn gezielt zurueck, damit ein
+     * in einem Test gesetzter Logger nicht in spaetere, unabhaengige Tests
+     * im selben PHPUnit-Prozess durchsickert.
+     */
+    private static ?LoggerInterface $defaultLogger = null;
+
     private bool $requiresUserManagement;
     private int $minHierarchyLevel;
     private bool $allowVoiceGroupReps;
@@ -31,6 +49,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresBudgetRead;
     private bool $requiresBackupManagement;
     private bool $requiresRoleManagement;
+    private LoggerInterface $logger;
 
     public function __construct(
         bool $requiresUserManagement = false,
@@ -51,7 +70,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresBudgetRead = false,
         bool $requiresBackupManagement = false,
         bool $requiresEventManagement = false,
-        bool $requiresRoleManagement = false
+        bool $requiresRoleManagement = false,
+        ?LoggerInterface $logger = null
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -72,6 +92,23 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresBackupManagement = $requiresBackupManagement;
         $this->requiresEventManagement = $requiresEventManagement;
         $this->requiresRoleManagement = $requiresRoleManagement;
+        $this->logger = $logger ?? self::$defaultLogger ?? new NullLogger();
+    }
+
+    /**
+     * Setzt den Logger, den alle danach per `new RoleMiddleware(...)` gebauten
+     * Instanzen verwenden, sofern ihnen nicht explizit ein eigener Logger
+     * uebergeben wird. Wird einmal aus Routes.php mit dem Container-Logger
+     * aufgerufen, bevor die Routen registriert werden.
+     *
+     * `null` setzt den Zustand explizit zurueck (kein Fallback auf den zuletzt
+     * gesetzten Logger) - wichtig fuer Tests, die einen eigenen Logger setzen
+     * und ihn danach wieder entfernen muessen, statt ihn fuer den Rest des
+     * PHPUnit-Prozesses stehen zu lassen.
+     */
+    public static function setDefaultLogger(?LoggerInterface $logger): void
+    {
+        self::$defaultLogger = $logger;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -102,17 +139,21 @@ class RoleMiddleware implements MiddlewareInterface
         $userLevel = $_SESSION['role_level'] ?? 0;
 
         if ($this->requiresTaskManagement && !$canManageTasks) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.',
+                'can_manage_tasks'
+            );
         }
 
         // Terminverwaltung ist bewusst ohne Admin-Fallback: sie soll vergeben werden koennen,
         // ohne gleichzeitig Mitglieder-, Rollen- und Projektverwaltung mitzuliefern.
         if ($this->requiresEventManagement && !$canManageEvents) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Terminverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Terminverwaltung.',
+                'can_manage_events'
+            );
         }
 
         // Die Anwesenheitsliste verlangt eines der beiden Anwesenheitsrechte; den Umfang
@@ -120,51 +161,67 @@ class RoleMiddleware implements MiddlewareInterface
         // can_manage_own_voice_group deckt die Mitgliederpflege und Vertretungs-Anmeldungen
         // der eigenen Stimmgruppe ab, nicht die Anwesenheitsliste selbst.
         if ($this->requiresAttendanceManagement && !$canManageAttendance && !$canManageAttendanceAll) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.',
+                'can_manage_attendance'
+            );
         }
 
         if ($this->requiresRoleManagement && !$canManageRoles) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Rollenverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Rollenverwaltung.',
+                'can_manage_roles'
+            );
         }
 
         if ($this->requiresSongLibraryManagement && !$canManageSongLibrary) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Repertoire-Verwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Repertoire-Verwaltung.',
+                'can_manage_song_library'
+            );
         }
 
         if ($this->requiresNewsletterManagement && !$canManageNewsletters) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Newsletter-Verwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Newsletter-Verwaltung.',
+                'can_manage_newsletters'
+            );
         }
 
         if ($this->requiresMailQueueManagement && !$canManageMailQueue) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Mailversand-Verwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Mailversand-Verwaltung.',
+                'can_manage_mail_queue'
+            );
         }
 
         if ($this->requiresSheetArchiveManagement && !$canManageSheetArchive) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Notenarchiv-Verwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Notenarchiv-Verwaltung.',
+                'can_manage_sheet_archive'
+            );
         }
 
         if ($this->requiresBudgetManagement && !$canManageBudget) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.',
+                'can_manage_budget'
+            );
         }
 
         if ($this->requiresBackupManagement && !$canManageBackups) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Backup-Verwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Backup-Verwaltung.',
+                'can_manage_backups'
+            );
         }
 
         // Budget is an aggregated view of finance data, so finance readers may view it
@@ -173,62 +230,99 @@ class RoleMiddleware implements MiddlewareInterface
             $this->requiresBudgetRead
             && !$canReadFinances && !$canManageFinances && !$canManageBudget
         ) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.',
+                'can_read_finances'
+            );
         }
 
         if ($this->requiresSponsoringManagement && !$canManageSponsoring) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Sponsoring-Verwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Sponsoring-Verwaltung.',
+                'can_manage_sponsoring'
+            );
         }
 
         if ($this->requiresMasterDataManagement && !$canManageMasterData) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Stammdatenverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Stammdatenverwaltung.',
+                'can_manage_master_data'
+            );
         }
 
         if ($this->requiresFinanceRead && !$canReadFinances && !$canManageFinances) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Finanzansicht.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Finanzansicht.',
+                'can_read_finances'
+            );
         }
 
         if ($this->requiresFinanceManagement && !$canManageFinances) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung zur Finanzverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung zur Finanzverwaltung.',
+                'can_manage_finances'
+            );
         }
 
         if ($this->requiresProjectMemberManagement && !$canManageProjectMembers) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.',
+                'can_manage_project_members'
+            );
         }
 
         // Jedes Gate wird eigenstaendig geprueft: frueher hat allowVoiceGroupReps die beiden
         // folgenden Pruefungen komplett uebersprungen, sodass eine Kombination der Flags
         // stillschweigend Rechte verschenkt haette.
         if ($this->allowVoiceGroupReps && !$canManageUsers && !$canManageOwnVoiceGroup) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
+                'can_manage_own_voice_group'
+            );
         }
 
         if ($this->requiresUserManagement && !$canManageUsers) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
+                'can_manage_users'
+            );
         }
 
         if ($this->minHierarchyLevel > 0 && $userLevel < $this->minHierarchyLevel) {
-            $response = new SlimResponse();
-            $response->getBody()->write("Zugriff verweigert: Ihre Rolle reicht für diese Ansicht nicht aus.");
-            return $response->withStatus(403);
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Ihre Rolle reicht für diese Ansicht nicht aus.',
+                'hierarchy_level'
+            );
         }
 
         return $handler->handle($request);
+    }
+
+    /**
+     * Einziger Ausgang fuer alle Rechte-Abweisungen dieser Middleware: baut die
+     * 403-Antwort und protokolliert authz.denied genau einmal pro Abweisung.
+     * Benutzerkennung und IP kommen ueber den Request-Kontext und werden hier
+     * nicht wiederholt.
+     */
+    private function deny(Request $request, string $message, string $permission): Response
+    {
+        $response = new SlimResponse();
+        $response->getBody()->write($message);
+
+        $this->logger->info('Access denied.', [
+            'event' => 'authz.denied',
+            'permission' => $permission,
+        ]);
+
+        return $response->withStatus(403);
     }
 }

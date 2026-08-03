@@ -4,10 +4,68 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Controllers\SponsorshipController;
+use App\Models\Sponsor;
+use App\Models\Sponsorship;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
+use Slim\Psr7\Factory\StreamFactory;
+use Slim\Psr7\UploadedFile;
+use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class SponsoringFeatureTest extends TestCase
 {
+    use TestHttpHelpers;
+
+    public function testCreateSponsorshipLogsUploadRejectedForOversizedAttachmentWithoutFilename(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $sponsor = Sponsor::create(['name' => 'Upload-Ablehnungs-Test ' . bin2hex(random_bytes(4))]);
+
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+        $controller = new SponsorshipController($this->createStub(Twig::class), $logger);
+
+        $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
+        $stream = (new StreamFactory())->createStream($oversizedContent);
+        $uploadedFile = new UploadedFile(
+            $stream,
+            'geheimer-vertrag.pdf',
+            'application/pdf',
+            strlen($oversizedContent),
+            UPLOAD_ERR_OK
+        );
+
+        $request = $this->makeRequest('POST', '/sponsoring/sponsorships', [
+            'sponsor_id' => (string) $sponsor->id,
+            'amount' => '100',
+        ])->withUploadedFiles(['attachments' => [$uploadedFile]]);
+
+        try {
+            $controller->create($request, $this->makeResponse());
+
+            $records = $handlerLog->getRecords();
+            $match = array_values(array_filter(
+                $records,
+                static fn ($record): bool => ($record->context['event'] ?? null) === 'security.upload.rejected'
+            ));
+
+            $this->assertNotEmpty($match);
+            $this->assertSame('size_exceeded', $match[0]->context['reason']);
+
+            foreach ($records as $record) {
+                $this->assertStringNotContainsString('geheimer-vertrag', (string) json_encode($record->context));
+            }
+        } finally {
+            Sponsorship::where('sponsor_id', $sponsor->id)->delete();
+            $sponsor->delete();
+        }
+    }
+
     public function testSponsoringControllersAndMethodsExist(): void
     {
         $this->assertTrue(class_exists(\App\Controllers\SponsoringDashboardController::class));

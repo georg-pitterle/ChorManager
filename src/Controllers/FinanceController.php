@@ -237,6 +237,10 @@ class FinanceController
                         // Use centralized validation
                         $validation = UploadValidator::validateFileSize($size, $mimeType);
                         if (!$validation['valid']) {
+                            $this->logger->warning('File upload rejected.', [
+                                'event' => 'security.upload.rejected',
+                                'reason' => $validation['reason'],
+                            ]);
                             $_SESSION['error'] = $validation['error'];
                             continue;
                         }

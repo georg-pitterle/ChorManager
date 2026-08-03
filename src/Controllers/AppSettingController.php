@@ -10,10 +10,22 @@ use Slim\Views\Twig;
 use App\Models\AppSetting;
 use App\Util\UploadValidator;
 use App\Services\NameFormatterService;
+use Psr\Log\LoggerInterface;
 
 class AppSettingController
 {
     public const DEFAULT_PRIMARY_COLOR = '#E8A817';
+    /** @var array<int, string> */
+    public const LOG_LEVELS = [
+        'DEBUG',
+        'INFO',
+        'NOTICE',
+        'WARNING',
+        'ERROR',
+        'CRITICAL',
+        'ALERT',
+        'EMERGENCY',
+    ];
     private const MAX_LOGO_SIZE = 2097152; // 2 MB
     /** @var array<int, string> */
     private const ALLOWED_LOGO_MIME_TYPES = [
@@ -24,10 +36,12 @@ class AppSettingController
     ];
 
     private Twig $view;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, LoggerInterface $logger)
     {
         $this->view = $view;
+        $this->logger = $logger;
     }
 
     public function index(Request $request, Response $response): Response
@@ -40,6 +54,7 @@ class AppSettingController
 
         return $this->view->render($response, 'settings/index.twig', [
             'settings_values' => $settings,
+            'log_levels' => self::LOG_LEVELS,
             'success' => $success,
             'error' => $error,
         ]);
@@ -58,6 +73,8 @@ class AppSettingController
         $mailQueueBatchSize = self::normalizePositiveInteger($data['mailqueue_batch_size'] ?? null, 50);
         $registrationReminderDaysBefore = max(0, (int) ($data['registration_reminder_days_before'] ?? 0));
         $nameDisplayFormat = NameFormatterService::normalizeFormat($data['name_display_format'] ?? null);
+        $logLevel = self::normalizeLogLevel($data['log_level'] ?? null);
+        $logDbWrites = self::normalizeBooleanFlag($data['log_db_writes'] ?? null);
 
         try {
             if ($appName) {
@@ -125,6 +142,24 @@ class AppSettingController
                 ]
             );
 
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'log_level'],
+                [
+                    'setting_value' => $logLevel,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
+            AppSetting::updateOrCreate(
+                ['setting_key' => 'log_db_writes'],
+                [
+                    'setting_value' => $logDbWrites,
+                    'binary_content' => '',
+                    'mime_type' => 'text/plain',
+                ]
+            );
+
             $uploadedFiles = $request->getUploadedFiles();
             if (isset($uploadedFiles['app_logo'])) {
                 $file = $uploadedFiles['app_logo'];
@@ -141,6 +176,10 @@ class AppSettingController
                     // Use validateImageSize() for 2MB image limit
                     $validation = UploadValidator::validateImageSize($size, $mimeType);
                     if (!$validation['valid']) {
+                        $this->logger->warning('File upload rejected.', [
+                            'event' => 'security.upload.rejected',
+                            'reason' => $validation['reason'],
+                        ]);
                         $_SESSION['error'] = $validation['error'];
                         return $response->withHeader('Location', '/settings')->withStatus(302);
                     }
@@ -157,6 +196,14 @@ class AppSettingController
                     );
                 }
             }
+
+            $this->logger->info('Application settings updated.', [
+                'event' => 'settings.updated',
+                'keys' => array_values(array_intersect(
+                    array_keys($data),
+                    ['app_name', 'primary_color', 'name_display_format', 'log_level', 'log_db_writes']
+                )),
+            ]);
 
             $_SESSION['success'] = 'Einstellungen erfolgreich gespeichert.';
         } catch (\Exception $e) {
@@ -289,5 +336,17 @@ class AppSettingController
         $parsed = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         return $parsed !== false ? (int) $parsed : $default;
+    }
+
+    public static function normalizeLogLevel(?string $value): string
+    {
+        $candidate = strtoupper(trim((string) $value));
+
+        return in_array($candidate, self::LOG_LEVELS, true) ? $candidate : 'INFO';
+    }
+
+    public static function normalizeBooleanFlag(?string $value): string
+    {
+        return in_array(strtolower(trim((string) $value)), ['1', 'on', 'true', 'yes'], true) ? '1' : '0';
     }
 }

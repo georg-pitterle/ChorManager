@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Queries\UserQuery;
+use App\Logging\ExceptionLogContext;
 use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
@@ -203,6 +204,11 @@ class ProfileController
         $user->password = password_hash($newPassword, PASSWORD_DEFAULT);
         $user->save();
 
+        $this->logger->info('Password changed.', [
+            'event' => 'auth.password.changed',
+            'user_id' => (int) $user->id,
+        ]);
+
         $_SESSION['success'] = 'Dein Passwort wurde erfolgreich aktualisiert.';
 
         return $response->withHeader('Location', '/profile')->withStatus(302);
@@ -287,6 +293,12 @@ class ProfileController
         try {
             UserMailAccount::updateOrCreate(['user_id' => $userId], $attributes);
 
+            if ($imapPassword !== '') {
+                $this->logger->info('Mail credentials changed.', [
+                    'event' => 'mail.credentials.changed',
+                ]);
+            }
+
             $message = 'Mailbox-Einstellungen wurden gespeichert.';
             if ($wantsJson) {
                 return $this->jsonResponse($response, ['success' => true, 'message' => $message], 200);
@@ -298,8 +310,7 @@ class ProfileController
                 [
                     'event' => 'mail_account.update.failed',
                     'user_id' => $userId,
-                    'exception' => $e,
-                ]
+                ] + ExceptionLogContext::build($e)
             );
             $message = 'Fehler beim Speichern der Mailbox-Einstellungen.';
             if ($wantsJson) {

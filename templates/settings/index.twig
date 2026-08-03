@@ -196,6 +196,42 @@
                             </div>
                         </div>
 
+                        <hr class="my-4">
+
+                        <h2 class="h5 mb-3">Protokollierung</h2>
+
+                        <div class="mb-3">
+                            <label for="log_level" class="form-label">Log-Level</label>
+                            <select class="form-select"
+                                    id="log_level"
+                                    name="log_level">
+                                {% for level in log_levels %}
+                                    <option value="{{ level }}"
+                                            {{ settings_values.log_level|default("INFO") == level ? "selected" : "" }}>
+                                        {{ level }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Wirkt sofort, ohne Neustart. Höhere Ausführlichkeit erzeugt deutlich mehr Daten.
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="log_db_writes"
+                                   name="log_db_writes"
+                                   value="1"
+                                   {{ settings_values.log_db_writes|default("0") == "1" ? "checked" : "" }}>
+                            <label class="form-check-label" for="log_db_writes">
+                                SQL-Schreiboperationen protokollieren
+                            </label>
+                            <div class="form-text">
+                                Wirkt nur bei Log-Level DEBUG. Parameter werden nie protokolliert.
+                            </div>
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
                             <button type="submit" class="btn btn-primary">

@@ -7,17 +7,21 @@ namespace App\Services;
 use App\Models\RememberLogin;
 use App\Util\ClientIpResolver;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class RememberLoginService
 {
     public const COOKIE_NAME = 'remember_login';
 
     private int $rememberDays;
+    private LoggerInterface $logger;
 
-    public function __construct()
+    public function __construct(?LoggerInterface $logger = null)
     {
         $configuredDays = (int) \App\Util\EnvHelper::read('REMEMBER_ME_DAYS', '30');
         $this->rememberDays = max(1, $configuredDays);
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function issueForUser(int $userId, Request $request): string
@@ -45,29 +49,47 @@ class RememberLoginService
         [$selector, $validator] = $this->splitCookieValue($cookieValue);
 
         if (!$selector || !$validator) {
+            $this->logRejected('malformed');
             return null;
         }
 
         /** @var RememberLogin|null $token */
         $token = RememberLogin::where('selector', $selector)->first();
         if (!$token) {
+            $this->logRejected('unknown_token');
             return null;
         }
 
         if (strtotime((string) $token->expires_at) <= time()) {
             $token->delete();
+            $this->logRejected('expired');
             return null;
         }
 
         if (!password_verify($validator, (string) $token->token_hash)) {
             $token->delete();
+            $this->logRejected('invalid_token');
             return null;
         }
 
         $token->last_used_at = date('Y-m-d H:i:s');
         $token->save();
 
+        $userId = (int) $token->user_id;
+        $this->logger->info('Remember-me token accepted.', [
+            'event' => 'auth.remember_me.used',
+            'user_id' => $userId,
+        ]);
+
         return $token;
+    }
+
+    private function logRejected(string $reason): void
+    {
+        $this->logger->info('Remember-me token rejected.', [
+            'event' => 'auth.remember_me.rejected',
+            'reason' => $reason,
+        ]);
     }
 
     public function rotateToken(RememberLogin $token, Request $request): string

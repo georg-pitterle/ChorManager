@@ -13,6 +13,7 @@ use App\Middleware\HtmlFormCsrfInjectorMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Middleware\MailQueueProcessingMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
+use App\Middleware\RequestContextMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Views\Twig;
@@ -69,6 +70,8 @@ return function (App $app): void {
         }
     );
 
+    // Zuletzt hinzugefuegt heisst zuerst ausgefuehrt: Der Request-Kontext steht
+    // damit allen nachfolgenden Middlewares und Controllern zur Verfuegung.
     $app->add(HtmlFormCsrfInjectorMiddleware::class);
     $app->add(CsrfMiddleware::class);
     $app->add(MailQueueProcessingMiddleware::class);
@@ -80,4 +83,5 @@ return function (App $app): void {
 
     $app->add(MailBadgeRefreshMiddleware::class);
     $app->add(SecurityHeadersMiddleware::class);
+    $app->add(RequestContextMiddleware::class);
 };

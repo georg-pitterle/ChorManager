@@ -12,10 +12,14 @@ use App\Models\Setting;
 use App\Services\BudgetService;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Slim\Psr7\Factory\StreamFactory;
 use Slim\Psr7\Response as SlimResponse;
+use Slim\Psr7\UploadedFile;
 use Slim\Views\Twig;
 
 /**
@@ -311,6 +315,44 @@ final class FinanceBusinessLogicTest extends TestCase
             $groupNames,
             'Groups that only exist via the budget module must also appear in the Kassa group list.'
         );
+        unset($_SESSION['success'], $_SESSION['error']);
+    }
+
+    public function testSaveLogsUploadRejectedForOversizedAttachmentWithoutFilename(): void
+    {
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+        $controller = $this->makeController($logger);
+
+        $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
+        $stream = (new StreamFactory())->createStream($oversizedContent);
+        $uploadedFile = new UploadedFile(
+            $stream,
+            'geheimer-beleg.pdf',
+            'application/pdf',
+            strlen($oversizedContent),
+            UPLOAD_ERR_OK
+        );
+
+        $request = $this->makeRequest('POST', '/finances', $this->baseFinanceData())
+            ->withUploadedFiles(['attachments' => [$uploadedFile]]);
+
+        $controller->save($request, $this->makeResponse());
+
+        $records = $handlerLog->getRecords();
+        $match = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'security.upload.rejected'
+        ));
+
+        $this->assertNotEmpty($match);
+        $this->assertSame('size_exceeded', $match[0]->context['reason']);
+
+        foreach ($records as $record) {
+            $this->assertStringNotContainsString('geheimer-beleg', (string) json_encode($record->context));
+        }
+
         unset($_SESSION['success'], $_SESSION['error']);
     }
 }

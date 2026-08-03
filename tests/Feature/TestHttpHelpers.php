@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Psr7\Factory\ServerRequestFactory;
@@ -44,5 +46,33 @@ trait TestHttpHelpers
     {
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame($location, $response->getHeaderLine('Location'));
+    }
+
+    /**
+     * @return array{0: Logger, 1: TestHandler}
+     */
+    protected function logger(): array
+    {
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        return [$logger, $handler];
+    }
+
+    protected function recordFor(TestHandler $handler, string $event): ?\Monolog\LogRecord
+    {
+        foreach ($handler->getRecords() as $record) {
+            if (($record->context['event'] ?? null) === $event) {
+                return $record;
+            }
+        }
+
+        return null;
+    }
+
+    protected function hasEvent(TestHandler $handler, string $event): bool
+    {
+        return $this->recordFor($handler, $event) !== null;
     }
 }

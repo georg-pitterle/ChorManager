@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Middleware\RoleMiddleware;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,6 +19,14 @@ final class RoleMiddlewareFeatureTest extends TestCase
     protected function setUp(): void
     {
         $_SESSION = ['user_id' => 7];
+    }
+
+    protected function tearDown(): void
+    {
+        // Never leave a test-installed default logger behind: it is static,
+        // process-wide state and would otherwise leak into unrelated
+        // RoleMiddleware instances built later in the same PHPUnit run.
+        RoleMiddleware::setDefaultLogger(null);
     }
 
     public function testFinanceReadOnlyUserCanPassFinanceReadGate(): void
@@ -176,5 +186,56 @@ final class RoleMiddlewareFeatureTest extends TestCase
         );
 
         $this->assertSame(403, $response->getStatusCode());
+    }
+
+    /**
+     * Demonstrates the static default-logger bridge (RoleMiddleware is built
+     * with `new` at every Routes.php call site, never through the DI
+     * container) and that setDefaultLogger(null) actually clears it: once
+     * reset, an instance built with no explicit logger falls back to the
+     * NullLogger again instead of continuing to use the previously installed
+     * one. Without this reset capability, a test-installed logger would leak
+     * into every RoleMiddleware built afterward in the same PHPUnit process.
+     */
+    public function testDefaultLoggerBridgeCanBeResetToNull(): void
+    {
+        $_SESSION['can_manage_roles'] = false;
+
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        RoleMiddleware::setDefaultLogger($logger);
+        $middlewareUsingDefault = new RoleMiddleware(requiresRoleManagement: true);
+        $middlewareUsingDefault->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/roles'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        $this->assertNotEmpty($handler->getRecords(), 'Default logger should have received the denial.');
+
+        RoleMiddleware::setDefaultLogger(null);
+        $handler->clear();
+
+        $middlewareAfterReset = new RoleMiddleware(requiresRoleManagement: true);
+        $middlewareAfterReset->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/roles'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        $this->assertEmpty(
+            $handler->getRecords(),
+            'After reset, the old handler must no longer receive log records from new instances.'
+        );
     }
 }

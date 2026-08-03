@@ -12,15 +12,19 @@ use App\Models\SongResource;
 use App\Util\UploadValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 
 class SongLibraryController
 {
     private Twig $view;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, LoggerInterface $logger = new NullLogger())
     {
         $this->view = $view;
+        $this->logger = $logger;
     }
 
     public function index(Request $request, Response $response): Response
@@ -409,6 +413,10 @@ class SongLibraryController
 
             $validation = UploadValidator::validateFileSize($size, $mimeType);
             if (!$validation['valid']) {
+                $this->logger->warning('File upload rejected.', [
+                    'event' => 'security.upload.rejected',
+                    'reason' => $validation['reason'],
+                ]);
                 return $validation['error'];
             }
 

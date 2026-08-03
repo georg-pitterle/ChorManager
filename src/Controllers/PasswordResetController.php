@@ -75,6 +75,11 @@ class PasswordResetController
             return $response->withHeader('Location', '/forgot-password')->withStatus(302);
         }
 
+        $this->logger->info('Password reset requested.', [
+            'event' => 'auth.password_reset.requested',
+            'email' => $email,
+        ]);
+
         $user = User::where('email', $email)->first();
 
         if (!$user || !$user->is_active) {
@@ -188,6 +193,12 @@ class PasswordResetController
                 $user->password = password_hash($password, PASSWORD_DEFAULT);
                 $user->save();
                 PasswordReset::where('email', $email)->delete();
+
+                $this->logger->info('Password reset completed.', [
+                    'event' => 'auth.password_reset.completed',
+                    'user_id' => (int) $user->id,
+                ]);
+
                 $_SESSION['success'] = 'Dein Passwort wurde erfolgreich gesetzt. Du kannst dich nun anmelden.';
                 return $response->withHeader('Location', '/login')->withStatus(302);
             }
@@ -207,6 +218,12 @@ class PasswordResetController
                 $user->password = password_hash($password, PASSWORD_DEFAULT);
                 $user->save();
                 InvitationToken::where('user_id', $user->id)->delete();
+
+                $this->logger->info('Invitation consumed.', [
+                    'event' => 'invitation.consumed',
+                    'email' => $email,
+                ]);
+
                 $_SESSION['success'] = 'Dein Passwort wurde erfolgreich gesetzt. Du kannst dich nun anmelden.';
                 return $response->withHeader('Location', '/login')->withStatus(302);
             }

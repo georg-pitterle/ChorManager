@@ -10,14 +10,17 @@ use Slim\Views\Twig;
 use App\Models\Sponsorship;
 use App\Models\Attachment;
 use App\Util\UploadValidator;
+use Psr\Log\LoggerInterface;
 
 class SponsorshipController
 {
     private Twig $view;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, LoggerInterface $logger)
     {
         $this->view = $view;
+        $this->logger = $logger;
     }
 
     private function handleAttachments(Request $request, int $sponsorshipId): void
@@ -47,6 +50,10 @@ class SponsorshipController
                 // Validate file size and type
                 $validation = UploadValidator::validateFileSize($size, $mimeType);
                 if (!$validation['valid']) {
+                    $this->logger->warning('File upload rejected.', [
+                        'event' => 'security.upload.rejected',
+                        'reason' => $validation['reason'],
+                    ]);
                     $_SESSION['error'] = $validation['error'];
                     continue;
                 }

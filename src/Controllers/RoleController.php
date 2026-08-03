@@ -8,6 +8,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Role;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class RoleController
 {
@@ -28,11 +30,13 @@ class RoleController
 
     private Twig $view;
     private array $settings;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view, array $settings = [])
+    public function __construct(Twig $view, array $settings = [], LoggerInterface $logger = new NullLogger())
     {
         $this->view = $view;
         $this->settings = $settings;
+        $this->logger = $logger;
     }
 
     /**
@@ -89,6 +93,31 @@ class RoleController
     }
 
     /**
+     * @param array<string, bool> $before
+     * @param array<string, bool> $after
+     * @return array{granted: list<string>, revoked: list<string>}
+     */
+    public static function permissionDiff(array $before, array $after): array
+    {
+        $granted = [];
+        $revoked = [];
+
+        foreach ($after as $permission => $value) {
+            $previous = (bool) ($before[$permission] ?? false);
+
+            if ($value && !$previous) {
+                $granted[] = $permission;
+            }
+
+            if (!$value && $previous) {
+                $revoked[] = $permission;
+            }
+        }
+
+        return ['granted' => $granted, 'revoked' => $revoked];
+    }
+
+    /**
      * @return array<string,bool>
      */
     private function moduleFlags(): array
@@ -140,7 +169,7 @@ class RoleController
         }
 
         try {
-            Role::create([
+            $role = Role::create([
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
                 'can_manage_users' => $permissions['can_manage_users'],
@@ -164,6 +193,12 @@ class RoleController
                 'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
+
+            $this->logger->info('Role created.', [
+                'event' => 'role.created',
+                'role_id' => (int) $role->id,
+                'role_name' => $role->name,
+            ]);
         } catch (\Exception $e) {
             if ($e->getCode() == 23000) {
                 $_SESSION['error'] = 'Eine Rolle mit diesem Namen existiert bereits.';
@@ -207,6 +242,15 @@ class RoleController
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
 
+        // The flag list comes straight from buildPermissionFlags() so a newly added can_*
+        // right is picked up automatically, without a second hardcoded list to keep in sync.
+        $existingAttributes = $existingRole->getAttributes();
+        $permissionsBefore = [];
+        foreach (array_keys($permissions) as $permission) {
+            $permissionsBefore[$permission] = (bool) ($existingAttributes[$permission] ?? false);
+        }
+        $permissionsAfter = array_map(static fn ($value): bool => (bool) $value, $permissions);
+
         try {
             $role = $existingRole;
             $role->update([
@@ -233,6 +277,16 @@ class RoleController
                 'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';
+
+            $diff = self::permissionDiff($permissionsBefore, $permissionsAfter);
+
+            $this->logger->info('Role updated.', [
+                'event' => 'role.updated',
+                'role_id' => (int) $role->id,
+                'role_name' => $role->name,
+                'granted' => $diff['granted'],
+                'revoked' => $diff['revoked'],
+            ]);
         } catch (\Exception $e) {
             if ($e->getCode() == 23000) {
                 $_SESSION['error'] = 'Eine andere Rolle mit diesem Namen existiert bereits.';
@@ -272,9 +326,18 @@ class RoleController
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
 
+        $deletedRoleId = (int) $role->id;
+        $deletedRoleName = $role->name;
+
         try {
             $role->delete();
             $_SESSION['success'] = 'Rolle erfolgreich gelöscht.';
+
+            $this->logger->info('Role deleted.', [
+                'event' => 'role.deleted',
+                'role_id' => $deletedRoleId,
+                'role_name' => $deletedRoleName,
+            ]);
         } catch (\Exception $e) {
             $_SESSION['error'] = 'Datenbankfehler beim Löschen: ';
         }

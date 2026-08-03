@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Logging\RequestContext;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\SessionAuthService;
@@ -93,7 +94,8 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
         ]);
         $user->roles()->attach($role->id);
 
-        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext()))
+            ->setAuthenticatedUser($user);
 
         $this->assertTrue($_SESSION['can_manage_own_voice_group']);
 
@@ -118,7 +120,8 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
         ]);
         $user->roles()->attach($role->id);
 
-        (new SessionAuthService(new \App\Services\NameFormatterService()))->setAuthenticatedUser($user);
+        (new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext()))
+            ->setAuthenticatedUser($user);
 
         $this->assertFalse($_SESSION['can_manage_own_voice_group']);
 

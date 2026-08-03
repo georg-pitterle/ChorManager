@@ -10,6 +10,9 @@ use App\Models\UserMailAccount;
 use App\Queries\UserQuery;
 use App\Services\MailCredentialCryptoService;
 use App\Services\PasswordPolicyService;
+use Illuminate\Database\QueryException;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
@@ -442,6 +445,69 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertFalse($body['success']);
         $this->assertNotEmpty($body['message']);
         $this->assertNull(UserMailAccount::where('user_id', $this->user->id)->first());
+    }
+
+    /**
+     * mail_account.update.failed carries the encrypted IMAP credential in the
+     * failing INSERT's bindings. Illuminate\Database\QueryException::getMessage()
+     * appends those bindings to the SQL - a plain 'exception' => $e log call
+     * would put the encrypted credential (and, via json_encode, our recognizable
+     * plaintext marker below) into the log. A nonexistent user_id deterministically
+     * triggers a real QueryException here via the user_mail_accounts foreign key
+     * constraint, regardless of SQL strict-mode settings.
+     */
+    public function testUpdateMailboxFailureLogsSanitizedQueryExceptionWithoutBindings(): void
+    {
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        $controllerWithLogger = new ProfileController(
+            $this->twigMock,
+            new UserQuery(new \App\Services\NameFormatterService()),
+            new PasswordPolicyService(),
+            $logger,
+            $this->crypto
+        );
+
+        $originalSessionUserId = $_SESSION['user_id'];
+        $_SESSION['user_id'] = 999999999; // no such user -> FK violation on insert
+
+        $secretPassword = 'RECOGNIZABLE-SECRET-IMAP-PASSWORD-VALUE';
+
+        try {
+            $response = $controllerWithLogger->updateMailbox(
+                $this->makeRequest('POST', '/profile/mailbox', [
+                    'imap_host' => 'imap.example.org',
+                    'imap_port' => '993',
+                    'imap_encryption' => 'ssl',
+                    'imap_username' => 'mailbox.tester@example.org',
+                    'imap_password' => $secretPassword,
+                ]),
+                $this->makeResponse()
+            );
+        } finally {
+            $_SESSION['user_id'] = $originalSessionUserId;
+        }
+
+        $this->assertSame(302, $response->getStatusCode());
+
+        $record = null;
+        foreach ($handler->getRecords() as $rec) {
+            if (($rec->context['event'] ?? null) === 'mail_account.update.failed') {
+                $record = $rec;
+            }
+        }
+
+        $this->assertNotNull($record);
+        $this->assertArrayNotHasKey('exception', $record->context);
+        $this->assertSame(QueryException::class, $record->context['exception_class']);
+        $this->assertArrayHasKey('sql', $record->context);
+        $this->assertArrayHasKey('driver_error', $record->context);
+
+        $encoded = (string) json_encode($record->context);
+        $this->assertStringNotContainsString($secretPassword, $encoded);
+        $this->assertStringNotContainsString('bindings', $encoded);
     }
 
     public function testDeleteMailboxRemovesAccountAndSetsSuccessMessage(): void

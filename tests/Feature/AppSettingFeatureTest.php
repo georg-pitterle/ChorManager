@@ -5,10 +5,96 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\AppSettingController;
+use App\Models\AppSetting;
 use PHPUnit\Framework\TestCase;
+use Slim\Psr7\Factory\StreamFactory;
+use Slim\Psr7\UploadedFile;
+use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class AppSettingFeatureTest extends TestCase
 {
+    use TestHttpHelpers;
+
+    protected function tearDown(): void
+    {
+        AppSetting::query()->whereIn('setting_key', [
+            'app_name',
+            'primary_color',
+            'name_display_format',
+            'log_level',
+            'log_db_writes',
+            'mailqueue_trigger_mode',
+            'mailqueue_opportunistic_rate_limit',
+            'mailqueue_batch_size',
+            'registration_reminder_days_before',
+        ])->delete();
+        $_SESSION = [];
+
+        parent::tearDown();
+    }
+
+    public function testSaveLogsSettingsUpdatedWithKeysButNeverValues(): void
+    {
+        Bootstrap::setupTestDatabase();
+        [$logger, $handler] = $this->logger();
+        $controller = new AppSettingController($this->createStub(Twig::class), $logger);
+
+        $request = $this->makeRequest('POST', '/settings', [
+            'app_name' => 'Streng Geheimer Chorname',
+            'primary_color' => '#112233',
+            'name_display_format' => 'first_last',
+            'log_level' => 'DEBUG',
+            'log_db_writes' => '1',
+        ]);
+
+        $controller->save($request, $this->makeResponse());
+
+        $record = $this->recordFor($handler, 'settings.updated');
+        $this->assertNotNull($record);
+        $this->assertSame(
+            ['app_name', 'primary_color', 'name_display_format', 'log_level', 'log_db_writes'],
+            $record->context['keys']
+        );
+
+        foreach ($handler->getRecords() as $rec) {
+            $this->assertStringNotContainsString(
+                'Streng Geheimer Chorname',
+                (string) json_encode($rec->context)
+            );
+        }
+    }
+
+    public function testSaveLogsUploadRejectedForOversizedLogoWithoutFilename(): void
+    {
+        Bootstrap::setupTestDatabase();
+        [$logger, $handler] = $this->logger();
+        $controller = new AppSettingController($this->createStub(Twig::class), $logger);
+
+        $oversizedContent = str_repeat('x', (2 * 1024 * 1024) + 1);
+        $stream = (new StreamFactory())->createStream($oversizedContent);
+        $uploadedFile = new UploadedFile(
+            $stream,
+            'geheimer-dateiname.png',
+            'image/png',
+            strlen($oversizedContent),
+            UPLOAD_ERR_OK
+        );
+
+        $request = $this->makeRequest('POST', '/settings', ['app_name' => 'Chor'])
+            ->withUploadedFiles(['app_logo' => $uploadedFile]);
+
+        $controller->save($request, $this->makeResponse());
+
+        $record = $this->recordFor($handler, 'security.upload.rejected');
+        $this->assertNotNull($record);
+        $this->assertSame('size_exceeded', $record->context['reason']);
+
+        foreach ($handler->getRecords() as $rec) {
+            $this->assertStringNotContainsString('geheimer-dateiname', (string) json_encode($rec->context));
+        }
+    }
+
     public function testSettingsStructureExists(): void
     {
         $this->assertTrue(class_exists(AppSettingController::class));

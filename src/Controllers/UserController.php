@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Queries\UserQuery;
 use App\Queries\ProjectQuery;
+use App\Logging\ExceptionLogContext;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
 use App\Policies\UserEditPolicy;
@@ -230,7 +231,20 @@ class UserController
 
             $this->userPersistence->save($user);
 
+            $this->logger->info('User created.', [
+                'event' => 'user.created',
+                'user_id' => (int) $user->id,
+            ]);
+
             $this->userPersistence->syncRoles($user, $roleIds);
+
+            foreach (array_map('intval', $roleIds) as $assignedRoleId) {
+                $this->logger->info('Role assigned to user.', [
+                    'event' => 'user.role.assigned',
+                    'user_id' => (int) $user->id,
+                    'role_id' => $assignedRoleId,
+                ]);
+            }
 
             $vgData = [];
             foreach ($voiceGroupIds as $vgId) {
@@ -256,8 +270,7 @@ class UserController
                 [
                     'event' => 'user.create.failed',
                     'email' => $email,
-                    'exception' => $e,
-                ]
+                ] + ExceptionLogContext::build($e)
             );
             $createService = new ModalFormService('user_create');
             $createService->setError('Fehler beim Anlegen des Mitglieds.', $formData);
@@ -358,6 +371,11 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
+        // Captured before the target is mutated below, so the log calls after a successful
+        // save can report what actually changed instead of re-deriving it from the request.
+        $previousEmail = $targetUser->email;
+        $previousRoleIds = $targetUser->roles->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+
         try {
             // Passwords are never set here - members choose their own via the invitation
             // or password reset link, so no administrator ever learns another member's password.
@@ -367,7 +385,33 @@ class UserController
 
 
             $this->userPersistence->save($targetUser);
+
+            if ($previousEmail !== $email) {
+                $this->logger->info('User email changed.', [
+                    'event' => 'user.email.changed',
+                    'user_id' => (int) $targetUser->id,
+                    'old_email' => $previousEmail,
+                    'new_email' => $email,
+                ]);
+            }
+
             $this->userPersistence->syncRoles($targetUser, $roleIds);
+
+            $newRoleIds = array_map('intval', $roleIds);
+            foreach (array_diff($newRoleIds, $previousRoleIds) as $assignedRoleId) {
+                $this->logger->info('Role assigned to user.', [
+                    'event' => 'user.role.assigned',
+                    'user_id' => (int) $targetUser->id,
+                    'role_id' => $assignedRoleId,
+                ]);
+            }
+            foreach (array_diff($previousRoleIds, $newRoleIds) as $revokedRoleId) {
+                $this->logger->info('Role revoked from user.', [
+                    'event' => 'user.role.revoked',
+                    'user_id' => (int) $targetUser->id,
+                    'role_id' => $revokedRoleId,
+                ]);
+            }
 
             // Admin can override everything
             if ($canManageUsers) {
@@ -461,6 +505,11 @@ class UserController
         $targetUser->is_active = 0;
         $this->userPersistence->save($targetUser);
 
+        $this->logger->info('User deactivated.', [
+            'event' => 'user.deactivated',
+            'user_id' => (int) $targetUser->id,
+        ]);
+
         $_SESSION['success'] = 'Mitglied wurde archiviert (deaktiviert).';
         return $response->withHeader('Location', '/users')->withStatus(302);
     }
@@ -503,6 +552,12 @@ class UserController
 
             $targetUser->is_active = 0;
             $this->userPersistence->save($targetUser);
+
+            $this->logger->info('User deactivated.', [
+                'event' => 'user.deactivated',
+                'user_id' => (int) $targetUser->id,
+            ]);
+
             $processed++;
         }
 
@@ -538,6 +593,11 @@ class UserController
 
         $targetUser->is_active = 1;
         $this->userPersistence->save($targetUser);
+
+        $this->logger->info('User activated.', [
+            'event' => 'user.activated',
+            'user_id' => (int) $targetUser->id,
+        ]);
 
         $_SESSION['success'] = 'Mitglied wurde erfolgreich wiederhergestellt.';
         return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
@@ -701,6 +761,11 @@ class UserController
                 userId: (int) $targetUser->id,
                 invitationToken: $token
             );
+
+            $this->logger->info('Invitation created.', [
+                'event' => 'invitation.created',
+                'user_id' => (int) $targetUser->id,
+            ]);
 
             return [
                 'success' => true,

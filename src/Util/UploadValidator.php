@@ -42,6 +42,7 @@ class UploadValidator
             return [
                 'valid' => false,
                 'error' => "MIME type '$mimeType' ist kein erlaubtes Bildformat.",
+                'reason' => 'invalid_mime_type',
             ];
         }
 
@@ -49,6 +50,7 @@ class UploadValidator
             return [
                 'valid' => false,
                 'error' => 'Bilddatei hat keine gültige Größe.',
+                'reason' => 'invalid_size',
             ];
         }
 
@@ -59,6 +61,7 @@ class UploadValidator
                     'Bilddatei zu groß: %s MB. Maximal erlaubt: 2 MB.',
                     round($sizeBytes / (1024 * 1024), 1)
                 ),
+                'reason' => 'size_exceeded',
             ];
         }
 
@@ -77,6 +80,7 @@ class UploadValidator
             return [
                 'valid' => false,
                 'error' => 'Datei hat keine gültige Größe.',
+                'reason' => 'invalid_size',
             ];
         }
 
@@ -84,6 +88,7 @@ class UploadValidator
             return [
                 'valid' => false,
                 'error' => "MIME type '$mimeType' ist kein erlaubter Dateityp.",
+                'reason' => 'invalid_mime_type',
             ];
         }
 
@@ -101,6 +106,7 @@ class UploadValidator
                     round($sizeBytes / (1024 * 1024), 1),
                     $limitMB
                 ),
+                'reason' => 'size_exceeded',
             ];
         }
 

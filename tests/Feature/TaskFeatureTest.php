@@ -13,16 +13,27 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Role;
 use App\Middleware\RoleMiddleware;
+use App\Policies\TaskPolicy;
+use App\Services\HtmlSanitizer;
+use App\Services\NameFormatterService;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Slim\Psr7\Factory\StreamFactory;
+use Slim\Psr7\UploadedFile;
+use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response as SlimResponse;
 
 class TaskFeatureTest extends TestCase
 {
+    use TestHttpHelpers;
+
     private const INITIAL_MIGRATION_PATH = __DIR__ . '/../../db/migrations/20260314130000_initial.php';
 
     /**
@@ -507,6 +518,76 @@ class TaskFeatureTest extends TestCase
         $this->assertStringNotContainsString('Illuminate\\Support\\Facades\\DB', $controllerContent);
         // Must use Capsule::connection()->transaction() pattern
         $this->assertStringContainsString('Capsule::connection()->transaction(', $controllerContent);
+    }
+
+    public function testUploadAttachmentLogsUploadRejectedForOversizedFileWithoutFilename(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $project = Project::create(['name' => 'Upload-Ablehnungs-Test ' . bin2hex(random_bytes(4))]);
+        $user = User::create([
+            'first_name' => 'Task',
+            'last_name' => 'Uploader',
+            'email' => 'task.uploader.' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+        $project->users()->attach($user->id);
+        $task = Task::create([
+            'project_id' => $project->id,
+            'name' => 'Testaufgabe',
+            'status' => 'Offen',
+            'created_by' => $user->id,
+        ]);
+
+        $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
+
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+        $controller = new TaskController(
+            $this->createStub(Twig::class),
+            new HtmlSanitizer(),
+            new TaskPolicy(),
+            new NameFormatterService(),
+            $logger
+        );
+
+        $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
+        $stream = (new StreamFactory())->createStream($oversizedContent);
+        $uploadedFile = new UploadedFile(
+            $stream,
+            'geheimer-anhang.pdf',
+            'application/pdf',
+            strlen($oversizedContent),
+            UPLOAD_ERR_OK
+        );
+
+        $request = $this->makeRequest('POST', '/tasks/' . $task->id . '/attachments')
+            ->withUploadedFiles(['attachments' => [$uploadedFile]]);
+
+        try {
+            $controller->uploadAttachment($request, $this->makeResponse(), ['id' => (string) $task->id]);
+
+            $records = $handlerLog->getRecords();
+            $match = array_values(array_filter(
+                $records,
+                static fn ($record): bool => ($record->context['event'] ?? null) === 'security.upload.rejected'
+            ));
+
+            $this->assertNotEmpty($match);
+            $this->assertSame('size_exceeded', $match[0]->context['reason']);
+
+            foreach ($records as $record) {
+                $this->assertStringNotContainsString('geheimer-anhang', (string) json_encode($record->context));
+            }
+        } finally {
+            $task->delete();
+            $project->users()->detach();
+            $project->delete();
+            $user->delete();
+            $_SESSION = [];
+        }
     }
 
     // Test für alte Kanban-Drag&Drop-Logik entfernt, da SortableJS verwendet wird.

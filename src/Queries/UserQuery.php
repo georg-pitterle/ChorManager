@@ -26,6 +26,19 @@ class UserQuery
             ->first();
     }
 
+    /**
+     * Used only to distinguish the audit-log reason for a failed login: does an
+     * inactive (deactivated) account exist for this address? Never used to
+     * authenticate - findByEmail() above stays the only login-relevant lookup,
+     * and its is_active=1 filter is untouched.
+     */
+    public function existsInactiveByEmail(string $email): bool
+    {
+        return User::where('email', $email)
+            ->where('is_active', 0)
+            ->exists();
+    }
+
     public function findById(int $id): ?User
     {
         return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'mailAccount'])

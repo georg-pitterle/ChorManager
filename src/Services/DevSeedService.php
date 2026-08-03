@@ -1466,6 +1466,8 @@ class DevSeedService
             'mailqueue_batch_size' => '50',
             'registration_reminder_days_before' => '3',
             'name_display_format' => 'first_last',
+            'log_level' => 'INFO',
+            'log_db_writes' => '0',
         ];
 
         foreach ($settings as $key => $value) {

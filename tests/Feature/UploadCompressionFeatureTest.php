@@ -196,4 +196,59 @@ class UploadCompressionFeatureTest extends TestCase
             $this->assertContains($mimeType, $mimeTypes, "Missing support for $mimeType");
         }
     }
+
+    /**
+     * Callers log security.upload.rejected with a stable machine-readable reason,
+     * never the free-text German error message. The reason must come from the
+     * one shared validator, not be reinvented at each of the five call sites.
+     */
+    public function testValidateImageSizeReportsStableReasonForOversizedFile(): void
+    {
+        $result = UploadValidator::validateImageSize((2 * 1024 * 1024) + 1, 'image/jpeg');
+
+        $this->assertSame('size_exceeded', $result['reason']);
+    }
+
+    public function testValidateImageSizeReportsStableReasonForInvalidMimeType(): void
+    {
+        $result = UploadValidator::validateImageSize(1024, 'text/html');
+
+        $this->assertSame('invalid_mime_type', $result['reason']);
+    }
+
+    public function testValidateImageSizeReportsStableReasonForZeroByteFile(): void
+    {
+        $result = UploadValidator::validateImageSize(0, 'image/jpeg');
+
+        $this->assertSame('invalid_size', $result['reason']);
+    }
+
+    public function testValidateFileSizeReportsStableReasonForOversizedFile(): void
+    {
+        $result = UploadValidator::validateFileSize((10 * 1024 * 1024) + 1, 'application/pdf');
+
+        $this->assertSame('size_exceeded', $result['reason']);
+    }
+
+    public function testValidateFileSizeReportsStableReasonForInvalidMimeType(): void
+    {
+        $result = UploadValidator::validateFileSize(1024, 'text/html');
+
+        $this->assertSame('invalid_mime_type', $result['reason']);
+    }
+
+    public function testValidateFileSizeReportsStableReasonForNegativeSize(): void
+    {
+        $result = UploadValidator::validateFileSize(-1, 'application/pdf');
+
+        $this->assertSame('invalid_size', $result['reason']);
+    }
+
+    public function testValidateFileSizeOmitsReasonWhenValid(): void
+    {
+        $result = UploadValidator::validateFileSize(1024, 'application/pdf');
+
+        $this->assertTrue($result['valid']);
+        $this->assertArrayNotHasKey('reason', $result);
+    }
 }

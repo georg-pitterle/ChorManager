@@ -9,10 +9,19 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Psr7\Response as SlimResponse;
 
 class CsrfMiddleware implements MiddlewareInterface
 {
+    private LoggerInterface $logger;
+
+    public function __construct(LoggerInterface $logger = new NullLogger())
+    {
+        $this->logger = $logger;
+    }
+
     public function process(Request $request, RequestHandler $handler): Response
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -41,6 +50,10 @@ class CsrfMiddleware implements MiddlewareInterface
         if (Csrf::validate($providedToken)) {
             return $handler->handle($request);
         }
+
+        $this->logger->warning('CSRF token rejected.', [
+            'event' => 'security.csrf.rejected',
+        ]);
 
         $response = new SlimResponse(403);
         $accept = strtolower($request->getHeaderLine('Accept'));

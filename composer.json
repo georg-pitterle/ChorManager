@@ -9,6 +9,7 @@
         "erusev/parsedown": "^1.8",
         "ezyang/htmlpurifier": "^4.18",
         "illuminate/database": "^13.0",
+        "illuminate/events": "^13.0",
         "monolog/monolog": "^3.7",
         "php-di/php-di": "^7.0",
         "phpmailer/phpmailer": "^7.0",

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Logging\RequestContext;
 use App\Middleware\AuthMiddleware;
 use App\Models\AppSetting;
 use App\Models\Role;
@@ -77,7 +78,7 @@ final class AuthMiddlewareSessionInvalidationFeatureTest extends TestCase
         $this->middleware = new AuthMiddleware(
             new UserQuery(new \App\Services\NameFormatterService()),
             new RememberLoginService(),
-            new SessionAuthService(new \App\Services\NameFormatterService())
+            new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext())
         );
 
         if (session_status() === PHP_SESSION_NONE) {

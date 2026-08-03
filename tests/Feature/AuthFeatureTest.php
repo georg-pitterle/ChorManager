@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Logging\RequestContext;
 use App\Models\User;
 use App\Services\SessionAuthService;
 use Illuminate\Support\Collection;
@@ -48,7 +49,7 @@ class AuthFeatureTest extends TestCase
 
     public function testSessionAuthServiceSetsFlagsFromRolesAndVoiceGroups(): void
     {
-        $service = new SessionAuthService(new \App\Services\NameFormatterService());
+        $service = new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext());
         $user = new User();
         $user->id = 7;
         $user->first_name = 'Test';
@@ -127,7 +128,7 @@ class AuthFeatureTest extends TestCase
 
     public function testSessionAuthServiceSetsFinanceReadWhenRoleCanOnlyRead(): void
     {
-        $service = new SessionAuthService(new \App\Services\NameFormatterService());
+        $service = new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext());
         $user = new User();
         $user->id = 9;
         $user->first_name = 'Read';

@@ -4,10 +4,64 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Controllers\SongLibraryController;
+use App\Models\Song;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
+use Slim\Psr7\Factory\StreamFactory;
+use Slim\Psr7\UploadedFile;
+use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class SongLibraryFeatureTest extends TestCase
 {
+    use TestHttpHelpers;
+
+    public function testUploadAttachmentsLogsUploadRejectedForOversizedFileWithoutFilename(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $song = Song::create(['title' => 'Upload-Ablehnungs-Test ' . bin2hex(random_bytes(4))]);
+
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+        $controller = new SongLibraryController($this->createStub(Twig::class), $logger);
+
+        $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
+        $stream = (new StreamFactory())->createStream($oversizedContent);
+        $uploadedFile = new UploadedFile(
+            $stream,
+            'geheime-noten.pdf',
+            'application/pdf',
+            strlen($oversizedContent),
+            UPLOAD_ERR_OK
+        );
+
+        $request = $this->makeRequest('POST', '/song-library/songs/' . $song->id . '/attachments')
+            ->withUploadedFiles(['attachments' => [$uploadedFile]]);
+
+        try {
+            $controller->uploadAttachments($request, $this->makeResponse(), ['id' => (string) $song->id]);
+
+            $records = $handlerLog->getRecords();
+            $match = array_values(array_filter(
+                $records,
+                static fn ($record): bool => ($record->context['event'] ?? null) === 'security.upload.rejected'
+            ));
+
+            $this->assertNotEmpty($match);
+            $this->assertSame('size_exceeded', $match[0]->context['reason']);
+
+            foreach ($records as $record) {
+                $this->assertStringNotContainsString('geheime-noten', (string) json_encode($record->context));
+            }
+        } finally {
+            $song->delete();
+        }
+    }
+
     public function testSongLibraryStructureExists(): void
     {
         $this->assertTrue(class_exists(\App\Controllers\SongLibraryController::class));

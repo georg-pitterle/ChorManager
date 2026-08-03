@@ -16,6 +16,7 @@ use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -26,17 +27,20 @@ class TaskController
     private HtmlSanitizer $htmlSanitizer;
     private TaskPolicy $policy;
     private NameFormatterService $nameFormatter;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
         HtmlSanitizer $htmlSanitizer,
         TaskPolicy $policy,
-        NameFormatterService $nameFormatter
+        NameFormatterService $nameFormatter,
+        LoggerInterface $logger
     ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
         $this->policy = $policy;
         $this->nameFormatter = $nameFormatter;
+        $this->logger = $logger;
     }
 
     /**
@@ -371,6 +375,10 @@ class TaskController
 
                 $validation = UploadValidator::validateFileSize($size, $mimeType);
                 if (!$validation['valid']) {
+                    $this->logger->warning('File upload rejected.', [
+                        'event' => 'security.upload.rejected',
+                        'reason' => $validation['reason'],
+                    ]);
                     $errors[] = $validation['error'];
                     continue;
                 }

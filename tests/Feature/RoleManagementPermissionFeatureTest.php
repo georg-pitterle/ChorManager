@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\RoleController;
+use App\Logging\RequestContext;
 use App\Middleware\RoleMiddleware;
 use App\Models\Role;
 use App\Models\User;
@@ -106,7 +107,7 @@ final class RoleManagementPermissionFeatureTest extends TestCase
         $user->roles()->attach($role->id);
         $user->load('roles', 'voiceGroups');
 
-        (new SessionAuthService(new NameFormatterService()))->setAuthenticatedUser($user);
+        (new SessionAuthService(new NameFormatterService(), new RequestContext()))->setAuthenticatedUser($user);
 
         $this->assertTrue($_SESSION['can_manage_roles']);
         $this->assertFalse($_SESSION['can_manage_users']);

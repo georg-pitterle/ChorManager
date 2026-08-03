@@ -97,6 +97,14 @@ class AuthController
         $clientIp = $this->resolveClientIp($request);
         $limit = $this->rateLimiterService->hit('auth:login:' . $clientIp, 10, 900);
         if (!$limit['allowed']) {
+            // WARNING statt INFO (Owner-Entscheidung): ein ueberschrittenes Rate-Limit ist ein
+            // Brute-Force-Signal und muss auch dann sichtbar bleiben, wenn der Level auf WARNING
+            // gesetzt wird, um Rauschen zu reduzieren - konsistent mit security.csrf.rejected und
+            // security.upload.rejected.
+            $this->logger->warning('Sign-in blocked by rate limit.', [
+                'event' => 'auth.login.rate_limited',
+            ]);
+
             $_SESSION['error'] = 'Zu viele Anmeldeversuche. Bitte versuche es in wenigen Minuten erneut.';
             return $response->withHeader('Location', $failureLocation)->withStatus(302);
         }
@@ -121,8 +129,20 @@ class AuthController
 
             $this->rateLimiterService->reset('auth:login:' . $clientIp);
 
+            $this->logger->info('User signed in.', [
+                'event' => 'auth.login.succeeded',
+                'user_id' => (int) $user->id,
+                'remember_me' => $remember,
+            ]);
+
             return $response->withHeader('Location', $redirect ?? '/dashboard')->withStatus(302);
         }
+
+        $this->logger->info('Sign-in attempt rejected.', [
+            'event' => 'auth.login.failed',
+            'reason' => $this->loginFailureReason($user, $email),
+            'email' => $email,
+        ]);
 
         $_SESSION['error'] = 'Ungültige E-Mail-Adresse oder Passwort.';
         return $response->withHeader('Location', $failureLocation)->withStatus(302);
@@ -236,6 +256,10 @@ class AuthController
         $this->rememberLoginService->clearRememberCookie();
         $this->sessionAuthService->clearSession();
 
+        $this->logger->info('User signed out.', [
+            'event' => 'auth.logout',
+        ]);
+
         return $response->withHeader('Location', '/login')->withStatus(302);
     }
 
@@ -272,5 +296,20 @@ class AuthController
     private function resolveClientIp(Request $request): string
     {
         return ClientIpResolver::resolve($request);
+    }
+
+    /**
+     * Distinguishes the three auth.login.failed reasons for the audit log only.
+     * The response to the client never depends on this - it stays the same
+     * generic error message either way, so nothing leaks about whether an
+     * account exists or is deactivated.
+     */
+    private function loginFailureReason(?User $user, string $email): string
+    {
+        if ($user !== null) {
+            return 'bad_credentials';
+        }
+
+        return $this->userQuery->existsInactiveByEmail($email) ? 'inactive' : 'unknown_user';
     }
 }

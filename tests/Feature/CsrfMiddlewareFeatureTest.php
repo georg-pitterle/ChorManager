@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Middleware\CsrfMiddleware;
 use App\Util\Csrf;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -79,5 +81,37 @@ class CsrfMiddlewareFeatureTest extends TestCase
 
         $this->assertSame(403, $result->getStatusCode());
         $this->assertStringContainsString('CSRF', (string) $result->getBody());
+    }
+
+    public function testPostRequestWithInvalidTokenLogsCsrfRejected(): void
+    {
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+
+        $middleware = new CsrfMiddleware($logger);
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $request = $this->makeRequest('POST', '/profile', [
+            '_csrf' => 'invalid-token',
+        ]);
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        $middleware->process($request, $handler);
+
+        $records = $handlerLog->getRecords();
+        $match = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'security.csrf.rejected'
+        ));
+
+        $this->assertNotEmpty($match);
+        $this->assertSame(Logger::WARNING, $match[0]->level->value);
     }
 }

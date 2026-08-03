@@ -4,21 +4,28 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Logging\RequestContext;
 use App\Models\User;
 
 class SessionAuthService
 {
     private NameFormatterService $nameFormatter;
+    private RequestContext $requestContext;
 
-    public function __construct(NameFormatterService $nameFormatter)
+    public function __construct(NameFormatterService $nameFormatter, RequestContext $requestContext)
     {
         $this->nameFormatter = $nameFormatter;
+        $this->requestContext = $requestContext;
     }
 
     public function setAuthenticatedUser(User $user): void
     {
         $_SESSION['user_id'] = (int) $user->id;
         $_SESSION['user_name'] = $this->nameFormatter->formatPerson($user);
+        // Einziger Ort, an dem die Session-Benutzerkennung gesetzt wird (Login,
+        // Remember-Me-Wiederherstellung, Rechte-Refresh). Der Logging-Kontext wird
+        // hier mitgezogen, damit alle Folge-Logzeilen die user_id tragen.
+        $this->requestContext->setUserId((int) $user->id);
 
         $canManageUsers = false;
         $canManageRoles = false;
