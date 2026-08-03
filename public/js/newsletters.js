@@ -32,6 +32,51 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function toAbsoluteUrl(value) {
+        if (!value) {
+            return '';
+        }
+
+        try {
+            return new URL(value, window.location.origin).href;
+        } catch (_error) {
+            return '';
+        }
+    }
+
+    // The modal only adopts the fetched page's <body>, so any stylesheet declared in its
+    // <head> (e.g. Tom Select for the recipient source dropdowns) would be dropped.
+    function injectModalStylesheets(parsedDocument) {
+        const links = Array.from(parsedDocument.querySelectorAll('head link[rel="stylesheet"][href]'));
+        if (!links.length) {
+            return;
+        }
+
+        const loadedHrefs = new Set(
+            Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+                .map(function (existingLink) {
+                    return toAbsoluteUrl(existingLink.getAttribute('href'));
+                })
+                .filter(Boolean)
+        );
+
+        links.forEach(function (link) {
+            const href = link.getAttribute('href') || '';
+            const absoluteHref = toAbsoluteUrl(href);
+            if (!absoluteHref || loadedHrefs.has(absoluteHref)) {
+                return;
+            }
+
+            loadedHrefs.add(absoluteHref);
+
+            const styleLink = document.createElement('link');
+            styleLink.setAttribute('rel', 'stylesheet');
+            styleLink.setAttribute('href', href);
+            styleLink.setAttribute('data-newsletter-modal-style', '1');
+            document.head.appendChild(styleLink);
+        });
+    }
+
     function executeInlineScripts(container) {
         const scripts = Array.from(container.querySelectorAll('script'));
         scripts.forEach(function (script) {
@@ -219,6 +264,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const html = await response.text();
             const parsed = new DOMParser().parseFromString(html, 'text/html');
             const body = parsed.querySelector('body');
+
+            injectModalStylesheets(parsed);
 
             cleanupTinymceInModal();
             contentElement.innerHTML = body ? body.innerHTML : html;

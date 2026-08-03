@@ -10,27 +10,28 @@ const __dirname = path.dirname(__filename);
 const sourcePath = path.resolve(__dirname, '..', '..', 'public', 'js', 'newsletters-create.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 
-function createCheckbox(value, checked = false, dispatchToForm = null) {
-    const listeners = {};
-
+// Mirrors a Tom Select enhanced multi-select: the original <select> stays in the DOM and
+// Tom Select re-dispatches a bubbling "change" event on it whenever the selection changes.
+function createSourceSelect(sourceType, options, dispatchToForm) {
     return {
-        value: String(value),
-        checked,
+        sourceType,
+        options: options.map(option => ({ value: String(option.value), selected: !!option.selected })),
         classList: {
             contains(name) {
-                return name === 'newsletter-source-option';
+                return name === 'newsletter-source-select';
             },
         },
-        addEventListener(type, handler) {
-            listeners[type] = listeners[type] || [];
-            listeners[type].push(handler);
+        get selectedOptions() {
+            return this.options.filter(option => option.selected);
+        },
+        select(value) {
+            const option = this.options.find(candidate => candidate.value === String(value));
+            if (option) {
+                option.selected = true;
+            }
         },
         dispatch(type) {
-            const event = { target: this };
-            (listeners[type] || []).forEach(handler => handler(event));
-            if (typeof dispatchToForm === 'function') {
-                dispatchToForm(type, event);
-            }
+            dispatchToForm(type, { target: this });
         },
     };
 }
@@ -47,10 +48,16 @@ function createHarness() {
         (formListeners[type] || []).forEach(handler => handler(event));
     };
 
-    const projectMembers = [createCheckbox(1, true, dispatchToForm), createCheckbox(2, false, dispatchToForm)];
-    const eventAttendees = [createCheckbox(11, false, dispatchToForm)];
-    const roles = [createCheckbox(21, false, dispatchToForm)];
-    const users = [createCheckbox(101, false, dispatchToForm), createCheckbox(102, false, dispatchToForm)];
+    const selects = {
+        project_members: createSourceSelect(
+            'project_members',
+            [{ value: 1, selected: true }, { value: 2 }],
+            dispatchToForm
+        ),
+        event_attendees: createSourceSelect('event_attendees', [{ value: 11 }], dispatchToForm),
+        role: createSourceSelect('role', [{ value: 21 }], dispatchToForm),
+        user: createSourceSelect('user', [{ value: 101 }, { value: 102 }], dispatchToForm),
+    };
 
     const elements = {
         'create-newsletter-form': {
@@ -66,21 +73,10 @@ function createHarness() {
             setAttribute(name, value) {
                 this.attributes[name] = String(value);
             },
-            querySelectorAll(selector) {
-                if (selector.includes('project_members')) {
-                    return projectMembers;
-                }
-                if (selector.includes('event_attendees')) {
-                    return eventAttendees;
-                }
-                if (selector.includes('data-source-type="role"')) {
-                    return roles;
-                }
-                if (selector.includes('data-source-type="user"')) {
-                    return users;
-                }
+            querySelector(selector) {
+                const match = selector.match(/data-source-type="([^"]+)"/);
 
-                return [];
+                return match ? selects[match[1]] || null : null;
             },
         },
         project_id: {
@@ -179,21 +175,21 @@ function createHarness() {
     new vm.Script(source, { filename: 'newsletters-create.js' }).runInContext(context);
 
     return {
-        users,
+        selects,
         elements,
         fetchCalls,
     };
 }
 
-test('recipient source badges and preview update live when selecting checkbox options', async () => {
+test('recipient source badges and preview update live when the Tom Select dropdowns change', async () => {
     const harness = createHarness();
 
     assert.equal(harness.elements['source-project-members-count'].textContent, '1');
     assert.equal(harness.elements['source-users-count'].textContent, '0');
     assert.ok(harness.fetchCalls.length >= 1);
 
-    harness.users[0].checked = true;
-    harness.users[0].dispatch('change');
+    harness.selects.user.select(101);
+    harness.selects.user.dispatch('change');
 
     await Promise.resolve();
     await Promise.resolve();
@@ -208,4 +204,25 @@ test('recipient source badges and preview update live when selecting checkbox op
     assert.ok(sourceTypeEntries.some(entry => entry[1] === 'project_members'));
     assert.ok(sourceTypeEntries.some(entry => entry[1] === 'user'));
     assert.ok(sourceReferenceEntries.some(entry => entry[1] === '101'));
+});
+
+test('selecting several roles and events aggregates all sources in the preview request', async () => {
+    const harness = createHarness();
+
+    harness.selects.event_attendees.select(11);
+    harness.selects.event_attendees.dispatch('change');
+    harness.selects.role.select(21);
+    harness.selects.role.dispatch('change');
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(harness.elements['source-event-attendees-count'].textContent, '1');
+    assert.equal(harness.elements['source-roles-count'].textContent, '1');
+
+    const latestRequest = harness.fetchCalls[harness.fetchCalls.length - 1];
+    const sourceTypeEntries = latestRequest.filter(entry => entry[0].includes('[type]')).map(entry => entry[1]);
+
+    assert.deepEqual(sourceTypeEntries.sort(), ['event_attendees', 'project_members', 'role']);
 });
