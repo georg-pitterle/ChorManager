@@ -52,6 +52,7 @@ class RoleHierarchyProtectionFeatureTest extends TestCase
             $table->boolean('can_manage_tasks')->default(false);
             $table->boolean('can_manage_backups')->default(false);
             $table->boolean('can_manage_own_voice_group')->default(false);
+            $table->boolean('can_assign_own_voice_group_to_project')->default(false);
         });
     }
 

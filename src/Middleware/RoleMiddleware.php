@@ -136,6 +136,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageEvents = $_SESSION['can_manage_events'] ?? false;
         $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
         $canManageOwnVoiceGroup = $_SESSION['can_manage_own_voice_group'] ?? false;
+        $canAssignOwnVoiceGroupToProject = $_SESSION['can_assign_own_voice_group_to_project'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
 
         if ($this->requiresTaskManagement && !$canManageTasks) {
@@ -269,7 +270,13 @@ class RoleMiddleware implements MiddlewareInterface
             );
         }
 
-        if ($this->requiresProjectMemberManagement && !$canManageProjectMembers) {
+        // Das voice-group-beschraenkte Recht teilt sich die Projektmitglieder-Routen mit dem
+        // breiten Recht; den Umfang (alle Stimmgruppen oder nur die eigene) setzt anschliessend
+        // die ProjectMemberPolicy im Controller durch.
+        if (
+            $this->requiresProjectMemberManagement
+            && !$canManageProjectMembers && !$canAssignOwnVoiceGroupToProject
+        ) {
             return $this->deny(
                 $request,
                 'Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.',

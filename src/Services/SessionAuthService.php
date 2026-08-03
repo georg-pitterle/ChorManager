@@ -46,6 +46,7 @@ class SessionAuthService
         $canManageTasks = false;
         $canManageBackups = false;
         $canManageOwnVoiceGroup = false;
+        $canAssignOwnVoiceGroupToProject = false;
         $maxRoleLevel = 0;
 
         // Das Hierarchie-Level vergibt bewusst keine Rechte. Es entscheidet ausschliesslich
@@ -110,6 +111,9 @@ class SessionAuthService
             if (($role->can_manage_own_voice_group ?? false)) {
                 $canManageOwnVoiceGroup = true;
             }
+            if (($role->can_assign_own_voice_group_to_project ?? false)) {
+                $canAssignOwnVoiceGroupToProject = true;
+            }
 
             if ($role->hierarchy_level > $maxRoleLevel) {
                 $maxRoleLevel = (int) $role->hierarchy_level;
@@ -135,6 +139,7 @@ class SessionAuthService
         $_SESSION['can_manage_tasks'] = $canManageTasks;
         $_SESSION['can_manage_backups'] = $canManageBackups;
         $_SESSION['can_manage_own_voice_group'] = $canManageOwnVoiceGroup;
+        $_SESSION['can_assign_own_voice_group_to_project'] = $canAssignOwnVoiceGroupToProject;
         $_SESSION['role_level'] = $maxRoleLevel;
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
 

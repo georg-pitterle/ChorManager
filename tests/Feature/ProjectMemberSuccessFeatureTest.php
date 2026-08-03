@@ -54,6 +54,11 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->method('canViewMembers')
             ->with(42)
             ->willReturn(true);
+        // A broad project member manager sees every candidate, so the unfiltered
+        // getUsersNotInProject() path is taken.
+        $policy->method('canViewAllCandidates')
+            ->with(42)
+            ->willReturn(true);
 
         $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('GET', '/projects/42/members');
@@ -79,6 +84,10 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->method('canAddMember')
             ->with(5)
             ->willReturn(true);
+        // The voice-group scope check passes for a broad manager.
+        $policy->method('canManageMember')
+            ->with(5, [])
+            ->willReturn(true);
 
         $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('POST', '/projects/5/members/add', ['user_id' => 3]);
@@ -103,6 +112,10 @@ class ProjectMemberSuccessFeatureTest extends TestCase
         $policy->expects($this->once())
             ->method('canRemoveMember')
             ->with(7)
+            ->willReturn(true);
+        // The voice-group scope check passes for a broad manager.
+        $policy->method('canManageMember')
+            ->with(7, [])
             ->willReturn(true);
 
         $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);

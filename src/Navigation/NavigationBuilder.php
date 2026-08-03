@@ -176,7 +176,9 @@ final class NavigationBuilder
                         'prefixes' => ['/projects/members'],
                         'navKeys' => ['project_members'],
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_project_members') && !$c->can('can_manage_master_data'),
+                            ($c->can('can_manage_project_members')
+                                || $c->can('can_assign_own_voice_group_to_project'))
+                            && !$c->can('can_manage_master_data'),
                     ],
                     [
                         'label' => 'Projektmitglieder',

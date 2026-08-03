@@ -120,10 +120,18 @@ class ProjectController
 
         // Members are already loaded with relationships via ProjectQuery::getProjectMembers()
         $members = $this->projectQuery->getProjectMembers($projectId);
-        $availableUsers = $this->projectQuery->getUsersNotInProject($projectId);
+
+        // The broad right sees every candidate; the voice-group-scoped right only sees
+        // members of its own voice group so it cannot pull in foreign singers.
+        $availableUsers = $this->policy->canViewAllCandidates($projectId)
+            ? $this->projectQuery->getUsersNotInProject($projectId)
+            : $this->projectQuery->getUsersNotInProjectForVoiceGroups(
+                $projectId,
+                $this->policy->ownVoiceGroupIds()
+            );
 
         // Map members to the array structure Twig expects
-        $mappedMembers = $members->map(function ($user) {
+        $mappedMembers = $members->map(function ($user) use ($projectId) {
             // Group concatenating the voice groups manually to replicate old behavior
             $vgDisplays = [];
             foreach ($user->voiceGroups as $vg) {
@@ -137,12 +145,17 @@ class ProjectController
                 $vgDisplays[] = $display;
             }
 
+            // A voice-group-scoped manager may only remove members of their own voice
+            // group; hide the remove button for everyone else.
+            $memberVoiceGroupIds = $user->voiceGroups->pluck('id')->all();
+
             return [
                 'id' => $user->id,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
-                'voice_groups_display' => implode(', ', array_unique($vgDisplays))
+                'voice_groups_display' => implode(', ', array_unique($vgDisplays)),
+                'can_remove' => $this->policy->canManageMember($projectId, $memberVoiceGroupIds),
             ];
         });
 
@@ -187,6 +200,11 @@ class ProjectController
             return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
         }
 
+        if (!$this->userIsInManageableVoiceGroup($projectId, $userId)) {
+            $_SESSION['error'] = 'Sie dürfen nur Mitglieder Ihrer eigenen Stimmgruppe zuweisen.';
+            return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
+        }
+
         $reactivated = $this->projectPersistence->addProjectMember($projectId, $userId);
         $_SESSION['success'] = $reactivated
             ? 'Mitglied dem Projekt hinzugefügt und wieder aktiviert.'
@@ -209,8 +227,25 @@ class ProjectController
             return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
         }
 
+        if (!$this->userIsInManageableVoiceGroup($projectId, $userId)) {
+            $_SESSION['error'] = 'Sie dürfen nur Mitglieder Ihrer eigenen Stimmgruppe entfernen.';
+            return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
+        }
+
         $this->projectPersistence->removeProjectMember($projectId, $userId);
         $_SESSION['success'] = 'Mitglied vom Projekt entfernt.';
         return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
+    }
+
+    /**
+     * Guards add/remove against the voice-group scope. A broad project member
+     * manager passes for every user; a voice-group-scoped holder only for users
+     * that share one of their own voice groups. A missing user is rejected.
+     */
+    private function userIsInManageableVoiceGroup(int $projectId, int $userId): bool
+    {
+        $voiceGroupIds = $this->projectQuery->getUserVoiceGroupIds($userId);
+
+        return $this->policy->canManageMember($projectId, $voiceGroupIds);
     }
 }

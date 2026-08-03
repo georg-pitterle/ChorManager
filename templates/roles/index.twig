@@ -165,6 +165,18 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
+                                        <th scope="row" class="roles-matrix-label">Eigene Stimmgruppe ins Projekt zuweisen</th>
+                                        {% for role in roles %}
+                                            <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                {% if role.can_assign_own_voice_group_to_project %}
+                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
                                         <th scope="row" class="roles-matrix-label">Eigene Stimmgruppe verwalten</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
@@ -372,7 +384,8 @@
                                                             data-budget="{{ role.can_manage_budget ? '1' : '0' }}"
                                                             data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}"
                                                             data-backups="{{ role.can_manage_backups ? '1' : '0' }}"
-                                                            data-own-voice-group="{{ role.can_manage_own_voice_group ? '1' : '0' }}">
+                                                            data-own-voice-group="{{ role.can_manage_own_voice_group ? '1' : '0' }}"
+                                                            data-assign-own-voice-group-project="{{ role.can_assign_own_voice_group_to_project ? '1' : '0' }}">
                                                         <i class="bi bi-pencil"></i> Bearbeiten
                                                     </button>
                                                     {% if role.assigned_users_count == 0 %}
@@ -515,6 +528,21 @@
                         <label class="form-check-label fw-bold text-info"
                                for="can_manage_project_members">Projektmitglieder verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="can_assign_own_voice_group_to_project"
+                               name="can_assign_own_voice_group_to_project"
+                               value="1">
+                        <label class="form-check-label fw-bold text-info"
+                               for="can_assign_own_voice_group_to_project">Eigene Stimmgruppe ins Projekt zuweisen</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person nur Mitglieder ihrer eigenen Stimmgruppe den eigenen
+                            Projekten zuordnen oder daraus entfernen - ohne Zugriff auf andere Stimmgruppen.
+                        </div>
                     </div>
 
                     <div class="form-check form-switch mb-3">
@@ -831,6 +859,21 @@
                         <label class="form-check-label fw-bold text-info"
                                for="edit_can_manage_project_members">Projektmitglieder verwalten</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Benutzer Projekten zuordnen oder entfernen.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_assign_own_voice_group_to_project"
+                               name="can_assign_own_voice_group_to_project"
+                               value="1">
+                        <label class="form-check-label fw-bold text-info"
+                               for="edit_can_assign_own_voice_group_to_project">Eigene Stimmgruppe ins Projekt zuweisen</label>
+                        <div class="form-text">
+                            Wenn aktiv, darf diese Person nur Mitglieder ihrer eigenen Stimmgruppe den eigenen
+                            Projekten zuordnen oder daraus entfernen - ohne Zugriff auf andere Stimmgruppen.
+                        </div>
                     </div>
 
                     <div class="form-check form-switch mb-3">

@@ -113,17 +113,21 @@
                                     <td data-label="E-Mail">{{ m.email }}</td>
                                     <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>
                                     <td data-label="Aktionen" class="text-end">
-                                        <div class="btn-group"
-                                             role="group"
-                                             aria-label="Aktionen für {{ m|person_name }}">
-                                            <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove"
-                                                  method="post"
-                                                  data-confirm="{{ m|person_name }} wirklich vom Projekt entfernen?">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="bi bi-person-dash"></i> Entfernen
-                                                </button>
-                                            </form>
-                                        </div>
+                                        {% if m.can_remove|default(false) %}
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Aktionen für {{ m|person_name }}">
+                                                <form action="/projects/{{ project.id }}/members/{{ m.id }}/remove"
+                                                      method="post"
+                                                      data-confirm="{{ m|person_name }} wirklich vom Projekt entfernen?">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-person-dash"></i> Entfernen
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}

@@ -317,6 +317,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 1,
                 'can_manage_backups' => 1,
                 'can_manage_own_voice_group' => 1,
+                'can_assign_own_voice_group_to_project' => 0,
             ],
             [
                 'name' => 'Vorstand',
@@ -338,6 +339,7 @@ class DevSeedService
                 'can_manage_tasks' => 1,
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
+                'can_assign_own_voice_group_to_project' => 0,
             ],
             [
                 'name' => 'Kassier',
@@ -359,6 +361,7 @@ class DevSeedService
                 'can_manage_tasks' => 0,
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
+                'can_assign_own_voice_group_to_project' => 0,
             ],
             [
                 'name' => 'Chorleitung',
@@ -380,6 +383,7 @@ class DevSeedService
                 'can_manage_tasks' => 1,
                 'can_manage_sheet_archive' => 1,
                 'can_manage_own_voice_group' => 1,
+                'can_assign_own_voice_group_to_project' => 0,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -390,7 +394,7 @@ class DevSeedService
                 'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 0,
                 'can_manage_events' => 0,
-                'can_manage_project_members' => 1,
+                'can_manage_project_members' => 0,
                 'can_read_finances' => 0,
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
@@ -401,6 +405,7 @@ class DevSeedService
                 'can_manage_tasks' => 0,
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
+                'can_assign_own_voice_group_to_project' => 1,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -422,6 +427,7 @@ class DevSeedService
                 'can_manage_tasks' => 0,
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
+                'can_assign_own_voice_group_to_project' => 1,
             ],
             [
                 'name' => 'Mitglied',
@@ -443,6 +449,7 @@ class DevSeedService
                 'can_manage_tasks' => 0,
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 0,
+                'can_assign_own_voice_group_to_project' => 0,
             ],
         ];
 

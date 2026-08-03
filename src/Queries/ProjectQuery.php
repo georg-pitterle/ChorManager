@@ -101,6 +101,33 @@ class ProjectQuery
         return $query->get();
     }
 
+    /**
+     * Like getUsersNotInProject(), but restricted to users that belong to at
+     * least one of the given voice groups. Used for the voice-group-scoped
+     * project assignment right, where the candidate list must not leak members
+     * of foreign voice groups. An empty voice group list yields no candidates.
+     *
+     * @param array<int> $voiceGroupIds
+     */
+    public function getUsersNotInProjectForVoiceGroups(int $projectId, array $voiceGroupIds): Collection
+    {
+        if ($voiceGroupIds === []) {
+            return new Collection();
+        }
+
+        $query = User::whereDoesntHave('projects', function ($query) use ($projectId) {
+            $query->where('project_id', $projectId);
+        })->whereHas('voiceGroups', function ($query) use ($voiceGroupIds) {
+            $query->whereIn('voice_group_id', $voiceGroupIds);
+        });
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
+    }
+
     public function getUserProjectIds(int $userId): array
     {
         $user = User::with('projects')->find($userId);
@@ -108,6 +135,22 @@ class ProjectQuery
             return [];
         }
         return $user->projects->pluck('id')->toArray();
+    }
+
+    /**
+     * The voice group ids a single user belongs to. Used to authorize
+     * voice-group-scoped project member changes. A missing user yields [].
+     *
+     * @return array<int>
+     */
+    public function getUserVoiceGroupIds(int $userId): array
+    {
+        $user = User::with('voiceGroups')->find($userId);
+        if (!$user) {
+            return [];
+        }
+
+        return $user->voiceGroups->pluck('id')->map('intval')->all();
     }
 
     /**

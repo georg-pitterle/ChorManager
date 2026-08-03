@@ -129,6 +129,10 @@ class ProjectMemberArchivedFeatureTest extends TestCase
             ->method('canAddMember')
             ->with(10)
             ->willReturn(true);
+        // The voice-group scope check passes for a broad manager.
+        $policy->method('canManageMember')
+            ->with(10, [])
+            ->willReturn(true);
 
         $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);
         $request = $this->makeRequest('POST', '/projects/10/members', ['user_id' => 2]);
