@@ -14,6 +14,7 @@ use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
 use App\Util\TableQueryParams;
@@ -24,15 +25,18 @@ class EvaluationController
     private Twig $view;
     private ProjectQuery $projectQuery;
     private NameFormatterService $nameFormatter;
+    private ProjectMemberPolicy $memberPolicy;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
-        NameFormatterService $nameFormatter
+        NameFormatterService $nameFormatter,
+        ?ProjectMemberPolicy $memberPolicy = null
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->nameFormatter = $nameFormatter;
+        $this->memberPolicy = $memberPolicy ?? new ProjectMemberPolicy();
     }
 
     public function index(Request $request, Response $response): Response
@@ -176,6 +180,9 @@ class EvaluationController
             'projects' => $projects,
             'selected_project' => $selectedProject,
             'grouped_members' => $groupedMembers,
+            // Der Sprung in die Mitgliederpflege folgt derselben Policy wie die Zielseite:
+            // die Auswertung ist breiter sichtbar als die Verwaltung.
+            'can_manage_members' => $projectId > 0 && $this->memberPolicy->canViewMembers($projectId),
         ]);
     }
 

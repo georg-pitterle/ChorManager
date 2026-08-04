@@ -6,6 +6,8 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use App\Models\Project;
 use App\Policies\ProjectMemberPolicy;
@@ -18,17 +20,39 @@ class ProjectController
     private ProjectQuery $projectQuery;
     private ProjectPersistence $projectPersistence;
     private ProjectMemberPolicy $policy;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
         ProjectPersistence $projectPersistence,
-        ProjectMemberPolicy $policy
+        ProjectMemberPolicy $policy,
+        ?LoggerInterface $logger = null
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->projectPersistence = $projectPersistence;
         $this->policy = $policy;
+        $this->logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Einziger Ausgang für alle Rechte-Abweisungen dieses Controllers: die
+     * Middleware lässt Inhaber eines Projektmitglieder-Rechts passieren, erst
+     * die Policy entscheidet projektbezogen. Diese Abweisungen blieben früher
+     * unprotokolliert und lieferten eine leere 403-Seite ohne Begründung.
+     */
+    private function denyProjectAccess(Response $response, int $projectId, string $message): Response
+    {
+        $this->logger->info('Access denied.', [
+            'event' => 'authz.denied',
+            'permission' => 'can_manage_project_members',
+            'project_id' => $projectId,
+        ]);
+
+        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
+            'error' => $message,
+        ]);
     }
 
     public function index(Request $request, Response $response): Response
@@ -44,6 +68,10 @@ class ProjectController
         return $this->view->render($response, 'projects/index.twig', [
             'projects' => $projects,
             'userProjectIds' => $userProjectIds,
+            // Die Liste spiegelt die Policy: das breite Recht erreicht jedes Projekt,
+            // das stimmgruppen-beschränkte nur die eigenen. So bietet die Oberfläche
+            // keinen Mitglieder-Link an, der im 403 endet.
+            'memberManagedProjectIds' => $this->policy->getAccessibleProjectIds(),
             'success' => $success,
             'error' => $error
         ]);
@@ -109,13 +137,17 @@ class ProjectController
         $projectId = (int)$args['id'];
 
         if (!$this->policy->canViewMembers($projectId)) {
-            return $response->withStatus(403);
+            return $this->denyProjectAccess(
+                $response,
+                $projectId,
+                'Sie haben keine Berechtigung, die Mitglieder dieses Projekts zu verwalten.'
+            );
         }
 
         $project = $this->projectQuery->findById($projectId);
 
         if (!$project) {
-            return $response->withStatus(403);
+            return $this->denyProjectAccess($response, $projectId, 'Dieses Projekt existiert nicht.');
         }
 
         // Members are already loaded with relationships via ProjectQuery::getProjectMembers()
@@ -189,7 +221,11 @@ class ProjectController
         $projectId = (int)$args['id'];
 
         if (!$this->policy->canAddMember($projectId)) {
-            return $response->withStatus(403);
+            return $this->denyProjectAccess(
+                $response,
+                $projectId,
+                'Sie haben keine Berechtigung, diesem Projekt Mitglieder hinzuzufügen.'
+            );
         }
 
         $data = (array)$request->getParsedBody();
@@ -217,7 +253,11 @@ class ProjectController
         $projectId = (int)$args['id'];
 
         if (!$this->policy->canRemoveMember($projectId)) {
-            return $response->withStatus(403);
+            return $this->denyProjectAccess(
+                $response,
+                $projectId,
+                'Sie haben keine Berechtigung, Mitglieder aus diesem Projekt zu entfernen.'
+            );
         }
 
         $userId = (int)($args['user_id'] ?? 0);

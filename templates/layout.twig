@@ -69,6 +69,7 @@
             {% block page_header %}
             {% endblock page_header %}
             <div class="app-content container-xl">
+                {{ include("partials/flash.twig", [], false) }}
                 {% block content %}
                 {% endblock content %}
             </div>

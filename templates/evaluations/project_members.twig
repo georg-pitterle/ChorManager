@@ -37,7 +37,7 @@
                         <h5 class="card-title text-info mb-0">Projekt: {{ selected_project.name }}</h5>
                         <p class="card-text text-muted small mb-0">Mitglieder gruppiert nach Stimmgruppe und Teilstimme</p>
                     </div>
-                    {% if session.can_manage_project_members %}
+                    {% if can_manage_members %}
                         <a href="/projects/{{ selected_project.id }}/members"
                            class="btn btn-primary">
                             <i class="bi bi-people"></i> Mitglieder verwalten
@@ -94,7 +94,7 @@
         {% else %}
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i> Diesem Projekt sind noch keine Mitglieder zugeordnet.
-                {% if session.can_manage_project_members %}
+                {% if can_manage_members %}
                     <a href="/projects/{{ selected_project.id }}/members">Mitglieder hinzufügen</a>
                 {% endif %}
             </div>

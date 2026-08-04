@@ -1,0 +1,24 @@
+{# Der Flash-Dienst ist nur gesetzt, wenn die Anwendung ihn bereitstellt.
+   Ohne ihn (z. B. beim isolierten Rendern in Tests) bleibt der Block leer. #}
+{% set flash_service = flash|default(null) %}
+{% if flash_service %}
+    {% set flash_messages = flash_service.consume() %}
+    {% if flash_messages.success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ flash_messages.success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Meldung schließen"></button>
+        </div>
+    {% endif %}
+    {% if flash_messages.error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ flash_messages.error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Meldung schließen"></button>
+        </div>
+    {% endif %}
+{% endif %}

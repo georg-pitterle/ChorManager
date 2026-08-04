@@ -19,10 +19,24 @@ class ProjectMemberAccessFeatureTest extends TestCase
         $_SESSION = [];
     }
 
-    public function testShowMembersReturns403WhenPolicyDeniesAccess(): void
+    /**
+     * Die Abweisung rendert eine Begruendung statt eines leeren Bodys, behaelt
+     * aber den 403-Status.
+     */
+    private function twigExpectingTheDenialPage(): Twig
     {
         $twig = $this->createMock(Twig::class);
-        $twig->expects($this->never())->method('render');
+        $twig->expects($this->once())
+            ->method('render')
+            ->with($this->anything(), 'errors/403.twig', $this->anything())
+            ->willReturnCallback(fn($response) => $response);
+
+        return $twig;
+    }
+
+    public function testShowMembersReturns403WhenPolicyDeniesAccess(): void
+    {
+        $twig = $this->twigExpectingTheDenialPage();
 
         $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
         $projectQuery->expects($this->never())
@@ -47,7 +61,7 @@ class ProjectMemberAccessFeatureTest extends TestCase
 
     public function testAddMemberReturns403WhenPolicyDeniesAccess(): void
     {
-        $twig = $this->createStub(Twig::class);
+        $twig = $this->twigExpectingTheDenialPage();
         $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
@@ -70,7 +84,7 @@ class ProjectMemberAccessFeatureTest extends TestCase
 
     public function testRemoveMemberReturns403WhenPolicyDeniesAccess(): void
     {
-        $twig = $this->createStub(Twig::class);
+        $twig = $this->twigExpectingTheDenialPage();
         $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);

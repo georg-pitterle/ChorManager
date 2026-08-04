@@ -49,7 +49,7 @@ Mit diesem Recht darf die Rolle die Zuweisungen anderer Mitglieder bearbeiten, a
 
 ### Projektmitglieder verwalten
 
-Ist dieses Recht aktiv, darf die Rolle Mitglieder einzelnen Projekten (z. B. einem Konzertprojekt) zuordnen oder aus ihnen entfernen. Damit steuert diese Rolle, wer als Teilnehmer in einem Projekt geführt wird, ohne dass sie zwangsläufig auch globale Mitgliederverwaltung besitzen muss.
+Ist dieses Recht aktiv, darf die Rolle Mitglieder einzelnen Projekten (z. B. einem Konzertprojekt) zuordnen oder aus ihnen entfernen. Damit steuert diese Rolle, wer als Teilnehmer in einem Projekt geführt wird, ohne dass sie zwangsläufig auch globale Mitgliederverwaltung besitzen muss. Das Recht gilt für alle Projekte – auch für solche, in denen die Rolle selbst nicht mitwirkt. Das ist nötig, damit ein frisch angelegtes Projekt, das noch gar keine Mitglieder hat, überhaupt besetzt werden kann.
 
 ### Eigene Stimmgruppe ins Projekt zuweisen
 

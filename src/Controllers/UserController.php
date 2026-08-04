@@ -438,16 +438,9 @@ class UserController
 
             $this->userPersistence->syncVoiceGroups($targetUser, $vgData);
 
+            // can_manage_project_members reicht projektuebergreifend, deshalb wird die
+            // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
             if ($canEditGlobal || $canManageProjectMembers) {
-                if (!$canEditGlobal && $canManageProjectMembers) {
-                    $policy = new \App\Policies\ProjectMemberPolicy();
-                    $accessibleIds = $policy->getAccessibleProjectIds();
-                    $projectIds = array_values(array_filter(
-                        $projectIds,
-                        fn(int $id): bool => in_array($id, $accessibleIds, true)
-                    ));
-                }
-
                 $this->projectPersistence->setUserProjects($userId, $projectIds);
             }
 

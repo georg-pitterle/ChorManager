@@ -73,6 +73,16 @@ class TaskController
     {
         $canManageTasks = $this->policy->canManageTasks((int) $project->id);
 
+        // Die Middleware lässt jeden mit can_manage_tasks passieren; fällt die
+        // Entscheidung erst hier, blieb die Abweisung früher unprotokolliert.
+        if (!$canManageTasks) {
+            $this->logger->info('Access denied.', [
+                'event' => 'authz.denied',
+                'permission' => 'can_manage_tasks',
+                'project_id' => (int) $project->id,
+            ]);
+        }
+
         return $canManageTasks;
     }
 

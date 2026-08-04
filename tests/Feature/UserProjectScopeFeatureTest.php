@@ -77,7 +77,12 @@ class UserProjectScopeFeatureTest extends TestCase
         ]);
     }
 
-    public function testUpdateFiltersProjectsToAccessibleScopeForProjectMemberManagers(): void
+    /**
+     * can_manage_project_members wirkt projektuebergreifend: der Verwalter darf
+     * auch Projekte zuweisen, in denen er selbst nicht Mitglied ist. Andernfalls
+     * bliebe ein frisch angelegtes Projekt ohne Mitglieder unerreichbar.
+     */
+    public function testUpdateAssignsEveryProjectForProjectMemberManagers(): void
     {
         $_SESSION['user_id'] = 100;
         $_SESSION['can_edit_users'] = false;
@@ -118,7 +123,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->once())
             ->method('setUserProjects')
-            ->with(5, [2, 4]);
+            ->with(5, [2, 3, 4]);
 
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);

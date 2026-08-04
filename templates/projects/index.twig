@@ -112,7 +112,7 @@
                                                         </li>
                                                     {% endif %}
 
-                                                    {% if session.can_manage_project_members %}
+                                                    {% if project.id in memberManagedProjectIds %}
                                                         <li>
                                                             <a href="/projects/{{ project.id }}/members" class="dropdown-item">
                                                                 <i class="bi bi-people me-2"></i> Mitglieder

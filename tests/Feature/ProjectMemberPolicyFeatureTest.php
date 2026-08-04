@@ -52,16 +52,16 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $this->assertFalse($policy->canViewAllCandidates(999));
     }
 
-    public function testProjectMemberManagerWithoutAccessibleProjectsDeniesAllPermissions(): void
+    public function testProjectMemberManagerReachesProjectsWithoutOwnMembership(): void
     {
-        // When can_manage_project_members is true but the user has no accessible projects,
-        // all permissions should be denied for any project not in the accessible list
+        // can_manage_project_members gilt projektuebergreifend und haengt nicht an
+        // der eigenen Projektmitgliedschaft - sonst waere ein neu angelegtes Projekt
+        // ohne Mitglieder fuer niemanden erreichbar (Henne-Ei-Problem).
         $_SESSION['user_id'] = 999;
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_project_members'] = true;
 
-        // Use a partial stub to simulate getAccessibleProjectIds() returning empty array
-        // (which would happen if User::find() returns null or user has no projects)
+        // Der Stub simuliert eine leere Liste eigener Projekte.
         $policy = self::getStubBuilder(ProjectMemberPolicy::class)
             ->onlyMethods(['getAccessibleProjectIds'])
             ->getStub();
@@ -69,8 +69,25 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $policy->method('getAccessibleProjectIds')
             ->willReturn([]);
 
-        // All permission methods should return false for any project ID
-        // when the project is not in the accessible projects list
+        $this->assertTrue($policy->canViewMembers(42));
+        $this->assertTrue($policy->canAddMember(42));
+        $this->assertTrue($policy->canRemoveMember(42));
+        $this->assertTrue($policy->canViewAllCandidates(42));
+    }
+
+    public function testVoiceGroupScopedRightStaysBoundToOwnProjects(): void
+    {
+        $_SESSION['user_id'] = 999;
+        $_SESSION['can_manage_project_members'] = false;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
+
+        $policy = self::getStubBuilder(ProjectMemberPolicy::class)
+            ->onlyMethods(['getAccessibleProjectIds'])
+            ->getStub();
+
+        $policy->method('getAccessibleProjectIds')
+            ->willReturn([]);
+
         $this->assertFalse($policy->canViewMembers(42));
         $this->assertFalse($policy->canAddMember(42));
         $this->assertFalse($policy->canRemoveMember(42));

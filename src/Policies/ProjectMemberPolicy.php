@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Models\Project;
 use App\Models\User;
 
 /**
  * Policy for project member management authorization.
  *
- * Two independent rights lead here, both scoped to projects the user
- * participates in:
- *  - can_manage_project_members: manage members of every voice group.
+ * Two independent rights lead here:
+ *  - can_manage_project_members: manage members of every voice group in every
+ *    project, also without being a member of that project. Anything narrower
+ *    locks a freshly created project: it has no members yet, so a
+ *    membership-scoped right could never add the first one.
  *  - can_assign_own_voice_group_to_project: manage only members that share
- *    one of the actor's own voice groups. The candidate list and every
- *    add/remove is filtered to that voice-group scope.
+ *    one of the actor's own voice groups, and only in projects the actor
+ *    participates in. The candidate list and every add/remove is filtered to
+ *    that voice-group scope.
  */
 class ProjectMemberPolicy
 {
@@ -34,19 +38,17 @@ class ProjectMemberPolicy
     }
 
     /**
-     * True when the user holds any of the rights that grant project member access.
-     */
-    private function hasAnyProjectMemberRight(): bool
-    {
-        return $this->canManageProjectMembers || $this->canAssignOwnVoiceGroup;
-    }
-
-    /**
      * Check if the user can view members of the specified project.
      */
     public function canViewMembers(int $projectId): bool
     {
-        if (!$this->hasAnyProjectMemberRight()) {
+        // Das breite Recht gilt projektuebergreifend, sonst waere ein neu
+        // angelegtes Projekt ohne Mitglieder fuer niemanden erreichbar.
+        if ($this->canManageProjectMembers) {
+            return true;
+        }
+
+        if (!$this->canAssignOwnVoiceGroup) {
             return false;
         }
 
@@ -78,11 +80,7 @@ class ProjectMemberPolicy
      */
     public function canViewAllCandidates(int $projectId): bool
     {
-        if (!$this->canManageProjectMembers) {
-            return false;
-        }
-
-        return in_array($projectId, $this->getAccessibleProjectIds(), true);
+        return $this->canManageProjectMembers;
     }
 
     /**
@@ -137,13 +135,24 @@ class ProjectMemberPolicy
             return $this->accessibleProjectIdsCache;
         }
 
-        // Holders of either project member right can access only their own projects.
-        if ($this->hasAnyProjectMemberRight() && $this->userId > 0) {
+        // Das breite Recht sieht alle Projekte - auch die, in denen der Nutzer
+        // selbst nicht Mitglied ist (etwa ein gerade angelegtes Projekt).
+        if ($this->canManageProjectMembers) {
+            $this->accessibleProjectIdsCache = array_map(
+                'intval',
+                Project::query()->pluck('id')->all()
+            );
+            return $this->accessibleProjectIdsCache;
+        }
+
+        // Das stimmgruppen-beschraenkte Recht bleibt auf die eigenen Projekte begrenzt.
+        if ($this->canAssignOwnVoiceGroup && $this->userId > 0) {
             $user = User::find($this->userId);
             if ($user) {
-                $this->accessibleProjectIdsCache = $user->projects()
-                    ->pluck('projects.id')
-                    ->toArray();
+                $this->accessibleProjectIdsCache = array_map(
+                    'intval',
+                    $user->projects()->pluck('projects.id')->all()
+                );
                 return $this->accessibleProjectIdsCache;
             }
         }

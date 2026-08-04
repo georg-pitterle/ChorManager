@@ -44,6 +44,7 @@ use App\Commands\SendRegistrationRemindersCommand;
 use App\Services\RegistrationReminderService;
 use App\Services\BackupService;
 use App\Services\DumpRunnerInterface;
+use App\Services\FlashMessageService;
 use App\Services\MysqldumpRunner;
 use App\Services\MailBadgeService;
 use App\Services\MailBadgeViewService;
@@ -262,6 +263,7 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         MailBadgeViewService::class => \DI\autowire(),
+        FlashMessageService::class => \DI\autowire(),
         MailBadgeRefreshMiddleware::class => function (ContainerInterface $c) {
             // Resolve MailBadgeService lazily so a missing/invalid
             // MAIL_CREDENTIAL_KEY degrades the badge only, instead of throwing
@@ -348,6 +350,13 @@ return function (ContainerBuilder $containerBuilder) {
                 'mail_badge',
                 static fn (): array => $mailBadgeView->forCurrentUser()
             ));
+
+            // Flash-Meldungen werden erst beim Rendern des Vollseiten-Layouts
+            // konsumiert, damit sie auch auf Seiten erscheinen, die sie nicht selbst
+            // aus der Session holen. Als Global statt als Funktion, damit Templates,
+            // die ohne diesen Container gerendert werden, den Block still auslassen
+            // statt an einer unbekannten Funktion zu scheitern.
+            $environment->addGlobal('flash', $c->get(FlashMessageService::class));
 
             $publicRoot = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public';
 
