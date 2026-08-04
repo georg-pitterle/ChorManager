@@ -105,6 +105,10 @@
                  data-page-size-options="25,50,100,200"
                  data-default-sort-key="name">
                 {{ include('partials/table_toolbar.twig') }}
+                <div id="bulkCrossPageHint"
+                     class="alert alert-warning py-2 mb-0 rounded-0 d-none"
+                     role="status"
+                     aria-live="polite"></div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-striped mb-0 table-responsive-cards"
@@ -486,5 +490,5 @@
 {% endblock content %}
 
 {% block scripts %}
-    <script src="/js/users.js?v=20260804-lazy-edit-modal"></script>
+    <script src="/js/users.js?v=20260804-filtered-bulk-select"></script>
 {% endblock scripts %}

@@ -105,47 +105,129 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Bulk archive selection must respect the active table filter: only members that
+    // match the current filter may ever be submitted, and "select all" covers the whole
+    // filtered set across pagination pages (not just the visible page). The table engine
+    // exposes the filtered rows via the 'chor-table:applied' event and the
+    // container.chorTableLastApplied snapshot.
     const selectAll = document.getElementById('selectAllUsers');
     const hidden = document.getElementById('bulkUserIds');
     const button = document.getElementById('bulkDeactivateButton');
-    const rowCheckboxes = Array.from(document.querySelectorAll('.user-row-select')).filter(function (cb) {
-        return !cb.disabled;
-    });
+    const bulkForm = document.getElementById('bulkDeactivateForm');
+    const crossPageHint = document.getElementById('bulkCrossPageHint');
+    const usersTable = document.getElementById('usersTable');
+    const tableContainer = usersTable ? usersTable.closest('[data-table-engine]') : null;
 
-    function syncBulkSelection() {
-        if (!hidden || !button) {
-            return;
+    if (hidden && button) {
+        const selectedIds = new Set();
+        const baseConfirm = bulkForm ? (bulkForm.getAttribute('data-confirm') || '') : '';
+
+        function enabledCheckbox(row) {
+            const cb = row.querySelector('.user-row-select');
+            return (cb && !cb.disabled) ? cb : null;
         }
 
-        const selected = rowCheckboxes.filter(function (cb) {
-            return cb.checked;
-        }).map(function (cb) {
-            return cb.value;
-        });
+        function currentFilteredRows() {
+            if (tableContainer && tableContainer.chorTableLastApplied) {
+                return tableContainer.chorTableLastApplied.filteredRows || [];
+            }
+            // Fallback before the engine has applied once: treat every row as filtered-in.
+            return Array.from(document.querySelectorAll('#usersTable tbody tr'));
+        }
 
-        hidden.value = selected.join(',');
-        button.disabled = selected.length === 0;
+        function updateCrossPageHint(count, offPageCount) {
+            // Only warn when the selection actually reaches rows on other (hidden) pages,
+            // not merely because the table happens to be paginated.
+            const show = offPageCount > 0;
+
+            if (crossPageHint) {
+                crossPageHint.textContent = show
+                    ? 'Achtung: Die Auswahl umfasst ' + count + ' Mitglieder – auch auf anderen Seiten.'
+                    : '';
+                crossPageHint.classList.toggle('d-none', !show);
+            }
+
+            if (bulkForm) {
+                bulkForm.setAttribute(
+                    'data-confirm',
+                    show
+                        ? count + ' Mitglieder (auch auf anderen Seiten) wirklich archivieren?'
+                        : baseConfirm
+                );
+            }
+        }
+
+        function recompute() {
+            const filteredCheckboxes = currentFilteredRows()
+                .map(enabledCheckbox)
+                .filter(function (cb) { return cb !== null; });
+            const filteredIds = new Set(filteredCheckboxes.map(function (cb) { return cb.value; }));
+
+            // Drop selections that no longer match the filter, so the submitted ids are
+            // always a subset of the current filtered set.
+            Array.from(selectedIds).forEach(function (id) {
+                if (!filteredIds.has(id)) {
+                    selectedIds.delete(id);
+                }
+            });
+
+            // Reflect selection onto the checkboxes, including hidden rows on other pages.
+            let offPageSelected = 0;
+            filteredCheckboxes.forEach(function (cb) {
+                cb.checked = selectedIds.has(cb.value);
+                const row = cb.closest('tr');
+                if (cb.checked && row && row.hidden) {
+                    offPageSelected += 1;
+                }
+            });
+
+            hidden.value = Array.from(selectedIds).join(',');
+            button.disabled = selectedIds.size === 0;
+
+            if (selectAll) {
+                selectAll.checked = filteredCheckboxes.length > 0 && selectedIds.size === filteredCheckboxes.length;
+                selectAll.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredCheckboxes.length;
+            }
+
+            updateCrossPageHint(selectedIds.size, offPageSelected);
+        }
 
         if (selectAll) {
-            selectAll.checked = rowCheckboxes.length > 0 && selected.length === rowCheckboxes.length;
-            selectAll.indeterminate = selected.length > 0 && selected.length < rowCheckboxes.length;
-        }
-    }
-
-    if (selectAll) {
-        selectAll.addEventListener('change', function () {
-            rowCheckboxes.forEach(function (cb) {
-                cb.checked = selectAll.checked;
+            selectAll.addEventListener('change', function () {
+                const filteredCheckboxes = currentFilteredRows()
+                    .map(enabledCheckbox)
+                    .filter(function (cb) { return cb !== null; });
+                filteredCheckboxes.forEach(function (cb) {
+                    if (selectAll.checked) {
+                        selectedIds.add(cb.value);
+                    } else {
+                        selectedIds.delete(cb.value);
+                    }
+                });
+                recompute();
             });
-            syncBulkSelection();
+        }
+
+        // Delegated: row checkboxes are re-ordered/paginated by the table engine.
+        document.addEventListener('change', function (e) {
+            const cb = e.target && e.target.closest ? e.target.closest('.user-row-select') : null;
+            if (!cb || cb.disabled) {
+                return;
+            }
+            if (cb.checked) {
+                selectedIds.add(cb.value);
+            } else {
+                selectedIds.delete(cb.value);
+            }
+            recompute();
         });
+
+        if (tableContainer) {
+            tableContainer.addEventListener('chor-table:applied', recompute);
+        }
+
+        recompute();
     }
-
-    rowCheckboxes.forEach(function (cb) {
-        cb.addEventListener('change', syncBulkSelection);
-    });
-
-    syncBulkSelection();
 
     // Auto-open the create modal when a validation error occurred.
     const addUserModal = document.getElementById('addUserModal');

@@ -786,6 +786,21 @@
             });
 
             syncToolbarState(totalPages);
+
+            // Expose the resolved filter/pagination result so external scripts (e.g. the
+            // bulk-select logic in users.js) can act on the *filtered* set across pages -
+            // row.hidden alone conflates "filtered out" with "on another page".
+            const appliedDetail = {
+                filteredRows: sortedRows,
+                visibleRows: Array.from(visibleRows),
+                page: state.page,
+                totalPages: totalPages,
+                pageSize: state.pageSize
+            };
+            container.chorTableLastApplied = appliedDetail;
+            if (typeof container.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+                container.dispatchEvent(new CustomEvent('chor-table:applied', { detail: appliedDetail }));
+            }
         }
 
         function applyAndPersist() {
