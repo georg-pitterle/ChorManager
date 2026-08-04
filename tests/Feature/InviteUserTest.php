@@ -78,7 +78,8 @@ class InviteUserTest extends TestCase
 
     public function testManageTwigHasInviteButton(): void
     {
-        $content = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
+        // The edit form (with its invite button) is now a lazily-loaded fragment.
+        $content = file_get_contents(dirname(__DIR__) . '/../templates/partials/user_edit_form.twig');
         $this->assertIsString($content);
         $this->assertStringContainsString('js-invite-btn', $content);
         $this->assertStringContainsString('data-invite-url', $content);

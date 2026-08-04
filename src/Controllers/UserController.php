@@ -123,16 +123,11 @@ class UserController
         $createState = $createService->getState();
         $createService->clear();
 
-        // Get all edit form states
-        $editStates = [];
-        foreach ($users as $user) {
-            $editService = new ModalFormService('user_edit_' . $user->id);
-            $editStates[$user->id] = $editService->getState();
-            $editService->clear();
-        }
-
-        $hasModalError = $createState['open_modal']
-            || !empty(array_filter($editStates, fn($s) => $s['open_modal']));
+        // Edit form state is consumed by the lazy-loaded fragment endpoint
+        // (editForm()), not here, so index() must not read or clear it. On a
+        // validation error update() redirects to /users?edit={id}; the shell
+        // auto-opens and the fragment reads the scoped state on its own request.
+        $hasModalError = $createState['open_modal'];
 
         $canEditMember = [];
         foreach ($users as $user) {
@@ -160,7 +155,6 @@ class UserController
             'error' => $error,
             'has_modal_error' => $hasModalError,
             'modal_form_create' => $createState,
-            'modal_form_edits' => $editStates,
             'can_edit_member' => $canEditMember,
             'open_edit_user_id' => $openEditUserId,
         ]);
@@ -360,15 +354,20 @@ class UserController
 
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
             $editService = new ModalFormService('user_edit_' . $userId);
-            $editService->setError('Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).', $formData);
-            return $response->withHeader('Location', '/users')->withStatus(302);
+            $editService->setError(
+                'Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).',
+                $formData,
+                [],
+                false
+            );
+            return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
         }
 
         // Email uniqueness check (excluding self)
         if (User::where('email', $email)->where('id', '!=', $userId)->exists()) {
             $editService = new ModalFormService('user_edit_' . $userId);
-            $editService->setError('Diese E-Mail-Adresse wird bereits verwendet.', $formData);
-            return $response->withHeader('Location', '/users')->withStatus(302);
+            $editService->setError('Diese E-Mail-Adresse wird bereits verwendet.', $formData, [], false);
+            return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
         }
 
         // Captured before the target is mutated below, so the log calls after a successful
@@ -463,10 +462,82 @@ class UserController
                 ]
             );
             $editService = new ModalFormService('user_edit_' . $userId);
-            $editService->setError('Fehler beim Speichern.', $formData);
+            $editService->setError('Fehler beim Speichern.', $formData, [], false);
+            return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
         }
 
         return $response->withHeader('Location', '/users')->withStatus(302);
+    }
+
+    /**
+     * Renders the edit form for a single member as an HTML fragment, loaded lazily
+     * into the shared #editUserModal shell on /users. Rendering the form once per
+     * request (instead of once per user inline) keeps the /users response small
+     * enough to stay inside nginx's FastCGI memory buffer.
+     */
+    public function editForm(Request $request, Response $response, array $args): Response
+    {
+        $userId = (int) $args['id'];
+        $targetUser = $this->userQuery->findById($userId);
+
+        if (!$targetUser) {
+            $response->getBody()->write(
+                '<div class="modal-content"><div class="modal-body">'
+                . '<div class="alert alert-danger mb-0">Mitglied nicht gefunden.</div>'
+                . '</div></div>'
+            );
+            return $response->withStatus(404);
+        }
+
+        // Mirror update()'s guards: never expose an editable form the actor could not save.
+        if ($this->outranksActor($targetUser) || !$this->userEditPolicy->canEdit($_SESSION, $targetUser)) {
+            $response->getBody()->write(
+                '<div class="modal-content"><div class="modal-body">'
+                . '<div class="alert alert-danger mb-0">Keine Berechtigung, dieses Mitglied zu bearbeiten.</div>'
+                . '</div></div>'
+            );
+            return $response->withStatus(403);
+        }
+
+        $canManageUsers = $_SESSION['can_manage_users'] ?? false;
+        $userLevel = $_SESSION['role_level'] ?? 0;
+        $myVgs = $_SESSION['voice_group_ids'] ?? [];
+        $canEditUsers = (bool) ($_SESSION['can_edit_users'] ?? false);
+        $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
+
+        $roles = Role::orderBy('hierarchy_level', 'desc')->get();
+        $voiceGroups = VoiceGroup::orderBy('id')->get();
+        $subVoices = SubVoice::orderBy('id')->get();
+        $projects = Project::orderBy('name')->get();
+
+        if (!$canManageUsers) {
+            $roles = $roles->filter(fn($r) => $r->hierarchy_level < $userLevel);
+            $voiceGroups = $voiceGroups->filter(fn($vg) => in_array($vg->id, $myVgs));
+            $canEditUsers = true;
+        }
+
+        $targetUser->project_ids = $targetUser->projects->pluck('id')->toArray();
+        $targetUser->voice_group_ids = $targetUser->voiceGroups->pluck('id')->toArray();
+        $pivots = [];
+        foreach ($targetUser->voiceGroups as $vg) {
+            $pivots[$vg->id] = $vg->pivot->sub_voice_id;
+        }
+        $targetUser->voice_group_pivots = $pivots;
+
+        $editService = new ModalFormService('user_edit_' . $userId);
+        $editState = $editService->getState();
+        $editService->clear();
+
+        return $this->view->render($response, 'partials/user_edit_form.twig', [
+            'user' => $targetUser,
+            'roles' => $roles->values(),
+            'voice_groups' => $voiceGroups->values(),
+            'sub_voices' => $subVoices,
+            'projects' => $projects,
+            'can_edit_users' => $canEditUsers,
+            'can_manage_project_members' => $canManageProjectMembers,
+            'edit_state' => $editState,
+        ]);
     }
 
     public function deactivate(Request $request, Response $response, array $args): Response

@@ -45,9 +45,21 @@ class ModalFormService
      * @param array $formData Optional: Formulardaten zum Speichern
      * @param array $errorMeta Optional: Zusätzliche Fehler-Metadaten (z.B. ['id' => 5])
      */
-    public function setError(string $errorMessage, array $formData = [], array $errorMeta = []): void
-    {
-        $_SESSION['error'] = $errorMessage;
+    public function setError(
+        string $errorMessage,
+        array $formData = [],
+        array $errorMeta = [],
+        bool $global = true
+    ): void {
+        // Lazily-loaded modals (e.g. the user edit form fragment) consume their state
+        // in a follow-up request, after index() has already read+cleared the global
+        // $_SESSION['error']. Keep the message inside the scoped state so the fragment
+        // can still render it, and let those callers suppress the global banner.
+        if ($global) {
+            $_SESSION['error'] = $errorMessage;
+        }
+
+        $_SESSION[$this->scope . '_message'] = $errorMessage;
 
         if (!empty($formData)) {
             $_SESSION[$this->scope . '_form'] = $formData;
@@ -65,6 +77,7 @@ class ModalFormService
         return [
             'form' => $_SESSION[$this->scope . '_form'] ?? [],
             'error' => $_SESSION[$this->scope . '_error'] ?? null,
+            'message' => $_SESSION[$this->scope . '_message'] ?? null,
             'open_modal' => !empty($_SESSION[$this->scope . '_open_modal']),
         ];
     }
@@ -77,6 +90,7 @@ class ModalFormService
         unset(
             $_SESSION[$this->scope . '_form'],
             $_SESSION[$this->scope . '_error'],
+            $_SESSION[$this->scope . '_message'],
             $_SESSION[$this->scope . '_open_modal']
         );
     }

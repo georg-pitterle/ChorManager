@@ -1,0 +1,150 @@
+{# Edit form fragment, loaded lazily into the shared #editUserModal shell. #}
+{# Rendering it once per request (instead of once per user inline) keeps the #}
+{# /users response small enough to stay inside nginx's FastCGI memory buffer. #}
+{% set edit_form = edit_state.form|default({}) %}
+<form action="/users/{{ user.id }}"
+      method="post"
+      class="modal-content"
+      autocomplete="off">
+    <div class="modal-header">
+        <h5 class="modal-title" id="editUserModalLabel">Mitglied bearbeiten</h5>
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+        {% if edit_state.message|default(null) %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ edit_state.message }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endif %}
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Vorname *</label>
+                <input type="text"
+                       class="form-control"
+                       name="first_name"
+                       value="{{ edit_form.first_name|default(user.first_name) }}"
+                       required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Nachname *</label>
+                <input type="text"
+                       class="form-control"
+                       name="last_name"
+                       value="{{ edit_form.last_name|default(user.last_name) }}"
+                       required>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">E-Mail-Adresse *</label>
+            <input type="email"
+                   class="form-control"
+                   name="email"
+                   value="{{ edit_form.email|default(user.email) }}"
+                   required>
+        </div>
+        <hr class="my-4">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Rollen (Mehrfachauswahl) *</label>
+                <br>
+                {% for role in roles %}
+                    {% set has_role = false %}
+                    {% for ur in user.roles %}
+                        {% if ur.id == role.id %}
+                            {% set has_role = true %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set form_has_role = role.id in edit_form.roles|default([]) %}
+                    {% set _roles_touched = edit_form.roles|default([]) is not empty %}
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               name="roles[]"
+                               value="{{ role.id }}"
+                               id="role_{{ user.id }}_{{ role.id }}"
+                               {% if _roles_touched ? form_has_role : has_role %}checked{% endif %}>
+                        <label class="form-check-label" for="role_{{ user.id }}_{{ role.id }}">{{ role.name }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="col-md-6 mb-3 border-start">
+                <label class="form-label">Stimmengruppen</label>
+                <br>
+                {% for group in voice_groups %}
+                    {% set has_group = group.id in user.voice_group_ids %}
+                    {% set current_subvoice = user.voice_group_pivots[group.id]|default(null) %}
+                    {% set form_has_group = group.id in edit_form.voice_groups|default([]) %}
+                    {% set form_subvoice = edit_form.sub_voices[group.id]|default(null) %}
+                    {% set _groups_touched = edit_form.voice_groups|default([]) is not empty %}
+                    {% set _group_checked = _groups_touched ? form_has_group : has_group %}
+                    <div class="mb-2 p-2 border rounded bg-light">
+                        <div class="form-check">
+                            <input class="form-check-input vg-checkbox"
+                                   type="checkbox"
+                                   name="voice_groups[]"
+                                   value="{{ group.id }}"
+                                   id="vg_{{ user.id }}_{{ group.id }}"
+                                   {% if _group_checked %}checked{% endif %}>
+                            <label class="form-check-label fw-bold"
+                                   for="vg_{{ user.id }}_{{ group.id }}">{{ group.name }}</label>
+                        </div>
+                        <div class="mt-1 ps-4 collapse-sv{% if not _group_checked %} d-none{% endif %}">
+                            <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
+                                <option value="">(Keine Teilstimme)</option>
+                                {% for sv in sub_voices %}
+                                    {% if sv.voice_group_id == group.id %}
+                                        {% set _sv_selected = _groups_touched ? (form_subvoice == sv.id) : (current_subvoice == sv.id) %}
+                                        <option value="{{ sv.id }}"
+                                                {% if _sv_selected %}selected{% endif %}>
+                                            {{ sv.name }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% if (can_manage_project_members or can_edit_users) and projects|length > 0 %}
+            <hr class="my-4">
+            <div class="mb-3">
+                <label class="form-label">Projekte</label>
+                <div class="form-text mb-2">Mitglied diesen Projekten zuordnen:</div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for p in projects %}
+                        {% set in_project = p.id in user.project_ids %}
+                        {% set form_in_project = p.id in edit_form.projects|default([]) %}
+                        {% set _projects_touched = edit_form.projects|default([]) is not empty %}
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="projects[]"
+                                   value="{{ p.id }}"
+                                   id="proj_{{ user.id }}_{{ p.id }}"
+                                   {% if _projects_touched ? form_in_project : in_project %}checked{% endif %}>
+                            <label class="form-check-label" for="proj_{{ user.id }}_{{ p.id }}">{{ p.name }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    <div class="modal-footer">
+        <button type="button"
+                class="btn btn-outline-secondary me-auto js-invite-btn"
+                data-invite-url="/users/{{ user.id }}/invite"
+                title="Einladungs-E-Mail senden">
+            <i class="bi bi-envelope-fill me-1"></i>Einladungs-E-Mail
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+    </div>
+</form>

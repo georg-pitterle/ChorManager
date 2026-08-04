@@ -135,6 +135,7 @@ return function (App $app) {
                 function (RouteCollectorProxy $userGroup) {
                     $userGroup->get('', [UserController::class, 'index']);
                     $userGroup->post('', [UserController::class, 'create']);
+                    $userGroup->get('/{id:[0-9]+}/edit-form', [UserController::class, 'editForm']);
                     $userGroup->post('/{id:[0-9]+}', [UserController::class, 'update']);
                     $userGroup->post('/deactivate/{id:[0-9]+}', [UserController::class, 'deactivate']);
                     $userGroup->post('/bulk-deactivate', [UserController::class, 'bulkDeactivate']);

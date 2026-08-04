@@ -78,28 +78,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('click', handleInviteClick);
 
-    document.querySelectorAll('.vg-checkbox').forEach(function (checkbox) {
-        checkbox.addEventListener('change', function () {
-            var container = this.closest('.border');
-            if (!container) {
-                return;
+    // Delegated so it also works inside the lazily-injected edit modal fragment.
+    document.addEventListener('change', function (e) {
+        var checkbox = e.target.closest('.vg-checkbox');
+        if (!checkbox) {
+            return;
+        }
+        var container = checkbox.closest('.border');
+        if (!container) {
+            return;
+        }
+        var selector = container.querySelector('.collapse-sv');
+        if (!selector) {
+            return;
+        }
+        if (checkbox.checked) {
+            selector.classList.remove('d-none');
+            selector.style.display = 'block';
+        } else {
+            selector.classList.add('d-none');
+            selector.style.display = 'none';
+            var subVoiceSelect = selector.querySelector('select');
+            if (subVoiceSelect) {
+                subVoiceSelect.value = '';
             }
-            var selector = container.querySelector('.collapse-sv');
-            if (!selector) {
-                return;
-            }
-            if (this.checked) {
-                selector.classList.remove('d-none');
-                selector.style.display = 'block';
-            } else {
-                selector.classList.add('d-none');
-                selector.style.display = 'none';
-                var subVoiceSelect = selector.querySelector('select');
-                if (subVoiceSelect) {
-                    subVoiceSelect.value = '';
-                }
-            }
-        });
+        }
     });
 
     const selectAll = document.getElementById('selectAllUsers');
@@ -144,17 +147,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
     syncBulkSelection();
 
-    // Auto-open modals when validation errors occur
+    // Auto-open the create modal when a validation error occurred.
     const addUserModal = document.getElementById('addUserModal');
     if (addUserModal && addUserModal.dataset.openCreateModal === '1' && window.bootstrap && window.bootstrap.Modal) {
         window.bootstrap.Modal.getOrCreateInstance(addUserModal).show();
     }
 
-    // Auto-open edit modals for users with validation errors
-    const editModals = document.querySelectorAll('[id^="editUserModal"][data-open-edit-modal="1"]');
-    if (window.bootstrap && window.bootstrap.Modal) {
-        editModals.forEach(function (modal) {
-            window.bootstrap.Modal.getOrCreateInstance(modal).show();
+    // Single reusable edit modal: fetch the form fragment lazily instead of
+    // rendering one full edit form per member into the /users response.
+    const editShell = document.getElementById('editUserModal');
+    if (editShell && window.bootstrap && window.bootstrap.Modal) {
+        const dialog = editShell.querySelector('.modal-dialog');
+        const loadingHtml = dialog ? dialog.innerHTML : '';
+        const urlTemplate = editShell.dataset.editFormUrlTemplate || '/users/__ID__/edit-form';
+
+        function openEditModal(userId) {
+            if (!userId || !dialog) {
+                return;
+            }
+            const instance = window.bootstrap.Modal.getOrCreateInstance(editShell);
+            dialog.innerHTML = loadingHtml;
+            instance.show();
+
+            fetch(urlTemplate.replace('__ID__', encodeURIComponent(userId)), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) {
+                    return response.text();
+                })
+                .then(function (html) {
+                    dialog.innerHTML = html;
+                })
+                .catch(function () {
+                    dialog.innerHTML = '<div class="modal-content"><div class="modal-body">'
+                        + '<div class="alert alert-danger mb-0">Formular konnte nicht geladen werden.</div>'
+                        + '</div></div>';
+                });
+        }
+
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.js-edit-user');
+            if (!btn) {
+                return;
+            }
+            e.preventDefault();
+            openEditModal(btn.dataset.userId);
         });
+
+        const autoOpenId = editShell.dataset.openEditUserId;
+        if (autoOpenId) {
+            openEditModal(autoOpenId);
+        }
     }
 });
