@@ -148,6 +148,8 @@ export default defineConfig({
         trace: 'retain-on-failure',
     },
     projects: [
+        // Reine Unit-Checks der Crawler-Helfer (_*.spec.mjs) — kein Browser noetig.
+        { name: 'checks', testMatch: /_[^/]*\.spec\.mjs$/ },
         { name: 'scenarios', testMatch: /scenarios\/.*\.e2e\.test\.mjs$/ },
         { name: 'crawler', testMatch: /crawler\/crawl\.e2e\.test\.mjs$/ },
     ],
