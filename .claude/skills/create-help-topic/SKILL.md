@@ -154,6 +154,36 @@ async function shotModal(page, name) {
 Regel: **Sobald ein Modal offen ist, `shotModal` statt `shot` verwenden.** Referenz:
 `help/roles/scripts/screenshot.js`.
 
+### Keine übergroßen Screenshots (lange Listen beschneiden)
+
+`fullPage: true` auf einer langen Datenliste (z. B. alle Projektmitglieder, alle
+Termine) erzeugt ein riesiges, unbrauchbar hohes Bild (mehrere tausend Pixel). Für
+die Doku genügt **Kopfbereich + Toolbar + einige Zeilen**, damit Aufbau und Bedienung
+klar werden — die restlichen 60 Zeilen bringen keinen Mehrwert. Solche Listen deshalb
+auf eine sinnvolle Höhe **beschneiden**, aber **nur wenn unterhalb keine weiteren
+wichtigen Bereiche liegen** (bei einer Detailseite mit mehreren Abschnitten, die alle
+zählen, weiter `shot`/fullPage verwenden).
+
+```js
+// Lange Listen: Kopf + Toolbar + einige Zeilen, auf maxHeight beschnitten.
+// Kürzere Seiten werden nicht künstlich gestreckt (min()).
+async function shotCapped(page, name, maxHeight = 1400) {
+    const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+    const height = Math.min(fullHeight, maxHeight);
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await page.screenshot({ path: filePath, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
+}
+```
+
+Faustregel: Bilder über **~2000px Höhe** prüfen. Zeigt der obere Teil bereits alles
+Wichtige → `shotCapped`. Referenz: `help/projects/scripts/screenshot.js` (09-members).
+Dimensionen eines PNG schnell prüfen:
+
+```bash
+node -e "const b=require('fs').readFileSync(process.argv[1]);console.log(b.readUInt32BE(16)+'x'+b.readUInt32BE(20))" bild.png
+```
+
 ### Screenshot-Benennung
 
 Nummeriert, sprechend, **englisch** (auch wenn das Modul einen deutschen Namen hat):
@@ -230,6 +260,7 @@ In Markdown immer als **relative URL** ohne führenden Slash schreiben:
 - Sprache: Deutsch, Du-Form (Inhalt) — Dateiname/Slug trotzdem immer englisch
 - Berechtigung immer im ersten Abschnitt als Blockquote
 - Screenshots direkt nach dem erklärenden Absatz einbetten
+- **Bedingt sichtbare Menüpunkte kennzeichnen**: Nennt ein Klickpfad einen Menüpunkt, der nicht für alle sichtbar ist, immer dazuschreiben, *unter welcher Bedingung* er erscheint — sonst sucht die Leserin einen Eintrag, den sie nie sieht. Die Sichtbarkeit steht in `src/Navigation/NavigationBuilder.php` (`visible`-Closure des Eintrags). Besonders auf **Ausschluss-Bedingungen** achten: manche Punkte erscheinen nur, wenn ein Recht **fehlt** (z. B. "Meine Projekte" nur ohne `can_manage_master_data`, weil Stammdaten-Verwalter denselben Zugang schon woanders haben). Solche Alternativ-Einstiege beider Zielgruppen erklären, nicht nur einen.
 
 ---
 
@@ -245,6 +276,8 @@ Checkliste:
 - [ ] Alle Screenshots sichtbar (keine kaputten Bildlinks)
 - [ ] Navigation unter `/help` zeigt das neue Thema in der richtigen Gruppe
 - [ ] Berechtigungshinweis vorhanden und korrekt formuliert
+- [ ] Jeder genannte Menüpunkt mit eingeschränkter Sichtbarkeit hat seine Bedingung dabei (siehe Regeln)
+- [ ] Kein übergroßer Screenshot (lange Listen mit `shotCapped` beschnitten, Faustregel ~2000px)
 
 ---
 
@@ -258,3 +291,5 @@ Checkliste:
 | Modal-Screenshot zu früh | CSS-Transition noch aktiv | `clickAndWaitForEvent` mit `shown.bs.modal` verwenden |
 | Tab-Inhalt fehlt im Screenshot | Tab-Transition noch aktiv | `clickAndWaitForTabPane` mit opacity-Check verwenden |
 | Navbar/Modal erscheint doppelt im Screenshot | `fullPage: true` bei offenem Modal — Scroll-Stitching zeichnet `position: fixed`-Elemente mehrfach | Bei offenem Modal `shotModal` (kein `fullPage`) statt `shot` verwenden, siehe oben |
+| Nutzerin findet genannten Menüpunkt nicht | Menüpunkt ist bedingt sichtbar (oft an- oder abwesenheitsgebunden an ein Recht) | Sichtbarkeitsbedingung in `NavigationBuilder.php` prüfen und im Doku-Klickpfad benennen; Alternativ-Einstieg für die andere Zielgruppe ergänzen |
+| Screenshot riesig hoch / unbrauchbar | `fullPage: true` auf langer Datenliste (viele Zeilen) | `shotCapped` (clip auf maxHeight) statt `shot` verwenden — sofern unterhalb keine wichtigen Bereiche liegen |
