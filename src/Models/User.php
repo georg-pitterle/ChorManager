@@ -42,13 +42,15 @@ class User extends Model
     public function voiceGroups()
     {
         return $this->belongsToMany(VoiceGroup::class, 'user_voice_groups', 'user_id', 'voice_group_id')
-            ->withPivot('sub_voice_id');
+            ->withPivot('sub_voice_id')
+            ->orderBy('voice_groups.id');
     }
 
     public function subVoices()
     {
         return $this->belongsToMany(SubVoice::class, 'user_voice_groups', 'user_id', 'sub_voice_id')
-            ->withPivot('voice_group_id');
+            ->withPivot('voice_group_id')
+            ->orderBy('sub_voices.name');
     }
 
     public function attendances()

@@ -11,6 +11,7 @@ use App\Models\Event;
 use App\Models\Attendance;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
+use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
@@ -129,12 +130,7 @@ class AttendanceController
                     ];
                 }
 
-                ksort($voiceGroups);
-                if (isset($voiceGroups['Ohne Stimmgruppe'])) {
-                    $ungrouped = $voiceGroups['Ohne Stimmgruppe'];
-                    unset($voiceGroups['Ohne Stimmgruppe']);
-                    $voiceGroups['Ohne Stimmgruppe'] = $ungrouped;
-                }
+                $voiceGroups = VoiceGroupOrder::sortNameKeyedMap($voiceGroups, ['Ohne Stimmgruppe']);
             }
         }
 

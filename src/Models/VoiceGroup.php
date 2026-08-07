@@ -17,7 +17,8 @@ class VoiceGroup extends Model
 
     public function subVoices()
     {
-        return $this->hasMany(SubVoice::class, 'voice_group_id', 'id');
+        return $this->hasMany(SubVoice::class, 'voice_group_id', 'id')
+            ->orderBy('name');
     }
 
     public function users()

@@ -163,7 +163,7 @@ class EventController
         $projects = $accessibleProjects;
         $eventTypes = EventType::orderBy('name')->get();
         $roles = Role::query()->orderBy('name')->get();
-        $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
+        $voiceGroups = VoiceGroup::query()->orderBy('id')->get();
         $audienceUsersQuery = User::query()->where('is_active', 1);
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $audienceUsersQuery->orderBy($column);
@@ -708,7 +708,7 @@ class EventController
         $projects = $this->getAccessibleProjects($userId, $seesAllEvents);
         $eventTypes = EventType::orderBy('name')->get();
         $roles = Role::query()->orderBy('name')->get();
-        $voiceGroups = VoiceGroup::query()->orderBy('name')->get();
+        $voiceGroups = VoiceGroup::query()->orderBy('id')->get();
         $usersQuery = User::query()->where('is_active', 1);
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $usersQuery->orderBy($column);

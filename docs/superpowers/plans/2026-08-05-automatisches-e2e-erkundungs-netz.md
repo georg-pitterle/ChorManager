@@ -215,19 +215,23 @@ export const ADMIN = {
     password: 'Test1234!',
 };
 
+// Vom Produkt per Migration geseedete Struktur (nicht neu anlegen):
+// voice_groups: Sopran, Alt, Tenor, Bass
+// sub_voices:   "Sopran 1","Sopran 2","Alt 1",...,"Bass 2"
 export const VOICE_GROUPS = ['Sopran', 'Alt', 'Tenor', 'Bass'];
-export const SUB_VOICES = ['1', '2']; // je Gruppe
+export const SUB_VOICES = ['Sopran 1', 'Sopran 2', 'Alt 1', 'Alt 2', 'Tenor 1', 'Tenor 2', 'Bass 1', 'Bass 2'];
 
-// Ein Mitglied je Untergruppe (SATB x 2), deutsche Namen mit echten Umlauten.
+// Ein Mitglied je geseedeter Untergruppe (SATB x 2), deutsche Namen mit echten Umlauten.
+// group = geseedete Stimmgruppe, sub = geseedeter Untergruppen-Name (Option-Label im Select).
 export const MEMBERS = [
-    { firstName: 'Anna', lastName: 'Bäcker', email: 'anna.baecker@chor.local', group: 'Sopran', sub: '1' },
-    { firstName: 'Sofia', lastName: 'Möller', email: 'sofia.moeller@chor.local', group: 'Sopran', sub: '2' },
-    { firstName: 'Lena', lastName: 'Schröder', email: 'lena.schroeder@chor.local', group: 'Alt', sub: '1' },
-    { firstName: 'Klara', lastName: 'Günther', email: 'klara.guenther@chor.local', group: 'Alt', sub: '2' },
-    { firstName: 'Jonas', lastName: 'Färber', email: 'jonas.faerber@chor.local', group: 'Tenor', sub: '1' },
-    { firstName: 'Paul', lastName: 'Löwe', email: 'paul.loewe@chor.local', group: 'Tenor', sub: '2' },
-    { firstName: 'Max', lastName: 'Kühn', email: 'max.kuehn@chor.local', group: 'Bass', sub: '1' },
-    { firstName: 'Erik', lastName: 'Bäumer', email: 'erik.baeumer@chor.local', group: 'Bass', sub: '2' },
+    { firstName: 'Anna', lastName: 'Bäcker', email: 'anna.baecker@chor.local', group: 'Sopran', sub: 'Sopran 1' },
+    { firstName: 'Sofia', lastName: 'Möller', email: 'sofia.moeller@chor.local', group: 'Sopran', sub: 'Sopran 2' },
+    { firstName: 'Lena', lastName: 'Schröder', email: 'lena.schroeder@chor.local', group: 'Alt', sub: 'Alt 1' },
+    { firstName: 'Klara', lastName: 'Günther', email: 'klara.guenther@chor.local', group: 'Alt', sub: 'Alt 2' },
+    { firstName: 'Jonas', lastName: 'Färber', email: 'jonas.faerber@chor.local', group: 'Tenor', sub: 'Tenor 1' },
+    { firstName: 'Paul', lastName: 'Löwe', email: 'paul.loewe@chor.local', group: 'Tenor', sub: 'Tenor 2' },
+    { firstName: 'Max', lastName: 'Kühn', email: 'max.kuehn@chor.local', group: 'Bass', sub: 'Bass 1' },
+    { firstName: 'Erik', lastName: 'Bäumer', email: 'erik.baeumer@chor.local', group: 'Bass', sub: 'Bass 2' },
 ];
 
 export const PROJECT = {
@@ -352,114 +356,76 @@ git commit -m "feat(e2e): Fixtures, auth-Bausteine und global-setup mit storageS
 
 ---
 
-## Task 4: Baustein `voiceGroups.mjs` + Teil-Szenario
+## Task 4: Bootstrap-Szenario — geseedete SATB-Struktur verifizieren
+
+**Entscheidung (User):** Das Produkt seedet die SATB-Stimmgruppen + 8 Untergruppen
+("Sopran 1" … "Bass 2") bereits per Migration
+(`db/migrations/20260314130000_initial.php`). Das Bootstrap-Szenario legt daher
+KEINE Stimmgruppen an, sondern verifiziert nur, dass die geseedete Struktur
+vorhanden ist. Kein `voiceGroups.mjs`-Baustein. Falls Task 4 zuvor ein
+`tests/e2e/steps/voiceGroups.mjs` (delete-and-recreate) angelegt hat, wird diese
+Datei in diesem Task entfernt.
 
 **Files:**
-- Create: `tests/e2e/steps/voiceGroups.mjs`
-- Create: `tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs` (schrittweise über Tasks 4–7 aufgebaut)
+- Create/Overwrite: `tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs` (erster Test)
+- Delete (falls vorhanden): `tests/e2e/steps/voiceGroups.mjs`
 
 **Interfaces:**
-- Consumes: `login`-State via storageState (schon eingeloggt).
-- Produces: `createGroup(page, name)` und `createSubVoice(page, groupName, subName)`. Beide navigieren zu `/voice-groups`, nutzen Bootstrap-Modals, submitten und warten auf Reload.
+- Consumes: storageState (schon als Admin eingeloggt); `VOICE_GROUPS` aus fixtures.
+- Produces: erster Szenario-Test, der die geseedete Struktur bestätigt. Keine Bausteine.
 
-- [ ] **Step 1: Failing-Szenario schreiben**
+- [ ] **Step 1: Szenario schreiben (geseedete Struktur prüfen)**
 
 `tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs`:
 ```javascript
 import { test, expect } from '@playwright/test';
-import { VOICE_GROUPS, SUB_VOICES } from '../data/fixtures.mjs';
-import { createGroup, createSubVoice } from '../steps/voiceGroups.mjs';
+import { VOICE_GROUPS } from '../data/fixtures.mjs';
 
-test('Bootstrap: Stimmgruppen + Untergruppen', async ({ page }) => {
-    for (const name of VOICE_GROUPS) {
-        await createGroup(page, name);
-    }
-    for (const group of VOICE_GROUPS) {
-        for (const sub of SUB_VOICES) {
-            await createSubVoice(page, group, sub);
-        }
-    }
+// Das Produkt seedet SATB + je 2 Untergruppen ("Sopran 1"..."Bass 2") per
+// Migration. Bootstrap legt nichts an - hier nur verifizieren, dass die
+// geseedete Struktur nach fresh-db vorhanden ist.
+test('Bootstrap: geseedete SATB-Struktur vorhanden', async ({ page }) => {
     await page.goto('/voice-groups');
     for (const name of VOICE_GROUPS) {
         await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     }
-    // 8 Untergruppen erwartet (je Gruppe "1" und "2")
+    // 8 geseedete Untergruppen erwartet (je Gruppe zwei).
     const subCount = await page.locator('[data-bs-target^="#deleteSubVoiceModal"]').count();
     expect(subCount).toBe(8);
 });
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [ ] **Step 2: Etwaigen alten Baustein entfernen**
 
 Run:
 ```bash
+rm -f tests/e2e/steps/voiceGroups.mjs
+```
+(Falls die Datei aus einem früheren Task-4-Versuch existiert. Kein Fehler, wenn nicht vorhanden.)
+
+- [ ] **Step 3: Selektor gegen Template gegenprüfen**
+
+Run:
+```bash
+grep -nE "deleteSubVoiceModal|Sopran|Alt|Tenor|Bass" templates/voice_groups/index.twig | head
+```
+Expected: `[data-bs-target^="#deleteSubVoiceModal"]` existiert pro Untergruppe. Gruppennamen werden aus der DB gerendert, nicht hartkodiert.
+
+- [ ] **Step 4: Test grün (globalSetup fresh-db + Bootstrap, dann geseedete Struktur)**
+
+Run:
+```bash
+perl -i -pe 's/\r\n/\n/g' tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs
 npx playwright test --config tests/e2e/playwright.config.mjs scenarios/praxis-erstlauf.e2e.test.mjs
 ```
-Expected: FAIL (`createGroup` nicht gefunden / Modul fehlt).
+Expected: `1 passed` (4 Gruppen sichtbar, 8 Untergruppen gezählt).
 
-- [ ] **Step 3: Baustein implementieren**
-
-`tests/e2e/steps/voiceGroups.mjs`:
-```javascript
-// Verifizierte Selektoren aus templates/voice_groups/index.twig:
-//  - Anlegen-Modal:        #createGroupModal, Formular POST /voice-groups, Feld name="name"
-//  - Unterstimme-Modal:    #createSubVoiceModal{groupId}, POST /voice-groups/{id}/sub, Feld name="name"
-//  - Loeschen-Button je Sub: [data-bs-target^="#deleteSubVoiceModal"]
-//  - Gruppen-Zeile traegt Loeschen-Button #deleteGroupModal{id}, daraus wird die groupId gelesen.
-
-export async function createGroup(page, name) {
-    await page.goto('/voice-groups');
-    await page.click('[data-bs-target="#createGroupModal"]');
-    const modal = page.locator('#createGroupModal');
-    await modal.waitFor({ state: 'visible' });
-    await modal.locator('input[name="name"]').fill(name);
-    await modal.locator('button[type="submit"]').click();
-    await page.waitForURL('**/voice-groups');
-    await page.getByText(name, { exact: true }).first().waitFor();
-}
-
-// Liefert die groupId einer Gruppe anhand ihres Anzeigenamens.
-async function resolveGroupId(page, groupName) {
-    const row = page.locator('tr, .list-group-item, .card', { hasText: groupName }).first();
-    const del = row.locator('[data-bs-target^="#deleteGroupModal"]').first();
-    const target = await del.getAttribute('data-bs-target'); // "#deleteGroupModal{id}"
-    return target.replace('#deleteGroupModal', '');
-}
-
-export async function createSubVoice(page, groupName, subName) {
-    await page.goto('/voice-groups');
-    const groupId = await resolveGroupId(page, groupName);
-    await page.click(`[data-bs-target="#createSubVoiceModal${groupId}"]`);
-    const modal = page.locator(`#createSubVoiceModal${groupId}`);
-    await modal.waitFor({ state: 'visible' });
-    await modal.locator('input[name="name"]').fill(subName);
-    await modal.locator('button[type="submit"]').click();
-    await page.waitForURL('**/voice-groups');
-}
-```
-
-- [ ] **Step 4: Selektoren gegen Template gegenprüfen**
-
-Run:
-```bash
-grep -nE "createGroupModal|createSubVoiceModal|deleteGroupModal|deleteSubVoiceModal|name=\"name\"" templates/voice_groups/index.twig
-```
-Expected: bestätigt `#createGroupModal`, `#createSubVoiceModal{{ group.id }}`, `#deleteGroupModal{{ group.id }}`, `#deleteSubVoiceModal{{ sub_voice.id }}`, Feld `name="name"`. Falls Zeilenstruktur (`tr`/`card`) abweicht, `resolveGroupId`-Locator an tatsächliche Markup-Struktur anpassen.
-
-- [ ] **Step 5: Test grün**
-
-Run:
-```bash
-perl -i -pe 's/\r\n/\n/g' tests/e2e/steps/voiceGroups.mjs tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs
-npx playwright test --config tests/e2e/playwright.config.mjs scenarios/praxis-erstlauf.e2e.test.mjs
-```
-Expected: `1 passed`.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add tests/e2e/steps/voiceGroups.mjs tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs
-git commit -m "feat(e2e): Baustein voiceGroups + Stimmgruppen-Teil des Bootstrap-Szenarios"
+git add tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs
+git rm --cached --ignore-unmatch tests/e2e/steps/voiceGroups.mjs
+git commit -m "feat(e2e): Bootstrap-Szenario verifiziert geseedete SATB-Struktur"
 ```
 
 ---

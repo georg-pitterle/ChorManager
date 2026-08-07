@@ -61,7 +61,12 @@ class ProfileController
         unset($_SESSION['success'], $_SESSION['error']);
 
         $voiceGroups = VoiceGroup::orderBy('id')->get();
-        $subVoices = SubVoice::orderBy('id')->get();
+        $subVoices = SubVoice::orderBy('name')->get();
+
+        // Projects the user participates in, newest first (undated last).
+        $projects = $user->projects()
+            ->orderByRaw('start_date IS NULL, start_date DESC')
+            ->get();
 
         $mailAccount = $user->mailAccount;
         $formOld = $_SESSION['mailbox_form_old'] ?? null;
@@ -73,6 +78,7 @@ class ProfileController
             'error' => $error,
             'voice_groups' => $voiceGroups,
             'sub_voices' => $subVoices,
+            'projects' => $projects,
             'mail_account' => $formOld !== null ? $this->mailboxViewFromOldInput($formOld) : $mailAccount,
             'has_saved_account' => $mailAccount !== null,
             'webmail_available' => $mailAccount !== null && (bool)$mailAccount->imap_enabled,
@@ -134,6 +140,16 @@ class ProfileController
 
         if (!$firstName || !$lastName || !$email) {
             $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        // Reject malformed or over-long addresses before the DB write. The email
+        // column is varchar(255); the RFC caps a valid address at 254 octets.
+        // Without this guard an over-long value hits the column limit and Eloquent
+        // throws a QueryException, surfacing as a generic 500 instead of a
+        // form-level hint.
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 254) {
+            $_SESSION['error'] = 'Bitte gib eine gültige E-Mail-Adresse ein.';
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 

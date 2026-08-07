@@ -30,13 +30,66 @@
         </div>
     {% endif %}
 
-    <div class="row">
-        <!-- User Info Card -->
-        <div class="col-md-5 mb-4 mb-md-0">
-            <div class="card shadow-sm h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">Persönliche Informationen</h5>
-                </div>
+    <ul class="nav nav-tabs mb-0" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active"
+                    id="tab-personal"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-personal"
+                    type="button"
+                    role="tab"
+                    aria-controls="pane-personal"
+                    aria-selected="true">
+                <i class="bi bi-person me-1"></i>Persönliche Informationen
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="tab-projects"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-projects"
+                    type="button"
+                    role="tab"
+                    aria-controls="pane-projects"
+                    aria-selected="false">
+                <i class="bi bi-music-note-list me-1"></i>Meine Projekte
+                <span class="badge bg-secondary ms-1">{{ projects|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="tab-password"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-password"
+                    type="button"
+                    role="tab"
+                    aria-controls="pane-password"
+                    aria-selected="false">
+                <i class="bi bi-key me-1"></i>Passwort ändern
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="tab-mailbox"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-mailbox"
+                    type="button"
+                    role="tab"
+                    aria-controls="pane-mailbox"
+                    aria-selected="false">
+                <i class="bi bi-envelope me-1"></i>Mailbox / Webmail
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content pt-3 mb-4" id="profileTabContent">
+        <!-- Persönliche Informationen -->
+        <div class="tab-pane fade show active"
+             id="pane-personal"
+             role="tabpanel"
+             aria-labelledby="tab-personal"
+             tabindex="0">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <form action="/profile" method="post">
                         <div class="row">
@@ -122,17 +175,48 @@
             </div>
         </div>
 
-        <!-- Change Password Card -->
-        <div class="col-md-7">
-            <div class="card shadow-sm h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-key"></i> Passwort ändern
-                    </h5>
+        <!-- Meine Projekte -->
+        <div class="tab-pane fade"
+             id="pane-projects"
+             role="tabpanel"
+             aria-labelledby="tab-projects"
+             tabindex="0">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    {% if projects|length > 0 %}
+                        <ul class="list-group list-group-flush">
+                            {% for project in projects %}
+                                <li class="list-group-item px-0">
+                                    <div class="fw-bold">{{ project.name }}</div>
+                                    {% if project.start_date or project.end_date %}
+                                        <small class="text-muted">
+                                            {{ project.start_date ? project.start_date|date("d.m.Y") : "?" }}
+                                            bis
+                                            {{ project.end_date ? project.end_date|date("d.m.Y") : "?" }}
+                                        </small>
+                                    {% endif %}
+                                    {% if project.description %}
+                                        <div class="text-muted small">{{ project.description }}</div>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">Du nimmst derzeit an keinem Projekt teil.</p>
+                    {% endif %}
                 </div>
+            </div>
+        </div>
+
+        <!-- Passwort ändern -->
+        <div class="tab-pane fade"
+             id="pane-password"
+             role="tabpanel"
+             aria-labelledby="tab-password"
+             tabindex="0">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <form action="/profile/password" method="post">
-
                         <div class="mb-4">
                             <label for="old_password" class="form-label">Aktuelles Passwort</label>
                             <input type="password"
@@ -173,17 +257,14 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row mt-4">
-        <!-- Mailbox Card -->
-        <div class="col-md-7">
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-envelope"></i> Mailbox / Webmail-Zugang
-                    </h5>
-                </div>
+        <!-- Mailbox / Webmail -->
+        <div class="tab-pane fade"
+             id="pane-mailbox"
+             role="tabpanel"
+             aria-labelledby="tab-mailbox"
+             tabindex="0">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <form action="/profile/mailbox" method="post" id="mailboxForm">
                         <div id="mailboxFormFeedback" class="alert d-none" role="alert"></div>

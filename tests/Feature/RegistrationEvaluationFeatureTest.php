@@ -154,7 +154,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         // will compute, inside the same transaction, so the assertions
         // below are independent of whatever voice groups already exist in
         // the (seeded) test database.
-        $voiceGroupNames = VoiceGroup::orderBy('name')->pluck('name')->all();
+        $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
         $sopranIndex = array_search($fixture['sopran']->name, $voiceGroupNames, true);
         $altIndex = array_search($fixture['alt']->name, $voiceGroupNames, true);
@@ -193,7 +193,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
     {
         $fixture = $this->createUpcomingEventFixture();
 
-        $voiceGroupNames = VoiceGroup::orderBy('name')->pluck('name')->all();
+        $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
 
         $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
@@ -287,7 +287,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         );
         $body = (string) $response->getBody();
 
-        $voiceGroupNames = VoiceGroup::orderBy('name')->pluck('name')->all();
+        $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
         $attendanceIndex = count($voiceGroupNames) + 2;
 

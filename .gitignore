@@ -11,3 +11,5 @@ node_modules/
 .worktrees/
 var/
 ship.ps1
+test-results/
+playwright-report/

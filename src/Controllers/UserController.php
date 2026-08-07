@@ -90,7 +90,7 @@ class UserController
 
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
-        $subVoices = SubVoice::orderBy('id')->get();
+        $subVoices = SubVoice::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
 
         foreach ($users as $user) {
@@ -204,6 +204,15 @@ class UserController
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
             $createService = new ModalFormService('user_create');
             $createService->setError('Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).', $formData);
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
+        // Reject malformed or over-long addresses before the DB write. The email
+        // column is varchar(255); without this guard an invalid value surfaces as
+        // a generic QueryException/500 instead of a form-level hint.
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 254) {
+            $createService = new ModalFormService('user_create');
+            $createService->setError('Bitte gib eine gültige E-Mail-Adresse ein.', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
@@ -363,6 +372,14 @@ class UserController
             return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
         }
 
+        // Reject malformed or over-long addresses before the DB write (varchar(255)),
+        // so an invalid value yields a form-level hint instead of a 500.
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 254) {
+            $editService = new ModalFormService('user_edit_' . $userId);
+            $editService->setError('Bitte gib eine gültige E-Mail-Adresse ein.', $formData, [], false);
+            return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
+        }
+
         // Email uniqueness check (excluding self)
         if (User::where('email', $email)->where('id', '!=', $userId)->exists()) {
             $editService = new ModalFormService('user_edit_' . $userId);
@@ -500,7 +517,7 @@ class UserController
 
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
-        $subVoices = SubVoice::orderBy('id')->get();
+        $subVoices = SubVoice::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
 
         if (!$canManageUsers) {

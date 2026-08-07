@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
+use App\Util\VoiceGroupOrder;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -114,12 +115,7 @@ class RegistrationController
             ];
         }
 
-        ksort($voiceGroups);
-        if (isset($voiceGroups['Ohne Stimmgruppe'])) {
-            $ungrouped = $voiceGroups['Ohne Stimmgruppe'];
-            unset($voiceGroups['Ohne Stimmgruppe']);
-            $voiceGroups['Ohne Stimmgruppe'] = $ungrouped;
-        }
+        $voiceGroups = VoiceGroupOrder::sortNameKeyedMap($voiceGroups, ['Ohne Stimmgruppe']);
 
         $total = $users->count();
         $answered = $total - $counts['open'];

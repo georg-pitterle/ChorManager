@@ -6,9 +6,13 @@ namespace Tests\Feature;
 
 use App\Commands\CreateBackupCommand;
 use App\Services\BackupService;
+use Monolog\Handler\TestHandler;
+use Monolog\Level;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 use Tests\Unit\Services\Fakes\FakeDumpRunner;
 
@@ -88,5 +92,56 @@ final class CreateBackupCommandFeatureTest extends TestCase
 
         $this->assertSame(Command::INVALID, $exitCode);
         $this->assertCount(0, $service->list());
+    }
+
+    public function testSuccessIsLoggedAsJsonAndNotPrintedAtNormalVerbosity(): void
+    {
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        $command = new CreateBackupCommand($this->fakeService('backup_auto_20260101T000000Z_deadbeef'), $logger);
+        $tester = new CommandTester($command);
+
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringNotContainsString('Backup created', $tester->getDisplay());
+
+        $records = $handler->getRecords();
+        $this->assertCount(1, $records);
+        $record = $records[0];
+        $this->assertSame(Level::Info, $record->level);
+        $this->assertSame('backup.create.completed', $record->context['event']);
+        $this->assertSame('backup_auto_20260101T000000Z_deadbeef', $record->context['id']);
+        $this->assertSame('auto', $record->context['type']);
+    }
+
+    public function testSuccessIsPrintedWhenVerbose(): void
+    {
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        $command = new CreateBackupCommand($this->fakeService('backup_auto_20260101T000000Z_deadbeef'), $logger);
+        $tester = new CommandTester($command);
+
+        $tester->execute([], ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]);
+
+        $this->assertStringContainsString('Backup created', $tester->getDisplay());
+    }
+
+    private function fakeService(string $id): BackupService
+    {
+        return new class ($id) extends BackupService {
+            public function __construct(private readonly string $id)
+            {
+            }
+
+            public function create(string $type, ?int $userId = null): array
+            {
+                return ['id' => $this->id, 'type' => $type];
+            }
+        };
     }
 }

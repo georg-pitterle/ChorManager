@@ -196,7 +196,7 @@ class EvaluationController
         }
         $events = $query->get();
 
-        $voiceGroupNames = VoiceGroup::orderBy('name')->pluck('name')->all();
+        $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
 
         $matrix = [];

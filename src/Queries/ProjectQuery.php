@@ -7,6 +7,7 @@ namespace App\Queries;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\NameFormatterService;
+use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ProjectQuery
@@ -214,12 +215,8 @@ class ProjectQuery
             ];
         }
 
-        // Sort voice groups: put "ohne Stimmgruppe" last
-        if (isset($grouped['_ohne_stimmgruppe'])) {
-            $ungrouped = $grouped['_ohne_stimmgruppe'];
-            unset($grouped['_ohne_stimmgruppe']);
-            $grouped['_ohne_stimmgruppe'] = $ungrouped;
-        }
+        // Sort voice groups into canonical SATB order, "ohne Stimmgruppe" last
+        $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, ['_ohne_stimmgruppe']);
 
         // Sort sub-voices within each voice group by name (except _ohne_teilstimme)
         foreach ($grouped as $vg => &$subVoices) {

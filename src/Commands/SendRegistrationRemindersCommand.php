@@ -32,19 +32,37 @@ class SendRegistrationRemindersCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if (EnvHelper::read('FEATURE_REGISTRATION', 'false') !== 'true') {
-            $output->writeln('FEATURE_REGISTRATION ist deaktiviert - nichts zu tun.');
+            $this->logger->debug('Registration reminders skipped: feature disabled.', [
+                'event' => 'registration_reminder.skipped_feature_disabled',
+            ]);
+
+            if ($output->isVerbose()) {
+                $output->writeln('FEATURE_REGISTRATION ist deaktiviert - nichts zu tun.');
+            }
+
             return Command::SUCCESS;
         }
 
         $baseUrl = trim(EnvHelper::read('APP_URL', ''));
         if ($baseUrl === '') {
+            $this->logger->error('Registration reminders skipped: APP_URL not configured.', [
+                'event' => 'registration_reminder.missing_base_url',
+            ]);
             $output->writeln('<error>APP_URL ist nicht gesetzt - Erinnerungslinks brauchen eine Basis-URL.</error>');
+
             return Command::FAILURE;
         }
 
         try {
             $count = $this->reminderService->processDue($baseUrl);
-            $output->writeln(sprintf('%d Erinnerungsmails eingereiht.', $count));
+            $this->logger->debug('Registration reminders enqueued.', [
+                'event' => 'registration_reminder.enqueued',
+                'count' => $count,
+            ]);
+
+            if ($output->isVerbose()) {
+                $output->writeln(sprintf('%d Erinnerungsmails eingereiht.', $count));
+            }
 
             return Command::SUCCESS;
         } catch (\Throwable $exception) {

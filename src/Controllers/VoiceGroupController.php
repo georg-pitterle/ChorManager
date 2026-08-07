@@ -22,7 +22,7 @@ class VoiceGroupController
 
     public function index(Request $request, Response $response): Response
     {
-        $voiceGroups = VoiceGroup::with('subVoices')->orderBy('name')->get();
+        $voiceGroups = VoiceGroup::with('subVoices')->orderBy('id')->get();
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;

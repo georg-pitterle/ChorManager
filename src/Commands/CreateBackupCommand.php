@@ -40,7 +40,15 @@ class CreateBackupCommand extends Command
 
         try {
             $metadata = $this->backupService->create($type, null);
-            $output->writeln(sprintf('<info>Backup created: %s</info>', $metadata['id']));
+            $this->logger->info('CLI backup created.', [
+                'event' => 'backup.create.completed',
+                'type' => $type,
+                'id' => $metadata['id'],
+            ]);
+
+            if ($output->isVerbose()) {
+                $output->writeln(sprintf('<info>Backup created: %s</info>', $metadata['id']));
+            }
 
             return Command::SUCCESS;
         } catch (\Throwable $exception) {
