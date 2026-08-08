@@ -28,11 +28,39 @@ Bewegungsliste). Das neue Feature setzt darauf auf.
 
 ## Bibliothek
 
-- `dompdf/dompdf ^3` via `ddev composer require dompdf/dompdf`.
-- Begründung: aktiv gepflegt (Releases 2024/2025), pures PHP, keine externen
-  Binaries im Container, rendert HTML+CSS → ein Twig-Template kann als Vorlage
-  dienen. (mPDF und Headless-Chrome bewusst verworfen: mPDF-Pflegezustand,
-  Chromium/Node = schweres Container-Setup.)
+- `tecnickcom/tc-lib-pdf ^8` via `ddev composer require tecnickcom/tc-lib-pdf`.
+- Begründung: TCPDF ist Stand 2026 **deprecated**; tc-lib-pdf ist der aktiv
+  gepflegte, production-ready Nachfolger (SemVer, pures PHP, keine Container-
+  Binaries). Unterstützt automatische Zeilen-/Seitenumbrüche, MultiCell-
+  Äquivalent und Positionierung (posx/posy) — nötig für inkrementelles Rendern
+  mit echtem Übertrag.
+- Verworfen:
+  - **Dompdf** — kann keine per-Seite-Zwischensummen: keine API „welche
+    Tabellenzeile liegt auf welcher Seite" nach dem Layout; Seiten-Callbacks
+    kennen die Zeilensummen nicht.
+  - **mPDF** — Pflegezustand.
+  - **Headless-Chrome** — Chromium/Node = schweres Container-Setup.
+- Risiko: neuere API, weniger Alt-Beispiele als TCPDF → kleiner Spike für die
+  Übertrag-/Y-Tracking-Logik einplanen.
+
+## Übertrag (Carry-forward) — Kernanforderung
+
+Wie im Geschäftsbericht/Kassabuch stehen bei Seitenwechsel Zwischensummen:
+
+- **Am Seitenende:** „Übertrag" = kumulierte Summen Einnahmen / Ausgaben /
+  Saldo bis zur letzten Zeile dieser Seite.
+- **Am Kopf der Folgeseite:** „Übertrag" wird als Startwert wiederholt.
+- Auf der letzten Seite endet die Tabelle mit dem Gesamtsaldo (kein Übertrag).
+
+Umsetzung: **inkrementelles Rendern** — die Bewegungstabelle wird **zeilenweise
+in PHP** aufgebaut. Vor jeder Zeile wird geprüft, ob sie noch auf die Seite
+passt (aktuelle Y-Position + benötigte Zeilenhöhe vs. nutzbare Seitenhöhe minus
+Platz für die Übertrag-Fußzeile). Passt sie nicht: Übertrag-Fußzeile schreiben,
+neue Seite, Übertrag-Kopfzeile schreiben, dann die Zeile. Beschreibung darf
+umbrechen (variable Zeilenhöhe → echte Messung, kein Zeilen-Raten).
+
+Kein Twig-Template für den PDF-Tabellenkörper — das Layout (Kopf, Kennzahlen,
+Tabelle, Überträge, Fuß) wird im Service programmatisch mit tc-lib-pdf erzeugt.
 
 ## Komponenten
 
@@ -69,34 +97,40 @@ keine Duplikat-Logik, gut testbar.
 
 `src/Services/FinanceReportPdfService.php`
 
-- Verantwortung: Report-Daten → PDF-Bytes.
-- Rendert das Twig-Template `finances/report_pdf.twig` zu HTML, übergibt es an
-  Dompdf, konfiguriert A4 Hochformat, gibt den PDF-String (`$dompdf->output()`)
-  zurück.
-- Konstruktor bekommt `Twig` (und ggf. App-Settings/Logger nach Bedarf) per DI.
+- Verantwortung: Report-Daten → PDF-Bytes (tc-lib-pdf).
+- Baut das Dokument programmatisch: A4 Hochformat, Kopf, Kennzahlen, dann die
+  Bewegungstabelle zeilenweise mit Übertrag-Logik (siehe Abschnitt Übertrag).
+- Öffentliche Methode z. B. `render(array $reportData): string` gibt die
+  PDF-Bytes zurück.
+- Konstruktor bekommt nach Bedarf App-Settings (Chorname) und Logger per DI.
 - Controller bleibt dünn: Daten holen via `buildReportData()`, an den Service
   geben, Response-Header setzen.
 - DI-Verdrahtung in der Container-Definition ergänzen (siehe
-  `DependenciesContainerWiringTest`-Muster).
+  `DependenciesContainerWiringTest`-Muster) — Service auflösbar machen und
+  FinanceController-Konstruktor um den Service erweitern.
+- Interne Struktur klar trennen (kleine, testbare Einheiten):
+  - Seiten-/Spalten-Geometrie (Konstanten: Ränder, Spaltenbreiten, Zeilenhöhe,
+    reservierte Höhe der Übertrag-Fußzeile).
+  - Kopf-/Kennzahlen-Block.
+  - Zeilen-Renderer + Übertrag-Umbruchlogik (Y-Tracking).
+  - Fußzeile (Seitenzahl + Erstelldatum).
 
-### 4. PDF-Template `templates/finances/report_pdf.twig`
+### 4. PDF-Layout (im Service, kein Twig)
 
-- Eigenständiges HTML-Dokument (kein `extends layout.twig`), da Dompdf ohne
-  Bootstrap/externe Assets rendert.
-- **Eigener `<style>`-Block** im Template: dokumentierte Ausnahme zur
-  Template-Hygiene (wie E-Mail-Templates in `templates/emails/`). Dompdf braucht
-  self-contained CSS; keine CDN-/externen Assets.
-- Aufbau:
-  - **Kopf:** App-/Chorname (`app_settings.app_name`) + Titel „Kassabuch
-    Geschäftsjahr DD.MM.YYYY – DD.MM.YYYY".
-  - **Kennzahlen:** Einnahmen / Ausgaben / Saldo (nur diese drei; keine
-    Gruppen-/Zahlungsart-Detailtabellen).
-  - **Bewegungstabelle** (chronologisch, invoice_date aufsteigend), Spalten:
-    **Datum · Lfd. Nr. · Beschreibung · Zahlungsart (Bar/Bank) · Einnahme ·
-    Ausgabe · Laufsaldo**.
-  - **Abschluss:** Gesamtsaldo-Zeile.
-  - **Seitenfuß** (Dompdf `@page`/Script-Fallback): Seitenzahl + Erstelldatum.
-- Beträge im deutschen Format (`number_format(2, ',', '.')`), echte Umlaute.
+Da der Tabellenkörper inkrementell mit Übertrag gerendert wird, gibt es **kein**
+`report_pdf.twig`. Das Layout entsteht im Service:
+
+- **Kopf:** App-/Chorname (App-Settings) + Titel „Kassabuch Geschäftsjahr
+  DD.MM.YYYY – DD.MM.YYYY".
+- **Kennzahlen:** Einnahmen / Ausgaben / Saldo (nur diese drei; keine
+  Gruppen-/Zahlungsart-Detailtabellen).
+- **Bewegungstabelle** (chronologisch, invoice_date aufsteigend), Spalten:
+  **Datum · Lfd. Nr. · Beschreibung · Zahlungsart (Bar/Bank) · Einnahme ·
+  Ausgabe · Laufsaldo**. Übertrag-Zeilen am Seitenende/-kopf.
+- **Abschluss:** Gesamtsaldo-Zeile auf der letzten Seite.
+- **Seitenfuß:** Seitenzahl + Erstelldatum.
+- Beträge im deutschen Format (`number_format(2, ',', '.')`), echte Umlaute
+  (Font mit vollständiger Latin-1-/UTF-8-Abdeckung wählen).
 
 ### 5. Button im Bildschirm-Report
 
@@ -120,6 +154,11 @@ Vor der Implementierung schreiben, zunächst rot:
 - **Business-Logic-Test:** `buildReportData()` liefert korrekte Kennzahlen
   (Einnahmen/Ausgaben/Saldo) und die erwartete Bewegungsanzahl für ein
   bekanntes Jahr.
+- **Übertrag-Test:** mit genug Buchungen für ≥2 Seiten liefert der Service ein
+  mehrseitiges PDF (Seitenzahl > 1) und der finale Gesamtsaldo stimmt. Wo mit
+  vertretbarem Aufwand möglich, die Übertrag-/Umbruch-Rechenlogik als reine,
+  von tc-lib-pdf entkoppelte Einheit prüfen (Seiten-Aufteilung + kumulierte
+  Überträge für eine gegebene Zeilenliste und Kapazität).
 - Relevante Tests vor Abschluss ausführen und Ergebnis berichten.
 
 ## Seed
@@ -147,12 +186,13 @@ den Administrator.
 
 ## Betroffene/neue Dateien
 
-- `composer.json` / `composer.lock` (dompdf)
+- `composer.json` / `composer.lock` (tc-lib-pdf)
 - `src/Controllers/FinanceController.php` (Refactor + `reportPdf`)
 - `src/Services/FinanceReportPdfService.php` (neu)
 - `src/Routes.php` (neue Route)
 - Container-/DI-Definition (Service-Wiring)
-- `templates/finances/report_pdf.twig` (neu)
 - `templates/finances/report.twig` (Button)
 - `tests/Feature/FinanceFeatureTest.php` (+ ggf. `FinanceBusinessLogicTest.php`)
 - `help/finance/…` (neues Hilfethema)
+
+_(Kein `report_pdf.twig` — PDF-Layout entsteht programmatisch im Service.)_
