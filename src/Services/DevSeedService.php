@@ -308,6 +308,7 @@ class DevSeedService
                 'can_manage_project_members' => 1,
                 'can_read_finances' => 1,
                 'can_manage_finances' => 1,
+                'can_manage_budget' => 1,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
                 'can_manage_song_library' => 1,
@@ -1248,10 +1249,25 @@ class DevSeedService
         $runningNumber = ((int) Finance::max('running_number')) + 1;
         $attachmentsLeft = $attachmentCount;
 
+        // Rechnungsnummer und Rechnungsdatum laufen in der Praxis annähernd
+        // parallel: Belege werden grob in Eingangsreihenfolge nummeriert.
+        // Daher Datumsliste vorab erzeugen und näherungsweise chronologisch
+        // sortieren (Jitter erlaubt gelegentliche lokale Umsortierung), sodass
+        // die aufsteigende Laufnummer mit dem Datum mitwandert.
+        $invoiceDates = [];
+        for ($i = 0; $i < $count; $i++) {
+            $date = $this->randomDate($startDate, $endDate);
+            $invoiceDates[] = [
+                'date' => $date,
+                'sortKey' => $date->getTimestamp() + mt_rand(-15, 15) * 86400,
+            ];
+        }
+        usort($invoiceDates, static fn(array $a, array $b): int => $a['sortKey'] <=> $b['sortKey']);
+
         for ($i = 0; $i < $count; $i++) {
             $isIncome = $i < 112;
             $paymentMethod = $i < 224 ? 'bank_transfer' : 'cash';
-            $invoiceDate = $this->randomDate($startDate, $endDate);
+            $invoiceDate = $invoiceDates[$i]['date'];
             $paymentDate = $invoiceDate->modify('+' . mt_rand(0, 20) . ' days');
 
             $project = $projects[$i % count($projects)];
