@@ -17,6 +17,7 @@
         "slim/psr7": "^1.6",
         "slim/slim": "^4.0",
         "slim/twig-view": "^3.3",
+        "tecnickcom/tc-lib-pdf": "^8",
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {

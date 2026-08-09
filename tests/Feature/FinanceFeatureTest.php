@@ -19,15 +19,25 @@ class FinanceFeatureTest extends TestCase
         $this->assertTrue(method_exists(FinanceController::class, 'updateSettings'));
         $this->assertTrue(method_exists(FinanceController::class, 'viewAttachment'));
         $this->assertTrue(method_exists(FinanceController::class, 'deleteAttachment'));
+        $this->assertTrue(method_exists(FinanceController::class, 'reportPdf'));
 
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/finances'", $routesContent);
         $this->assertStringContainsString("'/finances/report'", $routesContent);
+        $this->assertStringContainsString("'/finances/report/pdf'", $routesContent);
         $this->assertStringContainsString("'/finances/settings'", $routesContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/finances/index.twig'));
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/finances/report.twig'));
+    }
+
+    public function testFinanceReportOffersPdfDownloadLink(): void
+    {
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/finances/report.twig');
+        $this->assertIsString($template);
+        $this->assertStringContainsString('/finances/report/pdf?year=', $template);
+        $this->assertStringContainsString('PDF herunterladen', $template);
     }
 
     public function testComputeDefaultStartYearBeforeAndAfterBoundary(): void

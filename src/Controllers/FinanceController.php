@@ -12,6 +12,7 @@ use App\Models\FinanceGroup;
 use App\Models\Attachment;
 use App\Models\Setting;
 use App\Services\BudgetService;
+use App\Services\FinanceReportPdfService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Http\Message\UploadedFileInterface;
@@ -23,12 +24,18 @@ class FinanceController
     private Twig $view;
     private BudgetService $budgetService;
     private LoggerInterface $logger;
+    private FinanceReportPdfService $pdfService;
 
-    public function __construct(Twig $view, BudgetService $budgetService, LoggerInterface $logger)
-    {
+    public function __construct(
+        Twig $view,
+        BudgetService $budgetService,
+        LoggerInterface $logger,
+        FinanceReportPdfService $pdfService
+    ) {
         $this->view = $view;
         $this->budgetService = $budgetService;
         $this->logger = $logger;
+        $this->pdfService = $pdfService;
     }
 
     private function getFiscalConfig(): array
@@ -317,11 +324,36 @@ class FinanceController
 
     public function report(Request $request, Response $response): Response
     {
+        [$day, $month] = $this->getFiscalConfig();
+        $selectedYear = (int) ($request->getQueryParams()['year'] ?? $this->defaultStartYear($day, $month));
+
+        return $this->view->render($response, 'finances/report.twig', $this->buildReportData($selectedYear));
+    }
+
+    public function reportPdf(Request $request, Response $response): Response
+    {
+        [$day, $month] = $this->getFiscalConfig();
+        $selectedYear = (int) ($request->getQueryParams()['year'] ?? $this->defaultStartYear($day, $month));
+
+        $reportData = $this->buildReportData($selectedYear);
+        $pdf = $this->pdfService->render($reportData);
+        $filename = $this->pdfService->filename($reportData);
+
+        $response->getBody()->write($pdf);
+
+        return $response
+            ->withHeader('Content-Type', 'application/pdf')
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . self::normalizeFileName($filename) . '"'
+                    . '; filename*=UTF-8\'\'' . rawurlencode($filename)
+            );
+    }
+
+    private function buildReportData(int $selectedYear): array
+    {
         [$day, $month, $startStr] = $this->getFiscalConfig();
         $availableYears = $this->buildAvailableYears($day, $month);
-        $defaultYear = $this->defaultStartYear($day, $month);
-        $selectedYear = (int) ($request->getQueryParams()['year'] ?? $defaultYear);
-
         [$startDate, $endDate] = $this->datesForYear($selectedYear, $day, $month);
 
         $finances = Finance::with('attachments')
@@ -356,7 +388,7 @@ class FinanceController
         }
         ksort($groupTotals);
 
-        return $this->view->render($response, 'finances/report.twig', [
+        return [
             'finances' => $finances,
             'total_income' => $totalIncome,
             'total_expense' => $totalExpense,
@@ -371,7 +403,7 @@ class FinanceController
             'fiscal_end' => $endDate->format('d.m.Y'),
             'available_years' => $availableYears,
             'selected_year' => $selectedYear,
-        ]);
+        ];
     }
 
     public function updateSettings(Request $request, Response $response): Response

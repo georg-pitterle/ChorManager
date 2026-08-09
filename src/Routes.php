@@ -273,6 +273,7 @@ return function (App $app) {
                     function ($financeReadGroup) {
                         $financeReadGroup->get('/finances', [FinanceController::class, 'index']);
                         $financeReadGroup->get('/finances/report', [FinanceController::class, 'report']);
+                        $financeReadGroup->get('/finances/report/pdf', [FinanceController::class, 'reportPdf']);
                         $financeReadGroup->get(
                             '/finances/attachments/{id:[0-9]+}',
                             [FinanceController::class, 'viewAttachment']

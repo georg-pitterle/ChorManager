@@ -33,9 +33,13 @@ use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
+use App\Controllers\FinanceController;
 use App\Controllers\PasswordResetController;
 use App\Controllers\RoleController;
 use App\Controllers\SongLibraryController;
+use App\Services\FinanceReportPdfService;
+use App\Services\Pdf\PdfCanvas;
+use App\Services\Pdf\TcLibPdfCanvas;
 use App\Services\RememberLoginService;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
@@ -173,6 +177,19 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get('settings'),
                 $c->get(LoggerInterface::class)
+            );
+        },
+        PdfCanvas::class => \DI\autowire(TcLibPdfCanvas::class),
+        FinanceReportPdfService::class => \DI\autowire(),
+        // FinanceController braucht seit der PDF-Export-Action zusätzlich den
+        // FinanceReportPdfService - explizit verdrahtet, damit Autowiring hier
+        // nicht ins Spiel kommt und die Auflösung deterministisch bleibt.
+        FinanceController::class => function (ContainerInterface $c) {
+            return new FinanceController(
+                $c->get(Twig::class),
+                $c->get(BudgetService::class),
+                $c->get(LoggerInterface::class),
+                $c->get(FinanceReportPdfService::class)
             );
         },
         CsrfMiddleware::class => function (ContainerInterface $c) {

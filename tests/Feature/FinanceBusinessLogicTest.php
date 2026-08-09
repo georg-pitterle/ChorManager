@@ -10,6 +10,8 @@ use App\Models\Finance;
 use App\Models\FinanceGroup;
 use App\Models\Setting;
 use App\Services\BudgetService;
+use App\Services\FinanceReportPdfService;
+use App\Services\Pdf\TcLibPdfCanvas;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Handler\TestHandler;
@@ -83,7 +85,12 @@ final class FinanceBusinessLogicTest extends TestCase
     {
         $view = $this->createStub(Twig::class);
 
-        return new FinanceController($view, new BudgetService(), $logger ?? new NullLogger());
+        return new FinanceController(
+            $view,
+            new BudgetService(),
+            $logger ?? new NullLogger(),
+            new FinanceReportPdfService(new TcLibPdfCanvas())
+        );
     }
 
     private function baseFinanceData(array $overrides = []): array
@@ -353,6 +360,49 @@ final class FinanceBusinessLogicTest extends TestCase
             $this->assertStringNotContainsString('geheimer-beleg', (string) json_encode($record->context));
         }
 
+        unset($_SESSION['success'], $_SESSION['error']);
+    }
+
+    public function testBuildReportDataAggregatesIncomeExpenseAndBalance(): void
+    {
+        $controller = $this->makeController();
+        $method = new \ReflectionMethod($controller, 'buildReportData');
+
+        // Dev-Datenbank enthält bereits Bestandsbuchungen im Fiskaljahr 2025;
+        // daher Vorher/Nachher-Differenz statt absoluter Summen prüfen
+        // (gleiche Konvention wie z. B. testSaveRejectsNegativeAmount oben).
+        $before = $method->invoke($controller, 2025);
+        $financesCountBefore = $before['finances']->count();
+
+        Finance::create([
+            'running_number' => 9001, 'invoice_date' => '2025-10-05', 'payment_date' => null,
+            'description' => 'Einnahme A', 'group_name' => null, 'finance_group_id' => null,
+            'type' => 'income', 'amount' => '300.00', 'payment_method' => 'cash',
+        ]);
+        Finance::create([
+            'running_number' => 9002, 'invoice_date' => '2025-11-05', 'payment_date' => null,
+            'description' => 'Ausgabe B', 'group_name' => null, 'finance_group_id' => null,
+            'type' => 'expense', 'amount' => '120.00', 'payment_method' => 'bank_transfer',
+        ]);
+
+        $data = $method->invoke($controller, 2025);
+
+        $this->assertEqualsWithDelta(
+            300.0,
+            $data['total_income'] - $before['total_income'],
+            0.001
+        );
+        $this->assertEqualsWithDelta(
+            120.0,
+            $data['total_expense'] - $before['total_expense'],
+            0.001
+        );
+        $this->assertEqualsWithDelta(
+            180.0,
+            $data['balance'] - $before['balance'],
+            0.001
+        );
+        $this->assertGreaterThanOrEqual($financesCountBefore + 2, $data['finances']->count());
         unset($_SESSION['success'], $_SESSION['error']);
     }
 }

@@ -27,6 +27,10 @@
                     </select>
                 </form>
             {% endif %}
+            <a href="/finances/report/pdf?year={{ selected_year }}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-file-earmark-pdf"></i> PDF herunterladen
+            </a>
             <a href="/finances" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left"></i> Zurück zum Kassabuch
             </a>
