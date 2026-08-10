@@ -1,15 +1,15 @@
 <?php
 
 /**
- * ChorManager Single-Sign-On plugin for SnappyMail.
+ * ChorManager Single-Sign-On plugin for Tachyon (SnappyMail successor).
  *
  * Consumes a short-lived, libsodium-encrypted token issued by ChorManager
- * (App\Services\SnappymailSsoTokenService) at
+ * (App\Services\WebmailSsoTokenService) at
  * GET /webmail/?chormanager-sso&token=... and logs the user straight into
  * their IMAP mailbox via Actions::LoginProcess(), without a second login
  * prompt.
  *
- * Trust boundary: the token is encrypted with SNAPPYMAIL_SSO_SECRET, a
+ * Trust boundary: the token is encrypted with WEBMAIL_SSO_SECRET, a
  * secret shared only between ChorManager and this plugin - it is NOT the
  * same key ChorManager uses to encrypt stored IMAP credentials at rest
  * (MAIL_CREDENTIAL_KEY). Never reuse that key here.
@@ -19,17 +19,21 @@
  * ever echoed to the response on error.
  *
  * Deliberately declared in the GLOBAL namespace (no "namespace" statement):
- * RainLoop\Plugins\Manager::loadPluginByName() resolves the plugin class via
+ * Tachyon\Plugins\Manager::loadPluginByName() resolves the plugin class via
  * a bare, unqualified class_exists($sClassName)/is_subclass_of($sClassName,
- * 'RainLoop\Plugins\AbstractPlugin') check (Manager.php:142-145) where
- * $sClassName is the unqualified "ChormanagerSsoPlugin" computed from the
- * folder name - confirmed empirically: declaring this class inside
- * "namespace RainLoop\Plugins;" made it fully-qualified as
- * RainLoop\Plugins\ChormanagerSsoPlugin, which class_exists('ChormanagerSsoPlugin')
- * does not find, producing "Invalid plugin class ChormanagerSsoPlugin" in the
- * SnappyMail log and the plugin silently not loading.
+ * 'Tachyon\Plugins\AbstractPlugin') check where $sClassName is the
+ * unqualified "ChormanagerSsoPlugin" computed from the folder name -
+ * declaring this class inside a namespace makes it fully qualified, which
+ * class_exists('ChormanagerSsoPlugin') does not find, producing
+ * "Invalid plugin class ChormanagerSsoPlugin" in the Tachyon log and the
+ * plugin silently not loading.
+ *
+ * Tachyon renamed the RainLoop/SnappyMail namespaces to Tachyon\. Compat
+ * shims exist for RainLoop\Plugins\*, but not for the old SnappyMail
+ * SensitiveString class (now Tachyon\Util\SensitiveString) - so this plugin
+ * targets the Tachyon names directly instead of relying on shims.
  */
-class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
+class ChormanagerSsoPlugin extends \Tachyon\Plugins\AbstractPlugin
 {
 	const
 		NAME        = 'ChorManager SSO',
@@ -37,7 +41,7 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 		URL         = 'https://github.com/',
 		VERSION     = '1.0.0',
 		RELEASE     = '2026-06-29',
-		REQUIRED    = '2.24.3',
+		REQUIRED    = '3.0.1',
 		CATEGORY    = 'Login',
 		LICENSE     = 'Proprietary',
 		DESCRIPTION = 'Consumes a ChorManager-issued SSO token and logs the user into their IMAP mailbox.';
@@ -76,7 +80,7 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 			return;
 		}
 
-		$sSecretB64 = (string) \getenv('SNAPPYMAIL_SSO_SECRET');
+		$sSecretB64 = (string) \getenv('WEBMAIL_SSO_SECRET');
 		if ('' === $sSecretB64) {
 			$this->safeWriteLog('chormanager_sso.misconfigured');
 			return;
@@ -143,7 +147,7 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 		try {
 			$this->Manager()->Actions()->LoginProcess(
 				$sEmail,
-				new \SnappyMail\SensitiveString($sPassword),
+				new \Tachyon\Util\SensitiveString($sPassword),
 				true
 			);
 			$this->safeWriteLog('chormanager_sso.login_attempted');
@@ -181,11 +185,11 @@ class ChormanagerSsoPlugin extends \RainLoop\Plugins\AbstractPlugin
 	}
 
 	/**
-	 * Write (or overwrite) the SnappyMail domain JSON for the email's domain so
+	 * Write (or overwrite) the Tachyon domain JSON for the email's domain so
 	 * that LoginProcess() connects to the correct IMAP server instead of the
 	 * default localhost:143 fallback.
 	 *
-	 * SnappyMail resolves the IMAP server by loading
+	 * Tachyon resolves the IMAP server by loading
 	 * APP_PRIVATE_DATA/domains/{domain}.json at login time. Without this file
 	 * the default.json (localhost:143) is used, causing ConnectionError.
 	 *

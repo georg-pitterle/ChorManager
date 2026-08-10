@@ -239,9 +239,10 @@ class WebmailContainerDefinitionsTest extends TestCase
      */
     public static function pluginCopies(): array
     {
+        // Pfade wandern in Task 4 (Dev) bzw. Task 5 (Prod) auf webmail-*.
         return [
-            ['.ddev/webmail-plugins/chormanager-sso/index.php'],
-            ['dist/webmail/chormanager-sso/index.php'],
+            ['.ddev/snappymail-plugins/chormanager-sso/index.php'],
+            ['dist/snappymail/chormanager-sso/index.php'],
         ];
     }
 
@@ -283,7 +284,7 @@ class WebmailContainerDefinitionsTest extends TestCase
 - [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `ddev exec ./vendor/bin/phpunit tests/Feature/WebmailContainerDefinitionsTest.php`
-Expected: FAIL — die Pfade `.ddev/webmail-plugins/...` und `dist/webmail/...` existieren noch nicht (`… ist nicht lesbar.`)
+Expected: FAIL — beide Plugin-Kopien erweitern noch `\RainLoop\Plugins\AbstractPlugin`, nutzen `\SnappyMail\SensitiveString` und lesen `SNAPPYMAIL_SSO_SECRET`
 
 - [ ] **Step 3: Beide Plugin-Kopien anpassen**
 
@@ -373,9 +374,12 @@ Alles andere (Replay-Marker-Logik, `sweepOldMarkers()`, `decryptPayload()`, `saf
 Run: `ddev exec diff .ddev/snappymail-plugins/chormanager-sso/index.php dist/snappymail/chormanager-sso/index.php`
 Expected: keine Ausgabe (Dateien identisch)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Test laufen lassen, Erfolg bestätigen**
 
-Der Guard-Test bleibt bis Task 5 rot (die Pfade existieren erst dann) — deshalb wird er hier zusammen mit den Plugin-Änderungen committed, aber noch nicht als grün gemeldet.
+Run: `ddev exec ./vendor/bin/phpunit tests/Feature/WebmailContainerDefinitionsTest.php`
+Expected: PASS (6 Tests: 3 Assertions × 2 Plugin-Kopien)
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add .ddev/snappymail-plugins/chormanager-sso/index.php dist/snappymail/chormanager-sso/index.php tests/Feature/WebmailContainerDefinitionsTest.php
@@ -400,7 +404,13 @@ git commit -m "refactor(webmail): SSO-Plugin auf Tachyon-Namespaces umstellen"
 
 - [ ] **Step 1: Guard-Assertions für den Dev-Stack ergänzen**
 
-In `tests/Feature/WebmailContainerDefinitionsTest.php` innerhalb der Klasse ergänzen:
+In `tests/Feature/WebmailContainerDefinitionsTest.php` im Provider `pluginCopies()` den Dev-Pfad auf den neuen Ort umstellen:
+
+```php
+            ['.ddev/webmail-plugins/chormanager-sso/index.php'],
+```
+
+Und innerhalb der Klasse ergänzen:
 
 ```php
     public function testDevComposeUsesThePinnedTachyonImage(): void
@@ -681,7 +691,13 @@ git commit -m "feat(webmail): DDEV-Stack auf Tachyon umstellen"
 
 - [ ] **Step 1: Guard-Assertions für Prod ergänzen**
 
-In `tests/Feature/WebmailContainerDefinitionsTest.php` ergänzen:
+In `tests/Feature/WebmailContainerDefinitionsTest.php` im Provider `pluginCopies()` den Prod-Pfad auf den neuen Ort umstellen:
+
+```php
+            ['dist/webmail/chormanager-sso/index.php'],
+```
+
+Und ergänzen:
 
 ```php
     public function testProdImageBuildsOnThePinnedTachyonImage(): void

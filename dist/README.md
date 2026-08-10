@@ -53,11 +53,11 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `REMEMBER_ME_DAYS`     | Remember-me cookie lifetime in days    | `30`            | No       |
 | `TZ`                   | Container timezone                     | `Europe/Vienna` | No       |
 | `MAIL_CREDENTIAL_KEY`     | Encrypts stored IMAP passwords at rest (`openssl rand -base64 32`)   | -               | **Yes**  |
-| `SNAPPYMAIL_SSO_SECRET`   | Shared secret app ⇄ SnappyMail plugin (`openssl rand -base64 32`)    | -               | **Yes**  |
+| `WEBMAIL_SSO_SECRET`      | Shared secret app ⇄ Tachyon plugin (`openssl rand -base64 32`)       | -               | **Yes**  |
 | `APP_URL`                 | Public HTTPS URL, used for the webmail SSO redirect                  | -               | **Yes**  |
 | `MAIL_ALLOW_PRIVATE_HOSTS`| Allow IMAP hosts on private/loopback networks (SSRF guard opt-out)   | `0`             | No       |
-| `SNAPPYMAIL_UPLOAD_MAX_SIZE` | Upload limit inside the SnappyMail container                     | `25M`           | No       |
-| `SNAPPYMAIL_MEMORY_LIMIT` | PHP memory limit inside the SnappyMail container                     | `128M`          | No       |
+| `WEBMAIL_UPLOAD_MAX_SIZE` | Upload limit inside the webmail container                            | `25M`           | No       |
+| `WEBMAIL_MEMORY_LIMIT`    | PHP memory limit inside the webmail container                        | `128M`          | No       |
 | `BACKUP_DIR`              | In-app backup directory; must be inside the `backup_data` volume     | `/var/backups/chormanager` | No |
 | `BACKUP_MAX_MANUAL`       | Manual backups kept; new ones are refused at the limit               | `5`             | No       |
 | `BACKUP_MAX_AUTO`         | Automatic backups kept; the oldest is rotated out                    | `7`             | No       |
@@ -66,9 +66,9 @@ SMTP is configured exclusively via environment variables. It is no longer manage
 
 The mailbox / webmail feature is separate from the transactional SMTP above:
 `MAIL_CREDENTIAL_KEY` protects each user's stored IMAP credentials, and
-`SNAPPYMAIL_SSO_SECRET` secures the single-sign-on hand-off into the SnappyMail
+`WEBMAIL_SSO_SECRET` secures the single-sign-on hand-off into the Tachyon
 container. `MAIL_CREDENTIAL_KEY` is required as soon as the mailbox settings are
-visible in the profile, even if you do not deploy the SnappyMail container.
+visible in the profile, even if you do not deploy the webmail container.
 
 ## SWAG Reverse Proxy Example
 
@@ -102,15 +102,17 @@ a custom `STACK_ID`, use `chormanager-web-<STACK_ID>` as the `$upstream_app`.
 ## Duplicating the Stack on the Same Host
 
 Deploy a second stack under a **different Portainer stack name**. Container names,
-the `db_data`/`snappymail_data` volumes and the `internal`/`egress` networks are
-project-prefixed, so they isolate automatically. The only shared surface is the
-external `portainer_network`; the `web` and `snappymail` aliases on it are
-suffixed with `STACK_ID`. So for a duplicate you only change `.env`:
+the `db_data`/`snappymail_data` volumes (`snappymail_data` is a legacy name,
+kept deliberately — see "Migration von SnappyMail auf Tachyon" below) and the
+`internal`/`egress` networks are project-prefixed, so they isolate
+automatically. The only shared surface is the external `portainer_network`;
+the `web` and `webmail` aliases on it are suffixed with `STACK_ID`. So for a
+duplicate you only change `.env`:
 
 - give it a unique `STACK_ID` (e.g. `prod2`) — this re-points both aliases,
 - set a new `APP_URL` / hostname and fresh secrets,
 - add a SWAG proxy-conf whose `$upstream_app` / `$upstream_sm` use the same
-  `STACK_ID` suffix (`chormanager-web-prod2`, `chormanager-snappymail-prod2`).
+  `STACK_ID` suffix (`chormanager-web-prod2`, `chormanager-webmail-prod2`).
 
 No compose edits are needed.
 
@@ -141,28 +143,30 @@ The `web` service's own Nginx layer has a fixed `client_max_body_size 100m;` bak
 into the image (`nginx.conf`). Keep the SWAG `client_max_body_size` at or below
 that value — the effective upload limit is the smallest limit in the proxy chain.
 
-## Webmail (SnappyMail)
+## Webmail (Tachyon)
 
-The mailbox feature lets each user open a webmail client (SnappyMail) that logs
+The mailbox feature lets each user open a webmail client (Tachyon) that logs
 straight into their IMAP mailbox via a short-lived single-sign-on token.
+Tachyon is the maintained fork of the discontinued SnappyMail.
 
-> **Optional:** SnappyMail ist per `FEATURE_WEBMAIL` steuerbar (Default `false`).
-> Bei `FEATURE_WEBMAIL=false` kann der `snappymail`-Service samt
-> `SNAPPYMAIL_SSO_SECRET` komplett entfallen; Benutzer können stattdessen im
+> **Optional:** Das Webmail ist per `FEATURE_WEBMAIL` steuerbar (Default `false`).
+> Bei `FEATURE_WEBMAIL=false` kann der `webmail`-Service samt
+> `WEBMAIL_SSO_SECRET` komplett entfallen; Benutzer können stattdessen im
 > Profil eine externe Webmail-URL hinterlegen, auf die das Mail-Badge verlinkt.
 
-- The SnappyMail image `ghcr.io/<owner>/chormanager-snappymail:latest` is built
+- The webmail image `ghcr.io/<owner>/chormanager-webmail:latest` is built
   automatically by the GitHub Actions workflow, alongside `app` and `web`. The
-  `chormanager-sso` SSO plugin is baked into it (source: `dist/snappymail/`), so
+  `chormanager-sso` SSO plugin is baked into it (source: `dist/webmail/`), so
   no host-side bind-mounts are needed - it works from the Portainer web editor.
-- Add the `snappymail` service to the stack on the `proxy` network (it needs
+- Add the `webmail` service to the stack on the `proxy` network (it needs
   outbound access to reach IMAP/SMTP servers, so it must NOT sit on the
-  internal-only network), plus a `snappymail_data` named volume.
-- Set `MAIL_CREDENTIAL_KEY`, `SNAPPYMAIL_SSO_SECRET` and `APP_URL` (see the table
-  above). `SNAPPYMAIL_SSO_SECRET` is consumed by both `app` and `snappymail`
+  internal-only network), plus the `snappymail_data` named volume (Legacy-Name,
+  absichtlich beibehalten - siehe Migrationshinweis unten).
+- Set `MAIL_CREDENTIAL_KEY`, `WEBMAIL_SSO_SECRET` and `APP_URL` (see the table
+  above). `WEBMAIL_SSO_SECRET` is consumed by both `app` and `webmail`
   from the same variable, so the two sides always match.
 
-Route `/webmail/` to SnappyMail in your existing SWAG proxy config (same
+Route `/webmail/` to Tachyon in your existing SWAG proxy config (same
 `server_name` as the app, so the SSO stays same-origin), before the `location /`
 block:
 
@@ -170,37 +174,121 @@ block:
     location /webmail/ {
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
-        set $upstream_sm chormanager-snappymail-prod;
+        set $upstream_sm chormanager-webmail-prod;
         # SWAG proxies to a variable upstream (for its resolver). With a variable
         # upstream, proxy_pass does NOT strip the /webmail/ prefix via a trailing
         # slash the way a literal upstream would — it forwards /webmail/?/... to
-        # SnappyMail unchanged (and can even drop the query), so SnappyMail replies
+        # Tachyon unchanged (and can even drop the query), so Tachyon replies
         # with its HTML shell and its JSON/AJAX calls fail with
         # "Invalid Content-Type 'text/html'". Strip the prefix explicitly instead:
         rewrite ^/webmail/(.*) /$1 break;
         proxy_pass http://$upstream_sm:8888;
     }
 
-    location /snappymail/ {
+    location /tachyon/ {
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
-        set $upstream_sm chormanager-snappymail-prod;
-        # No URI part on proxy_pass, so the original /snappymail/... asset path is
+        set $upstream_sm chormanager-webmail-prod;
+        # No URI part on proxy_pass, so the original /tachyon/... asset path is
         # forwarded unchanged (again, don't rely on a trailing slash with a
         # variable upstream).
         proxy_pass http://$upstream_sm:8888;
     }
 ```
 
-`/webmail/` serves the SnappyMail shell (the `/webmail/` prefix stripped by the
-`rewrite`); `/snappymail/` passes its version-pinned static assets straight
-through. The SnappyMail admin password
-is auto-generated on first boot inside the volume; retrieve it if needed with:
+`/webmail/` serves the Tachyon shell (the `/webmail/` prefix stripped by the
+`rewrite`); `/tachyon/` passes its version-pinned static assets straight
+through. The admin password is auto-generated on first boot inside the volume;
+retrieve it if needed with:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec snappymail \
-  cat /var/lib/snappymail/_data_/_default_/admin_password.txt
+docker compose -f docker-compose.prod.yml exec webmail \
+  cat /var/lib/tachyon/_data_/_default_/admin_password.txt
 ```
+
+### Migration von SnappyMail auf Tachyon
+
+Diese Schritte sind **nicht** durch das Deployment abgedeckt und müssen beim
+Umstieg einmalig von Hand erledigt werden. Die Reihenfolge ist bewusst so
+gewählt, dass die Anwendung dabei nie ungeplant komplett offline geht.
+
+1. **Datensicherung (empfohlen):** Der erste Start von Tachyon gegen ein von
+   SnappyMail 2.38.2 beschriebenes Volume ist der einzige an dieser Migration
+   schwer umkehrbare Schritt und wurde lokal nur gegen ein frisches, leeres
+   Volume verifiziert. Vor dem Deploy sichern:
+
+   ```bash
+   docker run --rm -v <stack>_snappymail_data:/data -v "$PWD":/b alpine tar czf /b/webmail-vol.tgz -C /data .
+   ```
+
+   `<stack>` ist dabei der tatsächliche Portainer-Stackname. Das Volume selbst
+   wird danach unverändert weiterverwendet (siehe Schritt 5) — es ist weiterhin
+   kein Datenexport und keine Volume-Migration nötig, die Sicherung ist nur ein
+   Rücksprungpunkt für den Fall, dass Tachyon die bestehenden Daten nicht sauber
+   übernimmt.
+2. **GHCR-Paket-Sichtbarkeit:** `chormanager-webmail` ist ein neues GHCR-Paket.
+   Neue GHCR-Pakete sind standardmäßig privat, daher schlägt der erste Pull auf
+   dem Produktionshost mit `denied` fehl. Die Sichtbarkeit muss deshalb einmalig
+   genauso gesetzt werden wie zuvor beim Paket `chormanager-snappymail` — ein
+   erneuter Pull-Versuch behebt das nicht. Nach dem ersten erfolgreichen
+   Workflow-Lauf auf GitHub: Profil bzw. Organisation → **Packages** →
+   `chormanager-webmail` → **Package settings** → **Change visibility** → auf
+   denselben Wert setzen wie beim alten Paket. Alternativ per CLI:
+
+   ```bash
+   gh api -X PATCH /user/packages/container/chormanager-webmail \
+     -f visibility=public
+   ```
+
+   Danach auf dem Host verifizieren, dass der Pull durchgeht — noch bevor der
+   Stack aktualisiert wird:
+
+   ```bash
+   docker pull ghcr.io/<owner>/chormanager-webmail:latest
+   ```
+
+3. **Portainer-Env:** `WEBMAIL_SSO_SECRET` mit dem bisherigen Wert von
+   `SNAPPYMAIL_SSO_SECRET` anlegen — die `SNAPPYMAIL_*`-Variablen dabei
+   **noch nicht entfernen**. Portainer speichert Stack-Env-Änderungen, indem es
+   einen Redeploy mit dem aktuell hinterlegten Compose-File auslöst, und dieses
+   alte Compose-File verlangt `SNAPPYMAIL_SSO_SECRET` weiterhin zwingend über
+   `:?set in Portainer` — sowohl für `app` als auch für `webmail`. Wird die
+   Variable schon jetzt gelöscht, bricht genau dieser Redeploy ab und reißt die
+   gesamte Anwendung mit, nicht nur das Webmail. Der Wert muss auf App- und
+   Webmail-Seite identisch bleiben. Wer stattdessen über `--env-file` bzw. die
+   `dist/.env`-Datei deployt (siehe "Portainer Deployment" oben), nimmt dieselbe
+   Umbenennung dort in der `.env`-Datei vor.
+4. **SWAG-Config:** `location /snappymail/` in `location /tachyon/` umbenennen
+   und in **beiden** Location-Blöcken den Upstream von
+   `chormanager-snappymail-prod` auf `chormanager-webmail-prod` umstellen. Das
+   kann vor oder direkt nach dem nächsten Schritt passieren: vorher zeigt
+   `/webmail/` kurz auf ein noch nicht existierendes Ziel, direkt danach fehlen
+   bis zur Anpassung CSS/JS — in beiden Fällen ist die Lücke kurz und bleibt auf
+   das Webmail beschränkt.
+5. **Stack neu deployen** mit dem neuen `docker-compose.prod.yml`. Aktiviere
+   dabei in Portainer die Option **„Prune services“** (oder entferne den alten
+   `snappymail`-Container danach manuell) — Portainer entfernt Services, die aus
+   dem Compose-File verschwunden sind, sonst nicht automatisch. Der alte
+   Container läuft mit `restart: unless-stopped` einfach weiter, behält seinen
+   Netzwerk-Alias und mountet über `/var/lib/snappymail` weiterhin dasselbe
+   Volume wie das neue `webmail` unter `/var/lib/tachyon`. Zwei
+   Mailserver-Hauptversionen, die gleichzeitig in dasselbe
+   `_data_/_default_/`-Verzeichnis schreiben, riskieren eine korrupte
+   Konfiguration. Das Volume selbst wird unverändert weiterverwendet, nur unter
+   dem neuen Mountpfad `/var/lib/tachyon` — es ist kein Datenexport und keine
+   Volume-Migration nötig. Admin-Passwort, Domain-Konfigurationen und
+   Benutzereinstellungen bleiben erhalten.
+6. **Verifizieren:** `/webmail/` öffnet die Tachyon-Oberfläche, der SSO-Login
+   aus dem Profil funktioniert, und `docker compose -f docker-compose.prod.yml
+   ps` zeigt keinen `snappymail`-Container mehr.
+7. **Aufräumen:** Erst jetzt die nicht mehr benötigten `SNAPPYMAIL_*`-Variablen
+   (`SNAPPYMAIL_SSO_SECRET`, `SNAPPYMAIL_UPLOAD_MAX_SIZE`,
+   `SNAPPYMAIL_MEMORY_LIMIT`) aus der Portainer-Stack-Env bzw. der `.env`-Datei
+   entfernen.
+8. **Grafana:** Das Dashboard `dist/grafana/chormanager-logs.json` erneut
+   importieren. Ohne den Re-Import bleibt der alte Service-Filter des
+   Rohlog-Panels aktiv und die Logzeilen des neuen `webmail`-Containers
+   verschwinden dort stillschweigend.
 
 ## Operational Notes
 
@@ -231,7 +319,7 @@ Each service opts in through Docker labels:
 |----------------|-----------------------|----------------------------------------------------|
 | `logs.job`     | `chormanager`         | Opt-in switch. Without it, Alloy skips the rules.   |
 | `logs.stack`   | `${STACK_ID:-prod}`   | Separates duplicated stacks (prod vs. test).        |
-| `logs.service` | `app` \| `web` \| `db` \| `snappymail` | Stable across stacks, unlike the container name. |
+| `logs.service` | `app` \| `web` \| `db` \| `webmail` | Stable across stacks, unlike the container name. |
 | `logs.format`  | `monolog` \| `raw`    | Selects the parsing stage. Only `app` writes JSON.  |
 
 `logs.service` is deliberately not the container name: that name is unique per

@@ -54,7 +54,7 @@ class StackResilienceFeatureTest extends TestCase
         $compose = $this->productionCompose();
 
         $this->assertStringContainsString('chormanager-web-${STACK_ID:-prod}', $compose);
-        $this->assertStringContainsString('chormanager-snappymail-${STACK_ID:-prod}', $compose);
+        $this->assertStringContainsString('chormanager-webmail-${STACK_ID:-prod}', $compose);
     }
 
     /**

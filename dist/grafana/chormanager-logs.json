@@ -708,7 +708,7 @@
         "type": "loki",
         "uid": "${DS_LOKI}"
       },
-      "description": "Logzeilen von Nginx, MySQL und SnappyMail, neueste zuerst.",
+      "description": "Logzeilen von Nginx, MySQL und Webmail, neueste zuerst.",
       "gridPos": {
         "h": 9,
         "w": 24,
@@ -733,7 +733,7 @@
             "uid": "${DS_LOKI}"
           },
           "editorMode": "code",
-          "expr": "{job=\"chormanager\", stack=~\"$stack\", service=~\"web|db|snappymail\"}",
+          "expr": "{job=\"chormanager\", stack=~\"$stack\", service=~\"web|db|webmail\"}",
           "queryType": "range",
           "refId": "A"
         }

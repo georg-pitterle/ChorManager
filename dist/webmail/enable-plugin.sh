@@ -1,20 +1,20 @@
 #!/bin/sh
 set -eu
 
-# Startup helper for the custom ChorManager SnappyMail image. Runs in the
+# Startup helper for the custom ChorManager Tachyon image. Runs in the
 # background next to the image's real entrypoint (see the Dockerfile CMD) - it
 # must not block or replace it.
 #
 # Responsibilities, in order:
-#   1. Pass SNAPPYMAIL_SSO_SECRET through to php-fpm workers.
+#   1. Pass WEBMAIL_SSO_SECRET through to php-fpm workers.
 #   2. Sync the baked plugin into the data volume (so image updates apply even
 #      when the named volume already exists).
 #   3. Enable the plugin in application.ini.
 
 SRC_PLUGIN="/opt/chormanager-sso/chormanager-sso"
-PLUGINS_DIR="/var/lib/snappymail/_data_/_default_/plugins"
+PLUGINS_DIR="/var/lib/tachyon/_data_/_default_/plugins"
 DEST_PLUGIN="${PLUGINS_DIR}/chormanager-sso"
-CONFIG_FILE="/var/lib/snappymail/_data_/_default_/configs/application.ini"
+CONFIG_FILE="/var/lib/tachyon/_data_/_default_/configs/application.ini"
 PLUGIN_NAME="chormanager-sso"
 TIMEOUT_SECONDS=30
 WAITED=0
@@ -23,7 +23,7 @@ WAITED=0
 #
 # php-fpm clears the worker process environment by default (no "clear_env = no"
 # and no "env[...]" directive in the image's active pool config), so
-# getenv('SNAPPYMAIL_SSO_SECRET') inside a plugin request would return "".
+# getenv('WEBMAIL_SSO_SECRET') inside a plugin request would return "".
 # Mirror the image's own pattern by appending an explicit env[] passthrough.
 #
 # entrypoint.sh sed-edits this same file's <UPLOAD_MAX_SIZE>/<MEMORY_LIMIT>
@@ -45,9 +45,9 @@ done
 # Idempotent. The value MUST be double-quoted: base64 secrets routinely contain
 # "+", "/" and trailing "=" padding, and an unquoted "=" inside a php-fpm env[]
 # value breaks its ini-style parser.
-if [ -f "${FPM_POOL_CONFIG}" ] && ! grep -q '^env\[SNAPPYMAIL_SSO_SECRET\]' "${FPM_POOL_CONFIG}"; then
-    echo "env[SNAPPYMAIL_SSO_SECRET] = \"${SNAPPYMAIL_SSO_SECRET:-}\"" >> "${FPM_POOL_CONFIG}"
-    echo "[chormanager-enable-plugin] Added SNAPPYMAIL_SSO_SECRET passthrough to ${FPM_POOL_CONFIG}."
+if [ -f "${FPM_POOL_CONFIG}" ] && ! grep -q '^env\[WEBMAIL_SSO_SECRET\]' "${FPM_POOL_CONFIG}"; then
+    echo "env[WEBMAIL_SSO_SECRET] = \"${WEBMAIL_SSO_SECRET:-}\"" >> "${FPM_POOL_CONFIG}"
+    echo "[chormanager-enable-plugin] Added WEBMAIL_SSO_SECRET passthrough to ${FPM_POOL_CONFIG}."
 fi
 
 # --- 2. wait for the data volume, then sync the baked plugin ---------------

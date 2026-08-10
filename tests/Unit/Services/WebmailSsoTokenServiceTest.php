@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\SnappymailSsoTokenService;
+use App\Services\WebmailSsoTokenService;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-class SnappymailSsoTokenServiceTest extends TestCase
+class WebmailSsoTokenServiceTest extends TestCase
 {
-    private const ENV_KEY = 'SNAPPYMAIL_SSO_SECRET';
+    private const ENV_KEY = 'WEBMAIL_SSO_SECRET';
 
     private ?string $originalEnvValue = null;
     private ?string $originalServerValue = null;
@@ -59,7 +59,7 @@ class SnappymailSsoTokenServiceTest extends TestCase
 
     public function testCreateTokenProducesDifferentCiphertextForIdenticalPayload(): void
     {
-        $service = new SnappymailSsoTokenService();
+        $service = new WebmailSsoTokenService();
         $payload = [
             'email' => 'singer@example.org',
             'imap_user' => 'singer@example.org',
@@ -77,7 +77,7 @@ class SnappymailSsoTokenServiceTest extends TestCase
 
     public function testCreateTokenRoundTripsPayloadUsingSamePrimitiveAndKey(): void
     {
-        $service = new SnappymailSsoTokenService();
+        $service = new WebmailSsoTokenService();
         $key = base64_decode((string) $_ENV[self::ENV_KEY], true);
         $this->assertIsString($key);
 
@@ -104,7 +104,7 @@ class SnappymailSsoTokenServiceTest extends TestCase
         $this->setEnv(null);
 
         $this->expectException(RuntimeException::class);
-        new SnappymailSsoTokenService();
+        new WebmailSsoTokenService();
     }
 
     public function testConstructorThrowsWhenSecretIsEmpty(): void
@@ -112,7 +112,7 @@ class SnappymailSsoTokenServiceTest extends TestCase
         $this->setEnv('');
 
         $this->expectException(RuntimeException::class);
-        new SnappymailSsoTokenService();
+        new WebmailSsoTokenService();
     }
 
     public function testConstructorThrowsWhenSecretIsWrongLength(): void
@@ -120,7 +120,7 @@ class SnappymailSsoTokenServiceTest extends TestCase
         $this->setEnv(base64_encode(random_bytes(16)));
 
         $this->expectException(RuntimeException::class);
-        new SnappymailSsoTokenService();
+        new WebmailSsoTokenService();
     }
 
     public function testConstructorThrowsWhenSecretIsNotValidBase64(): void
@@ -128,7 +128,7 @@ class SnappymailSsoTokenServiceTest extends TestCase
         $this->setEnv('not-valid-base64-!!!');
 
         $this->expectException(RuntimeException::class);
-        new SnappymailSsoTokenService();
+        new WebmailSsoTokenService();
     }
 
     private function decryptWithKey(string $encoded, string $key): string

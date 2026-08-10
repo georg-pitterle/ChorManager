@@ -1,0 +1,76 @@
+# Tachyon webmail service for ChorManager's local DDEV environment.
+#
+# Image: ghcr.io/kimusan/tachyon (https://github.com/kimusan/Tachyon), the
+# maintained fork of the discontinued SnappyMail. Verified via the project's
+# .docker/release/Dockerfile and entrypoint.sh:
+#   - EXPOSE 8888 (nginx, the port to reach for HTTP) and EXPOSE 9000 (internal php-fpm,
+#     not for external use).
+#   - VOLUME /var/lib/tachyon holds all persistent config and per-account state.
+#   - entrypoint.sh supports UPLOAD_MAX_SIZE, MEMORY_LIMIT, SECURE_COOKIES, DEBUG env vars.
+#     There is no admin-password env var; the image auto-generates one on first boot and
+#     writes it to /var/lib/tachyon/_data_/_default_/admin_password.txt inside the
+#     volume (retrievable via `ddev exec -s webmail cat ...` if the admin UI is needed).
+#
+# No host port is published: only the `web` container needs to reach this service, and it
+# does so by service name (`webmail`) over the DDEV project's default network, which
+# every service defined here joins automatically (per DDEV's documented behavior for
+# .ddev/docker-compose.*.yaml add-on files).
+#
+# SSO auto-login wiring:
+#   - The `chormanager-sso` plugin source is bind-mounted from this repo into Tachyon's
+#     plugins directory (APP_PLUGINS_PATH resolves to
+#     /var/lib/tachyon/_data_/_default_/plugins/ at runtime). NOT mounted `:ro`: the
+#     image's entrypoint.sh unconditionally runs `chown -R www-data:www-data
+#     /var/lib/tachyon/` on every boot, which would fail with "Read-only file system"
+#     under a `:ro` bind mount and (because entrypoint.sh uses `set -eu`) abort the whole
+#     container before nginx/php-fpm ever start. The plugin source itself is still only
+#     ever read by the application, never written to.
+#   - `enable-plugin.sh` is bind-mounted read-only and run in the background by the
+#     `command:` override below via `sh /chormanager-enable-plugin.sh` (not executed
+#     directly - Windows-host bind mounts do not preserve the executable bit, so a direct
+#     `/chormanager-enable-plugin.sh &` invocation fails with "Permission denied"). It
+#     idempotently flips `[plugins] enable = On` and appends `chormanager-sso` to
+#     `enabled_list` in application.ini once the image's entrypoint has generated that file
+#     on first boot, then gets out of the way.
+#   - The image declares `ENTRYPOINT []` and `CMD ["/entrypoint.sh"]`, so overriding
+#     `command:` here fully and safely replaces startup - `exec /entrypoint.sh` at the end
+#     preserves the image's normal startup behavior unchanged.
+#   - WEBMAIL_SSO_SECRET is the shared secret between ChorManager
+#     (App\Services\WebmailSsoTokenService) and the plugin; it is distinct from
+#     MAIL_CREDENTIAL_KEY (which protects stored IMAP credentials at rest).
+#   - IMPORTANT (also applies to WEBMAIL_UPLOAD_MAX_SIZE/WEBMAIL_MEMORY_LIMIT below):
+#     "${VAR}" interpolation in .ddev/docker-compose.*.yaml is resolved from DDEV's own
+#     process environment, NOT from this project's root .env file (that file is loaded by
+#     the PHP app at runtime via vlucas/phpdotenv - a completely separate mechanism).
+#     Setting WEBMAIL_SSO_SECRET only in the project root .env produces
+#     `level=warning msg="The \"WEBMAIL_SSO_SECRET\" variable is not set."` on `ddev
+#     restart`, and the plugin then sees an empty secret. Fix: also write it to
+#     .ddev/.env.webmail (gitignored, like .env), e.g.:
+#       ddev dotenv set .ddev/.env.webmail --webmail-sso-secret="$(php -r 'echo base64_encode(random_bytes(32));')"
+#     DDEV auto-loads any .ddev/.env* file for compose variable substitution.
+services:
+  webmail:
+    image: ghcr.io/kimusan/tachyon:v3.2.2
+    container_name: ddev-${DDEV_SITENAME}-webmail
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    environment:
+      - UPLOAD_MAX_SIZE=${WEBMAIL_UPLOAD_MAX_SIZE:-25M}
+      - MEMORY_LIMIT=${WEBMAIL_MEMORY_LIMIT:-128M}
+      - SECURE_COOKIES=true
+      - WEBMAIL_SSO_SECRET=${WEBMAIL_SSO_SECRET}
+    volumes:
+      - webmail_data:/var/lib/tachyon
+      # Paths in .ddev/docker-compose.*.yaml are resolved relative to the .ddev/ directory
+      # itself (a "./.ddev/webmail-plugins/..." path would resolve to the doubled
+      # ".ddev/.ddev/webmail-plugins/..." and silently bind-mount an empty directory
+      # instead) - so these are "./webmail-plugins/...", not "./.ddev/...".
+      - ./webmail-plugins/chormanager-sso:/var/lib/tachyon/_data_/_default_/plugins/chormanager-sso
+      - ./webmail-plugins/enable-plugin.sh:/chormanager-enable-plugin.sh:ro
+    command: ["sh", "-c", "sh /chormanager-enable-plugin.sh & exec /entrypoint.sh"]
+
+volumes:
+  webmail_data:
+    name: ${DDEV_SITENAME}-webmail

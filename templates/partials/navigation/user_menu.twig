@@ -1,14 +1,22 @@
 {% set _mail_badge = mail_badge() %}
 {% set _unseen_count = _mail_badge.unseen_count %}
 {% set _external_webmail_url = _mail_badge.external_webmail_url %}
-{% if _unseen_count is not null and _unseen_count > 0 %}
+{# Sichtbar, sobald ein Postfach eingerichtet ist - auch bei 0 ungelesenen
+   Nachrichten, damit der Schnellzugriff aufs Postfach nicht ausgerechnet dann
+   verschwindet, wenn alles gelesen ist. Die rote Zähler-Pille bleibt dem Fall
+   "mindestens eine ungelesene Nachricht" vorbehalten: Rot signalisiert
+   Handlungsbedarf und wäre bei 0 irreführend. #}
+{% if _unseen_count is not null %}
+    {% set _has_unseen = _unseen_count > 0 %}
     {% set _badge_label = _unseen_count > 99 ? "99+" : _unseen_count %}
     {% if settings.modules.webmail %}
         <form action="/profile/webmail/start" method="post" class="m-0 me-3" target="_blank">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-link text-white p-0 mail-badge-trigger" title="Postfach öffnen">
                 <i class="bi bi-envelope-fill fs-5"></i>
-                <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+                {% if _has_unseen %}
+                    <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+                {% endif %}
             </button>
         </form>
     {% elseif _external_webmail_url %}
@@ -18,12 +26,16 @@
            rel="noopener noreferrer"
            title="Postfach öffnen">
             <i class="bi bi-envelope-fill fs-5"></i>
-            <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+            {% if _has_unseen %}
+                <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+            {% endif %}
         </a>
     {% else %}
-        <span class="text-white me-3 mail-badge-trigger" title="Ungelesene Nachrichten">
+        <span class="text-white me-3 mail-badge-trigger" title="Postfach">
             <i class="bi bi-envelope-fill fs-5"></i>
-            <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+            {% if _has_unseen %}
+                <span class="badge bg-danger rounded-pill mail-badge-count">{{ _badge_label }}</span>
+            {% endif %}
         </span>
     {% endif %}
 {% endif %}

@@ -1,20 +1,20 @@
 #!/bin/sh
 set -eu
 
-# Idempotently enables the chormanager-sso plugin in SnappyMail's
+# Idempotently enables the chormanager-sso plugin in Tachyon's
 # application.ini once the image's entrypoint has generated it on first
 # boot. Runs in the background alongside the image's real entrypoint (see
-# .ddev/docker-compose.snappymail.yaml command: override) - it must not
+# .ddev/docker-compose.webmail.yaml command: override) - it must not
 # block or replace it.
 
-CONFIG_FILE="/var/lib/snappymail/_data_/_default_/configs/application.ini"
+CONFIG_FILE="/var/lib/tachyon/_data_/_default_/configs/application.ini"
 PLUGIN_NAME="chormanager-sso"
 TIMEOUT_SECONDS=30
 WAITED=0
 
 # php-fpm clears the worker process environment by default (no "clear_env = no"
 # and no "env[...]" directive in the image's active pool config, confirmed by
-# reading /usr/local/etc/php-fpm.d/php-fpm.conf) - so getenv('SNAPPYMAIL_SSO_SECRET')
+# reading /usr/local/etc/php-fpm.d/php-fpm.conf) - so getenv('WEBMAIL_SSO_SECRET')
 # inside a plugin request always returned "" even though the shell/container
 # environment had it set correctly. Mirror the image's own established pattern
 # (entrypoint.sh sed-edits this same file's <UPLOAD_MAX_SIZE>/<MEMORY_LIMIT>
@@ -22,7 +22,7 @@ WAITED=0
 # php-fpm starts via the later "exec supervisord" in entrypoint.sh.
 #
 # This script and entrypoint.sh both start concurrently (see command: override
-# in docker-compose.snappymail.yaml) and entrypoint.sh edits this SAME file
+# in docker-compose.webmail.yaml) and entrypoint.sh edits this SAME file
 # with "sed -i" within its first few lines. Appending here without
 # synchronizing against that lost the race in practice (confirmed empirically:
 # the appended line was present right after our own `echo >>`, but had
@@ -51,9 +51,9 @@ done
 # php-fpm env[] value breaks its ini-style parser (confirmed empirically: an
 # unquoted value caused "PHP: syntax error, unexpected '=' in Unknown on line
 # 1" and php-fpm refused to start at all).
-if [ -f "${FPM_POOL_CONFIG}" ] && ! grep -q '^env\[SNAPPYMAIL_SSO_SECRET\]' "${FPM_POOL_CONFIG}"; then
-    echo "env[SNAPPYMAIL_SSO_SECRET] = \"${SNAPPYMAIL_SSO_SECRET:-}\"" >> "${FPM_POOL_CONFIG}"
-    echo "[chormanager-enable-plugin] Added SNAPPYMAIL_SSO_SECRET passthrough to ${FPM_POOL_CONFIG}."
+if [ -f "${FPM_POOL_CONFIG}" ] && ! grep -q '^env\[WEBMAIL_SSO_SECRET\]' "${FPM_POOL_CONFIG}"; then
+    echo "env[WEBMAIL_SSO_SECRET] = \"${WEBMAIL_SSO_SECRET:-}\"" >> "${FPM_POOL_CONFIG}"
+    echo "[chormanager-enable-plugin] Added WEBMAIL_SSO_SECRET passthrough to ${FPM_POOL_CONFIG}."
 fi
 
 echo "[chormanager-enable-plugin] Waiting for ${CONFIG_FILE} to appear..."

@@ -34,7 +34,7 @@ jobs:
         OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         echo "app=ghcr.io/$OWNER/chormanager-app:latest" >> "$GITHUB_OUTPUT"
         echo "web=ghcr.io/$OWNER/chormanager-web:latest" >> "$GITHUB_OUTPUT"
-        echo "snappymail=ghcr.io/$OWNER/chormanager-snappymail:latest" >> "$GITHUB_OUTPUT"
+        echo "webmail=ghcr.io/$OWNER/chormanager-webmail:latest" >> "$GITHUB_OUTPUT"
 
     - name: Build and push app image
       uses: docker/build-push-action@v7
@@ -60,13 +60,13 @@ jobs:
         cache-from: type=gha,scope=web
         cache-to: type=gha,mode=max,scope=web
 
-    - name: Build and push SnappyMail image
+    - name: Build and push webmail image
       uses: docker/build-push-action@v7
       with:
-        context: ./dist/snappymail
-        file: ./dist/snappymail/Dockerfile
+        context: ./dist/webmail
+        file: ./dist/webmail/Dockerfile
         push: true
-        tags: ${{ steps.set-images.outputs.snappymail }}
+        tags: ${{ steps.set-images.outputs.webmail }}
         platforms: linux/amd64,linux/arm64
-        cache-from: type=gha,scope=snappymail
-        cache-to: type=gha,mode=max,scope=snappymail
+        cache-from: type=gha,scope=webmail
+        cache-to: type=gha,mode=max,scope=webmail

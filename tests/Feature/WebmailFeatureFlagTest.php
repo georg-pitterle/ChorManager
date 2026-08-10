@@ -153,8 +153,11 @@ final class WebmailFeatureFlagTest extends TestCase
         $this->assertStringContainsString('href="{{ _external_webmail_url }}"', $template);
         $this->assertStringContainsString('rel="noopener noreferrer"', $template);
 
-        // Fall 3: Flag aus, keine URL -> reiner Indikator ohne Form/Link.
-        $this->assertStringContainsString('title="Ungelesene Nachrichten"', $template);
+        // Fall 3: Flag aus, keine URL -> reiner Indikator ohne Form/Link. Der Titel
+        // nennt bewusst das Postfach und nicht "Ungelesene Nachrichten": das Element
+        // ist auch bei 0 ungelesenen Nachrichten sichtbar.
+        $this->assertStringContainsString('title="Postfach"', $template);
+        $this->assertStringNotContainsString('title="Ungelesene Nachrichten"', $template);
     }
 
     public function testEnvExamplesDocumentFeatureWebmail(): void
@@ -211,7 +214,7 @@ final class WebmailFeatureFlagTest extends TestCase
         // SWAG proxies to a variable upstream (needed for its resolver). With a
         // variable upstream, proxy_pass does NOT strip the /webmail/ prefix via a
         // trailing slash the way a literal upstream does — it forwards the request
-        // unchanged or drops the query, so SnappyMail's /webmail/?/AppData/... AJAX
+        // unchanged or drops the query, so Tachyon's /webmail/?/AppData/... AJAX
         // calls get its HTML shell back ("Invalid Content-Type text/html"). The
         // documented config must therefore strip the prefix with an explicit
         // rewrite and must not rely on the trailing-slash form.
@@ -220,7 +223,47 @@ final class WebmailFeatureFlagTest extends TestCase
 
         $this->assertStringContainsString('rewrite ^/webmail/(.*) /$1 break;', $readme);
         $this->assertStringNotContainsString('proxy_pass http://$upstream_sm:8888/;', $readme);
-        $this->assertStringNotContainsString('proxy_pass http://$upstream_sm:8888/snappymail/;', $readme);
+        $this->assertStringNotContainsString('proxy_pass http://$upstream_sm:8888/tachyon/;', $readme);
+    }
+
+    /**
+     * Tachyon liefert seine statischen Assets unter dem absoluten Prefix
+     * /tachyon/ aus (nginx-root im Image ist /tachyon). Die dokumentierte
+     * SWAG-Config muss genau diesen Pfad durchreichen, sonst lädt das Webmail
+     * in Prod ohne CSS/JS.
+     */
+    public function testProdReadmeDocumentsTheTachyonAssetLocation(): void
+    {
+        $readme = file_get_contents(dirname(__DIR__, 2) . '/dist/README.md');
+        $this->assertIsString($readme);
+
+        $this->assertStringContainsString('location /tachyon/ {', $readme);
+        $this->assertStringNotContainsString('location /snappymail/ {', $readme);
+
+        // Both /webmail/ and /tachyon/ location blocks must use the new upstream.
+        // A regression where only one block reverts to the old chormanager-snappymail-prod
+        // would cause 404s for webmail assets. Assert exactly 2 occurrences of the
+        // new upstream line to catch this.
+        $this->assertSame(
+            2,
+            substr_count($readme, 'set $upstream_sm chormanager-webmail-prod;'),
+            'Upstream must be set in both /webmail/ and /tachyon/ location blocks'
+        );
+
+        // Extract all nginx config blocks to verify the old upstream is not active.
+        // The migration documentation may mention the old name in prose, but no nginx
+        // code block itself must use it. A failing match (e.g. a renamed fence such as
+        // ```conf) must fail the test loudly instead of silently skipping the check.
+        $matchCount = preg_match_all('/```nginx\s*(.*?)\s*```/s', $readme, $matches);
+        $this->assertGreaterThan(0, $matchCount, 'No ```nginx code blocks found in dist/README.md.');
+
+        // $matches[1] contains all captured nginx blocks
+        $allNginxBlocks = implode("\n", $matches[1]);
+        $this->assertStringNotContainsString(
+            'chormanager-snappymail-prod',
+            $allNginxBlocks,
+            'Old upstream name must not appear in any nginx code block'
+        );
     }
 
     public function testProfileTemplateHasDeleteMailboxForm(): void

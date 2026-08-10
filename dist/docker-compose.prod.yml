@@ -26,7 +26,7 @@ x-app-environment: &app-environment
   FEATURE_TASKS: ${FEATURE_TASKS:-false}
   FEATURE_REGISTRATION: ${FEATURE_REGISTRATION:-false}
   MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
-  SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
+  WEBMAIL_SSO_SECRET: ${WEBMAIL_SSO_SECRET:?set in Portainer}
   APP_URL: ${APP_URL:?set in Portainer}
   MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-0}
   # Must point into the backup_data volume mounted on the app service. The
@@ -171,25 +171,29 @@ services:
       options:
         max-size: "10m"
         max-file: "3"   
-  snappymail:
-    image: ghcr.io/georg-pitterle/chormanager-snappymail:latest
+  webmail:
+    image: ghcr.io/georg-pitterle/chormanager-webmail:latest
     restart: unless-stopped
     labels:
       logs.job: "chormanager"
       logs.stack: "${STACK_ID:-prod}"
-      logs.service: "snappymail"
+      logs.service: "webmail"
       logs.format: "raw"
     environment:
-      UPLOAD_MAX_SIZE: ${SNAPPYMAIL_UPLOAD_MAX_SIZE:-25M}
-      MEMORY_LIMIT: ${SNAPPYMAIL_MEMORY_LIMIT:-128M}
+      UPLOAD_MAX_SIZE: ${WEBMAIL_UPLOAD_MAX_SIZE:-25M}
+      MEMORY_LIMIT: ${WEBMAIL_MEMORY_LIMIT:-128M}
       SECURE_COOKIES: "true"
-      SNAPPYMAIL_SSO_SECRET: ${SNAPPYMAIL_SSO_SECRET:?set in Portainer}
+      WEBMAIL_SSO_SECRET: ${WEBMAIL_SSO_SECRET:?set in Portainer}
     volumes:
-      - snappymail_data:/var/lib/snappymail
+      # Legacy-Key mit Absicht: Compose leitet den physischen Volume-Namen aus
+      # dem Key ab. Ein Rename würde ein leeres Volume anlegen und das
+      # Admin-Passwort samt aller Benutzereinstellungen verlieren. Nur der
+      # Mountpfad wandert auf Tachyons /var/lib/tachyon.
+      - snappymail_data:/var/lib/tachyon
     networks:
       proxy:
         aliases:
-          - chormanager-snappymail-${STACK_ID:-prod}
+          - chormanager-webmail-${STACK_ID:-prod}
     healthcheck:
       test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8888/ || exit 1" ]
       interval: 30s
@@ -206,6 +210,7 @@ services:
 
 volumes:
   db_data:
+  # Legacy-Name, siehe Kommentar beim webmail-Mount.
   snappymail_data:
   backup_data:
   session_data:

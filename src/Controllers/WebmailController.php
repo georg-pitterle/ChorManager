@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
-use App\Services\SnappymailSsoTokenService;
+use App\Services\WebmailSsoTokenService;
 use App\Util\AppUrlResolver;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -18,12 +18,12 @@ class WebmailController
 
     private LoggerInterface $logger;
     private MailCredentialCryptoService $crypto;
-    private SnappymailSsoTokenService $ssoTokenService;
+    private WebmailSsoTokenService $ssoTokenService;
 
     public function __construct(
         LoggerInterface $logger,
         MailCredentialCryptoService $crypto,
-        SnappymailSsoTokenService $ssoTokenService
+        WebmailSsoTokenService $ssoTokenService
     ) {
         $this->logger = $logger;
         $this->crypto = $crypto;

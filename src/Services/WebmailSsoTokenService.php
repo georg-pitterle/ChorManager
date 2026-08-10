@@ -8,21 +8,21 @@ use App\Util\EnvHelper;
 use RuntimeException;
 
 /**
- * One-directional encryption of short-lived SnappyMail SSO payloads.
+ * One-directional encryption of short-lived webmail SSO payloads.
  *
  * Uses libsodium's secretbox (XSalsa20-Poly1305) with a key read from the
- * SNAPPYMAIL_SSO_SECRET environment variable. This key protects the trust
- * boundary between ChorManager and the SnappyMail plugin; it is distinct
+ * WEBMAIL_SSO_SECRET environment variable. This key protects the trust
+ * boundary between ChorManager and the Tachyon plugin; it is distinct
  * from MAIL_CREDENTIAL_KEY (which protects stored IMAP credentials at
  * rest). Fails closed: if the key is missing or malformed, the constructor
  * throws rather than allowing a token to be created with a default key.
  *
- * ChorManager only ever encrypts. Decryption happens inside the SnappyMail
+ * ChorManager only ever encrypts. Decryption happens inside the Tachyon
  * plugin (a different runtime), so no decode method is provided here.
  */
-final class SnappymailSsoTokenService
+final class WebmailSsoTokenService
 {
-    private const KEY_ENV = 'SNAPPYMAIL_SSO_SECRET';
+    private const KEY_ENV = 'WEBMAIL_SSO_SECRET';
 
     private string $key;
 
@@ -53,12 +53,12 @@ final class SnappymailSsoTokenService
     {
         $configured = EnvHelper::read(self::KEY_ENV, '');
         if ($configured === '') {
-            throw new RuntimeException('SNAPPYMAIL_SSO_SECRET is not configured correctly');
+            throw new RuntimeException('WEBMAIL_SSO_SECRET is not configured correctly');
         }
 
         $decoded = base64_decode($configured, true);
         if ($decoded === false || strlen($decoded) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
-            throw new RuntimeException('SNAPPYMAIL_SSO_SECRET is not configured correctly');
+            throw new RuntimeException('WEBMAIL_SSO_SECRET is not configured correctly');
         }
 
         return $decoded;

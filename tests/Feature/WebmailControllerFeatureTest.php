@@ -8,7 +8,7 @@ use App\Controllers\WebmailController;
 use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
-use App\Services\SnappymailSsoTokenService;
+use App\Services\WebmailSsoTokenService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
@@ -17,11 +17,11 @@ final class WebmailControllerFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
-    private const SSO_ENV_KEY = 'SNAPPYMAIL_SSO_SECRET';
+    private const SSO_ENV_KEY = 'WEBMAIL_SSO_SECRET';
 
     private WebmailController $controller;
     private MailCredentialCryptoService $crypto;
-    private SnappymailSsoTokenService $ssoTokenService;
+    private WebmailSsoTokenService $ssoTokenService;
     private User $user;
     private ?string $originalSsoEnvValue = null;
     private bool $hadSsoEnvValue = false;
@@ -40,7 +40,7 @@ final class WebmailControllerFeatureTest extends TestCase
         putenv(self::SSO_ENV_KEY . '=' . $ssoKey);
 
         $this->crypto = new MailCredentialCryptoService();
-        $this->ssoTokenService = new SnappymailSsoTokenService();
+        $this->ssoTokenService = new WebmailSsoTokenService();
 
         $this->controller = new WebmailController(
             new NullLogger(),

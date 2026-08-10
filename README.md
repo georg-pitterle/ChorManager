@@ -110,30 +110,30 @@ Verfügbare Variablen:
 - `SMTP_FROM_NAME` (Dev-Standard: `Chor-Manager`)
 
 
-## SnappyMail / Webmail-Integration
+## Webmail-Integration (Tachyon)
 
-Pro Benutzer konfigurierbarer IMAP-Webmail-Zugang via [SnappyMail](https://snappymail.eu/), eingebettet unter `/webmail`. Nach Konfiguration im Benutzerprofil (`/profile`) öffnet ein Klick die Inbox ohne zweiten Login-Dialog — ChorManager stellt ein kurzlebiges, signiertes Token aus, das der SnappyMail-Container automatisch konsumiert. Ein Ungelesen-Badge in der Navigation zeigt die Anzahl ungelesener Nachrichten. Nachrichteninhalte werden niemals in der ChorManager-Datenbank gespeichert.
+Pro Benutzer konfigurierbarer IMAP-Webmail-Zugang via [Tachyon](https://github.com/kimusan/Tachyon), eingebettet unter `/webmail`. Nach Konfiguration im Benutzerprofil (`/profile`) öffnet ein Klick die Inbox ohne zweiten Login-Dialog — ChorManager stellt ein kurzlebiges, signiertes Token aus, das der Webmail-Container automatisch konsumiert. Ein Ungelesen-Badge in der Navigation zeigt die Anzahl ungelesener Nachrichten. Nachrichteninhalte werden niemals in der ChorManager-Datenbank gespeichert.
 
-Vollständige Spezifikation: `docs/superpowers/specs/2026-05-12-snappymail-integration-plan.md`
+Tachyon ist der gepflegte Fork des eingestellten SnappyMail; Migrationsentscheidungen stehen in `docs/superpowers/specs/2026-08-09-tachyon-migration-design.md`.
 
 ### ENV-Variablen
 
 - `MAIL_CREDENTIAL_KEY` — Base64-kodierter 32-Byte-Schlüssel; verschlüsselt gespeicherte IMAP-Passwörter in der Datenbank (symmetrisch, libsodium). Generierung: `php -r "echo base64_encode(random_bytes(32)) . PHP_EOL;"`
-- `SNAPPYMAIL_SSO_SECRET` — Separater Base64-kodierter 32-Byte-Schlüssel; signiert/verschlüsselt den kurzlebigen Auto-Login-Token für das SnappyMail-Plugin. **Muss identisch** in ChorManagers `.env` und im SnappyMail-Container gesetzt sein (siehe `.ddev/.env.snappymail` für das lokale Dev-Wiring). Gleiche Generierung wie `MAIL_CREDENTIAL_KEY`. Darf nie gleich `MAIL_CREDENTIAL_KEY` sein.
-- `SNAPPYMAIL_UPLOAD_MAX_SIZE` (Dev-Standard: `25M`) — PHP `upload_max_filesize` im SnappyMail-Container
-- `SNAPPYMAIL_MEMORY_LIMIT` (Dev-Standard: `128M`) — PHP `memory_limit` im SnappyMail-Container
+- `WEBMAIL_SSO_SECRET` — Separater Base64-kodierter 32-Byte-Schlüssel; verschlüsselt den kurzlebigen Auto-Login-Token für das Tachyon-Plugin. **Muss identisch** in ChorManagers `.env` und im Webmail-Container gesetzt sein (siehe `.ddev/.env.webmail` für das lokale Dev-Wiring). Gleiche Generierung wie `MAIL_CREDENTIAL_KEY`. Darf nie gleich `MAIL_CREDENTIAL_KEY` sein.
+- `WEBMAIL_UPLOAD_MAX_SIZE` (Dev-Standard: `25M`) — PHP `upload_max_filesize` im Webmail-Container
+- `WEBMAIL_MEMORY_LIMIT` (Dev-Standard: `128M`) — PHP `memory_limit` im Webmail-Container
 
-Beide Credential-Variablen sind in `.env.example` bewusst leer gelassen; echte Werte gehören ausschließlich in `.env` bzw. `.ddev/.env.snappymail` (gitignored).
+Beide Credential-Variablen sind in `.env.example` bewusst leer gelassen; echte Werte gehören ausschließlich in `.env` bzw. `.ddev/.env.webmail` (gitignored).
 
 ### Infrastruktur (DDEV / lokal)
 
-Der SnappyMail-Container läuft als DDEV-Add-on-Service (`.ddev/docker-compose.snappymail.yaml`, Image `djmaze/snappymail:v2.38.2`). DDEV routet `/webmail/` via `.ddev/nginx_full/nginx-site.conf` per Reverse-Proxy an den Container. Das Auto-Login-Plugin liegt in `.ddev/snappymail-plugins/chormanager-sso/` und wird beim Container-Start automatisch aktiviert. Details stehen direkt in diesen Dateien.
+Der Webmail-Container läuft als DDEV-Add-on-Service (`.ddev/docker-compose.webmail.yaml`, Image `ghcr.io/kimusan/tachyon:v3.2.2`). DDEV routet `/webmail/` via `.ddev/nginx_full/nginx-site.conf` per Reverse-Proxy an den Container, `/tachyon/` liefert dessen statische Assets. Das Auto-Login-Plugin liegt in `.ddev/webmail-plugins/chormanager-sso/` und wird beim Container-Start automatisch aktiviert. Details stehen direkt in diesen Dateien.
 
-**Wichtig:** DDEV liest beim `docker compose`-Interpolation `${VAR}` **nicht** die project-eigene `.env`. `SNAPPYMAIL_SSO_SECRET` wird daher über `.ddev/.env.snappymail` (gitignored) in den Container gebracht. Diese Datei muss lokal angelegt werden; Vorlage: `.env.example`.
+**Wichtig:** DDEV liest beim `docker compose`-Interpolation `${VAR}` **nicht** die project-eigene `.env`. `WEBMAIL_SSO_SECRET` wird daher über `.ddev/.env.webmail` (gitignored) in den Container gebracht. Diese Datei muss lokal angelegt werden; Vorlage: `.env.example`.
 
 ### Produktiv-Deployment
 
-Die DDEV-Konfiguration (`.ddev/docker-compose.snappymail.yaml`, nginx add-on) ist **ausschließlich für lokale Entwicklung**. Für Staging und Produktion muss ein eigener SnappyMail-Service in die produktive `docker-compose.yml` eingetragen und über den zuständigen Reverse-Proxy auf `/webmail/` geroutet werden. 
+Die DDEV-Konfiguration (`.ddev/docker-compose.webmail.yaml`, nginx add-on) ist **ausschließlich für lokale Entwicklung**. Für Staging und Produktion muss ein eigener Webmail-Service in die produktive `docker-compose.yml` eingetragen und über den zuständigen Reverse-Proxy auf `/webmail/` geroutet werden. 
 
 ### Secret Rotation
 
@@ -166,7 +166,7 @@ Der Lauf ist idempotent — bereits migrierte Datensätze werden übersprungen. 
 
 **Restore eines alten Backups:** Enthält die Metadatei eine `mail_key_id`, die nicht zum aktuellen Schlüssel passt, muss der damalige Schlüssel als `MAIL_CREDENTIAL_KEY_PREVIOUS` gesetzt und nach dem Restore einmal `bin/rotate_mail_key.php` ausgeführt werden.
 
-**`SNAPPYMAIL_SSO_SECRET`**: Niedrigeres Risiko — der Schlüssel sichert nur kurzlebige (45-Sekunden-TTL) Token ohne gespeicherten Zustand. Eine Rotation macht maximal in-flight-Tokens ungültig; betroffene Benutzer landen auf dem normalen SnappyMail-Login-Screen (kein Datenverlust). Der neue Schlüssel muss **gleichzeitig** in ChorManagers `.env` und in `.ddev/.env.snappymail` (bzw. dem Produktiv-Container-Env) gesetzt werden — ein Mismatch schlägt fail-closed.
+**`WEBMAIL_SSO_SECRET`**: Niedrigeres Risiko — der Schlüssel sichert nur kurzlebige (45-Sekunden-TTL) Token ohne gespeicherten Zustand. Eine Rotation macht maximal in-flight-Tokens ungültig; betroffene Benutzer landen auf dem normalen Tachyon-Login-Screen (kein Datenverlust). Der neue Schlüssel muss **gleichzeitig** in ChorManagers `.env` und in `.ddev/.env.webmail` (bzw. dem Produktiv-Container-Env) gesetzt werden — ein Mismatch schlägt fail-closed.
 
 
 ## Deployment
