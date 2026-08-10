@@ -5,18 +5,41 @@ DB_PORT="${DB_PORT:-3306}"
 MAX_ATTEMPTS="${DB_WAIT_MAX_ATTEMPTS:-90}"
 ATTEMPTS=0
 
+# Boot lifecycle events go into the same JSON log stream as the application, so
+# the alert rules in dist/grafana/chormanager-alerts.yaml can see a crash loop
+# and name its cause. Failures here must never keep the container from starting,
+# hence the fallback to a plain message.
+log_boot_event() {
+  php bin/log_boot_event.php "$@" || echo "boot event not logged: $*"
+}
+
+log_boot_event app.boot.started
+
 until mysqladmin ping -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USERNAME}" -p"${DB_PASSWORD}" --ssl=0; do
   ATTEMPTS=$((ATTEMPTS + 1))
   echo "Waiting for database at ${DB_HOST}:${DB_PORT} (attempt ${ATTEMPTS}/${MAX_ATTEMPTS})..."
   if [ "${ATTEMPTS}" -ge "${MAX_ATTEMPTS}" ]; then
+    log_boot_event app.boot.db_wait_timeout
     echo "Database did not become ready in time. Exiting."
     exit 1
   fi
   sleep 2
 done
 
-# Run migrations
+# Run migrations. A failure has to be reported before the container dies:
+# php-fpm never starts afterwards, so every visitor keeps seeing the maintenance
+# page while Docker restarts the container over and over. Without this event
+# that state is silent. The status is captured outside "if !", which would
+# swallow it through the negation.
+set +e
 php vendor/bin/phinx migrate
+MIGRATE_STATUS=$?
+set -e
+
+if [ "${MIGRATE_STATUS}" -ne 0 ]; then
+  log_boot_event app.boot.migration_failed "${MIGRATE_STATUS}"
+  exit "${MIGRATE_STATUS}"
+fi
 
 # Ensure public vendor assets are present for static delivery
 php bin/copy-assets.php
@@ -53,6 +76,8 @@ registration_reminder_worker_pid=$!
 
 php-fpm -F &
 php_fpm_pid=$!
+
+log_boot_event app.boot.completed
 
 shutdown() {
   kill "${mail_queue_worker_pid}" 2>/dev/null || true

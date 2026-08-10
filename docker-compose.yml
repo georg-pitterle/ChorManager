@@ -54,6 +54,11 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./public:/var/www/html/public
+      # In production these come from the web image and a named volume. Mounted
+      # here so the maintenance page and the flag switch behave the same way in
+      # this standalone stack.
+      - ./dist/maintenance:/usr/share/nginx/maintenance:ro
+      - maintenance_data:/maintenance
     depends_on:
       - app
     networks:
@@ -61,6 +66,7 @@ services:
 
 volumes:
   db_data:
+  maintenance_data:
 
 
 networks:

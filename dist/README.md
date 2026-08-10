@@ -295,7 +295,88 @@ gewählt, dass die Anwendung dabei nie ungeplant komplett offline geht.
 - The stack copies the image contents into a named volume before startup so `app` and `web` serve the exact same code.
 - The copy step clears the target volume first. That avoids stale files during image updates, which is important for Portainer-based redeployments.
 - Database migrations run automatically when `app` starts.
-- The internal web service exposes `/health`, which is used for container health checks.
+- The internal web service exposes `/healthz`, served by Nginx itself and used for the `web` container health check. The application's own `/health` route is served by PHP and therefore also reports on `app`.
+
+## Maintenance Mode
+
+The `web` container keeps serving while `app` is being replaced, so the maintenance page lives in Nginx, not in the application. There are two layers.
+
+### Automatic, during every update
+
+No action required. While `app` is gone - boot, database wait and Phinx migrations all happen before php-fpm accepts connections - Nginx answers `502`/`504` with a self-contained maintenance page baked into the web image. The status code is preserved, so search engines never index it as content and the response is not cached.
+
+This covers the entire window of a normal image update: pull the new images in Portainer and redeploy, nothing else to do.
+
+### Manual flag, for planned work
+
+For a longer window - database restore, manual repairs, anything not covered by a plain redeploy - set the flag before you start. `maintenance_data` is a named volume mounted at `/maintenance` in the `web` container, so the flag survives recreates:
+
+```bash
+docker exec <web-container> touch /maintenance/on   # maintenance page for everyone
+docker exec <web-container> rm -f  /maintenance/on  # back to normal
+```
+
+Every request then gets `503` plus the maintenance page. `/healthz` stays exempt, so the container does not turn unhealthy while the flag is set.
+
+In Portainer this works without a shell on the host: *Containers → chormanager-web → Console → Connect*, then run the same command.
+
+### Smoke-testing while the flag is set
+
+Create a token file and send its name back as a cookie. The token exists only inside the volume, never in the repository or in an environment variable:
+
+```bash
+docker exec <web-container> sh -c 'touch /maintenance/bypass-$(head -c16 /dev/urandom | od -An -tx1 | tr -d " \n")'
+docker exec <web-container> ls /maintenance
+```
+
+Set the cookie `cm_maint=<token>` in your browser for the site's domain and you reach the application normally while everyone else sees the maintenance page. Remove the token file afterwards:
+
+```bash
+docker exec <web-container> rm -f /maintenance/bypass-<token>
+```
+
+### Caveat
+
+A failed migration leaves `app` restarting and every visitor on the maintenance page indefinitely, with no other visible symptom - the page is friendly either way. That blind spot is covered by the alert rules below; without them, check `logs -f app` after every update that ships a migration.
+
+## Alerting
+
+### Boot events
+
+The entrypoint writes its lifecycle into the same JSON log stream as the application, so Loki can be queried for the state of a start:
+
+| Event                      | Level    | Meaning                                                  |
+|----------------------------|----------|----------------------------------------------------------|
+| `app.boot.started`         | INFO     | Container start begun, waiting for the database.          |
+| `app.boot.db_wait_timeout` | CRITICAL | Database not reachable in time, start aborted.            |
+| `app.boot.migration_failed`| CRITICAL | Phinx migration failed, start aborted. Carries `exit_code`.|
+| `app.boot.completed`       | INFO     | php-fpm accepts requests.                                 |
+
+These events ignore `APP_LOG_LEVEL` on purpose: they carry the alerting, and a restrictive log level would otherwise switch off start monitoring unnoticed.
+
+### Rules
+
+`grafana/chormanager-alerts.yaml` provisions three rules into the Grafana instance that already holds the dashboard:
+
+| Rule                                          | Fires when                                                                     |
+|-----------------------------------------------|--------------------------------------------------------------------------------|
+| `ChorManager App startet wiederholt neu`      | 3+ `app.boot.started` within 15 min - crash loop, whatever the cause.           |
+| `ChorManager App-Start abgebrochen`           | Any `app.boot.migration_failed` or `app.boot.db_wait_timeout` within 10 min.    |
+| `ChorManager Anwendung dauerhaft nicht erreichbar` | Nginx logs upstream failures continuously for 10 min.                      |
+
+The first two read the boot events. The third reads the `web` error log instead and is the net for the case where `app` dies so early that it ships nothing at all - a broken image, a missing environment variable. Its 5-minute window plus `for: 10m` keeps an ordinary update quiet: those errors stop as soon as the new app is up.
+
+Install:
+
+1. Replace `LOKI_DATASOURCE_UID` in the file with the UID of your Loki data source (*Connections → Data sources → Loki*, the UID is in the URL).
+2. Mount the file into `/etc/grafana/provisioning/alerting/` of the Grafana container and restart it. Grafana creates the `ChorManager` folder itself.
+3. Check *Alerting → Alert rules*; all three must show up as provisioned.
+
+Routing is left to the existing notification policy - the rules only carry `severity: critical` and `app: chormanager` labels. This file deliberately ships no policy of its own, because a provisioned notification policy replaces the entire tree of the instance.
+
+### Not covered
+
+A maintenance flag left switched on. `web` runs with `access_log off;`, so a fully working stack behind the flag produces no log line to alert on. Remove the flag as the last step of planned work.
 
 ## Logs and Health
 

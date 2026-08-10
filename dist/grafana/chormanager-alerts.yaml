@@ -1,0 +1,206 @@
+# Grafana-Alarmregeln für den ChorManager-Stack.
+#
+# Deckt die Lücke der Wartungsseite ab: eine fehlgeschlagene Migration lässt den
+# app-Container endlos neu starten, während Besucher weiterhin die freundliche
+# Wartungsseite sehen. Ohne diese Regeln bleibt dieser Zustand unsichtbar.
+#
+# Einbau: LOKI_DATASOURCE_UID durch die UID der Loki-Datenquelle ersetzen
+# (Grafana → Connections → Data sources → Loki → UID in der URL) und die Datei
+# nach /etc/grafana/provisioning/alerting/ der Grafana-Instanz legen. Grafana
+# legt den Ordner beim Start selbst an.
+#
+# Benachrichtigt wird über die vorhandene Notification Policy. Die Regeln tragen
+# dafür severity-Labels; eine eigene Policy liefert diese Datei bewusst nicht
+# mit, weil eine provisionierte Policy den gesamten Baum der Instanz ersetzt.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: chormanager-betrieb
+    folder: ChorManager
+    interval: 1m
+    rules:
+      # Fängt jede Absturzursache ab, auch die, für die es kein eigenes Ereignis
+      # gibt: OOM-Kill, kaputtes Image, fehlende Umgebungsvariable. Drei Starts
+      # in 15 Minuten sind kein normales Update mehr.
+      - uid: cm-app-crashloop
+        title: ChorManager App startet wiederholt neu
+        condition: B
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          app: chormanager
+        annotations:
+          summary: Der app-Container des Stacks {{ $labels.stack }} startet immer wieder neu.
+          description: >-
+            Mindestens drei Container-Starts in 15 Minuten. Besucher sehen währenddessen
+            durchgehend die Wartungsseite. Ursache prüfen mit
+            "docker compose logs -f app"; bei einer fehlgeschlagenen Migration greift
+            zusätzlich die Regel "ChorManager App-Start abgebrochen".
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: LOKI_DATASOURCE_UID
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: LOKI_DATASOURCE_UID
+              editorMode: code
+              queryType: instant
+              intervalMs: 60000
+              maxDataPoints: 43200
+              expr: 'sum by (stack) (count_over_time({job="chormanager", service="app"} | json event="context.event" | event="app.boot.started" [15m]))'
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 2
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+
+      # Benennt die Ursache sofort, statt auf den dritten Neustart zu warten.
+      - uid: cm-app-boot-failed
+        title: ChorManager App-Start abgebrochen
+        condition: B
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          app: chormanager
+        annotations:
+          summary: Der Start des app-Containers im Stack {{ $labels.stack }} ist abgebrochen.
+          description: >-
+            Die Datenbank-Migration ist fehlgeschlagen oder die Datenbank war beim Start
+            nicht erreichbar. Der Container startet in einer Schleife neu, Besucher sehen
+            die Wartungsseite. Genaue Fehlermeldung im app-Log, Ereignisse
+            "app.boot.migration_failed" und "app.boot.db_wait_timeout".
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: LOKI_DATASOURCE_UID
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: LOKI_DATASOURCE_UID
+              editorMode: code
+              queryType: instant
+              intervalMs: 60000
+              maxDataPoints: 43200
+              expr: 'sum by (stack) (count_over_time({job="chormanager", service="app"} | json event="context.event" | event=~"app.boot.migration_failed|app.boot.db_wait_timeout" [10m]))'
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+
+      # Letztes Netz: greift auch dann, wenn der app-Container so früh stirbt,
+      # dass er gar nichts mehr nach Loki schreibt. Nginx protokolliert dann bei
+      # jedem Zugriff einen Upstream-Fehler. Das 5-Minuten-Fenster zusammen mit
+      # "for: 10m" hält ein gewöhnliches Update still: dessen Fehler versiegen,
+      # sobald die neue App läuft.
+      - uid: cm-web-upstream-down
+        title: ChorManager Anwendung dauerhaft nicht erreichbar
+        condition: B
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          app: chormanager
+        annotations:
+          summary: Nginx im Stack {{ $labels.stack }} erreicht die Anwendung seit über zehn Minuten nicht.
+          description: >-
+            Der web-Container läuft und liefert die Wartungsseite aus, findet aber
+            durchgehend keinen PHP-FPM-Upstream. Länger als ein Update dauert.
+            Status prüfen mit "docker compose ps" und "docker compose logs -f app".
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: LOKI_DATASOURCE_UID
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: LOKI_DATASOURCE_UID
+              editorMode: code
+              queryType: instant
+              intervalMs: 60000
+              maxDataPoints: 43200
+              expr: 'sum by (stack) (count_over_time({job="chormanager", service="web"} |~ "could not be resolved|while connecting to upstream|upstream timed out|no live upstreams" [5m]))'
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []

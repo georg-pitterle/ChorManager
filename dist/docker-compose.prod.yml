@@ -153,13 +153,21 @@ services:
           - chormanager-web-${STACK_ID:-prod}
     expose:
       - "80"
+    volumes:
+      # Holds the maintenance flag and the bypass tokens. A named volume rather
+      # than a bind mount so the flag survives stack recreates, and writable
+      # despite read_only above, which only covers the container's own layers.
+      - maintenance_data:/maintenance
     tmpfs:
       - /var/cache/nginx
       - /var/run
       - /tmp
     read_only: true
     healthcheck:
-      test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/css/style.css || exit 1" ]
+      # /healthz is answered by Nginx itself and stays reachable while the
+      # maintenance flag is set, so the container does not go unhealthy for the
+      # duration of an update.
+      test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -214,6 +222,7 @@ volumes:
   snappymail_data:
   backup_data:
   session_data:
+  maintenance_data:
 
 
 networks:
