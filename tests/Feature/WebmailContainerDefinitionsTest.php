@@ -73,6 +73,21 @@ class WebmailContainerDefinitionsTest extends TestCase
         $this->assertStringNotContainsString('SNAPPYMAIL_SSO_SECRET', $plugin);
     }
 
+    /**
+     * Tachyon\Model\Domain::fromArray() liest den Schlüssel als direkten Index
+     * ("$oDomain->whiteList = (string) $aDomain['whiteList'];"), ohne Null-Guard.
+     * Fehlt er in der von uns geschriebenen Domain-JSON, protokolliert Tachyon bei
+     * jedem Domain-Load eine PHP-Warning - beobachtet in Produktion nach der
+     * Migration, weil SnappyMail 2.38 den Schlüssel noch nicht brauchte.
+     */
+    #[DataProvider('pluginCopies')]
+    public function testPluginWritesTheWhiteListKeyIntoTheDomainConfig(string $path): void
+    {
+        $plugin = $this->read($path);
+
+        $this->assertStringContainsString("'whiteList' => ''", $plugin);
+    }
+
     public function testDevComposeUsesThePinnedTachyonImage(): void
     {
         $compose = $this->read('.ddev/docker-compose.webmail.yaml');

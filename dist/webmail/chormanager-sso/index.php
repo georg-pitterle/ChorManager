@@ -287,6 +287,11 @@ class ChormanagerSsoPlugin extends \Tachyon\Plugins\AbstractPlugin
 				'ssl'         => (object) [],
 				'enabled'     => false,
 			],
+			// Tachyon\Model\Domain::fromArray() reads this key as a direct index
+			// ("$oDomain->whiteList = (string) $aDomain['whiteList'];", no null
+			// coalescing), so omitting it emits a PHP warning on every domain load.
+			// An empty string is the class default and means "no restriction".
+			'whiteList' => '',
 		];
 
 		$sDomainFile = \APP_PRIVATE_DATA . 'domains/' . $sSafeDomain . '.json';
