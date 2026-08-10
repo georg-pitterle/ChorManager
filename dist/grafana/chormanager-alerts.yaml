@@ -1,23 +1,121 @@
 # Grafana-Alarmregeln für den ChorManager-Stack.
 #
-# Deckt die Lücke der Wartungsseite ab: eine fehlgeschlagene Migration lässt den
-# app-Container endlos neu starten, während Besucher weiterhin die freundliche
-# Wartungsseite sehen. Ohne diese Regeln bleibt dieser Zustand unsichtbar.
+# Die Betriebsregeln decken die Lücke der Wartungsseite ab: eine fehlgeschlagene
+# Migration lässt den app-Container endlos neu starten, während Besucher
+# weiterhin die freundliche Wartungsseite sehen. Ohne diese Regeln bleibt dieser
+# Zustand unsichtbar.
 #
-# Einbau: LOKI_DATASOURCE_UID durch die UID der Loki-Datenquelle ersetzen
-# (Grafana → Connections → Data sources → Loki → UID in der URL) und die Datei
-# nach /etc/grafana/provisioning/alerting/ der Grafana-Instanz legen. Grafana
-# legt den Ordner beim Start selbst an.
+# Einbau: Datei nach /etc/grafana/provisioning/alerting/ der Grafana-Instanz
+# legen und Grafana neu starten. Datenquellen-UID (cfkh9luzn1wxsa), Ordner und
+# Empfänger sind auf die bestehende Instanz eingestellt; eine neu angelegte
+# Loki-Datenquelle bekommt eine andere UID und muss hier nachgezogen werden.
 #
-# Benachrichtigt wird über die vorhandene Notification Policy. Die Regeln tragen
-# dafür severity-Labels; eine eigene Policy liefert diese Datei bewusst nicht
-# mit, weil eine provisionierte Policy den gesamten Baum der Instanz ersetzt.
+# ACHTUNG: Provisionierte Regeln gehören ab dann der Datei. Sie sind in der
+# Oberfläche schreibgeschützt, Änderungen laufen über diese Datei plus Neustart,
+# und ein Entfernen der Datei löscht die Regeln aus Grafana. Die Regel
+# "Chormanager Chorkuma Errors" wurde bisher in der Oberfläche gepflegt; sie
+# behält ihre UID und wird beim ersten Provisioning übernommen, nicht dupliziert.
+#
+# Benachrichtigt wird über den Kontaktpunkt "Chomano Kontakt". Eine eigene
+# Notification Policy liefert diese Datei bewusst nicht mit, weil eine
+# provisionierte Policy den gesamten Baum der Instanz ersetzen würde.
 apiVersion: 1
 
 groups:
+  # Bestehende Regel, unverändert aus der Oberfläche übernommen.
+  - orgId: 1
+    name: 1m
+    folder: Chorkuma
+    interval: 1m
+    rules:
+      - uid: cfu78fbt3bzlsb
+        title: Chormanager Chorkuma Errors
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        annotations: {}
+        labels: {}
+        notification_settings:
+          receiver: Chomano Kontakt
+        data:
+          - refId: A
+            queryType: range
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: cfkh9luzn1wxsa
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: cfkh9luzn1wxsa
+              editorMode: code
+              expr: sum(count_over_time({job="chormanager", stack="chorkuma", service="app"} | json | level_name=~`ERROR|CRITICAL|ALERT|EMERGENCY` [5m]))
+              instant: true
+              queryType: range
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: reducer
+            queryType: expression
+            datasourceUid: __expr__
+            model:
+              refId: reducer
+              type: reduce
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              intervalMs: 1000
+              maxDataPoints: 43200
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0
+                      - 0
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            queryType: expression
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: reducer
+              intervalMs: 1000
+              maxDataPoints: 43200
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    type: last
+                    params: []
+
+  # Regeln rund um Update und Container-Start.
   - orgId: 1
     name: chormanager-betrieb
-    folder: ChorManager
+    folder: Chorkuma
     interval: 1m
     rules:
       # Fängt jede Absturzursache ab, auch die, für die es kein eigenes Ereignis
@@ -29,6 +127,9 @@ groups:
         for: 0m
         noDataState: OK
         execErrState: Error
+        isPaused: false
+        notification_settings:
+          receiver: Chomano Kontakt
         labels:
           severity: critical
           app: chormanager
@@ -44,17 +145,17 @@ groups:
             relativeTimeRange:
               from: 900
               to: 0
-            datasourceUid: LOKI_DATASOURCE_UID
+            datasourceUid: cfkh9luzn1wxsa
             model:
               refId: A
               datasource:
                 type: loki
-                uid: LOKI_DATASOURCE_UID
+                uid: cfkh9luzn1wxsa
               editorMode: code
               queryType: instant
               intervalMs: 60000
               maxDataPoints: 43200
-              expr: 'sum by (stack) (count_over_time({job="chormanager", service="app"} | json event="context.event" | event="app.boot.started" [15m]))'
+              expr: 'sum by (stack) (count_over_time({job="chormanager", stack="chorkuma", service="app"} | json event="context.event" | event="app.boot.started" [15m]))'
           - refId: B
             relativeTimeRange:
               from: 0
@@ -89,6 +190,9 @@ groups:
         for: 0m
         noDataState: OK
         execErrState: Error
+        isPaused: false
+        notification_settings:
+          receiver: Chomano Kontakt
         labels:
           severity: critical
           app: chormanager
@@ -104,17 +208,17 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: LOKI_DATASOURCE_UID
+            datasourceUid: cfkh9luzn1wxsa
             model:
               refId: A
               datasource:
                 type: loki
-                uid: LOKI_DATASOURCE_UID
+                uid: cfkh9luzn1wxsa
               editorMode: code
               queryType: instant
               intervalMs: 60000
               maxDataPoints: 43200
-              expr: 'sum by (stack) (count_over_time({job="chormanager", service="app"} | json event="context.event" | event=~"app.boot.migration_failed|app.boot.db_wait_timeout" [10m]))'
+              expr: 'sum by (stack) (count_over_time({job="chormanager", stack="chorkuma", service="app"} | json event="context.event" | event=~"app.boot.migration_failed|app.boot.db_wait_timeout" [10m]))'
           - refId: B
             relativeTimeRange:
               from: 0
@@ -153,6 +257,9 @@ groups:
         for: 10m
         noDataState: OK
         execErrState: Error
+        isPaused: false
+        notification_settings:
+          receiver: Chomano Kontakt
         labels:
           severity: critical
           app: chormanager
@@ -167,17 +274,17 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: LOKI_DATASOURCE_UID
+            datasourceUid: cfkh9luzn1wxsa
             model:
               refId: A
               datasource:
                 type: loki
-                uid: LOKI_DATASOURCE_UID
+                uid: cfkh9luzn1wxsa
               editorMode: code
               queryType: instant
               intervalMs: 60000
               maxDataPoints: 43200
-              expr: 'sum by (stack) (count_over_time({job="chormanager", service="web"} |~ "could not be resolved|while connecting to upstream|upstream timed out|no live upstreams" [5m]))'
+              expr: 'sum by (stack) (count_over_time({job="chormanager", stack="chorkuma", service="web"} |~ "could not be resolved|while connecting to upstream|upstream timed out|no live upstreams" [5m]))'
           - refId: B
             relativeTimeRange:
               from: 0

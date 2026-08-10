@@ -356,23 +356,29 @@ These events ignore `APP_LOG_LEVEL` on purpose: they carry the alerting, and a r
 
 ### Rules
 
-`grafana/chormanager-alerts.yaml` provisions three rules into the Grafana instance that already holds the dashboard:
+`grafana/chormanager-alerts.yaml` provisions four rules into the Grafana instance that also holds the dashboard:
 
 | Rule                                          | Fires when                                                                     |
 |-----------------------------------------------|--------------------------------------------------------------------------------|
+| `Chormanager Chorkuma Errors`                 | Any log line of level ERROR and above within 5 min. Existing rule, taken over unchanged. |
 | `ChorManager App startet wiederholt neu`      | 3+ `app.boot.started` within 15 min - crash loop, whatever the cause.           |
 | `ChorManager App-Start abgebrochen`           | Any `app.boot.migration_failed` or `app.boot.db_wait_timeout` within 10 min.    |
 | `ChorManager Anwendung dauerhaft nicht erreichbar` | Nginx logs upstream failures continuously for 10 min.                      |
 
-The first two read the boot events. The third reads the `web` error log instead and is the net for the case where `app` dies so early that it ships nothing at all - a broken image, a missing environment variable. Its 5-minute window plus `for: 10m` keeps an ordinary update quiet: those errors stop as soon as the new app is up.
+The two boot rules read the events above. The last one reads the `web` error log instead and is the net for the case where `app` dies so early that it ships nothing at all - a broken image, a missing environment variable. Its 5-minute window plus `for: 10m` keeps an ordinary update quiet: those errors stop as soon as the new app is up.
+
+All rules are pinned to `stack="chorkuma"`, matching the existing error rule. A duplicated test stack therefore stays quiet; to watch one too, copy the rules with a different `stack` value and a different `uid`.
 
 Install:
 
-1. Replace `LOKI_DATASOURCE_UID` in the file with the UID of your Loki data source (*Connections → Data sources → Loki*, the UID is in the URL).
-2. Mount the file into `/etc/grafana/provisioning/alerting/` of the Grafana container and restart it. Grafana creates the `ChorManager` folder itself.
-3. Check *Alerting → Alert rules*; all three must show up as provisioned.
+1. Mount the file into `/etc/grafana/provisioning/alerting/` of the Grafana container and restart it. Data source UID, folder `Chorkuma` and contact point are already set for the existing instance.
+2. Check *Alerting → Alert rules*; all four must show up, marked as provisioned.
 
-Routing is left to the existing notification policy - the rules only carry `severity: critical` and `app: chormanager` labels. This file deliberately ships no policy of its own, because a provisioned notification policy replaces the entire tree of the instance.
+A data source recreated from scratch gets a new UID, which then has to be updated in the file.
+
+**Provisioned rules belong to the file.** They are read-only in the UI, changes go through the file plus a restart, and deleting the file deletes the rules from Grafana. `Chormanager Chorkuma Errors` used to be maintained in the UI; it keeps its UID and is adopted on the first provisioning run instead of being duplicated.
+
+All rules notify through the contact point `Chomano Kontakt` and additionally carry `severity: critical` and `app: chormanager` labels. The file deliberately ships no notification policy of its own, because a provisioned policy replaces the entire tree of the instance.
 
 ### Not covered
 

@@ -7,6 +7,7 @@ namespace App\Middleware;
 use App\Models\AppSetting;
 use App\Services\MailDeliveryService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -58,6 +59,17 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
             );
 
             $this->deliveryService->processDueEntries($batchSize);
+        } catch (QueryException $exception) {
+            // Transient database outage (e.g. the db container restarting during a
+            // deploy). Opportunistic processing is best-effort and the dedicated
+            // worker will catch up, so this is expected noise, not a failure.
+            $this->logger->warning(
+                'Opportunistic mail queue processing skipped (database unavailable).',
+                [
+                    'event' => 'mail_queue.opportunistic.skipped',
+                    'exception' => $exception,
+                ]
+            );
         } catch (\Throwable $exception) {
             $this->logger->error(
                 'Opportunistic mail queue processing failed.',

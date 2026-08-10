@@ -222,6 +222,22 @@ class MailQueueFeatureTest extends TestCase
         $this->assertStringNotContainsString('global $container', $controller);
     }
 
+    public function testOpportunisticMiddlewareDowngradesDatabaseUnavailabilityToWarning(): void
+    {
+        $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/MailQueueProcessingMiddleware.php');
+
+        $this->assertIsString($middleware);
+        // A transient DB outage (e.g. db container restart) is best-effort noise,
+        // not a real failure, so it must be caught separately and logged as warning.
+        $this->assertStringContainsString('catch (QueryException $exception)', $middleware);
+        $this->assertStringContainsString('use Illuminate\\Database\\QueryException;', $middleware);
+        $this->assertStringContainsString('mail_queue.opportunistic.skipped', $middleware);
+        $this->assertStringContainsString('$this->logger->warning(', $middleware);
+        // The generic Throwable branch must remain for genuine failures.
+        $this->assertStringContainsString('catch (\\Throwable $exception)', $middleware);
+        $this->assertStringContainsString('mail_queue.opportunistic.failed', $middleware);
+    }
+
     public function testMailQueueIsProcessedOpportunisticallyViaMiddleware(): void
     {
         $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/MailQueueProcessingMiddleware.php');
