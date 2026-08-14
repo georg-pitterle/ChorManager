@@ -50,14 +50,6 @@ class NewsletterFeatureTest extends TestCase
     }
 
     /**
-     * Test that middleware exists
-     */
-    public function testAuthMiddlewareExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Middleware\NewsletterAuthMiddleware::class));
-    }
-
-    /**
      * Test that templates directory exists
      */
     public function testTemplatesDirectoryExists(): void
@@ -152,16 +144,16 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'update'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'preview'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'send'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'saveAsTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'getTemplate'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'checkLock'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'releaseLock'));
         $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'deleteDraft'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'createTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'editTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'storeFromNewsletter'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'show'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'index'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'store'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'edit'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'update'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'clone'));
     }
 
     /**
@@ -208,11 +200,11 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('action="/newsletters"', $indexTemplate);
         $this->assertStringContainsString('class="form-select onchange-submit"', $indexTemplate);
         $this->assertStringContainsString(
-            'data-newsletter-modal-url="/newsletters/create?project_id={{ project.id }}&modal=1"',
+            'data-newsletter-modal-url="/newsletters/create?modal=1"',
             $indexTemplate
         );
         $this->assertStringContainsString(
-            'data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?project_id={{ project.id }}&modal=1"',
+            'data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?modal=1"',
             $indexTemplate
         );
         $this->assertStringContainsString(
@@ -510,7 +502,6 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('resolveRecipientsPreview', $controllerContent);
         $this->assertStringContainsString('recipientService->setSources', $controllerContent);
         $this->assertStringContainsString("'recipient_type'", $controllerContent);
-        $this->assertStringContainsString('accessibleProjectIds', $controllerContent);
         $this->assertStringContainsString("'project_id'", $controllerContent);
         $this->assertStringContainsString('Zugriff verweigert.', $controllerContent);
     }
@@ -586,21 +577,6 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('NewsletterArchive::updateOrCreate(', $serviceContent);
         $this->assertStringContainsString("'newsletter_id' => (int) \$newsletter->id", $serviceContent);
         $this->assertStringContainsString("'user_id' => (int) \$recipient->user->id", $serviceContent);
-    }
-
-    /**
-     * Auth middleware and controller must use the same access rule (project
-     * membership or admin); the legacy "creator can always access" bypass that
-     * diverged from the controller is removed.
-     */
-    public function testNewsletterAuthMiddlewareEnforcesProjectMembershipConsistently(): void
-    {
-        $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/NewsletterAuthMiddleware.php');
-        $this->assertIsString($middleware);
-
-        $this->assertStringNotContainsString('$newsletter->created_by === $userId', $middleware);
-        $this->assertStringNotContainsString('Creator can always access', $middleware);
-        $this->assertStringContainsString('isProjectMember', $middleware);
     }
 
     /**

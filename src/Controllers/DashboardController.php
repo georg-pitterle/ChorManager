@@ -6,7 +6,6 @@ namespace App\Controllers;
 
 use App\Models\Newsletter;
 use App\Models\Project;
-use App\Models\User;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -55,30 +54,16 @@ class DashboardController
         $deadMailCount = null;
 
         if ($canViewNewsletterArea && $userId > 0) {
-            $newsletterQuery = Newsletter::query()
+            // Der Zugang zur Kachel hängt allein am Recht can_manage_newsletters,
+            // nicht an der Projektmitgliedschaft – ein weiterer Filter auf
+            // erreichbare Projekte würde projektlose Newsletter grundsätzlich
+            // ausblenden, da whereIn() keine NULL-Werte trifft.
+            $latestSentNewsletter = Newsletter::query()
                 ->where('status', Newsletter::STATUS_SENT)
-                ->with(['project', 'recipientSources']);
-
-            $user = User::find($userId);
-            $accessibleProjectIds = $user
-                ? $user->projects()
-                    ->pluck('projects.id')
-                    ->map(fn($id) => (int) $id)
-                    ->all()
-                : [];
-
-            if ($accessibleProjectIds === []) {
-                $newsletterQuery = null;
-            } else {
-                $newsletterQuery->whereIn('project_id', $accessibleProjectIds);
-            }
-
-            if ($newsletterQuery !== null) {
-                $latestSentNewsletter = $newsletterQuery
-                    ->orderBy('sent_at', 'desc')
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-            }
+                ->with(['project', 'recipientSources'])
+                ->orderBy('sent_at', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
         }
 
         if ((bool) ($_SESSION['can_manage_mail_queue'] ?? false)) {

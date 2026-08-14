@@ -22,9 +22,12 @@ class SecurityHardeningFeatureTest extends TestCase
         $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
 
         $this->assertIsString($content);
-        $this->assertStringContainsString('private function canAccessNewsletterById', $content);
-        $this->assertStringContainsString('if (!$this->canAccessNewsletterById($id, $userId))', $content);
-        $this->assertStringContainsString('if (!$this->canAccessTemplateContext($template->project_id', $content);
+        $this->assertStringContainsString('private function canManageNewsletters', $content);
+        $this->assertStringContainsString('private function canAccessReceivedNewsletterById', $content);
+        $this->assertStringContainsString(
+            '!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)',
+            $content
+        );
     }
 
     public function testPasswordResetBuildsLinkFromTrustedAppUrl(): void

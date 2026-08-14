@@ -10,7 +10,7 @@
             <p class="text-uppercase text-muted small mb-1">Bereiche</p>
             <h1 class="h2 mb-1">Newsletter bearbeiten</h1>
             <p class="text-muted mb-0">
-                Projekt: <strong>{{ project.name }}</strong>
+                Projekt: <strong>{{ project.name|default("kein Projekt") }}</strong>
             </p>
         </div>
     </section>
@@ -49,10 +49,12 @@
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <label for="project_id" class="form-label">
-                                    Projekt <span class="text-danger">*</span>
-                                </label>
-                                <select class="form-select" id="project_id" name="project_id" required>
+                                <label for="project_id" class="form-label">Projekt (optional)</label>
+                                <select class="form-select" id="project_id" name="project_id">
+                                    <option value=""
+                                            {% if not newsletter.project_id %}selected{% endif %}>
+                                        — kein Projekt —
+                                    </option>
                                     {% for selectable_project in projects %}
                                         <option value="{{ selectable_project.id }}"
                                                 {% if newsletter.project_id == selectable_project.id %}selected{% endif %}>
@@ -205,8 +207,7 @@
 
             <div class="d-grid gap-2 d-md-flex justify-content-md-between">
                 <div>
-                    <a href="/newsletters?project_id={{ project.id }}&status=draft"
-                       class="btn btn-outline-secondary">
+                    <a href="/newsletters?status=draft" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Zurück
                     </a>
                 </div>

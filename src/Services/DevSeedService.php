@@ -3212,5 +3212,174 @@ class DevSeedService
                 $this->report['counts']['newsletter_recipients']++;
             }
         }
+
+        // Projektlose Newsletter: seit der Entkopplung braucht ein Rundschreiben
+        // kein Projekt mehr, sondern nur Empfänger.
+        $announcementAuthor = $activeUsers[0] ?? null;
+        if ($announcementAuthor === null) {
+            return;
+        }
+
+        // Die Rolle muss nachweislich aktive Mitglieder haben, sonst bekommt der
+        // Rollen-Newsletter stillschweigend 0 Empfänger und kein Archiv.
+        $boardRole = Role::query()
+            ->whereHas('users', function ($query) {
+                $query->where('is_active', 1);
+            })
+            ->orderBy('id')
+            ->first();
+        $singleRecipients = array_slice($activeUsers, 0, 3);
+
+        $generalDraft = Newsletter::create([
+            'project_id' => null,
+            'title' => 'Entwurf: Vereinsweite Ankündigung',
+            'content_html' => '<h2>Vereinsweite Ankündigung</h2>'
+                . '<p>Dieser Entwurf richtet sich an einzelne Mitglieder, nicht an ein Projekt.</p>',
+            'status' => Newsletter::STATUS_DRAFT,
+            'created_by' => $announcementAuthor->id,
+            'locked_by' => null,
+            'locked_at' => null,
+        ]);
+        $this->report['counts']['newsletters']++;
+
+        foreach ($singleRecipients as $recipient) {
+            NewsletterRecipientSource::create([
+                'newsletter_id' => $generalDraft->id,
+                'source_type' => NewsletterRecipientSource::TYPE_USER,
+                'reference_id' => $recipient->id,
+            ]);
+            $this->report['counts']['newsletter_recipient_sources']++;
+
+            NewsletterRecipient::create([
+                'newsletter_id' => $generalDraft->id,
+                'user_id' => $recipient->id,
+                'status' => 'pending',
+            ]);
+            $this->report['counts']['newsletter_recipients']++;
+        }
+
+        $generalDraft->recipient_count = count($singleRecipients);
+        $generalDraft->save();
+
+        if ($boardRole === null) {
+            $this->report['warnings'][] = 'Keine Rolle mit aktiven Mitgliedern gefunden, '
+                . 'Rollen-Newsletter wurde übersprungen.';
+            return;
+        }
+
+        $sentAt = (new DateTimeImmutable())->modify('-3 days');
+        $roleNewsletter = Newsletter::create([
+            'project_id' => null,
+            'title' => 'Rundschreiben an eine Rolle',
+            'content_html' => '<h2>Information für Funktionsträger</h2>'
+                . '<p>Dieses Rundschreiben ging an alle Mitglieder einer Rolle.</p>',
+            'status' => Newsletter::STATUS_SENT,
+            'created_by' => $announcementAuthor->id,
+            'locked_by' => null,
+            'locked_at' => null,
+            'sent_at' => $sentAt->format('Y-m-d H:i:s'),
+        ]);
+        $this->report['counts']['newsletters']++;
+
+        NewsletterRecipientSource::create([
+            'newsletter_id' => $roleNewsletter->id,
+            'source_type' => NewsletterRecipientSource::TYPE_ROLE,
+            'reference_id' => $boardRole->id,
+        ]);
+        $this->report['counts']['newsletter_recipient_sources']++;
+
+        $roleUserIds = User::query()
+            ->whereHas('roles', function ($query) use ($boardRole) {
+                $query->where('role_id', $boardRole->id);
+            })
+            ->where('is_active', 1)
+            ->pluck('id')
+            ->all();
+
+        foreach ($roleUserIds as $userId) {
+            NewsletterRecipient::create([
+                'newsletter_id' => $roleNewsletter->id,
+                'user_id' => $userId,
+                'status' => 'sent',
+            ]);
+            $this->report['counts']['newsletter_recipients']++;
+
+            $recipientUser = User::find($userId);
+            if ($recipientUser) {
+                NewsletterArchive::create([
+                    'newsletter_id' => $roleNewsletter->id,
+                    'user_id' => $userId,
+                    'email' => $recipientUser->email,
+                    'sent_at' => $sentAt->format('Y-m-d H:i:s'),
+                ]);
+                $this->report['counts']['newsletter_archive']++;
+            }
+        }
+
+        $roleNewsletter->recipient_count = count($roleUserIds);
+        $roleNewsletter->save();
+
+        // Entwurf mit der Quelle "Veranstaltungsteilnehmer": die Auflösung
+        // verlangt eine Veranstaltung mit tatsächlich erfasster Anwesenheit
+        // (Status "present"), sonst würde die Quelle niemanden auflösen.
+        $attendeeEvent = Event::query()
+            ->whereHas('attendances', function ($query) {
+                $query->where('status', 'present');
+            })
+            ->orderBy('id')
+            ->first();
+
+        if ($attendeeEvent === null) {
+            $this->report['warnings'][] = 'Keine Veranstaltung mit anwesenden Personen gefunden, '
+                . 'Newsletter-Entwurf mit Quelle "Veranstaltungsteilnehmer" wurde übersprungen.';
+            return;
+        }
+
+        // Deckt sich mit NewsletterRecipientService::getEventAttendees(), damit
+        // recipient_count der tatsächlich aufgelösten Personenzahl entspricht.
+        $eventAttendeeUserIds = User::query()
+            ->whereHas('attendances', function ($query) use ($attendeeEvent) {
+                $query->where('event_id', $attendeeEvent->id)->where('status', 'present');
+            })
+            ->where('is_active', 1)
+            ->pluck('id')
+            ->all();
+
+        if ($eventAttendeeUserIds === []) {
+            $this->report['warnings'][] = 'Anwesende Personen der gewählten Veranstaltung sind inaktiv, '
+                . 'Newsletter-Entwurf mit Quelle "Veranstaltungsteilnehmer" wurde übersprungen.';
+            return;
+        }
+
+        $eventDraft = Newsletter::create([
+            'project_id' => null,
+            'title' => 'Entwurf: Rückmeldung an Teilnehmende von ' . $attendeeEvent->title,
+            'content_html' => '<h2>Rückmeldung</h2>'
+                . '<p>Dieser Entwurf richtet sich an alle, die bei "' . $attendeeEvent->title . '" anwesend waren.</p>',
+            'status' => Newsletter::STATUS_DRAFT,
+            'created_by' => $announcementAuthor->id,
+            'locked_by' => null,
+            'locked_at' => null,
+        ]);
+        $this->report['counts']['newsletters']++;
+
+        NewsletterRecipientSource::create([
+            'newsletter_id' => $eventDraft->id,
+            'source_type' => NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
+            'reference_id' => $attendeeEvent->id,
+        ]);
+        $this->report['counts']['newsletter_recipient_sources']++;
+
+        foreach ($eventAttendeeUserIds as $userId) {
+            NewsletterRecipient::create([
+                'newsletter_id' => $eventDraft->id,
+                'user_id' => $userId,
+                'status' => 'pending',
+            ]);
+            $this->report['counts']['newsletter_recipients']++;
+        }
+
+        $eventDraft->recipient_count = count($eventAttendeeUserIds);
+        $eventDraft->save();
     }
 }

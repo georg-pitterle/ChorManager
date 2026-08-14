@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\NewsletterWithoutRecipientsException;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
@@ -57,6 +58,15 @@ class NewsletterService
         // current project membership, role assignments and active state instead
         // of a stale snapshot taken when the draft was last saved.
         $resolvedRecipients = $this->recipientService->resolveRecipients($newsletter);
+
+        // Erst prüfen, dann schreiben: setRecipients() ersetzt die
+        // gespeicherten Empfängerzeilen und recipient_count unwiderruflich.
+        // Ein abgelehnter Versand darf den zuvor gespeicherten Datensatz
+        // nicht verändern.
+        if ($resolvedRecipients->count() === 0) {
+            throw new NewsletterWithoutRecipientsException();
+        }
+
         $this->recipientService->setRecipients(
             $newsletter,
             $resolvedRecipients->pluck('id')->map(static function ($id): int {
@@ -65,10 +75,6 @@ class NewsletterService
         );
 
         $recipients = $this->recipientService->getRecipients($newsletter->id);
-
-        if ($recipients->count() === 0) {
-            throw new Exception('Keine Empfänger definiert');
-        }
 
         $sentCount = 0;
         $sentAt = Carbon::now();

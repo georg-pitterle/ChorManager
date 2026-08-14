@@ -7,6 +7,7 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Exceptions\NewsletterWithoutRecipientsException;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
@@ -21,8 +22,6 @@ use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
-use App\Queries\NewsletterTemplateQuery;
-use App\Persistence\NewsletterTemplatePersistence;
 use App\Util\EnvHelper;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
@@ -34,8 +33,6 @@ class NewsletterController
     private NewsletterLockingService $lockingService;
     private NewsletterRecipientService $recipientService;
     private HtmlSanitizer $htmlSanitizer;
-    private NewsletterTemplateQuery $templateQuery;
-    private NewsletterTemplatePersistence $templatePersistence;
     private LoggerInterface $logger;
     private NameFormatterService $nameFormatter;
 
@@ -45,8 +42,6 @@ class NewsletterController
         NewsletterLockingService $lockingService,
         NewsletterRecipientService $recipientService,
         HtmlSanitizer $htmlSanitizer,
-        NewsletterTemplateQuery $templateQuery,
-        NewsletterTemplatePersistence $templatePersistence,
         LoggerInterface $logger,
         NameFormatterService $nameFormatter
     ) {
@@ -55,8 +50,6 @@ class NewsletterController
         $this->lockingService = $lockingService;
         $this->recipientService = $recipientService;
         $this->htmlSanitizer = $htmlSanitizer;
-        $this->templateQuery = $templateQuery;
-        $this->templatePersistence = $templatePersistence;
         $this->logger = $logger;
         $this->nameFormatter = $nameFormatter;
     }
@@ -85,7 +78,7 @@ class NewsletterController
      */
     private function jsonResponse(Response $response, array $payload, int $status = 200): Response
     {
-        $response->getBody()->write((string) json_encode($payload));
+        $response->getBody()->write((string) json_encode($payload, JSON_UNESCAPED_UNICODE));
 
         return $response
             ->withHeader('Content-Type', 'application/json')
@@ -104,51 +97,46 @@ class NewsletterController
     }
 
     /**
-     * Resolve projects the current user is allowed to access.
+     * Alle Projekte als Auswahl. Der Zugang zum Modul wird allein über das Recht
+     * can_manage_newsletters geregelt, nicht über die Projektmitgliedschaft.
      *
-     * @param int|null $userId
      * @return \Illuminate\Support\Collection<int, Project>
      */
-    private function getAccessibleProjects(?int $userId)
+    private function selectableProjects()
     {
-        if (!$userId) {
-            return Project::query()->whereRaw('1 = 0')->get();
-        }
-
-        $user = User::find($userId);
-        if (!$user) {
-            return Project::query()->whereRaw('1 = 0')->get();
-        }
-
-        return $user->projects()->orderBy('name')->get();
+        return Project::query()->orderBy('name')->get();
     }
 
-    protected function getAccessibleProjectIds(?int $userId): array
+    /**
+     * Vorlagen für das Auswahlfeld: global zuerst, danach je Projekt.
+     *
+     * @return array<int, array{label: string, templates: \Illuminate\Support\Collection}>
+     */
+    private function groupedTemplates(): array
     {
-        return $this->getAccessibleProjects($userId)
-            ->pluck('id')
-            ->map(fn($id) => (int) $id)
-            ->all();
-    }
+        $templates = NewsletterTemplate::query()->with('project')->orderBy('name')->get();
 
-    private function canAccessTemplateContext(?int $templateProjectId, array $accessibleProjectIds): bool
-    {
-        if ($templateProjectId === null) {
-            return true;
+        $global = $templates->filter(static fn ($template): bool => $template->project_id === null)->values();
+        $groups = [];
+
+        if ($global->isNotEmpty()) {
+            $groups[] = ['label' => 'Global', 'templates' => $global];
         }
 
-        return in_array($templateProjectId, $accessibleProjectIds, true);
-    }
+        $byProject = $templates
+            ->filter(static fn ($template): bool => $template->project_id !== null)
+            ->groupBy(static fn ($template): string => (string) ($template->project->name ?? 'Projekt'));
 
-    private function canAccessNewsletterById(int $newsletterId, ?int $userId): bool
-    {
-        $newsletter = Newsletter::query()->select(['id', 'project_id'])->find($newsletterId);
-        if (!$newsletter) {
-            return false;
+        foreach ($byProject->sortKeys() as $projectName => $projectTemplates) {
+            $groups[] = ['label' => (string) $projectName, 'templates' => $projectTemplates->values()];
         }
 
-        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
-        return in_array((int) $newsletter->project_id, $accessibleProjectIds, true);
+        return $groups;
+    }
+
+    private function canManageNewsletters(): bool
+    {
+        return (bool) ($_SESSION['can_manage_newsletters'] ?? false);
     }
 
     private function canAccessReceivedNewsletterById(int $newsletterId, ?int $userId): bool
@@ -161,26 +149,6 @@ class NewsletterController
             ->where('newsletter_id', $newsletterId)
             ->where('user_id', (int) $userId)
             ->exists();
-    }
-
-    private function validateTemplateInput(array $data): array
-    {
-        $name = trim((string) ($data['name'] ?? ''));
-        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
-        $description = trim((string) ($data['description'] ?? ''));
-
-        if ($name === '' || mb_strlen($name) > 255 || $contentHtml === '') {
-            return ['ok' => false, 'payload' => []];
-        }
-
-        return [
-            'ok' => true,
-            'payload' => [
-                'name' => $name,
-                'content_html' => $contentHtml,
-                'description' => $description,
-            ],
-        ];
     }
 
     private function validateNewsletterDraftInput(array $data): array
@@ -209,18 +177,17 @@ class NewsletterController
     }
 
     /**
+     * Empfängerquellen sind beim Speichern freiwillig; erst der Versand verlangt
+     * mindestens eine aufgelöste Person.
+     *
      * @param array<string, mixed> $data
      * @return array{ok:bool, message:?string, payload:array<string, mixed>}
      */
-    private function validateNewsletterSourcesInput(array $data, array $accessibleProjectIds = []): array
+    private function validateNewsletterSourcesInput(array $data): array
     {
         $sources = $data['sources'] ?? null;
-        if (!is_array($sources) || $sources === []) {
-            return [
-                'ok' => false,
-                'message' => 'Mindestens eine Empfängerquelle ist erforderlich.',
-                'payload' => [],
-            ];
+        if (!is_array($sources)) {
+            $sources = [];
         }
 
         $allowedTypes = [
@@ -246,12 +213,7 @@ class NewsletterController
             }
 
             if ($type === NewsletterRecipientSource::TYPE_PROJECT_MEMBERS) {
-                $project = Project::query()->find($referenceId);
-                if (!$project) {
-                    continue;
-                }
-
-                if ($accessibleProjectIds !== [] && !in_array((int) $project->id, $accessibleProjectIds, true)) {
+                if (!Project::query()->where('id', $referenceId)->exists()) {
                     continue;
                 }
             }
@@ -289,14 +251,6 @@ class NewsletterController
             ];
         }
 
-        if ($normalized === []) {
-            return [
-                'ok' => false,
-                'message' => 'Mindestens eine gültige Empfängerquelle ist erforderlich.',
-                'payload' => [],
-            ];
-        }
-
         return [
             'ok' => true,
             'message' => null,
@@ -331,25 +285,13 @@ class NewsletterController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
-        $projects = $this->getAccessibleProjects($userId);
-        $projectIds = $projects->pluck('id')->map(function ($id) {
-            return (int) $id;
-        })->all();
+        $projects = $this->selectableProjects();
 
-        if ($projects->isEmpty()) {
-            return $this->view->render($response, 'newsletters/index.twig', [
-                'newsletters' => [],
-                'project' => null,
-                'projects' => $projects,
-                'status' => Newsletter::STATUS_DRAFT,
-                'user_id' => $userId,
-                'success' => $success,
-                'error' => $error,
-            ]);
+        $status = (string) ($queryParams['status'] ?? Newsletter::STATUS_DRAFT);
+        if (!in_array($status, Newsletter::SUPPORTED_STATUSES, true)) {
+            $status = Newsletter::STATUS_DRAFT;
         }
 
-        $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
-        $status = $queryParams['status'] ?? Newsletter::STATUS_DRAFT;
         $recipientType = trim((string) ($queryParams['recipient_type'] ?? ''));
         $allowedRecipientTypes = [
             NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
@@ -360,55 +302,29 @@ class NewsletterController
         if (!in_array($recipientType, $allowedRecipientTypes, true)) {
             $recipientType = '';
         }
-        $allowedStatuses = Newsletter::SUPPORTED_STATUSES;
 
-        if (!in_array($status, $allowedStatuses, true)) {
-            $status = Newsletter::STATUS_DRAFT;
+        // '' = alle Projekte, 'none' = ohne Projekt, sonst eine konkrete ID.
+        // Unbekannte Werte fallen auf 'alle' zurück – das gilt auch für eine
+        // numerische, aber nicht (mehr) existierende Projekt-Kennung, sonst
+        // wirkt die Liste grundlos leer, während das Auswahlfeld mangels
+        // passender Option "Alle Projekte" anzeigt.
+        $projectFilter = trim((string) ($queryParams['project_id'] ?? ''));
+        if ($projectFilter !== '' && $projectFilter !== 'none' && !ctype_digit($projectFilter)) {
+            $projectFilter = '';
+        }
+        if ($projectFilter !== '' && $projectFilter !== 'none' && !$projects->contains('id', (int) $projectFilter)) {
+            $projectFilter = '';
         }
 
-        if ($status === Newsletter::STATUS_SENT) {
-            $query = Newsletter::query()
-                ->whereIn('project_id', $projectIds)
-                ->where('status', Newsletter::STATUS_SENT)
-                ->with(['createdBy', 'project']);
+        $query = Newsletter::query()
+            ->where('status', $status)
+            ->with(['createdBy', 'project']);
 
-            if ($recipientType !== '') {
-                $query->whereHas('recipientSources', function ($sourceQuery) use ($recipientType) {
-                    $sourceQuery->where('source_type', $recipientType);
-                });
-            }
-
-            $newsletters = $query
-                ->orderBy('sent_at', 'desc')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            return $this->view->render($response, 'newsletters/index.twig', [
-                'newsletters' => $newsletters,
-                'project' => null,
-                'projects' => $projects,
-                'status' => $status,
-                'recipient_type' => $recipientType,
-                'user_id' => $userId,
-                'success' => $success,
-                'error' => $error,
-            ]);
+        if ($projectFilter === 'none') {
+            $query->whereNull('project_id');
+        } elseif ($projectFilter !== '') {
+            $query->where('project_id', (int) $projectFilter);
         }
-
-        if (!$projectId) {
-            $defaultProject = $projects->first();
-            return $response->withHeader('Location', '/newsletters?project_id=' . $defaultProject->id . '&status=' . $status)
-                ->withStatus(302);
-        }
-
-        $project = $projects->firstWhere('id', $projectId);
-        if (!$project) {
-            return $response->withStatus(403);
-        }
-
-        $query = Newsletter::query()->where('project_id', $projectId);
-
-        $query->where('status', $status);
 
         if ($recipientType !== '') {
             $query->whereHas('recipientSources', function ($sourceQuery) use ($recipientType) {
@@ -416,15 +332,16 @@ class NewsletterController
             });
         }
 
-        $newsletters = $query
-            ->with(['createdBy'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        if ($status === Newsletter::STATUS_SENT) {
+            $query->orderBy('sent_at', 'desc');
+        }
+
+        $newsletters = $query->orderBy('created_at', 'desc')->get();
 
         return $this->view->render($response, 'newsletters/index.twig', [
             'newsletters' => $newsletters,
-            'project' => $project,
             'projects' => $projects,
+            'project_filter' => $projectFilter,
             'status' => $status,
             'recipient_type' => $recipientType,
             'user_id' => $userId,
@@ -458,32 +375,16 @@ class NewsletterController
     {
         $queryParams = $request->getQueryParams();
         $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
-        $userId = $_SESSION['user_id'] ?? null;
-        $projects = $this->getAccessibleProjects($userId);
+        $projects = $this->selectableProjects();
 
-        if ($projects->isEmpty()) {
-            return $response->withStatus(403);
-        }
-
-        $projectId = !empty($queryParams['project_id'])
-            ? (int)$queryParams['project_id']
-            : (int) $projects->first()->id;
-
-        $project = $projects->firstWhere('id', $projectId);
-
-        if (!$project) {
-            return $response->withStatus(403);
-        }
+        $projectId = !empty($queryParams['project_id']) ? (int) $queryParams['project_id'] : null;
+        $project = $projectId === null ? null : $projects->firstWhere('id', $projectId);
 
         $events = Event::query()
             ->orderBy('starts_at', 'desc')
             ->get();
         $roles = Role::query()->orderBy('name')->get();
         $users = $this->activeUsersInNameOrder();
-        $templates = NewsletterTemplate::where('project_id', $projectId)
-            ->orWhereNull('project_id')
-            ->orderBy('name')
-            ->get();
 
         return $this->view->render($response, 'newsletters/create.twig', [
             'project' => $project,
@@ -491,13 +392,13 @@ class NewsletterController
             'events' => $events,
             'roles' => $roles,
             'users' => $users,
-            'recipient_sources' => [
+            'recipient_sources' => $project === null ? [] : [
                 [
                     'type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-                    'reference_id' => $projectId,
+                    'reference_id' => (int) $project->id,
                 ],
             ],
-            'templates' => $templates,
+            'template_groups' => $this->groupedTemplates(),
             'is_modal' => $isModal,
         ]);
     }
@@ -505,12 +406,11 @@ class NewsletterController
     public function store(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $projectId = (int)($data['project_id'] ?? 0);
         $isModal = ((string) ($data['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
         $expectsJson = $this->expectsJson($request);
 
-        if (!$projectId || !$userId) {
+        if (!$userId) {
             if ($expectsJson) {
                 return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
             }
@@ -518,22 +418,19 @@ class NewsletterController
             return $response->withStatus(403);
         }
 
-        $projects = $this->getAccessibleProjects($userId);
-        $canAccessProject = $projects->contains(function ($project) use ($projectId) {
-            return (int) $project->id === $projectId;
-        });
-
-        if (!$canAccessProject) {
-            if ($expectsJson) {
-                return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
-            }
-
-            return $response->withStatus(403);
+        $projectId = null;
+        if (($data['project_id'] ?? '') !== '') {
+            $projectId = (int) $data['project_id'];
         }
 
-        $project = Project::find($projectId);
-        if (!$project) {
-            return $response->withStatus(404);
+        if ($projectId !== null && !Project::query()->where('id', $projectId)->exists()) {
+            $message = 'Das gewählte Projekt existiert nicht.';
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => $message], 422);
+            }
+
+            $_SESSION['error'] = $message;
+            return $response->withHeader('Location', '/newsletters/create')->withStatus(302);
         }
 
         $validation = $this->validateNewsletterDraftInput($data);
@@ -546,12 +443,14 @@ class NewsletterController
 
             $_SESSION['error'] = $message;
             return $response
-                ->withHeader('Location', '/newsletters/create?project_id=' . $projectId)
+                ->withHeader(
+                    'Location',
+                    '/newsletters/create' . ($projectId !== null ? '?project_id=' . $projectId : '')
+                )
                 ->withStatus(302);
         }
 
-        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id): int => (int) $id)->all();
-        $sourceValidation = $this->validateNewsletterSourcesInput($data, $accessibleProjectIds);
+        $sourceValidation = $this->validateNewsletterSourcesInput($data);
         if (!$sourceValidation['ok']) {
             $message = (string) ($sourceValidation['message'] ?? 'Ungültige Empfängerquellen.');
 
@@ -561,7 +460,10 @@ class NewsletterController
 
             $_SESSION['error'] = $message;
             return $response
-                ->withHeader('Location', '/newsletters/create?project_id=' . $projectId)
+                ->withHeader(
+                    'Location',
+                    '/newsletters/create' . ($projectId !== null ? '?project_id=' . $projectId : '')
+                )
                 ->withStatus(302);
         }
 
@@ -577,7 +479,7 @@ class NewsletterController
 
         return $this->jsonResponse($response, [
             'id' => $newsletter->id,
-            'redirect' => "/newsletters/{$newsletter->id}/edit?project_id={$projectId}" . ($isModal ? '&modal=1' : ''),
+            'redirect' => "/newsletters/{$newsletter->id}/edit" . ($isModal ? '?modal=1' : ''),
         ], 201);
     }
 
@@ -587,19 +489,11 @@ class NewsletterController
         $queryParams = $request->getQueryParams();
         $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
-        $projects = $this->getAccessibleProjects($userId);
+        $projects = $this->selectableProjects();
 
         $newsletter = Newsletter::find($id);
         if (!$newsletter) {
             return $response->withStatus(404);
-        }
-
-        $canAccessNewsletterProject = $projects->contains(function ($project) use ($newsletter) {
-            return (int) $project->id === (int) $newsletter->project_id;
-        });
-
-        if (!$canAccessNewsletterProject) {
-            return $response->withStatus(403);
         }
 
         $canEdit = $this->lockingService->canEdit($newsletter, $userId);
@@ -622,12 +516,6 @@ class NewsletterController
         $roles = Role::query()->orderBy('name')->get();
         $users = $this->activeUsersInNameOrder();
         $sources = $this->recipientService->getSources($newsletter);
-        if ($sources === []) {
-            $sources = [[
-                'type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-                'reference_id' => (int) $newsletter->project_id,
-            ]];
-        }
 
         return $this->view->render($response, 'newsletters/edit.twig', [
             'newsletter' => $newsletter,
@@ -637,6 +525,7 @@ class NewsletterController
             'roles' => $roles,
             'users' => $users,
             'recipient_sources' => $sources,
+            'template_groups' => $this->groupedTemplates(),
             'is_modal' => $isModal,
         ]);
     }
@@ -656,14 +545,13 @@ class NewsletterController
             return $this->jsonResponse($response, ['error' => 'Newsletter ist nicht für diese Sitzung gesperrt.'], 403);
         }
 
-        $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : (int) $newsletter->project_id;
-        $projects = $this->getAccessibleProjects($userId);
-        $canAccessProject = $projects->contains(function ($project) use ($projectId) {
-            return (int) $project->id === $projectId;
-        });
+        $projectId = null;
+        if (($data['project_id'] ?? '') !== '') {
+            $projectId = (int) $data['project_id'];
+        }
 
-        if (!$canAccessProject) {
-            return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+        if ($projectId !== null && !Project::query()->where('id', $projectId)->exists()) {
+            return $this->jsonResponse($response, ['error' => 'Das gewählte Projekt existiert nicht.'], 422);
         }
 
         $validation = $this->validateNewsletterDraftInput($data);
@@ -672,8 +560,7 @@ class NewsletterController
             return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
-        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id): int => (int) $id)->all();
-        $sourceValidation = $this->validateNewsletterSourcesInput($data, $accessibleProjectIds);
+        $sourceValidation = $this->validateNewsletterSourcesInput($data);
         if (!$sourceValidation['ok']) {
             $message = (string) ($sourceValidation['message'] ?? 'Ungültige Empfängerquellen.');
             return $this->jsonResponse($response, ['error' => $message], 422);
@@ -701,18 +588,8 @@ class NewsletterController
     public function resolveRecipientsPreview(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $userId = $_SESSION['user_id'] ?? null;
-        $projectId = (int) ($data['project_id'] ?? 0);
 
-        $projects = $this->getAccessibleProjects($userId);
-        $accessibleProjectIds = $projects->pluck('id')->map(static fn($id): int => (int) $id)->all();
-        if ($projectId <= 0 || !in_array($projectId, $accessibleProjectIds, true)) {
-            return $this->jsonResponse($response, [
-                'errors' => ['Zugriff verweigert.'],
-            ], 403);
-        }
-
-        $validation = $this->validateNewsletterSourcesInput($data, $accessibleProjectIds);
+        $validation = $this->validateNewsletterSourcesInput($data);
         if (!$validation['ok']) {
             return $this->jsonResponse($response, [
                 'errors' => [(string) ($validation['message'] ?? 'Ungültige Empfängerquellen.')],
@@ -733,7 +610,7 @@ class NewsletterController
         $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canAccessNewsletterById($id, $userId) && !$this->canAccessReceivedNewsletterById($id, $userId)) {
+        if (!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)) {
             return $response->withStatus(403);
         }
 
@@ -765,10 +642,6 @@ class NewsletterController
             }
 
             return $response->withStatus(404);
-        }
-
-        if (!$this->canAccessNewsletterById($id, $userId)) {
-            return $response->withStatus(403);
         }
 
         if ($newsletter->isLocked() && !$this->lockingService->isLockedBy($newsletter, $userId)) {
@@ -805,6 +678,25 @@ class NewsletterController
                     'redirect' => "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_SENT,
                 ]);
             }
+        } catch (NewsletterWithoutRecipientsException $e) {
+            $message = $e->getMessage();
+            $this->logger->info(
+                'Newsletter send blocked without recipients.',
+                [
+                    'event' => 'newsletter.send.blocked_without_recipients',
+                    'newsletter_id' => $id,
+                    'user_id' => is_numeric($userId) ? (int) $userId : null,
+                ]
+            );
+
+            if (!$expectsJson) {
+                $_SESSION['error'] = $message;
+                return $response
+                    ->withHeader('Location', '/newsletters?status=' . Newsletter::STATUS_DRAFT)
+                    ->withStatus(302);
+            }
+
+            return $this->jsonResponse($response, ['error' => $message], 422);
         } catch (\Exception $e) {
             $this->logger->error(
                 'Newsletter send failed.',
@@ -836,87 +728,10 @@ class NewsletterController
             ->withStatus(302);
     }
 
-    public function saveAsTemplate(Request $request, Response $response): Response
-    {
-        $id = (int)$request->getAttribute('id');
-        $data = (array) $request->getParsedBody();
-        $userId = $_SESSION['user_id'] ?? null;
-        $expectsJson = $this->expectsJson($request);
-
-        if (!$this->canAccessNewsletterById($id, $userId)) {
-            return $response->withStatus(403);
-        }
-
-        $newsletter = Newsletter::find($id);
-        if (!$newsletter) {
-            return $response->withStatus(404);
-        }
-
-        $templateName = trim((string) ($data['template_name'] ?? $newsletter->title));
-        $templateDescription = trim((string) ($data['template_description'] ?? ''));
-        $templateContentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($newsletter->content_html);
-
-        if ($templateName === '' || mb_strlen($templateName) > 255 || trim(strip_tags($templateContentHtml)) === '') {
-            if ($expectsJson) {
-                return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten.'], 422);
-            }
-
-            $_SESSION['error'] = 'Ungültige Vorlagendaten.';
-            return $response
-                ->withHeader('Location', '/newsletters/' . $id . '/edit')
-                ->withStatus(302);
-        }
-
-        $template = NewsletterTemplate::create([
-            'name' => $templateName,
-            'description' => $templateDescription,
-            'content_html' => $templateContentHtml,
-            'project_id' => $newsletter->project_id,
-            'created_by' => $userId,
-        ]);
-
-        if (!$expectsJson) {
-            $_SESSION['success'] = 'Vorlage gespeichert';
-            return $response
-                ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
-                ->withStatus(302);
-        }
-
-        return $this->jsonResponse($response, [
-            'success' => true,
-            'template_id' => $template->id,
-        ], 201);
-    }
-
-    public function getTemplate(Request $request, Response $response): Response
-    {
-        $id = (int)$request->getAttribute('id');
-        $template = NewsletterTemplate::find($id);
-
-        if (!$template) {
-            return $response->withStatus(404);
-        }
-
-        $userId = $_SESSION['user_id'] ?? null;
-        if (!$this->canAccessTemplateContext($template->project_id, $this->getAccessibleProjectIds($userId))) {
-            return $response->withStatus(403);
-        }
-
-        return $this->jsonResponse($response, [
-            'id' => $template->id,
-            'name' => $template->name,
-            'content_html' => $template->content_html,
-        ]);
-    }
-
     public function checkLock(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
-
-        if (!$this->canAccessNewsletterById($id, $userId)) {
-            return $response->withStatus(403);
-        }
 
         $newsletter = Newsletter::find($id);
         if (!$newsletter) {
@@ -946,10 +761,6 @@ class NewsletterController
         $id = (int)$request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canAccessNewsletterById($id, $userId)) {
-            return $response->withStatus(403);
-        }
-
         $newsletter = Newsletter::find($id);
         if (!$newsletter) {
             return $response->withStatus(404);
@@ -972,13 +783,9 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
-        if (!$this->canAccessNewsletterById($id, $userId)) {
-            return $response->withStatus(403);
-        }
-
         if ($newsletter->isLocked() && (int) ($newsletter->locked_by ?? 0) !== (int) ($userId ?? 0)) {
             $_SESSION['error'] =
-                'Newsletter-Entwurf wird gerade von einer anderen Person bearbeitet und kann derzeit nicht geloescht werden.';
+                'Newsletter-Entwurf wird gerade von einer anderen Person bearbeitet und kann derzeit nicht gelöscht werden.';
             return $response->withHeader(
                 'Location',
                 "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
@@ -995,165 +802,5 @@ class NewsletterController
             "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
         )
             ->withStatus(302);
-    }
-
-    public function listTemplates(Request $request, Response $response): Response
-    {
-        $userId = $_SESSION['user_id'] ?? null;
-        $projects = $this->getAccessibleProjects($userId);
-        $templates = $this->templateQuery->getForAccessibleProjects($this->getAccessibleProjectIds($userId));
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
-
-        return $this->view->render($response, 'newsletters/templates_index.twig', [
-            'projects' => $projects,
-            'templates' => $templates,
-            'success' => $success,
-            'error' => $error,
-        ]);
-    }
-
-    public function createTemplate(Request $request, Response $response): Response
-    {
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        if ($userId <= 0) {
-            return $response->withStatus(403);
-        }
-
-        $data = (array) $request->getParsedBody();
-        $validation = $this->validateTemplateInput($data);
-        if (!$validation['ok']) {
-            if (!$this->expectsJson($request)) {
-                $_SESSION['error'] = 'Ungueltige Vorlagendaten';
-                return $response
-                    ->withHeader('Location', '/newsletters/templates')
-                    ->withStatus(302);
-            }
-
-            return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
-        }
-
-        $projectId = null;
-        if (($data['project_id'] ?? '') !== '') {
-            $projectId = (int) $data['project_id'];
-        }
-
-        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
-        if (!$this->canAccessTemplateContext($projectId, $accessibleProjectIds)) {
-            return $response->withStatus(403);
-        }
-
-        $template = $this->templatePersistence->createTemplate($validation['payload'], $userId, $projectId);
-
-        if (!$this->expectsJson($request)) {
-            $_SESSION['success'] = 'Vorlage erstellt';
-            return $response
-                ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
-                ->withStatus(302);
-        }
-
-        return $this->jsonResponse($response, [
-            'success' => true,
-            'template_id' => $template->id,
-            'redirect' => '/newsletters/templates/' . $template->id . '/edit',
-        ], 201);
-    }
-
-    public function editTemplate(Request $request, Response $response): Response
-    {
-        $id = (int) $request->getAttribute('id');
-        $queryParams = $request->getQueryParams();
-        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
-        $template = $this->templateQuery->findById($id);
-
-        if (!$template) {
-            return $response->withStatus(404);
-        }
-
-        $userId = $_SESSION['user_id'] ?? null;
-        if (!$this->canAccessTemplateContext($template->project_id, $this->getAccessibleProjectIds($userId))) {
-            return $response->withStatus(403);
-        }
-
-        return $this->view->render($response, 'newsletters/templates_edit.twig', [
-            'template' => $template,
-            'is_modal' => $isModal,
-        ]);
-    }
-
-    public function updateTemplate(Request $request, Response $response): Response
-    {
-        $id = (int) $request->getAttribute('id');
-        $template = $this->templateQuery->findById($id);
-
-        if (!$template) {
-            return $response->withStatus(404);
-        }
-
-        $userId = $_SESSION['user_id'] ?? null;
-        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
-
-        if (!$this->canAccessTemplateContext($template->project_id, $accessibleProjectIds)) {
-            return $response->withStatus(403);
-        }
-
-        $validation = $this->validateTemplateInput((array) $request->getParsedBody());
-        if (!$validation['ok']) {
-            if (!$this->expectsJson($request)) {
-                $_SESSION['error'] = 'Ungueltige Vorlagendaten';
-                return $response
-                    ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
-                    ->withStatus(302);
-            }
-
-            return $this->jsonResponse($response, ['error' => 'Ungueltige Vorlagendaten'], 422);
-        }
-
-        $this->templatePersistence->updateTemplate($template, $validation['payload']);
-        $_SESSION['success'] = 'Vorlage gespeichert';
-
-        if (!$this->expectsJson($request)) {
-            return $response
-                ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
-                ->withStatus(302);
-        }
-
-        return $this->jsonResponse($response, ['success' => true]);
-    }
-
-    public function cloneTemplate(Request $request, Response $response): Response
-    {
-        $id = (int) $request->getAttribute('id');
-        $template = $this->templateQuery->findById($id);
-
-        if (!$template) {
-            return $response->withStatus(404);
-        }
-
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        if ($userId <= 0) {
-            return $response->withStatus(403);
-        }
-
-        $accessibleProjectIds = $this->getAccessibleProjectIds($userId);
-        if (!$this->canAccessTemplateContext($template->project_id, $accessibleProjectIds)) {
-            return $response->withStatus(403);
-        }
-
-        $clone = $this->templatePersistence->cloneTemplate($template, $userId);
-
-        if (!$this->expectsJson($request)) {
-            $_SESSION['success'] = 'Vorlage geklont';
-            return $response
-                ->withHeader('Location', '/newsletters/templates/' . $clone->id . '/edit')
-                ->withStatus(302);
-        }
-
-        return $this->jsonResponse($response, [
-            'success' => true,
-            'template_id' => $clone->id,
-            'redirect' => '/newsletters/templates/' . $clone->id . '/edit',
-        ], 201);
     }
 }

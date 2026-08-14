@@ -29,6 +29,23 @@ function initNewsletterEdit() {
     const saveTemplateButton = document.getElementById("save-template-btn");
     const templateNameInput = document.getElementById("template_name");
     const templateDescriptionInput = document.getElementById("template_description");
+
+    // Ein Newsletter ohne aufgelöste Empfänger darf nicht versendet werden.
+    // Der Server prüft es ebenfalls; hier geht es nur um die klare Anzeige.
+    function applyRecipientCount(count) {
+        if (recipientCountBadge) {
+            recipientCountBadge.textContent = String(count);
+        }
+
+        if (!sendButton) {
+            return;
+        }
+
+        const hasRecipients = Number(count) > 0;
+        sendButton.disabled = !hasRecipients;
+        sendButton.title = hasRecipients ? "" : "Kein Empfänger ausgewählt";
+    }
+
     const sourceBadgeMap = {
         project_members: sourceProjectMembersCount,
         event_attendees: sourceEventAttendeesCount,
@@ -144,14 +161,21 @@ function initNewsletterEdit() {
         };
     }
 
+    // Fortlaufende Anfragenummer: Läuft eine neuere Vorschau-Abfrage bereits,
+    // darf die Antwort einer älteren, überholten Abfrage das Abzeichen und
+    // die Versenden-Schaltfläche nicht mehr überschreiben.
+    let recipientPreviewRequestId = 0;
+
     async function refreshRecipientPreview() {
         if (!recipientCountBadge) {
             return;
         }
 
         const payload = syncSourcesHiddenInputs();
+        const requestId = ++recipientPreviewRequestId;
+
         if (payload.length === 0) {
-            recipientCountBadge.textContent = "0";
+            applyRecipientCount(0);
             if (recipientCountStatus) {
                 recipientCountStatus.textContent = "";
             }
@@ -184,8 +208,16 @@ function initNewsletterEdit() {
                 },
             });
 
+            if (requestId !== recipientPreviewRequestId) {
+                return;
+            }
+
             if (!response.ok) {
                 recipientCountBadge.textContent = "-";
+                if (sendButton) {
+                    sendButton.disabled = true;
+                    sendButton.title = "Empfängerzahl unbekannt";
+                }
                 if (recipientCountStatus) {
                     recipientCountStatus.textContent = "Vorschau nicht verfügbar";
                 }
@@ -193,12 +225,24 @@ function initNewsletterEdit() {
             }
 
             const data = await response.json();
-            recipientCountBadge.textContent = String(data.count ?? 0);
+            if (requestId !== recipientPreviewRequestId) {
+                return;
+            }
+
+            applyRecipientCount(Number(data.count ?? 0));
             if (recipientCountStatus) {
                 recipientCountStatus.textContent = "";
             }
         } catch (_error) {
+            if (requestId !== recipientPreviewRequestId) {
+                return;
+            }
+
             recipientCountBadge.textContent = "-";
+            if (sendButton) {
+                sendButton.disabled = true;
+                sendButton.title = "Empfängerzahl unbekannt";
+            }
             if (recipientCountStatus) {
                 recipientCountStatus.textContent = "Vorschau nicht verfügbar";
             }
@@ -464,12 +508,32 @@ function initNewsletterEdit() {
         }, 30000);
     }
 
-    window.addEventListener("load", function () {
+    // Setzt den Anfangszustand (u. a. die Versenden-Sperre ohne Empfänger).
+    // Wird unten direkt aufgerufen, damit es auch im Modal-Workflow greift –
+    // dort injiziert newsletters.js dieses Skript dynamisch NACH dem
+    // load-Ereignis, weshalb ein reiner load-Listener dort nie ausgelöst
+    // würde. Im klassischen Seitenaufruf, wo das Dokument beim Ausführen
+    // dieses Scripts noch lädt, hängt sich runInitialSync() zusätzlich an
+    // load, damit sie auch dort sicher zum Zug kommt. Der Ausführungs-Schutz
+    // verhindert, dass beide Wege doppelt initialisieren.
+    let initialSyncDone = false;
+
+    function runInitialSync() {
+        if (initialSyncDone) {
+            return;
+        }
+        initialSyncDone = true;
+
         syncSourcesHiddenInputs();
         refreshSourceSelectionCounts();
+        applyRecipientCount(Number(recipientCountBadge ? recipientCountBadge.textContent : 0));
         refreshRecipientPreviewDebounced();
         lastSavedSnapshot = createSnapshot();
-    });
+    }
+
+    if (document.readyState !== "complete") {
+        window.addEventListener("load", runInitialSync);
+    }
 
     const saveIntervalId = setInterval(function () {
         if (!document.body.contains(editForm)) {
@@ -479,6 +543,8 @@ function initNewsletterEdit() {
 
         saveNewsletter(false);
     }, 30000);
+
+    runInitialSync();
 }
 
 if (document.readyState === "loading") {

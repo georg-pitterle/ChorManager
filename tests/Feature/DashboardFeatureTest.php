@@ -4,10 +4,168 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Controllers\DashboardController;
+use App\Models\Newsletter;
+use App\Models\Project;
+use App\Models\User;
+use App\Navigation\NavigationBuilder;
+use App\Navigation\NavigationContext;
+use App\Services\MailQueueAdminService;
 use PHPUnit\Framework\TestCase;
+use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
+use Twig\Loader\FilesystemLoader;
+use Twig\TwigFilter;
+use Twig\TwigFunction;
 
 class DashboardFeatureTest extends TestCase
 {
+    use TestHttpHelpers;
+    use TwigViewStubs;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
+        $_SESSION = [];
+    }
+
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        $_SESSION = [];
+        parent::tearDown();
+    }
+
+    private function createUser(): User
+    {
+        $suffix = bin2hex(random_bytes(6));
+
+        return User::create([
+            'email' => "dashboard_{$suffix}@example.test",
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Test',
+            'last_name' => 'Person',
+            'is_active' => 1,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function createDashboardTwig(array $settings): Twig
+    {
+        $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
+        $environment = $twig->getEnvironment();
+        $environment->addFilter(new TwigFilter(
+            'person_name',
+            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
+        ));
+        $environment->addGlobal('settings', $settings);
+        $environment->addGlobal('session', $_SESSION);
+        $this->registerMailBadgeStub($environment);
+        $environment->addGlobal('app_settings', []);
+        $environment->addGlobal('csrf_token', 'test-token');
+        $environment->addFunction(new TwigFunction(
+            'asset_path',
+            static fn (string $path): string => $path
+        ));
+        $environment->addFunction(new TwigFunction(
+            'navigation',
+            static function (string $activeNav = '') use ($settings): array {
+                $context = NavigationContext::fromSession($_SESSION, $settings, '/dashboard', $activeNav);
+
+                return (new NavigationBuilder())->build($context);
+            }
+        ));
+
+        return $twig;
+    }
+
+    /**
+     * Die Kachel darf nicht länger an der Projektmitgliedschaft hängen: Wer
+     * das Recht can_manage_newsletters hat, aber in keinem Projekt Mitglied
+     * ist, muss den zuletzt versendeten, projektlosen Newsletter trotzdem
+     * sehen. Vor der Korrektur schränkte whereIn('project_id', ...) auf die
+     * Projekte des Benutzers ein und traf dabei nie NULL-Werte.
+     */
+    public function testLatestSentNewsletterTileShowsProjectlessNewsletterForManagerWithoutProjectMembership(): void
+    {
+        $manager = $this->createUser();
+        $suffix = bin2hex(random_bytes(4));
+        $title = "Projektloser Versand {$suffix}";
+
+        Newsletter::create([
+            'project_id' => null,
+            'title' => $title,
+            'content_html' => '<p>Inhalt</p>',
+            'status' => Newsletter::STATUS_SENT,
+            'created_by' => $manager->id,
+            'sent_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $_SESSION = [
+            'user_id' => (int) $manager->id,
+            'can_manage_newsletters' => true,
+        ];
+
+        $settings = ['modules' => ['newsletter' => true]];
+        $controller = new DashboardController(
+            $this->createDashboardTwig($settings),
+            new MailQueueAdminService(),
+            $settings
+        );
+
+        $response = $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse());
+        $body = (string) $response->getBody();
+
+        $this->assertStringContainsString($title, $body);
+    }
+
+    /**
+     * Ergänzend: Auch ein Newsletter aus einem fremden Projekt, in dem der
+     * Benutzer nicht Mitglied ist, muss erscheinen – die Sichtbarkeit hängt
+     * allein am Recht, nicht an der Mitgliedschaft.
+     */
+    public function testLatestSentNewsletterTileShowsNewsletterFromForeignProject(): void
+    {
+        $manager = $this->createUser();
+        $project = Project::create(['name' => 'Fremdes Projekt ' . bin2hex(random_bytes(4))]);
+        $suffix = bin2hex(random_bytes(4));
+        $title = "Versand aus fremdem Projekt {$suffix}";
+
+        Newsletter::create([
+            'project_id' => $project->id,
+            'title' => $title,
+            'content_html' => '<p>Inhalt</p>',
+            'status' => Newsletter::STATUS_SENT,
+            'created_by' => $manager->id,
+            'sent_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $_SESSION = [
+            'user_id' => (int) $manager->id,
+            'can_manage_newsletters' => true,
+        ];
+
+        $settings = ['modules' => ['newsletter' => true]];
+        $controller = new DashboardController(
+            $this->createDashboardTwig($settings),
+            new MailQueueAdminService(),
+            $settings
+        );
+
+        $response = $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse());
+        $body = (string) $response->getBody();
+
+        $this->assertStringContainsString($title, $body);
+    }
+
     public function testDashboardControllerExposesLatestViewableSentNewsletter(): void
     {
         $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DashboardController.php');

@@ -8,16 +8,32 @@ use PHPUnit\Framework\TestCase;
 
 class NewsletterTemplateManagementFeatureTest extends TestCase
 {
-    public function testTemplateManagementRoutesAreRegistered(): void
+    public function testTemplateManagementRoutesArePointedAtTemplateController(): void
     {
         $routes = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
 
         $this->assertIsString($routes);
-        $this->assertStringContainsString("/newsletters/templates', [NewsletterController::class, 'createTemplate']", $routes);
-        $this->assertStringContainsString('/newsletters/templates', $routes);
-        $this->assertStringContainsString('/newsletters/templates/{id:[0-9]+}/edit', $routes);
-        $this->assertStringContainsString('/newsletters/templates/{id:[0-9]+}', $routes);
-        $this->assertStringContainsString('/newsletters/templates/{id:[0-9]+}/clone', $routes);
+        $this->assertStringContainsString(
+            "'/newsletters/templates', [NewsletterTemplateController::class, 'index']",
+            $routes
+        );
+        $this->assertStringContainsString(
+            "'/newsletters/templates', [NewsletterTemplateController::class, 'store']",
+            $routes
+        );
+        $this->assertStringContainsString("[NewsletterTemplateController::class, 'clone']", $routes);
+        $this->assertStringContainsString("[NewsletterTemplateController::class, 'storeFromNewsletter']", $routes);
+    }
+
+    public function testTemplateControllerExposesTemplateManagementActions(): void
+    {
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'index'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'store'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'edit'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'update'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'clone'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'show'));
+        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'storeFromNewsletter'));
     }
 
     public function testTemplateManagementTemplatesExist(): void
@@ -28,41 +44,21 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $this->assertFileExists($base . '/templates_edit.twig');
     }
 
-    public function testNewsletterControllerExposesTemplateManagementActions(): void
+    public function testNewsletterControllerNoLongerHandlesTemplates(): void
     {
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'createTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'editTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
-    }
-
-    public function testUpdateTemplateRejectsEmptyPayloadWith422(): void
-    {
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
-    }
-
-    public function testUpdateTemplateReturns404ForMissingTemplate(): void
-    {
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'updateTemplate'));
-    }
-
-    public function testCloneTemplateReturns201AndCloneId(): void
-    {
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
+        $this->assertFalse(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));
+        $this->assertFalse(method_exists(\App\Controllers\NewsletterController::class, 'createTemplate'));
+        $this->assertFalse(method_exists(\App\Controllers\NewsletterController::class, 'cloneTemplate'));
     }
 
     public function testTemplateActionsSupportRedirectFallbackForNonAjaxRequests(): void
     {
-        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterTemplateController.php');
 
         $this->assertIsString($controller);
-        $this->assertMatchesRegularExpression('/private function expectsJson\(Request \$request\): bool/', $controller);
-        $this->assertStringContainsString("getHeaderLine('X-Requested-With')", $controller);
-        $this->assertStringContainsString("getHeaderLine('Accept')", $controller);
-        $this->assertStringContainsString("withHeader('Location', '/newsletters/templates/'", $controller);
-        $this->assertStringContainsString('$_SESSION[\'success\'] = \'Vorlage gespeichert\';', $controller);
-        $this->assertStringContainsString('$_SESSION[\'success\'] = \'Vorlage geklont\';', $controller);
+        $this->assertStringContainsString("'/newsletters/templates/' . \$template->id . '/edit'", $controller);
+        $this->assertStringContainsString('Vorlage gespeichert', $controller);
+        $this->assertStringContainsString('Vorlage geklont', $controller);
     }
 
     public function testTemplateIndexTemplateContainsEditAndCloneActions(): void

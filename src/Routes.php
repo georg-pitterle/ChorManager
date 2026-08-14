@@ -33,6 +33,7 @@ use App\Controllers\SongLibraryController;
 use App\Controllers\CategoryController;
 use App\Controllers\ProjectSongAssignmentController;
 use App\Controllers\NewsletterController;
+use App\Controllers\NewsletterTemplateController;
 use App\Controllers\MailQueueController;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
@@ -529,11 +530,11 @@ return function (App $app) {
                         );
                         $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/save-as-template',
-                            [NewsletterController::class, 'saveAsTemplate']
+                            [NewsletterTemplateController::class, 'storeFromNewsletter']
                         );
                         $newsletterGroup->get(
                             '/newsletters/template/{id:[0-9]+}',
-                            [NewsletterController::class, 'getTemplate']
+                            [NewsletterTemplateController::class, 'show']
                         );
                         $newsletterGroup->get(
                             '/newsletters/{id:[0-9]+}/check-lock',
@@ -549,19 +550,19 @@ return function (App $app) {
                         );
 
                         // Newsletter template management
-                        $newsletterGroup->get('/newsletters/templates', [NewsletterController::class, 'listTemplates']);
-                        $newsletterGroup->post('/newsletters/templates', [NewsletterController::class, 'createTemplate']);
+                        $newsletterGroup->get('/newsletters/templates', [NewsletterTemplateController::class, 'index']);
+                        $newsletterGroup->post('/newsletters/templates', [NewsletterTemplateController::class, 'store']);
                         $newsletterGroup->get(
                             '/newsletters/templates/{id:[0-9]+}/edit',
-                            [NewsletterController::class, 'editTemplate']
+                            [NewsletterTemplateController::class, 'edit']
                         );
                         $newsletterGroup->post(
                             '/newsletters/templates/{id:[0-9]+}',
-                            [NewsletterController::class, 'updateTemplate']
+                            [NewsletterTemplateController::class, 'update']
                         );
                         $newsletterGroup->post(
                             '/newsletters/templates/{id:[0-9]+}/clone',
-                            [NewsletterController::class, 'cloneTemplate']
+                            [NewsletterTemplateController::class, 'clone']
                         );
                     }
                 )->add(new RoleMiddleware(requiresNewsletterManagement: true));

@@ -10,11 +10,11 @@
             <p class="text-uppercase text-muted small mb-1">Bereiche</p>
             <h1 class="h2 mb-1">Neuer Newsletter</h1>
             <p class="text-muted mb-0">
-                Projekt: <strong>{{ project.name }}</strong>
+                Projekt: <strong>{{ project.name|default("kein Projekt") }}</strong>
             </p>
         </div>
         <div class="page-actions">
-            <a href="/newsletters?project_id={{ project.id }}&status=draft"
+            <a href="/newsletters?status=draft"
                class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Zurück zur Übersicht
             </a>
@@ -40,13 +40,12 @@
                     <div class="surface-card form-surface card border-0">
                         <div class="card-body">
                             <div class="mb-3">
-                                <label for="project_id" class="form-label">
-                                    Projekt <span class="text-danger">*</span>
-                                </label>
-                                <select class="form-select" id="project_id" name="project_id" required>
+                                <label for="project_id" class="form-label">Projekt (optional)</label>
+                                <select class="form-select" id="project_id" name="project_id">
+                                    <option value="">— kein Projekt —</option>
                                     {% for selectable_project in projects %}
                                         <option value="{{ selectable_project.id }}"
-                                                {% if selectable_project.id == project.id %}selected{% endif %}>
+                                                {% if project and selectable_project.id == project.id %}selected{% endif %}>
                                             {{ selectable_project.name }}
                                         </option>
                                     {% endfor %}
@@ -65,7 +64,7 @@
                                        required>
                             </div>
 
-                            {% set default_project_source_id = project.id %}
+                            {% set default_project_source_id = project ? project.id : null %}
                             <section class="mb-3"
                                      id="recipient-sources"
                                      aria-labelledby="recipient-sources-title">
@@ -159,7 +158,13 @@
                                 <label for="template" class="form-label">Vorlage laden (optional)</label>
                                 <select class="form-select" id="template" data-action="load-template">
                                     <option value="">-- Keine Vorlage --</option>
-                                    {% for template in templates %}<option value="{{ template.id }}">{{ template.name }}</option>{% endfor %}
+                                    {% for group in template_groups %}
+                                        <optgroup label="{{ group.label }}">
+                                            {% for template in group.templates %}
+                                                <option value="{{ template.id }}">{{ template.name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -181,7 +186,7 @@
             </div>
 
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <a href="/newsletters?project_id={{ project.id }}&status=draft"
+                <a href="/newsletters?status=draft"
                    class="btn btn-outline-secondary">
                     <i class="bi bi-x-circle"></i> Abbrechen
                 </a>

@@ -181,11 +181,16 @@ function initNewsletterCreate() {
         );
     }
 
+    // Die versteckten Felder werden bei jeder Auswahl SOFORT nachgezogen. Im Modal baut
+    // newsletters.js das FormData direkt aus dem Formular; liefe der Abgleich nur über die
+    // entprellte Empfängervorschau, ginge eine Auswahl verloren, die kurz vor dem Absenden
+    // getroffen wurde - der Newsletter käme dann ohne Empfängerquellen an.
     form.addEventListener("change", function (event) {
         if (!isSourceOptionTarget(event.target)) {
             return;
         }
 
+        syncSourcesHiddenInputs();
         refreshSourceSelectionCounts();
         refreshRecipientPreviewDebounced();
     });
@@ -195,6 +200,7 @@ function initNewsletterCreate() {
             return;
         }
 
+        syncSourcesHiddenInputs();
         refreshSourceSelectionCounts();
         refreshRecipientPreviewDebounced();
     });

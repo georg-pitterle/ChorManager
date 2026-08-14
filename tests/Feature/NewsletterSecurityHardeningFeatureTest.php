@@ -20,20 +20,31 @@ class NewsletterSecurityHardeningFeatureTest extends TestCase
         $this->assertStringContainsString("if (!\$validation['ok'])", $controllerContent);
     }
 
-    public function testNewsletterControllerReturnsJsonErrorPayloadForAjaxSendFailures(): void
+    public function testNewsletterControllerReturnsDedicatedStatusForEmptyRecipientSend(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
 
         $this->assertIsString($controllerContent);
+        $this->assertStringContainsString('NewsletterWithoutRecipientsException', $controllerContent);
+        $this->assertStringContainsString(
+            "return \$this->jsonResponse(\$response, ['error' => \$message], 422);",
+            $controllerContent
+        );
         $this->assertStringContainsString(
             "return \$this->jsonResponse(\$response, ['error' => \$message], 500);",
             $controllerContent
         );
     }
 
-    public function testNewsletterControllerSanitizesAndValidatesSaveAsTemplateInput(): void
+    /**
+     * Überprüft, dass der NewsletterTemplateController Template-Eingaben
+     * beim Erstellen aus einem Newsletter bereinigt und validiert.
+     */
+    public function testNewsletterTemplateControllerSanitizesAndValidatesTemplateCreationFromNewsletter(): void
     {
-        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $controllerContent = file_get_contents(
+            dirname(__DIR__) . '/../src/Controllers/NewsletterTemplateController.php'
+        );
 
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString(
