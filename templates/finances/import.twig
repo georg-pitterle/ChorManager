@@ -1,0 +1,150 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Kontoauszug importieren - {{ app_settings.app_name|default('Chor-Manager') }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kassabuch</p>
+            <h1 class="h2 mb-1">Kontoauszug importieren</h1>
+            <p class="text-muted mb-0">
+                Datei: <strong>{{ filename }}</strong>
+            </p>
+        </div>
+        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            <form action="/finances/import/cancel" method="post">
+                <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-x-circle"></i> Abbrechen
+                </button>
+            </form>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="finance-import-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="finance-import-title">Vorschau</h2>
+                <p class="dashboard-section-lead mb-0">
+                    {{ rows|length }} Zeilen gelesen, davon {{ importable_count }} übernehmbar.
+                </p>
+            </div>
+
+            {% if duplicate_count > 0 %}
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    {{ duplicate_count }} Zeilen wurden bereits früher importiert und sind gesperrt.
+                </div>
+            {% endif %}
+            {% if error_count > 0 %}
+                <div class="alert alert-danger py-2 small">
+                    <i class="bi bi-x-octagon me-1"></i>
+                    {{ error_count }} Zeilen konnten nicht gelesen werden und sind gesperrt.
+                </div>
+            {% endif %}
+
+            <form action="/finances/import/confirm" method="post" id="finance-import-form">
+                <div class="surface-card card border-0 table-shell">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped mb-0 table-responsive-cards finance-import-table">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="finance-import-select-column">
+                                            <input type="checkbox"
+                                                   class="form-check-input"
+                                                   id="finance-import-select-all"
+                                                   aria-label="Alle übernehmbaren Zeilen auswählen"
+                                                   checked>
+                                        </th>
+                                        <th>Buchungsdatum</th>
+                                        <th>Zahldatum</th>
+                                        <th>Beschreibung</th>
+                                        <th>Art</th>
+                                        <th class="text-end finance-amount-column">Betrag</th>
+                                        <th>Gruppe</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in rows %}
+                                        {% set _locked = not row.importable %}
+                                        {% set _row_class = _locked ? "table-secondary text-muted" : "" %}
+                                        <tr class="{{ _row_class }}">
+                                            <td data-label="Übernehmen">
+                                                <input type="checkbox"
+                                                       class="form-check-input finance-import-row"
+                                                       name="selected[]"
+                                                       value="{{ row.index }}"
+                                                       aria-label="Zeile {{ row.index + 1 }} übernehmen"
+                                                       {{ _locked ? "disabled" : "checked" }}>
+                                            </td>
+                                            <td data-label="Buchungsdatum">
+                                                {{ row.invoice_date ? row.invoice_date|date("d.m.Y") : "-" }}
+                                            </td>
+                                            <td data-label="Zahldatum">
+                                                {{ row.payment_date ? row.payment_date|date("d.m.Y") : "-" }}
+                                            </td>
+                                            <td data-label="Beschreibung">
+                                                {{ row.description }}
+                                                {% if row.error %}
+                                                    <div class="small text-danger">
+                                                        <i class="bi bi-x-octagon me-1"></i>{{ row.error }}
+                                                    </div>
+                                                {% elseif row.duplicate %}
+                                                    <div class="small text-warning-emphasis">
+                                                        <i class="bi bi-arrow-repeat me-1"></i>bereits importiert
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Art">
+                                                {% if row.type == "income" %}
+                                                    <span class="badge bg-success">Eingang</span>
+                                                {% elseif row.type == "expense" %}
+                                                    <span class="badge bg-danger">Ausgang</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">unbekannt</span>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Betrag" class="text-end finance-amount-column">
+                                                {{ row.amount ? row.amount|number_format(2, ",", ".") ~ " €" : "-" }}
+                                            </td>
+                                            <td data-label="Gruppe">
+                                                <select name="group[{{ row.index }}]"
+                                                        class="form-select form-select-sm"
+                                                        aria-label="Gruppe für Zeile {{ row.index + 1 }}"
+                                                        {{ _locked ? "disabled" : "" }}>
+                                                    <option value="">-- keine --</option>
+                                                    {% for group in groups %}
+                                                        <option value="{{ group }}">{{ group }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="submit"
+                            class="btn btn-primary"
+                            id="finance-import-submit"
+                            data-label-template="%count% Zeilen übernehmen"
+                            {{ importable_count == 0 ? "disabled" : "" }}>
+                        <i class="bi bi-check2-circle"></i> {{ importable_count }} Zeilen übernehmen
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    <script src="/js/finance-import.js"></script>
+{% endblock scripts %}

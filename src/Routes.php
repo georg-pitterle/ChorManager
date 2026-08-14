@@ -293,6 +293,18 @@ return function (App $app) {
                         );
                         $financeWriteGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
                         $financeWriteGroup->post(
+                            '/finances/import/preview',
+                            [FinanceController::class, 'importPreview']
+                        );
+                        $financeWriteGroup->post(
+                            '/finances/import/confirm',
+                            [FinanceController::class, 'importConfirm']
+                        );
+                        $financeWriteGroup->post(
+                            '/finances/import/cancel',
+                            [FinanceController::class, 'importCancel']
+                        );
+                        $financeWriteGroup->post(
                             '/finances/attachments/{id:[0-9]+}/delete',
                             [FinanceController::class, 'deleteAttachment']
                         );

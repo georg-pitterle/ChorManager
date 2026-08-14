@@ -20,7 +20,8 @@ class Finance extends Model
         'finance_group_id',
         'type',
         'amount',
-        'payment_method'
+        'payment_method',
+        'import_hash'
     ];
 
     protected $casts = [

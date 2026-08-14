@@ -11,31 +11,40 @@ use App\Models\Finance;
 use App\Models\FinanceGroup;
 use App\Models\Attachment;
 use App\Models\Setting;
+use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Log\LoggerInterface;
+use App\Util\AmountNormalizer;
 use App\Util\UploadValidator;
 
 class FinanceController
 {
+    /** Seconds a parsed statement stays available for confirmation. */
+    private const IMPORT_TTL = 3600;
+    private const IMPORT_SESSION_KEY = 'finance_import';
+
     private Twig $view;
     private BudgetService $budgetService;
     private LoggerInterface $logger;
     private FinanceReportPdfService $pdfService;
+    private BankStatementImportService $importService;
 
     public function __construct(
         Twig $view,
         BudgetService $budgetService,
         LoggerInterface $logger,
-        FinanceReportPdfService $pdfService
+        FinanceReportPdfService $pdfService,
+        BankStatementImportService $importService
     ) {
         $this->view = $view;
         $this->budgetService = $budgetService;
         $this->logger = $logger;
         $this->pdfService = $pdfService;
+        $this->importService = $importService;
     }
 
     private function getFiscalConfig(): array
@@ -68,50 +77,7 @@ class FinanceController
 
     public static function normalizeAmountInput(string $amount): string
     {
-        $normalized = preg_replace('/[\s\x{00A0}\']+/u', '', trim($amount)) ?? trim($amount);
-
-        $lastComma = strrpos($normalized, ',');
-        $lastDot = strrpos($normalized, '.');
-
-        if ($lastComma !== false && $lastDot !== false) {
-            // If both separators exist, treat the rightmost as decimal separator and the other as thousands separator.
-            $decimalSep = $lastComma > $lastDot ? ',' : '.';
-            $thousandsSep = $decimalSep === ',' ? '.' : ',';
-            $normalized = str_replace($thousandsSep, '', $normalized);
-            return $decimalSep === ',' ? str_replace(',', '.', $normalized) : $normalized;
-        }
-
-        if ($lastComma !== false && substr_count($normalized, ',') > 1) {
-            return self::collapseThousandsGrouping($normalized, ',');
-        }
-
-        if ($lastComma !== false) {
-            return str_replace(',', '.', $normalized);
-        }
-
-        if ($lastDot !== false && substr_count($normalized, '.') > 1) {
-            return self::collapseThousandsGrouping($normalized, '.');
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Collapses a purely-grouped number (e.g. "1.234.567" or "1,234,567") that uses
-     * $separator more than once. A trailing 3-digit group is treated as a thousands
-     * group (dropped); any other length is treated as the decimal fraction.
-     */
-    private static function collapseThousandsGrouping(string $normalized, string $separator): string
-    {
-        $parts = explode($separator, $normalized);
-        $fraction = array_pop($parts);
-        $integerPart = implode('', $parts);
-
-        if (strlen($fraction) === 3) {
-            return $integerPart . $fraction;
-        }
-
-        return $integerPart . '.' . $fraction;
+        return AmountNormalizer::normalize($amount);
     }
 
     private function buildAvailableYears(int $day, int $month): array
@@ -285,6 +251,18 @@ class FinanceController
      */
     private function nextRunningNumber(): int
     {
+        return $this->reserveRunningNumbers(1);
+    }
+
+    /**
+     * Reserves a contiguous block of running numbers in a single locked round trip
+     * and returns the first number of that block. Bulk imports would otherwise have
+     * to lock the counter row once per booking.
+     */
+    private function reserveRunningNumbers(int $count): int
+    {
+        $count = max(1, $count);
+
         Capsule::connection()->statement(
             "INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, '0')",
             ['finance_next_running_number']
@@ -293,11 +271,189 @@ class FinanceController
         $counterRow = Setting::where('setting_key', 'finance_next_running_number')->lockForUpdate()->first();
         $counterNext = ((int) $counterRow->setting_value) + 1;
         $tableNext = ((int) Finance::max('running_number')) + 1;
-        $next = max($counterNext, $tableNext);
+        $first = max($counterNext, $tableNext);
 
-        Setting::where('setting_key', 'finance_next_running_number')->update(['setting_value' => (string) $next]);
+        Setting::where('setting_key', 'finance_next_running_number')
+            ->update(['setting_value' => (string) ($first + $count - 1)]);
 
-        return $next;
+        return $first;
+    }
+
+    /**
+     * Step 1 of the bank statement import: validate and parse the upload, then show
+     * the parsed rows for review. Nothing is persisted here.
+     */
+    public function importPreview(Request $request, Response $response): Response
+    {
+        $uploadedFile = $request->getUploadedFiles()['statement'] ?? null;
+        if (!$uploadedFile instanceof UploadedFileInterface) {
+            $_SESSION['error'] = 'Bitte eine CSV-Datei auswählen.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        $uploadError = UploadValidator::getUploadErrorMessage($uploadedFile->getError(), 'Kontoauszug');
+        if ($uploadError !== null || $uploadedFile->getError() !== UPLOAD_ERR_OK) {
+            $_SESSION['error'] = $uploadError ?? 'Der Kontoauszug konnte nicht hochgeladen werden.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        $filename = self::normalizeFileName((string) $uploadedFile->getClientFilename());
+        $validationError = BankStatementImportService::validateUpload(
+            $filename,
+            (int) $uploadedFile->getSize(),
+            UploadValidator::detectMimeType($uploadedFile)
+        );
+        if ($validationError !== null) {
+            $this->logger->warning('Bank statement upload rejected.', [
+                'event' => 'security.upload.rejected',
+                'reason' => 'bank_statement_invalid_file',
+            ]);
+            $_SESSION['error'] = $validationError;
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        $parsed = $this->importService->parse($uploadedFile->getStream()->getContents());
+        if ($parsed['errors'] !== []) {
+            $_SESSION['error'] = implode(' ', $parsed['errors']);
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        $rows = $this->flagKnownRows($parsed['rows']);
+        $_SESSION[self::IMPORT_SESSION_KEY] = [
+            'filename' => $filename,
+            'created_at' => time(),
+            'rows' => $rows,
+        ];
+
+        return $this->view->render($response, 'finances/import.twig', [
+            'filename' => $filename,
+            'rows' => $rows,
+            'groups' => FinanceGroup::orderBy('name')->pluck('name'),
+            'importable_count' => count(array_filter($rows, static fn(array $r): bool => $r['importable'])),
+            'duplicate_count' => count(array_filter($rows, static fn(array $r): bool => $r['duplicate'])),
+            'error_count' => count(array_filter($rows, static fn(array $r): bool => $r['error'] !== null)),
+        ]);
+    }
+
+    /**
+     * Step 2 of the bank statement import: persist the rows the user selected.
+     * Amounts and dates are read from the stashed session payload only, never from
+     * the posted form, so the review step cannot be tampered with in the browser.
+     */
+    public function importConfirm(Request $request, Response $response): Response
+    {
+        $payload = $_SESSION[self::IMPORT_SESSION_KEY] ?? null;
+        $createdAt = is_array($payload) ? (int) ($payload['created_at'] ?? 0) : 0;
+        if (!is_array($payload) || !is_array($payload['rows'] ?? null) || time() - $createdAt > self::IMPORT_TTL) {
+            unset($_SESSION[self::IMPORT_SESSION_KEY]);
+            $_SESSION['error'] = 'Der Import ist abgelaufen. Bitte die Datei erneut hochladen.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $selected = array_map('intval', (array) ($data['selected'] ?? []));
+        $postedGroups = (array) ($data['group'] ?? []);
+
+        // Erneut gegen die Datenbank prüfen: zwischen Vorschau und Übernahme kann
+        // jemand anderes dieselben Zeilen importiert haben.
+        $rows = $this->flagKnownRows($payload['rows']);
+
+        $queued = [];
+        $skipped = 0;
+        foreach ($selected as $index) {
+            $row = $rows[$index] ?? null;
+            if (!is_array($row)) {
+                continue;
+            }
+            if (!$row['importable']) {
+                $skipped++;
+                continue;
+            }
+
+            $groupName = trim((string) ($postedGroups[$index] ?? ''));
+            $row['group_name'] = $groupName !== '' ? $groupName : null;
+            $queued[] = $row;
+        }
+
+        $imported = 0;
+        try {
+            if ($queued !== []) {
+                Capsule::connection()->transaction(function () use ($queued, &$imported): void {
+                    $runningNumber = $this->reserveRunningNumbers(count($queued));
+                    foreach ($queued as $row) {
+                        $groupName = $row['group_name'];
+                        Finance::create([
+                            'running_number' => $runningNumber,
+                            'invoice_date' => $row['invoice_date'],
+                            'payment_date' => $row['payment_date'],
+                            'description' => $row['description'],
+                            'group_name' => $groupName,
+                            // Kanonische Gruppen-ID mitschreiben, sonst fehlen die
+                            // importierten Buchungen in den Budget-Ist-Werten.
+                            'finance_group_id' => $groupName !== null
+                                ? FinanceGroup::firstOrCreate(['name' => $groupName])->id
+                                : null,
+                            'type' => $row['type'],
+                            'amount' => $row['amount'],
+                            'payment_method' => 'bank_transfer',
+                            'import_hash' => $row['import_hash'],
+                        ]);
+                        $runningNumber++;
+                        $imported++;
+                    }
+                });
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('Bank statement import failed.', [
+                'event' => 'finance.import.failed',
+                'exception' => $e,
+            ]);
+            unset($_SESSION[self::IMPORT_SESSION_KEY]);
+            $_SESSION['error'] = 'Fehler beim Import. Es wurde keine Buchung angelegt.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        unset($_SESSION[self::IMPORT_SESSION_KEY]);
+        $this->logger->info('Bank statement import completed.', [
+            'event' => 'finance.import.completed',
+            'imported' => $imported,
+            'skipped' => $skipped,
+        ]);
+        $_SESSION['success'] = sprintf('%d Buchungen importiert, %d übersprungen.', $imported, $skipped);
+
+        return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    public function importCancel(Request $request, Response $response): Response
+    {
+        unset($_SESSION[self::IMPORT_SESSION_KEY]);
+        $_SESSION['success'] = 'Import abgebrochen. Es wurde keine Buchung angelegt.';
+
+        return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    /**
+     * Marks rows whose import hash is already stored, so neither the preview nor the
+     * confirmation step can create the same booking twice.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function flagKnownRows(array $rows): array
+    {
+        $hashes = array_values(array_filter(array_column($rows, 'import_hash')));
+        $known = $hashes === []
+            ? []
+            : Finance::whereIn('import_hash', $hashes)->pluck('import_hash')->all();
+
+        foreach ($rows as $index => $row) {
+            $hash = $row['import_hash'] ?? null;
+            $duplicate = $hash !== null && in_array($hash, $known, true);
+            $rows[$index]['duplicate'] = $duplicate;
+            $rows[$index]['importable'] = !$duplicate && $hash !== null && ($row['error'] ?? null) === null;
+        }
+
+        return $rows;
     }
 
     public function delete(Request $request, Response $response, array $args): Response

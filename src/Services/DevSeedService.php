@@ -131,6 +131,7 @@ class DevSeedService
                 'attendance' => 0,
                 'event_registrations' => 0,
                 'finances' => 0,
+                'finances_imported' => 0,
                 'finance_attachments' => 0,
                 'finance_groups' => 0,
                 'budget_categories' => 0,
@@ -1279,6 +1280,11 @@ class DevSeedService
                 ? mt_rand(5000, 350000) / 100
                 : mt_rand(2000, 240000) / 100;
 
+            // Ein Teil der Überweisungen stammt aus einem Kontoauszug-Import und
+            // trägt daher einen Import-Hash. Damit ist die Dublettenerkennung in
+            // Dev sofort sichtbar, wenn derselbe Auszug erneut eingelesen wird.
+            $isImported = $paymentMethod === 'bank_transfer' && $i % 12 === 0;
+
             $groupName = $groups[$i % count($groups)];
             $finance = Finance::create([
                 'running_number' => $runningNumber,
@@ -1290,9 +1296,15 @@ class DevSeedService
                 'type' => $isIncome ? 'income' : 'expense',
                 'amount' => $amount,
                 'payment_method' => $paymentMethod,
+                'import_hash' => $isImported
+                    ? hash('sha256', 'seed-bank-statement-' . $runningNumber)
+                    : null,
             ]);
 
             $this->report['counts']['finances']++;
+            if ($isImported) {
+                $this->report['counts']['finances_imported']++;
+            }
             $runningNumber++;
 
             if ($attachmentsLeft > 0 && mt_rand(1, 100) <= 30) {

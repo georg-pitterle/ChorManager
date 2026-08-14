@@ -9,6 +9,7 @@ use App\Models\Attachment;
 use App\Models\Finance;
 use App\Models\FinanceGroup;
 use App\Models\Setting;
+use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\TcLibPdfCanvas;
@@ -89,7 +90,8 @@ final class FinanceBusinessLogicTest extends TestCase
             $view,
             new BudgetService(),
             $logger ?? new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas())
+            new FinanceReportPdfService(new TcLibPdfCanvas()),
+            new BankStatementImportService(new NullLogger())
         );
     }
 

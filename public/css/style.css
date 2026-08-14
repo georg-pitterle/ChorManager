@@ -781,6 +781,19 @@ thead th {
     width: 1%;
 }
 
+.finance-import-table .finance-amount-column,
+.finance-import-table .finance-import-select-column {
+    white-space: nowrap;
+}
+
+.finance-import-table .finance-import-select-column {
+    width: 1%;
+}
+
+.finance-import-table select {
+    min-width: 9rem;
+}
+
 .finances-report .finance-report-table-wrap {
     overflow-x: auto;
 }

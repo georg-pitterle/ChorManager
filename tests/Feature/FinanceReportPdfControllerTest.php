@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\FinanceController;
 use App\Models\Finance;
+use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\TcLibPdfCanvas;
@@ -68,7 +69,8 @@ final class FinanceReportPdfControllerTest extends TestCase
             $this->createStub(Twig::class),
             new BudgetService(),
             new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas())
+            new FinanceReportPdfService(new TcLibPdfCanvas()),
+            new BankStatementImportService(new NullLogger())
         );
     }
 

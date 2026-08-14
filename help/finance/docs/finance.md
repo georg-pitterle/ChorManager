@@ -44,7 +44,50 @@ vom eingestellten Startdatum bis zum Tag davor im Folgejahr. Format: **DD.MM.**
 
 ![Konfiguration des Geschäftsjahr-Beginns](images/finance/03-settings-modal.png)
 
-## 2. Auswertung des Geschäftsjahres
+## 2. Kontoauszug importieren
+
+Statt jede Bankbewegung abzutippen, kannst du die **Umsatzübersicht** aus dem
+Online-Banking als CSV-Datei hochladen. Der Button **"Import"** steht im
+Kassabuch neben "Konfiguration" und ist nur mit dem Recht
+**"Finanzen lesen und schreiben"** sichtbar.
+
+Der Ablauf hat zwei Schritte:
+
+1. **Datei einlesen.** Im Fenster **"Kontoauszug importieren"** wählst du die
+   CSV-Datei aus und klickst auf **"Datei einlesen"**. Es wird noch nichts
+   verbucht.
+2. **Vorschau prüfen und übernehmen.** Die Vorschau zeigt jede erkannte Zeile
+   mit Buchungsdatum, Zahldatum, Beschreibung, Ein-/Ausgang und Betrag. Du
+   kannst einzelne Zeilen abwählen und jeder Zeile eine **Gruppe** zuordnen.
+   Erst **"… Zeilen übernehmen"** legt die Buchungen an – mit fortlaufender
+   Nummer wie bei manuell erfassten Einträgen. Über **"Abbrechen"** verwirfst du
+   den Import vollständig.
+
+So werden die Spalten der Datei übernommen:
+
+| Kontoauszug | Kassabuch |
+| --- | --- |
+| Buchungsdatum | Rechnungsdatum |
+| Valutadatum | Zahldatum |
+| Betrag mit Minus | Ausgang |
+| Betrag mit Plus | Eingang |
+| Gegenpartei + Verwendungszweck | Beschreibung |
+| – | Zahlungsart immer "Überweisung" |
+
+Als **Gegenpartei** wird immer die Seite verwendet, die nicht das eigene Konto
+ist – bei einer Lastschrift also der Auftraggeber, bei einer Überweisung der
+Empfänger.
+
+### Doppelte Buchungen
+
+Jede importierte Zeile bekommt einen Fingerabdruck aus Datum, Betrag,
+Gegenkonto und Verwendungszweck. Lädst du dieselbe Datei erneut hoch oder
+überschneiden sich zwei Auszüge, erkennt der Import die betroffenen Zeilen,
+markiert sie in der Vorschau als **"bereits importiert"** und sperrt sie. Sie
+können also nicht doppelt verbucht werden. Zwei tatsächlich identische
+Buchungen am selben Tag bleiben davon unberührt und werden beide übernommen.
+
+## 3. Auswertung des Geschäftsjahres
 
 Über **"Auswertung"** öffnest du die Jahresübersicht (Klickpfad:
 **Bereiche → Kassa → Auswertung**). Oben rechts wählst du im Feld
@@ -54,7 +97,7 @@ den vollständigen Verlauf aller Buchungen.
 
 ![Finanzauswertung mit Kennzahlen und Salden](images/finance/04-report.png)
 
-## 3. Geschäftsjahr als PDF herunterladen
+## 4. Geschäftsjahr als PDF herunterladen
 
 Auf der Seite **Finanzauswertung** findest du oben rechts den Button
 **"PDF herunterladen"**. Er erzeugt ein PDF des aktuell gewählten
@@ -98,3 +141,11 @@ Möchtest du ein anderes Geschäftsjahr ausdrucken, stelle zuerst das
   (Recht "Finanzen lesen und schreiben" nötig).
 - **Offene Rechnungen.** Bleibt das Zahldatum leer, gilt die Buchung als offen
   und wird im Kassabuch entsprechend markiert.
+- **Import wird abgelehnt.** Der Import erwartet eine semikolongetrennte
+  CSV-Datei mit den Spalten *Buchungsdatum* und *Betrag* sowie dem Datumsformat
+  **TT.MM.JJJJ**, maximal 2 MB. Exportiert dein Online-Banking Excel- oder
+  PDF-Dateien, wähle beim Export ausdrücklich **CSV**.
+- **Fremdwährungen.** Es werden nur EUR-Buchungen übernommen; Zeilen in anderen
+  Währungen erscheinen in der Vorschau gesperrt mit Hinweis.
+- **Bareinnahmen.** Der Import setzt die Zahlungsart immer auf "Überweisung".
+  Bargeldbewegungen erfasst du weiterhin über **"Neuer Eintrag"**.

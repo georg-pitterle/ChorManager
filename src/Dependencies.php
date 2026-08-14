@@ -21,6 +21,7 @@ use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
+use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
 use App\Services\SheetArchiveService;
 use App\Services\MailQueueService;
@@ -181,6 +182,7 @@ return function (ContainerBuilder $containerBuilder) {
         },
         PdfCanvas::class => \DI\autowire(TcLibPdfCanvas::class),
         FinanceReportPdfService::class => \DI\autowire(),
+        BankStatementImportService::class => \DI\autowire(),
         // FinanceController braucht seit der PDF-Export-Action zusätzlich den
         // FinanceReportPdfService - explizit verdrahtet, damit Autowiring hier
         // nicht ins Spiel kommt und die Auflösung deterministisch bleibt.
@@ -189,7 +191,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(BudgetService::class),
                 $c->get(LoggerInterface::class),
-                $c->get(FinanceReportPdfService::class)
+                $c->get(FinanceReportPdfService::class),
+                $c->get(BankStatementImportService::class)
             );
         },
         CsrfMiddleware::class => function (ContainerInterface $c) {

@@ -37,6 +37,12 @@
                             data-bs-target="#settingsModal">
                         <i class="bi bi-gear"></i> Konfiguration
                     </button>
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#financeImportModal">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
                 {% endif %}
                 <a href="/finances/report?year={{ selected_year }}"
                    class="btn btn-info text-white btn-sm">
@@ -412,6 +418,47 @@
                     <div class="modal-footer border-0">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal fade"
+             id="financeImportModal"
+             tabindex="-1"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="/finances/import/preview"
+                      method="post"
+                      enctype="multipart/form-data"
+                      class="modal-content border-0 shadow">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title">Kontoauszug importieren</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small">
+                            <i class="bi bi-info-circle me-1"></i> Umsatzübersicht als CSV aus dem Online-Banking hochladen. Vor der Übernahme wird eine Vorschau angezeigt, es wird noch nichts verbucht.
+                        </div>
+                        <div class="mb-3">
+                            <label for="statement" class="form-label">CSV-Datei *</label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="statement"
+                                   name="statement"
+                                   accept=".csv,text/csv"
+                                   required>
+                            <div class="form-text">
+                                Semikolon-getrennt, Datumsformat <b>TT.MM.JJJJ</b>, maximal 2 MB. Nur EUR-Buchungen.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Datei einlesen</button>
                     </div>
                 </form>
             </div>
