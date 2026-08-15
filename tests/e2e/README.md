@@ -95,6 +95,30 @@ Default-Viewport (1280x720).
 Erzwingen lässt sich der Zuschau-Modus mit `E2E_WATCH=1` (z. B. wenn `--headed` erst per
 `PWDEBUG` gesetzt wird).
 
+## Mobiler Lauf
+
+```bash
+npm run e2e:mobile                                   # komplette Suite mit Telefon-Viewport
+npm run e2e:mobile -- --project=scenarios            # nur die Szenarien
+npm run e2e:mobile -- -g "Kassabuch" --headed --workers=1
+```
+
+`npm run e2e:mobile` setzt `E2E_VIEWPORT=mobile` (via `run-mobile.mjs`, weil `VAR=x befehl`
+in PowerShell nicht funktioniert) und schaltet damit die **ganze** Suite auf 393x727 plus
+`hasTouch` um. Bewusst kein zweites Playwright-Project: Desktop und Mobile würden sonst
+parallel dieselben Fixtures gegen dieselbe DB anlegen.
+
+Zwei Dinge, die dabei wichtig sind:
+
+- **Kein `isMobile`.** Mit `isMobile: true` meldet Chromium einen visuellen Viewport von
+  788x1458, während das CSS-Layout 393px breit bleibt. Playwright hält Elemente dann nie für
+  „stable", jeder Klick auf einen Modal-Button läuft in den Timeout (verifiziert). Die
+  Touch-Events liefert `hasTouch` auch ohne diese Emulation.
+- **Navigation steckt im Burger.** Unter Bootstraps lg-Breakpoint sind Menülinks im DOM, aber
+  unsichtbar. Tests, die Menülinks anfassen oder deren Sichtbarkeit prüfen, müssen vorher
+  `openMainNavigation(page)` aus `steps/navigation.mjs` aufrufen — sonst prüfen sie mobil
+  stillschweigend nichts.
+
 ## Iterativ entwickeln (DB behalten, schneller)
 
 ```bash

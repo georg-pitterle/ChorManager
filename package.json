@@ -4,6 +4,7 @@
     "e2e:scenarios": "playwright test --config tests/e2e/playwright.config.mjs --project=scenarios",
     "e2e:crawler": "playwright test --config tests/e2e/playwright.config.mjs --project=crawler",
     "e2e:checks": "playwright test --config tests/e2e/playwright.config.mjs --project=checks",
+    "e2e:mobile": "node tests/e2e/run-mobile.mjs",
     "e2e:ui": "playwright test --config tests/e2e/playwright.config.mjs --ui",
     "e2e:headed": "playwright test --config tests/e2e/playwright.config.mjs --headed --workers=1"
   },

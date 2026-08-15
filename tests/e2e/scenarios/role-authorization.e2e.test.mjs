@@ -4,6 +4,7 @@ import { createMember } from '../steps/members.mjs';
 import { login } from '../steps/auth.mjs';
 import { setMemberPassword, readRolePermissions } from '../steps/authz.mjs';
 import { newBrowserContext } from '../steps/browser.mjs';
+import { openMainNavigation, visibleNavLinkCount } from '../steps/navigation.mjs';
 
 // Autorisierungs-Matrix: jede geseedete Rolle bekommt ein Mitglied mit GENAU dieser einen Rolle.
 // Danach als dieses Mitglied anmelden und prüfen, dass es nur das sieht, wozu die Rolle laut ihren
@@ -40,6 +41,13 @@ test('Rollen-Autorisierung: jede Rolle sieht nur, wozu sie berechtigt ist', asyn
             await login(memberPage, { email: member.email, password: MEMBER_PASSWORD });
             // Navigation einmal laden (rechtegefiltertes Menü).
             await memberPage.goto('/dashboard');
+            // Im mobilen Lauf steckt das Menü im Burger - ohne Ausklappen wäre die
+            // Sichtbarkeitsprüfung unten still wirkungslos (kein Link ist sichtbar).
+            await openMainNavigation(memberPage);
+            expect(
+                await visibleNavLinkCount(memberPage),
+                `${member.role}: die Navigation muss sichtbare Links haben, sonst prüft (b) nichts`
+            ).toBeGreaterThan(0);
 
             for (const route of PROTECTED_ROUTES) {
                 const allowed = route.requires.some((flag) => Number(perms[flag]) === 1);

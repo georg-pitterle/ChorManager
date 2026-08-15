@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { BASE_URL, VIEWPORT } from './steps/browser.mjs';
+import { BASE_URL, DEVICE_OPTIONS } from './steps/browser.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 export const AUTH_FILE = path.join(dir, '.auth', 'admin.json');
@@ -25,11 +25,11 @@ export default defineConfig({
         // übergeben ihren eigenen expliziten timeout und überschreiben diesen Default.
         actionTimeout: 15_000,
         navigationTimeout: 30_000,
-        // Viewport kommt aus steps/browser.mjs: headless fix 1600x900 (deterministisch),
-        // beim Zuschauen (--headed/--ui) null, damit die Seite die echte Fenstergröße nutzt
-        // und --start-maximized greift. Ein fixer Viewport würde das maximierte Fenster
-        // wieder auf seine Größe zurückzwingen.
-        viewport: VIEWPORT,
+        // Geräteoptionen kommen aus steps/browser.mjs: headless fix 1600x900 (deterministisch),
+        // beim Zuschauen (--headed/--ui) viewport null, damit die Seite die echte Fenstergröße
+        // nutzt und --start-maximized greift (ein fixer Viewport würde das maximierte Fenster
+        // wieder zurückzwingen), mit E2E_VIEWPORT=mobile stattdessen das Pixel-5-Profil.
+        ...DEVICE_OPTIONS,
         launchOptions: { args: ['--start-maximized'] },
     },
     projects: [

@@ -53,6 +53,11 @@ deterministische Daten (`data/`), Szenarien (`scenarios/`), plus ein aggressiver
 - `projects.mjs` — `createProject(page, {name,description,startDate,endDate})`
 - `authz.mjs` — `setMemberPassword(email, plain)`, `readRolePermissions()` (DB via `ddev php`)
 - `shell.mjs` — `resolveBash()` (Git Bash finden, siehe Fallen)
+- `browser.mjs` — `newBrowserContext(browser)` für eigene Kontexte (erbt Viewport/baseURL der
+  Config; `browser.newContext()` tut das NICHT), `BASE_URL`, `MOBILE`
+- `navigation.mjs` — `openMainNavigation(page)`, `visibleNavLinkCount(page)`; im mobilen Lauf
+  (`npm run e2e:mobile`) steckt das Menü im Burger, ohne Ausklappen prüft eine
+  `:visible`-Assertion auf Menülinks stillschweigend nichts
 
 Es gibt **bewusst keinen** Baustein zum Anlegen von Stimmgruppen — SATB ist geseedet. Szenarien
 **verifizieren** die geseedete Struktur, sie legen sie nicht an.
