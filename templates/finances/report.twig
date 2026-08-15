@@ -103,6 +103,77 @@
                 <div class="row g-4 mb-4">
                     <div class="col-12">
                         <h5 class="text-muted fw-semibold mb-3">
+                            <i class="bi bi-safe me-1"></i> Kassabericht je Konto
+                        </h5>
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body p-0">
+                                <div class="table-responsive finance-report-table-wrap">
+                                    <table class="table table-sm mb-0 finance-report-table finance-statement-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Konto</th>
+                                                <th class="text-end finance-report-amount-cell">Anfangsbestand</th>
+                                                <th class="text-end finance-report-amount-cell">Einnahmen</th>
+                                                <th class="text-end finance-report-amount-cell">Ausgaben</th>
+                                                <th class="text-end finance-report-amount-cell">Endbestand</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in account_statement.accounts %}
+                                                <tr>
+                                                    <td data-label="Konto">
+                                                        {{ row.account.name }}
+                                                        <span class="text-muted small">
+                                                            ({{ row.account.type == "cash" ? "Bar" : "Bank" }})
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end finance-report-amount-cell" data-label="Anfangsbestand">
+                                                        {{ row.opening|number_format(2, ",", ".") }} €
+                                                    </td>
+                                                    <td class="text-end text-success finance-report-amount-cell" data-label="Einnahmen">
+                                                        + {{ row.income|number_format(2, ",", ".") }} €
+                                                    </td>
+                                                    <td class="text-end text-danger finance-report-amount-cell" data-label="Ausgaben">
+                                                        − {{ row.expense|number_format(2, ",", ".") }} €
+                                                    </td>
+                                                    {% set _closing_negative = row.closing < 0 %}
+                                                    <td class="text-end fw-bold finance-report-amount-cell {{ _closing_negative ? "text-danger" : "text-success" }}"
+                                                        data-label="Endbestand">
+                                                        {{ row.closing|number_format(2, ",", ".") }} €
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-dark fw-bold">
+                                                <td>Gesamt</td>
+                                                <td class="text-end finance-report-amount-cell">
+                                                    {{ account_statement.totals.opening|number_format(2, ",", ".") }} €
+                                                </td>
+                                                <td class="text-end finance-report-amount-cell">
+                                                    + {{ account_statement.totals.income|number_format(2, ",", ".") }} €
+                                                </td>
+                                                <td class="text-end finance-report-amount-cell">
+                                                    − {{ account_statement.totals.expense|number_format(2, ",", ".") }} €
+                                                </td>
+                                                <td class="text-end finance-report-amount-cell">
+                                                    {{ account_statement.totals.closing|number_format(2, ",", ".") }} €
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0">
+                            Der Endbestand ist mit dem gezählten Bargeld bzw. dem Kontoauszug abzustimmen. Offene Posten ohne Zahldatum sind nicht enthalten.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <h5 class="text-muted fw-semibold mb-3">
                             <i class="bi bi-funnel me-1"></i> Saldo nach Zahlungsart
                         </h5>
                     </div>
@@ -298,7 +369,7 @@
                      data-default-view="auto"
                      data-default-page-size="100"
                      data-page-size-options="25,50,100,200"
-                     data-default-sort-key="invoice_date"
+                     data-default-sort-key="payment_date"
                      data-default-sort-dir="asc">
                     <div class="card-header bg-white py-3">
                         <h5 class="mb-0">Verlauf des Geschäftsjahres</h5>
@@ -311,7 +382,7 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th class="finance-report-date-cell"
-                                            data-sort-key="invoice_date"
+                                            data-sort-key="payment_date"
                                             data-sort-type="date">Datum</th>
                                         <th class="finance-report-number-cell"
                                             data-sort-key="running_number"
@@ -335,12 +406,12 @@
                                         {% else %}
                                             {% set current_balance = current_balance - item.amount %}
                                         {% endif %}
-                                        <tr data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
+                                        <tr data-sort-payment_date="{{ item.payment_date|date("Y-m-d") }}"
                                             data-sort-running_number="{{ item.running_number }}"
                                             data-sort-description="{{ item.description|lower }}"
                                             data-sort-income="{{ item.type == "income" ? item.amount : 0 }}"
                                             data-sort-expense="{{ item.type == "expense" ? item.amount : 0 }}">
-                                            <td class="finance-report-date-cell" data-label="Datum">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                            <td class="finance-report-date-cell" data-label="Datum">{{ item.payment_date|date("d.m.Y") }}</td>
                                             <td class="text-muted finance-report-number-cell" data-label="Lfd. Nr.">#{{ item.running_number }}</td>
                                             <td class="finance-report-description-cell" data-label="Beschreibung">{{ item.description }}</td>
                                             <td class="text-end text-success finance-report-amount-cell"

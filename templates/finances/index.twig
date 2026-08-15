@@ -44,6 +44,16 @@
                         <i class="bi bi-upload"></i> Import
                     </button>
                 {% endif %}
+                <a href="/finances/accounts" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-safe"></i> Konten
+                </a>
+                <a href="/finances/journal" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-clock-history"></i> Journal
+                </a>
+                <a href="/finances/export?year={{ selected_year }}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-filetype-csv"></i> CSV
+                </a>
                 <a href="/finances/report?year={{ selected_year }}"
                    class="btn btn-info text-white btn-sm">
                     <i class="bi bi-graph-up"></i> Auswertung
@@ -88,7 +98,7 @@
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="finances-list-title">Buchungen</h2>
                 <p class="dashboard-section-lead mb-0">
-                    {{ finances|length }} Einträge im aktuellen Geschäftsjahr. Suche und Sortierung über die Tabellenleiste.
+                    {{ finances|length }} Zahlungen im aktuellen Geschäftsjahr, abgegrenzt nach Zahldatum. Suche und Sortierung über die Tabellenleiste.
                 </p>
             </div>
 
@@ -98,7 +108,7 @@
                  data-default-view="auto"
                  data-default-page-size="100"
                  data-page-size-options="25,50,100,200"
-                 data-default-sort-key="running_number"
+                 data-default-sort-key="payment_date"
                  data-default-sort-dir="desc">
                 {{ include('partials/table_toolbar.twig') }}
                 <div class="card-body p-0">
@@ -116,7 +126,7 @@
                                     <th class="text-end finance-amount-column"
                                         data-sort-key="amount"
                                         data-sort-type="number">Betrag</th>
-                                    <th data-sort-key="payment_method" data-sort-type="text">Zahlungsart</th>
+                                    <th data-sort-key="payment_method" data-sort-type="text">Konto</th>
                                     <th>Anhänge</th>
                                     {% if can_write_finances %}<th class="text-end finance-actions-column">Aktionen</th>{% endif %}
                                 </tr>
@@ -133,6 +143,11 @@
                                         data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
                                         <td data-label="Lfd. Nr.">
                                             <strong>{{ item.running_number }}</strong>
+                                            {% if item.is_reversal %}
+                                                <span class="badge bg-secondary">Storno</span>
+                                            {% elseif item.is_reversed %}
+                                                <span class="badge bg-warning text-dark">storniert</span>
+                                            {% endif %}
                                         </td>
                                         <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
                                         <td data-label="Zahldatum">
@@ -157,12 +172,13 @@
                                             class="finance-amount-cell text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
                                             {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
                                         </td>
-                                        <td data-label="Zahlungsart">
+                                        <td data-label="Konto">
                                             {% if item.payment_method == 'cash' %}
-                                                <i class="bi bi-cash-coin me-1"></i> Bar
+                                                <i class="bi bi-cash-coin me-1"></i>
                                             {% else %}
-                                                <i class="bi bi-bank me-1"></i> Überweisung
+                                                <i class="bi bi-bank me-1"></i>
                                             {% endif %}
+                                            {{ item.financeAccount ? item.financeAccount.name : (item.payment_method == 'cash' ? 'Bar' : 'Überweisung') }}
                                         </td>
                                         <td data-label="Anhänge">
                                             {% if item.attachments|length > 0 %}
@@ -203,6 +219,7 @@
                                                                                     group_name: item.group_name,
                                                                                     type: item.type,
                                                                                     payment_method: item.payment_method,
+                                                                                    finance_account_id: item.finance_account_id,
                                                                                     amount: item.amount,
                                                                                     running_number: item.running_number,
                                                                                     attachments: _item_atts,
@@ -227,13 +244,20 @@
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end">
                                                         <li>
-                                                            <form action="/finances/{{ item.id }}/delete"
-                                                                  method="post"
-                                                                  data-confirm="Eintrag {{ item.running_number }} wirklich löschen?">
-                                                                <button type="submit" class="dropdown-item text-danger">
-                                                                    <i class="bi bi-trash me-2"></i> Löschen
-                                                                </button>
-                                                            </form>
+                                                            {% set _reversible = not item.is_reversal and not item.is_reversed %}
+                                                            {% if _reversible %}
+                                                                <form action="/finances/{{ item.id }}/reverse"
+                                                                      method="post"
+                                                                      data-confirm="Eintrag {{ item.running_number }} stornieren? Es wird eine Gegenbuchung angelegt.">
+                                                                    <button type="submit" class="dropdown-item text-danger">
+                                                                        <i class="bi bi-arrow-counterclockwise me-2"></i> Stornieren
+                                                                    </button>
+                                                                </form>
+                                                            {% else %}
+                                                                <span class="dropdown-item text-muted">
+                                                                    <i class="bi bi-lock me-2"></i> Bereits storniert
+                                                                </span>
+                                                            {% endif %}
                                                         </li>
                                                     </ul>
                                                 </div>
@@ -254,6 +278,82 @@
                 </div>
             </div>
         </section>
+
+        {% if open_items|length > 0 %}
+            <section class="dashboard-section dashboard-section--context"
+                     aria-labelledby="finances-open-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="finances-open-title">Offene Posten</h2>
+                    <p class="dashboard-section-lead mb-0">
+                        {{ open_items|length }} Buchungen ohne Zahldatum. Sie zählen in kein Geschäftsjahr, bis das Zahldatum nachgetragen ist.
+                    </p>
+                </div>
+
+                <div class="surface-card card border-0 table-shell">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Lfd. Nr.</th>
+                                        <th>Rechnungsdatum</th>
+                                        <th>Beschreibung</th>
+                                        <th>Gruppe</th>
+                                        <th>Art</th>
+                                        <th class="text-end finance-amount-column">Betrag</th>
+                                        {% if can_write_finances %}
+                                            <th class="text-end finance-actions-column">Aktionen</th>
+                                        {% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in open_items %}
+                                        <tr>
+                                            <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
+                                            <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                            <td data-label="Beschreibung">{{ item.description }}</td>
+                                            <td data-label="Gruppe">{{ item.group_name|default("-") }}</td>
+                                            <td data-label="Art">
+                                                {% if item.type == "income" %}
+                                                    <span class="badge bg-success">Eingang</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Ausgang</span>
+                                                {% endif %}
+                                            </td>
+                                            <td data-label="Betrag" class="text-end finance-amount-column">
+                                                {{ item.amount|number_format(2, ",", ".") }} €
+                                            </td>
+                                            {% if can_write_finances %}
+                                                <td class="text-end finance-actions-column">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#financeModal"
+                                                            data-action="edit-finance"
+                                                            data-finance-item="{{ {
+                                                                id: item.id,
+                                                                invoice_date: item.invoice_date|date("Y-m-d"),
+                                                                payment_date: "",
+                                                                description: item.description,
+                                                                group_name: item.group_name,
+                                                                type: item.type,
+                                                                amount: item.amount,
+                                                                payment_method: item.payment_method,
+                                                                finance_account_id: item.finance_account_id
+                                                            }|json_encode|e("html_attr") }}">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                </td>
+                                            {% endif %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        {% endif %}
     </div>
 
     {% if can_write_finances %}
@@ -332,14 +432,20 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="payment_method" class="form-label">Zahlungsart *</label>
+                                <label for="finance_account_id" class="form-label">Konto *</label>
                                 <select class="form-select"
-                                        id="payment_method"
-                                        name="payment_method"
+                                        id="finance_account_id"
+                                        name="finance_account_id"
                                         required>
-                                    <option value="bank_transfer" selected>Überweisung</option>
-                                    <option value="cash">Bar</option>
+                                    {% for account in accounts %}
+                                        <option value="{{ account.id }}">
+                                            {{ account.name }} ({{ account.type == "cash" ? "Bar" : "Bank" }})
+                                        </option>
+                                    {% endfor %}
                                 </select>
+                                <div class="form-text">
+                                    Zahlungskreise werden unter <a href="/finances/accounts">Konten</a> verwaltet.
+                                </div>
                             </div>
                         </div>
 
@@ -412,6 +518,20 @@
                                    required>
                             <div class="form-text">
                                 Format: <b>DD.MM.</b> (z.B. "01.09." für 1. September)
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <label for="closed_until" class="form-label">Buchungen abgeschlossen bis</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="closed_until"
+                                   name="closed_until"
+                                   value="{{ closed_until_value }}">
+                            <div class="form-text">
+                                Zahlungen bis zu diesem Tag lassen sich nicht mehr ändern. Korrekturen sind danach nur noch über eine Stornobuchung möglich. Leer lassen, um die Sperre aufzuheben.
                             </div>
                         </div>
                     </div>

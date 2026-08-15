@@ -1,0 +1,52 @@
+#!/bin/bash
+
+## Description: Stellt sicher, dass der Playwright-Browser im persistenten Volume liegt
+## Usage: ensure-playwright
+## Example: "ddev ensure-playwright"
+
+set -euo pipefail
+
+BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/mnt/playwright-browsers}"
+OWNER_UID="${DDEV_UID:-1000}"
+OWNER_GID="${DDEV_GID:-1000}"
+
+# Das benannte Volume gehoert zunaechst root. Ohne diesen Schritt kann weder der
+# Hook noch ein spaeterer manueller `npx playwright install` dort schreiben.
+if [ "$(id -u)" = "0" ]; then
+    mkdir -p "$BROWSERS_PATH"
+    chown "$OWNER_UID:$OWNER_GID" "$BROWSERS_PATH"
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+    echo "node nicht verfuegbar; Playwright kann nicht installiert werden" >&2
+    exit 1
+fi
+
+cd /var/www/html
+
+if [ ! -d node_modules/playwright ] && [ ! -d node_modules/playwright-core ]; then
+    echo "playwright ist nicht in node_modules; ueberspringe (npm install noetig)"
+    exit 0
+fi
+
+# Vorhandene Installation erkennen: das Verzeichnis enthaelt pro Browser einen
+# Ordner wie chromium_headless_shell-1234.
+if compgen -G "$BROWSERS_PATH/chromium*" >/dev/null; then
+    echo "playwright-browser bereit unter $BROWSERS_PATH"
+    exit 0
+fi
+
+echo "Lade Playwright-Chromium nach $BROWSERS_PATH ..."
+OWNER_NAME="$(getent passwd "$OWNER_UID" | cut -d: -f1)"
+
+if [ "$(id -u)" = "0" ] && [ -n "$OWNER_NAME" ]; then
+    # Als der Benutzer installieren, dem das Volume gehoert, damit die Dateien
+    # spaeter auch ohne root aktualisiert werden koennen.
+    su -s /bin/bash -c \
+        "cd /var/www/html && PLAYWRIGHT_BROWSERS_PATH='$BROWSERS_PATH' npx playwright install chromium" \
+        "$OWNER_NAME"
+else
+    PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_PATH" npx playwright install chromium
+fi
+
+echo "playwright-browser bereit unter $BROWSERS_PATH"

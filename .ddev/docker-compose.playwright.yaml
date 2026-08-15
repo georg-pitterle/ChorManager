@@ -1,0 +1,25 @@
+# Persistentes Browser-Verzeichnis für Playwright.
+#
+# Ohne diesen Mount liegen die von `playwright install` heruntergeladenen
+# Browser unter /home/<user>/.cache/ms-playwright im Container-Dateisystem und
+# sind nach jedem `ddev restart`/Rebuild weg - die Screenshot-Skripte unter
+# help/*/scripts/ scheitern dann mit "Executable doesn't exist" und es müssen
+# jedes Mal ~115 MB neu geladen werden.
+#
+# Bewusst ein benanntes Volume und kein Bind-Mount ins Projekt: Die Browser sind
+# Binärdateien der Toolchain, gehören nicht ins Repository und liegen unter
+# Windows-Bind-Mounts spürbar langsamer.
+#
+# PLAYWRIGHT_BROWSERS_PATH lenkt sowohl `playwright install` als auch die
+# Laufzeit-Auflösung auf dieses Verzeichnis. Die Systembibliotheken, die der
+# Browser zusätzlich braucht (libnspr4, libnss3, Schriften, ...), stecken in
+# webimage_extra_packages in .ddev/config.yaml und sind damit Teil des Images.
+services:
+  web:
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/mnt/playwright-browsers
+    volumes:
+      - playwright-browsers:/mnt/playwright-browsers
+
+volumes:
+  playwright-browsers:

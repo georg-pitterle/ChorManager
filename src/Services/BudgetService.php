@@ -104,13 +104,14 @@ class BudgetService
     /**
      * Aggregates actual (Ist) amounts from the finances table for a given finance group
      * and type within a fiscal year date range. Matching is by finance_group_id (FK) so
-     * the link survives label changes.
+     * the link survives label changes. Wie im Kassabuch zählt der Tag der Zahlung;
+     * offene Posten ohne Zahldatum sind noch kein Ist.
      */
     public function computeActual(int $financeGroupId, string $type, Carbon $from, Carbon $to): string
     {
         $sum = Finance::where('finance_group_id', $financeGroupId)
             ->where('type', $type)
-            ->whereBetween('invoice_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->whereBetween('payment_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
             ->sum('amount');
 
         return number_format((float) $sum, 2, '.', '');

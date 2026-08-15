@@ -16,7 +16,9 @@ use App\Models\EventRegistration;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Finance;
+use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
+use App\Models\FinanceRevision;
 use App\Models\Attachment;
 use App\Models\MailQueue;
 use App\Models\Newsletter;
@@ -31,6 +33,7 @@ use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Services\BackupService;
+use App\Services\FinanceJournalService;
 use App\Models\Setting;
 use App\Models\Song;
 use App\Models\SongResource;
@@ -130,7 +133,10 @@ class DevSeedService
                 'event_audience_sources' => 0,
                 'attendance' => 0,
                 'event_registrations' => 0,
+                'finance_accounts' => 0,
+                'finance_revisions' => 0,
                 'finances' => 0,
+                'finances_open' => 0,
                 'finances_imported' => 0,
                 'finance_attachments' => 0,
                 'finance_groups' => 0,
@@ -192,6 +198,7 @@ class DevSeedService
             $this->seedAttendance($projectMembers, $projectEvents);
             $this->seedEventRegistrations($projectMembers, $projectEvents);
             $this->seedFinances($projects, 320, 40);
+            $this->seedFinanceJournal();
             $this->seedBudget();
             $packages = $this->seedSponsorPackages();
             $sponsors = $this->seedSponsors();
@@ -271,7 +278,9 @@ class DevSeedService
             'event_audience_sources',
             'events',
             'event_series',
+            'finance_revisions',
             'finances',
+            'finance_accounts',
             'projects',
             'user_mail_accounts',
             'users',
@@ -1247,6 +1256,42 @@ class DevSeedService
             $groupIds[$groupName] = $group->id;
         }
 
+        // Zahlungskreise: eine Barkassa und ein Bankkonto mit Anfangsbestand, damit
+        // der Kassabericht in Dev von Anfang an prüfbare Bestände zeigt.
+        $accountSeeds = [
+            ['name' => 'Barkassa', 'type' => FinanceAccount::TYPE_CASH, 'iban' => null,
+                'opening_balance' => '350.00', 'sort_order' => 1],
+            ['name' => 'Bankkonto', 'type' => FinanceAccount::TYPE_BANK, 'iban' => 'AT911600000100629615',
+                'opening_balance' => '4200.00', 'sort_order' => 2],
+        ];
+        $accounts = [];
+        foreach ($accountSeeds as $accountSeed) {
+            $account = FinanceAccount::firstOrCreate(
+                ['name' => $accountSeed['name']],
+                [
+                    'type' => $accountSeed['type'],
+                    'iban' => $accountSeed['iban'],
+                    'opening_balance' => $accountSeed['opening_balance'],
+                    'opening_date' => $startDate->format('Y-m-d'),
+                    'is_active' => true,
+                    'sort_order' => $accountSeed['sort_order'],
+                ]
+            );
+            if ($account->wasRecentlyCreated) {
+                $this->report['counts']['finance_accounts']++;
+            } elseif ((float) $account->opening_balance === 0.0) {
+                // Die Migration legt die Konten ohne Anfangsbestand an; in Dev soll der
+                // Kassabericht aber von Beginn an prüfbare Bestände zeigen.
+                $account->update([
+                    'iban' => $account->iban ?? $accountSeed['iban'],
+                    'opening_balance' => $accountSeed['opening_balance'],
+                    'opening_date' => $startDate->format('Y-m-d'),
+                ]);
+                $this->report['counts']['finance_accounts']++;
+            }
+            $accounts[$accountSeed['type']] = $account;
+        }
+
         $runningNumber = ((int) Finance::max('running_number')) + 1;
         $attachmentsLeft = $attachmentCount;
 
@@ -1266,19 +1311,41 @@ class DevSeedService
         usort($invoiceDates, static fn(array $a, array $b): int => $a['sortKey'] <=> $b['sortKey']);
 
         for ($i = 0; $i < $count; $i++) {
-            $isIncome = $i < 112;
-            $paymentMethod = $i < 224 ? 'bank_transfer' : 'cash';
+            // Zahlungsart und Richtung folgen einem Zehnermuster statt zusammen-
+            // hängenden Blöcken. Die Datumsliste ist chronologisch sortiert, ein
+            // Blockschema würde daher beides an den Zeitverlauf koppeln: alle
+            // Bankeinnahmen lägen in den ersten Jahren, alle Barbuchungen im
+            // letzten. Das Muster verteilt beides gleichmäßig über alle Jahre.
+            // Sieben von zehn Buchungen laufen über die Bank, und beide Konten
+            // haben etwas mehr Ein- als Ausgänge, damit die Bestände über die
+            // Jahre nicht ins Minus laufen.
+            $slot = $i % 10;
+            $paymentMethod = $slot < 7 ? 'bank_transfer' : 'cash';
+            $isIncome = in_array($slot, [0, 2, 4, 7, 8], true);
+
             $invoiceDate = $invoiceDates[$i]['date'];
-            $paymentDate = $invoiceDate->modify('+' . mt_rand(0, 20) . ' days');
+            // Jede zwanzigste Buchung bleibt unbezahlt, damit die Offene-Posten-Liste
+            // im Kassabuch in Dev befüllt ist. Slot 3 ist eine Banküberweisung -
+            // Bargeld ist immer sofort geflossen und nie ein offener Posten.
+            $isOpenItem = $i % 20 === 3;
+            $paymentDate = $isOpenItem ? null : $invoiceDate->modify('+' . mt_rand(0, 20) . ' days');
 
             $project = $projects[$i % count($projects)];
             $descriptionBase = $isIncome
                 ? $descriptionsIncome[$i % count($descriptionsIncome)]
                 : $descriptionsExpense[$i % count($descriptionsExpense)];
 
-            $amount = $isIncome
-                ? mt_rand(5000, 350000) / 100
-                : mt_rand(2000, 240000) / 100;
+            // Bargeld bewegt sich in kleinen Beträgen (Kartenverkauf, Verpflegung);
+            // vierstellige Summen laufen über die Bank.
+            if ($paymentMethod === 'cash') {
+                $amount = $isIncome
+                    ? mt_rand(500, 30000) / 100
+                    : mt_rand(500, 25000) / 100;
+            } else {
+                $amount = $isIncome
+                    ? mt_rand(5000, 350000) / 100
+                    : mt_rand(2000, 240000) / 100;
+            }
 
             // Ein Teil der Überweisungen stammt aus einem Kontoauszug-Import und
             // trägt daher einen Import-Hash. Damit ist die Dublettenerkennung in
@@ -1289,19 +1356,23 @@ class DevSeedService
             $finance = Finance::create([
                 'running_number' => $runningNumber,
                 'invoice_date' => $invoiceDate->format('Y-m-d'),
-                'payment_date' => $paymentDate->format('Y-m-d'),
+                'payment_date' => $paymentDate?->format('Y-m-d'),
                 'description' => $descriptionBase . ' - ' . $project->name,
                 'group_name' => $groupName,
                 'finance_group_id' => $groupIds[$groupName],
                 'type' => $isIncome ? 'income' : 'expense',
                 'amount' => $amount,
                 'payment_method' => $paymentMethod,
+                'finance_account_id' => $accounts[$paymentMethod === 'cash' ? 'cash' : 'bank']->id,
                 'import_hash' => $isImported
                     ? hash('sha256', 'seed-bank-statement-' . $runningNumber)
                     : null,
             ]);
 
             $this->report['counts']['finances']++;
+            if ($isOpenItem) {
+                $this->report['counts']['finances_open']++;
+            }
             if ($isImported) {
                 $this->report['counts']['finances_imported']++;
             }
@@ -1340,6 +1411,79 @@ class DevSeedService
             $this->report['counts']['finance_attachments']++;
             $attachmentsLeft--;
         }
+    }
+
+    /**
+     * Änderungsjournal, Stornobuchungen und Jahressperre, damit die
+     * Nachvollziehbarkeit im Kassabuch in Dev sichtbar ist.
+     */
+    private function seedFinanceJournal(): void
+    {
+        $journal = new FinanceJournalService();
+        $userIds = User::orderBy('id')->limit(5)->pluck('id')->all();
+        if ($userIds === []) {
+            return;
+        }
+
+        // Nur Buchungen ohne Journaleintrag: sonst wuerde jeder Append-Lauf das
+        // Journal aller bereits vorhandenen Buchungen erneut aufblaehen.
+        $bookings = Finance::whereNull('reversal_of_id')
+            ->whereNotIn('id', FinanceRevision::select('finance_id'))
+            ->orderBy('id')
+            ->get();
+        $runningNumber = ((int) Finance::max('running_number')) + 1;
+
+        // Erster Durchgang: die Erfassung selbst.
+        foreach ($bookings as $index => $booking) {
+            $journal->recordCreate($booking, $userIds[$index % count($userIds)]);
+            $this->report['counts']['finance_revisions']++;
+        }
+
+        // Zweiter Durchgang: Korrekturen und Stornos passieren im Verein immer
+        // erst nach der Erfassung - so stehen sie im Journal auch oben.
+        foreach ($bookings as $index => $booking) {
+            // Jede fünfzigste Buchung wurde nachträglich korrigiert.
+            if ($index % 50 === 13) {
+                $before = FinanceJournalService::snapshot($booking);
+                $booking->update(['description' => $booking->description . ' (korrigiert)']);
+                $journal->recordUpdate(
+                    $booking,
+                    $before,
+                    ['description' => $booking->description],
+                    $userIds[$index % count($userIds)]
+                );
+                $this->report['counts']['finance_revisions']++;
+            }
+
+            // Jede hundertste Buchung wurde storniert.
+            if ($index % 100 === 29 && $booking->payment_date !== null) {
+                $reversal = Finance::create([
+                    'running_number' => $runningNumber,
+                    'invoice_date' => $booking->invoice_date->format('Y-m-d'),
+                    'payment_date' => $booking->payment_date->format('Y-m-d'),
+                    'description' => sprintf(
+                        'Storno zu Nr. %d: %s',
+                        $booking->running_number,
+                        $booking->description
+                    ),
+                    'group_name' => $booking->group_name,
+                    'finance_group_id' => $booking->finance_group_id,
+                    'type' => $booking->type === 'income' ? 'expense' : 'income',
+                    'amount' => $booking->amount,
+                    'payment_method' => $booking->payment_method,
+                    'finance_account_id' => $booking->finance_account_id,
+                    'reversal_of_id' => $booking->id,
+                ]);
+                $runningNumber++;
+
+                $journal->recordReverse($reversal, $booking, $userIds[$index % count($userIds)]);
+                $this->report['counts']['finances']++;
+                $this->report['counts']['finance_revisions']++;
+            }
+        }
+
+        // Das vorletzte Kalenderjahr gilt als geprüft und abgeschlossen.
+        $journal->setClosedUntil(sprintf('%d-12-31', (int) date('Y') - 2));
     }
 
     private function seedBudget(): void

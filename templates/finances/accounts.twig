@@ -1,0 +1,256 @@
+{% extends "layout.twig" %}
+
+{% set can_write_finances = session.can_manage_finances %}
+
+{% block title %}
+    Konten - {{ app_settings.app_name|default('Chor-Manager') }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kassabuch</p>
+            <h1 class="h2 mb-1">Konten</h1>
+            <p class="text-muted mb-0">
+                Barkassa und Bankkonten mit Anfangsbestand. Stand: {{ today }}
+            </p>
+        </div>
+        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            <a href="/finances" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Zum Kassabuch
+            </a>
+            {% if can_write_finances %}
+                <button type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#financeAccountModal"
+                        data-action="reset-account-modal">
+                    <i class="bi bi-plus-circle"></i> Neues Konto
+                </button>
+            {% endif %}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context" aria-labelledby="accounts-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="accounts-title">Zahlungskreise</h2>
+                <p class="dashboard-section-lead mb-0">
+                    Der aktuelle Bestand ergibt sich aus dem Anfangsbestand plus allen Zahlungen ab dem Stichtag.
+                </p>
+            </div>
+
+            <div class="surface-card card border-0 table-shell">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Konto</th>
+                                    <th>Art</th>
+                                    <th>IBAN</th>
+                                    <th>Stichtag</th>
+                                    <th class="text-end finance-amount-column">Anfangsbestand</th>
+                                    <th class="text-end finance-amount-column">Aktueller Bestand</th>
+                                    <th>Buchungen</th>
+                                    {% if can_write_finances %}
+                                        <th class="text-end finance-actions-column">Aktionen</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows %}
+                                    {% set account = row.account %}
+                                    <tr>
+                                        <td data-label="Konto">
+                                            <strong>{{ account.name }}</strong>
+                                            {% if not account.is_active %}
+                                                <span class="badge bg-secondary ms-1">inaktiv</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Art">
+                                            {% if account.type == "cash" %}
+                                                <span class="badge bg-warning text-dark">Bar</span>
+                                            {% else %}
+                                                <span class="badge bg-info text-white">Bank</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="IBAN">{{ account.iban|default("-") }}</td>
+                                        <td data-label="Stichtag">{{ account.opening_date|date("d.m.Y") }}</td>
+                                        <td data-label="Anfangsbestand" class="text-end finance-amount-column">
+                                            {{ account.opening_balance|number_format(2, ",", ".") }} €
+                                        </td>
+                                        <td data-label="Aktueller Bestand" class="text-end finance-amount-column">
+                                            {% set _negative = row.balance < 0 %}
+                                            <strong class="{{ _negative ? "text-danger" : "text-success" }}">
+                                                {{ row.balance|number_format(2, ",", ".") }} €
+                                            </strong>
+                                        </td>
+                                        <td data-label="Buchungen">{{ row.booking_count }}</td>
+                                        {% if can_write_finances %}
+                                            <td class="text-end finance-actions-column">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#financeAccountModal"
+                                                        data-account-item="{{ {
+                                                            id: account.id,
+                                                            name: account.name,
+                                                            type: account.type,
+                                                            iban: account.iban,
+                                                            opening_balance: account.opening_balance,
+                                                            opening_date: account.opening_date|date("Y-m-d"),
+                                                            is_active: account.is_active,
+                                                            sort_order: account.sort_order
+                                                        }|json_encode|e("html_attr") }}">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                {% if row.booking_count == 0 %}
+                                                    <form action="/finances/accounts/{{ account.id }}/delete"
+                                                          method="post"
+                                                          class="d-inline"
+                                                          data-confirm="Konto wirklich löschen?">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="{{ can_write_finances ? 8 : 7 }}"
+                                            class="text-center py-4 text-muted">
+                                            Noch keine Konten angelegt.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {% if can_write_finances %}
+        <div class="modal fade" id="financeAccountModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="/finances/accounts/save"
+                      method="post"
+                      id="finance-account-form"
+                      class="modal-content border-0 shadow">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title" id="finance-account-modal-title">Konto anlegen</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" id="account_id" value="">
+
+                        <div class="mb-3">
+                            <label for="account_name" class="form-label">Name *</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="account_name"
+                                   name="name"
+                                   maxlength="100"
+                                   required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="account_type" class="form-label">Art *</label>
+                            <select class="form-select" id="account_type" name="type" required>
+                                <option value="cash">Bar</option>
+                                <option value="bank">Bank</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="account_iban" class="form-label">IBAN</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="account_iban"
+                                   name="iban"
+                                   maxlength="34">
+                            <div class="form-text">
+                                Wird beim Kontoauszug-Import genutzt, um das Konto automatisch vorzuschlagen.
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6 mb-3">
+                                <label for="account_opening_balance" class="form-label">Anfangsbestand *</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="account_opening_balance"
+                                       name="opening_balance"
+                                       value="0,00"
+                                       required>
+                            </div>
+                            <div class="col-sm-6 mb-3">
+                                <label for="account_opening_date" class="form-label">Stichtag *</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="account_opening_date"
+                                       name="opening_date"
+                                       required>
+                                <div class="form-text">Ab diesem Tag zählen die Buchungen.</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="account_sort_order" class="form-label">Reihenfolge</label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="account_sort_order"
+                                   name="sort_order"
+                                   value="0">
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="account_is_active"
+                                   name="is_active"
+                                   checked>
+                            <label class="form-check-label" for="account_is_active">Konto ist aktiv</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock content %}
+
+{% block scripts %}
+    <script src="/js/finance-accounts.js"></script>
+{% endblock scripts %}

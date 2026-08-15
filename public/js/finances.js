@@ -89,8 +89,8 @@ function resetFinanceModal() {
     const type = document.getElementById('type');
     if (type) type.value = 'expense';
 
-    const method = document.getElementById('payment_method');
-    if (method) method.value = 'bank_transfer';
+    const account = document.getElementById('finance_account_id');
+    if (account) account.selectedIndex = 0;
 
     const amt = document.getElementById('amount');
     if (amt) amt.value = '';
@@ -131,7 +131,10 @@ function editFinance(item) {
     }
 
     document.getElementById('type').value = item.type;
-    document.getElementById('payment_method').value = item.payment_method;
+    const accountSelect = document.getElementById('finance_account_id');
+    if (accountSelect && item.finance_account_id) {
+        accountSelect.value = String(item.finance_account_id);
+    }
     document.getElementById('amount').value = parseFloat(item.amount).toLocaleString('de-DE', { minimumFractionDigits: 2 });
 
     // Attachments

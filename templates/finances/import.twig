@@ -48,6 +48,32 @@
             {% endif %}
 
             <form action="/finances/import/confirm" method="post" id="finance-import-form">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-5">
+                        <label for="finance_account_id" class="form-label">Konto *</label>
+                        <select class="form-select"
+                                id="finance_account_id"
+                                name="finance_account_id"
+                                required>
+                            {% for account in accounts %}
+                                {% set _selected = account.id == suggested_account_id %}
+                                <option value="{{ account.id }}" {{ _selected ? "selected" : "" }}>
+                                    {{ account.name }} ({{ account.type == "cash" ? "Bar" : "Bank" }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            {% if suggested_account_id %}
+                                Anhand der IBAN <strong>{{ detected_iban }}</strong> vorbelegt.
+                            {% elseif detected_iban %}
+                                Kein Konto mit der IBAN <strong>{{ detected_iban }}</strong> gefunden. Trag sie beim Konto nach, dann wird künftig vorbelegt.
+                            {% else %}
+                                Alle Zeilen werden diesem Zahlungskreis zugeordnet.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="surface-card card border-0 table-shell">
                     <div class="card-body p-0">
                         <div class="table-responsive">

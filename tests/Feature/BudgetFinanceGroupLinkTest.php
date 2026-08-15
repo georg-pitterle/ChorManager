@@ -128,7 +128,8 @@ final class BudgetFinanceGroupLinkTest extends TestCase
         Finance::create([
             'running_number' => $runningNumber,
             'invoice_date' => $invoiceDate,
-            'payment_date' => null,
+            // Ist-Werte zaehlen nach Zahldatum, daher hier gleich mitgesetzt.
+            'payment_date' => $invoiceDate,
             'description' => 'TEST booking',
             'finance_group_id' => $groupId,
             'group_name' => null,

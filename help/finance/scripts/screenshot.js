@@ -23,6 +23,9 @@ const IMAGES_DIR = path.join(__dirname, '..', 'screenshots');
 
 const VIEWPORT = { width: 1440, height: 900 };
 
+// Beispiel-Kontoauszug für die Import-Vorschau (dieselbe Datei wie im Test-Fixture).
+const SAMPLE_STATEMENT = path.join(__dirname, '..', '..', '..', 'tests', 'Fixtures', 'bank_statement_sample.csv');
+
 // Normale Seiten: volle Seite inkl. Scroll-Inhalt.
 async function shot(page, name) {
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
@@ -43,6 +46,27 @@ async function shotCapped(page, name, maxHeight = 1500) {
     const height = Math.min(fullHeight, maxHeight);
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
     await page.screenshot({ path: filePath, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
+}
+
+// Einzelner Seitenabschnitt: beginnt an dessen Oberkante statt am Seitenanfang,
+// damit Bereiche weit unten auf der Seite ohne Riesenbild dokumentiert werden.
+// Der Abschnitt wird bewusst unter die fixierte Topbar gescrollt - sonst
+// verdeckt diese die Ueberschrift des Abschnitts.
+const NAV_OFFSET = 100;
+
+async function shotSection(page, name, locator, maxHeight = 900) {
+    await locator.evaluate((el, offset) => {
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: 'instant' });
+    }, NAV_OFFSET);
+
+    const box = await locator.boundingBox();
+    const height = Math.min(Math.ceil(box.height) + NAV_OFFSET + 24, maxHeight, VIEWPORT.height);
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await page.screenshot({
+        path: filePath,
+        clip: { x: 0, y: Math.max(0, Math.floor(box.y) - NAV_OFFSET), width: VIEWPORT.width, height },
+    });
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 
@@ -94,7 +118,7 @@ async function main() {
         // 02. Modal: Neuer Eintrag
         await clickAndWaitForEvent(
             page,
-            page.locator('[data-bs-target="#financeModal"]'),
+            page.locator('.page-actions [data-bs-target="#financeModal"]'),
             '#financeModal',
             'shown.bs.modal'
         );
@@ -109,7 +133,7 @@ async function main() {
         // 03. Modal: Kassabuch-Konfiguration (Geschäftsjahr-Beginn)
         await clickAndWaitForEvent(
             page,
-            page.locator('[data-bs-target="#settingsModal"]'),
+            page.locator('.page-actions [data-bs-target="#settingsModal"]'),
             '#settingsModal',
             'shown.bs.modal'
         );
@@ -166,6 +190,76 @@ async function main() {
             '#modal-create-category',
             'hidden.bs.modal'
         );
+
+        // === Konten (Zahlungskreise) ===
+
+        // 09. Kontenliste mit Anfangsbestand und aktuellem Bestand.
+        await page.goto(`${BASE_URL}/finances/accounts`, { waitUntil: 'networkidle' });
+        await page.locator('.finances-table').waitFor({ state: 'visible' });
+        await shotCapped(page, '09-accounts', 900);
+
+        // 10. Modal: Konto anlegen bzw. bearbeiten.
+        await clickAndWaitForEvent(
+            page,
+            page.locator('.page-actions [data-bs-target="#financeAccountModal"]'),
+            '#financeAccountModal',
+            'shown.bs.modal'
+        );
+        await shotModal(page, '10-account-modal');
+        await clickAndWaitForEvent(
+            page,
+            page.locator('#financeAccountModal .btn-secondary[data-bs-dismiss="modal"]'),
+            '#financeAccountModal',
+            'hidden.bs.modal'
+        );
+
+        // === Offene Posten ===
+
+        // 11. Der Abschnitt liegt unterhalb der Buchungsliste, daher gezielt
+        //     dorthin scrollen und nur diesen Bereich aufnehmen.
+        await page.goto(`${BASE_URL}/finances`, { waitUntil: 'networkidle' });
+        const openSection = page.locator('section[aria-labelledby="finances-open-title"]');
+        await openSection.waitFor({ state: 'visible' });
+        await shotSection(page, '11-open-items', openSection, 900);
+
+        // === Kontoauszug-Import ===
+
+        // 12. Modal: CSV auswählen.
+        await clickAndWaitForEvent(
+            page,
+            page.locator('.page-actions [data-bs-target="#financeImportModal"]'),
+            '#financeImportModal',
+            'shown.bs.modal'
+        );
+        await shotModal(page, '12-import-modal');
+
+        // 13. Vorschau nach dem Einlesen. Es wird nur geparst, nichts verbucht -
+        //     der Import wird danach bewusst abgebrochen.
+        await page.locator('#financeImportModal input[name="statement"]').setInputFiles(SAMPLE_STATEMENT);
+        await Promise.all([
+            page.waitForURL(`${BASE_URL}/finances/import/preview`, { waitUntil: 'networkidle' }),
+            page.locator('#financeImportModal button[type="submit"]').click(),
+        ]);
+        await page.locator('.finance-import-table').waitFor({ state: 'visible' });
+        await shotCapped(page, '13-import-preview', 1100);
+
+        await Promise.all([
+            page.waitForURL(`${BASE_URL}/finances`, { waitUntil: 'networkidle' }),
+            page.locator('form[action="/finances/import/cancel"] button[type="submit"]').click(),
+        ]);
+
+        // === Kassabericht und Journal ===
+
+        // 14. Kassabericht je Konto in der Auswertung.
+        await page.goto(`${BASE_URL}/finances/report`, { waitUntil: 'networkidle' });
+        const statement = page.locator('.finances-report .card').first();
+        await statement.waitFor({ state: 'visible' });
+        await shotCapped(page, '14-account-statement', 1000);
+
+        // 15. Änderungsjournal.
+        await page.goto(`${BASE_URL}/finances/journal`, { waitUntil: 'networkidle' });
+        await page.locator('.finances-table').waitFor({ state: 'visible' });
+        await shotCapped(page, '15-journal', 1100);
 
         console.log('Fertig: alle Finanz-Screenshots erstellt.');
     } finally {

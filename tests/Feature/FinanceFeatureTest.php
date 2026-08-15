@@ -14,7 +14,8 @@ class FinanceFeatureTest extends TestCase
         $this->assertTrue(class_exists(FinanceController::class));
         $this->assertTrue(method_exists(FinanceController::class, 'index'));
         $this->assertTrue(method_exists(FinanceController::class, 'save'));
-        $this->assertTrue(method_exists(FinanceController::class, 'delete'));
+        $this->assertTrue(method_exists(FinanceController::class, 'reverse'));
+        $this->assertTrue(method_exists(FinanceController::class, 'journal'));
         $this->assertTrue(method_exists(FinanceController::class, 'report'));
         $this->assertTrue(method_exists(FinanceController::class, 'updateSettings'));
         $this->assertTrue(method_exists(FinanceController::class, 'viewAttachment'));
@@ -58,14 +59,13 @@ class FinanceFeatureTest extends TestCase
         $this->assertSame('1234567', FinanceController::normalizeAmountInput('1.234.567'));
     }
 
-    public function testFinanceDeleteAlsoRemovesAttachments(): void
+    public function testFinanceCorrectionsRunThroughAReversalInsteadOfADelete(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("Attachment::where('entity_type', 'finance')", $controllerContent);
-        $this->assertStringContainsString("->where('entity_id', " . '$' . "financeId)", $controllerContent);
-        $this->assertStringContainsString("->delete();", $controllerContent);
+        $this->assertStringContainsString("'reversal_of_id' => " . '$' . "original->id,", $controllerContent);
+        $this->assertStringNotContainsString('public function delete(', $controllerContent);
     }
 
     public function testFinanceAttachmentViewOnlyUsesInlineDispositionForSafeMimeTypes(): void
@@ -102,7 +102,7 @@ class FinanceFeatureTest extends TestCase
         $this->assertStringContainsString('data-table-id="finances.report.timeline"', $template);
         $this->assertStringContainsString('partials/table_toolbar.twig', $template);
         $this->assertStringContainsString('table-responsive-cards', $template);
-        $this->assertStringContainsString('data-sort-key="invoice_date"', $template);
+        $this->assertStringContainsString('data-sort-key="payment_date"', $template);
     }
 
     public function testFinanceNavigationAndDashboardUseFinanceReadPermission(): void

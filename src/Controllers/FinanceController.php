@@ -8,10 +8,15 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Finance;
+use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
+use App\Models\FinanceRevision;
 use App\Models\Attachment;
 use App\Models\Setting;
 use App\Services\BankStatementImportService;
+use App\Services\FinanceAccountService;
+use App\Services\FinanceCsvExportService;
+use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
 use Carbon\Carbon;
@@ -32,19 +37,28 @@ class FinanceController
     private LoggerInterface $logger;
     private FinanceReportPdfService $pdfService;
     private BankStatementImportService $importService;
+    private FinanceAccountService $accountService;
+    private FinanceJournalService $journal;
+    private FinanceCsvExportService $csvExportService;
 
     public function __construct(
         Twig $view,
         BudgetService $budgetService,
         LoggerInterface $logger,
         FinanceReportPdfService $pdfService,
-        BankStatementImportService $importService
+        BankStatementImportService $importService,
+        FinanceAccountService $accountService,
+        FinanceJournalService $journal,
+        FinanceCsvExportService $csvExportService
     ) {
         $this->view = $view;
         $this->budgetService = $budgetService;
         $this->logger = $logger;
         $this->pdfService = $pdfService;
         $this->importService = $importService;
+        $this->accountService = $accountService;
+        $this->journal = $journal;
+        $this->csvExportService = $csvExportService;
     }
 
     private function getFiscalConfig(): array
@@ -82,7 +96,7 @@ class FinanceController
 
     private function buildAvailableYears(int $day, int $month): array
     {
-        $allDates = Finance::selectRaw('MIN(invoice_date) as min_d, MAX(invoice_date) as max_d')->first();
+        $allDates = Finance::selectRaw('MIN(payment_date) as min_d, MAX(payment_date) as max_d')->first();
         $years = [];
         $def = $this->defaultStartYear($day, $month);
         [$sDef, $eDef] = $this->datesForYear($def, $day, $month);
@@ -96,7 +110,7 @@ class FinanceController
                     continue;
                 }
                 [$s, $e] = $this->datesForYear($y, $day, $month);
-                $count = Finance::whereBetween('invoice_date', [$s->format('Y-m-d'), $e->format('Y-m-d')])->count();
+                $count = Finance::whereBetween('payment_date', [$s->format('Y-m-d'), $e->format('Y-m-d')])->count();
                 if ($count > 0) {
                     $years[$y] = $s->format('d.m.Y') . ' – ' . $e->format('d.m.Y');
                 }
@@ -115,9 +129,17 @@ class FinanceController
 
         [$startDate, $endDate] = $this->datesForYear($selectedYear, $day, $month);
 
-        $finances = Finance::with('attachments')
-            ->whereBetween('invoice_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+        // Zufluss-Abfluss-Prinzip: maßgeblich ist der Tag der Zahlung. Buchungen
+        // ohne Zahldatum sind noch kein Kassavorgang und gehören daher in kein
+        // Geschäftsjahr - sie erscheinen jahresunabhängig als offene Posten.
+        $finances = Finance::with(['attachments', 'financeAccount', 'reversedBy'])
+            ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('running_number', 'desc')
+            ->get();
+
+        $openItems = Finance::with(['attachments', 'financeAccount'])
+            ->whereNull('payment_date')
+            ->orderBy('invoice_date', 'asc')
             ->get();
 
         $groups = FinanceGroup::orderBy('name')->pluck('name');
@@ -128,12 +150,16 @@ class FinanceController
 
         return $this->view->render($response, 'finances/index.twig', [
             'finances' => $finances,
+            'open_items' => $openItems,
+            'accounts' => $this->accountService->activeAccounts(),
+            'account_statement' => $this->accountService->statement($startDate, $endDate),
             'groups' => $groups,
             'success' => $success,
             'error' => $error,
             'fiscal_start' => $startDate->format('d.m.Y'),
             'fiscal_end' => $endDate->format('d.m.Y'),
             'fiscal_setting' => $startStr,
+            'closed_until_value' => $this->journal->closedUntil()?->format('Y-m-d') ?? '',
             'available_years' => $availableYears,
             'selected_year' => $selectedYear,
         ]);
@@ -157,6 +183,12 @@ class FinanceController
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
+        $account = $this->resolveAccount($data);
+        if ($account === null) {
+            $_SESSION['error'] = 'Bitte ein Konto auswählen. Konten werden unter "Konten" verwaltet.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
         try {
             $groupNameRaw = trim($data['group_name'] ?? '');
             $groupName = $groupNameRaw !== '' ? $groupNameRaw : null;
@@ -172,19 +204,51 @@ class FinanceController
                     : null,
                 'type' => $data['type'],
                 'amount' => $amount,
-                'payment_method' => $data['payment_method'],
+                'finance_account_id' => $account->id,
+                // Zahlungsart als Spiegelfeld des Kontotyps, damit Auswertung, PDF
+                // und Tabellensortierung unverändert weiterlaufen.
+                'payment_method' => $account->paymentMethod(),
             ];
 
             $finance = null;
-            Capsule::connection()->transaction(function () use ($id, &$recordData, &$finance): void {
-                if ($id) {
-                    $finance = Finance::findOrFail($id);
-                    $finance->update($recordData);
-                } else {
-                    $recordData['running_number'] = $this->nextRunningNumber();
-                    $finance = Finance::create($recordData);
+            $lockError = null;
+            Capsule::connection()->transaction(
+                function () use ($id, &$recordData, &$finance, &$lockError): void {
+                    if ($id) {
+                        $finance = Finance::findOrFail($id);
+
+                        // Sowohl der bisherige als auch der neue Zeitraum müssen offen
+                        // sein - sonst ließe sich eine Buchung aus einem geprüften Jahr
+                        // heraus- oder hineinschieben.
+                        if (
+                            $this->journal->isFinanceLocked($finance)
+                            || $this->journal->isLocked($recordData['payment_date'])
+                        ) {
+                            $lockError = true;
+                            return;
+                        }
+
+                        $before = FinanceJournalService::snapshot($finance);
+                        $finance->update($recordData);
+                        $this->journal->recordUpdate($finance, $before, $recordData, $this->currentUserId());
+                    } else {
+                        if ($this->journal->isLocked($recordData['payment_date'])) {
+                            $lockError = true;
+                            return;
+                        }
+
+                        $recordData['running_number'] = $this->reserveRunningNumbers(1);
+                        $finance = Finance::create($recordData);
+                        $this->journal->recordCreate($finance, $this->currentUserId());
+                    }
                 }
-            });
+            );
+
+            if ($lockError !== null) {
+                $_SESSION['error'] = $this->lockMessage();
+                return $response->withHeader('Location', '/finances')->withStatus(302);
+            }
+
             $_SESSION['success'] = $id ? 'Eintrag erfolgreich aktualisiert.' : 'Neuer Eintrag erfolgreich verbucht.';
 
             // Handle Attachments
@@ -241,6 +305,27 @@ class FinanceController
             $_SESSION['error'] = 'Fehler beim Speichern. Bitte versuchen Sie es erneut.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    /**
+     * Resolves the payment account of a booking. Falls back to the default account
+     * of the posted payment method so older forms and imports keep working.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function resolveAccount(array $data): ?FinanceAccount
+    {
+        $accountId = isset($data['finance_account_id']) ? (int) $data['finance_account_id'] : 0;
+        if ($accountId > 0) {
+            $account = FinanceAccount::find($accountId);
+            if ($account !== null) {
+                return $account;
+            }
+        }
+
+        $paymentMethod = (string) ($data['payment_method'] ?? 'bank_transfer');
+
+        return $this->accountService->defaultAccountForPaymentMethod($paymentMethod);
     }
 
     /**
@@ -319,6 +404,9 @@ class FinanceController
         }
 
         $rows = $this->flagKnownRows($parsed['rows']);
+        // Konto über die IBAN des Auszugs vorbelegen, damit der Kassier den
+        // Zahlungskreis nicht bei jedem Import neu suchen muss.
+        $suggestedAccount = $this->accountService->findByIban($parsed['own_iban'] ?? null);
         $_SESSION[self::IMPORT_SESSION_KEY] = [
             'filename' => $filename,
             'created_at' => time(),
@@ -328,6 +416,9 @@ class FinanceController
         return $this->view->render($response, 'finances/import.twig', [
             'filename' => $filename,
             'rows' => $rows,
+            'accounts' => $this->accountService->activeAccounts(),
+            'suggested_account_id' => $suggestedAccount?->id,
+            'detected_iban' => $parsed['own_iban'] ?? null,
             'groups' => FinanceGroup::orderBy('name')->pluck('name'),
             'importable_count' => count(array_filter($rows, static fn(array $r): bool => $r['importable'])),
             'duplicate_count' => count(array_filter($rows, static fn(array $r): bool => $r['duplicate'])),
@@ -354,6 +445,12 @@ class FinanceController
         $selected = array_map('intval', (array) ($data['selected'] ?? []));
         $postedGroups = (array) ($data['group'] ?? []);
 
+        $account = $this->resolveAccount($data);
+        if ($account === null) {
+            $_SESSION['error'] = 'Bitte ein Konto für den Import auswählen.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
         // Erneut gegen die Datenbank prüfen: zwischen Vorschau und Übernahme kann
         // jemand anderes dieselben Zeilen importiert haben.
         $rows = $this->flagKnownRows($payload['rows']);
@@ -378,7 +475,7 @@ class FinanceController
         $imported = 0;
         try {
             if ($queued !== []) {
-                Capsule::connection()->transaction(function () use ($queued, &$imported): void {
+                Capsule::connection()->transaction(function () use ($queued, $account, &$imported): void {
                     $runningNumber = $this->reserveRunningNumbers(count($queued));
                     foreach ($queued as $row) {
                         $groupName = $row['group_name'];
@@ -395,7 +492,8 @@ class FinanceController
                                 : null,
                             'type' => $row['type'],
                             'amount' => $row['amount'],
-                            'payment_method' => 'bank_transfer',
+                            'finance_account_id' => $account->id,
+                            'payment_method' => $account->paymentMethod(),
                             'import_hash' => $row['import_hash'],
                         ]);
                         $runningNumber++;
@@ -456,26 +554,126 @@ class FinanceController
         return $rows;
     }
 
-    public function delete(Request $request, Response $response, array $args): Response
+    /**
+     * Storniert eine Buchung durch eine Gegenbuchung. Gelöscht wird nichts:
+     * § 131 BAO verlangt, dass eine Korrektur den ursprünglichen Inhalt nicht
+     * unkenntlich macht.
+     */
+    public function reverse(Request $request, Response $response, array $args): Response
     {
         $financeId = (int) $args['id'];
+
         try {
-            Capsule::connection()->transaction(function () use ($financeId): void {
-                Attachment::where('entity_type', 'finance')
-                    ->where('entity_id', $financeId)
-                    ->delete();
-                Finance::findOrFail($financeId)->delete();
+            $original = Finance::find($financeId);
+            if ($original === null) {
+                $_SESSION['error'] = 'Die Buchung wurde nicht gefunden.';
+                return $response->withHeader('Location', '/finances')->withStatus(302);
+            }
+
+            if ($original->reversal_of_id !== null) {
+                $_SESSION['error'] = 'Eine Stornobuchung kann nicht erneut storniert werden.';
+                return $response->withHeader('Location', '/finances')->withStatus(302);
+            }
+
+            if (Finance::where('reversal_of_id', $original->id)->exists()) {
+                $_SESSION['error'] = 'Diese Buchung wurde bereits storniert.';
+                return $response->withHeader('Location', '/finances')->withStatus(302);
+            }
+
+            $reversal = null;
+            Capsule::connection()->transaction(function () use ($original, &$reversal): void {
+                $originalPaymentDate = $original->payment_date?->format('Y-m-d');
+
+                // Ein abgeschlossener Zeitraum darf sich nicht mehr verändern; das
+                // Storno wandert dann auf den heutigen Tag. Sonst wird es in der
+                // Periode des Originals gebucht.
+                $paymentDate = $originalPaymentDate;
+                if ($paymentDate !== null && $this->journal->isLocked($paymentDate)) {
+                    $paymentDate = Carbon::now()->format('Y-m-d');
+                }
+
+                $reversal = Finance::create([
+                    'running_number' => $this->reserveRunningNumbers(1),
+                    'invoice_date' => $original->invoice_date->format('Y-m-d'),
+                    'payment_date' => $paymentDate,
+                    'description' => sprintf(
+                        'Storno zu Nr. %d: %s',
+                        $original->running_number,
+                        $original->description
+                    ),
+                    'group_name' => $original->group_name,
+                    'finance_group_id' => $original->finance_group_id,
+                    'type' => $original->type === 'income' ? 'expense' : 'income',
+                    'amount' => $original->amount,
+                    'payment_method' => $original->payment_method,
+                    'finance_account_id' => $original->finance_account_id,
+                    'reversal_of_id' => $original->id,
+                ]);
+
+                $this->journal->recordReverse($reversal, $original, $this->currentUserId());
             });
-            $_SESSION['success'] = 'Eintrag erfolgreich gelöscht.';
+
+            $this->logger->info('Finance booking reversed.', [
+                'event' => 'finance.reverse.completed',
+                'finance_id' => $original->id,
+                'reversal_id' => $reversal?->id,
+            ]);
+            $_SESSION['success'] = sprintf(
+                'Buchung Nr. %d storniert. Die Gegenbuchung wurde als Nr. %d angelegt.',
+                $original->running_number,
+                (int) $reversal?->running_number
+            );
         } catch (\Exception $e) {
-            $this->logger->error('Finance booking delete failed.', [
-                'event' => 'finance.delete.failed',
+            $this->logger->error('Finance booking reversal failed.', [
+                'event' => 'finance.reverse.failed',
                 'finance_id' => $financeId,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Fehler beim Löschen. Bitte versuchen Sie es erneut.';
+            $_SESSION['error'] = 'Fehler beim Stornieren. Bitte versuchen Sie es erneut.';
         }
+
         return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    /**
+     * Änderungsjournal: wer hat wann welche Buchung angelegt, geändert oder
+     * storniert.
+     */
+    public function journal(Request $request, Response $response): Response
+    {
+        $revisions = FinanceRevision::with(['finance', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(500)
+            ->get();
+
+        $success = $_SESSION['success'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['success'], $_SESSION['error']);
+
+        return $this->view->render($response, 'finances/journal.twig', [
+            'revisions' => $revisions,
+            'closed_until' => $this->journal->closedUntil()?->format('d.m.Y'),
+            'success' => $success,
+            'error' => $error,
+        ]);
+    }
+
+    private function currentUserId(): ?int
+    {
+        $userId = $_SESSION['user_id'] ?? null;
+
+        return is_numeric($userId) ? (int) $userId : null;
+    }
+
+    private function lockMessage(): string
+    {
+        $closedUntil = $this->journal->closedUntil();
+
+        return sprintf(
+            'Der Zeitraum bis %s ist abgeschlossen. Korrekturen sind nur noch über eine Stornobuchung möglich.',
+            $closedUntil?->format('d.m.Y') ?? '-'
+        );
     }
 
     public function report(Request $request, Response $response): Response
@@ -506,15 +704,51 @@ class FinanceController
             );
     }
 
+    /**
+     * Rohdatenexport des Kassabuchs. Rechnungsprüfer und Steuerberater arbeiten
+     * meist mit einer Tabellenkalkulation statt mit dem PDF.
+     */
+    public function exportCsv(Request $request, Response $response): Response
+    {
+        [$day, $month] = $this->getFiscalConfig();
+        $selectedYear = (int) ($request->getQueryParams()['year'] ?? $this->defaultStartYear($day, $month));
+        [$startDate, $endDate] = $this->datesForYear($selectedYear, $day, $month);
+
+        $finances = Finance::with(['attachments', 'financeAccount', 'reversalOf'])
+            ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->orderBy('payment_date', 'asc')
+            ->orderBy('running_number', 'asc')
+            ->get();
+
+        $csv = $this->csvExportService->build($finances);
+        $filename = $this->csvExportService->fileName($startDate, $endDate);
+
+        $this->logger->info('Finance CSV export created.', [
+            'event' => 'finance.export.completed',
+            'fiscal_year' => $selectedYear,
+            'rows' => $finances->count(),
+        ]);
+
+        $response->getBody()->write($csv);
+
+        return $response
+            ->withHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . self::normalizeFileName($filename) . '"'
+                    . '; filename*=UTF-8\'\'' . rawurlencode($filename)
+            );
+    }
+
     private function buildReportData(int $selectedYear): array
     {
         [$day, $month, $startStr] = $this->getFiscalConfig();
         $availableYears = $this->buildAvailableYears($day, $month);
         [$startDate, $endDate] = $this->datesForYear($selectedYear, $day, $month);
 
-        $finances = Finance::with('attachments')
-            ->whereBetween('invoice_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->orderBy('invoice_date', 'asc')
+        $finances = Finance::with(['attachments', 'financeAccount'])
+            ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->orderBy('payment_date', 'asc')
             ->get();
 
         $totalIncome = (float) $finances->where('type', 'income')->sum('amount');
@@ -555,6 +789,7 @@ class FinanceController
             'bank_expense' => $bankExpense,
             'group_totals' => $groupTotals,
             'has_groups' => count($groupTotals) > 0,
+            'account_statement' => $this->accountService->statement($startDate, $endDate),
             'fiscal_start' => $startDate->format('d.m.Y'),
             'fiscal_end' => $endDate->format('d.m.Y'),
             'available_years' => $availableYears,
@@ -572,10 +807,19 @@ class FinanceController
         $month = $matched ? (int) $matches[2] : 0;
         if ($day < 1 || $day > 31 || $month < 1 || $month > 12) {
             $_SESSION['error'] = 'Ungültiges Format für das Geschäftsjahr. (Erwartet: DD.MM. mit Tag 01-31, Monat 01-12)';
-        } else {
-            Setting::updateOrCreate(['setting_key' => 'fiscal_year_start'], ['setting_value' => $startStr]);
-            $_SESSION['success'] = 'Geschäftsjahr-Beginn aktualisiert.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
         }
+
+        $closedUntilRaw = trim((string) ($data['closed_until'] ?? ''));
+        if ($closedUntilRaw !== '' && !Carbon::canBeCreatedFromFormat($closedUntilRaw, 'Y-m-d')) {
+            $_SESSION['error'] = 'Ungültiges Datum für den Buchungsabschluss.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        Setting::updateOrCreate(['setting_key' => 'fiscal_year_start'], ['setting_value' => $startStr]);
+        $this->journal->setClosedUntil($closedUntilRaw === '' ? null : $closedUntilRaw);
+        $_SESSION['success'] = 'Konfiguration aktualisiert.';
+
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
 

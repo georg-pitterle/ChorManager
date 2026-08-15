@@ -1,0 +1,117 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Änderungsjournal - {{ app_settings.app_name|default('Chor-Manager') }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Kassabuch</p>
+            <h1 class="h2 mb-1">Änderungsjournal</h1>
+            <p class="text-muted mb-0">
+                {% if closed_until %}
+                    Buchungen bis <strong>{{ closed_until }}</strong> sind abgeschlossen.
+                {% else %}
+                    Es ist kein Zeitraum abgeschlossen.
+                {% endif %}
+            </p>
+        </div>
+        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            <a href="/finances" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Zum Kassabuch
+            </a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context" aria-labelledby="journal-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="journal-title">Protokoll</h2>
+                <p class="dashboard-section-lead mb-0">
+                    Jede Anlage, Änderung und jedes Storno einer Buchung, neueste zuerst. Maximal 500 Einträge.
+                </p>
+            </div>
+
+            <div class="surface-card card border-0 table-shell"
+                 data-table-engine="true"
+                 data-table-id="finances.journal"
+                 data-default-view="auto"
+                 data-default-page-size="100"
+                 data-page-size-options="25,50,100,200">
+                {{ include("partials/table_toolbar.twig") }}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Zeitpunkt</th>
+                                    <th>Buchung</th>
+                                    <th>Vorgang</th>
+                                    <th>Benutzer</th>
+                                    <th>Änderung</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for revision in revisions %}
+                                    <tr>
+                                        <td data-label="Zeitpunkt">{{ revision.created_at|date("d.m.Y H:i") }}</td>
+                                        <td data-label="Buchung">
+                                            {% if revision.finance %}
+                                                <strong>Nr. {{ revision.finance.running_number }}</strong>
+                                                <div class="small text-muted">{{ revision.finance.description }}</div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Vorgang">
+                                            {% if revision.action == "create" %}
+                                                <span class="badge bg-success">angelegt</span>
+                                            {% elseif revision.action == "update" %}
+                                                <span class="badge bg-warning text-dark">geändert</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">storniert</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Benutzer">
+                                            {% if revision.user %}
+                                                {{ revision.user|person_name }}
+                                            {% else %}
+                                                <span class="text-muted">System</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Änderung">
+                                            {% set changes = revision.changeSet() %}
+                                            {% if changes is empty %}
+                                                <span class="text-muted">-</span>
+                                            {% else %}
+                                                <ul class="list-unstyled mb-0 small">
+                                                    {% for field, change in changes %}
+                                                        <li>
+                                                            <span class="text-muted">{{ field }}:</span>
+                                                            <s>{{ change.from|default("leer") }}</s>
+                                                            <i class="bi bi-arrow-right"></i>
+                                                            <strong>{{ change.to|default("leer") }}</strong>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">
+                                            Noch keine Einträge im Journal.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock content %}

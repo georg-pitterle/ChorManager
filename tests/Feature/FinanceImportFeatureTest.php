@@ -9,6 +9,9 @@ use App\Models\Finance;
 use App\Models\FinanceGroup;
 use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
+use App\Services\FinanceAccountService;
+use App\Services\FinanceCsvExportService;
+use App\Services\FinanceJournalService;
 use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -57,7 +60,10 @@ final class FinanceImportFeatureTest extends TestCase
             new BudgetService(),
             new NullLogger(),
             new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger())
+            new BankStatementImportService(new NullLogger()),
+            new FinanceAccountService(),
+            new FinanceJournalService(),
+            new FinanceCsvExportService()
         );
 
         $_SESSION = [];
@@ -69,6 +75,15 @@ final class FinanceImportFeatureTest extends TestCase
         if ($connection->transactionLevel() > 0) {
             $connection->rollBack();
         }
+
+        // Gürtel und Hosenträger: DDL anderer Testklassen committet in MySQL
+        // implizit und kann die obige Transaktion vorzeitig beenden. Ohne diese
+        // Nachreinigung würden durchgerutschte Zeilen die Dublettenerkennung
+        // späterer Läufe verfälschen.
+        Finance::query()
+            ->where('id', '>', $this->baselineId)
+            ->whereNotNull('import_hash')
+            ->delete();
 
         foreach (glob($this->tempDir . '/*') ?: [] as $file) {
             unlink($file);

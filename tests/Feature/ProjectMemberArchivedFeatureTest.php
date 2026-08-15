@@ -130,7 +130,8 @@ class ProjectMemberArchivedFeatureTest extends TestCase
             ->with(10)
             ->willReturn(true);
         // The voice-group scope check passes for a broad manager.
-        $policy->method('canManageMember')
+        $policy->expects($this->once())
+            ->method('canManageMember')
             ->with(10, [])
             ->willReturn(true);
 

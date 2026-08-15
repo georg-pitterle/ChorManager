@@ -81,7 +81,8 @@ final class FinanceReportPdfService
         foreach ($reportData['finances'] as $f) {
             $isIncome = $f->type === 'income';
             $rows[] = new FinanceReportRow(
-                $f->invoice_date->format('d.m.Y'),
+                // Kassabuch nach Zufluss-Abfluss: das Zahldatum ist maßgeblich.
+                ($f->payment_date ?? $f->invoice_date)->format('d.m.Y'),
                 (int) $f->running_number,
                 (string) $f->description,
                 $f->payment_method === 'cash' ? 'Bar' : 'Bank',

@@ -77,7 +77,7 @@ class BankStatementImportService
     }
 
     /**
-     * @return array{rows: list<array<string, mixed>>, errors: list<string>}
+     * @return array{rows: list<array<string, mixed>>, errors: list<string>, own_iban: string|null}
      */
     public function parse(string $rawContent): array
     {
@@ -101,7 +101,7 @@ class BankStatementImportService
         }
 
         if ($header === null) {
-            return ['rows' => [], 'errors' => ['Die Datei enthält keine Kopfzeile.']];
+            return ['rows' => [], 'errors' => ['Die Datei enthält keine Kopfzeile.'], 'own_iban' => null];
         }
 
         $missing = $this->missingColumns($header);
@@ -111,14 +111,16 @@ class BankStatementImportService
                 'errors' => [
                     'Die Datei hat nicht das erwartete Format. Fehlende Spalten: ' . implode(', ', $missing) . '.',
                 ],
+                'own_iban' => null,
             ];
         }
 
         if ($records === []) {
-            return ['rows' => [], 'errors' => ['Die Datei enthält keine Buchungszeilen.']];
+            return ['rows' => [], 'errors' => ['Die Datei enthält keine Buchungszeilen.'], 'own_iban' => null];
         }
 
-        $rows = $this->buildRows($header, $records);
+        $ownIban = $this->detectOwnIban($header, $records);
+        $rows = $this->buildRows($header, $records, $ownIban);
 
         $this->logger->info('Bank statement parsed.', [
             'event' => 'finance.import.parsed',
@@ -126,7 +128,7 @@ class BankStatementImportService
             'rows_invalid' => count(array_filter(array_column($rows, 'error'))),
         ]);
 
-        return ['rows' => $rows, 'errors' => []];
+        return ['rows' => $rows, 'errors' => [], 'own_iban' => $ownIban];
     }
 
     /**
@@ -134,10 +136,8 @@ class BankStatementImportService
      * @param list<list<string|null>> $records
      * @return list<array<string, mixed>>
      */
-    private function buildRows(array $header, array $records): array
+    private function buildRows(array $header, array $records, ?string $ownIban): array
     {
-        $ownIban = $this->detectOwnIban($header, $records);
-
         $rows = [];
         $occurrences = [];
         foreach ($records as $record) {

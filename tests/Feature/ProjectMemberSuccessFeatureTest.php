@@ -56,7 +56,8 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->willReturn(true);
         // A broad project member manager sees every candidate, so the unfiltered
         // getUsersNotInProject() path is taken.
-        $policy->method('canViewAllCandidates')
+        $policy->expects($this->once())
+            ->method('canViewAllCandidates')
             ->with(42)
             ->willReturn(true);
 
@@ -85,7 +86,8 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->with(5)
             ->willReturn(true);
         // The voice-group scope check passes for a broad manager.
-        $policy->method('canManageMember')
+        $policy->expects($this->once())
+            ->method('canManageMember')
             ->with(5, [])
             ->willReturn(true);
 
@@ -114,7 +116,8 @@ class ProjectMemberSuccessFeatureTest extends TestCase
             ->with(7)
             ->willReturn(true);
         // The voice-group scope check passes for a broad manager.
-        $policy->method('canManageMember')
+        $policy->expects($this->once())
+            ->method('canManageMember')
             ->with(7, [])
             ->willReturn(true);
 

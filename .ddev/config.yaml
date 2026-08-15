@@ -14,11 +14,23 @@ composer_version: "2"
 web_environment: []
 corepack_enable: false
 default_container_timeout: "240"
-webimage_extra_packages: [python3-pip]
+# Die Playwright-Pakete sind genau die Liste, die `npx playwright install-deps
+# chromium` anfordert. Sie gehoeren ins Image und nicht in einen Post-Start-
+# Schritt: sonst fehlen nach jedem Rebuild die Bibliotheken (libnspr4 & Co.) und
+# die Screenshot-Skripte unter help/*/scripts/ brechen ab.
+webimage_extra_packages: [python3-pip, libasound2t64, libatk-bridge2.0-0t64, libatk1.0-0t64,
+  libatspi2.0-0t64, libcairo2, libcups2t64, libdbus-1-3, libdrm2, libgbm1, libglib2.0-0t64,
+  libnspr4, libnss3, libpango-1.0-0, libx11-6, libxcb1, libxcomposite1, libxdamage1,
+  libxext6, libxfixes3, libxkbcommon0, libxrandr2, xvfb, fonts-noto-color-emoji,
+  fonts-unifont, libfontconfig1, libfreetype6, xfonts-scalable, fonts-liberation,
+  fonts-ipafont-gothic, fonts-wqy-zenhei, fonts-tlwg-loma-otf, fonts-freefont-ttf]
 
 hooks:
   post-start:
     - exec: "bash .ddev/commands/web/ensure-djlint"
+      service: web
+      user: root
+    - exec: "bash .ddev/commands/web/ensure-playwright"
       service: web
       user: root
 

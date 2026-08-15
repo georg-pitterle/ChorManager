@@ -11,6 +11,9 @@ use App\Models\FinanceGroup;
 use App\Models\Setting;
 use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
+use App\Services\FinanceAccountService;
+use App\Services\FinanceCsvExportService;
+use App\Services\FinanceJournalService;
 use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\TcLibPdfCanvas;
 use Dotenv\Dotenv;
@@ -91,7 +94,10 @@ final class FinanceBusinessLogicTest extends TestCase
             new BudgetService(),
             $logger ?? new NullLogger(),
             new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger())
+            new BankStatementImportService(new NullLogger()),
+            new FinanceAccountService(),
+            new FinanceJournalService(),
+            new FinanceCsvExportService()
         );
     }
 
@@ -196,7 +202,12 @@ final class FinanceBusinessLogicTest extends TestCase
 
         $this->assertSame($first->running_number + 1, $second->running_number);
 
-        $controller->delete($this->makeRequest('POST', '/finances/' . $second->id . '/delete'), $this->makeResponse(), ['id' => (string) $second->id]);
+        $controller->reverse(
+            $this->makeRequest('POST', '/finances/' . $second->id . '/reverse'),
+            $this->makeResponse(),
+            ['id' => (string) $second->id]
+        );
+        $reversal = Finance::orderByDesc('id')->first();
         unset($_SESSION['success'], $_SESSION['error']);
 
         $controller->save($this->makeRequest('POST', '/finances/save', $this->baseFinanceData()), $this->makeResponse());
@@ -204,13 +215,13 @@ final class FinanceBusinessLogicTest extends TestCase
         unset($_SESSION['success'], $_SESSION['error']);
 
         $this->assertGreaterThan(
-            $second->running_number,
+            $reversal->running_number,
             $third->running_number,
-            'A running number must never be reused, even after the highest booking was deleted.'
+            'A running number must never be reused, not even after a reversal.'
         );
     }
 
-    public function testDeleteRemovesFinanceAndItsAttachments(): void
+    public function testReversalKeepsTheOriginalBookingAndItsAttachments(): void
     {
         $controller = $this->makeController();
         $controller->save($this->makeRequest('POST', '/finances/save', $this->baseFinanceData()), $this->makeResponse());
@@ -227,14 +238,17 @@ final class FinanceBusinessLogicTest extends TestCase
             'file_content' => 'test',
         ]);
 
-        $controller->delete(
-            $this->makeRequest('POST', '/finances/' . $finance->id . '/delete'),
+        $controller->reverse(
+            $this->makeRequest('POST', '/finances/' . $finance->id . '/reverse'),
             $this->makeResponse(),
             ['id' => (string) $finance->id]
         );
 
-        $this->assertNull(Finance::find($finance->id));
-        $this->assertSame(0, Attachment::where('entity_type', 'finance')->where('entity_id', $finance->id)->count());
+        // Belegprinzip: Buchung und Beleg bleiben erhalten, korrigiert wird über
+        // die Gegenbuchung.
+        $this->assertNotNull(Finance::find($finance->id));
+        $this->assertSame(1, Attachment::where('entity_type', 'finance')->where('entity_id', $finance->id)->count());
+        $this->assertSame(1, Finance::where('reversal_of_id', $finance->id)->count());
         unset($_SESSION['success'], $_SESSION['error']);
     }
 
@@ -259,21 +273,17 @@ final class FinanceBusinessLogicTest extends TestCase
         unset($_SESSION['success'], $_SESSION['error']);
     }
 
-    public function testDeleteLogsExceptionWithEventContext(): void
+    public function testReversingAnUnknownBookingReportsAnError(): void
     {
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())
-            ->method('error')
-            ->with(
-                $this->isString(),
-                $this->callback(function (array $context): bool {
-                    return ($context['event'] ?? null) === 'finance.delete.failed'
-                        && array_key_exists('exception', $context);
-                })
-            );
+        $controller = $this->makeController();
 
-        $controller = $this->makeController($logger);
-        $controller->delete($this->makeRequest('POST', '/finances/999999999/delete'), $this->makeResponse(), ['id' => '999999999']);
+        $controller->reverse(
+            $this->makeRequest('POST', '/finances/999999999/reverse'),
+            $this->makeResponse(),
+            ['id' => '999999999']
+        );
+
+        $this->assertStringContainsString('nicht gefunden', (string) $_SESSION['error']);
         unset($_SESSION['success'], $_SESSION['error']);
     }
 
@@ -377,12 +387,12 @@ final class FinanceBusinessLogicTest extends TestCase
         $financesCountBefore = $before['finances']->count();
 
         Finance::create([
-            'running_number' => 9001, 'invoice_date' => '2025-10-05', 'payment_date' => null,
+            'running_number' => 9001, 'invoice_date' => '2025-10-05', 'payment_date' => '2025-10-05',
             'description' => 'Einnahme A', 'group_name' => null, 'finance_group_id' => null,
             'type' => 'income', 'amount' => '300.00', 'payment_method' => 'cash',
         ]);
         Finance::create([
-            'running_number' => 9002, 'invoice_date' => '2025-11-05', 'payment_date' => null,
+            'running_number' => 9002, 'invoice_date' => '2025-11-05', 'payment_date' => '2025-11-05',
             'description' => 'Ausgabe B', 'group_name' => null, 'finance_group_id' => null,
             'type' => 'expense', 'amount' => '120.00', 'payment_method' => 'bank_transfer',
         ]);

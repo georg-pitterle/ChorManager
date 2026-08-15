@@ -17,6 +17,7 @@ use App\Controllers\RegistrationController;
 use App\Controllers\EvaluationController;
 use App\Controllers\RoleController;
 use App\Controllers\VoiceGroupController;
+use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
 use App\Controllers\ProfileController;
 use App\Controllers\WebmailController;
@@ -279,6 +280,10 @@ return function (App $app) {
                             '/finances/attachments/{id:[0-9]+}',
                             [FinanceController::class, 'viewAttachment']
                         );
+                        $financeReadGroup->get('/finances/accounts', [FinanceAccountController::class, 'index']);
+                        $financeReadGroup->get('/finances/journal', [FinanceController::class, 'journal']);
+                        // Rohdaten fuer Rechnungspruefer: bewusst nur Leserecht noetig.
+                        $financeReadGroup->get('/finances/export', [FinanceController::class, 'exportCsv']);
                     }
                 )->add(new RoleMiddleware(requiresFinanceRead: true));
 
@@ -287,9 +292,11 @@ return function (App $app) {
                     '',
                     function ($financeWriteGroup) {
                         $financeWriteGroup->post('/finances/save', [FinanceController::class, 'save']);
+                        // Kein Löschen: Korrekturen laufen über eine Stornobuchung,
+                        // damit der ursprüngliche Inhalt nachvollziehbar bleibt.
                         $financeWriteGroup->post(
-                            '/finances/{id:[0-9]+}/delete',
-                            [FinanceController::class, 'delete']
+                            '/finances/{id:[0-9]+}/reverse',
+                            [FinanceController::class, 'reverse']
                         );
                         $financeWriteGroup->post('/finances/settings', [FinanceController::class, 'updateSettings']);
                         $financeWriteGroup->post(
@@ -303,6 +310,14 @@ return function (App $app) {
                         $financeWriteGroup->post(
                             '/finances/import/cancel',
                             [FinanceController::class, 'importCancel']
+                        );
+                        $financeWriteGroup->post(
+                            '/finances/accounts/save',
+                            [FinanceAccountController::class, 'save']
+                        );
+                        $financeWriteGroup->post(
+                            '/finances/accounts/{id:[0-9]+}/delete',
+                            [FinanceAccountController::class, 'delete']
                         );
                         $financeWriteGroup->post(
                             '/finances/attachments/{id:[0-9]+}/delete',
