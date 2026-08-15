@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { BASE_URL, VIEWPORT } from './steps/browser.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 export const AUTH_FILE = path.join(dir, '.auth', 'admin.json');
@@ -14,7 +15,7 @@ export default defineConfig({
     workers: process.env.CI ? 2 : undefined,
     reporter: [['list']],
     use: {
-        baseURL: 'https://chormanager.ddev.site',
+        baseURL: BASE_URL,
         ignoreHTTPSErrors: true,
         storageState: AUTH_FILE,
         trace: 'retain-on-failure',
@@ -24,11 +25,11 @@ export default defineConfig({
         // übergeben ihren eigenen expliziten timeout und überschreiben diesen Default.
         actionTimeout: 15_000,
         navigationTimeout: 30_000,
-        // Großzügiger Desktop-Viewport: im headless-Lauf deterministisch, im headed-Lauf
-        // (--headed) groß genug, dass beim Zuschauen kaum Elemente außerhalb des sichtbaren
-        // Bereichs liegen. --start-maximized maximiert zusätzlich das echte Fensterchrome im
-        // headed-Modus (im headless-Modus wirkungslos).
-        viewport: { width: 1600, height: 900 },
+        // Viewport kommt aus steps/browser.mjs: headless fix 1600x900 (deterministisch),
+        // beim Zuschauen (--headed/--ui) null, damit die Seite die echte Fenstergröße nutzt
+        // und --start-maximized greift. Ein fixer Viewport würde das maximierte Fenster
+        // wieder auf seine Größe zurückzwingen.
+        viewport: VIEWPORT,
         launchOptions: { args: ['--start-maximized'] },
     },
     projects: [

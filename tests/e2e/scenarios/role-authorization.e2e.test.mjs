@@ -3,8 +3,7 @@ import { PROTECTED_ROUTES, ROLE_MEMBERS, MEMBER_PASSWORD } from '../data/roleAcc
 import { createMember } from '../steps/members.mjs';
 import { login } from '../steps/auth.mjs';
 import { setMemberPassword, readRolePermissions } from '../steps/authz.mjs';
-
-const BASE_URL = 'https://chormanager.ddev.site';
+import { newBrowserContext } from '../steps/browser.mjs';
 
 // Autorisierungs-Matrix: jede geseedete Rolle bekommt ein Mitglied mit GENAU dieser einen Rolle.
 // Danach als dieses Mitglied anmelden und prüfen, dass es nur das sieht, wozu die Rolle laut ihren
@@ -31,7 +30,7 @@ test('Rollen-Autorisierung: jede Rolle sieht nur, wozu sie berechtigt ist', asyn
         const perms = rolePerms[member.role];
         expect(perms, `Rolle "${member.role}" muss in der DB existieren`).toBeTruthy();
 
-        const context = await browser.newContext({ baseURL: BASE_URL, ignoreHTTPSErrors: true });
+        const context = await newBrowserContext(browser);
         // Eine frisch per browser.newContext() erzeugte Session erbt hier den Admin-storageState
         // aus der Config (use.storageState). Cookies leeren, damit wir uns wirklich als das
         // Mitglied (nicht als Admin) anmelden - sonst würde /login sofort nach /dashboard leiten.

@@ -47,11 +47,10 @@ import {
     saveOpenNewsletterAsTemplate,
 } from '../steps/newsletters.mjs';
 import { deliverQueuedMails, mailpitRecipientsForSubject, mailpitBodyForSubject } from '../steps/mail.mjs';
-
-const BASE_URL = 'https://chormanager.ddev.site';
+import { newBrowserContext } from '../steps/browser.mjs';
 
 async function asUser(browser, email, run) {
-    const context = await browser.newContext({ baseURL: BASE_URL, ignoreHTTPSErrors: true });
+    const context = await newBrowserContext(browser);
     // Ein frischer Kontext erbt den Admin-storageState aus der Config - Cookies leeren, sonst
     // leitet /login sofort nach /dashboard weiter, und wir wären weiter als Admin unterwegs.
     await context.clearCookies();

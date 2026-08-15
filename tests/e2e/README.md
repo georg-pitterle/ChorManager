@@ -80,6 +80,21 @@ npx playwright test --config tests/e2e/playwright.config.mjs scenarios/role-auth
 > die sichst du auch mit `--headed` nicht. Die Szenario-/Crawler-Tests starten bereits
 > angemeldet (gespeicherte Session).
 
+### Fenstergröße
+
+`--headed` und `--ui` schalten automatisch in den Zuschau-Modus (`steps/browser.mjs`): der
+Viewport wird auf `null` gesetzt, dadurch füllt die Seite das **maximierte** Fenster
+(`--start-maximized`). Headless bleibt es bei fixen 1600x900, damit Layout und Screenshots
+deterministisch sind.
+
+Das gilt auch für Fenster, die ein Szenario selbst öffnet (Login als anderer Benutzer): solche
+Kontexte müssen über `newBrowserContext(browser)` aus `steps/browser.mjs` erzeugt werden.
+`browser.newContext()` erbt die Config **nicht** und liefert sonst Playwrights kleinen
+Default-Viewport (1280x720).
+
+Erzwingen lässt sich der Zuschau-Modus mit `E2E_WATCH=1` (z. B. wenn `--headed` erst per
+`PWDEBUG` gesetzt wird).
+
 ## Iterativ entwickeln (DB behalten, schneller)
 
 ```bash

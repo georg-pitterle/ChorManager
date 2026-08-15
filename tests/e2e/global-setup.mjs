@@ -7,9 +7,9 @@ import { ADMIN } from './data/fixtures.mjs';
 import { setupAdmin, login } from './steps/auth.mjs';
 import { resolveBash } from './steps/shell.mjs';
 import { AUTH_FILE } from './playwright.config.mjs';
+import { newBrowserContext } from './steps/browser.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const BASE_URL = 'https://chormanager.ddev.site';
 
 export default async function globalSetup() {
     const keepDb = process.env.E2E_KEEP_DB === '1';
@@ -51,7 +51,7 @@ export default async function globalSetup() {
 
     const browser = await chromium.launch();
     try {
-        const context = await browser.newContext({ baseURL: BASE_URL, ignoreHTTPSErrors: true });
+        const context = await newBrowserContext(browser);
         const page = await context.newPage();
 
         await setupAdmin(page, ADMIN);

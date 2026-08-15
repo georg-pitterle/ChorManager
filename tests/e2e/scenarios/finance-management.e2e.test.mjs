@@ -35,8 +35,7 @@ import {
 import { createMember } from '../steps/members.mjs';
 import { login } from '../steps/auth.mjs';
 import { setMemberPassword } from '../steps/authz.mjs';
-
-const BASE_URL = 'https://chormanager.ddev.site';
+import { newBrowserContext } from '../steps/browser.mjs';
 
 // Finanzverwaltung entlang der Aufgaben eines Vereinskassiers. Jeder Test legt sein
 // eigenes Konto an, damit die Fälle sich nicht gegenseitig die Bestände verschieben.
@@ -342,7 +341,7 @@ test('Berechtigung: Nur-Lese-Rolle sieht das Kassabuch, darf aber nicht buchen',
     await createMember(page, AUDITOR);
     setMemberPassword(AUDITOR.email, AUDITOR_PASSWORD);
 
-    const context = await browser.newContext({ baseURL: BASE_URL, ignoreHTTPSErrors: true });
+    const context = await newBrowserContext(browser);
     // Frischer Kontext erbt den Admin-storageState aus der Config - Cookies leeren,
     // sonst leitet /login sofort aufs Dashboard des Admins.
     await context.clearCookies();
