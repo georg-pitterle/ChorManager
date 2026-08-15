@@ -66,11 +66,26 @@ async function waitForModalResultOrError(page, selector) {
  * ihn über tinymce.get("content_html").getContent().
  */
 export async function fillEditor(page, text) {
+    // Das iframe ist sichtbar, bevor TinyMCE fertig initialisiert ist. Wer davor tippt, dessen
+    // Text wird vom Init (setzt den Inhalt aus der Textarea) wieder verworfen - das Modal meldet
+    // dann "Titel und Inhalt sind Pflichtfelder", obwohl der Editor befüllt aussah.
+    await page.waitForFunction(
+        () => window.tinymce?.get('content_html')?.initialized === true,
+        null,
+        { timeout: MODAL_CONTENT_TIMEOUT },
+    );
+
     const editorFrame = page.frameLocator(`${MODAL_CONTENT} .tox-edit-area iframe`);
     const body = editorFrame.locator('body');
     await body.waitFor({ state: 'visible' });
     await body.click();
     await body.fill(text);
+
+    // Gegenprobe am echten Editorinhalt: genau den liest das Formular beim Absenden
+    // (public/js/newsletters-create.js: tinymce.get("content_html").getContent()).
+    await expect
+        .poll(() => page.evaluate(() => window.tinymce.get('content_html').getContent({ format: 'text' }).trim()))
+        .not.toBe('');
 }
 
 /**

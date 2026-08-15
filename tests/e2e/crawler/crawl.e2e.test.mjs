@@ -9,8 +9,21 @@ import { isDenied } from './denylist.mjs';
 const TEST_TIMEOUT_MS = 480_000;
 // Bremst Seiten mit vielen Buttons: verhindert, dass ein einzelner Seitenaufruf durch sehr
 // viele (stale) Klick-Versuche den Lauf dominiert.
-const MAX_BUTTONS_PER_PAGE = 25;
+const MAX_BUTTONS_PER_PAGE = 60;
+// Listenseiten (/users, /voice-groups, /finances ...) wiederholen dieselben Zeilen-Buttons je
+// Datensatz. Ohne Begrenzung je Button-ART verbraucht eine lange Liste das gesamte Budget mit
+// Duplikaten - die restlichen, fachlich anderen Buttons derselben Seite werden dann nie geklickt.
+// Zwei Klicks je Art reichen: der erste deckt den Handler ab, der zweite einen Folgezustand.
+const MAX_CLICKS_PER_BUTTON_KIND = 2;
 const CLICK_TIMEOUT_MS = 1000;
+
+// Fasst Buttons zusammen, die sich nur durch ihren Datensatz unterscheiden: Ziffern (Modal-IDs
+// wie #deleteModal17, formaction="/users/delete/17") werden auf "#" normalisiert.
+function buttonKind({ text, target, type, name, formaction, className }) {
+    return [text, target, type, name, formaction, className]
+        .map((part) => (part || '').replace(/\s+/g, ' ').trim().toLowerCase().replace(/\d+/g, '#'))
+        .join('|');
+}
 
 // attachConsoleWatcher() filtert bewusst NICHTS (siehe dortiger Kommentar) - jede Ausnahme für
 // einen 401/403-"Failed to load resource"-Konsolenfehler muss hier explizit, eng gefasst (exakte
@@ -172,6 +185,7 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
     const routes = getRoutes();
     const { urls, discoveredLinks, routeDerivedUrls } = await resolveConcreteUrls(page, routes);
     let buttonsClicked = 0;
+    let duplicatesSkipped = 0;
 
     for (const url of urls) {
         consoleErrors.length = 0;
@@ -240,6 +254,8 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
         const startUrl = page.url();
         let clickIndex = 0;
         let pageButtonCount = 0;
+        // Klicks je Button-Art dieser Seite (siehe MAX_CLICKS_PER_BUTTON_KIND).
+        const clicksPerKind = new Map();
         while (pageButtonCount < MAX_BUTTONS_PER_PAGE) {
             // Nur echte <button>-Elemente aggressiv klicken (Modals öffnen, JS-Handler/
             // Formular-Aktionen auslösen). Navigations-Links (a.btn) werden bewusst NICHT geklickt:
@@ -253,11 +269,31 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
             const btn = buttons[clickIndex];
             clickIndex += 1;
 
-            const text = (await btn.textContent().catch(() => '')) || '';
-            const href = (await btn.getAttribute('href').catch(() => '')) || '';
-            if (isDenied(text.trim(), href)) {
+            // Alle Attribute in EINEM Roundtrip lesen; ein stale gewordener Button liefert null
+            // und wird übersprungen.
+            const attrs = await btn.evaluate((el) => ({
+                text: el.textContent || '',
+                href: el.getAttribute('href') || '',
+                target: el.getAttribute('data-bs-target') || '',
+                type: el.getAttribute('type') || '',
+                name: el.getAttribute('name') || '',
+                formaction: el.getAttribute('formaction') || '',
+                className: el.getAttribute('class') || '',
+            })).catch(() => null);
+            if (attrs === null) {
                 continue;
             }
+            if (isDenied(attrs.text.trim(), attrs.href)) {
+                continue;
+            }
+
+            const kind = buttonKind(attrs);
+            const kindClicks = clicksPerKind.get(kind) ?? 0;
+            if (kindClicks >= MAX_CLICKS_PER_BUTTON_KIND) {
+                duplicatesSkipped += 1;
+                continue;
+            }
+            clicksPerKind.set(kind, kindClicks + 1);
 
             await btn.click({ timeout: CLICK_TIMEOUT_MS }).catch(() => {});
             buttonsClicked += 1;
@@ -290,7 +326,7 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
         if (pageButtonCount >= MAX_BUTTONS_PER_PAGE) {
             console.log(
                 `CRAWLER-WARNUNG: MAX_BUTTONS_PER_PAGE (${MAX_BUTTONS_PER_PAGE}) erreicht auf ${url} `
-                + '- möglicherweise nicht alle Buttons dieser Seite geklickt.'
+                + `- ${clicksPerKind.size} Button-Arten geklickt, möglicherweise nicht alle.`
             );
         }
 
@@ -300,7 +336,10 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
         }
     }
 
-    console.log(`CRAWLER-STATS: ${urls.length} URLs besucht, ${buttonsClicked} Buttons geklickt.`);
+    console.log(
+        `CRAWLER-STATS: ${urls.length} URLs besucht, ${buttonsClicked} Buttons geklickt, `
+        + `${duplicatesSkipped} Wiederholungen derselben Button-Art übersprungen.`
+    );
     if (routeNotFoundWarnings.length > 0) {
         console.log(
             'CRAWLER-WARNUNG: übersprungen: nicht erreichbar (evtl. deaktiviertes Modul/Methode/Param):\n'
