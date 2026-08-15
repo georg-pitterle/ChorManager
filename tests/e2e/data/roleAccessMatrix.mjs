@@ -1,8 +1,8 @@
-// Repraesentative, IMMER registrierte (nicht modul-gegatete) geschuetzte GET-Routen und das je
-// Route von RoleMiddleware geforderte Recht (ODER-Semantik ueber die aufgefuehrten Spalten).
+// Repräsentative, IMMER registrierte (nicht modul-gegatete) geschützte GET-Routen und das je
+// Route von RoleMiddleware geforderte Recht (ODER-Semantik über die aufgeführten Spalten).
 // Verifiziert gegen src/Routes.php + src/Middleware/RoleMiddleware.php. Modul-gegatete Bereiche
 // (Finanzen, Aufgaben, Sponsoring, Budget, Newsletter) sind bewusst NICHT enthalten - sie liefern
-// je nach FEATURE_*-Env 404 und wuerden den Test umgebungsabhaengig machen.
+// je nach FEATURE_*-Env 404 und würden den Test umgebungsabhängig machen.
 export const PROTECTED_ROUTES = [
     { path: '/users', requires: ['can_manage_users', 'can_manage_own_voice_group'] },
     { path: '/attendance', requires: ['can_manage_attendance', 'can_manage_attendance_all'] },
@@ -15,12 +15,12 @@ export const PROTECTED_ROUTES = [
     { path: '/backups', requires: ['can_manage_backups'] },
 ];
 
-// Ein Passwort fuer alle Test-Mitglieder (wird nach dem Anlegen direkt in der DB gesetzt, siehe
+// Ein Passwort für alle Test-Mitglieder (wird nach dem Anlegen direkt in der DB gesetzt, siehe
 // steps/authz.mjs - das UI-Formular vergibt kein Passwort).
 export const MEMBER_PASSWORD = 'AuthzPass1234!';
 
 // Je geseedeter Rolle genau ein Mitglied mit GENAU dieser einen Rolle. Stimmgruppe/Untergruppe
-// sind fuer den Autorisierungstest irrelevant, werden aber vom createMember-Baustein verlangt -
+// sind für den Autorisierungstest irrelevant, werden aber vom createMember-Baustein verlangt -
 // deshalb einheitlich Sopran 1. Namen deutsch mit echten Umlauten.
 export const ROLE_MEMBERS = [
     { firstName: 'Rolle', lastName: 'Admin', email: 'role.admin@chor.local', role: 'Admin', group: 'Sopran', sub: 'Sopran 1' },

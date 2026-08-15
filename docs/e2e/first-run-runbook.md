@@ -79,7 +79,7 @@ Es gibt bewusst **keinen** `voiceGroups.mjs`-Baustein: Die SATB-Struktur ist
 Produkt-Standard und wird per Migration geseedet
 (`db/migrations/20260314130000_initial.php`), nicht von der Testsuite
 angelegt. Das Bootstrap-Szenario verifiziert lediglich, dass die geseedete
-Struktur nach `fresh-db` vorhanden ist (siehe `scenarios/praxis-erstlauf.e2e.test.mjs`,
+Struktur nach `fresh-db` vorhanden ist (siehe `scenarios/first-run.e2e.test.mjs`,
 Test „Bootstrap: geseedete SATB-Struktur vorhanden").
 
 Neues Modul: neue Datei unter `steps/`, im Szenario komponieren. Testdaten
@@ -138,7 +138,7 @@ Leerzustands-Guard; die Ausnahme steht explizit und begründet in
 
 ## Manuelles Mitklicken (Praxis-Erstlauf)
 
-Reihenfolge entspricht `scenarios/praxis-erstlauf.e2e.test.mjs`:
+Reihenfolge entspricht `scenarios/first-run.e2e.test.mjs`:
 
 1. `/setup` — Admin anlegen (Vorname, Nachname, E-Mail, Passwort;
    Passwortrichtlinie: mindestens 12 Zeichen, gemischte Zeichenklassen).

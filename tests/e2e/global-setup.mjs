@@ -15,11 +15,11 @@ export default async function globalSetup() {
     const keepDb = process.env.E2E_KEEP_DB === '1';
 
     if (keepDb && fs.existsSync(AUTH_FILE)) {
-        console.log('[e2e] E2E_KEEP_DB=1 und Session vorhanden -> ueberspringe Bootstrap.');
+        console.log('[e2e] E2E_KEEP_DB=1 und Session vorhanden -> überspringe Bootstrap.');
         return;
     }
 
-    // Wir bootstrappen -> immer fresh-db, damit /setup gegen eine leere DB laeuft
+    // Wir bootstrappen -> immer fresh-db, damit /setup gegen eine leere DB läuft
     // (auch bei E2E_KEEP_DB=1 ohne vorhandene Session).
     console.log('[e2e] fresh-db ...');
     const repoRoot = path.join(dir, '..', '..');
@@ -56,7 +56,7 @@ export default async function globalSetup() {
 
         await setupAdmin(page, ADMIN);
         // Setup loggt bereits ein; Cookies leeren, damit login() den echten /login-Formularpfad
-        // durchlaeuft (AuthController::showLogin leitet eine bereits authentifizierte Session
+        // durchläuft (AuthController::showLogin leitet eine bereits authentifizierte Session
         // sofort nach /dashboard weiter, ohne das Formular zu rendern).
         await context.clearCookies();
         await login(page, { email: ADMIN.email, password: ADMIN.password });

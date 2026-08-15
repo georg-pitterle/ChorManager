@@ -4,13 +4,13 @@ import { expect } from '@playwright/test';
 //  - Termin anlegen: Modal #addEventModal, Formular POST /events mit den Feldern title,
 //    starts_at (Datum), start_time / end_time (Uhrzeit), event_type_id (Select mit den
 //    geseedeten Typen Probe/Auftritt/Sondertermin) und der Checkbox attendance_required
-//    (standardmaessig aktiv). Absenden ueber den Button "Speichern".
-//  - Ohne gewaehlte Zielgruppe gilt der Termin fuer alle - genau das braucht die
+//    (standardmäßig aktiv). Absenden über den Button "Speichern".
+//  - Ohne gewählte Zielgruppe gilt der Termin für alle - genau das braucht die
 //    Anwesenheitserfassung im Newsletter-Szenario.
-//  - Die Termin-ID wird ueber die Auswahlliste auf /attendance ermittelt, nicht ueber die
-//    Terminliste: dort traegt der Link auf /events/{id} den Text "Bemerkungen (x/y)".
+//  - Die Termin-ID wird über die Auswahlliste auf /attendance ermittelt, nicht über die
+//    Terminliste: dort trägt der Link auf /events/{id} den Text "Bemerkungen (x/y)".
 //  - Anwesenheit: /attendance/{id}, je Person eine Radiogruppe name="attendance[{userId}]".
-//    Die Radios selbst sind visuell versteckt (.btn-check), geklickt wird das zugehoerige Label.
+//    Die Radios selbst sind visuell versteckt (.btn-check), geklickt wird das zugehörige Label.
 
 export async function createEvent(page, event) {
     await page.goto('/events');
@@ -30,10 +30,10 @@ export async function createEvent(page, event) {
 }
 
 /**
- * Setzt den Anwesenheitsstatus fuer einzelne Personen und speichert die Liste.
+ * Setzt den Anwesenheitsstatus für einzelne Personen und speichert die Liste.
  *
- * Der Termin wird ueber die Auswahlliste auf /attendance gefunden: Dort steht der Titel im
- * Optionstext. In der Terminliste selbst traegt der Link auf /events/{id} den Text
+ * Der Termin wird über die Auswahlliste auf /attendance gefunden: Dort steht der Titel im
+ * Optionstext. In der Terminliste selbst trägt der Link auf /events/{id} den Text
  * "Bemerkungen (x/y)" statt des Titels und taugt deshalb nicht zum Nachschlagen.
  *
  * @param {string} eventTitle
@@ -60,7 +60,7 @@ export async function markAttendance(page, eventTitle, entries) {
         const row = form.locator('li.list-group-item').filter({ hasText: entry.name }).first();
         await row.waitFor({ state: 'visible' });
 
-        // Das Radio ist visuell versteckt; ueber die id des Inputs das zugehoerige Label finden.
+        // Das Radio ist visuell versteckt; über die id des Inputs das zugehörige Label finden.
         const radio = row.locator(`input[type="radio"][value="${entry.status}"]`);
         const radioId = await radio.getAttribute('id');
         await row.locator(`label[for="${radioId}"]`).click();
@@ -72,8 +72,8 @@ export async function markAttendance(page, eventTitle, entries) {
 }
 
 async function expect_checked(radio) {
-    // Kleine Eigenpruefung: Der Klick auf das Label muss die Radiogruppe wirklich umgestellt
-    // haben - sonst wuerde die Anwesenheit still nicht gesetzt.
+    // Kleine Eigenprüfung: Der Klick auf das Label muss die Radiogruppe wirklich umgestellt
+    // haben - sonst würde die Anwesenheit still nicht gesetzt.
     const checked = await radio.isChecked();
     if (!checked) {
         throw new Error('Anwesenheitsstatus wurde durch den Klick auf das Label nicht gesetzt.');

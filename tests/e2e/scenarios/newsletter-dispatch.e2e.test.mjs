@@ -53,7 +53,7 @@ const BASE_URL = 'https://chormanager.ddev.site';
 async function asUser(browser, email, run) {
     const context = await browser.newContext({ baseURL: BASE_URL, ignoreHTTPSErrors: true });
     // Ein frischer Kontext erbt den Admin-storageState aus der Config - Cookies leeren, sonst
-    // leitet /login sofort nach /dashboard weiter, und wir waeren weiter als Admin unterwegs.
+    // leitet /login sofort nach /dashboard weiter, und wir wären weiter als Admin unterwegs.
     await context.clearCookies();
     const page = await context.newPage();
     try {
@@ -64,7 +64,7 @@ async function asUser(browser, email, run) {
     }
 }
 
-// Legt die gemeinsame Ausgangslage als Admin an: Redakteure, Empfaenger, Projekt, Vorlage.
+// Legt die gemeinsame Ausgangslage als Admin an: Redakteure, Empfänger, Projekt, Vorlage.
 async function bootstrapNewsletterFixtures(page) {
     for (const person of [EDITOR_PRIMARY, EDITOR_SECOND, ...PROJECT_MEMBERS, OUTSIDER]) {
         await createMember(page, person);
@@ -77,7 +77,7 @@ async function bootstrapNewsletterFixtures(page) {
     }
 }
 
-test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, browser }) => {
+test('Newsletter-Versand: Vorlagen und Empfängerkombinationen', async ({ page, browser }) => {
     test.setTimeout(300_000);
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
@@ -100,7 +100,7 @@ test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, 
     });
 
     // Ab hier arbeitet die Redakteurin - sie ist bewusst in KEINEM Projekt Mitglied. Seit der
-    // Entkopplung genuegt das Recht; frueher haette sie hier eine leere Oberflaeche gesehen.
+    // Entkopplung genügt das Recht; früher hätte sie hier eine leere Oberfläche gesehen.
     await asUser(browser, EDITOR_PRIMARY.email, async (editorPage) => {
         // 1. Ohne Vorlage an die Projektmitglieder: exakt die drei zugeordneten Personen.
         await createNewsletterDraft(editorPage, {
@@ -111,7 +111,7 @@ test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, 
         });
         expect(
             await readRecipientCount(editorPage),
-            'Projektquelle muss genau die drei zugeordneten Mitglieder aufloesen'
+            'Projektquelle muss genau die drei zugeordneten Mitglieder auflösen'
         ).toBe(PROJECT_MEMBERS.length);
         await sendOpenNewsletter(editorPage);
 
@@ -128,7 +128,7 @@ test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, 
             'Die Mail muss den geschriebenen Inhalt tragen'
         ).toContain(NEWSLETTER_WITHOUT_TEMPLATE.marker);
 
-        // 2. Mit Vorlage an einzeln gewaehlte Personen, ohne Projektbezug.
+        // 2. Mit Vorlage an einzeln gewählte Personen, ohne Projektbezug.
         await createNewsletterDraft(editorPage, {
             title: NEWSLETTER_WITH_TEMPLATE.title,
             project: null,
@@ -137,12 +137,12 @@ test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, 
         });
         expect(
             await readRecipientCount(editorPage),
-            'Einzelauswahl muss genau die zwei gewaehlten Personen aufloesen'
+            'Einzelauswahl muss genau die zwei gewählten Personen auflösen'
         ).toBe(2);
         await sendOpenNewsletter(editorPage);
 
         // 3. Kombination aus Projekt und einer Person, die bereits im Projekt ist:
-        //    Doppelte werden zusammengefuehrt, die Zahl bleibt bei drei.
+        //    Doppelte werden zusammengeführt, die Zahl bleibt bei drei.
         await createNewsletterDraft(editorPage, {
             title: NEWSLETTER_COMBINED.title,
             project: NEWSLETTER_PROJECT.name,
@@ -154,24 +154,24 @@ test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, 
         });
         expect(
             await readRecipientCount(editorPage),
-            'Ueberschneidende Quellen duerfen niemanden doppelt erfassen'
+            'Ueberschneidende Quellen dürfen niemanden doppelt erfassen'
         ).toBe(PROJECT_MEMBERS.length);
         await sendOpenNewsletter(editorPage);
 
-        // 4. Ohne Empfaengerquelle: speicherbar, aber der Versand ist gesperrt.
+        // 4. Ohne Empfängerquelle: speicherbar, aber der Versand ist gesperrt.
         await createNewsletterDraft(editorPage, {
             title: NEWSLETTER_WITHOUT_RECIPIENTS.title,
             project: null,
             content: NEWSLETTER_WITHOUT_RECIPIENTS.marker,
             sources: {},
         });
-        expect(await readRecipientCount(editorPage), 'ohne Quelle darf niemand aufgeloest werden').toBe(0);
+        expect(await readRecipientCount(editorPage), 'ohne Quelle darf niemand aufgelöst werden').toBe(0);
         await expect(
             editorPage.locator('#newsletterActionContent #send-newsletter-btn'),
-            'Versenden muss ohne Empfaenger gesperrt sein'
+            'Versenden muss ohne Empfänger gesperrt sein'
         ).toBeDisabled();
 
-        // Der Entwurf bleibt trotzdem erhalten, die drei versendeten sind aus den Entwuerfen weg.
+        // Der Entwurf bleibt trotzdem erhalten, die drei versendeten sind aus den Entwürfen weg.
         const drafts = await listNewsletterTitles(editorPage, { status: 'draft' });
         expect(drafts.join(' | ')).toContain(NEWSLETTER_WITHOUT_RECIPIENTS.title);
         expect(drafts.join(' | ')).not.toContain(NEWSLETTER_WITHOUT_TEMPLATE.title);
@@ -191,14 +191,14 @@ test('Newsletter-Versand: Vorlagen und Empfaengerkombinationen', async ({ page, 
         expect(projectless.join(' | ')).not.toContain(NEWSLETTER_WITHOUT_TEMPLATE.title);
     });
 
-    // Gegenprobe bei den Empfaengern: Wer erreicht wurde, findet den Newsletter im eigenen Archiv;
-    // wer ausserhalb der Quelle lag, findet ihn dort nicht.
+    // Gegenprobe bei den Empfängern: Wer erreicht wurde, findet den Newsletter im eigenen Archiv;
+    // wer außerhalb der Quelle lag, findet ihn dort nicht.
     await asUser(browser, PROJECT_MEMBERS[1].email, async (memberPage) => {
         await memberPage.goto('/newsletters/archive');
         const archive = await memberPage.locator('#newsletterArchiveTable tbody').innerText();
         expect(archive).toContain(NEWSLETTER_WITHOUT_TEMPLATE.title);
         expect(archive).toContain(NEWSLETTER_COMBINED.title);
-        // An dieser Person ging der Newsletter aus Vorlage vorbei - sie war nicht einzeln gewaehlt.
+        // An dieser Person ging der Newsletter aus Vorlage vorbei - sie war nicht einzeln gewählt.
         expect(archive).not.toContain(NEWSLETTER_WITH_TEMPLATE.title);
     });
 
@@ -217,7 +217,7 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
 
-    // Eigene Personen fuer diesen Test, damit er unabhaengig vom Versand-Szenario laeuft.
+    // Eigene Personen für diesen Test, damit er unabhängig vom Versand-Szenario läuft.
     const lockEditorA = { ...EDITOR_PRIMARY, email: 'nl.lock.a@chor.local', firstName: 'Lena', lastName: 'Sperrend' };
     const lockEditorB = { ...EDITOR_SECOND, email: 'nl.lock.b@chor.local', firstName: 'Björn', lastName: 'Wartend' };
 
@@ -237,21 +237,21 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
         expect(newsletterId, 'Der Entwurf muss eine ID bekommen haben').toBeGreaterThan(0);
 
         // Erst die Uebersicht verlassen: Das noch offene Modal gibt seine Sperre beim Entladen
-        // per Beacon frei. Wuerde direkt von dort auf die Bearbeiten-Seite gewechselt, koennte
+        // per Beacon frei. Würde direkt von dort auf die Bearbeiten-Seite gewechselt, könnte
         // die Freigabe die frisch gesetzte Sperre wieder aufheben (Wettlauf).
         await pageA.goto('/dashboard');
 
-        // Bearbeiten-Seite direkt oeffnen: dadurch haelt diese Sitzung die Sperre, solange die
+        // Bearbeiten-Seite direkt öffnen: dadurch hält diese Sitzung die Sperre, solange die
         // Seite offen bleibt.
         await pageA.goto(`/newsletters/${newsletterId}/edit`);
         await pageA.locator('#edit-newsletter-form').waitFor({ state: 'visible' });
 
-        // Vorbedingung beweisen statt annehmen: Die Sperre gehoert jetzt dieser Sitzung.
+        // Vorbedingung beweisen statt annehmen: Die Sperre gehört jetzt dieser Sitzung.
         const lockInfo = await (await pageA.request.get(`/newsletters/${newsletterId}/check-lock`)).json();
         expect(lockInfo.locked, 'Das Oeffnen der Bearbeiten-Seite muss den Entwurf sperren').toBe(true);
-        expect(lockInfo.is_me, 'Die Sperre muss der ersten Sitzung gehoeren').toBe(true);
+        expect(lockInfo.is_me, 'Die Sperre muss der ersten Sitzung gehören').toBe(true);
 
-        // Zweiter Redakteur waehrend der laufenden Bearbeitung: ausgesperrt.
+        // Zweiter Redakteur während der laufenden Bearbeitung: ausgesperrt.
         await asUser(browser, lockEditorB.email, async (pageB) => {
             const status = (await pageB.request.get(`/newsletters/${newsletterId}/edit`)).status();
             expect(status, 'Ein gesperrter Entwurf muss mit 423 abgewiesen werden').toBe(423);
@@ -261,15 +261,15 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
             expect(body).toContain('bearbeitet');
             expect(body, 'Die sperrende Person muss genannt werden').toContain(lockEditorA.lastName);
 
-            // Das Bearbeitungsformular darf fuer die zweite Person nicht erscheinen.
+            // Das Bearbeitungsformular darf für die zweite Person nicht erscheinen.
             expect(await pageB.locator('#edit-newsletter-form').count()).toBe(0);
         });
 
-        // Erste Sitzung verlaesst die Seite -> die Sperre wird beim Entladen freigegeben.
+        // Erste Sitzung verlässt die Seite -> die Sperre wird beim Entladen freigegeben.
         await pageA.goto('/dashboard');
     });
 
-    // Danach kann die zweite Person denselben Entwurf oeffnen.
+    // Danach kann die zweite Person denselben Entwurf öffnen.
     await asUser(browser, lockEditorB.email, async (pageB) => {
         await pageB.goto(`/newsletters/${newsletterId}/edit`);
         await expect(
@@ -277,9 +277,9 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
             'Nach Freigabe der Sperre muss der Entwurf wieder bearbeitbar sein'
         ).toBeVisible();
 
-        // Sauber verlassen und die Freigabe abwarten: Ein zurueckgelassener gesperrter Entwurf
-        // wuerde jede spaetere Bearbeiten-Anfrage mit 423 beantworten - auch die des Crawlers,
-        // der nach den Szenarien ueber dieselbe DB laeuft.
+        // Sauber verlassen und die Freigabe abwarten: Ein zurückgelassener gesperrter Entwurf
+        // würde jede spätere Bearbeiten-Anfrage mit 423 beantworten - auch die des Crawlers,
+        // der nach den Szenarien über dieselbe DB läuft.
         await pageB.goto('/dashboard');
         await expect
             .poll(
@@ -295,7 +295,7 @@ test('Nachbericht: nur wer beim Termin anwesend war, bekommt den Newsletter', as
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
 
-    // Praxisfall: Nach einem Auftritt geht ein Dankeschoen an die Mitwirkenden - nicht an alle.
+    // Praxisfall: Nach einem Auftritt geht ein Dankeschön an die Mitwirkenden - nicht an alle.
     for (const person of [CONCERT_EDITOR, ...CONCERT_PRESENT, CONCERT_EXCUSED]) {
         await createMember(page, person);
         setMemberPassword(person.email, NEWSLETTER_PASSWORD);
@@ -315,15 +315,15 @@ test('Nachbericht: nur wer beim Termin anwesend war, bekommt den Newsletter', as
             sources: { event_attendees: [CONCERT_EVENT.title] },
         });
 
-        // Entschuldigte zaehlen nicht als Teilnehmende - nur die beiden Anwesenden.
+        // Entschuldigte zählen nicht als Teilnehmende - nur die beiden Anwesenden.
         expect(
             await readRecipientCount(editorPage),
-            'Die Terminquelle darf nur die anwesenden Personen aufloesen'
+            'Die Terminquelle darf nur die anwesenden Personen auflösen'
         ).toBe(CONCERT_PRESENT.length);
 
         await sendOpenNewsletter(editorPage);
 
-        // Bis zur fertigen Mail: Nur die Anwesenden duerfen eine bekommen.
+        // Bis zur fertigen Mail: Nur die Anwesenden dürfen eine bekommen.
         deliverQueuedMails(NEWSLETTER_EVENT_REPORT.title);
         const delivered = await mailpitRecipientsForSubject(editorPage.request, NEWSLETTER_EVENT_REPORT.title);
         expect(delivered.sort(), 'Zugestellt werden muss an genau die Anwesenden')
@@ -335,23 +335,23 @@ test('Nachbericht: nur wer beim Termin anwesend war, bekommt den Newsletter', as
     await asUser(browser, CONCERT_PRESENT[0].email, async (presentPage) => {
         await presentPage.goto('/newsletters/archive');
         const archive = await presentPage.locator('#newsletterArchiveTable tbody').innerText();
-        expect(archive, 'Anwesende muessen den Nachbericht erhalten').toContain(NEWSLETTER_EVENT_REPORT.title);
+        expect(archive, 'Anwesende müssen den Nachbericht erhalten').toContain(NEWSLETTER_EVENT_REPORT.title);
     });
 
     await asUser(browser, CONCERT_EXCUSED.email, async (excusedPage) => {
         await excusedPage.goto('/newsletters/archive');
         const archive = await excusedPage.locator('#newsletterArchiveTable tbody').innerText();
-        expect(archive, 'Entschuldigte duerfen den Nachbericht nicht erhalten')
+        expect(archive, 'Entschuldigte dürfen den Nachbericht nicht erhalten')
             .not.toContain(NEWSLETTER_EVENT_REPORT.title);
     });
 });
 
-test('Wiederverwendung: bewaehrtes Rundschreiben als Vorlage sichern und erneut nutzen', async ({ page, browser }) => {
+test('Wiederverwendung: bewährtes Rundschreiben als Vorlage sichern und erneut nutzen', async ({ page, browser }) => {
     test.setTimeout(240_000);
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
 
-    // Praxisfall: Ein gelungener Newsletter soll beim naechsten Mal nicht neu getippt werden.
+    // Praxisfall: Ein gelungener Newsletter soll beim nächsten Mal nicht neu getippt werden.
     for (const person of [REUSE_EDITOR, REUSE_RECIPIENT]) {
         await createMember(page, person);
         setMemberPassword(person.email, NEWSLETTER_PASSWORD);
@@ -365,10 +365,10 @@ test('Wiederverwendung: bewaehrtes Rundschreiben als Vorlage sichern und erneut 
             sources: { user: [REUSE_RECIPIENT.lastName] },
         });
 
-        // Auf der Bearbeiten-Seite (nicht im Modal) laesst sich der Inhalt als Vorlage sichern.
+        // Auf der Bearbeiten-Seite (nicht im Modal) lässt sich der Inhalt als Vorlage sichern.
         await openEditPage(editorPage, newsletterId);
         const message = await saveOpenNewsletterAsTemplate(editorPage, SAVED_TEMPLATE);
-        expect(message, 'Das Sichern als Vorlage muss bestaetigt werden').toContain('Vorlage');
+        expect(message, 'Das Sichern als Vorlage muss bestätigt werden').toContain('Vorlage');
 
         // Die gesicherte Vorlage steht sofort in der Vorlagenverwaltung.
         await editorPage.goto('/newsletters/templates');
@@ -377,7 +377,7 @@ test('Wiederverwendung: bewaehrtes Rundschreiben als Vorlage sichern und erneut 
             'Die gesicherte Vorlage muss in der Verwaltung auftauchen'
         ).toContainText(SAVED_TEMPLATE.name);
 
-        // Und laesst sich in einen neuen Newsletter laden - der Inhalt kommt aus dem Original.
+        // Und lässt sich in einen neuen Newsletter laden - der Inhalt kommt aus dem Original.
         await createNewsletterDraft(editorPage, {
             title: NEWSLETTER_REUSING_TEMPLATE.title,
             project: null,
@@ -399,7 +399,7 @@ test('Wiederverwendung: bewaehrtes Rundschreiben als Vorlage sichern und erneut 
     });
 });
 
-test('Spaete Zuordnung: der Empfaengerkreis wird erst beim Versand aufgeloest', async ({ page, browser }) => {
+test('Späte Zuordnung: der Empfängerkreis wird erst beim Versand aufgelöst', async ({ page, browser }) => {
     test.setTimeout(240_000);
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
@@ -437,15 +437,15 @@ test('Spaete Zuordnung: der Empfaengerkreis wird erst beim Versand aufgeloest', 
         await openEditPage(editorPage, newsletterId);
         await sendFromEditPage(editorPage);
 
-        // Bis zur fertigen Mail: Auch die spaet zugeordnete Person muss eine bekommen.
+        // Bis zur fertigen Mail: Auch die spät zugeordnete Person muss eine bekommen.
         deliverQueuedMails(NEWSLETTER_LATE_JOINER.title);
         const delivered = await mailpitRecipientsForSubject(editorPage.request, NEWSLETTER_LATE_JOINER.title);
-        expect(delivered.sort(), 'Beide Projektmitglieder muessen eine Mail erhalten').toEqual(
+        expect(delivered.sort(), 'Beide Projektmitglieder müssen eine Mail erhalten').toEqual(
             [LATE_EARLY_MEMBER.email, LATE_JOINER.email].sort()
         );
     });
 
-    // Beide Personen muessen den Newsletter bekommen haben - auch die spaet zugeordnete.
+    // Beide Personen müssen den Newsletter bekommen haben - auch die spät zugeordnete.
     for (const person of [LATE_EARLY_MEMBER, LATE_JOINER]) {
         await asUser(browser, person.email, async (memberPage) => {
             await memberPage.goto('/newsletters/archive');

@@ -3,14 +3,14 @@ import { expect } from '@playwright/test';
 // Verifizierte Selektoren aus templates/newsletters/*.twig und public/js/newsletters*.js:
 //  - Uebersicht: Tabelle #newslettersTable, Statusfilter #newsletter-status,
 //    Projektfilter #newsletter-status-project ("" = alle, "none" = ohne Projekt)
-//  - Alle Aktionen laufen ueber EIN gemeinsames Modal (#newsletterActionModal). Der Inhalt wird
-//    per fetch nachgeladen und in #newsletterActionContent eingehaengt (public/js/newsletters.js),
-//    ausgeloest von Schaltflaechen mit data-newsletter-modal-url.
+//  - Alle Aktionen laufen über EIN gemeinsames Modal (#newsletterActionModal). Der Inhalt wird
+//    per fetch nachgeladen und in #newsletterActionContent eingehängt (public/js/newsletters.js),
+//    ausgelöst von Schaltflächen mit data-newsletter-modal-url.
 //  - Anlegen: #create-newsletter-form mit #project_id, #title, #template (Vorlage laden),
-//    Empfaengerquellen in #recipient-sources (je Block [data-source-type="..."] mit Tom Select),
-//    Absenden ueber den Button "Erstellen als Entwurf".
-//  - Bearbeiten: #edit-newsletter-form (Attribut data-newsletter-id), Versenden ueber
-//    #send-newsletter-btn (bestaetigt per window.confirm), Empfaengerzahl in #recipient-count-badge.
+//    Empfängerquellen in #recipient-sources (je Block [data-source-type="..."] mit Tom Select),
+//    Absenden über den Button "Erstellen als Entwurf".
+//  - Bearbeiten: #edit-newsletter-form (Attribut data-newsletter-id), Versenden über
+//    #send-newsletter-btn (bestätigt per window.confirm), Empfängerzahl in #recipient-count-badge.
 //  - Vorlagen: /newsletters/templates, Anlegen-Modal #createTemplateModal.
 
 const MODAL = '#newsletterActionModal';
@@ -24,9 +24,9 @@ export async function isNewsletterModuleEnabled(page) {
     return status !== 404;
 }
 
-// Der Modalinhalt wird per fetch nachgeladen und enthaelt den TinyMCE-Editor. Unter paralleler
-// Last dauert das laenger als der globale Aktions-Timeout von 15 Sekunden - deshalb hier explizit
-// grosszuegiger.
+// Der Modalinhalt wird per fetch nachgeladen und enthält den TinyMCE-Editor. Unter paralleler
+// Last dauert das länger als der globale Aktions-Timeout von 15 Sekunden - deshalb hier explizit
+// großzügiger.
 const MODAL_CONTENT_TIMEOUT = 30_000;
 
 async function waitForModalContent(page, selector) {
@@ -50,7 +50,7 @@ async function waitForModalResultOrError(page, selector) {
         target.waitFor({ state: 'visible', timeout: MODAL_CONTENT_TIMEOUT }),
         alertBox.waitFor({ state: 'visible', timeout: MODAL_CONTENT_TIMEOUT }),
     ]).catch(() => {
-        // Beide Wege ausgelaufen - die Pruefung unten liefert die aussagekraeftige Meldung.
+        // Beide Wege ausgelaufen - die Prüfung unten liefert die aussagekräftige Meldung.
     });
 
     if (await alertBox.isVisible()) {
@@ -61,9 +61,9 @@ async function waitForModalResultOrError(page, selector) {
 }
 
 /**
- * TinyMCE ersetzt die Textarea durch ein iframe. Wir tippen in den echten Editorkoerper,
+ * TinyMCE ersetzt die Textarea durch ein iframe. Wir tippen in den echten Editorkörper,
  * damit der Inhalt genauso entsteht wie bei einer Nutzerin - beim Absenden liest das Formular
- * ihn ueber tinymce.get("content_html").getContent().
+ * ihn über tinymce.get("content_html").getContent().
  */
 export async function fillEditor(page, text) {
     const editorFrame = page.frameLocator(`${MODAL_CONTENT} .tox-edit-area iframe`);
@@ -74,7 +74,7 @@ export async function fillEditor(page, text) {
 }
 
 /**
- * Waehlt Eintraege in einem Tom-Select-Feld einer Empfaengerquelle aus. Getippt und geklickt wird
+ * Wählt Einträge in einem Tom-Select-Feld einer Empfängerquelle aus. Getippt und geklickt wird
  * im echten Widget; das darunterliegende <select multiple> wird dadurch von Tom Select gepflegt.
  */
 export async function pickRecipientSource(page, sourceType, labels) {
@@ -85,8 +85,8 @@ export async function pickRecipientSource(page, sourceType, labels) {
 
     for (const label of labels) {
         await control.click();
-        // Tom Select laesst den Suchtext nach einer Auswahl stehen; ohne Leeren wuerde sich der
-        // naechste Suchbegriff anhaengen und keine Option mehr treffen.
+        // Tom Select lässt den Suchtext nach einer Auswahl stehen; ohne Leeren würde sich der
+        // nächste Suchbegriff anhängen und keine Option mehr treffen.
         await search.fill('');
         await search.pressSequentially(label);
 
@@ -95,15 +95,15 @@ export async function pickRecipientSource(page, sourceType, labels) {
         await option.click();
 
         await expect(block.locator('.ts-control .item', { hasText: label })).toBeVisible();
-        // Liste ueber den Fokusverlust schliessen, damit der naechste Klick nicht auf einer
-        // offenen Liste landet. Kein Escape: das schliesst in Bootstrap das ganze Modal.
+        // Liste über den Fokusverlust schließen, damit der nächste Klick nicht auf einer
+        // offenen Liste landet. Kein Escape: das schließt in Bootstrap das ganze Modal.
         await search.blur();
         await expect(block.locator('.ts-dropdown')).toBeHidden();
     }
 }
 
 /**
- * Entfernt alle Auswahlen einer Empfaengerquelle ueber die x-Schaltflaechen der Chips.
+ * Entfernt alle Auswahlen einer Empfängerquelle über die x-Schaltflächen der Chips.
  */
 export async function clearRecipientSource(page, sourceType) {
     const block = page.locator(`${MODAL_CONTENT} #recipient-sources [data-source-type="${sourceType}"]`);
@@ -128,13 +128,13 @@ export async function openCreateModal(page) {
 }
 
 /**
- * Legt einen Entwurf ueber das Modal an (der Hauptweg der Anwendung) und liefert seine ID.
- * Nach dem Absenden laedt dasselbe Modal die Bearbeiten-Ansicht des neuen Entwurfs nach.
+ * Legt einen Entwurf über das Modal an (der Hauptweg der Anwendung) und liefert seine ID.
+ * Nach dem Absenden lädt dasselbe Modal die Bearbeiten-Ansicht des neuen Entwurfs nach.
  *
  * @param {object} draft
  * @param {string} draft.title
- * @param {?string} draft.project      Projektname oder null fuer "kein Projekt"
- * @param {?string} draft.content      Text fuer den Editor; entfaellt, wenn eine Vorlage geladen wird
+ * @param {?string} draft.project      Projektname oder null für "kein Projekt"
+ * @param {?string} draft.content      Text für den Editor; entfällt, wenn eine Vorlage geladen wird
  * @param {?string} draft.template     Name einer Vorlage, die vor dem Tippen geladen wird
  * @param {object} draft.sources       { project_members?: string[], role?: string[], user?: string[] }
  */
@@ -145,7 +145,7 @@ export async function createNewsletterDraft(page, draft) {
     await content.locator('#project_id').selectOption({ label: draft.project ?? '— kein Projekt —' });
 
     // Die Vorlage wird VOR dem Titel geladen: Das Laden setzt den Titel auf den Vorlagennamen
-    // (siehe public/js/newsletters-create.js) und wuerde eine vorherige Eingabe ueberschreiben.
+    // (siehe public/js/newsletters-create.js) und würde eine vorherige Eingabe überschreiben.
     if (draft.template) {
         await content.locator('#template').selectOption({ label: draft.template });
         // Der Vorlageninhalt wird per fetch geholt und in den Editor geschrieben.
@@ -155,7 +155,7 @@ export async function createNewsletterDraft(page, draft) {
 
     await content.locator('#title').fill(draft.title);
 
-    // Die Projektquelle ist mit dem gewaehlten Projekt vorbelegt. Fuer eine saubere, vorhersagbare
+    // Die Projektquelle ist mit dem gewählten Projekt vorbelegt. Für eine saubere, vorhersagbare
     // Auswahl wird sie geleert und danach genau das gesetzt, was das Szenario verlangt.
     await clearRecipientSource(page, 'project_members');
     for (const [sourceType, labels] of Object.entries(draft.sources ?? {})) {
@@ -175,8 +175,8 @@ export async function createNewsletterDraft(page, draft) {
 }
 
 /**
- * Versendet den im Bearbeiten-Modal geoeffneten Newsletter. Der Button bestaetigt per
- * window.confirm; danach laedt die Seite auf die Liste der versendeten Newsletter um.
+ * Versendet den im Bearbeiten-Modal geöffneten Newsletter. Der Button bestätigt per
+ * window.confirm; danach lädt die Seite auf die Liste der versendeten Newsletter um.
  */
 export async function sendOpenNewsletter(page) {
     page.once('dialog', (dialog) => dialog.accept());
@@ -185,7 +185,7 @@ export async function sendOpenNewsletter(page) {
 }
 
 /**
- * Oeffnet die Bearbeiten-Seite direkt (ohne Modal). Diese Sitzung haelt danach die Sperre,
+ * Oeffnet die Bearbeiten-Seite direkt (ohne Modal). Diese Sitzung hält danach die Sperre,
  * solange die Seite offen bleibt.
  */
 export async function openEditPage(page, newsletterId) {
@@ -194,8 +194,8 @@ export async function openEditPage(page, newsletterId) {
 }
 
 /**
- * Versendet den auf der Bearbeiten-SEITE (nicht im Modal) geoeffneten Newsletter.
- * Dort sendet die Schaltflaeche das versteckte Formular ab, statt per fetch zu arbeiten.
+ * Versendet den auf der Bearbeiten-SEITE (nicht im Modal) geöffneten Newsletter.
+ * Dort sendet die Schaltfläche das versteckte Formular ab, statt per fetch zu arbeiten.
  */
 export async function sendFromEditPage(page) {
     page.once('dialog', (dialog) => dialog.accept());
@@ -205,9 +205,9 @@ export async function sendFromEditPage(page) {
 
 /**
  * Sichert den Inhalt des offenen Newsletters als neue Vorlage (Bearbeiten-SEITE).
- * Verifizierte Selektoren aus templates/newsletters/edit.twig: Schaltflaeche mit
+ * Verifizierte Selektoren aus templates/newsletters/edit.twig: Schaltfläche mit
  * data-bs-target="#saveTemplateModal", Felder #template_name und #template_description,
- * Absenden ueber #save-template-btn. Der Erfolg wird per window.alert gemeldet.
+ * Absenden über #save-template-btn. Der Erfolg wird per window.alert gemeldet.
  */
 export async function saveOpenNewsletterAsTemplate(page, template) {
     await page.click('[data-bs-target="#saveTemplateModal"]');
@@ -234,7 +234,7 @@ export async function openEditModalByTitle(page, title) {
 }
 
 /**
- * Legt eine Vorlage ueber /newsletters/templates an.
+ * Legt eine Vorlage über /newsletters/templates an.
  *
  * @param {object} template
  * @param {string} template.name
@@ -262,7 +262,7 @@ export async function createNewsletterTemplate(page, template) {
 }
 
 /**
- * Titel aller Newsletter in der Uebersicht fuer den gegebenen Status.
+ * Titel aller Newsletter in der Uebersicht für den gegebenen Status.
  */
 export async function listNewsletterTitles(page, { status = 'draft', projectFilter = '' } = {}) {
     const query = new URLSearchParams({ status });

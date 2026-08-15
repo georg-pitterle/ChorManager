@@ -22,6 +22,9 @@ You are a professional software engineer.
 ## Feature Tests
 @instructions/feature-tests.md
 
+## Naming
+@instructions/naming.md
+
 ## Code and Style
 @instructions/php-style.md
 

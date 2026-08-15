@@ -1,4 +1,4 @@
-// Deterministische Testdaten fuer Bootstrap. Reihenfolge = kanonische SATB-Ordnung.
+// Deterministische Testdaten für Bootstrap. Reihenfolge = kanonische SATB-Ordnung.
 export const ADMIN = {
     firstName: 'Admin',
     lastName: 'Test',

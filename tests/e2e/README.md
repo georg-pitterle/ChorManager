@@ -23,11 +23,14 @@ npx playwright install chromium  # einmalig: Browser installieren
 
 ## Häufigste Befehle
 
+Für jeden Befehl gibt es eine npm-Abkürzung (siehe `scripts` in `package.json`):
+`npm run e2e`, `e2e:scenarios`, `e2e:crawler`, `e2e:checks`, `e2e:ui`, `e2e:headed`.
+
 ```bash
-# Komplette Suite (checks + scenarios + crawler), headless
+# Komplette Suite (checks + scenarios + crawler), headless  ->  npm run e2e
 npx playwright test --config tests/e2e/playwright.config.mjs
 
-# Nur die Szenarien (Bootstrap + Rollen-Autorisierung)
+# Nur die Szenarien (Erstlauf, Rollen-Autorisierung, Newsletter, Finanzen)
 npx playwright test --config tests/e2e/playwright.config.mjs --project=scenarios
 
 # Nur der Crawler (läuft dank dependency zuerst die scenarios)
@@ -41,10 +44,16 @@ npx playwright test --config tests/e2e/playwright.config.mjs --project=checks
 
 ```bash
 # Praxis-Erstlauf (SATB prüfen, 8 Mitglieder, Projekt)
-npx playwright test --config tests/e2e/playwright.config.mjs scenarios/praxis-erstlauf.e2e.test.mjs
+npx playwright test --config tests/e2e/playwright.config.mjs scenarios/first-run.e2e.test.mjs
 
 # Rollen-Autorisierung (jede Rolle sieht nur Erlaubtes)
 npx playwright test --config tests/e2e/playwright.config.mjs scenarios/role-authorization.e2e.test.mjs
+
+# Newsletter-Versand (Vorlagen, Empfängerkreise, Sperre)
+npx playwright test --config tests/e2e/playwright.config.mjs scenarios/newsletter-dispatch.e2e.test.mjs
+
+# Finanzverwaltung (Konten, Buchungen, Import, Storno, Jahressperre)
+npx playwright test --config tests/e2e/playwright.config.mjs scenarios/finance-management.e2e.test.mjs
 
 # Crawler
 npx playwright test --config tests/e2e/playwright.config.mjs crawler/crawl.e2e.test.mjs
@@ -60,7 +69,7 @@ npx playwright test --config tests/e2e/playwright.config.mjs -g "8 Mitglieder"
 npx playwright test --config tests/e2e/playwright.config.mjs --ui
 
 # Sichtbares Browserfenster (maximiert), ein Worker — gut zum Mitschauen
-npx playwright test --config tests/e2e/playwright.config.mjs scenarios/praxis-erstlauf.e2e.test.mjs --headed --workers=1
+npx playwright test --config tests/e2e/playwright.config.mjs scenarios/first-run.e2e.test.mjs --headed --workers=1
 npx playwright test --config tests/e2e/playwright.config.mjs crawler/crawl.e2e.test.mjs --headed --workers=1
 
 # Schritt-für-Schritt mit Inspector
@@ -114,4 +123,4 @@ npx playwright show-report   # letzten HTML-Report öffnen
 - **Crawler**: prüft je Seite HTTP 5xx / unerwartetes 4xx, PHP-/Exception-Ausgabe,
   JS-Konsolen-Fehler, kaputte interne Links. Gefährliche Aktionen (Logout, Backup-Restore,
   Key-Rotation, Admin-Selbstlöschung, DB-Reset) sind per Denylist gesperrt.
-- Ausführliches Runbook: [../../docs/e2e/praxis-erstlauf-runbook.md](../../docs/e2e/praxis-erstlauf-runbook.md)
+- Ausführliches Runbook: [../../docs/e2e/first-run-runbook.md](../../docs/e2e/first-run-runbook.md)

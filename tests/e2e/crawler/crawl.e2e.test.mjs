@@ -4,26 +4,26 @@ import { attachConsoleWatcher, checkResponse, checkHtmlForPhpErrors, collectInte
 import { isDenied } from './denylist.mjs';
 
 // Ganzer Lauf besucht ~120+ URLs inkl. Klick-Phase; der Default-Test-Timeout aus
-// playwright.config.mjs (120s) reicht dafuer nicht. Lokal (nur fuer diesen Test) erhoehen,
-// statt den globalen Timeout fuer alle e2e-Tests zu verschieben.
+// playwright.config.mjs (120s) reicht dafür nicht. Lokal (nur für diesen Test) erhöhen,
+// statt den globalen Timeout für alle e2e-Tests zu verschieben.
 const TEST_TIMEOUT_MS = 480_000;
 // Bremst Seiten mit vielen Buttons: verhindert, dass ein einzelner Seitenaufruf durch sehr
 // viele (stale) Klick-Versuche den Lauf dominiert.
 const MAX_BUTTONS_PER_PAGE = 25;
 const CLICK_TIMEOUT_MS = 1000;
 
-// attachConsoleWatcher() filtert bewusst NICHTS (siehe dortiger Kommentar) - jede Ausnahme fuer
+// attachConsoleWatcher() filtert bewusst NICHTS (siehe dortiger Kommentar) - jede Ausnahme für
 // einen 401/403-"Failed to load resource"-Konsolenfehler muss hier explizit, eng gefasst (exakte
-// Seiten-URL + Statusmuster) und mit verifizierter Begruendung stehen. Alles andere bleibt ein
+// Seiten-URL + Statusmuster) und mit verifizierter Begründung stehen. Alles andere bleibt ein
 // Befund. Chromium liefert in msg.text() keine Ressourcen-URL, nur den Status - die Zuordnung
-// erfolgt daher ueber die gerade gecrawlte Seiten-URL.
+// erfolgt daher über die gerade gecrawlte Seiten-URL.
 const KNOWN_BENIGN_CONSOLE_ERRORS = [
     {
         // NewsletterController::create() liefert bewusst HTTP 403 (bzw. dessen browsereigene
         // Konsolenmeldung), wenn getAccessibleProjects($userId) leer ist - also der eingeloggte
         // User Mitglied keines einzigen Projekts ist (src/Controllers/NewsletterController.php,
         // getAccessibleProjects(): "return $user->projects()->orderBy('name')->get();"). Der
-        // E2E-Bootstrap-Admin (tests/e2e/global-setup.mjs -> /setup) legt ausser sich selbst
+        // E2E-Bootstrap-Admin (tests/e2e/global-setup.mjs -> /setup) legt außer sich selbst
         // keine Projekte und keine Projektmitgliedschaften an. Die Rolle "Admin" hat
         // can_manage_newsletters=1 (src/Controllers/AuthController.php::processSetup) - es ist
         // also kein Rechte-/Autorisierungsproblem, sondern ein bewusster Leerzustands-Guard in
@@ -37,10 +37,10 @@ function isKnownBenignConsoleError(pageUrl, errorText) {
     return KNOWN_BENIGN_CONSOLE_ERRORS.some((entry) => entry.pageUrl === pageUrl && entry.pattern.test(errorText));
 }
 
-// Wie KNOWN_BENIGN_CONSOLE_ERRORS, aber fuer den Navigations-Kanal: manche Seiten liefern bewusst
-// einen HTTP-Fehlerstatus (z. B. 403) als Top-Level-Navigation. Chromium rendert dafuer keine
+// Wie KNOWN_BENIGN_CONSOLE_ERRORS, aber für den Navigations-Kanal: manche Seiten liefern bewusst
+// einen HTTP-Fehlerstatus (z. B. 403) als Top-Level-Navigation. Chromium rendert dafür keine
 // Seite, sondern wirft je nach Timing/Modus (headed vs. headless) page.goto mit
-// net::ERR_HTTP_RESPONSE_CODE_FAILURE ab - statt eine Response mit Status 403 zurueckzugeben (die
+// net::ERR_HTTP_RESPONSE_CODE_FAILURE ab - statt eine Response mit Status 403 zurückzugeben (die
 // checkResponse ohnehin als 401/403 durchwinkt). Nur EXAKTE, verifiziert-gutartige URL+Fehlermuster
 // eintragen; ein ERR_HTTP_RESPONSE_CODE_FAILURE auf einer NICHT gelisteten URL (z. B. echte 500)
 // bleibt ein Befund.
@@ -48,9 +48,9 @@ const KNOWN_BENIGN_NAV_ERRORS = [
     {
         // Gleiche Ursache wie der /newsletters/create-Eintrag in KNOWN_BENIGN_CONSOLE_ERRORS:
         // NewsletterController::create() liefert HTTP 403, wenn der eingeloggte User (der minimale
-        // Bootstrap-Admin) Mitglied keines Projekts ist. Als Top-Level-goto aeussert sich dieser
+        // Bootstrap-Admin) Mitglied keines Projekts ist. Als Top-Level-goto äußert sich dieser
         // 403 im headed-Modus als ERR_HTTP_RESPONSE_CODE_FAILURE. Kein Autorisierungs-Bug, sondern
-        // ein bewusster Leerzustands-Guard (siehe ausfuehrliche Begruendung oben).
+        // ein bewusster Leerzustands-Guard (siehe ausführliche Begründung oben).
         pageUrl: '/newsletters/create',
         pattern: /ERR_HTTP_RESPONSE_CODE_FAILURE/,
     },
@@ -64,8 +64,8 @@ function stripQueryAndHash(href) {
     return href.split('#')[0].split('?')[0];
 }
 
-// Navigiert robust: ein Klick auf der vorigen Seite kann eine Navigation ausgeloest haben, die
-// erst jetzt noch in der Schwebe ist - dann bricht Chromium das naechste page.goto mit
+// Navigiert robust: ein Klick auf der vorigen Seite kann eine Navigation ausgelöst haben, die
+// erst jetzt noch in der Schwebe ist - dann bricht Chromium das nächste page.goto mit
 // "interrupted by another navigation" ab. Das ist ein Crawler-Timing-Artefakt (kein App-Fehler):
 // einmal auf Ruhe warten und erneut navigieren. Tritt der Fehler danach erneut auf, wird er
 // weitergereicht (echter Navigationsfehler).
@@ -87,14 +87,14 @@ async function gotoResilient(page, url) {
 }
 
 // Baut aus GET-Routen konkrete URLs. Parametrisierte Routen werden mit IDs
-// gefuellt, die von den Listenseiten (ohne Parameter) gescraped werden.
+// gefüllt, die von den Listenseiten (ohne Parameter) gescraped werden.
 //
-// routes.mjs loest ->group('/praefix', ...)-Verschachtelung (auch mehrfach geschachtelt) selbst
-// auf, die extrahierten Patterns sind also bereits vollstaendig praefixiert (z. B.
-// "/song-library/{id:[0-9]+}" statt nur "/{id:[0-9]+}"). Zusaetzlich sammeln wir hier die
-// tatsaechlich im Markup verlinkten Pfade (discoveredLinks) waehrend des Scrapens: Das deckt u.
-// a. dynamische Links mit IDs ab, die nicht aus einer einzelnen Route-Praefix-Heuristik
-// stammen, und dient als Bestaetigung fuer geratene Parameter-URLs (siehe 404-Politik weiter
+// routes.mjs löst ->group('/präfix', ...)-Verschachtelung (auch mehrfach geschachtelt) selbst
+// auf, die extrahierten Patterns sind also bereits vollständig präfixiert (z. B.
+// "/song-library/{id:[0-9]+}" statt nur "/{id:[0-9]+}"). Zusätzlich sammeln wir hier die
+// tatsächlich im Markup verlinkten Pfade (discoveredLinks) während des Scrapens: Das deckt u.
+// a. dynamische Links mit IDs ab, die nicht aus einer einzelnen Route-Präfix-Heuristik
+// stammen, und dient als Bestätigung für geratene Parameter-URLs (siehe 404-Politik weiter
 // unten im Haupttest).
 async function resolveConcreteUrls(page, routes) {
     const getRoutesOnly = routes.filter((r) => r.method === 'GET');
@@ -124,7 +124,7 @@ async function resolveConcreteUrls(page, routes) {
     }
 
     // Ein-Parameter-Routen mit gefundenen IDs konkretisieren. Die ID stammt aus einer
-    // Praefix-Heuristik (erstes Pfadsegment der Route), nicht aus einer garantiert passenden
+    // Präfix-Heuristik (erstes Pfadsegment der Route), nicht aus einer garantiert passenden
     // Quelle - deshalb werden diese URLs separat als paramSubstitutedUrls markiert (siehe
     // 404-Politik im Haupttest).
     const paramSubstitutedUrls = new Set();
@@ -141,8 +141,8 @@ async function resolveConcreteUrls(page, routes) {
         }
     }
 
-    // Tatsaechlich verlinkte Seiten ergaenzen (deckt zusaetzliche, im Markup gefundene Pfade ab,
-    // die nicht 1:1 einer GET-Route mit hoechstens einem Parameter entsprechen).
+    // Tatsächlich verlinkte Seiten ergänzen (deckt zusätzliche, im Markup gefundene Pfade ab,
+    // die nicht 1:1 einer GET-Route mit höchstens einem Parameter entsprechen).
     for (const href of discoveredLinks) {
         if (!isDenied('', href)) {
             urls.add(href);
@@ -150,14 +150,14 @@ async function resolveConcreteUrls(page, routes) {
     }
 
     // Alle URLs, die aus routes.mjs (also aus Routes.php) stammen - sowohl parameterlose als
-    // auch per Praefix-Heuristik parametrisierte. Diese Menge braucht der Haupttest fuer die
+    // auch per Präfix-Heuristik parametrisierte. Diese Menge braucht der Haupttest für die
     // 404-Politik: Manche statische GET-Routen sind hinter einem Feature-Modul-Flag
     // (`if ($settings['modules'][...])` in Routes.php, z. B. /finances, /sponsoring, /budget,
     // /registrations, /newsletters) versteckt registriert. Diese Module sind per Default AUS
     // (nur per FEATURE_*-Env aktiviert); ist ein Modul aus, registriert Slim die Route gar nicht
-    // und jeder Aufruf liefert 404 - unabhaengig vom Environment ist das kein Bug, sondern
+    // und jeder Aufruf liefert 404 - unabhängig vom Environment ist das kein Bug, sondern
     // erwartetes Verhalten. Ein 404 auf so einer route-derived URL darf den Lauf daher nicht rot
-    // faerben.
+    // färben.
     const routeDerivedUrls = new Set([...staticGets.map((r) => r.pattern), ...paramSubstitutedUrls]);
 
     return { urls: [...urls], discoveredLinks, paramSubstitutedUrls, routeDerivedUrls };
@@ -176,15 +176,15 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
     for (const url of urls) {
         consoleErrors.length = 0;
         const resp = await gotoResilient(page, url).catch((e) => {
-            // Zwei gutartige, KEIN-Befund-Faelle:
-            // 1) Download-Endpunkte (Backups, Anhaenge, ...) unterbrechen die Navigation absichtlich
+            // Zwei gutartige, KEIN-Befund-Fälle:
+            // 1) Download-Endpunkte (Backups, Anhänge, ...) unterbrechen die Navigation absichtlich
             //    per Browser-Download statt eine Seite zu laden - Erfolgsfall dieser Routen.
             // 2) "interrupted by another navigation": rein clientseitiges Crawler-Timing-Artefakt -
             //    ein vorheriger Button-Klick (Formular-Submit / JS-Redirect) hat eine Navigation
-            //    ausgeloest, die erst jetzt noch in der Schwebe ist und unser goto abbricht. Das ist
+            //    ausgelöst, die erst jetzt noch in der Schwebe ist und unser goto abbricht. Das ist
             //    per Definition KEIN App-Fehler (echte Defekte zeigen sich als 5xx/PHP/JS/Timeout,
             //    alle weiterhin abgedeckt). gotoResilient versucht es zuvor mehrfach; bleibt es dabei,
-            //    ueberspringen wir diese URL, statt sie faelschlich als Befund zu werten.
+            //    überspringen wir diese URL, statt sie fälschlich als Befund zu werten.
             if (
                 !/download is starting|interrupted by another navigation/i.test(e.message)
                 && !isKnownBenignNavError(url, e.message)
@@ -199,21 +199,21 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
 
         const httpErr = checkResponse(resp);
         // 404-Politik: Ein 404 auf einer URL, die aus der Routen-Tabelle stammt (routeDerivedUrls -
-        // statisch/parameterlos ODER per Praefix-Heuristik parametrisiert, siehe
-        // resolveConcreteUrls), ist KEIN Befund, sondern nur eine Warnung. Zwei Gruende:
+        // statisch/parameterlos ODER per Präfix-Heuristik parametrisiert, siehe
+        // resolveConcreteUrls), ist KEIN Befund, sondern nur eine Warnung. Zwei Gründe:
         // 1) Manche statischen GET-Routen in Routes.php sind hinter einem Feature-Modul-Flag
         //    (`if ($settings['modules'][...])`) registriert (z. B. /finances, /sponsoring,
         //    /budget, /registrations, /newsletters). Diese Module sind per Default AUS - ist ein
         //    Modul aus, registriert Slim die Route gar nicht und JEDE Umgebung mit deaktiviertem
-        //    Modul liefert 404, ohne dass etwas kaputt ist. Ein 404 hier faelschlich als Befund zu
-        //    werten wuerde den Lauf in jeder Umgebung ohne alle Module rot faerben.
-        // 2) Bei parametrisierten Routen kann die per Praefix-Heuristik geratene ID zu einer
-        //    anderen, gleich benannten Prefix-Route gehoeren statt zu einer tatsaechlich
-        //    existierenden Entitaet - ein reines Extraktions-Artefakt.
-        // In beiden Faellen bleibt es ein echter Befund, wenn dieselbe URL zusaetzlich auch
-        // tatsaechlich im Markup verlinkt wurde (discoveredLinks) - dann handelt es sich um einen
-        // echten toten Link, unabhaengig davon, ob er auch in der Routen-Tabelle steht. Genuine
-        // 5xx-Fehler sind IMMER ein Befund (siehe checkResponse), unabhaengig von der Herkunft der
+        //    Modul liefert 404, ohne dass etwas kaputt ist. Ein 404 hier fälschlich als Befund zu
+        //    werten würde den Lauf in jeder Umgebung ohne alle Module rot färben.
+        // 2) Bei parametrisierten Routen kann die per Präfix-Heuristik geratene ID zu einer
+        //    anderen, gleich benannten Prefix-Route gehören statt zu einer tatsächlich
+        //    existierenden Entität - ein reines Extraktions-Artefakt.
+        // In beiden Fällen bleibt es ein echter Befund, wenn dieselbe URL zusätzlich auch
+        // tatsächlich im Markup verlinkt wurde (discoveredLinks) - dann handelt es sich um einen
+        // echten toten Link, unabhängig davon, ob er auch in der Routen-Tabelle steht. Genuine
+        // 5xx-Fehler sind IMMER ein Befund (siehe checkResponse), unabhängig von der Herkunft der
         // URL.
         if (httpErr === 'HTTP 404' && routeDerivedUrls.has(url) && !discoveredLinks.has(url)) {
             routeNotFoundWarnings.push(url);
@@ -230,22 +230,22 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
 
         // Aggressive Klicks: alle sichtbaren, nicht-denylisteten Buttons. Ein Klick, der
         // navigiert (echter Link statt Modal-Button), darf die restlichen Buttons dieser Seite
-        // nicht verhindern - sonst werden spaetere Buttons nie geklickt. Deshalb: nach einer
-        // Navigation zurueck zu `url` und mit dem naechsten Index weitermachen. Die Locators
-        // werden dafuer bei jeder Iteration frisch ermittelt (nach einer Navigation ist die alte
-        // Liste stale); `clickIndex` wird NICHT zurueckgesetzt, damit derselbe navigierende
+        // nicht verhindern - sonst werden spätere Buttons nie geklickt. Deshalb: nach einer
+        // Navigation zurück zu `url` und mit dem nächsten Index weitermachen. Die Locators
+        // werden dafür bei jeder Iteration frisch ermittelt (nach einer Navigation ist die alte
+        // Liste stale); `clickIndex` wird NICHT zurückgesetzt, damit derselbe navigierende
         // Button (typischerweise wieder an derselben Position) nicht erneut angeklickt wird und
-        // die Schleife garantiert Fortschritt macht (durch `pageButtonCount` zusaetzlich auf
+        // die Schleife garantiert Fortschritt macht (durch `pageButtonCount` zusätzlich auf
         // MAX_BUTTONS_PER_PAGE begrenzt, terminiert sie also in jedem Fall).
         const startUrl = page.url();
         let clickIndex = 0;
         let pageButtonCount = 0;
         while (pageButtonCount < MAX_BUTTONS_PER_PAGE) {
-            // Nur echte <button>-Elemente aggressiv klicken (Modals oeffnen, JS-Handler/
-            // Formular-Aktionen ausloesen). Navigations-Links (a.btn) werden bewusst NICHT geklickt:
+            // Nur echte <button>-Elemente aggressiv klicken (Modals öffnen, JS-Handler/
+            // Formular-Aktionen auslösen). Navigations-Links (a.btn) werden bewusst NICHT geklickt:
             // Ihre Ziele sind bereits Teil der Routen-Crawl (jede GET-Seite wird ohnehin besucht),
             // ihr Anklicken navigiert nur den Tab weg und erzeugt "interrupted by another
-            // navigation"-Races ohne zusaetzliche Fehlerabdeckung.
+            // navigation"-Races ohne zusätzliche Fehlerabdeckung.
             const buttons = await page.locator('button:visible').all();
             if (clickIndex >= buttons.length) {
                 break; // alle aktuell vorhandenen Targets abgearbeitet
@@ -263,19 +263,19 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
             buttonsClicked += 1;
             pageButtonCount += 1;
             // Falls der Klick navigiert hat, auf Abschluss der Navigation warten, damit (a) die
-            // url-Erkennung unten zuverlaessig ist und (b) keine Navigation in der Schwebe bleibt,
-            // die sonst das naechste page.goto mit "interrupted by another navigation" abbricht.
-            // waitForLoadState kehrt sofort zurueck, wenn keine Navigation lief (reiner Modal-Klick).
+            // url-Erkennung unten zuverlässig ist und (b) keine Navigation in der Schwebe bleibt,
+            // die sonst das nächste page.goto mit "interrupted by another navigation" abbricht.
+            // waitForLoadState kehrt sofort zurück, wenn keine Navigation lief (reiner Modal-Klick).
             await page.waitForLoadState('domcontentloaded', { timeout: 3000 }).catch(() => {});
-            // Modal wieder schliessen, um Folgeklicks nicht zu blockieren.
+            // Modal wieder schließen, um Folgeklicks nicht zu blockieren.
             await page.keyboard.press('Escape').catch(() => {});
 
             if (page.url() !== startUrl) {
-                // Klick hat navigiert: Konsolenfehler, die dabei auftraten, gehoeren der
-                // Zielseite - nicht `url` - als Befund. Danach zurueck zu `url` navigieren und
-                // die Konsolen-Sammlung fuer beide Uebergaenge zuruecksetzen, damit weder die
-                // Zielseite ihre Fehler doppelt meldet noch Rauschen von der Rueckkehr-Navigation
-                // faelschlich `url` zugeschrieben wird.
+                // Klick hat navigiert: Konsolenfehler, die dabei auftraten, gehören der
+                // Zielseite - nicht `url` - als Befund. Danach zurück zu `url` navigieren und
+                // die Konsolen-Sammlung für beide Übergänge zurücksetzen, damit weder die
+                // Zielseite ihre Fehler doppelt meldet noch Rauschen von der Rückkehr-Navigation
+                // fälschlich `url` zugeschrieben wird.
                 const targetUrl = page.url();
                 const targetPath = new URL(targetUrl).pathname;
                 const targetConsoleErrors = consoleErrors.filter((e) => !isKnownBenignConsoleError(targetPath, e));
@@ -290,7 +290,7 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
         if (pageButtonCount >= MAX_BUTTONS_PER_PAGE) {
             console.log(
                 `CRAWLER-WARNUNG: MAX_BUTTONS_PER_PAGE (${MAX_BUTTONS_PER_PAGE}) erreicht auf ${url} `
-                + '- moeglicherweise nicht alle Buttons dieser Seite geklickt.'
+                + '- möglicherweise nicht alle Buttons dieser Seite geklickt.'
             );
         }
 
@@ -303,7 +303,7 @@ test('Crawler: alle erreichbaren Seiten ohne Fehler', async ({ page }) => {
     console.log(`CRAWLER-STATS: ${urls.length} URLs besucht, ${buttonsClicked} Buttons geklickt.`);
     if (routeNotFoundWarnings.length > 0) {
         console.log(
-            'CRAWLER-WARNUNG: uebersprungen: nicht erreichbar (evtl. deaktiviertes Modul/Methode/Param):\n'
+            'CRAWLER-WARNUNG: übersprungen: nicht erreichbar (evtl. deaktiviertes Modul/Methode/Param):\n'
             + routeNotFoundWarnings.join('\n')
         );
     }

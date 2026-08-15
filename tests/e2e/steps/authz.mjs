@@ -1,14 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { resolveBash } from './shell.mjs';
 
-// DB-Helfer fuer den Autorisierungstest. Beide gehen bewusst NICHT ueber die UI:
-//  - setMemberPassword: das /users-Formular vergibt kein Passwort; fuer den Login als Mitglied
+// DB-Helfer für den Autorisierungstest. Beide gehen bewusst NICHT über die UI:
+//  - setMemberPassword: das /users-Formular vergibt kein Passwort; für den Login als Mitglied
 //    setzen wir eins direkt in der DB mit dem app-eigenen Hash (password_hash / PASSWORD_DEFAULT),
-//    das /login danach ueber password_verify prueft.
-//  - readRolePermissions: liest die tatsaechlichen (nach allen Migrationen/Backfills gueltigen)
-//    Rechte-Spalten je Rolle als Quelle der Wahrheit fuer die erwartete Zugriffsmatrix.
-// Beide laufen ueber `ddev php` (PDO), damit keine SQL-/Shell-Quoting-Fallen mit dem Hash entstehen.
-// Nur kontrollierte Literale (feste E-Mails/Passwoerter aus den Fixtures) werden interpoliert.
+//    das /login danach über password_verify prüft.
+//  - readRolePermissions: liest die tatsächlichen (nach allen Migrationen/Backfills gültigen)
+//    Rechte-Spalten je Rolle als Quelle der Wahrheit für die erwartete Zugriffsmatrix.
+// Beide laufen über `ddev php` (PDO), damit keine SQL-/Shell-Quoting-Fallen mit dem Hash entstehen.
+// Nur kontrollierte Literale (feste E-Mails/Passwörter aus den Fixtures) werden interpoliert.
 
 function ddevPhp(php) {
     return execFileSync(resolveBash(), ['-lc', `ddev php -r '${php}'`], { encoding: 'utf8' });

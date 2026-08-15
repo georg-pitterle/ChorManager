@@ -2,12 +2,12 @@
 //  - Anlegen-Modal: #addUserModal, Formular POST /users
 //  - Felder: first_name, last_name, email (required)
 //  - Rolle: checkbox name="roles[]" im .form-check.form-check-inline-Wrapper mit Rollenname
-//    (UserController::create verlangt server-seitig mind. eine Rolle, sonst schlaegt das
+//    (UserController::create verlangt server-seitig mind. eine Rolle, sonst schlägt das
 //    Speichern still fehl und redirected trotzdem nach /users ohne neuen Datensatz)
 //  - Stimmgruppe: checkbox name="voice_groups[]" value={group.id}, im .form-check-Wrapper
 //    (nur Checkbox + Label; Gruppenname steht im .form-check-label-Text)
 //  - Untergruppe: select name="sub_voices[{group.id}]", Optionen mit Label = Untergruppenname
-//    (wird per JS sichtbar, sobald die zugehoerige Checkbox angehakt wird)
+//    (wird per JS sichtbar, sobald die zugehörige Checkbox angehakt wird)
 //  - Absenden: button[name="submit_action"][value="save"]
 
 const DEFAULT_ROLE = 'Mitglied';
@@ -30,9 +30,9 @@ export async function createMember(page, member) {
     await roleCheckbox.check();
 
     // Gruppen-Checkbox anhand des Gruppennamens finden und deren value (=group.id) lesen.
-    // Der Gruppenname steht ausschliesslich im .form-check-label-Text der zugehoerigen
+    // Der Gruppenname steht ausschließlich im .form-check-label-Text der zugehörigen
     // .form-check-Box (Checkbox + Label), daher liefert hasText hier keine Substring-Treffer
-    // ueber Gruppengrenzen hinweg (Sopran/Alt/Tenor/Bass sind eindeutig).
+    // über Gruppengrenzen hinweg (Sopran/Alt/Tenor/Bass sind eindeutig).
     const groupCheckbox = modal
         .locator('.form-check', { hasText: member.group })
         .locator('input[name="voice_groups[]"]')

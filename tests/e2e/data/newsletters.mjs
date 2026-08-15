@@ -1,15 +1,15 @@
-// Deterministische Daten fuer das Newsletter-Szenario.
+// Deterministische Daten für das Newsletter-Szenario.
 //
 // Die E2E-DB ist bei jedem Lauf frisch, aber alle Szenarien teilen sie und laufen parallel.
 // Deshalb:
-//  - eigenes E-Mail-Praefix "nl." fuer jede Person, damit nichts mit anderen Szenarien kollidiert
-//  - Empfaengerzahlen werden im Szenario nur dort exakt geprueft, wo die Quelle allein aus
-//    eigenen Daten besteht (eigenes Projekt, einzeln gewaehlte Personen). Die Quelle "Rolle"
-//    umfasst auch Personen anderer Szenarien und wird deshalb nicht auf eine feste Zahl geprueft.
+//  - eigenes E-Mail-Präfix "nl." für jede Person, damit nichts mit anderen Szenarien kollidiert
+//  - Empfängerzahlen werden im Szenario nur dort exakt geprüft, wo die Quelle allein aus
+//    eigenen Daten besteht (eigenes Projekt, einzeln gewählte Personen). Die Quelle "Rolle"
+//    umfasst auch Personen anderer Szenarien und wird deshalb nicht auf eine feste Zahl geprüft.
 
 // Die Newsletter-Titel tragen eine Lauf-Kennung: Die Datenbank ist bei jedem Lauf frisch, der
-// Mailpit-Posteingang aber nicht. Ohne die Kennung wuerden Mails frueherer Laeufe unter demselben
-// Betreff gefunden und die Zustellpruefung verfaelschen.
+// Mailpit-Posteingang aber nicht. Ohne die Kennung würden Mails früherer Läufe unter demselben
+// Betreff gefunden und die Zustellprüfung verfälschen.
 const RUN = Math.random().toString(36).slice(2, 8);
 
 // Beide Redakteure brauchen das Recht "Newsletter verwalten". Laut Seed der Initial-Migration
@@ -33,8 +33,8 @@ export const EDITOR_SECOND = {
     sub: 'Tenor 1',
 };
 
-// Empfaenger. PROJECT_MEMBERS landen im Testprojekt, OUTSIDER bleibt bewusst draussen und
-// dient als Gegenprobe: er darf ueber die Projektquelle NICHT erreicht werden.
+// Empfänger. PROJECT_MEMBERS landen im Testprojekt, OUTSIDER bleibt bewusst draußen und
+// dient als Gegenprobe: er darf über die Projektquelle NICHT erreicht werden.
 export const PROJECT_MEMBERS = [
     { firstName: 'Miriam', lastName: 'Fröhlich', email: 'nl.miriam.froehlich@chor.local', group: 'Alt', sub: 'Alt 1' },
     { firstName: 'Susanne', lastName: 'Käufer', email: 'nl.susanne.kaeufer@chor.local', group: 'Alt', sub: 'Alt 2' },

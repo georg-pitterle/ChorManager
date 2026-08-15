@@ -19,8 +19,8 @@ deterministische Daten (`data/`), Szenarien (`scenarios/`), plus ein aggressiver
 
 **Erst lesen** (kanonische Beispiele — nicht raten, dem Muster folgen):
 - [tests/e2e/README.md](../../../tests/e2e/README.md) — alle Run-Befehle
-- [docs/e2e/praxis-erstlauf-runbook.md](../../../docs/e2e/praxis-erstlauf-runbook.md) — Konzept/Modi
-- Vorbild-Szenarien: [scenarios/praxis-erstlauf.e2e.test.mjs](../../../tests/e2e/scenarios/praxis-erstlauf.e2e.test.mjs) (einfach), [scenarios/role-authorization.e2e.test.mjs](../../../tests/e2e/scenarios/role-authorization.e2e.test.mjs) (Login-als-anderer-User, DB-Helper, 403/Navi)
+- [docs/e2e/first-run-runbook.md](../../../docs/e2e/first-run-runbook.md) — Konzept/Modi
+- Vorbild-Szenarien: [scenarios/first-run.e2e.test.mjs](../../../tests/e2e/scenarios/first-run.e2e.test.mjs) (einfach), [scenarios/role-authorization.e2e.test.mjs](../../../tests/e2e/scenarios/role-authorization.e2e.test.mjs) (Login-als-anderer-User, DB-Helper, 403/Navi)
 
 ## Wie das Netz tickt (Kurzabriss)
 
@@ -141,7 +141,10 @@ Seite neu (`waitForURL`).
 
 ## Namens-/Ablagekonvention
 
+Alle Datei-, Funktions- und Variablennamen **englisch** (Projektregel: `instructions/naming.md`);
+deutsch bleiben nur Testbeschreibungen, Kommentare und Fixture-Daten — dort immer echte Umlaute.
+
 - Szenario: `tests/e2e/scenarios/<kebab-name>.e2e.test.mjs` (matcht das `scenarios`-Projekt)
-- Baustein: `tests/e2e/steps/<domäne>.mjs` (eine Domäne je Datei)
+- Baustein: `tests/e2e/steps/<domain>.mjs` (eine Domäne je Datei)
 - Daten: `tests/e2e/data/<name>.mjs` (deterministisch, Umlaute echt)
 - Reine Node-Unit-Checks von Helfern: `tests/e2e/**/_<name>.spec.mjs` (matcht das `checks`-Projekt)

@@ -13,13 +13,13 @@ export function checkHtmlForPhpErrors(html) {
 }
 
 // Zeichnet JEDEN console.error und JEDEN pageerror auf, ohne Status-basierte Filterung. Ein
-// pauschaler Filter fuer "Failed to load resource ... status of 401/403" wuerde auch einen
-// echten Autorisierungs-Bug verdecken (z. B. eine AJAX-Anfrage mit gueltiger Admin-Session, die
-// faelschlich 401/403 liefert) - gerade waehrend der aggressiven Klick-Phase, die viele
-// Hintergrund-Requests ausloest. Wer nach einem Lauf konkrete, tatsaechlich harmlose
+// pauschaler Filter für "Failed to load resource ... status of 401/403" würde auch einen
+// echten Autorisierungs-Bug verdecken (z. B. eine AJAX-Anfrage mit gültiger Admin-Session, die
+// fälschlich 401/403 liefert) - gerade während der aggressiven Klick-Phase, die viele
+// Hintergrund-Requests auslöst. Wer nach einem Lauf konkrete, tatsächlich harmlose
 // 401/403-Konsolenmeldungen sieht, muss die genaue Ressourcen-URL identifizieren und sie im
-// Aufrufer (crawl.e2e.test.mjs) explizit und mit Begruendung ignorieren - nicht hier pauschal
-// unterdruecken.
+// Aufrufer (crawl.e2e.test.mjs) explizit und mit Begründung ignorieren - nicht hier pauschal
+// unterdrücken.
 export function attachConsoleWatcher(page) {
     const errors = [];
     page.on('console', (msg) => {
@@ -33,7 +33,7 @@ export function attachConsoleWatcher(page) {
     return errors;
 }
 
-// Nur fuer GET-Navigation: 5xx immer Fehler; 4xx unerwartet (ausser bewusste Auth-Faelle).
+// Nur für GET-Navigation: 5xx immer Fehler; 4xx unerwartet (außer bewusste Auth-Fälle).
 export function checkResponse(response) {
     if (!response) {
         return null;

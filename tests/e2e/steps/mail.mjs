@@ -2,9 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { resolveBash } from './shell.mjs';
 
 // Der Newsletter-Versand stellt Mails nur in die Warteschlange (mail_queue). Zugestellt werden
-// sie vom Worker bin/process_mail_queue.php. In der Dev-Umgebung laeuft PHP im sendmail-Modus
+// sie vom Worker bin/process_mail_queue.php. In der Dev-Umgebung läuft PHP im sendmail-Modus
 // (SMTP_HOST ist leer), und DDEV leitet sendmail an Mailpit weiter - dort lassen sich die
-// erzeugten Mails ueber die HTTP-API nachweisen.
+// erzeugten Mails über die HTTP-API nachweisen.
 
 const MAILPIT_BASE = 'https://chormanager.ddev.site:8026';
 
@@ -13,7 +13,7 @@ function ddevPhp(php) {
 }
 
 /**
- * Anzahl der noch nicht zugestellten Warteschlangen-Eintraege zu diesem Betreff.
+ * Anzahl der noch nicht zugestellten Warteschlangen-Einträge zu diesem Betreff.
  * Die Tabelle mail_queue kennt keine Newsletter-Spalte (die Zuordnung liegt in payload_json),
  * der Betreff ist dank der Lauf-Kennung im Titel aber eindeutig.
  */
@@ -26,8 +26,8 @@ export function countQueuedMails(subject) {
 }
 
 /**
- * Arbeitet die Warteschlange ab, bis fuer den Newsletter nichts mehr offen ist.
- * Der Worker verarbeitet je Lauf eine begrenzte Menge, deshalb mehrere Durchgaenge.
+ * Arbeitet die Warteschlange ab, bis für den Newsletter nichts mehr offen ist.
+ * Der Worker verarbeitet je Lauf eine begrenzte Menge, deshalb mehrere Durchgänge.
  */
 export function deliverQueuedMails(subject, maxRuns = 5) {
     for (let run = 0; run < maxRuns; run++) {
@@ -41,14 +41,14 @@ export function deliverQueuedMails(subject, maxRuns = 5) {
     const remaining = countQueuedMails(subject);
     if (remaining > 0) {
         throw new Error(
-            `Nach ${maxRuns} Durchgaengen liegen noch ${remaining} Mails mit dem Betreff `
+            `Nach ${maxRuns} Durchgängen liegen noch ${remaining} Mails mit dem Betreff `
             + `"${subject}" in der Warteschlange.`
         );
     }
 }
 
 /**
- * Empfaengeradressen aller Mails, die in Mailpit unter diesem Betreff liegen.
+ * Empfängeradressen aller Mails, die in Mailpit unter diesem Betreff liegen.
  *
  * @param {import('@playwright/test').APIRequestContext} request
  * @param {string} subject
@@ -66,7 +66,7 @@ export async function mailpitRecipientsForSubject(request, subject) {
 }
 
 /**
- * Liefert den Textinhalt der ersten Mail mit diesem Betreff (fuer Inhaltspruefungen).
+ * Liefert den Textinhalt der ersten Mail mit diesem Betreff (für Inhaltsprüfungen).
  */
 export async function mailpitBodyForSubject(request, subject) {
     const query = encodeURIComponent(`subject:"${subject}"`);

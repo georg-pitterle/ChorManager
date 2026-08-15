@@ -16,9 +16,9 @@ function extractParams(pattern) {
     return params;
 }
 
-// Haengt Gruppen-Praefix(e) und Routen-Pfad zusammen und normalisiert doppelte Slashes, ohne
-// den fuehrenden "/" zu verlieren (z. B. Praefix "/song-library" + Pfad "" -> "/song-library",
-// Praefix "" + Pfad "/voice-groups" -> "/voice-groups").
+// Hängt Gruppen-Präfix(e) und Routen-Pfad zusammen und normalisiert doppelte Slashes, ohne
+// den führenden "/" zu verlieren (z. B. Präfix "/song-library" + Pfad "" -> "/song-library",
+// Präfix "" + Pfad "/voice-groups" -> "/voice-groups").
 function joinPattern(prefix, routePath) {
     const combined = `${prefix}${routePath}`;
     const collapsed = combined.replace(/\/{2,}/g, '/');
@@ -29,30 +29,30 @@ const GROUP_RE = /^->group\(\s*(?:'([^']*)'|"([^"]*)")/;
 const ROUTE_RE = /^->(get|post|map)\(\s*(?:\[[^\]]*\]\s*,\s*)?(?:'([^']*)'|"([^"]*)")/;
 
 // Parst Routes.php mit einem Klammertiefen-Stack, um verschachtelte
-// ->group('/praefix', function () {...})-Aufrufe aufzuloesen. Slim erlaubt beliebig tiefe
-// Gruppen-Verschachtelung (z. B. der aeussere Auth-Group mit leerem Praefix, darin
-// $projGroup->group('/projects', ...), darin wieder Einzelrouten); die tatsaechliche URL einer
-// Route ist die Konkatenation aller aktiven Praefixe plus ihres eigenen Pfads. Ohne diese
-// Aufloesung wuerden gruppierte Routen (z. B. unter /projects, /tasks, /roles, /sponsoring,
+// ->group('/präfix', function () {...})-Aufrufe aufzulösen. Slim erlaubt beliebig tiefe
+// Gruppen-Verschachtelung (z. B. der äußere Auth-Group mit leerem Präfix, darin
+// $projGroup->group('/projects', ...), darin wieder Einzelrouten); die tatsächliche URL einer
+// Route ist die Konkatenation aller aktiven Präfixe plus ihres eigenen Pfads. Ohne diese
+// Auflösung würden gruppierte Routen (z. B. unter /projects, /tasks, /roles, /sponsoring,
 // /song-library) mit falschem (ungeprefixtem) Pfad extrahiert, beim Crawlen 404en und effektiv
 // nie besucht werden.
 //
 // Algorithmus: Der Datei-Text wird zeichenweise durchlaufen und dabei die Klammertiefe (Anzahl
-// offener "{") mitgezaehlt - aber nur ausserhalb von String-Literalen und "//"-Kommentaren, da
-// Routen-Patterns selbst geschweifte Klammern enthalten koennen (z. B. "{id:[0-9]+}"), die keine
-// PHP-Blockstruktur sind. Bei einem "->group('praefix', ..." wird das Praefix gemerkt; sobald
-// danach die oeffnende "{" der Closure gefunden wird, landet {Tiefe, Praefix} auf einem Stack.
-// Faellt die Tiefe beim Schliessen einer "}" wieder auf genau die beim Push gemerkte Tiefe
-// zurueck, ist das die schliessende Klammer dieser Gruppe - sie wird vom Stack genommen. Bei
+// offener "{") mitgezählt - aber nur außerhalb von String-Literalen und "//"-Kommentaren, da
+// Routen-Patterns selbst geschweifte Klammern enthalten können (z. B. "{id:[0-9]+}"), die keine
+// PHP-Blockstruktur sind. Bei einem "->group('präfix', ..." wird das Präfix gemerkt; sobald
+// danach die öffnende "{" der Closure gefunden wird, landet {Tiefe, Präfix} auf einem Stack.
+// Fällt die Tiefe beim Schließen einer "}" wieder auf genau die beim Push gemerkte Tiefe
+// zurück, ist das die schließende Klammer dieser Gruppe - sie wird vom Stack genommen. Bei
 // jedem "->get(/post(/map(" wird der volle Pfad als Konkatenation aller aktuell aktiven
-// Praefixe (Stack, in Reihenfolge) plus dem eigenen Pfad gebildet.
+// Präfixe (Stack, in Reihenfolge) plus dem eigenen Pfad gebildet.
 export function getRoutes() {
     const src = fs.readFileSync(ROUTES_FILE, 'utf8');
     const routes = [];
     const groupStack = []; // { depth, prefix }
     let depth = 0;
-    let pendingGroupPrefix = null; // gesetzt zwischen "->group('praefix'," und der oeffnenden "{"
-    let inString = null; // aktuelles Anfuehrungszeichen ("'" oder '"') oder null
+    let pendingGroupPrefix = null; // gesetzt zwischen "->group('präfix'," und der öffnenden "{"
+    let inString = null; // aktuelles Anführungszeichen ("'" oder '"') oder null
 
     let i = 0;
     while (i < src.length) {
@@ -60,7 +60,7 @@ export function getRoutes() {
 
         if (inString) {
             if (ch === '\\') {
-                i += 2; // Escape-Sequenz ueberspringen (z. B. \' oder \\)
+                i += 2; // Escape-Sequenz überspringen (z. B. \' oder \\)
                 continue;
             }
             if (ch === inString) {

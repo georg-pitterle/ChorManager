@@ -20,7 +20,7 @@ export async function createProject(page, project) {
 // Verifizierte Selektoren aus templates/projects/member_projects.twig und members.twig:
 //  - Projektliste: /projects/members, je Projekt ein Link auf /projects/{id}/members
 //  - Zuordnen: Formular POST /projects/{id}/members mit Tom-Select-Feld name="user_id"
-//    und Submit-Button "Hinzufuegen"
+//    und Submit-Button "Hinzufügen"
 export async function addProjectMember(page, projectName, personLabel) {
     await page.goto('/projects/members');
     await page.locator('a[href^="/projects/"][href$="/members"]', { hasText: projectName }).first().click();

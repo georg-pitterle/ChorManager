@@ -39,18 +39,18 @@ import { setMemberPassword } from '../steps/authz.mjs';
 const BASE_URL = 'https://chormanager.ddev.site';
 
 // Finanzverwaltung entlang der Aufgaben eines Vereinskassiers. Jeder Test legt sein
-// eigenes Konto an, damit die Faelle sich nicht gegenseitig die Bestaende verschieben.
+// eigenes Konto an, damit die Fälle sich nicht gegenseitig die Bestände verschieben.
 //
-// Das Finanzmodul ist ueber FEATURE_FINANCE gegatet - ohne das Modul liefert
-// /finances 404, dann wird uebersprungen statt faelschlich rot zu werden.
+// Das Finanzmodul ist über FEATURE_FINANCE gegatet - ohne das Modul liefert
+// /finances 404, dann wird übersprungen statt fälschlich rot zu werden.
 //
 // Nacheinander statt parallel: Die Config setzt fullyParallel, wodurch auch die
-// Tests INNERHALB dieser Datei gleichzeitig liefen. Alle teilen ueber den
+// Tests INNERHALB dieser Datei gleichzeitig liefen. Alle teilen über den
 // storageState dieselbe PHP-Session - und damit die einmaligen Flash-Meldungen
 // ($_SESSION['success'|'error']) und den zwischengespeicherten Import
 // ($_SESSION['finance_import']). Parallel konsumiert dann der eine Test die
-// Meldung des anderen. "default" stellt die uebliche Reihenfolge je Datei wieder
-// her, ohne nach einem Fehler die restlichen Faelle zu ueberspringen.
+// Meldung des anderen. "default" stellt die übliche Reihenfolge je Datei wieder
+// her, ohne nach einem Fehler die restlichen Fälle zu überspringen.
 test.describe.configure({ mode: 'default' });
 
 let fiscal;
@@ -76,7 +76,7 @@ test('Konten: Standardkonten vorhanden, eigenes Konto mit Anfangsbestand anlegba
     expect(account.balance).toBe(savings.openingBalanceValue);
     expect(account.bookings).toBe(0);
 
-    // IBAN wird normalisiert abgelegt (ohne Leerzeichen, Grossbuchstaben).
+    // IBAN wird normalisiert abgelegt (ohne Leerzeichen, Großbuchstaben).
     await expect(page.getByText(savings.iban, { exact: false }).first()).toBeVisible();
 });
 

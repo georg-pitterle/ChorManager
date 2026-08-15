@@ -1,11 +1,11 @@
-// Deterministische Testdaten fuer die Finanzverwaltung.
+// Deterministische Testdaten für die Finanzverwaltung.
 //
-// Datumsangaben sind bewusst nicht hartkodiert: Der Beginn des Geschaeftsjahres
+// Datumsangaben sind bewusst nicht hartkodiert: Der Beginn des Geschäftsjahres
 // steckt im Setting fiscal_year_start (die Migration seedet 01.10.) und ist vom
-// Kassier aenderbar. Das Szenario liest das aktuelle Fenster deshalb zur Laufzeit
+// Kassier änderbar. Das Szenario liest das aktuelle Fenster deshalb zur Laufzeit
 // aus der Kassabuch-Kopfzeile (steps/finances.mjs: readFiscalWindow) und legt alle
-// Buchungen relativ zu dessen Beginn an - sonst laegen sie ausserhalb des Jahres,
-// das die Liste zeigt, und das Szenario waere je nach Konfiguration rot.
+// Buchungen relativ zu dessen Beginn an - sonst lägen sie außerhalb des Jahres,
+// das die Liste zeigt, und das Szenario wäre je nach Konfiguration rot.
 
 import { fiscalDay, fiscalDayGerman } from '../steps/finances.mjs';
 
@@ -20,7 +20,7 @@ export const OWN_IBAN = 'AT911600000100629615';
 
 /**
  * Kontovorlagen ohne Stichtag - den setzt das Szenario aus dem gelesenen
- * Geschaeftsjahr (`accountFor`).
+ * Geschäftsjahr (`accountFor`).
  */
 export const ACCOUNTS = {
     savings: {
@@ -89,7 +89,7 @@ export const ACCOUNTS = {
     },
 };
 
-/** Kontovorlage mit Stichtag zum Beginn des laufenden Geschaeftsjahres. */
+/** Kontovorlage mit Stichtag zum Beginn des laufenden Geschäftsjahres. */
 export function accountFor(fiscalWindow, key) {
     return { ...ACCOUNTS[key], openingDate: fiscalDay(fiscalWindow, 0) };
 }
@@ -99,8 +99,8 @@ export function accountFor(fiscalWindow, key) {
  * Dezimalkomma), inhaltlich wie tests/Fixtures/bank_statement_sample.csv.
  *
  * Die dritte Zeile ist eine Lastschrift: negativer Betrag, aber der Auftraggeber
- * ist die Gegenpartei und der Empfaenger das eigene Konto. Damit prueft der Import
- * auch, dass die Gegenpartei ueber die eigene IBAN und nicht ueber das Vorzeichen
+ * ist die Gegenpartei und der Empfänger das eigene Konto. Damit prüft der Import
+ * auch, dass die Gegenpartei über die eigene IBAN und nicht über das Vorzeichen
  * bestimmt wird.
  */
 export function bankStatementCsv(fiscalWindow) {
@@ -124,7 +124,7 @@ export function bankStatementCsv(fiscalWindow) {
     return `﻿${header}\n${rows.join('\n')}\n`;
 }
 
-/** Betraege der drei Importzeilen, vorzeichenrichtig aus Sicht des eigenen Kontos. */
+/** Beträge der drei Importzeilen, vorzeichenrichtig aus Sicht des eigenen Kontos. */
 export const IMPORT_AMOUNTS = { subsidy: 250, rent: -480.75, hosting: -12.3 };
 
 /** Erwartete Beschreibungen der drei Importzeilen (Gegenpartei + Verwendungszweck). */

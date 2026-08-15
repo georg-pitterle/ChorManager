@@ -1,4 +1,4 @@
-// Bausteine fuer die Finanzverwaltung.
+// Bausteine für die Finanzverwaltung.
 //
 // Verifizierte Selektoren:
 //  - templates/finances/index.twig
@@ -22,7 +22,7 @@
 //  - templates/roles/index.twig
 //      Rollen-Modal #addRoleModal, Felder name, hierarchy_level, can_*-Checkboxen
 
-/** "1.234,56 €" -> 1234.56 (auch mit Minus und ohne Waehrungszeichen). */
+/** "1.234,56 €" -> 1234.56 (auch mit Minus und ohne Währungszeichen). */
 export function parseMoney(text) {
     // Der Kassabericht setzt vor Ausgaben das typografische Minuszeichen U+2212,
     // nicht den ASCII-Bindestrich - ohne Normalisierung liefert parseFloat NaN.
@@ -36,22 +36,22 @@ export function parseMoney(text) {
 }
 
 /**
- * Ist das Finanzmodul in dieser Umgebung ueberhaupt registriert?
+ * Ist das Finanzmodul in dieser Umgebung überhaupt registriert?
  * Ohne FEATURE_FINANCE=true liefert /finances 404 - das Szenario wird dann
- * uebersprungen statt faelschlich rot zu werden.
+ * übersprungen statt fälschlich rot zu werden.
  */
 export async function financeModuleEnabled(page) {
     return (await page.request.get('/finances')).status() !== 404;
 }
 
 /**
- * Das aktuell im Kassabuch geoeffnete Geschaeftsjahr, aus der Kopfzeile gelesen
+ * Das aktuell im Kassabuch geöffnete Geschäftsjahr, aus der Kopfzeile gelesen
  * ("Geschäftsjahr: 01.10.2025 – 30.09.2026").
  *
  * Bewusst nicht nachgerechnet: Der Beginn steckt im Setting fiscal_year_start
- * (Migration seedet 01.10.), und der Kassier kann ihn jederzeit aendern. Ein im
- * Test hartkodiertes Fenster waere ab der naechsten Aenderung falsch - und die
- * Buchungen laegen dann unbemerkt ausserhalb des geprueften Jahres.
+ * (Migration seedet 01.10.), und der Kassier kann ihn jederzeit ändern. Ein im
+ * Test hartkodiertes Fenster wäre ab der nächsten Aenderung falsch - und die
+ * Buchungen lägen dann unbemerkt außerhalb des geprüften Jahres.
  */
 export async function readFiscalWindow(page) {
     await page.goto('/finances');
@@ -68,7 +68,7 @@ export function parseGermanDate(text) {
     return new Date(Date.UTC(year, month - 1, day));
 }
 
-/** Tag innerhalb des Geschaeftsjahres als ISO-Datum (Formularformat). */
+/** Tag innerhalb des Geschäftsjahres als ISO-Datum (Formularformat). */
 export function fiscalDay(fiscalWindow, offsetDays) {
     const date = new Date(fiscalWindow.start.getTime());
     date.setUTCDate(date.getUTCDate() + offsetDays);
@@ -87,10 +87,10 @@ export function fiscalDayGerman(fiscalWindow, offsetDays) {
  * Formular abschicken und die daraus folgende Navigation abwarten.
  *
  * Bewusst weder `waitForURL('**\/finances**')` noch `waitForLoadState`: Das
- * URL-Muster passt auch auf die Ausgangsseite und kehrt sofort zurueck, und der
- * Ladezustand gilt zu dem Zeitpunkt noch fuer das ALTE Dokument. Beides laesst die
- * anschliessende Pruefung gegen die Seite vor dem POST laufen - Flash-Meldungen
- * fehlen dann scheinbar. Das load-Event feuert dagegen genau fuer das Dokument
+ * URL-Muster passt auch auf die Ausgangsseite und kehrt sofort zurück, und der
+ * Ladezustand gilt zu dem Zeitpunkt noch für das ALTE Dokument. Beides lässt die
+ * anschließende Prüfung gegen die Seite vor dem POST laufen - Flash-Meldungen
+ * fehlen dann scheinbar. Das load-Event feuert dagegen genau für das Dokument
  * nach dem Redirect, auch wenn Quell- und Zielpfad identisch sind.
  */
 export async function submitAndWait(page, submitLocator) {
@@ -129,7 +129,7 @@ export async function readAccount(page, name) {
 }
 
 /**
- * Buchung ueber das Kassabuch-Modal erfassen.
+ * Buchung über das Kassabuch-Modal erfassen.
  * booking: { invoiceDate, paymentDate?, description, type, accountName, amount, group? }
  * Ohne paymentDate entsteht ein offener Posten.
  */
@@ -145,8 +145,8 @@ export async function createBooking(page, booking) {
     }
     await modal.locator('input[name="description"]').fill(booking.description);
     await modal.locator('select[name="type"]').selectOption(booking.type);
-    // Die Option traegt "<Name> (Bank|Bar)" samt Umbruch/Einrueckung aus dem Template;
-    // selectOption akzeptiert nur exakte Labels, daher ueber den Text die value lesen.
+    // Die Option trägt "<Name> (Bank|Bar)" samt Umbruch/Einrückung aus dem Template;
+    // selectOption akzeptiert nur exakte Labels, daher über den Text die value lesen.
     const accountSelect = modal.locator('select[name="finance_account_id"]');
     const accountValue = await accountSelect
         .locator('option', { hasText: booking.accountName })
@@ -157,7 +157,7 @@ export async function createBooking(page, booking) {
 
     if (booking.group) {
         // Das Textfeld wird erst sichtbar, wenn im Select "+ Neue Gruppe eingeben…"
-        // gewaehlt ist (handleGroupSelect in public/js/finances.js).
+        // gewählt ist (handleGroupSelect in public/js/finances.js).
         await modal.locator('#group_select').selectOption('__new__');
         await modal.locator('#group_name').fill(booking.group);
     }
@@ -191,9 +191,9 @@ export async function openItemDescriptions(page) {
 }
 
 /**
- * Buchung stornieren. Das Aktionen-Dropdown muss vorher geoeffnet werden, und das
- * Formular haengt an einem data-confirm (natives confirm() aus public/js/common.js) -
- * Playwright wuerde den Dialog sonst automatisch abweisen und der POST bliebe aus.
+ * Buchung stornieren. Das Aktionen-Dropdown muss vorher geöffnet werden, und das
+ * Formular hängt an einem data-confirm (natives confirm() aus public/js/common.js) -
+ * Playwright würde den Dialog sonst automatisch abweisen und der POST bliebe aus.
  */
 export async function reverseBooking(page, runningNumber) {
     await page.goto('/finances');
@@ -208,7 +208,7 @@ export async function reverseBooking(page, runningNumber) {
     await submitAndWait(page, form.locator('button[type="submit"]'));
 }
 
-/** Ist fuer diese Zeile ueberhaupt noch ein Storno moeglich? */
+/** Ist für diese Zeile überhaupt noch ein Storno möglich? */
 export async function canReverse(page, runningNumber) {
     await page.goto('/finances');
     const row = bookingRow(page, runningNumber);
@@ -218,7 +218,7 @@ export async function canReverse(page, runningNumber) {
     return (await row.locator('form[action$="/reverse"]').count()) > 0;
 }
 
-/** Buchungen bis zu diesem Tag abschliessen; leerer String hebt die Sperre auf. */
+/** Buchungen bis zu diesem Tag abschließen; leerer String hebt die Sperre auf. */
 export async function setClosedUntil(page, isoDate) {
     await page.goto('/finances');
     await page.click('.page-actions [data-bs-target="#settingsModal"]');
@@ -230,8 +230,8 @@ export async function setClosedUntil(page, isoDate) {
 }
 
 /**
- * Kontoauszug hochladen. Liefert die Vorschau-Seite zurueck, ohne zu uebernehmen.
- * Rueckgabe: { rows, importable, duplicates, suggestedAccount }
+ * Kontoauszug hochladen. Liefert die Vorschau-Seite zurück, ohne zu übernehmen.
+ * Rückgabe: { rows, importable, duplicates, suggestedAccount }
  */
 export async function uploadStatement(page, filePath) {
     await page.goto('/finances');
@@ -256,7 +256,7 @@ export async function uploadStatement(page, filePath) {
     return { rows, importable, duplicates, suggestedAccount: suggestedAccount.trim() };
 }
 
-/** Vorschau bestaetigen (uebernimmt die angehakten Zeilen). */
+/** Vorschau bestätigen (übernimmt die angehakten Zeilen). */
 export async function confirmImport(page) {
     await submitAndWait(page, page.locator('#finance-import-submit'));
 }
@@ -272,8 +272,8 @@ export async function readAccountStatement(page, accountName) {
     const row = page.locator('.finance-statement-table tbody tr', { hasText: accountName }).first();
     await row.waitFor({ state: 'visible' });
 
-    // Einnahmen/Ausgaben sind Spaltensummen und werden mit fuehrendem +/- nur zur
-    // besseren Lesbarkeit angezeigt - als Betrag ohne Vorzeichen zurueckgeben.
+    // Einnahmen/Ausgaben sind Spaltensummen und werden mit führendem +/- nur zur
+    // besseren Lesbarkeit angezeigt - als Betrag ohne Vorzeichen zurückgeben.
     // Anfangs- und Endbestand behalten ihr Vorzeichen, ein Konto kann im Minus sein.
     return {
         opening: parseMoney(await row.locator('td[data-label="Anfangsbestand"]').innerText()),
@@ -283,7 +283,7 @@ export async function readAccountStatement(page, accountName) {
     };
 }
 
-/** Rolle mit genau den uebergebenen Rechten anlegen (Rechte = Namen der can_*-Felder). */
+/** Rolle mit genau den übergebenen Rechten anlegen (Rechte = Namen der can_*-Felder). */
 export async function createRole(page, { name, level = 10, permissions = [] }) {
     await page.goto('/roles');
     await page.click('[data-bs-target="#addRoleModal"]');

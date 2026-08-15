@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-// Legt den ersten Admin ueber /setup an (nur moeglich, wenn keine User existieren).
+// Legt den ersten Admin über /setup an (nur möglich, wenn keine User existieren).
 // Verifizierte Felder aus templates/auth/setup.twig: first_name, last_name, email, password.
 // AuthController::processSetup loggt den neuen Admin sofort ein und leitet nach /dashboard
 // weiter (nicht /login) - verifiziert in src/Controllers/AuthController.php.
