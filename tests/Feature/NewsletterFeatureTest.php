@@ -337,7 +337,7 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('resolveDatabaseTimezoneOffset', $timezoneUtil);
 
         $this->assertStringContainsString("'timezone' => \$appTimezone", $settings);
-        $this->assertStringContainsString("'timezone' => Timezone::resolveDatabaseTimezoneOffset()", $settings);
+        $this->assertStringContainsString("'options' => Timezone::databaseConnectionOptions()", $settings);
         $this->assertStringContainsString('date_default_timezone_set(Timezone::resolveAppTimezone());', $bootstrap);
         $this->assertStringContainsString('setTimezone($appTimezone);', $dependencies);
     }

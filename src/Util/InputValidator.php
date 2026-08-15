@@ -27,18 +27,6 @@ final class InputValidator
     }
 
     /**
-     * Validate a password meets minimum requirements.
-     * Returns true if valid, false otherwise.
-     */
-    public static function validatePassword(?string $password): bool
-    {
-        $password = (string) $password;
-
-        // Must be at least 6 characters (can be overridden by PasswordPolicyService)
-        return mb_strlen($password, 'UTF-8') >= 6;
-    }
-
-    /**
      * Validate and normalize a string input (trim and empty check).
      * Returns null if empty after trim, otherwise returns trimmed string.
      */

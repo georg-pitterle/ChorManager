@@ -46,4 +46,36 @@ class SessionConfig
 
         return ini_set('session.save_path', $path) !== false;
     }
+
+    /**
+     * Decide whether the session cookie must carry the Secure flag.
+     *
+     * APP_ENV is read via EnvHelper: Dotenv::safeLoad() only fills $_ENV/$_SERVER, so a value that
+     * lives solely in the .env stays invisible to getenv() - the cookie would then ship without the
+     * Secure flag in production. X-Forwarded-Proto is only honoured behind a trusted proxy, the
+     * same rule AppUrlResolver applies, because any client can send that header itself.
+     *
+     * @param array<string, mixed> $serverParams
+     */
+    public static function shouldUseSecureCookie(array $serverParams): bool
+    {
+        if (AppEnvironment::isProduction()) {
+            return true;
+        }
+
+        $https = strtolower(trim((string) ($serverParams['HTTPS'] ?? '')));
+        if ($https !== '' && $https !== 'off') {
+            return true;
+        }
+
+        $remoteAddress = trim((string) ($serverParams['REMOTE_ADDR'] ?? ''));
+        if ($remoteAddress === '' || !ClientIpResolver::isTrustedProxy($remoteAddress)) {
+            return false;
+        }
+
+        $forwardedProto = (string) ($serverParams['HTTP_X_FORWARDED_PROTO'] ?? '');
+        $firstProto = strtolower(trim((string) explode(',', $forwardedProto)[0]));
+
+        return $firstProto === 'https';
+    }
 }

@@ -188,6 +188,67 @@ class RegistrationReminderServiceFeatureTest extends TestCase
         $this->assertSame(0, $this->service()->processDue('https://chor.example'));
     }
 
+    private function serviceWith(MailQueueService $mailQueueService): RegistrationReminderService
+    {
+        return new RegistrationReminderService(
+            $mailQueueService,
+            Twig::create(dirname(__DIR__) . '/../templates'),
+            new NullLogger()
+        );
+    }
+
+    /**
+     * Frueher wurde registration_reminder_sent_at unbedingt nach der Empfaengerschleife gesetzt.
+     * Scheiterte das Einreihen fuer alle Empfaenger, galt das Event trotzdem als erledigt und
+     * niemand bekam je eine Erinnerung.
+     */
+    public function testEventStaysUnmarkedWhenEveryEnqueueFails(): void
+    {
+        $mailQueueService = $this->createStub(MailQueueService::class);
+        $mailQueueService->method('enqueueRegistrationReminderMail')
+            ->willThrowException(new \RuntimeException('SMTP-Warteschlange nicht erreichbar'));
+
+        $count = $this->serviceWith($mailQueueService)->processDue('https://chor.example');
+
+        $this->assertSame(0, $count);
+        $this->event->refresh();
+        $this->assertNull($this->event->registration_reminder_sent_at);
+    }
+
+    /**
+     * Der Marker muss vor dem Versand gesetzt werden, sonst arbeiten zwei parallele Worker
+     * dasselbe Event gleichzeitig ab und jeder Empfaenger bekommt die Erinnerung doppelt.
+     */
+    public function testEventIsClaimedBeforeTheFirstMailIsEnqueued(): void
+    {
+        $markedDuringSend = null;
+        $eventId = (int) $this->event->id;
+
+        $mailQueueService = $this->createStub(MailQueueService::class);
+        $mailQueueService->method('enqueueRegistrationReminderMail')
+            ->willReturnCallback(function () use (&$markedDuringSend, $eventId) {
+                $markedDuringSend ??= Event::query()
+                    ->whereKey($eventId)
+                    ->value('registration_reminder_sent_at');
+
+                return new MailQueue();
+            });
+
+        $this->serviceWith($mailQueueService)->processDue('https://chor.example');
+
+        $this->assertNotNull(
+            $markedDuringSend,
+            'Das Event muss bereits beim ersten Enqueue als beansprucht markiert sein.'
+        );
+    }
+
+    public function testAlreadyClaimedEventIsSkipped(): void
+    {
+        $this->event->update(['registration_reminder_sent_at' => Carbon::now()]);
+
+        $this->assertSame(0, $this->service()->processDue('https://chor.example'));
+    }
+
     public function testTriggerWiringExists(): void
     {
         $middlewarePipeline = file_get_contents(dirname(__DIR__) . '/../src/Middleware.php');

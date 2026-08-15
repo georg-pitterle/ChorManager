@@ -76,7 +76,8 @@ class UploadValidator
     {
         $mimeType = self::normalizeMimeType($mimeType);
 
-        if ($sizeBytes < 0) {
+        // Gleiche Grenze wie validateImageSize(): 0-Byte-Uploads sind nie ein gueltiger Anhang.
+        if ($sizeBytes <= 0) {
             return [
                 'valid' => false,
                 'error' => 'Datei hat keine gültige Größe.',

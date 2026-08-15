@@ -244,6 +244,18 @@ class UploadCompressionFeatureTest extends TestCase
         $this->assertSame('invalid_size', $result['reason']);
     }
 
+    /**
+     * validateImageSize() lehnt 0-Byte-Dateien ab, validateFileSize() liess sie durch. Der
+     * generische Upload-Pfad muss dieselbe Grenze ziehen, sonst landen leere Anhaenge in der DB.
+     */
+    public function testValidateFileSizeRejectsEmptyFiles(): void
+    {
+        $result = UploadValidator::validateFileSize(0, 'application/pdf');
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('invalid_size', $result['reason']);
+    }
+
     public function testValidateFileSizeOmitsReasonWhenValid(): void
     {
         $result = UploadValidator::validateFileSize(1024, 'application/pdf');

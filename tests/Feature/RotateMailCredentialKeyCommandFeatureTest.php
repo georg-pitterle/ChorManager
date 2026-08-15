@@ -189,4 +189,29 @@ final class RotateMailCredentialKeyCommandFeatureTest extends TestCase
         $this->assertSame(Command::FAILURE, $exitCode);
         $this->assertStringContainsString('fehlgeschlagen: 1', $tester->getDisplay());
     }
+
+    /**
+     * Ein Konto ohne hinterlegtes IMAP-Passwort hat nichts zu entschluesseln. Zaehlte es als
+     * Fehler, endete jeder Lauf mit Exit-Code 1 und der Rotationslauf waere dauerhaft rot.
+     */
+    public function testSkipsAccountsWithoutStoredPassword(): void
+    {
+        [, $oldKey] = $this->rotateKeys();
+        UserMailAccount::create([
+            'user_id' => $this->user->id,
+            'imap_host' => 'imap.example.org',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'rotation@example.org',
+            'imap_password_enc' => '',
+        ]);
+
+        $newService = $this->activateNewKey($oldKey);
+        $tester = $this->makeTester($newService);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(Command::SUCCESS, $exitCode);
+        $this->assertStringContainsString('übersprungen: 1', $tester->getDisplay());
+        $this->assertStringContainsString('fehlgeschlagen: 0', $tester->getDisplay());
+    }
 }

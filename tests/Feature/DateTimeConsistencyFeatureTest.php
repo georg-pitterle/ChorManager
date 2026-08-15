@@ -20,8 +20,9 @@ class DateTimeConsistencyFeatureTest extends TestCase
 
         $this->assertStringContainsString('resolveAppTimezone', $timezoneUtil);
         $this->assertStringContainsString('resolveDatabaseTimezoneOffset', $timezoneUtil);
+        $this->assertStringContainsString('databaseTimezoneInitCommand', $timezoneUtil);
         $this->assertStringContainsString("'timezone' => \$appTimezone", $settings);
-        $this->assertStringContainsString("'timezone' => Timezone::resolveDatabaseTimezoneOffset()", $settings);
+        $this->assertStringContainsString("'options' => Timezone::databaseConnectionOptions()", $settings);
         $this->assertStringContainsString('date_default_timezone_set(Timezone::resolveAppTimezone());', $bootstrap);
     }
 

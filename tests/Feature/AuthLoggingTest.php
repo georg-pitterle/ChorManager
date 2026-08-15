@@ -215,6 +215,37 @@ final class AuthLoggingTest extends TestCase
         $this->assertSame(\Monolog\Level::Warning, $match[0]->level);
     }
 
+    /**
+     * Ein verteilter Brute-Force-Versuch wechselt die Quell-IP pro Versuch. Das Limit muss
+     * deshalb zusaetzlich pro Zielkonto greifen, sonst bleibt das IP-Limit wirkungslos.
+     */
+    public function testRateLimitAlsoAppliesPerEmailAcrossChangingIpAddresses(): void
+    {
+        [$logger, $handler] = $this->logger();
+
+        $controller = $this->makeAuthController($logger);
+        for ($i = 0; $i < 11; $i++) {
+            $this->submitLogin($controller, 'admin@example.org', 'wrong-password', '203.0.113.' . $i);
+        }
+
+        $this->assertTrue($this->hasEvent($handler, 'auth.login.rate_limited'));
+    }
+
+    public function testRateLimitPerEmailDoesNotBlockOtherAccounts(): void
+    {
+        [$logger, $handler] = $this->logger();
+
+        $controller = $this->makeAuthController($logger);
+        for ($i = 0; $i < 11; $i++) {
+            $this->submitLogin($controller, 'admin@example.org', 'wrong-password', '203.0.113.' . $i);
+        }
+
+        $handler->clear();
+        $this->submitLogin($controller, 'someone-else@example.org', 'wrong-password', '198.51.100.7');
+
+        $this->assertFalse($this->hasEvent($handler, 'auth.login.rate_limited'));
+    }
+
     private function makeAuthController(Logger $logger): AuthController
     {
         return new AuthController(
@@ -228,10 +259,14 @@ final class AuthLoggingTest extends TestCase
         );
     }
 
-    private function submitLogin(AuthController $controller, string $email, string $password): ResponseInterface
-    {
+    private function submitLogin(
+        AuthController $controller,
+        string $email,
+        string $password,
+        string $remoteAddress = '198.51.100.1'
+    ): ResponseInterface {
         $request = (new ServerRequestFactory())
-            ->createServerRequest('POST', '/login')
+            ->createServerRequest('POST', '/login', ['REMOTE_ADDR' => $remoteAddress])
             ->withParsedBody([
                 'email' => $email,
                 'password' => $password,

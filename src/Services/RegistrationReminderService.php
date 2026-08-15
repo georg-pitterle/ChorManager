@@ -53,7 +53,25 @@ class RegistrationReminderService
         $enqueued = 0;
 
         foreach ($events as $event) {
+            $claimedAt = Carbon::now();
+
+            // Bedingtes Update als Lock: laeuft ein zweiter Worker parallel, gewinnt genau einer
+            // das Event. Ohne diesen Claim bekaeme jeder Empfaenger die Erinnerung mehrfach.
+            $claimed = Event::query()
+                ->whereKey((int) $event->id)
+                ->whereNull('registration_reminder_sent_at')
+                ->update(['registration_reminder_sent_at' => $claimedAt]);
+
+            if ($claimed === 0) {
+                continue;
+            }
+
+            $event->registration_reminder_sent_at = $claimedAt;
+            $event->syncOriginal();
+
             $recipients = $this->unregisteredEligibleUsers($event);
+            $failed = 0;
+            $sent = 0;
 
             foreach ($recipients as $user) {
                 try {
@@ -74,7 +92,9 @@ class RegistrationReminderService
                         (int) $event->id
                     );
                     $enqueued++;
+                    $sent++;
                 } catch (\Exception $e) {
+                    $failed++;
                     $this->logger->error('Enqueueing registration reminder failed.', [
                         'event' => 'registration_reminder.enqueue_failed',
                         'event_id' => (int) $event->id,
@@ -84,12 +104,33 @@ class RegistrationReminderService
                 }
             }
 
-            $event->update(['registration_reminder_sent_at' => Carbon::now()]);
+            // Ging keine einzige Mail raus, wird der Claim wieder freigegeben, damit ein spaeterer
+            // Lauf es erneut versucht. Bei Teilerfolg bleibt die Markierung stehen: sonst bekaemen
+            // die bereits erreichten Empfaenger die Erinnerung im naechsten Lauf ein zweites Mal.
+            if ($sent === 0 && $failed > 0) {
+                Event::query()
+                    ->whereKey((int) $event->id)
+                    ->where('registration_reminder_sent_at', $claimedAt)
+                    ->update(['registration_reminder_sent_at' => null]);
+
+                $event->registration_reminder_sent_at = null;
+                $event->syncOriginal();
+
+                $this->logger->warning('Registration reminder round released for retry.', [
+                    'event' => 'registration_reminder.retry_scheduled',
+                    'event_id' => (int) $event->id,
+                    'recipient_count' => count($recipients),
+                    'failed_count' => $failed,
+                ]);
+
+                continue;
+            }
 
             $this->logger->info('Registration reminder round completed.', [
                 'event' => 'registration_reminder.sent',
                 'event_id' => (int) $event->id,
                 'recipient_count' => count($recipients),
+                'failed_count' => $failed,
             ]);
         }
 

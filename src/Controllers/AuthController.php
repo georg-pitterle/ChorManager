@@ -95,8 +95,11 @@ class AuthController
         }
 
         $clientIp = $this->resolveClientIp($request);
-        $limit = $this->rateLimiterService->hit('auth:login:' . $clientIp, 10, 900);
-        if (!$limit['allowed']) {
+        $ipLimit = $this->rateLimiterService->hit('auth:login:' . $clientIp, 10, 900);
+        // Zusaetzlich pro Zielkonto begrenzen: ein verteilter Brute-Force-Versuch wechselt die
+        // Quell-IP pro Versuch und liefe sonst am reinen IP-Limit vorbei.
+        $emailLimit = $this->rateLimiterService->hit('auth:login:email:' . $email, 10, 900);
+        if (!$ipLimit['allowed'] || !$emailLimit['allowed']) {
             // WARNING statt INFO (Owner-Entscheidung): ein ueberschrittenes Rate-Limit ist ein
             // Brute-Force-Signal und muss auch dann sichtbar bleiben, wenn der Level auf WARNING
             // gesetzt wird, um Rauschen zu reduzieren - konsistent mit security.csrf.rejected und
@@ -128,6 +131,7 @@ class AuthController
             }
 
             $this->rateLimiterService->reset('auth:login:' . $clientIp);
+            $this->rateLimiterService->reset('auth:login:email:' . $email);
 
             $this->logger->info('User signed in.', [
                 'event' => 'auth.login.succeeded',

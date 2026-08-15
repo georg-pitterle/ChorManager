@@ -19,8 +19,7 @@ date_default_timezone_set(Timezone::resolveAppTimezone());
 // container's writable layer so a redeploy does not log every user out.
 SessionConfig::applySavePath();
 
-$secureSessionCookie = (getenv('APP_ENV') === 'production')
-    || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+$secureSessionCookie = SessionConfig::shouldUseSecureCookie($_SERVER);
 
 ini_set('session.use_only_cookies', '1');
 ini_set('session.use_strict_mode', '1');

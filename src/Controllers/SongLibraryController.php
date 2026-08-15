@@ -407,9 +407,6 @@ class SongLibraryController
             $mimeType = UploadValidator::detectMimeType($file);
             $contents = $file->getStream()->getContents();
             $size = strlen($contents);
-            if ($size <= 0) {
-                return 'Leere Dateien sind nicht erlaubt.';
-            }
 
             $validation = UploadValidator::validateFileSize($size, $mimeType);
             if (!$validation['valid']) {
