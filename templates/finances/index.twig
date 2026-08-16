@@ -29,7 +29,7 @@
                     </select>
                 </form>
             {% endif %}
-            <div class="btn-group w-100 w-sm-auto">
+            <div class="btn-group btn-group-wrap w-100 w-sm-auto">
                 {% if can_write_finances %}
                     <button type="button"
                             class="btn btn-outline-secondary btn-sm"
@@ -117,17 +117,35 @@
                                id="financesTable">
                             <thead class="table-dark">
                                 <tr>
-                                    <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
-                                    <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
-                                    <th data-sort-key="payment_date" data-sort-type="date">Zahldatum</th>
-                                    <th data-sort-key="description" data-sort-type="text">Beschreibung</th>
+                                    {# Kopfzeilen bewusst kurz: sie bestimmen die Spaltenbreite. Die
+                                       Langform steht in data-sort-label (Sortier-Panel), im title und
+                                       als data-label in der Kartenansicht. #}
+                                    <th data-sort-key="running_number"
+                                        data-sort-type="number"
+                                        data-sort-label="Lfd. Nr.">Nr.</th>
+                                    <th data-sort-key="invoice_date"
+                                        data-sort-type="date"
+                                        data-sort-label="Rechnungsdatum"
+                                        title="Rechnungsdatum">Rechnung</th>
+                                    <th data-sort-key="payment_date"
+                                        data-sort-type="date"
+                                        data-sort-label="Zahldatum"
+                                        title="Zahldatum">Zahlung</th>
+                                    <th class="finance-description-column"
+                                        data-sort-key="description"
+                                        data-sort-type="text">Beschreibung</th>
                                     <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
-                                    <th data-sort-key="type" data-sort-type="text">Art</th>
+                                    {# Kopf bleibt Text: das Sortier-Icon der Engine ist selbst ein
+                                       Doppelpfeil, ein Pfeil-Icon daneben liest sich als Dublette. #}
+                                    <th class="finance-icon-column" data-sort-key="type" data-sort-type="text">Art</th>
                                     <th class="text-end finance-amount-column"
                                         data-sort-key="amount"
                                         data-sort-type="number">Betrag</th>
                                     <th data-sort-key="payment_method" data-sort-type="text">Konto</th>
-                                    <th>Anhänge</th>
+                                    <th class="finance-icon-column" title="Anhänge">
+                                        <i class="bi bi-paperclip" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Anhänge</span>
+                                    </th>
                                     {% if can_write_finances %}<th class="text-end finance-actions-column">Aktionen</th>{% endif %}
                                 </tr>
                             </thead>
@@ -161,11 +179,20 @@
                                                 <span class="text-muted small">—</span>
                                             {% endif %}
                                         </td>
-                                        <td data-label="Art">
-                                            {% if item.type == 'income' %}
-                                                <span class="badge bg-success">Eingang</span>
+                                        {# In der Tabelle zählt jede Spaltenbreite, dort bleibt nur das
+                                           Icon; in der Karte ist Platz für den Klartext. Das Wort steht
+                                           immer im DOM, damit die Tabellensuche es weiter findet. #}
+                                        <td data-label="Art" class="finance-icon-column">
+                                            {% if item.type == "income" %}
+                                                <span class="badge bg-success" title="Eingang">
+                                                    <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
+                                                    <span class="finance-type-label">Eingang</span>
+                                                </span>
                                             {% else %}
-                                                <span class="badge bg-danger">Ausgang</span>
+                                                <span class="badge bg-danger" title="Ausgang">
+                                                    <i class="bi bi-box-arrow-up" aria-hidden="true"></i>
+                                                    <span class="finance-type-label">Ausgang</span>
+                                                </span>
                                             {% endif %}
                                         </td>
                                         <td data-label="Betrag"
@@ -173,14 +200,19 @@
                                             {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
                                         </td>
                                         <td data-label="Konto">
-                                            {% if item.payment_method == 'cash' %}
-                                                <i class="bi bi-cash-coin me-1"></i>
-                                            {% else %}
-                                                <i class="bi bi-bank me-1"></i>
-                                            {% endif %}
-                                            {{ item.financeAccount ? item.financeAccount.name : (item.payment_method == 'cash' ? 'Bar' : 'Überweisung') }}
+                                            {# Icon und Name als eine Flex-Einheit: sonst ist die
+                                               Mindestbreite der Spalte nur das längste Einzelwort und
+                                               das Icon rutscht in eine eigene Zeile. #}
+                                            <span class="finance-account-name">
+                                                {% if item.payment_method == "cash" %}
+                                                    <i class="bi bi-cash-coin" aria-hidden="true"></i>
+                                                {% else %}
+                                                    <i class="bi bi-bank" aria-hidden="true"></i>
+                                                {% endif %}
+                                                <span>{{ item.financeAccount ? item.financeAccount.name : (item.payment_method == "cash" ? "Bar" : "Überweisung") }}</span>
+                                            </span>
                                         </td>
-                                        <td data-label="Anhänge">
+                                        <td data-label="Anhänge" class="finance-icon-column">
                                             {% if item.attachments|length > 0 %}
                                                 <div class="btn-group">
                                                     <button type="button"
@@ -233,7 +265,8 @@
                                                             data-action="edit-finance"
                                                             data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
                                                             title="Bearbeiten">
-                                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                                                        <span class="visually-hidden">Bearbeiten</span>
                                                     </button>
                                                     <button type="button"
                                                             class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
@@ -289,18 +322,30 @@
                     </p>
                 </div>
 
-                <div class="surface-card card border-0 table-shell">
+                <div class="surface-card card border-0 table-shell"
+                     data-table-engine="true"
+                     data-table-id="finances.open_items"
+                     data-default-view="auto"
+                     data-default-page-size="50"
+                     data-page-size-options="25,50,100"
+                     data-default-sort-key="invoice_date"
+                     data-default-sort-dir="asc">
+                    {{ include("partials/table_toolbar.twig") }}
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>Lfd. Nr.</th>
-                                        <th>Rechnungsdatum</th>
-                                        <th>Beschreibung</th>
-                                        <th>Gruppe</th>
-                                        <th>Art</th>
-                                        <th class="text-end finance-amount-column">Betrag</th>
+                                        <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
+                                        <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
+                                        <th class="finance-description-column"
+                                        data-sort-key="description"
+                                        data-sort-type="text">Beschreibung</th>
+                                        <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
+                                        <th data-sort-key="type" data-sort-type="text">Art</th>
+                                        <th class="text-end finance-amount-column"
+                                            data-sort-key="amount"
+                                            data-sort-type="number">Betrag</th>
                                         {% if can_write_finances %}
                                             <th class="text-end finance-actions-column">Aktionen</th>
                                         {% endif %}
@@ -308,7 +353,12 @@
                                 </thead>
                                 <tbody>
                                     {% for item in open_items %}
-                                        <tr>
+                                        <tr data-sort-running_number="{{ item.running_number }}"
+                                            data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
+                                            data-sort-description="{{ item.description|lower }}"
+                                            data-sort-group_name="{{ item.group_name|default("")|lower }}"
+                                            data-sort-type="{{ item.type == "income" ? "eingang" : "ausgang" }}"
+                                            data-sort-amount="{{ item.type == "income" ? item.amount : -item.amount }}">
                                             <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
                                             <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
                                             <td data-label="Beschreibung">{{ item.description }}</td>
@@ -324,7 +374,7 @@
                                                 {{ item.amount|number_format(2, ",", ".") }} €
                                             </td>
                                             {% if can_write_finances %}
-                                                <td class="text-end finance-actions-column">
+                                                <td data-label="Aktionen" class="text-end finance-actions-column">
                                                     <button type="button"
                                                             class="btn btn-sm btn-outline-secondary"
                                                             data-bs-toggle="modal"

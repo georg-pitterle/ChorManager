@@ -40,6 +40,13 @@
                     {{ duplicate_count }} Zeilen wurden bereits früher importiert und sind gesperrt.
                 </div>
             {% endif %}
+            {% if estimated_payment_date_count > 0 %}
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-calendar-event me-1"></i>
+                    Bei {{ estimated_payment_date_count }} Zeilen fehlt das Valutadatum. Als Zahldatum wird das
+                    Buchungsdatum übernommen - bitte vor dem Import prüfen.
+                </div>
+            {% endif %}
             {% if error_count > 0 %}
                 <div class="alert alert-danger py-2 small">
                     <i class="bi bi-x-octagon me-1"></i>
@@ -113,6 +120,12 @@
                                             </td>
                                             <td data-label="Zahldatum">
                                                 {{ row.payment_date ? row.payment_date|date("d.m.Y") : "-" }}
+                                                {% if row.payment_date_estimated %}
+                                                    <span class="badge bg-warning text-dark"
+                                                          title="Kein Valutadatum im Auszug - Buchungsdatum übernommen">
+                                                        geschätzt
+                                                    </span>
+                                                {% endif %}
                                             </td>
                                             <td data-label="Beschreibung">
                                                 {{ row.description }}

@@ -219,7 +219,29 @@ final class FinanceTemplateRenderTest extends TestCase
         $this->assertStringContainsString('Änderungsjournal', $html);
         $this->assertStringContainsString('angelegt', $html);
         $this->assertStringContainsString('geändert', $html);
-        $this->assertStringContainsString('amount', $html);
+        // Das Journal zeigt den Feldnamen in Klartext, nicht die Datenbankspalte.
+        $this->assertStringContainsString('Betrag', $html);
+        $this->assertStringContainsString('100,00 €', $html);
+        $this->assertStringContainsString('150,00 €', $html);
+        $this->assertStringNotContainsString('amount', $html);
+    }
+
+    public function testJournalOmitsThePreviousValueWhenThereIsNone(): void
+    {
+        $original = $this->booking(5009, '2025-10-01', 'expense', '80.00');
+        $reversal = $this->booking(5010, '2025-10-02', 'income', '80.00');
+        $reversal->update(['reversal_of_id' => $original->id]);
+        (new FinanceJournalService())->recordReverse($reversal, $original, 1);
+
+        $request = $this->makeRequest('GET', '/finances/journal');
+        $response = $this->financeController('/finances/journal')->journal($request, $this->makeResponse());
+        $html = (string) $response->getBody();
+
+        $this->assertStringContainsString('Storno zu:', $html);
+        $this->assertStringContainsString('Nr. 5009', $html);
+        // Ein Storno hatte nie einen Vorher-Wert, also auch kein "leer" davor.
+        $this->assertStringNotContainsString('leer', $html);
+        $this->assertStringNotContainsString('<s>', $html);
     }
 
     public function testKontenseiteRenders(): void
@@ -229,6 +251,7 @@ final class FinanceTemplateRenderTest extends TestCase
         $controller = new FinanceAccountController(
             $this->createTwig('/finances/accounts'),
             new FinanceAccountService(),
+            new FinanceJournalService(),
             new NullLogger()
         );
 

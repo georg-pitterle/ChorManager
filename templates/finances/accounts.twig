@@ -61,19 +61,29 @@
                 </p>
             </div>
 
-            <div class="surface-card card border-0 table-shell">
+            <div class="surface-card card border-0 table-shell"
+                 data-table-engine="true"
+                 data-table-id="finances.accounts"
+                 data-default-view="auto"
+                 data-default-page-size="50"
+                 data-page-size-options="25,50,100">
+                {{ include("partials/table_toolbar.twig") }}
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
                             <thead class="table-dark">
                                 <tr>
-                                    <th>Konto</th>
-                                    <th>Art</th>
-                                    <th>IBAN</th>
-                                    <th>Stichtag</th>
-                                    <th class="text-end finance-amount-column">Anfangsbestand</th>
-                                    <th class="text-end finance-amount-column">Aktueller Bestand</th>
-                                    <th>Buchungen</th>
+                                    <th data-sort-key="name" data-sort-type="text">Konto</th>
+                                    <th data-sort-key="type" data-sort-type="text">Art</th>
+                                    <th data-sort-key="iban" data-sort-type="text">IBAN</th>
+                                    <th data-sort-key="opening_date" data-sort-type="date">Stichtag</th>
+                                    <th class="text-end finance-amount-column"
+                                        data-sort-key="opening_balance"
+                                        data-sort-type="number">Anfangsbestand</th>
+                                    <th class="text-end finance-amount-column"
+                                        data-sort-key="balance"
+                                        data-sort-type="number">Aktueller Bestand</th>
+                                    <th data-sort-key="booking_count" data-sort-type="number">Buchungen</th>
                                     {% if can_write_finances %}
                                         <th class="text-end finance-actions-column">Aktionen</th>
                                     {% endif %}
@@ -82,7 +92,13 @@
                             <tbody>
                                 {% for row in rows %}
                                     {% set account = row.account %}
-                                    <tr>
+                                    <tr data-sort-name="{{ account.name|lower }}"
+                                        data-sort-type="{{ account.type == "cash" ? "bar" : "bank" }}"
+                                        data-sort-iban="{{ account.iban|default("")|lower }}"
+                                        data-sort-opening_date="{{ account.opening_date|date("Y-m-d") }}"
+                                        data-sort-opening_balance="{{ account.opening_balance }}"
+                                        data-sort-balance="{{ row.balance }}"
+                                        data-sort-booking_count="{{ row.booking_count }}">
                                         <td data-label="Konto">
                                             <strong>{{ account.name }}</strong>
                                             {% if not account.is_active %}
@@ -109,7 +125,7 @@
                                         </td>
                                         <td data-label="Buchungen">{{ row.booking_count }}</td>
                                         {% if can_write_finances %}
-                                            <td class="text-end finance-actions-column">
+                                            <td data-label="Aktionen" class="text-end finance-actions-column">
                                                 <button type="button"
                                                         class="btn btn-sm btn-outline-secondary"
                                                         data-bs-toggle="modal"

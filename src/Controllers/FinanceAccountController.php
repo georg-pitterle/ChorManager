@@ -7,8 +7,10 @@ namespace App\Controllers;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Services\FinanceAccountService;
+use App\Services\FinanceJournalService;
 use App\Util\AmountNormalizer;
 use Carbon\Carbon;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -23,6 +25,7 @@ class FinanceAccountController
     public function __construct(
         private readonly Twig $view,
         private readonly FinanceAccountService $accountService,
+        private readonly FinanceJournalService $journal,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -82,7 +85,26 @@ class FinanceAccountController
         try {
             if ($id !== null) {
                 $account = FinanceAccount::findOrFail($id);
-                $account->update($payload);
+
+                $lockError = $this->openingLockError($account, $openingDate, $openingBalance);
+                if ($lockError !== null) {
+                    $_SESSION['error'] = $lockError;
+                    return $response->withHeader('Location', '/finances/accounts')->withStatus(302);
+                }
+
+                $before = [
+                    'type' => (string) $account->type,
+                    'opening_balance' => (string) $account->opening_balance,
+                    'opening_date' => FinanceAccountService::openingDate($account),
+                ];
+
+                // Kontoart und gespiegelte Zahlungsart dürfen nicht auseinanderlaufen,
+                // wenn das Nachziehen der Buchungen fehlschlägt.
+                Capsule::connection()->transaction(function () use ($account, $payload, $before): void {
+                    $account->update($payload);
+                    $this->syncPaymentMethod($account, $before['type']);
+                });
+                $this->recordAccountChange($account, $before);
             } else {
                 $account = FinanceAccount::create($payload);
             }
@@ -133,6 +155,93 @@ class FinanceAccountController
         }
 
         return $response->withHeader('Location', '/finances/accounts')->withStatus(302);
+    }
+
+    /**
+     * Anfangsbestand und Stichtag verschieben jeden Kontostand ab dem Stichtag und
+     * damit auch bereits geprüfte Zahlen. Liegt der bisherige oder der neue Stichtag
+     * in einem abgeschlossenen Zeitraum, ist die Änderung deshalb gesperrt.
+     */
+    private function openingLockError(
+        FinanceAccount $account,
+        string $openingDate,
+        string $openingBalance
+    ): ?string {
+        $currentDate = FinanceAccountService::openingDate($account);
+        $unchanged = $currentDate === $openingDate
+            && (float) $account->opening_balance === (float) $openingBalance;
+        if ($unchanged) {
+            return null;
+        }
+
+        if (!$this->journal->isLocked($currentDate) && !$this->journal->isLocked($openingDate)) {
+            return null;
+        }
+
+        return sprintf(
+            'Der Zeitraum bis %s ist abgeschlossen. Anfangsbestand und Stichtag dieses Kontos '
+                . 'lassen sich nicht mehr ändern.',
+            $this->journal->closedUntil()?->format('d.m.Y') ?? '-'
+        );
+    }
+
+    /**
+     * `payment_method` ist nur ein Spiegelfeld des Kontotyps. Nach einem Typwechsel
+     * muss es auf den bestehenden Buchungen mitziehen, sonst zeigen Kassabericht und
+     * Zahlungsarten-Auswertung widersprüchliche Werte.
+     */
+    private function syncPaymentMethod(FinanceAccount $account, string $previousType): void
+    {
+        if ($previousType === $account->type) {
+            return;
+        }
+
+        $updated = Finance::where('finance_account_id', $account->id)
+            ->update(['payment_method' => $account->paymentMethod()]);
+
+        if ($updated > 0) {
+            $this->logger->info('Finance account type changed, payment methods synced.', [
+                'event' => 'finance.account.payment_method_synced',
+                'account_id' => $account->id,
+                'payment_method' => $account->paymentMethod(),
+                'bookings' => $updated,
+            ]);
+        }
+    }
+
+    /**
+     * Kontostammdaten sind keine Buchungen und passen deshalb nicht in das
+     * Buchungsjournal (`finance_revisions` hängt an einer `finance_id`). Damit die
+     * bestandswirksamen Änderungen trotzdem nachvollziehbar bleiben, wandern sie mit
+     * Vorher-/Nachher-Wert ins strukturierte Log.
+     *
+     * @param array<string, string> $before
+     */
+    private function recordAccountChange(FinanceAccount $account, array $before): void
+    {
+        $after = [
+            'type' => (string) $account->type,
+            'opening_balance' => (string) $account->opening_balance,
+            'opening_date' => FinanceAccountService::openingDate($account),
+        ];
+
+        $changes = [];
+        foreach ($after as $field => $value) {
+            if ($before[$field] !== $value) {
+                $changes[$field] = ['from' => $before[$field], 'to' => $value];
+            }
+        }
+
+        if ($changes === []) {
+            return;
+        }
+
+        $this->logger->info('Finance account opening data changed.', [
+            'event' => 'finance.account.opening_changed',
+            'account_id' => $account->id,
+            'user_id' => is_numeric($_SESSION['user_id'] ?? null) ? (int) $_SESSION['user_id'] : null,
+            'changes' => $changes,
+        ]);
     }
 
     private function validate(

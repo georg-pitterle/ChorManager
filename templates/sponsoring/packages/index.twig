@@ -79,7 +79,7 @@
                                         <span class="badge bg-{{ pkg.color }} fs-6">{{ pkg.name }}</span>
                                     </td>
                                     <td data-label="Beschreibung" class="small text-muted">{{ pkg.description ?? '–' }}</td>
-                                    <td data-label="Mindestbetrag" class="text-nowrap">{{ pkg.min_amount|number_format(2, '.', ',') }} €</td>
+                                    <td data-label="Mindestbetrag" class="text-nowrap">{{ pkg.min_amount|number_format(2, ",", ".") }} €</td>
                                     <td data-label="Farbe">
                                         <span class="badge bg-{{ pkg.color }}">{{ pkg.color }}</span>
                                     </td>

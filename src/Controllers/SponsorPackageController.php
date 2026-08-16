@@ -11,6 +11,8 @@ use App\Models\SponsorPackage;
 
 class SponsorPackageController
 {
+    private const AMOUNT_ERROR = 'Ungültiger Mindestbetrag. Bitte eine Zahl ab 0 eingeben.';
+
     private Twig $view;
 
     public function __construct(Twig $view)
@@ -43,11 +45,19 @@ class SponsorPackageController
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
         }
 
+        // Das Feld ist optional; leer heißt "kein Mindestbetrag".
+        $minAmountInput = trim((string) ($data['min_amount'] ?? ''));
+        $minAmount = SponsorshipController::validateAmount($minAmountInput === '' ? '0' : $minAmountInput);
+        if ($minAmount === null) {
+            $_SESSION['error'] = self::AMOUNT_ERROR;
+            return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+        }
+
         try {
             SponsorPackage::create([
                 'name'        => $name,
                 'description' => trim($data['description'] ?? '') ?: null,
-                'min_amount'  => (float) str_replace(',', '.', $data['min_amount'] ?? '0'),
+                'min_amount'  => $minAmount,
                 'color'       => $data['color'] ?? 'info',
             ]);
             $_SESSION['success'] = 'Paket erfolgreich angelegt.';
@@ -69,12 +79,20 @@ class SponsorPackageController
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
         }
 
+        // Das Feld ist optional; leer heißt "kein Mindestbetrag".
+        $minAmountInput = trim((string) ($data['min_amount'] ?? ''));
+        $minAmount = SponsorshipController::validateAmount($minAmountInput === '' ? '0' : $minAmountInput);
+        if ($minAmount === null) {
+            $_SESSION['error'] = self::AMOUNT_ERROR;
+            return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+        }
+
         try {
             $package = SponsorPackage::findOrFail($id);
             $package->update([
                 'name'        => $name,
                 'description' => trim($data['description'] ?? '') ?: null,
-                'min_amount'  => (float) str_replace(',', '.', $data['min_amount'] ?? '0'),
+                'min_amount'  => $minAmount,
                 'color'       => $data['color'] ?? 'info',
             ]);
             $_SESSION['success'] = 'Paket erfolgreich aktualisiert.';

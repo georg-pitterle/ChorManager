@@ -145,6 +145,25 @@ final class FinanceAccountBalanceTest extends TestCase
         $this->assertSame(140.0, $second['accounts'][0]['closing']);
     }
 
+    public function testStatementIgnoresBookingsBeforeTheOpeningDate(): void
+    {
+        // Der Stichtag liegt mitten im Geschäftsjahr, davor stehen noch Altbuchungen.
+        $cash = $this->account('Barkassa', FinanceAccount::TYPE_CASH, '100.00', '2026-03-01');
+        $this->booking($cash, 7012, '2026-01-15', 'income', '500.00');
+        $this->booking($cash, 7013, '2026-04-01', 'income', '40.00');
+        $this->booking($cash, 7014, '2026-05-01', 'expense', '15.00');
+
+        $row = $this->service->statement(Carbon::parse('2026-01-01'), Carbon::parse('2026-12-31'))['accounts'][0];
+
+        $this->assertSame(40.0, $row['income']);
+        $this->assertSame(15.0, $row['expense']);
+        // Kassabericht muss aufgehen: Anfangsbestand + Einnahmen - Ausgaben = Endbestand.
+        $this->assertSame(
+            $row['closing'],
+            $row['opening'] + $row['income'] - $row['expense']
+        );
+    }
+
     public function testStatementTotalsAddUpAcrossAccounts(): void
     {
         $cash = $this->account('Barkassa', FinanceAccount::TYPE_CASH, '100.00', '2026-01-01');

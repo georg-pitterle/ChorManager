@@ -106,12 +106,19 @@ class BudgetService
      * and type within a fiscal year date range. Matching is by finance_group_id (FK) so
      * the link survives label changes. Wie im Kassabuch zählt der Tag der Zahlung;
      * offene Posten ohne Zahldatum sind noch kein Ist.
+     *
+     * Stornierte Buchungen und ihre Gegenbuchungen heben einander auf und bleiben
+     * deshalb außen vor - sonst zählt eine stornierte Ausgabe im Ist der Kategorie
+     * mit, die Gegenbuchung landet als "Einnahme" in einer anderen Kategorie und
+     * beide Ist-Werte sind falsch.
      */
     public function computeActual(int $financeGroupId, string $type, Carbon $from, Carbon $to): string
     {
         $sum = Finance::where('finance_group_id', $financeGroupId)
             ->where('type', $type)
             ->whereBetween('payment_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->whereNull('reversal_of_id')
+            ->whereDoesntHave('reversedBy')
             ->sum('amount');
 
         return number_format((float) $sum, 2, '.', '');

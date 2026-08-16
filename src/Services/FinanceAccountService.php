@@ -39,9 +39,7 @@ class FinanceAccountService
     public function balanceAt(FinanceAccount $account, Carbon $date): float
     {
         $opening = (float) $account->opening_balance;
-        $from = $account->opening_date instanceof Carbon
-            ? $account->opening_date->format('Y-m-d')
-            : (string) $account->opening_date;
+        $from = self::openingDate($account);
         $to = $date->format('Y-m-d');
 
         if ($to < $from) {
@@ -72,8 +70,8 @@ class FinanceAccountService
 
         foreach ($this->allAccounts() as $account) {
             $opening = $this->balanceBefore($account, $fiscalStart);
-            $income = $this->periodSum($account->id, 'income', $fiscalStart, $fiscalEnd);
-            $expense = $this->periodSum($account->id, 'expense', $fiscalStart, $fiscalEnd);
+            $income = $this->periodSum($account, 'income', $fiscalStart, $fiscalEnd);
+            $expense = $this->periodSum($account, 'expense', $fiscalStart, $fiscalEnd);
             $closing = $this->balanceAt($account, $fiscalEnd);
 
             $accounts[] = [
@@ -140,11 +138,33 @@ class FinanceAccountService
         return $income - $expense;
     }
 
-    private function periodSum(int $accountId, string $type, Carbon $from, Carbon $to): float
+    /**
+     * Bewegungssumme eines Kontos in der Periode. Der Anfangsbestand deckt bereits
+     * alles vor dem Stichtag ab, deshalb zählt frühestens der Stichtag selbst -
+     * sonst ginge Anfangsbestand + Einnahmen - Ausgaben nicht auf den Endbestand auf.
+     */
+    private function periodSum(FinanceAccount $account, string $type, Carbon $from, Carbon $to): float
     {
-        return (float) Finance::where('finance_account_id', $accountId)
+        $effectiveFrom = max($from->format('Y-m-d'), self::openingDate($account));
+        $until = $to->format('Y-m-d');
+
+        if ($until < $effectiveFrom) {
+            return 0.0;
+        }
+
+        return (float) Finance::where('finance_account_id', $account->id)
             ->where('type', $type)
-            ->whereBetween('payment_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->whereBetween('payment_date', [$effectiveFrom, $until])
             ->sum('amount');
+    }
+
+    /**
+     * Stichtag des Anfangsbestands als Y-m-d-String.
+     */
+    public static function openingDate(FinanceAccount $account): string
+    {
+        return $account->opening_date instanceof Carbon
+            ? $account->opening_date->format('Y-m-d')
+            : (string) $account->opening_date;
     }
 }

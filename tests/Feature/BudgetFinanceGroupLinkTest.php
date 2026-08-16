@@ -95,6 +95,21 @@ final class BudgetFinanceGroupLinkTest extends TestCase
         $this->assertSame('750.00', $actual);
     }
 
+    public function testComputeActualIgnoresReversedBookingsAndTheirReversal(): void
+    {
+        $service = new BudgetService();
+        $group = FinanceGroup::create(['name' => 'TEST_Storno_' . uniqid()]);
+        [$from, $to] = $service->datesForYear(2025, 1, 9);
+
+        $this->makeFinance($group->id, 'expense', '2025-10-01', 300.00);
+        $reversed = $this->makeFinance($group->id, 'expense', '2025-10-05', 120.00);
+        // Gegenbuchung: hebt das Original auf, beide dürfen im Ist nicht auftauchen.
+        $this->makeFinance($group->id, 'income', '2025-10-05', 120.00, $reversed->id);
+
+        $this->assertSame('300.00', $service->computeActual($group->id, 'expense', $from, $to));
+        $this->assertSame('0.00', $service->computeActual($group->id, 'income', $from, $to));
+    }
+
     public function testActualSurvivesGroupRename(): void
     {
         $service = new BudgetService();
@@ -122,10 +137,16 @@ final class BudgetFinanceGroupLinkTest extends TestCase
         $this->assertContains($default + 1, $years, 'Next fiscal year must be selectable for planning.');
     }
 
-    private function makeFinance(int $groupId, string $type, string $invoiceDate, float $amount): void
-    {
+    private function makeFinance(
+        int $groupId,
+        string $type,
+        string $invoiceDate,
+        float $amount,
+        ?int $reversalOfId = null
+    ): Finance {
         $runningNumber = ((int) Finance::max('running_number')) + 1;
-        Finance::create([
+
+        return Finance::create([
             'running_number' => $runningNumber,
             'invoice_date' => $invoiceDate,
             // Ist-Werte zaehlen nach Zahldatum, daher hier gleich mitgesetzt.
@@ -136,6 +157,7 @@ final class BudgetFinanceGroupLinkTest extends TestCase
             'type' => $type,
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
+            'reversal_of_id' => $reversalOfId,
         ]);
     }
 }

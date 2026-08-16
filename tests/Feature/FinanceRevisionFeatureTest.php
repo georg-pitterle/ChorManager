@@ -221,6 +221,24 @@ final class FinanceRevisionFeatureTest extends TestCase
         $this->assertStringContainsString('storniert', (string) $_SESSION['error']);
     }
 
+    public function testAnInvalidBookingTypeIsRejected(): void
+    {
+        $this->save(['type' => 'geschenk']);
+
+        $this->assertSame(0, Finance::count());
+        $this->assertStringContainsString('Buchungsart', (string) $_SESSION['error']);
+    }
+
+    public function testAPaymentBeforeTheAccountOpeningDateIsRejected(): void
+    {
+        // Konto-Stichtag ist der 01.01.2025; frühere Zahlungen stecken schon im
+        // Anfangsbestand und würden den Kassabericht doppelt belasten.
+        $this->save(['invoice_date' => '2024-06-01', 'payment_date' => '2024-06-01']);
+
+        $this->assertSame(0, Finance::count());
+        $this->assertStringContainsString('Stichtag', (string) $_SESSION['error']);
+    }
+
     public function testLockedPeriodsRejectChanges(): void
     {
         $this->save();
@@ -297,6 +315,48 @@ final class FinanceRevisionFeatureTest extends TestCase
 
         $reversal = Finance::where('reversal_of_id', $original->id)->firstOrFail();
         $this->assertSame('2026-07-01', $reversal->payment_date->format('Y-m-d'));
+    }
+
+    public function testJournalTranslatesFieldNamesAndValuesIntoPlainGerman(): void
+    {
+        $described = $this->journal->describeChanges([
+            'amount' => ['from' => '120', 'to' => '150.5'],
+            'type' => ['from' => 'expense', 'to' => 'income'],
+            'payment_method' => ['from' => 'bank_transfer', 'to' => 'cash'],
+            'payment_date' => ['from' => null, 'to' => '2026-03-05'],
+            'finance_account_id' => ['from' => null, 'to' => (string) $this->account->id],
+        ]);
+
+        $byLabel = [];
+        foreach ($described as $change) {
+            $byLabel[$change['label']] = $change;
+        }
+
+        $this->assertSame(
+            ['Betrag', 'Art', 'Zahlungsart', 'Zahldatum', 'Konto'],
+            array_keys($byLabel),
+            'Die Datenbankspalten dürfen nicht mehr durchschlagen.'
+        );
+        $this->assertSame('120,00 €', $byLabel['Betrag']['from']);
+        $this->assertSame('150,50 €', $byLabel['Betrag']['to']);
+        $this->assertSame('Ausgang', $byLabel['Art']['from']);
+        $this->assertSame('Eingang', $byLabel['Art']['to']);
+        $this->assertSame('Überweisung', $byLabel['Zahlungsart']['from']);
+        $this->assertSame('Bar', $byLabel['Zahlungsart']['to']);
+        $this->assertSame('05.03.2026', $byLabel['Zahldatum']['to']);
+        // Fremdschlüssel werden zum Kontonamen aufgelöst, nicht als ID gezeigt.
+        $this->assertSame('Bankkonto', $byLabel['Konto']['to']);
+        // Ein fehlender Vorher-Wert bleibt null; das Template zeigt dafür "leer".
+        $this->assertNull($byLabel['Konto']['from']);
+    }
+
+    public function testJournalKeepsTheIdOfADeletedAccountReadable(): void
+    {
+        $described = $this->journal->describeChanges([
+            'finance_account_id' => ['from' => '999999', 'to' => (string) $this->account->id],
+        ]);
+
+        $this->assertSame('Konto #999999', $described[0]['from']);
     }
 
     public function testJournalPageListsRevisionsNewestFirst(): void

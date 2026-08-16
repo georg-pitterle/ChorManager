@@ -176,6 +176,12 @@ class FinanceController
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
+        $type = (string) ($data['type'] ?? '');
+        if (!in_array($type, ['income', 'expense'], true)) {
+            $_SESSION['error'] = 'Ungültige Buchungsart. Bitte "Einnahme" oder "Ausgabe" wählen.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
         $invoiceDate = (string) ($data['invoice_date'] ?? '');
         $paymentDate = !empty($data['payment_date']) ? (string) $data['payment_date'] : null;
         if ($paymentDate !== null && $invoiceDate !== '' && $paymentDate < $invoiceDate) {
@@ -186,6 +192,19 @@ class FinanceController
         $account = $this->resolveAccount($data);
         if ($account === null) {
             $_SESSION['error'] = 'Bitte ein Konto auswählen. Konten werden unter "Konten" verwaltet.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        // Eine Zahlung vor dem Stichtag des Kontos wäre bereits im Anfangsbestand
+        // enthalten und würde den Kassabericht doppelt belasten.
+        $openingDate = FinanceAccountService::openingDate($account);
+        if ($paymentDate !== null && $openingDate !== '' && $paymentDate < $openingDate) {
+            $_SESSION['error'] = sprintf(
+                'Das Zahlungsdatum liegt vor dem Stichtag des Kontos "%s" (%s). '
+                    . 'Solche Zahlungen stecken bereits im Anfangsbestand.',
+                $account->name,
+                Carbon::parse($openingDate)->format('d.m.Y')
+            );
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
@@ -202,7 +221,7 @@ class FinanceController
                 'finance_group_id' => $groupName !== null
                     ? FinanceGroup::firstOrCreate(['name' => $groupName])->id
                     : null,
-                'type' => $data['type'],
+                'type' => $type,
                 'amount' => $amount,
                 'finance_account_id' => $account->id,
                 // Zahlungsart als Spiegelfeld des Kontotyps, damit Auswertung, PDF
@@ -423,6 +442,10 @@ class FinanceController
             'importable_count' => count(array_filter($rows, static fn(array $r): bool => $r['importable'])),
             'duplicate_count' => count(array_filter($rows, static fn(array $r): bool => $r['duplicate'])),
             'error_count' => count(array_filter($rows, static fn(array $r): bool => $r['error'] !== null)),
+            'estimated_payment_date_count' => count(array_filter(
+                $rows,
+                static fn(array $r): bool => $r['importable'] && ($r['payment_date_estimated'] ?? false)
+            )),
         ]);
     }
 
@@ -575,13 +598,17 @@ class FinanceController
                 return $response->withHeader('Location', '/finances')->withStatus(302);
             }
 
-            if (Finance::where('reversal_of_id', $original->id)->exists()) {
-                $_SESSION['error'] = 'Diese Buchung wurde bereits storniert.';
-                return $response->withHeader('Location', '/finances')->withStatus(302);
-            }
-
             $reversal = null;
-            Capsule::connection()->transaction(function () use ($original, &$reversal): void {
+            $alreadyReversed = false;
+            Capsule::connection()->transaction(function () use ($original, &$reversal, &$alreadyReversed): void {
+                // Die Prüfung gehört in die Transaktion: zwei gleichzeitige Storno-
+                // Requests würden sonst beide durchkommen. Der UNIQUE-Index auf
+                // reversal_of_id sichert den Rest ab.
+                if (Finance::where('reversal_of_id', $original->id)->lockForUpdate()->exists()) {
+                    $alreadyReversed = true;
+                    return;
+                }
+
                 $originalPaymentDate = $original->payment_date?->format('Y-m-d');
 
                 // Ein abgeschlossener Zeitraum darf sich nicht mehr verändern; das
@@ -612,6 +639,11 @@ class FinanceController
 
                 $this->journal->recordReverse($reversal, $original, $this->currentUserId());
             });
+
+            if ($alreadyReversed) {
+                $_SESSION['error'] = 'Diese Buchung wurde bereits storniert.';
+                return $response->withHeader('Location', '/finances')->withStatus(302);
+            }
 
             $this->logger->info('Finance booking reversed.', [
                 'event' => 'finance.reverse.completed',
@@ -647,12 +679,20 @@ class FinanceController
             ->limit(500)
             ->get();
 
+        // Änderungen schon hier in Klartext übersetzen: das Template hat keinen
+        // Zugriff auf die Konto- und Gruppennamen hinter den Fremdschlüsseln.
+        $changesByRevision = [];
+        foreach ($revisions as $revision) {
+            $changesByRevision[$revision->id] = $this->journal->describeChanges($revision->changeSet());
+        }
+
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'finances/journal.twig', [
             'revisions' => $revisions,
+            'changes_by_revision' => $changesByRevision,
             'closed_until' => $this->journal->closedUntil()?->format('d.m.Y'),
             'success' => $success,
             'error' => $error,

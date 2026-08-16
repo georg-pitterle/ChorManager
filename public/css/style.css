@@ -69,6 +69,23 @@ body.app-shell {
     max-width: 100%;
 }
 
+/* Aktionsleisten mit vielen Einträgen dürfen auf schmalen Viewports umbrechen.
+   Bootstrap setzt die Radien der inneren Buttons einer .btn-group zurück, damit
+   sie zusammengewachsen aussehen - beim Umbruch wirken die Zeilen dadurch wie
+   abgeschnittene Fragmente. Deshalb hier Radien und Abstände zurückholen. */
+@media (max-width: 575.98px) {
+    .btn-group-wrap {
+        flex-wrap: wrap;
+        gap: 0.375rem;
+    }
+
+    .btn-group-wrap>.btn {
+        flex: 1 1 auto;
+        margin-left: 0;
+        border-radius: var(--bs-border-radius-sm, 0.25rem) !important;
+    }
+}
+
 .surface-card {
     background: var(--theme-surface);
     border: 1px solid var(--theme-border);
@@ -779,6 +796,41 @@ thead th {
 .finances-table .finance-actions-column,
 .finances-table .finance-actions-cell {
     width: 1%;
+}
+
+/* Spalten, die in der Tabellenansicht nur ein Icon zeigen: so schmal wie der
+   Inhalt. In der Kartenansicht setzt die Table-Engine display/width neu, dort
+   greift die Breitenbegrenzung nicht mehr. */
+.finances-table .finance-icon-column {
+    width: 1%;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Die Beschreibung ist die elastische Spalte: sie nimmt den Rest der Breite auf
+   und gibt ihn wieder her, wenn eine der übrigen Spalten mehr braucht. Ohne das
+   verteilt das Tabellenlayout den Platz gleichmäßig und die kurzen Spalten
+   brechen um, statt dass der Fließtext schrumpft. */
+.finances-table .finance-description-column {
+    width: 100%;
+}
+
+.finances-table .finance-account-name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+}
+
+/* Buchungsart: in der Tabellenansicht nur das Icon, damit die Spalte schmal
+   bleibt. Der Klartext bleibt im DOM (Tabellensuche, Screenreader) und wird in
+   der Kartenansicht wieder eingeblendet, wo die Breite keine Rolle spielt. */
+.finances-table .finance-type-label {
+    display: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table .finance-type-label {
+    display: inline;
+    margin-left: 0.25rem;
 }
 
 .finance-import-table .finance-amount-column,

@@ -64,6 +64,40 @@ final class BankStatementImportServiceTest extends TestCase
         $this->assertSame('2026-08-04', $rows[3]['payment_date']);
     }
 
+    public function testFallsBackToTheBookingDateWhenTheValueDateIsMissing(): void
+    {
+        $result = $this->service->parse($this->csv(
+            '08.02.2026;;-12,00;EUR;Chorkuma;AT91;BTV;Kiosk;AT42;HYP;Text;Ohne Valutadatum'
+        ));
+
+        $row = $result['rows'][0];
+        // Ohne Fallback bliebe payment_date leer und die Buchung würde still zum
+        // offenen Posten, der in keinem Kontostand auftaucht.
+        $this->assertSame('2026-02-08', $row['payment_date']);
+        $this->assertTrue($row['payment_date_estimated']);
+        $this->assertNull($row['error']);
+    }
+
+    public function testKeepsTheValueDateWhenItIsPresent(): void
+    {
+        $result = $this->service->parse($this->csv(
+            '08.02.2026;10.02.2026;-12,00;EUR;Chorkuma;AT91;BTV;Kiosk;AT42;HYP;Text;Mit Valutadatum'
+        ));
+
+        $this->assertSame('2026-02-10', $result['rows'][0]['payment_date']);
+        $this->assertFalse($result['rows'][0]['payment_date_estimated']);
+    }
+
+    public function testImportHashStaysStableWhenTheValueDateIsMissing(): void
+    {
+        $line = '09.02.2026;;-7,00;EUR;Chorkuma;AT91;BTV;Kiosk;AT42;HYP;Text;Stabil';
+
+        $first = $this->service->parse($this->csv($line))['rows'][0]['import_hash'];
+        $second = $this->service->parse($this->csv($line))['rows'][0]['import_hash'];
+
+        $this->assertSame($first, $second);
+    }
+
     public function testDerivesTypeFromSignAndStoresAmountWithoutSign(): void
     {
         $rows = $this->service->parse($this->fixture())['rows'];

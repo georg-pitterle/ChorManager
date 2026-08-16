@@ -187,6 +187,7 @@ class BankStatementImportService
             'index' => 0,
             'invoice_date' => null,
             'payment_date' => null,
+            'payment_date_estimated' => false,
             'amount' => null,
             'type' => null,
             'description' => '',
@@ -206,10 +207,17 @@ class BankStatementImportService
         }
         $valueDate = $this->parseDate($this->field($header, $record, self::COLUMN_VALUE_DATE));
 
+        // Ohne Valutadatum bliebe payment_date leer, die Buchung würde still zum
+        // offenen Posten und tauchte in keinem Kontostand auf. Deshalb greift das
+        // Buchungsdatum als Zahldatum - in der Vorschau gekennzeichnet, damit der
+        // Kassier es prüfen kann.
+        $paymentDate = $valueDate ?? $bookingDate;
+        $row['payment_date_estimated'] = $valueDate === null;
+
         $rawAmount = AmountNormalizer::normalize($this->field($header, $record, self::COLUMN_AMOUNT));
         if (!is_numeric($rawAmount) || abs((float) $rawAmount) < 0.005) {
             $row['invoice_date'] = $bookingDate;
-            $row['payment_date'] = $valueDate;
+            $row['payment_date'] = $paymentDate;
             $row['error'] = 'Ungültiger Betrag.';
             $row['description'] = $this->buildDescription($senderName, $purpose);
             return $row;
@@ -235,7 +243,7 @@ class BankStatementImportService
         }
 
         $row['invoice_date'] = $bookingDate;
-        $row['payment_date'] = $valueDate;
+        $row['payment_date'] = $paymentDate;
         $row['amount'] = number_format(abs($signedAmount), 2, '.', '');
         $row['type'] = $type;
         $row['counterparty'] = $counterparty;
@@ -247,6 +255,8 @@ class BankStatementImportService
             return $row;
         }
 
+        // Bewusst das rohe Valutadatum statt des Fallbacks: sonst änderten sich die
+        // Hashes bereits importierter Zeilen und die Dublettenprüfung griffe nicht mehr.
         $row['hash_base'] = implode('|', [
             $bookingDate,
             $valueDate ?? '',

@@ -96,7 +96,7 @@ class SponsoringDashboardController
             $statusLabel = '-';
         } else {
             $packageName = $sponsorship->package ? (string) $sponsorship->package->name : 'Ohne Paket';
-            $amountDisplay = number_format($amount, 2, '.', ',') . ' EUR';
+            $amountDisplay = number_format($amount, 2, ',', '.') . ' EUR';
             $status = (string) $sponsorship->status;
             $statusLabel = $statusLabels[$status] ?? 'Sonstiges';
         }

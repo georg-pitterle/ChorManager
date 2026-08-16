@@ -232,7 +232,7 @@
                     {% endfor %}
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="text-muted">Aktive Vereinbarungen: <strong>{{ active_total|number_format(2, '.', ',') }} €</strong></span>
+                        <span class="text-muted">Aktive Vereinbarungen: <strong>{{ active_total|number_format(2, ",", ".") }} €</strong></span>
                         <button class="btn btn-primary btn-sm"
                                 data-bs-toggle="modal"
                                 data-bs-target="#newSponsorshipModal">
@@ -268,7 +268,7 @@
                                             <td>
                                                 <span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span>
                                             </td>
-                                            <td class="text-nowrap">{{ sp.amount|number_format(2, '.', ',') }} €</td>
+                                            <td class="text-nowrap">{{ sp.amount|number_format(2, ",", ".") }} €</td>
                                             <td>{{ sp.project ? sp.project.name : '–' }}</td>
                                             <td>{{ sp.assignedUser ? sp.assignedUser|person_name : "–" }}</td>
                                             <td class="text-nowrap small">
@@ -363,7 +363,7 @@
                                                 <select name="package_id" class="form-select">
                                                     <option value="">– Kein Paket –</option>
                                                     {% for pkg in packages %}
-                                                        <option value="{{ pkg.id }}">{{ pkg.name }} (ab {{ pkg.min_amount|number_format(2, '.', ',') }} €)</option>
+                                                        <option value="{{ pkg.id }}">{{ pkg.name }} (ab {{ pkg.min_amount|number_format(2, ",", ".") }} €)</option>
                                                     {% endfor %}
                                                 </select>
                                             </div>
@@ -686,7 +686,7 @@
                                                                         {{ contact.sponsorship_id == sp.id ? 'selected' : '' }}>
                                                                     #{{ sp.id }}
                                                                     {% if sp.package %}– {{ sp.package.name }}{% endif %}
-                                                                    ({{ sp.amount|number_format(2, '.', ',') }} €)
+                                                                    ({{ sp.amount|number_format(2, ",", ".") }} €)
                                                                 </option>
                                                             {% endfor %}
                                                         </select>
@@ -771,7 +771,7 @@
                                                         <option value="{{ sp.id }}">
                                                             #{{ sp.id }}
                                                             {% if sp.package %}– {{ sp.package.name }}{% endif %}
-                                                            ({{ sp.amount|number_format(2, '.', ',') }} €)
+                                                            ({{ sp.amount|number_format(2, ",", ".") }} €)
                                                         </option>
                                                     {% endfor %}
                                                 </select>

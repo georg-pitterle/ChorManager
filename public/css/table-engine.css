@@ -62,11 +62,22 @@
     display: none;
 }
 
+/* Auch das table-Element selbst aus dem Tabellenlayout nehmen. Bleibt es
+   `display: table`, bestimmt die Shrink-to-fit-Breite der Zellen die Breite der
+   Karten - das sprengt auf schmalen Viewports den rechten Rand. */
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
+
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tbody,
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tr,
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td {
     display: block;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tr {
@@ -79,32 +90,39 @@
     box-sizing: border-box;
 }
 
+/* Label und Wert sind Flex-Geschwister statt Prozent-Padding plus absolut
+   positioniertem ::before. Prozent-Padding wird gegen den Containing Block
+   aufgelöst und blähte die Zelle beim Shrink-to-fit auf; als Flex-Item darf das
+   Label stattdessen umbrechen und schrumpfen. */
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td {
     text-align: right;
     border: none;
     border-bottom: 1px solid var(--theme-border);
-    position: relative;
-    padding: 0.75rem 0.5rem 0.75rem 45%;
+    padding: 0.65rem 0.5rem;
     min-height: 48px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.25rem;
+    gap: 0.25rem 0.75rem;
+    overflow-wrap: anywhere;
 }
 
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td::before {
     content: attr(data-label);
-    position: absolute;
-    left: 0.5rem;
-    top: 0.875rem;
+    flex: 1 1 7rem;
+    min-width: 0;
+    margin-right: auto;
     font-weight: 600;
     color: var(--theme-text-muted);
     text-align: left;
-    white-space: nowrap;
-    max-width: calc(45% - 1rem);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+}
+
+/* Zellen ohne data-label (z. B. reine Aktionsspalten) sollen keine leere
+   Label-Spalte reservieren. */
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td:not([data-label])::before {
+    content: none;
 }
 
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards td:last-child {

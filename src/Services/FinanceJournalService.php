@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Finance;
+use App\Models\FinanceAccount;
+use App\Models\FinanceGroup;
 use App\Models\FinanceRevision;
 use App\Models\Setting;
 use Carbon\Carbon;
@@ -33,6 +35,29 @@ class FinanceJournalService
         'payment_method',
         'finance_account_id',
     ];
+
+    /**
+     * Anzeigenamen der protokollierten Felder. Im Journal steht sonst der reine
+     * Spaltenname der Datenbank, und der ist für den Kassier nicht lesbar.
+     */
+    public const FIELD_LABELS = [
+        'invoice_date' => 'Rechnungsdatum',
+        'payment_date' => 'Zahldatum',
+        'description' => 'Beschreibung',
+        'group_name' => 'Gruppe',
+        'finance_group_id' => 'Gruppenzuordnung',
+        'type' => 'Art',
+        'amount' => 'Betrag',
+        'payment_method' => 'Zahlungsart',
+        'finance_account_id' => 'Konto',
+        'reversal_of' => 'Storno zu',
+    ];
+
+    /** @var array<int, string>|null */
+    private ?array $accountNames = null;
+
+    /** @var array<int, string>|null */
+    private ?array $groupNames = null;
 
     /**
      * Letzter abgeschlossener Tag, oder null wenn nichts gesperrt ist.
@@ -115,6 +140,81 @@ class FinanceJournalService
         $this->write($reversal->id, $userId, FinanceRevision::ACTION_REVERSE, [
             'reversal_of' => ['from' => null, 'to' => $original->running_number],
         ]);
+    }
+
+    /**
+     * Bereitet einen Änderungssatz für die Anzeige auf: deutsche Feldnamen und
+     * lesbare Werte statt Spaltennamen, Fremdschlüsseln und Enum-Codes.
+     *
+     * @param array<string, array{from: mixed, to: mixed}> $changes
+     * @return list<array{label: string, from: string|null, to: string|null}>
+     */
+    public function describeChanges(array $changes): array
+    {
+        $described = [];
+        foreach ($changes as $field => $change) {
+            $described[] = [
+                'label' => self::FIELD_LABELS[$field] ?? $field,
+                'from' => $this->formatValue($field, $change['from'] ?? null),
+                'to' => $this->formatValue($field, $change['to'] ?? null),
+            ];
+        }
+
+        return $described;
+    }
+
+    /**
+     * Null steht für "kein Wert" und wird in der Anzeige zu "leer".
+     */
+    private function formatValue(string $field, mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $value = (string) $value;
+
+        return match ($field) {
+            'type' => $value === 'income' ? 'Eingang' : 'Ausgang',
+            'payment_method' => $value === 'cash' ? 'Bar' : 'Überweisung',
+            'finance_account_id' => $this->accountName((int) $value),
+            'finance_group_id' => $this->groupName((int) $value),
+            'invoice_date', 'payment_date' => $this->formatDate($value),
+            'amount' => number_format((float) $value, 2, ',', '.') . ' €',
+            'reversal_of' => 'Nr. ' . $value,
+            default => $value,
+        };
+    }
+
+    private function formatDate(string $value): string
+    {
+        try {
+            return Carbon::parse($value)->format('d.m.Y');
+        } catch (\Exception) {
+            return $value;
+        }
+    }
+
+    /**
+     * Gelöschte Konten und Gruppen bleiben im Journal referenziert; dann bleibt
+     * nur die ID, damit der Eintrag nicht stillschweigend leer wird.
+     */
+    private function accountName(int $id): string
+    {
+        $this->accountNames ??= FinanceAccount::pluck('name', 'id')
+            ->map(static fn($name): string => (string) $name)
+            ->all();
+
+        return $this->accountNames[$id] ?? ('Konto #' . $id);
+    }
+
+    private function groupName(int $id): string
+    {
+        $this->groupNames ??= FinanceGroup::pluck('name', 'id')
+            ->map(static fn($name): string => (string) $name)
+            ->all();
+
+        return $this->groupNames[$id] ?? ('Gruppe #' . $id);
     }
 
     /**

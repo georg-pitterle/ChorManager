@@ -83,16 +83,20 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Änderung">
-                                            {% set changes = revision.changeSet() %}
+                                            {% set changes = changes_by_revision[revision.id]|default([]) %}
                                             {% if changes is empty %}
                                                 <span class="text-muted">-</span>
                                             {% else %}
                                                 <ul class="list-unstyled mb-0 small">
-                                                    {% for field, change in changes %}
+                                                    {% for change in changes %}
                                                         <li>
-                                                            <span class="text-muted">{{ field }}:</span>
-                                                            <s>{{ change.from|default("leer") }}</s>
-                                                            <i class="bi bi-arrow-right"></i>
+                                                            <span class="text-muted">{{ change.label }}:</span>
+                                                            {# Ohne Vorher-Wert gibt es nichts durchzustreichen -
+                                                               etwa beim Storno, das nie einen hatte. #}
+                                                            {% if change.from is not null %}
+                                                                <s>{{ change.from }}</s>
+                                                                <i class="bi bi-arrow-right"></i>
+                                                            {% endif %}
                                                             <strong>{{ change.to|default("leer") }}</strong>
                                                         </li>
                                                     {% endfor %}

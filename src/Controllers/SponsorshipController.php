@@ -9,11 +9,14 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Sponsorship;
 use App\Models\Attachment;
+use App\Util\AmountNormalizer;
 use App\Util\UploadValidator;
 use Psr\Log\LoggerInterface;
 
 class SponsorshipController
 {
+    public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
+
     private Twig $view;
     private LoggerInterface $logger;
 
@@ -82,13 +85,19 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
+        $normalizedAmount = self::validateAmount($amount);
+        if ($normalizedAmount === null) {
+            $_SESSION['error'] = self::AMOUNT_ERROR;
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
         try {
             $sponsorship = Sponsorship::create([
                 'sponsor_id'       => $sponsorId,
                 'project_id'       => !empty($data['project_id']) ? (int) $data['project_id'] : null,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
-                'amount'           => (float) str_replace(',', '.', $amount),
+                'amount'           => $normalizedAmount,
                 'status'           => $data['status'] ?? 'prospect',
                 'start_date'       => !empty($data['start_date']) ? $data['start_date'] : null,
                 'end_date'         => !empty($data['end_date']) ? $data['end_date'] : null,
@@ -120,11 +129,17 @@ class SponsorshipController
                 return $response->withStatus(403);
             }
 
+            $normalizedAmount = self::validateAmount(trim((string) ($data['amount'] ?? '')));
+            if ($normalizedAmount === null) {
+                $_SESSION['error'] = self::AMOUNT_ERROR;
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
             $sponsorship->update([
                 'project_id'       => !empty($data['project_id']) ? (int) $data['project_id'] : null,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
-                'amount'           => (float) str_replace(',', '.', $data['amount'] ?? '0'),
+                'amount'           => $normalizedAmount,
                 'status'           => $data['status'] ?? $sponsorship->status,
                 'start_date'       => !empty($data['start_date']) ? $data['start_date'] : null,
                 'end_date'         => !empty($data['end_date']) ? $data['end_date'] : null,
@@ -219,6 +234,21 @@ class SponsorshipController
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+    }
+
+    /**
+     * Wie im Finanzmodul: erst das Eingabeformat normalisieren ("1.500,00" =>
+     * "1500.00"), dann prüfen. Ohne die Prüfung wird "abc" still zu 0,00 und ein
+     * negativer Betrag kommentarlos gespeichert.
+     */
+    public static function validateAmount(string $amount): ?string
+    {
+        $normalized = AmountNormalizer::normalize($amount);
+        if (!is_numeric($normalized) || (float) $normalized < 0) {
+            return null;
+        }
+
+        return $normalized;
     }
 
     private static function normalizeFileName(string $name): string

@@ -8,6 +8,7 @@ use App\Controllers\FinanceAccountController;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Services\FinanceAccountService;
+use App\Services\FinanceJournalService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -44,7 +45,12 @@ final class FinanceAccountControllerTest extends TestCase
             }
         );
 
-        $this->controller = new FinanceAccountController($twig, new FinanceAccountService(), new NullLogger());
+        $this->controller = new FinanceAccountController(
+            $twig,
+            new FinanceAccountService(),
+            new FinanceJournalService(),
+            new NullLogger()
+        );
         $_SESSION = [];
     }
 
@@ -138,6 +144,61 @@ final class FinanceAccountControllerTest extends TestCase
         $account->refresh();
         $this->assertSame('Sparbuch alt', $account->name);
         $this->assertFalse($account->is_active);
+    }
+
+    public function testRefusesToChangeOpeningDataOfAClosedPeriod(): void
+    {
+        $this->post();
+        $account = FinanceAccount::where('name', 'Sparbuch')->firstOrFail();
+        (new FinanceJournalService())->setClosedUntil('2026-06-30');
+        $_SESSION = [];
+
+        $this->post(['id' => (string) $account->id, 'opening_balance' => '9.999,00']);
+
+        $account->refresh();
+        $this->assertSame('1250.50', (string) $account->opening_balance);
+        $this->assertStringContainsString('abgeschlossen', (string) $_SESSION['error']);
+    }
+
+    public function testAllowsOtherAccountChangesWhileThePeriodIsClosed(): void
+    {
+        $this->post();
+        $account = FinanceAccount::where('name', 'Sparbuch')->firstOrFail();
+        (new FinanceJournalService())->setClosedUntil('2026-06-30');
+        $_SESSION = [];
+
+        $this->post(['id' => (string) $account->id, 'name' => 'Sparbuch neu']);
+
+        $account->refresh();
+        $this->assertSame('Sparbuch neu', $account->name);
+        $this->assertSame('Konto aktualisiert.', $_SESSION['success']);
+    }
+
+    public function testTypeChangeSyncsThePaymentMethodOfExistingBookings(): void
+    {
+        $this->post();
+        $account = FinanceAccount::where('name', 'Sparbuch')->firstOrFail();
+        Finance::create([
+            'running_number' => 8103,
+            'invoice_date' => '2026-02-01',
+            'payment_date' => '2026-02-01',
+            'description' => 'Zufluss',
+            'group_name' => null,
+            'finance_group_id' => null,
+            'type' => 'income',
+            'amount' => '25.00',
+            'payment_method' => 'bank_transfer',
+            'finance_account_id' => $account->id,
+        ]);
+
+        $this->post(['id' => (string) $account->id, 'type' => 'cash', 'iban' => '']);
+
+        $account->refresh();
+        $this->assertSame('cash', $account->type);
+        $this->assertSame(
+            'cash',
+            (string) Finance::where('finance_account_id', $account->id)->value('payment_method')
+        );
     }
 
     public function testDeletesAnEmptyAccount(): void
