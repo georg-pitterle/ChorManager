@@ -1,73 +1,42 @@
-<!DOCTYPE html>
-<html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description"
-              content="Einladung zur Kontoaktivierung in {{ app_name|default('Chor-Manager') }}.">
-        <meta name="keywords"
-              content="Einladung, Kontoaktivierung, {{ app_name|default('Chor-Manager') }}">
-        <title>Einladung zu {{ app_name|default('Chor-Manager') }}</title>
-        <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-        .email-container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .email-header { background-color: {{ primary_color|default('#E8A817') }}; color: #ffffff; padding: 30px; text-align: center; }
-        .email-header img { display: block; margin: 0 auto 16px auto; max-width: 72px; height: auto; }
-        .email-header h1 { margin: 0; font-size: 22px; }
-        .email-body { padding: 30px 40px; color: #333333; line-height: 1.6; }
-        .email-body p { margin: 0 0 16px 0; }
-        .email-actions { text-align: center; }
-        .btn-invite { display: inline-block; margin: 20px 0; padding: 14px 28px; background-color: {{ primary_color|default('#E8A817') }}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
-        .email-footer { padding: 20px 40px; background-color: #f9f9f9; border-top: 1px solid #eeeeee; font-size: 12px; color: #999999; text-align: center; }
-        .url-fallback { word-break: break-all; color: #666666; font-size: 13px; }
-        </style>
-    </head>
-    <body>
-        <div class="email-container">
-            <div class="email-header">
-                {% if logo_src is defined and logo_src is not empty %}
-                    <img src="{{ logo_src }}"
-                         alt="{{ app_name|default('Chor-Manager') }} Logo"
-                         width="72"
-                         height="72">
-                {% endif %}
-                <h1>🎵 Einladung zu {{ app_name|default('Chor-Manager') }}</h1>
-            </div>
-            <div class="email-body">
-                <p>Hallo {{ user.first_name }},</p>
+{% extends "emails/_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
 
-                <p>
-                    du wurdest eingeladen, <strong>{{ app_name|default('Chor-Manager') }}</strong> beizutreten.
-                    Klicke auf den folgenden Button, um dein Passwort festzulegen und dein Konto zu aktivieren:
-                </p>
+{% block mail_title %}Einladung zu {{ app_name|default("Chor-Manager") }}{% endblock %}
 
-                <p class="email-actions">
-                    <a href="{{ invite_link }}"
-                       class="btn-invite"
-                       style="display:inline-block;
-                              padding:14px 28px;
-                              background-color:{{ primary_color|default('#E8A817') }};
-                              color:#ffffff !important;
-                              text-decoration:none;
-                              border-radius:6px;
-                              font-size:16px;
-                              font-weight:bold">Jetzt Konto aktivieren</a>
-                </p>
+{% block preheader %}Dein Zugang wartet — Passwort festlegen und loslegen.{% endblock %}
 
-                <p>
-                    Dieser Link ist <strong>7 Tage</strong> gültig.
-                </p>
+{% block eyebrow %}Einladung{% endblock %}
 
-                <p>Falls der Button nicht funktioniert, kopiere diesen Link direkt in deinen Browser:</p>
-                <p class="url-fallback">{{ invite_link }}</p>
+{% block heading %}Willkommen bei {{ app_name|default("Chor-Manager") }}{% endblock %}
 
-                <p>
-                    Mit freundlichen Grüßen,
-                    <br>
-                    Dein {{ app_name|default('Chor-Manager') }} Team
-                </p>
-            </div>
-            <div class="email-footer">Diese E-Mail wurde automatisch generiert. Bitte antworte nicht auf diese Nachricht.</div>
-        </div>
-    </body>
-</html>
+{% block content %}
+    <p class="cm-text" style="margin:0 0 26px 0; color:#1f2937">
+        du wurdest eingeladen, <strong class="cm-strong">{{ app_name|default("Chor-Manager") }}</strong> zu nutzen.
+        Lege dein Passwort fest, dann ist dein Konto aktiv und du siehst Termine, Anmeldungen und Noten deines Chores.
+    </p>
+
+    {{ ui.action_button(invite_link, "Konto aktivieren", brand_color, 250) }}
+
+    {% set hint_tint = primary_tint|default(null) %}
+    {% set hint_edge = primary_edge|default(null) %}
+    {% set hint_options = {"tone": "brand", "surface_override": hint_tint, "edge_override": hint_edge} %}
+    {% embed "emails/_hint_box.twig" with hint_options %}
+        {% block body %}
+            Die Einladung gilt <strong class="cm-strong">7 Tage</strong>.
+            Danach kannst du dir eine neue schicken lassen.
+        {% endblock %}
+    {% endembed %}
+
+    {% if handoff_url is defined and handoff_url is not empty %}
+        <p class="cm-text" style="margin:0 0 26px 0; color:#1f2937">
+            Erste Schritte und Antworten auf häufige Fragen:
+            <a href="{{ handoff_url }}"
+               class="cm-linkaccent"
+               style="color:{{ primary_strong|default('#c48e0f') }};
+                      font-weight:600;
+                      text-decoration:underline">{{ handoff_label }}</a>
+        </p>
+    {% endif %}
+
+    {{ ui.fallback_url(invite_link) }}
+{% endblock %}

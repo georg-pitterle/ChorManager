@@ -51,6 +51,8 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `SMTP_FROM_EMAIL`      | Sender email address                   | -               | **Yes**  |
 | `SMTP_FROM_NAME`       | Sender display name                    | `Chor-Manager`  | No       |
 | `REMEMBER_ME_DAYS`     | Remember-me cookie lifetime in days    | `30`            | No       |
+| `INVITATION_HANDOFF_URL`   | Optional http(s) URL linked in the invitation e-mail | -    | No       |
+| `INVITATION_HANDOFF_LABEL` | Link text for the handoff link         | `Erste Schritte`| No       |
 | `TZ`                   | Container timezone                     | `Europe/Vienna` | No       |
 | `MAIL_CREDENTIAL_KEY`     | Encrypts stored IMAP passwords at rest (`openssl rand -base64 32`)   | -               | **Yes**  |
 | `WEBMAIL_SSO_SECRET`      | Shared secret app ⇄ Tachyon plugin (`openssl rand -base64 32`)       | -               | **Yes**  |

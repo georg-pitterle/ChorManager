@@ -15,6 +15,7 @@ use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
+use App\Util\MailBranding;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -100,15 +101,17 @@ class PasswordResetController
 
         $resetLink = AppUrlResolver::resolveBaseUrl($request) . '/reset-password?token=' . $token . '&email=' . urlencode($email);
 
-        $htmlBody = $this->view->fetch('emails/password_reset.twig', [
+        $branding = MailBranding::resolve();
+
+        $htmlBody = $this->view->fetch('emails/password_reset.twig', array_merge($branding, [
             'user' => $user,
-            'reset_link' => $resetLink
-        ]);
+            'reset_link' => $resetLink,
+        ]));
 
         try {
             $this->mailQueueService->enqueuePasswordResetMail(
                 recipientEmail: $email,
-                subject: 'Passwort zurücksetzen - Chor-Manager',
+                subject: 'Passwort zurücksetzen - ' . $branding['app_name'],
                 bodyHtml: $htmlBody,
                 userId: (int) $user->id,
                 resetToken: $token

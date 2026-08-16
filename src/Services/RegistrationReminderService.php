@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\AppSetting;
 use App\Models\Event;
 use App\Models\User;
+use App\Util\MailBranding;
 use Carbon\Carbon;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
@@ -46,9 +47,7 @@ class RegistrationReminderService
                 return $deadline->greaterThan($now) && $deadline->lessThanOrEqualTo($windowEnd);
             });
 
-        $appName = (string) (AppSetting::query()
-            ->where('setting_key', 'app_name')
-            ->value('setting_value') ?? 'Chor-Manager');
+        $branding = MailBranding::resolve();
 
         $enqueued = 0;
 
@@ -76,13 +75,12 @@ class RegistrationReminderService
             foreach ($recipients as $user) {
                 try {
                     $link = rtrim($baseUrl, '/') . '/registrations/' . $event->id;
-                    $bodyHtml = $this->view->fetch('emails/registration_reminder.twig', [
+                    $bodyHtml = $this->view->fetch('emails/registration_reminder.twig', array_merge($branding, [
                         'user' => $user,
                         'event' => $event,
                         'deadline' => $event->registrationDeadlineAt()->format('d.m.Y H:i'),
                         'link' => $link,
-                        'app_name' => $appName,
-                    ]);
+                    ]));
 
                     $this->mailQueueService->enqueueRegistrationReminderMail(
                         (string) $user->email,

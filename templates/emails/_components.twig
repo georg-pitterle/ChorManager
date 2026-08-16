@@ -1,0 +1,99 @@
+{# Wiederverwendbare Mail-Bausteine. Macros sehen den aeusseren Kontext nicht, deshalb werden
+   Markenfarbe und Schriftstapel als Parameter durchgereicht. #}
+
+{% macro action_button(url, label, brand_color, vml_width) %}
+    {% set font_stack = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif" %}
+    <table role="presentation"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-cta"
+           style="margin:0 0 24px 0">
+        <tr>
+            <td align="center"
+                bgcolor="{{ brand_color }}"
+                style="background-color:{{ brand_color }}; border-radius:6px">
+                {# Outlook rendert mit dem Word-Modul und ignoriert Padding an <a>. VML traegt dort. #}
+                <!--[if mso]>
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml"
+                             xmlns:w="urn:schemas-microsoft-com:office:word"
+                             href="{{ url }}"
+                             style="height:48px;v-text-anchor:middle;width:{{ vml_width }}px;"
+                             arcsize="13%"
+                             stroke="f"
+                             fillcolor="{{ brand_color }}">
+                    <w:anchorlock/>
+                    <center style="color:#2b2b2b;font-family:'Segoe UI',Arial,sans-serif;font-size:16px;font-weight:bold;">{{ label }}</center>
+                </v:roundrect>
+                <![endif]-->
+                <!--[if !mso]><!-- -->
+                <a href="{{ url }}"
+                   class="cm-cta-link"
+                   style="display:inline-block;
+                          padding:14px 30px;
+                          font-family:{{ font_stack }};
+                          font-size:16px;
+                          font-weight:700;
+                          line-height:20px;
+                          color:#2b2b2b;
+                          background-color:{{ brand_color }};
+                          border-radius:6px;
+                          text-align:center">{{ label }}</a>
+                <!--<![endif]-->
+            </td>
+        </tr>
+    </table>
+{% endmacro %}
+
+{# Rohe Adresse zum Kopieren. Monospace markiert sie als Zeichenkette, nicht als Fliesstext. #}
+{% macro fallback_url(url) %}
+    {% set mono_stack = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" %}
+    <p class="cm-muted" style="margin:0 0 8px 0; font-size:13px; line-height:1.5; color:#667085">
+        Button funktioniert nicht? Diese Adresse in den Browser kopieren:
+    </p>
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-fallback"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:6px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td class="cm-fallback-url"
+                style="padding:10px 14px;
+                       font-family:{{ mono_stack }};
+                       font-size:12px;
+                       line-height:1.6;
+                       color:#667085;
+                       word-break:break-all">{{ url }}</td>
+        </tr>
+    </table>
+{% endmacro %}
+
+{# Eine Zeile der Detail-Liste. Bricht ab 600 px von zweispaltig auf gestapelt um. #}
+{% macro detail_row(label, value, is_lead) %}
+    {% set font_stack = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif" %}
+    {% set value_weight = is_lead ? "600" : "400" %}
+    <tr>
+        <td class="cm-row-label"
+            width="150"
+            style="width:150px;
+                   padding:0 12px 12px 0;
+                   font-family:{{ font_stack }};
+                   font-size:13px;
+                   line-height:1.5;
+                   color:#667085;
+                   vertical-align:top">{{ label }}</td>
+        <td class="cm-row-value"
+            style="padding:0 0 12px 0;
+                   font-family:{{ font_stack }};
+                   font-size:16px;
+                   line-height:1.5;
+                   font-weight:{{ value_weight }};
+                   color:#1f2937;
+                   vertical-align:top">{{ value }}</td>
+    </tr>
+{% endmacro %}

@@ -1,66 +1,70 @@
-<!DOCTYPE html>
-<html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description"
-              content="Erinnerung zur Anmeldung in {{ app_name|default('Chor-Manager') }}.">
-        <meta name="keywords"
-              content="Erinnerung, Anmeldung, {{ app_name|default('Chor-Manager') }}">
-        <title>Erinnerung: Anmeldung zu {{ event.title }}</title>
-        <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-        .email-container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .email-header { background-color: #0d6efd; color: #ffffff; padding: 30px; text-align: center; }
-        .email-header h1 { margin: 0; font-size: 22px; }
-        .email-body { padding: 30px 40px; color: #333333; line-height: 1.6; }
-        .email-body p { margin: 0 0 16px 0; }
-        .email-actions { text-align: center; }
-        .btn-reminder { display: inline-block; margin: 20px 0; padding: 14px 28px; background-color: #0d6efd; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
-        .email-footer { padding: 20px 40px; background-color: #f9f9f9; border-top: 1px solid #eeeeee; font-size: 12px; color: #999999; text-align: center; }
-        .url-fallback { word-break: break-all; color: #666666; font-size: 13px; }
-        </style>
-    </head>
-    <body>
-        <div class="email-container">
-            <div class="email-header">
-                <h1>Erinnerung: Anmeldung zu {{ app_name|default('Chor-Manager') }}</h1>
-            </div>
-            <div class="email-body">
-                <p>Hallo {{ user.first_name }},</p>
+{% extends "emails/_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
 
-                <p>
-                    für den Termin <strong>{{ event.title }}</strong> am
-                    <strong>{{ event.starts_at|date("d.m.Y H:i") }}</strong>
-                    {% if event.location %} ({{ event.location }}){% endif %}
-                    liegt noch keine Anmeldung von dir vor.
-                </p>
+{% block mail_title %}Erinnerung: Anmeldung zu {{ event.title }}{% endblock %}
 
-                <p>Anmeldeschluss: <strong>{{ deadline }}</strong></p>
+{% block preheader %}{{ event.title }} — deine Rückmeldung fehlt noch.{% endblock %}
 
-                <p class="email-actions">
-                    <a href="{{ link }}"
-                       class="btn-reminder"
-                       style="display:inline-block;
-                              padding:14px 28px;
-                              background-color:#0d6efd;
-                              color:#ffffff !important;
-                              text-decoration:none;
-                              border-radius:6px;
-                              font-size:16px;
-                              font-weight:bold">Jetzt eintragen</a>
-                </p>
+{% block eyebrow %}Erinnerung{% endblock %}
 
-                <p>Falls der Button nicht funktioniert, kopiere diesen Link direkt in deinen Browser:</p>
-                <p class="url-fallback">{{ link }}</p>
+{% block heading %}Deine Rückmeldung fehlt noch{% endblock %}
 
-                <p>
-                    Mit freundlichen Grüßen,
-                    <br>
-                    Dein {{ app_name|default('Chor-Manager') }} Team
-                </p>
-            </div>
-            <div class="email-footer">Diese E-Mail wurde automatisch generiert. Bitte antworte nicht auf diese Nachricht.</div>
-        </div>
-    </body>
-</html>
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">zu diesem Termin hast du dich noch nicht eingetragen:</p>
+
+    {# Die Detail-Liste traegt die eigentliche Information, deshalb steht sie vor dem Button. #}
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px 6px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {{ ui.detail_row("Termin", event.title, true) }}
+                    {{ ui.detail_row("Beginn", event.starts_at|date("d.m.Y H:i") ~ " Uhr", false) }}
+                    {% if event.location is not empty %}
+                        {{ ui.detail_row("Ort", event.location, false) }}
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+        {# Anmeldeschluss ist der handlungsrelevante Wert und bekommt die Akzentlinie als Marker. #}
+        <tr>
+            <td style="padding:0 20px 18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td width="3"
+                            bgcolor="{{ brand_color }}"
+                            style="width:3px;
+                                   background-color:{{ brand_color }};
+                                   font-size:0;
+                                   line-height:0">&nbsp;</td>
+                        <td style="padding:2px 0 2px 14px">
+                            <div class="cm-row-label"
+                                 style="font-family:{{ font_stack }};
+                                        font-size:13px;
+                                        line-height:1.5;
+                                        color:#667085">Anmeldeschluss</div>
+                            <div class="cm-row-value"
+                                 style="font-family:{{ font_stack }};
+                                        font-size:18px;
+                                        line-height:1.4;
+                                        font-weight:700;
+                                        color:#1f2937">{{ deadline }} Uhr</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{ ui.action_button(link, "Jetzt eintragen", brand_color, 210) }}
+
+    {{ ui.fallback_url(link) }}
+{% endblock %}

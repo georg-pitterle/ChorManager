@@ -41,7 +41,9 @@ class RegistrationReminderMailFeatureTest extends TestCase
 
         $template = file_get_contents($path);
         $this->assertIsString($template);
-        $this->assertStringContainsString('{{ link }}', $template);
+        // Der Link steckt seit dem gemeinsamen Mail-Layout im Button- und im Fallback-Baustein.
+        $this->assertStringContainsString('ui.action_button(link,', $template);
+        $this->assertStringContainsString('ui.fallback_url(link)', $template);
         $this->assertStringContainsString('Anmeldeschluss', $template);
     }
 }

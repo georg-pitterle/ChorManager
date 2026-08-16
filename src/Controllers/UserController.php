@@ -24,6 +24,8 @@ use App\Models\InvitationToken;
 use App\Services\Mailer;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
+use App\Util\InvitationHandoffLink;
+use App\Util\MailBranding;
 use Psr\Log\LoggerInterface;
 
 class UserController
@@ -826,13 +828,26 @@ class UserController
             $appUrl = AppUrlResolver::resolveBaseUrl($request);
             $inviteLink = $appUrl . '/reset-password?token=' . $token . '&email=' . urlencode($targetUser->email);
             $branding = $this->resolveInvitationBranding();
+            $handoff = InvitationHandoffLink::resolve();
+
+            if ($handoff === null && InvitationHandoffLink::isMisconfigured()) {
+                $this->logger->warning('Invitation handoff link ignored: URL is not an absolute http(s) URL.', [
+                    'event' => 'invitation.handoff_link.invalid',
+                    'env_key' => InvitationHandoffLink::ENV_URL,
+                ]);
+            }
 
             $htmlBody = $this->view->fetch('emails/invitation.twig', [
                 'user'        => $targetUser,
                 'invite_link' => $inviteLink,
                 'app_name' => $branding['app_name'],
                 'primary_color' => $branding['primary_color'],
+                'primary_strong' => $branding['primary_strong'],
+                'primary_tint' => $branding['primary_tint'],
+                'primary_edge' => $branding['primary_edge'],
                 'logo_src' => $branding['logo_src'],
+                'handoff_url' => $handoff['url'] ?? '',
+                'handoff_label' => $handoff['label'] ?? '',
             ]);
 
             $this->mailQueueService->enqueueInvitationMail(
@@ -870,63 +885,19 @@ class UserController
     }
 
     /**
-     * @return array{app_name: string, primary_color: string, logo_src: string}
+     * Die Aufloesung liegt in MailBranding, damit alle Systemmails dieselbe Quelle nutzen.
+     *
+     * @return array{
+     *     app_name: string,
+     *     primary_color: string,
+     *     primary_strong: string,
+     *     primary_tint: string,
+     *     primary_edge: string,
+     *     logo_src: string
+     * }
      */
     private function resolveInvitationBranding(): array
     {
-        $appName = 'Chor-Manager';
-        $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
-        $logoSrc = $this->buildDefaultInvitationLogoDataUri();
-
-        try {
-            $settings = AppSetting::query()
-                ->whereIn('setting_key', ['app_name', 'primary_color'])
-                ->pluck('setting_value', 'setting_key')
-                ->toArray();
-
-            $configuredAppName = trim((string) ($settings['app_name'] ?? ''));
-            if ($configuredAppName !== '') {
-                $appName = $configuredAppName;
-            }
-
-            $primaryColor = AppSettingController::normalizePrimaryColor($settings['primary_color'] ?? null);
-        } catch (\Throwable $e) {
-            $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
-        }
-
-        try {
-            $logo = AppSetting::query()->find('app_logo');
-            if ($logo instanceof AppSetting && $logo->binary_content !== '') {
-                $mimeType = trim((string) $logo->mime_type);
-                if ($mimeType === '') {
-                    $mimeType = 'image/png';
-                }
-
-                $logoSrc = 'data:' . $mimeType . ';base64,' . base64_encode($logo->binary_content);
-            }
-        } catch (\Throwable $e) {
-            $logoSrc = $this->buildDefaultInvitationLogoDataUri();
-        }
-
-        return [
-            'app_name' => $appName,
-            'primary_color' => $primaryColor,
-            'logo_src' => $logoSrc,
-        ];
-    }
-
-    private function buildDefaultInvitationLogoDataUri(): string
-    {
-        $defaultLogoPath = __DIR__ . '/../../public/icons/icon-512.png';
-        if (!is_file($defaultLogoPath)) {
-            return '';
-        }
-
-        $binaryContent = file_get_contents($defaultLogoPath);
-        if ($binaryContent === false || $binaryContent === '') {
-            return '';
-        }
-
-        return 'data:image/png;base64,' . base64_encode($binaryContent);
+        return MailBranding::resolve();
     }
 }

@@ -39,9 +39,13 @@ class InviteUserTest extends TestCase
         $this->assertIsString($content);
         $this->assertStringContainsString('invite_link', $content);
         $this->assertStringContainsString('7', $content);
-        $this->assertStringContainsString('primary_color', $content);
-        $this->assertStringContainsString('logo_src', $content);
         $this->assertStringContainsString('app_name', $content);
+
+        // Markenfarbe und Logo sitzen seit dem gemeinsamen Mail-Layout in der Huelle.
+        $layout = file_get_contents(dirname(__DIR__) . '/../templates/emails/_layout.twig');
+        $this->assertIsString($layout);
+        $this->assertStringContainsString('primary_color', $layout);
+        $this->assertStringContainsString('logo_src', $layout);
     }
 
     public function testInvitationTokenModelExists(): void
@@ -147,9 +151,13 @@ class InviteUserTest extends TestCase
         $this->assertStringContainsString('AppUrlResolver::resolveBaseUrl($request)', $controller);
         $this->assertStringContainsString('resolveInvitationBranding', $controller);
         $this->assertStringContainsString('logo_src', $controller);
-        $this->assertStringContainsString('base64_encode', $controller);
-        $this->assertStringContainsString('data:image/png;base64,', $controller);
         $this->assertStringContainsString('primary_color', $controller);
         $this->assertStringNotContainsString('buildTrustedAppUrl', $controller);
+
+        // Das Logo wird als Data-URI eingebettet - seit MailBranding fuer alle Mails an einer Stelle.
+        $branding = file_get_contents(dirname(__DIR__) . '/../src/Util/MailBranding.php');
+        $this->assertIsString($branding);
+        $this->assertStringContainsString('base64_encode', $branding);
+        $this->assertStringContainsString('data:image/png;base64,', $branding);
     }
 }
