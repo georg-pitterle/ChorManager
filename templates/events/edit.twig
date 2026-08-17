@@ -120,7 +120,14 @@
                                        class="form-control"
                                        id="registration-deadline"
                                        name="registration_deadline"
-                                       value="{{ form.registration_deadline|default('') }}">
+                                       value="{{ form.registration_deadline|default('') }}"
+                                       aria-describedby="registration-deadline-help">
+                                {% if event.series_id %}
+                                    <div id="registration-deadline-help" class="form-text">
+                                        Bei „Änderungen auf zukünftige Termine der Serie anwenden“ wird der
+                                        Anmeldeschluss als Vorlauf zum jeweiligen Terminbeginn übernommen.
+                                    </div>
+                                {% endif %}
                             </div>
                         {% else %}
                             {% if event.registration_enabled %}

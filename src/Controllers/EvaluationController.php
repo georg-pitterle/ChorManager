@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
+use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\TableQueryParams;
 use Carbon\Carbon;
@@ -79,7 +80,10 @@ class EvaluationController
                     $_SESSION['last_project_id'] = $projectId;
                 }
 
-                $totalEvents = $selectedProject->events()->where('attendance_required', true)->count();
+                $totalEvents = $selectedProject->events()
+                    ->where('attendance_required', true)
+                    ->where('starts_at', '<=', Carbon::now())
+                    ->count();
 
                 if ($totalEvents > 0) {
                     // Get all active users, eager load their attendances for this specific project's events
@@ -90,6 +94,7 @@ class EvaluationController
                         ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
                             $q->whereHas('event', function ($sq) use ($projectId) {
                                 $sq->where('attendance_required', true)
+                                    ->where('starts_at', '<=', Carbon::now())
                                     ->whereHas('audienceSources', function ($asq) use ($projectId) {
                                         $asq->where('source_type', EventAudienceSource::TYPE_PROJECT_MEMBERS)
                                             ->where('reference_id', $projectId);
@@ -106,10 +111,13 @@ class EvaluationController
                     foreach ($users as $user) {
                         $vgName = $user->voiceGroups->pluck('name')->implode(', ');
 
-                        $present = $user->attendances->where('status', 'present')->count();
-                        $excused = $user->attendances->where('status', 'excused')->count();
-                        $unexcused = $user->attendances->where('status', 'unexcused')->count();
-                        $totalRecorded = $user->attendances->count();
+                        $present = $user->attendances->where('status', Attendance::STATUS_PRESENT)->count();
+                        $excused = $user->attendances->where('status', Attendance::STATUS_EXCUSED)->count();
+                        $unexcused = $user->attendances->where('status', Attendance::STATUS_UNEXCUSED)->count();
+                        // Offene Einträge tragen nur eine Notiz und sind keine Erfassung.
+                        $totalRecorded = $user->attendances
+                            ->whereIn('status', Attendance::RECORDED_STATUSES)
+                            ->count();
 
                         $percentage = $totalEvents > 0 ? round(($present / $totalEvents) * 100, 1) : 0;
 
@@ -190,7 +198,12 @@ class EvaluationController
     {
         $includePast = (string) ($request->getQueryParams()['include_past'] ?? '') === '1';
 
-        $query = Event::where('registration_enabled', true)->orderBy('starts_at', 'asc');
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $query = ((bool) ($_SESSION['can_manage_attendance_all'] ?? false)
+            ? Event::query()
+            : (new EventAudienceService())->visibleEventsQuery($userId))
+            ->where('registration_enabled', true)
+            ->orderBy('starts_at', 'asc');
         if (!$includePast) {
             $query->where('starts_at', '>', Carbon::now());
         }

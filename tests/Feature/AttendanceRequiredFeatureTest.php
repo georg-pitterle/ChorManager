@@ -18,6 +18,7 @@ use App\Queries\ProjectQuery;
 use App\Services\AttendanceScopeService;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
+use Psr\Log\NullLogger;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -102,7 +103,12 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
+        $controller = new AttendanceController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
 
         $request = $this->makeRequest('POST', '/attendance/' . $event->id, [
             'attendance' => ['1' => 'present'],
@@ -140,7 +146,12 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
+        $controller = new AttendanceController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
 
         $request = $this->makeRequest('GET', '/attendance/' . $requiredEvent->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -212,7 +223,12 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
+        $controller = new AttendanceController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
 
         $request = $this->makeRequest('GET', '/attendance/' . $fixture['event']->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -239,7 +255,12 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
+        $controller = new AttendanceController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['outScope']->id => 'present'],
@@ -263,7 +284,12 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController($this->createTwig(), new AttendanceScopeService(), new \App\Services\NameFormatterService());
+        $controller = new AttendanceController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['inScope']->id => 'present'],

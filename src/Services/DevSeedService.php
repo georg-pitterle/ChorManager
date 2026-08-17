@@ -1016,7 +1016,7 @@ class DevSeedService
 
     private function seedAttendance(array $projectMembers, array $projectEvents): void
     {
-        $statuses = ['present', 'excused', 'unexcused'];
+        $statuses = Attendance::RECORDED_STATUSES;
 
         foreach ($projectEvents as $projectId => $events) {
             $memberIds = $projectMembers[$projectId] ?? [];
@@ -1038,6 +1038,14 @@ class DevSeedService
                     $note = null;
                     if (mt_rand(1, 100) <= 12) {
                         $note = $status === 'excused' ? 'Krank gemeldet' : 'Automatisch generierte Notiz';
+                    }
+
+                    // Vereinzelt eine Notiz ohne Bewertung: dieser offene Eintrag
+                    // zählt in keiner Statistik mit und macht den Status "Offen"
+                    // in der Anwesenheitsliste direkt sichtbar.
+                    if (mt_rand(1, 100) <= 3) {
+                        $status = Attendance::STATUS_UNKNOWN;
+                        $note = 'Rückmeldung steht noch aus';
                     }
 
                     Attendance::updateOrCreate(

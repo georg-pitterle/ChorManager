@@ -9,6 +9,7 @@ use App\Middleware\AuthMiddleware;
 use App\Models\AppSetting;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Queries\UserQuery;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
@@ -137,5 +138,70 @@ final class AuthMiddlewareSessionInvalidationFeatureTest extends TestCase
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame('/login', $response->getHeaderLine('Location'));
         $this->assertArrayNotHasKey('user_id', $_SESSION);
+    }
+
+    /**
+     * Der Berechtigungs-Scope in der Session darf nicht bis zum nächsten Login
+     * eingefroren bleiben: AttendanceScopeService entscheidet anhand von
+     * voice_group_ids, wessen Anwesenheit jemand eintragen darf.
+     */
+    public function testVoiceGroupScopeIsRefreshedOnEveryRequest(): void
+    {
+        $oldGroup = VoiceGroup::create(['name' => 'Alte Gruppe ' . bin2hex(random_bytes(4))]);
+        $newGroup = VoiceGroup::create(['name' => 'Neue Gruppe ' . bin2hex(random_bytes(4))]);
+
+        try {
+            $this->user->voiceGroups()->attach($oldGroup->id);
+
+            $this->middleware->process(
+                (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+                $this->handler()
+            );
+            $this->assertSame([$oldGroup->id], $_SESSION['voice_group_ids']);
+
+            // Stimmgruppenwechsel während der laufenden Sitzung.
+            $this->user->voiceGroups()->detach($oldGroup->id);
+            $this->user->voiceGroups()->attach($newGroup->id);
+
+            $this->middleware->process(
+                (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+                $this->handler()
+            );
+
+            $this->assertSame(
+                [$newGroup->id],
+                $_SESSION['voice_group_ids'],
+                'Der Scope muss dem aktuellen Stand folgen, nicht dem beim Login.'
+            );
+        } finally {
+            $this->user->voiceGroups()->detach();
+            $oldGroup->delete();
+            $newGroup->delete();
+        }
+    }
+
+    public function testRevokedPermissionTakesEffectOnTheNextRequest(): void
+    {
+        $this->role->can_manage_attendance_all = true;
+        $this->role->save();
+
+        $this->middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+            $this->handler()
+        );
+        $this->assertTrue($_SESSION['can_manage_attendance_all']);
+
+        $this->role->can_manage_attendance_all = false;
+        $this->role->save();
+
+        $this->middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+            $this->handler()
+        );
+
+        $this->assertFalse(
+            $_SESSION['can_manage_attendance_all'],
+            'Ein entzogenes Recht darf nicht bis zum nächsten Login weitergelten.'
+        );
     }
 }

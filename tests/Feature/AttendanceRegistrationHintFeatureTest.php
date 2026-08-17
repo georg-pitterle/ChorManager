@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
@@ -220,6 +221,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
         $controller = new AttendanceController(
             $this->createTwig($registrationFeatureEnabled),
             new AttendanceScopeService(),
+            new NullLogger(),
             new \App\Services\NameFormatterService()
         );
 

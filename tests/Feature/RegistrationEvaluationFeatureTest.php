@@ -38,6 +38,7 @@ use Twig\TwigFunction;
 class RegistrationEvaluationFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private static ?Capsule $capsule = null;
 
@@ -159,6 +160,10 @@ class RegistrationEvaluationFeatureTest extends TestCase
         $sopranIndex = array_search($fixture['sopran']->name, $voiceGroupNames, true);
         $altIndex = array_search($fixture['alt']->name, $voiceGroupNames, true);
 
+        // Die Auswertung filtert nach Zielgruppe; diese Tests prüfen die Zahlen,
+        // nicht die Sichtbarkeit, und laufen daher mit dem vollen Recht.
+        $_SESSION['can_manage_attendance_all'] = true;
+
         $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/evaluations/registrations');
         $response = $controller->registrations($request, $this->makeResponse());
@@ -195,6 +200,10 @@ class RegistrationEvaluationFeatureTest extends TestCase
 
         $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
+
+        // Die Auswertung filtert nach Zielgruppe; diese Tests prüfen die Zahlen,
+        // nicht die Sichtbarkeit, und laufen daher mit dem vollen Recht.
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
         $request = $this->makeRequest('GET', '/evaluations/registrations');
@@ -241,6 +250,106 @@ class RegistrationEvaluationFeatureTest extends TestCase
         );
         $includePastBody = (string) $includePastResponse->getBody();
         $this->assertStringContainsString($pastEvent->title, $includePastBody);
+    }
+
+    /**
+     * Die Auswertung darf keine Termine offenlegen, die der Nutzer auf der
+     * Terminseite gar nicht sehen darf - sonst verrät sie Titel, Datum und
+     * Zusagen etwa einer Vorstandsklausur an jedes eingeloggte Mitglied.
+     */
+    public function testRegistrationEvaluationHidesEventsOutsideTheOwnAudience(): void
+    {
+        $suffix = uniqid();
+        $outsider = $this->createUser('reg-eval-outsider-' . $suffix, 'Auswertung-Aussen');
+        $closedProject = Project::create(['name' => 'Geschlossenes Projekt Task11 ' . $suffix]);
+
+        $restricted = Event::create([
+            'title' => 'Vorstandsklausur Task11 ' . $suffix,
+            'starts_at' => Carbon::now()->addDays(4),
+            'ends_at' => Carbon::now()->addDays(4)->addHours(2),
+            'type' => 'Sonstiges',
+            'registration_enabled' => true,
+            'attendance_required' => false,
+        ]);
+        EventAudienceSource::create([
+            'event_id' => $restricted->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $closedProject->id,
+        ]);
+
+        // Ohne Zielgruppen-Quelle gilt ein Termin für alle - der muss sichtbar bleiben.
+        $open = Event::create([
+            'title' => 'Offene Probe Task11 ' . $suffix,
+            'starts_at' => Carbon::now()->addDays(5),
+            'ends_at' => Carbon::now()->addDays(5)->addHours(2),
+            'type' => 'Probe',
+            'registration_enabled' => true,
+            'attendance_required' => false,
+        ]);
+
+        $controller = new EvaluationController(
+            $this->createTwig(),
+            new ProjectQuery(new \App\Services\NameFormatterService()),
+            new \App\Services\NameFormatterService()
+        );
+
+        $_SESSION['user_id'] = (int) $outsider->id;
+        $_SESSION['can_manage_attendance_all'] = false;
+        $body = (string) $controller->registrations(
+            $this->makeRequest('GET', '/evaluations/registrations'),
+            $this->makeResponse()
+        )->getBody();
+
+        $this->assertStringNotContainsString($restricted->title, $body);
+        $this->assertStringContainsString($open->title, $body);
+
+        // Wer alle Anwesenheiten verwalten darf, sieht weiterhin jeden Termin.
+        $_SESSION['can_manage_attendance_all'] = true;
+        $managerBody = (string) $controller->registrations(
+            $this->makeRequest('GET', '/evaluations/registrations'),
+            $this->makeResponse()
+        )->getBody();
+
+        $this->assertStringContainsString($restricted->title, $managerBody);
+    }
+
+    /**
+     * Auch die Historie über ?include_past=1 darf keine fremden Termine zeigen.
+     */
+    public function testRegistrationEvaluationHidesPastEventsOutsideTheOwnAudience(): void
+    {
+        $suffix = uniqid();
+        $outsider = $this->createUser('reg-eval-outsider-past-' . $suffix, 'Auswertung-Aussen-Alt');
+        $closedProject = Project::create(['name' => 'Geschlossenes Altprojekt Task11 ' . $suffix]);
+
+        $restricted = Event::create([
+            'title' => 'Alte Vorstandsklausur Task11 ' . $suffix,
+            'starts_at' => Carbon::now()->subDays(9),
+            'ends_at' => Carbon::now()->subDays(9)->addHours(2),
+            'type' => 'Sonstiges',
+            'registration_enabled' => true,
+            'attendance_required' => false,
+        ]);
+        EventAudienceSource::create([
+            'event_id' => $restricted->id,
+            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
+            'reference_id' => (int) $closedProject->id,
+        ]);
+
+        $_SESSION['user_id'] = (int) $outsider->id;
+        $_SESSION['can_manage_attendance_all'] = false;
+
+        $controller = new EvaluationController(
+            $this->createTwig(),
+            new ProjectQuery(new \App\Services\NameFormatterService()),
+            new \App\Services\NameFormatterService()
+        );
+        $body = (string) $controller->registrations(
+            $this->makeRequest('GET', '/evaluations/registrations', [], ['include_past' => '1']),
+            $this->makeResponse()
+        )->getBody();
+
+        $this->assertStringNotContainsString($restricted->title, $body);
     }
 
     public function testAttendanceComparisonOnlyAppearsForPastAttendanceRequiredEvents(): void
@@ -460,6 +569,8 @@ class RegistrationEvaluationFeatureTest extends TestCase
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('current_path', '/evaluations/registrations');
         $environment->addGlobal('app_settings', []);
+        // Sobald ein Test user_id setzt, rendert das Layout das Benutzermenü mit.
+        $this->registerMailBadgeStub($environment);
         $environment->addFunction(new TwigFunction(
             'asset_path',
             static function (string $path): string {
