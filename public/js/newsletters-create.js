@@ -266,6 +266,10 @@ function initNewsletterCreate() {
             }
 
             const data = await response.json();
+            const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+            if (warnings.length > 0) {
+                alert(warnings.join(" "));
+            }
             window.location.href = data.redirect;
         });
     }

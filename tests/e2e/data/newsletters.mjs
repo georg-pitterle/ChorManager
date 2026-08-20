@@ -204,3 +204,72 @@ export const NEWSLETTER_LATE_JOINER = {
     title: `E2E Rundschreiben mit später Zuordnung ${RUN}`,
     marker: 'Der Empfängerkreis wächst nach dem Speichern.',
 };
+
+// --- Platzhalter werden je Empfänger ersetzt ---------------------------------------------------
+// Praxisfall: Ein Rundschreiben spricht jede empfangende Person mit der eigenen Anrede an.
+// Eigene Personen und ein eigenes Projekt, damit dieser Fall unabhängig vom Versand-Fall oben
+// läuft: Beide Szenarien legen ihre Ausgangslage über eigene Hilfsfunktionen an, und die DB wird
+// nur einmal je Testlauf zurückgesetzt (nicht je Testfall) - geteilte Personen/Projektnamen
+// würden bei "Erstellen" auf bereits vorhandene Datensätze treffen.
+// Der Betreff bleibt hier bewusst ohne Platzhalter (siehe deliverQueuedMails/countQueuedMails:
+// beide suchen nach exaktem Betreff, ein personalisierter Betreff hätte je Empfänger einen
+// anderen). Da Inhalt und Empfängernamen deterministisch sind, braucht der Titel keine
+// Lauf-Kennung - jede zugestellte Mail unter diesem Betreff ist über alle Läufe hinweg gleich.
+export const PLACEHOLDER_DISPATCH_EDITOR = {
+    firstName: 'Klara',
+    lastName: 'Anredend',
+    email: 'nl.klara.anredend@chor.local',
+    role: 'Vorstand',
+    group: 'Sopran',
+    sub: 'Sopran 1',
+};
+
+export const PLACEHOLDER_DISPATCH_PROJECT = {
+    name: 'Newsletter-Testprojekt Platzhalterversand',
+    description: 'Projekt für den Platzhalter-Versand im Newsletter-E2E-Szenario.',
+    startDate: '2026-09-01',
+    endDate: '2026-11-30',
+};
+
+export const PLACEHOLDER_DISPATCH_MEMBERS = [
+    { firstName: 'Mira', lastName: 'Empfangend', email: 'nl.mira.empfangend@chor.local', group: 'Alt', sub: 'Alt 1' },
+    { firstName: 'Timo', lastName: 'Angesprochen', email: 'nl.timo.angesprochen@chor.local', group: 'Bass', sub: 'Bass 1' },
+];
+
+export const NEWSLETTER_WITH_PLACEHOLDERS = {
+    title: 'Platzhalter-Rundschreiben',
+    project: PLACEHOLDER_DISPATCH_PROJECT.name,
+    content: 'Persönlicher Gruß folgt: ',
+};
+
+// Eigene Personen und ein eigenes Projekt für die Vorschau- und Testmail-Prüfung, damit dieser
+// Fall unabhängig vom Versand-Fall oben läuft (eigene Empfängerquelle, eigener Betreff).
+export const PLACEHOLDER_PREVIEW_EDITOR = {
+    firstName: 'Selma',
+    lastName: 'Vorschauerin',
+    email: 'nl.selma.vorschauerin@chor.local',
+    role: 'Vorstand',
+    group: 'Sopran',
+    sub: 'Sopran 1',
+};
+
+export const PLACEHOLDER_PREVIEW_PROJECT = {
+    name: 'Newsletter-Testprojekt Vorschau',
+    description: 'Projekt für die Platzhalter-Vorschau im Newsletter-E2E-Szenario.',
+    startDate: '2026-09-01',
+    endDate: '2026-11-30',
+};
+
+export const PLACEHOLDER_PREVIEW_MEMBER = {
+    firstName: 'Jonas',
+    lastName: 'Leseprobe',
+    email: 'nl.jonas.leseprobe@chor.local',
+    group: 'Bass',
+    sub: 'Bass 2',
+};
+
+export const NEWSLETTER_PLACEHOLDER_PREVIEW = {
+    title: 'Platzhalter-Vorschau-Entwurf',
+    project: PLACEHOLDER_PREVIEW_PROJECT.name,
+    content: 'Persönlicher Gruß in der Vorschau: ',
+};

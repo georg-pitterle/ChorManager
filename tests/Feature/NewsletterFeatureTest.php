@@ -315,7 +315,7 @@ class NewsletterFeatureTest extends TestCase
 
         $this->assertIsString($recipientService);
         $this->assertStringContainsString('NewsletterRecipient::query()', $recipientService);
-        $this->assertStringContainsString("->with('user')", $recipientService);
+        $this->assertStringContainsString("->with(['user.voiceGroups', 'user.subVoices'])", $recipientService);
         $this->assertStringContainsString("->where('newsletter_id', \$newsletterId)", $recipientService);
         $this->assertStringNotContainsString("User::query()\n            ->whereHas('newsletterRecipients'", $recipientService);
     }
@@ -403,7 +403,10 @@ class NewsletterFeatureTest extends TestCase
         $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterService.php');
         $this->assertIsString($serviceContent);
         // Return type must be int
-        $this->assertStringContainsString('public function send(Newsletter $newsletter, int $userId): int', $serviceContent);
+        $this->assertStringContainsString(
+            'public function send(Newsletter $newsletter, int $userId, string $baseUrl): int',
+            $serviceContent
+        );
         $this->assertStringContainsString('return $sentCount;', $serviceContent);
     }
 

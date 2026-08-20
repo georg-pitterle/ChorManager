@@ -7,7 +7,7 @@ namespace App\Services;
 /**
  * Liest die Flash-Meldungen einmalig aus der Session und entfernt sie dabei.
  *
- * Controller legen Erfolgs- und Fehlermeldungen vor einem Redirect in der
+ * Controller legen Erfolgs-, Fehler- und Warnmeldungen vor einem Redirect in der
  * Session ab. Zielseiten, die diese Meldungen nicht selbst auslesen (etwa das
  * Dashboard), ließen sie früher liegen - die Meldung tauchte dann erst beim
  * nächsten Seitenaufruf auf, der zufällig danach griff. Das Layout konsumiert
@@ -17,18 +17,20 @@ namespace App\Services;
 final class FlashMessageService
 {
     /**
-     * @return array{success: ?string, error: ?string}
+     * @return array{success: ?string, error: ?string, warning: ?string}
      */
     public function consume(): array
     {
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
+        $warning = $_SESSION['warning'] ?? null;
 
-        unset($_SESSION['success'], $_SESSION['error']);
+        unset($_SESSION['success'], $_SESSION['error'], $_SESSION['warning']);
 
         return [
             'success' => $success !== null ? (string) $success : null,
             'error' => $error !== null ? (string) $error : null,
+            'warning' => $warning !== null ? (string) $warning : null,
         ];
     }
 }

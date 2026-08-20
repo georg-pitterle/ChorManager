@@ -20,6 +20,7 @@ use App\Persistence\NewsletterTemplatePersistence;
 use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
+use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\BankStatementImportService;
 use App\Services\FinanceAccountService;
@@ -167,6 +168,7 @@ return function (ContainerBuilder $containerBuilder) {
         SendRegistrationRemindersCommand::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
+        NewsletterPlaceholderService::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
         BudgetService::class => \DI\autowire(),
         BudgetController::class => \DI\autowire(),

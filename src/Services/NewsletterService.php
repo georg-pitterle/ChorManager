@@ -21,19 +21,22 @@ class NewsletterService
     private HtmlSanitizer $htmlSanitizer;
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
+    private NewsletterPlaceholderService $placeholderService;
 
     public function __construct(
         NewsletterRecipientService $recipientService,
         Mailer $mailer,
         HtmlSanitizer $htmlSanitizer,
         MailQueueService $mailQueueService,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        NewsletterPlaceholderService $placeholderService
     ) {
         $this->recipientService = $recipientService;
         $this->mailer = $mailer;
         $this->htmlSanitizer = $htmlSanitizer;
         $this->mailQueueService = $mailQueueService;
         $this->logger = $logger;
+        $this->placeholderService = $placeholderService;
     }
 
     /**
@@ -41,10 +44,11 @@ class NewsletterService
      *
      * @param Newsletter $newsletter
      * @param int $userId User ID who triggered the send
+     * @param string $baseUrl Basisadresse für Links in Platzhaltern
      * @return int Number of recipients actually sent to (or that would have been sent to when disabled)
      * @throws Exception
      */
-    public function send(Newsletter $newsletter, int $userId): int
+    public function send(Newsletter $newsletter, int $userId, string $baseUrl): int
     {
         if (!$newsletter->isDraft()) {
             throw new Exception('Nur Entwürfe können versendet werden');
@@ -90,7 +94,7 @@ class NewsletterService
         $newsletter->syncOriginal();
 
         try {
-            return $this->deliver($newsletter, $resolvedRecipients, $sentAt);
+            return $this->deliver($newsletter, $resolvedRecipients, $sentAt, $baseUrl);
         } catch (Exception $e) {
             // Der Claim gilt nur für einen tatsächlich angelaufenen Versand.
             // Bricht er ab, bevor eine Mail in der Queue liegt, bliebe der
@@ -104,10 +108,11 @@ class NewsletterService
      * Reiht den Newsletter für alle aufgelösten Empfänger in die Mail-Queue ein.
      *
      * @param \Illuminate\Support\Collection<int, User> $resolvedRecipients
+     * @param string $baseUrl Basisadresse für Links in Platzhaltern
      * @return int Number of recipients actually enqueued
      * @throws Exception
      */
-    private function deliver(Newsletter $newsletter, $resolvedRecipients, Carbon $sentAt): int
+    private function deliver(Newsletter $newsletter, $resolvedRecipients, Carbon $sentAt, string $baseUrl): int
     {
         $this->recipientService->setRecipients(
             $newsletter,
@@ -121,6 +126,9 @@ class NewsletterService
         $sentCount = 0;
         $emailContent = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
 
+        // Empfänger-unabhängige Werte einmal auflösen, nicht je Empfänger.
+        $renderContext = $this->placeholderService->contextFor($newsletter, $baseUrl);
+
         // Enqueue newsletter for each recipient
         foreach ($recipients as $recipient) {
             $toEmail = trim((string) $recipient->user->email);
@@ -131,8 +139,16 @@ class NewsletterService
             try {
                 $this->mailQueueService->enqueueNewsletterMail(
                     recipientEmail: $toEmail,
-                    subject: $newsletter->title,
-                    bodyHtml: $emailContent,
+                    subject: $this->placeholderService->renderSubject(
+                        (string) $newsletter->title,
+                        $renderContext,
+                        $recipient->user
+                    ),
+                    bodyHtml: $this->placeholderService->renderHtml(
+                        $emailContent,
+                        $renderContext,
+                        $recipient->user
+                    ),
                     newsletterId: (int) $newsletter->id,
                     recipientId: (int) $recipient->id
                 );

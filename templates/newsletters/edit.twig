@@ -199,7 +199,10 @@
                             <h5 class="mb-0">Inhalt</h5>
                         </div>
                         <div class="card-body">
-                            <textarea id="content_html" name="content_html" class="tinymce-editor">{{ newsletter.content_html }}</textarea>
+                            <textarea id="content_html"
+                                      name="content_html"
+                                      class="tinymce-editor"
+                                      data-placeholder-source="/newsletters/placeholders">{{ newsletter.content_html }}</textarea>
                         </div>
                     </div>
                 </section>
@@ -223,11 +226,20 @@
                     <button type="button" class="btn btn-outline-warning" id="save-draft-btn">
                         <i class="bi bi-floppy"></i> Speichern
                     </button>
+                    <select id="preview-recipient" class="form-select form-select-sm w-auto" aria-label="Vorschau für">
+                        <option value="">Vorschau mit eigenen Daten</option>
+                        {% for recipient in preview_recipients %}
+                            <option value="{{ recipient.id }}">{{ recipient|person_name }}</option>
+                        {% endfor %}
+                    </select>
                     <button type="button"
                             class="btn btn-outline-info"
                             id="preview-btn"
                             {% if not is_modal|default(false) %}data-bs-toggle="modal" data-bs-target="#previewModal"{% endif %}>
                         <i class="bi bi-eye"></i> Vorschau
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="test-mail-btn">
+                        <i class="bi bi-envelope-check"></i> Testmail
                     </button>
                     <button type="button" class="btn btn-success" id="send-newsletter-btn">
                         <i class="bi bi-send"></i> Versenden

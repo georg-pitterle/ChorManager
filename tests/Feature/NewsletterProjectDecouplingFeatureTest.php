@@ -22,6 +22,7 @@ use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterLockingService;
+use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
 use App\Persistence\NewsletterTemplatePersistence;
@@ -154,13 +155,16 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
                 new Mailer(new NullLogger()),
                 new HtmlSanitizer(),
                 new MailQueueService(),
-                new NullLogger()
+                new NullLogger(),
+                new NewsletterPlaceholderService(new NameFormatterService())
             ),
             new NewsletterLockingService(),
             new NewsletterRecipientService(),
             new HtmlSanitizer(),
             new NullLogger(),
-            new NameFormatterService()
+            new NameFormatterService(),
+            new NewsletterPlaceholderService(new NameFormatterService()),
+            new MailQueueService()
         );
     }
 

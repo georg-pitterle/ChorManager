@@ -143,7 +143,7 @@ class NewsletterRecipientService
     public function getRecipients(int $newsletterId): Collection
     {
         return NewsletterRecipient::query()
-            ->with('user')
+            ->with(['user.voiceGroups', 'user.subVoices'])
             ->where('newsletter_id', $newsletterId)
             ->get();
     }

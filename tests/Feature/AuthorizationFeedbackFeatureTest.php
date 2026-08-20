@@ -155,16 +155,19 @@ class AuthorizationFeedbackFeatureTest extends TestCase
     {
         $_SESSION['success'] = 'Gespeichert.';
         $_SESSION['error'] = 'Zugriff verweigert.';
+        $_SESSION['warning'] = 'Unbekannte Platzhalter bleiben unverändert stehen: {{tippfehler}}';
 
         $service = new FlashMessageService();
         $messages = $service->consume();
 
         $this->assertSame('Gespeichert.', $messages['success']);
         $this->assertSame('Zugriff verweigert.', $messages['error']);
+        $this->assertSame('Unbekannte Platzhalter bleiben unverändert stehen: {{tippfehler}}', $messages['warning']);
         $this->assertArrayNotHasKey('success', $_SESSION);
         $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertArrayNotHasKey('warning', $_SESSION);
 
-        $this->assertSame(['success' => null, 'error' => null], $service->consume());
+        $this->assertSame(['success' => null, 'error' => null, 'warning' => null], $service->consume());
     }
 
     private function renderFlashPartial(bool $withFlashService): string
@@ -198,6 +201,17 @@ class AuthorizationFeedbackFeatureTest extends TestCase
         $this->assertStringNotContainsString('alert', $output);
         // Ohne Dienst darf die Meldung nicht verloren gehen.
         $this->assertSame('Zugriff verweigert.', $_SESSION['error']);
+    }
+
+    public function testFlashPartialRendersTheWarningMessageAndClearsIt(): void
+    {
+        $_SESSION['warning'] = 'Unbekannte Platzhalter bleiben unverändert stehen: {{tippfehler}}';
+
+        $output = $this->renderFlashPartial(true);
+
+        $this->assertStringContainsString('{{tippfehler}}', $output);
+        $this->assertStringContainsString('alert-warning', $output);
+        $this->assertArrayNotHasKey('warning', $_SESSION);
     }
 
     public function testLayoutRendersFlashMessagesForPagesThatDoNotHandleThemThemselves(): void

@@ -541,6 +541,10 @@ return function (App $app) {
                     function (RouteCollectorProxy $newsletterGroup) {
                         $newsletterGroup->get('/newsletters', [NewsletterController::class, 'index']);
                         $newsletterGroup->get('/newsletters/create', [NewsletterController::class, 'create']);
+                        $newsletterGroup->get(
+                            '/newsletters/placeholders',
+                            [NewsletterController::class, 'placeholders']
+                        );
                         $newsletterGroup->post('/newsletters', [NewsletterController::class, 'store']);
                         $newsletterGroup->post(
                             '/newsletters/resolve-recipients-preview',
@@ -554,6 +558,14 @@ return function (App $app) {
                         $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/send',
                             [NewsletterController::class, 'send']
+                        );
+                        $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/preview-render',
+                            [NewsletterController::class, 'previewRender']
+                        );
+                        $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/test-mail',
+                            [NewsletterController::class, 'testMail']
                         );
                         $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/save-as-template',

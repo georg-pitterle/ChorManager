@@ -84,3 +84,43 @@ Ein Entwurf kann immer nur von einer Person zugleich bearbeitet werden. Sobald d
 - **Versand abgelehnt („Newsletter hat keine Empfänger.")**: Es ist keine Quelle gewählt, oder die gewählten Quellen ergeben keine aktive Person – etwa eine Veranstaltung ohne erfasste Anwesenheit oder eine Rolle ohne aktive Mitglieder.
 - **Titel und Inhalt sind Pflicht**: Ein leerer Editor wird nicht gespeichert. Ein Newsletter, der nur aus einem Bild oder einer Tabelle besteht, ist dagegen erlaubt.
 - **Versand ist endgültig**: Ein versendeter Newsletter lässt sich nicht mehr bearbeiten, zurückholen oder löschen.
+
+## Platzhalter
+
+Platzhalter werden beim Versand für jede empfangende Person einzeln ersetzt. Im Inhalt fügst du sie
+über den Knopf **Platzhalter** in der Editor-Leiste ein. Im Betreff gibt es keine Editor-Leiste —
+dort schreibst du sie von Hand in doppelten geschweiften Klammern, genau so, wie sie in der
+Tabelle stehen.
+
+| Platzhalter | Ergebnis | Wenn der Wert fehlt |
+|---|---|---|
+| `{{anrede}}` | Hallo Georg | Hallo |
+| `{{vorname}}` | Georg | bleibt leer |
+| `{{nachname}}` | Pitterle | bleibt leer |
+| `{{name}}` | Georg Pitterle | die E-Mail-Adresse |
+| `{{email}}` | georg@example.at | — |
+| `{{stimmgruppe}}` | Sopran (Sopran 1) | „ohne Stimmgruppe" |
+| `{{titel}}` | Betreff des Newsletters | — |
+| `{{projekt}}` | Name des Projekts | bleibt leer |
+| `{{datum}}` | Versanddatum, in der Vorschau das heutige Datum | — |
+| `{{absender}}` | Person, die den Newsletter angelegt hat | bleibt leer |
+| `{{app_name}}` | Name dieser Anwendung | — |
+| `{{login_url}}` | Adresse der Anwendung | — |
+| `{{archiv_link}}` | Link „Im Browser ansehen" | bleibt leer |
+
+**Vorher prüfen.** Über der Vorschau wählst du eine empfangende Person aus; angeboten werden nur
+Personen, die für diesen Newsletter tatsächlich als Empfänger aufgelöst wurden. Die Vorschau zeigt
+dann deren Werte. Ohne Auswahl siehst du deine eigenen Daten. Der Knopf **Testmail** schickt den
+aktuellen Stand an deine eigene Adresse, ohne die Empfängerliste zu berühren.
+
+**Tippfehler.** Ein unbekannter Platzhalter wie `{{vorrname}}` wird nicht ersetzt, sondern bleibt
+im Text stehen. Beim Speichern erscheint dazu ein Hinweis mit den betroffenen Platzhaltern.
+
+**Formatierung.** Setze innerhalb der Klammern keine Formatierung wie Fettdruck — der Platzhalter
+wird dann nicht mehr erkannt. Am sichersten ist der Knopf **Platzhalter** in der Editor-Leiste.
+
+**E-Mail-Adressen.** `{{email}}` schreibt die Adresse der empfangenden Person in den Text. Wird
+die Mail weitergeleitet, ist die Adresse mit unterwegs.
+
+Fehlt dir der Knopf **Platzhalter**, fehlt dir das Recht „Newsletter verwalten". Wende dich
+an den Administrator.

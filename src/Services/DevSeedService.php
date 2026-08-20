@@ -3248,10 +3248,11 @@ class DevSeedService
                 'name' => 'Newsletter Standard',
                 'category' => 'general',
                 'content_html' => '<h2>Newsletter</h2>' .
-                    '<p>Liebe Projektmitglieder,</p>' .
-                    '<p>hier sind die wichtigsten Neuigkeiten und Infos zum Projekt:</p>' .
+                    '<p>{{anrede}},</p>' .
+                    '<p>hier sind die wichtigsten Neuigkeiten zu {{projekt}}:</p>' .
                     '<ul><li>Informationen</li><li>Ankündigungen</li><li>Sonstiges</li></ul>' .
-                    '<p>Viel Spaß beim Lesen!</p>',
+                    '<p>Deine Stimmgruppe: {{stimmgruppe}}</p>' .
+                    '<p>{{archiv_link}}</p>',
             ],
             [
                 'name' => 'Nachbericht',
@@ -3296,9 +3297,11 @@ class DevSeedService
                 $newsletter = Newsletter::create([
                     'project_id' => $project->id,
                     'title' => 'Newsletter ' . $project->name . ' #' . ($i + 1),
-                    'content_html' => '<h2>Newsletter ' . $project->name . '</h2>' .
-                        '<p>Aktuelle Informationen zum Projekt:</p>' .
-                        '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>',
+                    'content_html' => '<h2>Newsletter {{projekt}}</h2>' .
+                        '<p>{{anrede}},</p>' .
+                        '<p>aktuelle Informationen zum Projekt, versendet am {{datum}}.</p>' .
+                        '<p>Deine Stimmgruppe: {{stimmgruppe}}</p>' .
+                        '<p>{{archiv_link}}</p>',
                     'status' => Newsletter::STATUS_SENT,
                     'created_by' => $createdUser->id,
                     'locked_by' => null,
@@ -3346,8 +3349,10 @@ class DevSeedService
             $draftUser = $activeUsers[(0 + 1) % count($activeUsers)];
             $draft = Newsletter::create([
                 'project_id' => $project->id,
-                'title' => 'Entwurf: ' . $project->name . ' - Neuer Newsletter',
-                'content_html' => '<h2>Editierbar</h2><p>Dies ist ein Entwurfs-Newsletter, der noch bearbeitet werden kann.</p>',
+                'title' => 'Entwurf für {{vorname}}: Probenplan',
+                'content_html' => '<h2>Editierbar</h2>' .
+                    '<p>{{anrede}}, dieser Entwurf zeigt Platzhalter im Betreff und im Text.</p>' .
+                    '<p>Angelegt von {{absender}} in {{app_name}}.</p>',
                 'status' => Newsletter::STATUS_DRAFT,
                 'created_by' => $draftUser->id,
                 'locked_by' => null,
@@ -3398,7 +3403,10 @@ class DevSeedService
             'project_id' => null,
             'title' => 'Entwurf: Vereinsweite Ankündigung',
             'content_html' => '<h2>Vereinsweite Ankündigung</h2>'
-                . '<p>Dieser Entwurf richtet sich an einzelne Mitglieder, nicht an ein Projekt.</p>',
+                . '<p>{{anrede}},</p>'
+                . '<p>dieses Rundschreiben geht an einzelne Mitglieder, nicht an ein Projekt.</p>'
+                . '<p>Deine Stimmgruppe: {{stimmgruppe}}</p>'
+                . '<p>Weitere Informationen folgen in Kürze.</p>',
             'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $announcementAuthor->id,
             'locked_by' => null,
@@ -3422,7 +3430,38 @@ class DevSeedService
             $this->report['counts']['newsletter_recipients']++;
         }
 
-        $generalDraft->recipient_count = count($singleRecipients);
+        // Fallback-Pfade der Platzhalter live prüfbar machen: ohne Vornamen wird
+        // {{anrede}} zu "Hallo" statt "Hallo Vorname"; ohne Stimmgruppe wird
+        // {{stimmgruppe}} zu "ohne Stimmgruppe".
+        $fallbackMember = User::updateOrCreate(
+            ['email' => 'placeholder_fallback@example.test'],
+            [
+                'password' => password_hash('test1234', PASSWORD_BCRYPT),
+                'first_name' => '',
+                'last_name' => 'Ohnevorname',
+                'is_active' => 1,
+            ]
+        );
+
+        if ($fallbackMember->wasRecentlyCreated) {
+            $this->report['counts']['users']++;
+        }
+
+        NewsletterRecipientSource::create([
+            'newsletter_id' => $generalDraft->id,
+            'source_type' => NewsletterRecipientSource::TYPE_USER,
+            'reference_id' => $fallbackMember->id,
+        ]);
+        $this->report['counts']['newsletter_recipient_sources']++;
+
+        NewsletterRecipient::create([
+            'newsletter_id' => $generalDraft->id,
+            'user_id' => $fallbackMember->id,
+            'status' => 'pending',
+        ]);
+        $this->report['counts']['newsletter_recipients']++;
+
+        $generalDraft->recipient_count = count($singleRecipients) + 1;
         $generalDraft->save();
 
         if ($boardRole === null) {

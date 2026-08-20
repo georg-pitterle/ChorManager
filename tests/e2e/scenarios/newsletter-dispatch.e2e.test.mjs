@@ -29,6 +29,14 @@ import {
     LATE_EARLY_MEMBER,
     LATE_JOINER,
     NEWSLETTER_LATE_JOINER,
+    NEWSLETTER_WITH_PLACEHOLDERS,
+    PLACEHOLDER_DISPATCH_EDITOR,
+    PLACEHOLDER_DISPATCH_PROJECT,
+    PLACEHOLDER_DISPATCH_MEMBERS,
+    PLACEHOLDER_PREVIEW_EDITOR,
+    PLACEHOLDER_PREVIEW_PROJECT,
+    PLACEHOLDER_PREVIEW_MEMBER,
+    NEWSLETTER_PLACEHOLDER_PREVIEW,
 } from '../data/newsletters.mjs';
 import { createMember } from '../steps/members.mjs';
 import { createProject, addProjectMember } from '../steps/projects.mjs';
@@ -45,8 +53,19 @@ import {
     openEditPage,
     sendFromEditPage,
     saveOpenNewsletterAsTemplate,
+    fillEditor,
+    insertPlaceholder,
+    pickRecipientSource,
+    saveOpenNewsletterDraft,
+    previewOpenNewsletterFor,
+    sendTestMailFromEditPage,
 } from '../steps/newsletters.mjs';
-import { deliverQueuedMails, mailpitRecipientsForSubject, mailpitBodyForSubject } from '../steps/mail.mjs';
+import {
+    deliverQueuedMails,
+    mailpitRecipientsForSubject,
+    mailpitBodyForSubject,
+    mailpitBodyForSubjectAndRecipient,
+} from '../steps/mail.mjs';
 import { newBrowserContext } from '../steps/browser.mjs';
 
 async function asUser(browser, email, run) {
@@ -455,4 +474,107 @@ test('Späte Zuordnung: der Empfängerkreis wird erst beim Versand aufgelöst', 
             ).toContain(NEWSLETTER_LATE_JOINER.title);
         });
     }
+});
+
+test('Newsletter: Platzhalter werden je Empfänger ersetzt', async ({ browser, page, request }) => {
+    test.setTimeout(180_000);
+
+    test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist deaktiviert');
+
+    // Eigene Personen und ein eigenes Projekt, damit dieser Fall unabhängig vom Versand-Fall
+    // oben läuft (siehe Kommentar bei den Fixtures in data/newsletters.mjs) - die DB wird nur
+    // einmal je Testlauf zurückgesetzt, nicht je Testfall.
+    for (const person of [PLACEHOLDER_DISPATCH_EDITOR, ...PLACEHOLDER_DISPATCH_MEMBERS]) {
+        await createMember(page, person);
+        setMemberPassword(person.email, NEWSLETTER_PASSWORD);
+    }
+    await createProject(page, PLACEHOLDER_DISPATCH_PROJECT);
+    for (const member of PLACEHOLDER_DISPATCH_MEMBERS) {
+        await addProjectMember(page, PLACEHOLDER_DISPATCH_PROJECT.name, member.lastName);
+    }
+
+    await asUser(browser, PLACEHOLDER_DISPATCH_EDITOR.email, async (editorPage) => {
+        // Die Empfängerquelle wird gleich beim Anlegen mitgegeben: Der Versand-Knopf liest
+        // beim Versenden nur den bereits gespeicherten Stand (siehe sendOpenNewsletter/
+        // sendFromEditPage) - eine Quelle, die erst danach im offenen Modal ausgewählt, aber
+        // nie gespeichert wird, käme beim Versand nie an und der Server lehnte mangels
+        // Empfänger ab.
+        const newsletterId = await createNewsletterDraft(editorPage, {
+            ...NEWSLETTER_WITH_PLACEHOLDERS,
+            sources: { project_members: [PLACEHOLDER_DISPATCH_PROJECT.name] },
+        });
+        await fillEditor(editorPage, NEWSLETTER_WITH_PLACEHOLDERS.content);
+        await insertPlaceholder(editorPage, 'Anrede');
+        // Speichern, damit der Platzhalter aus dem noch offenen Modal-Editor in der Datenbank
+        // landet - der anschließende Versand über die Bearbeiten-SEITE liest den Inhalt sonst
+        // ohne den gerade eingefügten Platzhalter.
+        await saveOpenNewsletterDraft(editorPage, newsletterId);
+        await openEditPage(editorPage, newsletterId);
+        await sendFromEditPage(editorPage);
+    });
+
+    deliverQueuedMails(NEWSLETTER_WITH_PLACEHOLDERS.title);
+
+    const [first, second] = PLACEHOLDER_DISPATCH_MEMBERS;
+    const firstBody = await mailpitBodyForSubjectAndRecipient(
+        request,
+        NEWSLETTER_WITH_PLACEHOLDERS.title,
+        first.email
+    );
+    const secondBody = await mailpitBodyForSubjectAndRecipient(
+        request,
+        NEWSLETTER_WITH_PLACEHOLDERS.title,
+        second.email
+    );
+
+    expect(firstBody).not.toContain('{{anrede}}');
+    expect(firstBody).toContain(`Hallo ${first.firstName}`);
+    expect(secondBody).toContain(`Hallo ${second.firstName}`);
+});
+
+test('Newsletter: Vorschau und Testmail lösen Platzhalter auf', async ({ browser, page, request }) => {
+    test.setTimeout(180_000);
+
+    test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist deaktiviert');
+
+    // Eigene Personen und ein eigenes Projekt, damit dieser Fall unabhängig vom Versand-Fall
+    // oben läuft (eigene Empfängerquelle, eigener Betreff für Vorschau und Testmail).
+    for (const person of [PLACEHOLDER_PREVIEW_EDITOR, PLACEHOLDER_PREVIEW_MEMBER]) {
+        await createMember(page, person);
+        setMemberPassword(person.email, NEWSLETTER_PASSWORD);
+    }
+    await createProject(page, PLACEHOLDER_PREVIEW_PROJECT);
+    await addProjectMember(page, PLACEHOLDER_PREVIEW_PROJECT.name, PLACEHOLDER_PREVIEW_MEMBER.lastName);
+
+    await asUser(browser, PLACEHOLDER_PREVIEW_EDITOR.email, async (editorPage) => {
+        const newsletterId = await createNewsletterDraft(editorPage, NEWSLETTER_PLACEHOLDER_PREVIEW);
+        await fillEditor(editorPage, NEWSLETTER_PLACEHOLDER_PREVIEW.content);
+        await insertPlaceholder(editorPage, 'Anrede');
+        await pickRecipientSource(editorPage, 'project_members', [PLACEHOLDER_PREVIEW_PROJECT.name]);
+        // Speichern, damit Inhalt und Empfängerquelle auf der Bearbeiten-SEITE (nach dem
+        // Neuladen unten) aus der Datenbank kommen statt aus dem noch offenen Editor im Modal.
+        await saveOpenNewsletterDraft(editorPage, newsletterId);
+
+        // Bearbeiten-SEITE (nicht das Modal): nur dort läuft die Vorschau über den echten
+        // fetch-Weg (/newsletters/{id}/preview-render) - genau die Anfrage, die vorher ohne
+        // CSRF-Token im Browser mit 403 gescheitert wäre, während die PHP-Tests grün blieben.
+        await openEditPage(editorPage, newsletterId);
+
+        const previewText = await previewOpenNewsletterFor(editorPage, PLACEHOLDER_PREVIEW_MEMBER.firstName);
+        expect(previewText).not.toContain('{{anrede}}');
+        expect(previewText).toContain(`Hallo ${PLACEHOLDER_PREVIEW_MEMBER.firstName}`);
+
+        const testMailMessage = await sendTestMailFromEditPage(editorPage);
+        expect(testMailMessage).toContain('eingereiht');
+    });
+
+    // Die Testmail geht an die auslösende Person selbst, mit aufgelöster Anrede.
+    deliverQueuedMails(NEWSLETTER_PLACEHOLDER_PREVIEW.title);
+    const testMailBody = await mailpitBodyForSubjectAndRecipient(
+        request,
+        NEWSLETTER_PLACEHOLDER_PREVIEW.title,
+        PLACEHOLDER_PREVIEW_EDITOR.email
+    );
+    expect(testMailBody).not.toContain('{{anrede}}');
+    expect(testMailBody).toContain(`Hallo ${PLACEHOLDER_PREVIEW_EDITOR.firstName}`);
 });

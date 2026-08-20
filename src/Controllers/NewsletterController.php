@@ -21,7 +21,10 @@ use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterRecipientService;
 use App\Services\HtmlSanitizer;
+use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Services\NewsletterPlaceholderService;
+use App\Util\AppUrlResolver;
 use App\Util\EnvHelper;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
@@ -35,6 +38,8 @@ class NewsletterController
     private HtmlSanitizer $htmlSanitizer;
     private LoggerInterface $logger;
     private NameFormatterService $nameFormatter;
+    private NewsletterPlaceholderService $placeholderService;
+    private MailQueueService $mailQueueService;
 
     public function __construct(
         Twig $view,
@@ -43,7 +48,9 @@ class NewsletterController
         NewsletterRecipientService $recipientService,
         HtmlSanitizer $htmlSanitizer,
         LoggerInterface $logger,
-        NameFormatterService $nameFormatter
+        NameFormatterService $nameFormatter,
+        NewsletterPlaceholderService $placeholderService,
+        MailQueueService $mailQueueService
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -52,6 +59,8 @@ class NewsletterController
         $this->htmlSanitizer = $htmlSanitizer;
         $this->logger = $logger;
         $this->nameFormatter = $nameFormatter;
+        $this->placeholderService = $placeholderService;
+        $this->mailQueueService = $mailQueueService;
     }
 
     /**
@@ -60,6 +69,30 @@ class NewsletterController
     private function activeUsersInNameOrder(): Collection
     {
         $query = User::query()->where('is_active', 1);
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Für die Vorschau-Auswahl nur die tatsächlich aufgelösten Empfänger anbieten, sonst
+     * ließe sich über den Endpunkt jede beliebige aktive Person auswählen und 403 provozieren.
+     */
+    private function previewRecipientsInNameOrder(Newsletter $newsletter): Collection
+    {
+        $recipientIds = $this->recipientService->resolveRecipients($newsletter)
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        if ($recipientIds === []) {
+            return new Collection();
+        }
+
+        $query = User::query()->whereIn('id', $recipientIds);
 
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $query->orderBy($column);
@@ -137,6 +170,28 @@ class NewsletterController
     private function canManageNewsletters(): bool
     {
         return (bool) ($_SESSION['can_manage_newsletters'] ?? false);
+    }
+
+    /**
+     * Unbekannte Platzhalter melden, aber nicht entfernen: ein Tippfehler soll auffallen,
+     * ohne dass Text stillschweigend verschwindet.
+     *
+     * @return array<int, string>
+     */
+    private function placeholderWarnings(string $title, string $contentHtml): array
+    {
+        $unknown = array_values(array_unique(array_merge(
+            $this->placeholderService->findUnknownTokens($title),
+            $this->placeholderService->findUnknownTokens($contentHtml)
+        )));
+
+        if ($unknown === []) {
+            return [];
+        }
+
+        $tokens = implode(', ', array_map(static fn (string $key): string => '{{' . $key . '}}', $unknown));
+
+        return ['Unbekannte Platzhalter bleiben unverändert stehen: ' . $tokens];
     }
 
     private function canAccessReceivedNewsletterById(int $newsletterId, ?int $userId): bool
@@ -477,9 +532,20 @@ class NewsletterController
 
         $this->recipientService->setSources($newsletter, $sourceValidation['payload']['sources']);
 
+        $warnings = $this->placeholderWarnings(
+            (string) $validation['payload']['title'],
+            (string) $validation['payload']['content_html']
+        );
+
+        // Der einzige verlinkte Weg zum Anlegen ist der Modal-Dialog: Der Client lädt den
+        // Editor per Anfrage in denselben Dialog nach, ohne Seitenwechsel. layout_modal.twig
+        // bindet den Session-Meldungsbereich gar nicht ein, eine Sitzungswarnung würde dort
+        // also nie erscheinen. Die Warnung läuft deshalb ausschließlich über dieses JSON-Feld;
+        // das Frontend zeigt sie an, nachdem der nachgeladene Editor bereit ist.
         return $this->jsonResponse($response, [
             'id' => $newsletter->id,
             'redirect' => "/newsletters/{$newsletter->id}/edit" . ($isModal ? '?modal=1' : ''),
+            'warnings' => $warnings,
         ], 201);
     }
 
@@ -516,6 +582,7 @@ class NewsletterController
         $roles = Role::query()->orderBy('name')->get();
         $users = $this->activeUsersInNameOrder();
         $sources = $this->recipientService->getSources($newsletter);
+        $previewRecipients = $this->previewRecipientsInNameOrder($newsletter);
 
         return $this->view->render($response, 'newsletters/edit.twig', [
             'newsletter' => $newsletter,
@@ -524,6 +591,7 @@ class NewsletterController
             'events' => $events,
             'roles' => $roles,
             'users' => $users,
+            'preview_recipients' => $previewRecipients,
             'recipient_sources' => $sources,
             'template_groups' => $this->groupedTemplates(),
             'is_modal' => $isModal,
@@ -574,14 +642,30 @@ class NewsletterController
 
         $this->recipientService->setSources($newsletter, $sourceValidation['payload']['sources']);
 
+        $warnings = $this->placeholderWarnings(
+            (string) $validation['payload']['title'],
+            (string) $validation['payload']['content_html']
+        );
+
         $suppressFlash = ((string) ($data['suppress_flash'] ?? '0')) === '1';
+        $isModalRequest = ((string) ($data['is_modal'] ?? '0')) === '1';
         if (!$suppressFlash) {
             $_SESSION['success'] = 'Newsletter gespeichert';
+
+            // Nur der Modal-Weg schließt den Dialog nach dem Speichern und lädt die Seite über
+            // window.location.reload() neu, statt die Warnung selbst über dieses JSON anzuzeigen
+            // (siehe newsletters-edit.js). Nur dort trägt die Sitzung die Warnung bis zum nächsten
+            // Aufruf; auf dem klassischen Seitenaufruf zeigt der Editor sie bereits selbst an, eine
+            // zusätzliche Sitzungswarnung würde dort verspätet ein zweites Mal auftauchen.
+            if ($isModalRequest && $warnings !== []) {
+                $_SESSION['warning'] = implode(' ', $warnings);
+            }
         }
 
         return $this->jsonResponse($response, [
             'success' => true,
             'message' => 'Newsletter gespeichert',
+            'warnings' => $warnings,
         ]);
     }
 
@@ -614,16 +698,101 @@ class NewsletterController
             return $response->withStatus(403);
         }
 
+        $canManage = $this->canManageNewsletters();
         $newsletter = Newsletter::find($id);
 
         if (!$newsletter) {
             return $response->withStatus(404);
         }
 
+        $requestedRecipientId = (int) ($queryParams['recipient_id'] ?? 0);
+        $viewer = $userId === null ? null : User::find((int) $userId);
+        $previewRecipient = $viewer;
+        $isOwnData = true;
+
+        // Fremde Empfängerdaten darf nur sehen, wer den Newsletter verwaltet, und auch
+        // dann nur für Personen, die tatsächlich zu den Empfängern zählen. Ohne diese
+        // Prüfung würde die Route beliebige Nutzerdaten preisgeben.
+        if ($canManage && $requestedRecipientId > 0) {
+            $isResolvedRecipient = $this->recipientService
+                ->resolveRecipients($newsletter)
+                ->contains(static fn ($user): bool => (int) $user->id === $requestedRecipientId);
+
+            if (!$isResolvedRecipient) {
+                return $response->withStatus(403);
+            }
+
+            $previewRecipient = User::find($requestedRecipientId);
+            $isOwnData = false;
+        }
+
+        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
+        $context = $this->placeholderService->contextFor(
+            $newsletter,
+            AppUrlResolver::resolveBaseUrl($request)
+        );
+
         return $this->view->render($response, 'newsletters/preview.twig', [
             'newsletter' => $newsletter,
-            'preview_content_html' => $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html),
+            'preview_content_html' => $this->placeholderService->renderHtml($sanitized, $context, $previewRecipient),
+            'preview_title' => $this->placeholderService->renderSubject(
+                (string) $newsletter->title,
+                $context,
+                $previewRecipient
+            ),
+            'preview_recipient_name' => $previewRecipient === null
+                ? ''
+                : $this->nameFormatter->formatPerson($previewRecipient),
+            'preview_is_own_data' => $isOwnData,
             'is_modal' => $isModal,
+        ]);
+    }
+
+    /**
+     * Rendert den noch nicht gespeicherten Editor-Inhalt mit den Daten eines Empfängers.
+     */
+    public function previewRender(Request $request, Response $response): Response
+    {
+        if (!$this->canManageNewsletters()) {
+            return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+        }
+
+        $id = (int) $request->getAttribute('id');
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter) {
+            return $this->jsonResponse($response, ['error' => 'Newsletter wurde nicht gefunden.'], 404);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $requestedRecipientId = (int) ($data['recipient_id'] ?? 0);
+        $userId = $_SESSION['user_id'] ?? null;
+        $recipient = $userId === null ? null : User::find((int) $userId);
+
+        if ($requestedRecipientId > 0) {
+            $isResolvedRecipient = $this->recipientService
+                ->resolveRecipients($newsletter)
+                ->contains(static fn ($user): bool => (int) $user->id === $requestedRecipientId);
+
+            if (!$isResolvedRecipient) {
+                return $this->jsonResponse($response, ['error' => 'Unbekannter Empfänger.'], 403);
+            }
+
+            $recipient = User::find($requestedRecipientId);
+        }
+
+        $context = $this->placeholderService->contextFor(
+            $newsletter,
+            AppUrlResolver::resolveBaseUrl($request)
+        );
+        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) ($data['content_html'] ?? ''));
+
+        return $this->jsonResponse($response, [
+            'title' => $this->placeholderService->renderSubject(
+                trim((string) ($data['title'] ?? '')),
+                $context,
+                $recipient
+            ),
+            'content_html' => $this->placeholderService->renderHtml($sanitized, $context, $recipient),
         ]);
     }
 
@@ -662,12 +831,25 @@ class NewsletterController
             $this->lockingService->acquireLock($newsletter, $userId);
         }
 
+        $warnings = $this->placeholderWarnings(
+            (string) $newsletter->title,
+            (string) $newsletter->content_html
+        );
+
         try {
-            $recipientCount = $this->newsletterService->send($newsletter, $userId);
+            $recipientCount = $this->newsletterService->send(
+                $newsletter,
+                $userId,
+                AppUrlResolver::resolveBaseUrl($request)
+            );
             if (EnvHelper::readBool('DISABLE_MAIL_SEND', true)) {
                 $_SESSION['success'] = "[Dev-Modus] Mailversand deaktiviert – {$recipientCount} Mail(s) wären versendet worden.";
             } else {
                 $_SESSION['success'] = 'Newsletter versendet';
+            }
+
+            if ($warnings !== []) {
+                $_SESSION['warning'] = implode(' ', $warnings);
             }
 
             if ($expectsJson) {
@@ -774,6 +956,92 @@ class NewsletterController
         }
 
         return $this->jsonResponse($response, ['released' => true]);
+    }
+
+    /**
+     * Platzhalter-Registry für die Auswahlliste im Editor.
+     */
+    public function placeholders(Request $request, Response $response): Response
+    {
+        if (!$this->canManageNewsletters()) {
+            return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+        }
+
+        $placeholders = [];
+        foreach ($this->placeholderService->definitions() as $definition) {
+            $placeholders[] = [
+                'key' => $definition->key,
+                'token' => '{{' . $definition->key . '}}',
+                'label' => $definition->label,
+                'description' => $definition->description,
+                'scope' => $definition->scope,
+                'example' => $definition->example,
+            ];
+        }
+
+        return $this->jsonResponse($response, ['placeholders' => $placeholders]);
+    }
+
+    /**
+     * Schickt den aktuellen Editor-Stand als Testmail an die eigene Adresse.
+     * Die Zieladresse stammt aus der Sitzung, nie aus dem Request.
+     */
+    public function testMail(Request $request, Response $response): Response
+    {
+        if (!$this->canManageNewsletters()) {
+            return $this->jsonResponse($response, ['error' => 'Zugriff verweigert.'], 403);
+        }
+
+        $id = (int) $request->getAttribute('id');
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter) {
+            return $this->jsonResponse($response, ['error' => 'Newsletter wurde nicht gefunden.'], 404);
+        }
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $sender = $userId === null ? null : User::find((int) $userId);
+        $senderEmail = trim((string) ($sender->email ?? ''));
+
+        if ($sender === null || filter_var($senderEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return $this->jsonResponse($response, ['error' => 'Keine gültige eigene E-Mail-Adresse.'], 422);
+        }
+
+        if ($newsletter->isLocked() && !$this->lockingService->isLockedBy($newsletter, $userId)) {
+            return $this->jsonResponse(
+                $response,
+                ['error' => 'Newsletter wird gerade von einer anderen Person bearbeitet.'],
+                409
+            );
+        }
+
+        $data = (array) $request->getParsedBody();
+        $context = $this->placeholderService->contextFor(
+            $newsletter,
+            AppUrlResolver::resolveBaseUrl($request)
+        );
+        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) ($data['content_html'] ?? ''));
+
+        $this->mailQueueService->enqueueNewsletterTestMail(
+            recipientEmail: $senderEmail,
+            subject: $this->placeholderService->renderSubject(
+                trim((string) ($data['title'] ?? '')),
+                $context,
+                $sender
+            ),
+            bodyHtml: $this->placeholderService->renderHtml($sanitized, $context, $sender),
+            newsletterId: (int) $newsletter->id
+        );
+
+        $this->logger->info('Newsletter test mail enqueued.', [
+            'event' => 'newsletter.test_mail.enqueued',
+            'newsletter_id' => (int) $newsletter->id,
+            'user_id' => (int) $sender->id,
+        ]);
+
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'message' => 'Testmail wurde eingereiht.',
+        ]);
     }
 
     public function deleteDraft(Request $request, Response $response): Response

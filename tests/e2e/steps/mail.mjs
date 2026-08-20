@@ -81,3 +81,27 @@ export async function mailpitBodyForSubject(request, subject) {
     const message = await messageResponse.json();
     return `${message.HTML ?? ''}\n${message.Text ?? ''}`;
 }
+
+/**
+ * Textinhalt der Mail, die unter diesem Betreff an genau diese Adresse ging.
+ * mailpitBodyForSubject liefert nur die erste Mail eines Betreffs - für den Nachweis
+ * einer personalisierten Ersetzung braucht es aber die Mail einer bestimmten Person.
+ *
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string} subject
+ * @param {string} email
+ * @returns {Promise<string>}
+ */
+export async function mailpitBodyForSubjectAndRecipient(request, subject, email) {
+    const query = encodeURIComponent(`subject:"${subject}" to:"${email}"`);
+    const listResponse = await request.get(`${MAILPIT_BASE}/api/v1/search?query=${query}&limit=1`);
+    const list = await listResponse.json();
+    const first = (list.messages ?? [])[0];
+    if (!first) {
+        return '';
+    }
+
+    const messageResponse = await request.get(`${MAILPIT_BASE}/api/v1/message/${first.ID}`);
+    const message = await messageResponse.json();
+    return `${message.HTML ?? ''}\n${message.Text ?? ''}`;
+}

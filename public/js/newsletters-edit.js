@@ -71,6 +71,12 @@ function initNewsletterEdit() {
 
     let lastSavedSnapshot = null;
     let saveInProgress = false;
+    // Merkt sich die zuletzt angezeigte Warnung, damit ein automatischer
+    // Hintergrund-Speicherlauf (alle 30 Sekunden) nicht bei jedem Durchlauf
+    // erneut auf denselben unbekannten Platzhalter hinweist und die
+    // Redaktion damit unterbricht. Ändert sich die Menge der unbekannten
+    // Token, erscheint der Hinweis erneut.
+    let lastWarningSignature = null;
 
     function showEditAlert(type, message) {
         if (!message) {
@@ -95,6 +101,14 @@ function initNewsletterEdit() {
 
         editForm.prepend(wrapper);
     }
+
+    // Nach dem Anlegen lädt newsletters.js diesen Editor in den bestehenden Modal-Dialog nach,
+    // statt eine echte Seite aufzurufen. Der Anlegen-Endpunkt liefert seine Platzhalter-Warnung
+    // deshalb im JSON statt über die Sitzung (layout_modal.twig zeigt Sitzungsmeldungen ohnehin
+    // nicht an). Damit newsletters.js die Warnung nach dem Nachladen mit demselben Meldungsweg
+    // wie Speichern und Testmail anzeigen kann, wird die Funktion hier minimal nach außen sichtbar
+    // gemacht.
+    window.newsletterEditShowAlert = showEditAlert;
 
     function buildRecipientSourcesPayload() {
         const payload = [];
@@ -286,6 +300,13 @@ function initNewsletterEdit() {
             formData.set("suppress_flash", "1");
         }
 
+        // Der Modal-Weg schließt den Dialog nach dem Speichern und lädt die Seite neu, statt die
+        // Warnung selbst anzuzeigen (siehe unten). Der Endpunkt braucht dieses Feld, um die
+        // Platzhalter-Warnung dafür in die Sitzung zu legen, ohne sie auf dem klassischen
+        // Seitenaufruf – der die Warnung bereits selbst über diese Antwort anzeigt – zusätzlich
+        // über die Sitzung ein zweites Mal auftauchen zu lassen.
+        formData.set("is_modal", isModalView ? "1" : "0");
+
         if (csrfToken) {
             formData.set("_csrf", csrfToken);
         }
@@ -307,14 +328,27 @@ function initNewsletterEdit() {
                 return;
             }
 
+            const data = await response.json();
             lastSavedSnapshot = currentSnapshot;
+
+            const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+            const warningSignature = warnings.length > 0 ? warnings.join("|") : null;
+            const isNewWarning = warningSignature !== null && warningSignature !== lastWarningSignature;
+            lastWarningSignature = warningSignature;
+
             if (showSuccessMessage) {
                 if (isModalView && typeof window.newsletterModalCloseAndRefresh === "function") {
                     window.newsletterModalCloseAndRefresh();
                     return;
                 }
 
-                showEditAlert("success", "Newsletter gespeichert");
+                if (warnings.length > 0) {
+                    showEditAlert("warning", "Newsletter gespeichert. " + warnings.join(" "));
+                } else {
+                    showEditAlert("success", "Newsletter gespeichert");
+                }
+            } else if (isNewWarning) {
+                showEditAlert("warning", warnings.join(" "));
             }
         } finally {
             saveInProgress = false;
@@ -369,28 +403,77 @@ function initNewsletterEdit() {
 
     if (previewButton) {
         previewButton.addEventListener("click", function () {
+            const recipientSelect = document.getElementById("preview-recipient");
+
             if (isModalView && newsletterId && typeof window.newsletterModalNavigate === "function") {
-                window.newsletterModalNavigate(`/newsletters/${newsletterId}/preview?modal=1`, "Newsletter Vorschau");
+                // Die gespeicherte Vorschau akzeptiert und prüft recipient_id bereits serverseitig;
+                // ohne diesen Parameter zeigt sie immer die eigenen Daten der Sitzung an, wodurch das
+                // Auswahlfeld "Vorschau für" auf dem Modal-Weg wirkungslos bliebe.
+                const selectedRecipientId = recipientSelect ? recipientSelect.value : "";
+                const recipientQuery = selectedRecipientId
+                    ? `&recipient_id=${encodeURIComponent(selectedRecipientId)}`
+                    : "";
+                window.newsletterModalNavigate(
+                    `/newsletters/${newsletterId}/preview?modal=1${recipientQuery}`,
+                    "Newsletter Vorschau"
+                );
                 return;
             }
 
             const previewTitle = document.getElementById("preview-modal-title");
             const previewProject = document.getElementById("preview-modal-project");
             const previewContent = document.getElementById("preview-modal-content");
-            const editor = tinymce.get("content_html");
-
-            if (previewTitle) {
-                previewTitle.textContent = titleInput && titleInput.value ? titleInput.value : "Ohne Titel";
-            }
+            const editor = typeof tinymce !== "undefined" ? tinymce.get("content_html") : null;
 
             if (previewProject && projectSelect) {
                 const selectedProject = projectSelect.options[projectSelect.selectedIndex];
                 previewProject.textContent = selectedProject ? selectedProject.textContent.trim() : "";
             }
 
-            if (previewContent) {
-                previewContent.innerHTML = editor ? editor.getContent() : "";
+            const body = new FormData();
+            body.set("title", titleInput && titleInput.value ? titleInput.value : "Ohne Titel");
+            body.set("content_html", editor ? editor.getContent() : "");
+            body.set("recipient_id", recipientSelect ? recipientSelect.value : "");
+            if (csrfToken) {
+                body.set("_csrf", csrfToken);
             }
+
+            fetch(`/newsletters/${newsletterId}/preview-render`, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+                },
+                body: body
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    if (!result.ok) {
+                        if (previewContent) {
+                            previewContent.textContent = (result.data && result.data.error)
+                                || "Vorschau konnte nicht geladen werden.";
+                        }
+                        return;
+                    }
+
+                    const data = result.data;
+                    if (previewTitle) {
+                        previewTitle.textContent = data.title || "Ohne Titel";
+                    }
+
+                    if (previewContent) {
+                        previewContent.innerHTML = data.content_html || "";
+                    }
+                })
+                .catch(function () {
+                    if (previewContent) {
+                        previewContent.textContent = "Vorschau konnte nicht geladen werden.";
+                    }
+                });
         });
     }
 
@@ -469,6 +552,43 @@ function initNewsletterEdit() {
                 }
             }
             alert("Vorlage gespeichert");
+        });
+    }
+
+    const testMailButton = document.getElementById("test-mail-btn");
+    if (testMailButton) {
+        testMailButton.addEventListener("click", function () {
+            const editor = typeof tinymce !== "undefined" ? tinymce.get("content_html") : null;
+            const body = new FormData();
+            body.set("title", titleInput && titleInput.value ? titleInput.value : "Ohne Titel");
+            body.set("content_html", editor ? editor.getContent() : "");
+
+            testMailButton.disabled = true;
+
+            fetch(`/newsletters/${newsletterId}/test-mail`, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+                },
+                body: body
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    const message = (result.data && (result.data.message || result.data.error))
+                        || "Testmail konnte nicht gesendet werden.";
+                    showEditAlert(result.ok ? "success" : "danger", message);
+                })
+                .catch(function () {
+                    showEditAlert("danger", "Testmail konnte nicht gesendet werden.");
+                })
+                .finally(function () {
+                    testMailButton.disabled = false;
+                });
         });
     }
 

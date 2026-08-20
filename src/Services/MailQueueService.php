@@ -129,6 +129,30 @@ class MailQueueService
     }
 
     /**
+     * Testmail eines Newsletters an die auslösende Person. Ohne Empfängerzeile, weil
+     * die Testmail nicht Teil des Versands ist und keine Zustellstatistik erzeugen darf.
+     *
+     * @throws Exception
+     */
+    public function enqueueNewsletterTestMail(
+        string $recipientEmail,
+        string $subject,
+        string $bodyHtml,
+        int $newsletterId
+    ): MailQueue {
+        return $this->enqueueGenericMail(
+            mailType: 'newsletter',
+            recipientEmail: $recipientEmail,
+            subject: $subject,
+            bodyHtml: $bodyHtml,
+            payload: [
+                'newsletter_id' => $newsletterId,
+                'test_mail' => true,
+            ]
+        );
+    }
+
+    /**
      * Generic enqueue logic.
      *
      * @param string $mailType

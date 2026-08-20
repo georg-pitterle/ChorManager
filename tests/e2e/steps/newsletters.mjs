@@ -195,7 +195,25 @@ export async function createNewsletterDraft(page, draft) {
  */
 export async function sendOpenNewsletter(page) {
     page.once('dialog', (dialog) => dialog.accept());
+
+    // Der Versand-Knopf im Modal spricht per fetch die JSON-API an, ohne den Formularinhalt
+    // mitzuschicken - der Server versendet strikt das, was zuvor gespeichert wurde. Auf die
+    // Antwort dieser Anfrage warten, statt blind auf die Weiterleitung zu hoffen: Lehnt der
+    // Server ab (z. B. weil keine Empfänger gespeichert sind), bleibt die Seite stehen und ein
+    // bloßes waitForURL liefe nur in einen nichtssagenden Zeitablauf.
+    const sendResponsePromise = page.waitForResponse(
+        (response) => /\/newsletters\/\d+\/send$/.test(new URL(response.url()).pathname)
+            && response.request().method() === 'POST'
+    );
     await page.locator(`${MODAL_CONTENT} #send-newsletter-btn`).click();
+    const response = await sendResponsePromise;
+    if (!response.ok()) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(
+            `Versenden wurde vom Server abgelehnt: HTTP ${response.status()} ${body.error ?? ''}`.trim()
+        );
+    }
+
     await page.waitForURL('**/newsletters?**status=sent**');
 }
 
@@ -274,6 +292,76 @@ export async function createNewsletterTemplate(page, template) {
 
     await modal.locator('button[type="submit"]', { hasText: 'Vorlage erstellen' }).click();
     await page.waitForURL('**/newsletters/templates/**/edit');
+}
+
+// Fügt einen Platzhalter über die Editor-Leiste ein, nicht per Tastatur: nur so ist
+// sichergestellt, dass der Knopf existiert und reinen Text einfügt.
+export async function insertPlaceholder(page, label) {
+    // TinyMCE macht aus dem tooltip das aria-label ("Platzhalter einfügen"), und der
+    // barrierefreie Name gewinnt gegen den sichtbaren Text - daher als Muster suchen.
+    await page.getByRole('button', { name: /Platzhalter/ }).first().click();
+    await page.getByRole('menuitem', { name: new RegExp(label) }).click();
+}
+
+/**
+ * Speichert den im Bearbeiten-Modal geöffneten Entwurf. Ein erfolgreiches Speichern schließt
+ * das Modal und lädt die zugrunde liegende Seite komplett neu (public/js/newsletters-edit.js:
+ * saveNewsletter ruft im Modal-Fall window.newsletterModalCloseAndRefresh -> location.reload
+ * auf). Das Warten endet erst, wenn dieses vom Browser selbst ausgelöste Neuladen
+ * abgeschlossen ist - sonst geriete eine direkt anschließende eigene Navigation (z. B.
+ * openEditPage) in einen Wettlauf mit diesem Reload ("Navigation ... interrupted by another
+ * navigation").
+ */
+export async function saveOpenNewsletterDraft(page, newsletterId) {
+    const responsePromise = page.waitForResponse(
+        (response) => response.url().endsWith(`/newsletters/${newsletterId}`) && response.request().method() === 'POST'
+    );
+    const reloadPromise = page.waitForEvent('load');
+    await page.locator(`${MODAL_CONTENT} #save-draft-btn`).click();
+    const response = await responsePromise;
+    if (!response.ok()) {
+        throw new Error(`Speichern des Entwurfs ist fehlgeschlagen: HTTP ${response.status()}`);
+    }
+    await reloadPromise;
+}
+
+/**
+ * Öffnet die Vorschau auf der Bearbeiten-SEITE (nicht im Modal) für eine bestimmte empfangende
+ * Person und liefert den sichtbaren Vorschautext. Nur auf der echten Seite läuft der
+ * Vorschau-Knopf über den fetch-Weg (#previewModal, /newsletters/{id}/preview-render) - im
+ * Modal navigiert derselbe Knopf stattdessen auf eine andere, serverseitig gerenderte Ansicht
+ * (public/js/newsletters-edit.js: window.newsletterModalNavigate).
+ */
+export async function previewOpenNewsletterFor(page, recipientFirstName) {
+    const option = page.locator('#preview-recipient option', { hasText: recipientFirstName });
+    const value = await option.getAttribute('value');
+    await page.locator('#preview-recipient').selectOption(value);
+
+    await page.click('#preview-btn');
+    const previewModal = page.locator('#previewModal');
+    await previewModal.waitFor({ state: 'visible', timeout: MODAL_CONTENT_TIMEOUT });
+    const content = page.locator('#preview-modal-content');
+    await expect(content).not.toBeEmpty({ timeout: MODAL_CONTENT_TIMEOUT });
+    const text = (await content.innerText()).trim();
+
+    // Auf der Bearbeiten-SEITE öffnet der Vorschau-Knopf ein echtes Bootstrap-Modal
+    // (data-bs-toggle="modal"), das nach dem Lesen offen bliebe und mit seinem Backdrop jeden
+    // weiteren Klick auf der Seite abfangen würde (z. B. den Testmail-Knopf danach).
+    await previewModal.locator('.modal-footer button[data-bs-dismiss="modal"]').click();
+    await previewModal.waitFor({ state: 'hidden', timeout: MODAL_CONTENT_TIMEOUT });
+
+    return text;
+}
+
+/**
+ * Löst die Testmail auf der Bearbeiten-SEITE aus und liefert die Bestätigungsmeldung
+ * (public/js/newsletters-edit.js: #test-mail-btn zeigt sie über .newsletter-edit-alert an).
+ */
+export async function sendTestMailFromEditPage(page) {
+    const alertBox = page.locator('.newsletter-edit-alert');
+    await page.click('#test-mail-btn');
+    await alertBox.waitFor({ state: 'visible', timeout: MODAL_CONTENT_TIMEOUT });
+    return (await alertBox.innerText()).trim();
 }
 
 /**

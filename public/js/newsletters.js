@@ -441,7 +441,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (payload && payload.redirect) {
-                loadModalContent(payload.redirect, titleElement.textContent || 'Newsletter');
+                await loadModalContent(payload.redirect, titleElement.textContent || 'Newsletter');
+
+                // Der Anlegen-Endpunkt liefert seine Platzhalter-Warnung nur im JSON, weil
+                // layout_modal.twig keinen Meldungsbereich für Sitzungsmeldungen einbindet. Der
+                // Editor wurde oben gerade erst nachgeladen; die Warnung muss danach gesetzt
+                // werden, sonst überschreibt das Nachladen sie sofort wieder.
+                const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
+                if (warnings.length > 0 && typeof window.newsletterEditShowAlert === 'function') {
+                    window.newsletterEditShowAlert('warning', warnings.join(' '));
+                }
                 return;
             }
 

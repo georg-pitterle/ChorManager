@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
+use App\Services\NameFormatterService;
+use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
 use Dotenv\Dotenv;
@@ -88,7 +90,8 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
             new Mailer(new NullLogger()),
             new HtmlSanitizer(),
             new MailQueueService(),
-            new NullLogger()
+            new NullLogger(),
+            new NewsletterPlaceholderService(new NameFormatterService())
         );
     }
 
@@ -140,7 +143,7 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
 
         $newsletter = $this->createDraft($project, $memberA);
 
-        $sentCount = $this->makeService()->send($newsletter, (int) $memberA->id);
+        $sentCount = $this->makeService()->send($newsletter, (int) $memberA->id, 'https://chor.example');
 
         $this->assertSame(2, $sentCount);
 
@@ -185,7 +188,7 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
         $memberB = $this->createUser();
         $project->users()->attach($memberB->id);
 
-        $this->makeService()->send($newsletter, (int) $memberA->id);
+        $this->makeService()->send($newsletter, (int) $memberA->id, 'https://chor.example');
 
         $archivedUserIds = NewsletterArchive::query()
             ->where('newsletter_id', $newsletter->id)
@@ -217,7 +220,7 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
             [(int) $activeMember->id, (int) $inactiveMember->id]
         );
 
-        $sentCount = $this->makeService()->send($newsletter, (int) $activeMember->id);
+        $sentCount = $this->makeService()->send($newsletter, (int) $activeMember->id, 'https://chor.example');
 
         $this->assertSame(1, $sentCount);
 
@@ -256,11 +259,11 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
         $second = Newsletter::findOrFail($draft->id);
 
         $service = $this->makeService();
-        $service->send($first, (int) $member->id);
+        $service->send($first, (int) $member->id, 'https://chor.example');
 
         $secondRejected = false;
         try {
-            $service->send($second, (int) $member->id);
+            $service->send($second, (int) $member->id, 'https://chor.example');
         } catch (\Exception) {
             $secondRejected = true;
         }
@@ -303,7 +306,7 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
 
         $failed = false;
         try {
-            $this->makeService()->send($newsletter, (int) $member->id);
+            $this->makeService()->send($newsletter, (int) $member->id, 'https://chor.example');
         } catch (\Exception) {
             $failed = true;
         }
