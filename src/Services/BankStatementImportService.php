@@ -82,16 +82,10 @@ class BankStatementImportService
     public function parse(string $rawContent): array
     {
         $content = $this->normalizeEncoding($rawContent);
-        $lines = preg_split('/\r\n|\r|\n/', $content) ?: [];
 
         $header = null;
         $records = [];
-        foreach ($lines as $line) {
-            if (trim($line) === '') {
-                continue;
-            }
-
-            $fields = str_getcsv($line, self::DELIMITER, '"', '\\');
+        foreach ($this->readCsvRecords($content) as $fields) {
             if ($header === null) {
                 $header = $this->mapHeader($fields);
                 continue;
@@ -129,6 +123,47 @@ class BankStatementImportService
         ]);
 
         return ['rows' => $rows, 'errors' => [], 'own_iban' => $ownIban];
+    }
+
+    /**
+     * Liest die Datei als CSV statt sie vorher in Zeilen zu zerlegen: Ein
+     * mehrzeiliger Verwendungszweck steht als eingebetteter Zeilenumbruch im
+     * Anführungszeichen-Feld und zerfiele sonst in zwei kaputte Zeilen.
+     *
+     * @return list<list<string|null>>
+     */
+    private function readCsvRecords(string $content): array
+    {
+        $handle = fopen('php://temp', 'r+');
+        if ($handle === false) {
+            return [];
+        }
+
+        $records = [];
+        try {
+            fwrite($handle, $content);
+            rewind($handle);
+
+            while (($fields = fgetcsv($handle, 0, self::DELIMITER, '"', '\\')) !== false) {
+                if ($this->isBlankRecord($fields)) {
+                    continue;
+                }
+
+                $records[] = $fields;
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return $records;
+    }
+
+    /**
+     * @param list<string|null> $fields
+     */
+    private function isBlankRecord(array $fields): bool
+    {
+        return count($fields) <= 1 && trim((string) ($fields[0] ?? '')) === '';
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Models\FinanceAccount;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceJournalService;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\QueryException;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
@@ -199,6 +200,84 @@ final class FinanceAccountControllerTest extends TestCase
             'cash',
             (string) Finance::where('finance_account_id', $account->id)->value('payment_method')
         );
+    }
+
+    /**
+     * Wird der Stichtag hinter bestehende Buchungen geschoben, fallen diese aus
+     * der Bewegungssumme, bleiben aber in der Buchungsliste stehen: Der
+     * Kontostand springt ohne eine einzige Buchungsänderung.
+     */
+    public function testRefusesAnOpeningDateThatWouldOrphanExistingBookings(): void
+    {
+        $this->post(['opening_date' => '2026-01-01']);
+        $account = FinanceAccount::where('name', 'Sparbuch')->firstOrFail();
+        Finance::create([
+            'running_number' => 8104,
+            'invoice_date' => '2026-02-01',
+            'payment_date' => '2026-02-01',
+            'description' => 'Zufluss',
+            'group_name' => null,
+            'finance_group_id' => null,
+            'type' => 'income',
+            'amount' => '25.00',
+            'payment_method' => 'bank_transfer',
+            'finance_account_id' => $account->id,
+        ]);
+
+        $this->post(['id' => (string) $account->id, 'opening_date' => '2026-03-01']);
+
+        $account->refresh();
+        $this->assertSame(
+            '2026-01-01',
+            FinanceAccountService::openingDate($account),
+            'Der Stichtag darf nicht über bestehende Buchungen hinweg verschoben werden.'
+        );
+        $this->assertStringContainsString('Buchung', (string) $_SESSION['error']);
+    }
+
+    public function testAllowsAnOpeningDateChangeThatKeepsAllBookingsCovered(): void
+    {
+        $this->post(['opening_date' => '2026-01-01']);
+        $account = FinanceAccount::where('name', 'Sparbuch')->firstOrFail();
+        Finance::create([
+            'running_number' => 8105,
+            'invoice_date' => '2026-02-01',
+            'payment_date' => '2026-02-01',
+            'description' => 'Zufluss',
+            'group_name' => null,
+            'finance_group_id' => null,
+            'type' => 'income',
+            'amount' => '25.00',
+            'payment_method' => 'bank_transfer',
+            'finance_account_id' => $account->id,
+        ]);
+
+        $this->post(['id' => (string) $account->id, 'opening_date' => '2025-12-01']);
+
+        $account->refresh();
+        $this->assertSame('2025-12-01', FinanceAccountService::openingDate($account));
+    }
+
+    /**
+     * Eine Buchung ohne Zahlungskreis fehlt in jeder Kontenübersicht, zählt aber
+     * in den Jahressummen mit. Die Datenbank lässt sie deshalb gar nicht mehr zu.
+     */
+    public function testABookingWithoutAnAccountIsRejectedByTheDatabase(): void
+    {
+        $this->expectException(QueryException::class);
+
+        Finance::create([
+            'running_number' => 8106,
+            'invoice_date' => '2026-02-01',
+            'payment_date' => '2026-02-01',
+            'description' => 'Buchung ohne Konto',
+            'group_name' => null,
+            'finance_group_id' => null,
+            'type' => 'income',
+            'amount' => '25.00',
+            'payment_method' => 'bank_transfer',
+            'finance_account_id' => null,
+        ]);
     }
 
     public function testDeletesAnEmptyAccount(): void

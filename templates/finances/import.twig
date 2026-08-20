@@ -40,6 +40,13 @@
                     {{ duplicate_count }} Zeilen wurden bereits früher importiert und sind gesperrt.
                 </div>
             {% endif %}
+            {% if locked_count > 0 %}
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-lock me-1"></i>
+                    {{ locked_count }} Zeilen fallen in den abgeschlossenen Zeitraum bis {{ closed_until }}
+                    und sind gesperrt.
+                </div>
+            {% endif %}
             {% if estimated_payment_date_count > 0 %}
                 <div class="alert alert-warning py-2 small">
                     <i class="bi bi-calendar-event me-1"></i>
@@ -136,6 +143,10 @@
                                                 {% elseif row.duplicate %}
                                                     <div class="small text-warning-emphasis">
                                                         <i class="bi bi-arrow-repeat me-1"></i>bereits importiert
+                                                    </div>
+                                                {% elseif row.period_locked %}
+                                                    <div class="small text-warning-emphasis">
+                                                        <i class="bi bi-lock me-1"></i>Zeitraum abgeschlossen
                                                     </div>
                                                 {% endif %}
                                             </td>

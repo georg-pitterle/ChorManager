@@ -94,6 +94,32 @@ final class BackupServiceTest extends TestCase
         $this->assertContains($third['id'], $remainingIds);
     }
 
+    /**
+     * Wird die Obergrenze nachträglich gesenkt, liegen mehrere Backups zu viel
+     * herum. Ein einzelner Lauf muss bis unter das Limit rotieren, sonst bleibt
+     * der Ordner dauerhaft über der Grenze.
+     */
+    public function testAutoBackupRotatesDownToTheLimitAfterItWasLowered(): void
+    {
+        $wideLimit = $this->makeService(maxAuto: 5);
+
+        $wideLimit->create(BackupService::TYPE_AUTO, null);
+        usleep(1100000);
+        $wideLimit->create(BackupService::TYPE_AUTO, null);
+        usleep(1100000);
+        $third = $wideLimit->create(BackupService::TYPE_AUTO, null);
+        usleep(1100000);
+
+        $narrowLimit = $this->makeService(maxAuto: 2);
+        $fourth = $narrowLimit->create(BackupService::TYPE_AUTO, null);
+
+        $remainingIds = array_column($narrowLimit->list(), 'id');
+
+        $this->assertCount(2, $remainingIds);
+        $this->assertContains($fourth['id'], $remainingIds);
+        $this->assertContains($third['id'], $remainingIds);
+    }
+
     public function testListReturnsEntriesSortedNewestFirst(): void
     {
         $service = $this->makeService();

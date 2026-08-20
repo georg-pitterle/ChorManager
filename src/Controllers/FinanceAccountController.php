@@ -92,6 +92,12 @@ class FinanceAccountController
                     return $response->withHeader('Location', '/finances/accounts')->withStatus(302);
                 }
 
+                $orphanError = $this->orphanedBookingsError($account, $openingDate);
+                if ($orphanError !== null) {
+                    $_SESSION['error'] = $orphanError;
+                    return $response->withHeader('Location', '/finances/accounts')->withStatus(302);
+                }
+
                 $before = [
                     'type' => (string) $account->type,
                     'opening_balance' => (string) $account->opening_balance,
@@ -182,6 +188,31 @@ class FinanceAccountController
             'Der Zeitraum bis %s ist abgeschlossen. Anfangsbestand und Stichtag dieses Kontos '
                 . 'lassen sich nicht mehr ändern.',
             $this->journal->closedUntil()?->format('d.m.Y') ?? '-'
+        );
+    }
+
+    /**
+     * Der Anfangsbestand deckt alles vor dem Stichtag ab, deshalb zählt die
+     * Bewegungssumme erst ab dem Stichtag. Ein Stichtag hinter bestehenden
+     * Buchungen ließe diese aus dem Kontostand fallen, während sie in der
+     * Buchungsliste stehen bleiben - der Kontostand spränge ohne Buchungsänderung.
+     */
+    private function orphanedBookingsError(FinanceAccount $account, string $openingDate): ?string
+    {
+        $orphaned = Finance::where('finance_account_id', $account->id)
+            ->whereNotNull('payment_date')
+            ->whereDate('payment_date', '<', $openingDate)
+            ->count();
+
+        if ($orphaned === 0) {
+            return null;
+        }
+
+        return sprintf(
+            'Das Konto hat %d Buchung(en) vor dem %s. Der Stichtag kann nicht dahinter gelegt werden, '
+                . 'weil diese Buchungen sonst aus dem Kontostand fallen.',
+            $orphaned,
+            Carbon::parse($openingDate)->format('d.m.Y')
         );
     }
 

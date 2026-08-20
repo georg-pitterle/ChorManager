@@ -44,4 +44,33 @@ class HtmlSanitizerFeatureTest extends TestCase
         $this->assertStringNotContainsString('data:image', strtolower($output));
         $this->assertStringNotContainsString('<img', strtolower($output));
     }
+
+    /**
+     * Der Newsletter-Editor bietet Links an. Wurden sie beim Speichern
+     * kommentarlos entfernt, stand im versendeten Newsletter nur noch der
+     * Linktext ohne Ziel.
+     */
+    public function testSanitizeNewsletterHtmlKeepsHttpAndHttpsLinks(): void
+    {
+        $sanitizer = new HtmlSanitizer();
+        $input = '<p><a href="https://chor.example/termine">Termine</a> '
+            . '<a href="http://chor.example/archiv">Archiv</a> '
+            . '<a href="mailto:vorstand@chor.example">Kontakt</a></p>';
+
+        $output = $sanitizer->sanitizeNewsletterHtml($input);
+
+        $this->assertStringContainsString('https://chor.example/termine', $output);
+        $this->assertStringContainsString('http://chor.example/archiv', $output);
+        $this->assertStringContainsString('mailto:vorstand@chor.example', $output);
+    }
+
+    public function testSanitizeNewsletterHtmlStillRemovesJavascriptLinks(): void
+    {
+        $sanitizer = new HtmlSanitizer();
+        $input = '<p><a href="javascript:alert(1)">Klick</a></p>';
+
+        $output = $sanitizer->sanitizeNewsletterHtml($input);
+
+        $this->assertStringNotContainsString('javascript:', strtolower($output));
+    }
 }

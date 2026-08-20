@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\InvalidAudienceSourcesException;
 use App\Models\Event;
 use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -45,17 +47,33 @@ class EventAudienceService
 
     /**
      * @param array<int, array{type:string, reference_id:int}> $sources
+     * @throws InvalidAudienceSourcesException wenn keine der angegebenen Quellen mehr existiert
      */
     public function setSources(Event $event, array $sources): void
     {
-        $event->audienceSources()->delete();
+        $normalized = $this->normalizeSources($sources);
 
-        foreach ($this->normalizeSources($sources) as $source) {
-            $event->audienceSources()->create([
-                'source_type' => $source['type'],
-                'reference_id' => $source['reference_id'],
-            ]);
+        // Eine leere Eingabe heißt ausdrücklich "alle Mitglieder" und ist
+        // erlaubt. Bleibt dagegen von einer angegebenen Zielgruppe nichts übrig,
+        // würde sie sich stillschweigend auf alle verbreitern - das ist ein
+        // Fehler, kein Standardfall.
+        if ($sources !== [] && $normalized === []) {
+            throw new InvalidAudienceSourcesException();
         }
+
+        // Löschen und Neuanlegen gehören zusammen: Bricht das Schreiben mitten
+        // im Austausch ab, stünde der Termin ohne Quellen da - und ein Termin
+        // ohne Quellen gilt für alle Mitglieder.
+        Capsule::connection()->transaction(function () use ($event, $normalized): void {
+            $event->audienceSources()->delete();
+
+            foreach ($normalized as $source) {
+                $event->audienceSources()->create([
+                    'source_type' => $source['type'],
+                    'reference_id' => $source['reference_id'],
+                ]);
+            }
+        });
     }
 
     /**

@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Controllers\FinanceController;
 use App\Models\Finance;
+use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
+use App\Models\FinanceRevision;
 use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
 use App\Services\FinanceAccountService;
@@ -125,12 +127,17 @@ final class FinanceImportFeatureTest extends TestCase
      * @param list<int> $indexes
      * @param array<int, string> $groups
      */
-    private function confirm(array $indexes, array $groups = []): ResponseInterface
+    private function confirm(array $indexes, array $groups = [], ?int $accountId = null): ResponseInterface
     {
-        $request = $this->makeRequest('POST', '/finances/import/confirm', [
+        $body = [
             'selected' => array_map('strval', $indexes),
             'group' => $groups,
-        ]);
+        ];
+        if ($accountId !== null) {
+            $body['finance_account_id'] = (string) $accountId;
+        }
+
+        $request = $this->makeRequest('POST', '/finances/import/confirm', $body);
 
         return $this->controller->importConfirm($request, $this->makeResponse());
     }
@@ -268,6 +275,80 @@ final class FinanceImportFeatureTest extends TestCase
 
         $this->assertSame(0, $this->imported()->count());
         $this->assertStringContainsString('0 Buchungen importiert', (string) $_SESSION['success']);
+    }
+
+    /**
+     * § 131 BAO: In einem abgeschlossenen Zeitraum darf keine Buchung mehr
+     * entstehen - auch nicht über den Kontoauszug-Import.
+     */
+    public function testConfirmRefusesBookingsInAClosedPeriod(): void
+    {
+        (new FinanceJournalService())->setClosedUntil('2026-12-31');
+
+        $this->preview();
+        $this->confirm([0, 1, 2, 3]);
+
+        $this->assertSame(0, $this->imported()->count());
+        $this->assertStringContainsString('0 Buchungen importiert', (string) $_SESSION['success']);
+    }
+
+    public function testPreviewMarksBookingsInAClosedPeriodAsNotImportable(): void
+    {
+        (new FinanceJournalService())->setClosedUntil('2026-12-31');
+
+        $this->preview();
+
+        $rows = $this->renderCalls[0][1]['rows'];
+        foreach ($rows as $row) {
+            $this->assertTrue($row['period_locked'], 'Zeile im abgeschlossenen Zeitraum muss gesperrt sein.');
+            $this->assertFalse($row['importable']);
+        }
+        $this->assertSame(0, $this->renderCalls[0][1]['importable_count']);
+        $this->assertSame(4, $this->renderCalls[0][1]['locked_count']);
+    }
+
+    /**
+     * Die Prüfspur darf keine Lücke haben: Auch importierte Buchungen brauchen
+     * einen Journaleintrag, sonst ist nicht nachvollziehbar, woher sie stammen.
+     */
+    public function testConfirmWritesAJournalEntryForEveryImportedBooking(): void
+    {
+        $this->preview();
+        $this->confirm([0, 1]);
+
+        $importedIds = $this->imported()->pluck('id')->map(static fn($id): int => (int) $id)->all();
+        $this->assertCount(2, $importedIds);
+
+        foreach ($importedIds as $financeId) {
+            $revision = FinanceRevision::where('finance_id', $financeId)->first();
+            $this->assertNotNull($revision, 'Jede importierte Buchung braucht einen Journaleintrag.');
+            $this->assertSame(FinanceRevision::ACTION_CREATE, $revision->action);
+        }
+    }
+
+    /**
+     * Zahlungen vor dem Stichtag stecken bereits im Anfangsbestand des Kontos;
+     * würden sie importiert, fehlten sie in der Bewegungssumme und der
+     * Kassastand ginge nicht mehr auf.
+     */
+    public function testConfirmSkipsBookingsBeforeTheAccountOpeningDate(): void
+    {
+        $account = FinanceAccount::create([
+            'name' => 'Import-Stichtagskonto ' . bin2hex(random_bytes(4)),
+            'type' => FinanceAccount::TYPE_BANK,
+            'opening_balance' => '0.00',
+            'opening_date' => '2026-08-01',
+            'is_active' => 1,
+            'sort_order' => 99,
+        ]);
+
+        $this->preview();
+        $this->confirm([0, 1, 2, 3], [], (int) $account->id);
+
+        // Nur die Buchung vom 04.08.2026 liegt am oder nach dem Stichtag.
+        $this->assertSame(1, $this->imported()->count());
+        $this->assertStringContainsString('1 Buchungen importiert', (string) $_SESSION['success']);
+        $this->assertStringContainsString('3 übersprungen', (string) $_SESSION['success']);
     }
 
     public function testCancelDiscardsThePendingImport(): void

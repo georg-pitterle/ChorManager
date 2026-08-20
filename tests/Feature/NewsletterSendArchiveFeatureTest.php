@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\MailQueue;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
@@ -235,5 +236,94 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
             ->all();
 
         $this->assertSame([(int) $activeMember->id], $storedRecipientIds);
+    }
+
+    /**
+     * Doppelklick oder zwei gleichzeitige Vorstände: Beide Requests laden je eine
+     * eigene Instanz desselben Entwurfs und sehen "draft". Der Übergang
+     * Entwurf -> Versendet muss genau einem Versandlauf gehören, sonst geht der
+     * Newsletter doppelt raus.
+     */
+    public function testConcurrentSendClaimsTheDraftExactlyOnce(): void
+    {
+        $project = $this->createProject();
+        $member = $this->createUser();
+        $project->users()->attach($member->id);
+
+        $draft = $this->createDraft($project, $member);
+
+        $first = Newsletter::findOrFail($draft->id);
+        $second = Newsletter::findOrFail($draft->id);
+
+        $service = $this->makeService();
+        $service->send($first, (int) $member->id);
+
+        $secondRejected = false;
+        try {
+            $service->send($second, (int) $member->id);
+        } catch (\Exception) {
+            $secondRejected = true;
+        }
+
+        $this->assertTrue(
+            $secondRejected,
+            'Ein zweiter Versandlauf desselben Entwurfs muss abgelehnt werden.'
+        );
+
+        $this->assertSame(
+            1,
+            $this->queuedMailCount((int) $draft->id),
+            'Der Newsletter darf nur einmal in die Mail-Queue eingereiht werden.'
+        );
+
+        $this->assertSame(
+            1,
+            NewsletterArchive::query()->where('newsletter_id', $draft->id)->count()
+        );
+
+        $draft->refresh();
+        $this->assertSame(Newsletter::STATUS_SENT, $draft->status);
+    }
+
+    /**
+     * Schlägt der Versand fehl, bevor eine einzige Mail in der Queue liegt, muss
+     * der Entwurf wieder freigegeben werden - sonst wäre er dauerhaft blockiert.
+     */
+    public function testFailedSendReleasesTheDraftAgain(): void
+    {
+        $project = $this->createProject();
+        $member = $this->createUser();
+        $project->users()->attach($member->id);
+
+        $newsletter = $this->createDraft($project, $member);
+
+        // Ohne gültige Adresse wird keine Mail eingereiht.
+        $member->email = 'kaputte-adresse';
+        $member->save();
+
+        $failed = false;
+        try {
+            $this->makeService()->send($newsletter, (int) $member->id);
+        } catch (\Exception) {
+            $failed = true;
+        }
+
+        $this->assertTrue($failed);
+
+        $newsletter->refresh();
+        $this->assertSame(
+            Newsletter::STATUS_DRAFT,
+            $newsletter->status,
+            'Ein fehlgeschlagener Versand darf den Entwurf nicht als versendet zurücklassen.'
+        );
+        $this->assertNull($newsletter->sent_at);
+    }
+
+    private function queuedMailCount(int $newsletterId): int
+    {
+        return MailQueue::query()
+            ->where('mail_type', 'newsletter')
+            ->where('payload_json', 'like', '%"newsletter_id":' . $newsletterId . '%')
+            ->count();
     }
 }

@@ -20,23 +20,50 @@ class NewsletterLockingService
      */
     public function acquireLock(Newsletter $newsletter, int $userId): bool
     {
-        // Check if lock is still valid and by someone else
-        if ($this->isLockedByOther($newsletter, $userId)) {
+        $now = Carbon::now();
+        $expiredBefore = $now->copy()->subMinutes(self::LOCK_TIMEOUT_MINUTES);
+
+        // Bedingtes Update statt Lesen-und-dann-Schreiben: Zwei gleichzeitige
+        // Requests haben denselben, noch ungesperrten Stand gelesen. Ohne die
+        // Bedingung im UPDATE überschriebe der zweite die Sperre des ersten.
+        $acquired = Newsletter::query()
+            ->whereKey((int) $newsletter->id)
+            ->where(function ($query) use ($userId, $expiredBefore): void {
+                $query->whereNull('locked_by')
+                    ->orWhere('locked_by', $userId)
+                    ->orWhereNull('locked_at')
+                    ->orWhere('locked_at', '<=', $expiredBefore);
+            })
+            ->update([
+                'locked_by' => $userId,
+                'locked_at' => $now,
+            ]);
+
+        if ($acquired === 0) {
+            // MySQL meldet 0 geänderte Zeilen auch dann, wenn der Datensatz
+            // bereits exakt diese Werte trägt. Deshalb entscheidet der
+            // gespeicherte Stand, nicht die Zeilenzahl.
+            return $this->holdsValidLock((int) $newsletter->id, $userId);
+        }
+
+        $newsletter->locked_by = $userId;
+        $newsletter->locked_at = $now;
+        $newsletter->syncOriginal();
+
+        return true;
+    }
+
+    /**
+     * Hält dieser Nutzer laut gespeichertem Stand eine gültige Sperre?
+     */
+    private function holdsValidLock(int $newsletterId, int $userId): bool
+    {
+        $stored = Newsletter::query()->whereKey($newsletterId)->first();
+        if ($stored === null || (int) $stored->locked_by !== $userId) {
             return false;
         }
 
-        // Release expired lock
-        if ($newsletter->isLocked() && $this->isLockExpired($newsletter)) {
-            $this->releaseLock($newsletter);
-        }
-
-        // Acquire or renew lock
-        $newsletter->update([
-            'locked_by' => $userId,
-            'locked_at' => Carbon::now(),
-        ]);
-
-        return true;
+        return !$this->isLockExpired($stored);
     }
 
     /**

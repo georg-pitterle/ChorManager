@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Exceptions\InvalidAudienceSourcesException;
 use App\Models\Event;
 use App\Models\EventAudienceSource;
 use App\Models\Project;
@@ -134,6 +135,53 @@ class EventAudienceServiceFeatureTest extends TestCase
 
         $this->assertNotContains((int) $event->id, $visibleForOut);
         $this->assertContains((int) $event->id, $visibleForIn);
+    }
+
+    /**
+     * Ein Termin ohne Quellen gilt für alle Mitglieder. Werden beim Speichern
+     * alle angegebenen Quellen verworfen (z. B. weil das Projekt gelöscht
+     * wurde), dürfen die bisherigen Quellen nicht stillschweigend zu
+     * "alle Mitglieder" werden.
+     */
+    public function testSetSourcesRefusesAnAudienceThatWouldSilentlyWidenToEveryone(): void
+    {
+        $project = $this->createProject();
+        $event = $this->createEvent();
+        $service = new EventAudienceService();
+
+        $service->setSources($event, [
+            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
+        ]);
+
+        $this->expectException(InvalidAudienceSourcesException::class);
+
+        try {
+            $service->setSources($event->fresh(), [
+                ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => 999999],
+            ]);
+        } finally {
+            $this->assertSame(
+                [['type' => 'project_members', 'reference_id' => (int) $project->id]],
+                $service->getSources($event->fresh()),
+                'Die bisherige Zielgruppe muss unverändert bestehen bleiben.'
+            );
+        }
+    }
+
+    public function testSetSourcesStillAcceptsAnEmptyAudienceOnPurpose(): void
+    {
+        $project = $this->createProject();
+        $event = $this->createEvent();
+        $service = new EventAudienceService();
+
+        $service->setSources($event, [
+            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
+        ]);
+
+        // Leere Eingabe heißt ausdrücklich "alle Mitglieder" und bleibt erlaubt.
+        $service->setSources($event->fresh(), []);
+
+        $this->assertSame([], $service->getSources($event->fresh()));
     }
 
     private function createProject(): Project

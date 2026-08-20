@@ -21,6 +21,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class BudgetFinanceGroupLinkTest extends TestCase
 {
+    use FinanceAccountFixture;
+
     private static ?Capsule $capsule = null;
 
     public static function setUpBeforeClass(): void
@@ -157,6 +159,7 @@ final class BudgetFinanceGroupLinkTest extends TestCase
             'type' => $type,
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
+            'finance_account_id' => $this->fixtureAccountId(),
             'reversal_of_id' => $reversalOfId,
         ]);
     }

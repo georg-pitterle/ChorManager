@@ -38,17 +38,36 @@ class MailQueueAdminService
             });
         }
 
-        if (!empty($filters['from_date'])) {
-            $query->where('created_at', '>=', Carbon::parse($filters['from_date']));
+        $fromDate = self::parseFilterDate($filters['from_date'] ?? null);
+        if ($fromDate !== null) {
+            $query->where('created_at', '>=', $fromDate);
         }
 
-        if (!empty($filters['to_date'])) {
-            $query->where('created_at', '<=', Carbon::parse($filters['to_date'])->endOfDay());
+        $toDate = self::parseFilterDate($filters['to_date'] ?? null);
+        if ($toDate !== null) {
+            $query->where('created_at', '<=', $toDate->endOfDay());
         }
 
         return $query
             ->orderByDesc('created_at')
             ->get();
+    }
+
+    /**
+     * Die Filterwerte stammen aus der Adresszeile und sind beliebiger Text.
+     * Ein unlesbares Datum überspringt den Filter, statt die Seite abzubrechen.
+     */
+    private static function parseFilterDate(mixed $value): ?Carbon
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**

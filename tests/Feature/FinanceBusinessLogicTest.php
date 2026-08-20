@@ -36,6 +36,7 @@ use Slim\Views\Twig;
 final class FinanceBusinessLogicTest extends TestCase
 {
     use TestHttpHelpers;
+    use FinanceAccountFixture;
 
     private static ?Capsule $capsule = null;
 
@@ -390,11 +391,13 @@ final class FinanceBusinessLogicTest extends TestCase
             'running_number' => 9001, 'invoice_date' => '2025-10-05', 'payment_date' => '2025-10-05',
             'description' => 'Einnahme A', 'group_name' => null, 'finance_group_id' => null,
             'type' => 'income', 'amount' => '300.00', 'payment_method' => 'cash',
+            'finance_account_id' => $this->fixtureAccountId(),
         ]);
         Finance::create([
             'running_number' => 9002, 'invoice_date' => '2025-11-05', 'payment_date' => '2025-11-05',
             'description' => 'Ausgabe B', 'group_name' => null, 'finance_group_id' => null,
             'type' => 'expense', 'amount' => '120.00', 'payment_method' => 'bank_transfer',
+            'finance_account_id' => $this->fixtureAccountId(),
         ]);
 
         $data = $method->invoke($controller, 2025);

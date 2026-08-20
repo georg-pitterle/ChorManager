@@ -51,6 +51,7 @@ class FinanceJournalService
         'payment_method' => 'Zahlungsart',
         'finance_account_id' => 'Konto',
         'reversal_of' => 'Storno zu',
+        'attachment' => 'Anhang',
     ];
 
     /** @var array<int, string>|null */
@@ -133,6 +134,17 @@ class FinanceJournalService
         }
 
         $this->write($finance->id, $userId, FinanceRevision::ACTION_UPDATE, $changes);
+    }
+
+    /**
+     * Protokolliert das Löschen eines Belegs. Der Beleg hängt an der Buchung,
+     * deshalb wandert der Eintrag als Änderung in deren Journal.
+     */
+    public function recordAttachmentDelete(Finance $finance, string $filename, ?int $userId): void
+    {
+        $this->write($finance->id, $userId, FinanceRevision::ACTION_UPDATE, [
+            'attachment' => ['from' => $filename, 'to' => null],
+        ]);
     }
 
     public function recordReverse(Finance $reversal, Finance $original, ?int $userId): void

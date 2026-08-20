@@ -243,6 +243,24 @@ final class BankStatementImportServiceTest extends TestCase
         $this->assertSame('Kiosk - Sauber', $result['rows'][0]['description']);
     }
 
+    /**
+     * Banken schreiben mehrzeilige Verwendungszwecke als eingebetteten
+     * Zeilenumbruch innerhalb des Anführungszeichen-Feldes. Wird die Datei vorher
+     * zeilenweise zerlegt, zerfällt eine solche Buchung in zwei kaputte Zeilen.
+     */
+    public function testKeepsFieldsWithEmbeddedLineBreaksInOneRow(): void
+    {
+        $result = $this->service->parse(self::HEADER . "\n"
+            . "07.02.2026;07.02.2026;-5,00;EUR;Chorkuma;AT91;BTV  ;Kiosk;AT42;HYP;Text;"
+            . "\"Rechnung 1\nZeile 2\"\n");
+
+        $this->assertSame([], $result['errors']);
+        $this->assertCount(1, $result['rows']);
+        $this->assertNull($result['rows'][0]['error']);
+        $this->assertStringContainsString('Rechnung 1', $result['rows'][0]['description']);
+        $this->assertStringContainsString('Zeile 2', $result['rows'][0]['description']);
+    }
+
     public function testRejectsUploadsThatAreNotCsvFiles(): void
     {
         $this->assertNotNull(BankStatementImportService::validateUpload('auszug.txt', 1024, 'text/plain'));
