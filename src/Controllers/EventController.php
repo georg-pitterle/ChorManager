@@ -51,7 +51,10 @@ class EventController
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $eventTypeId = !empty($queryParams['event_type_id']) ? (int)$queryParams['event_type_id'] : null;
         $sort = $queryParams['sort'] ?? 'starts_at';
-        $direction = $queryParams['direction'] ?? 'asc';
+        $direction = strtolower((string) ($queryParams['direction'] ?? 'asc'));
+        if (!in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'asc';
+        }
         $showOldEvents = !empty($queryParams['show_old_events']) ? (int)$queryParams['show_old_events'] : 0;
         $viewMode = in_array($queryParams['view'] ?? '', ['list', 'calendar'], true)
             ? $queryParams['view']
@@ -871,6 +874,15 @@ class EventController
             ];
 
             if ($updateSeries && $event->series_id) {
+                if (Carbon::parse($event->starts_at)->format('Y-m-d') !== Carbon::parse($startsAt)->format('Y-m-d')) {
+                    $editService = new ModalFormService('event_edit');
+                    $editService->setError(
+                        'Bei einer Serienänderung kann nur die Uhrzeit geändert werden, nicht das Datum.',
+                        $formData
+                    );
+                    return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
+                }
+
                 $eventsToUpdate = Event::where('series_id', $event->series_id)
                     ->where('starts_at', '>=', $event->starts_at)
                     ->get();
@@ -888,10 +900,24 @@ class EventController
                 $newStartTime = Carbon::parse($startsAt)->format('H:i');
                 $newEndTime = Carbon::parse($endsAt)->format('H:i');
 
+                // Ein absoluter Anmeldeschluss ergibt für eine ganze Serie keinen
+                // Sinn - er würde alle Termine zum selben Zeitpunkt schließen.
+                // Übernommen wird daher der Vorlauf zum jeweiligen Terminbeginn.
+                $deadlineLeadSeconds = null;
+                if ($registrationEnabled && $registrationDeadline !== null) {
+                    $deadlineLeadSeconds = Carbon::parse($registrationDeadline)->getTimestamp()
+                        - Carbon::parse($startsAt)->getTimestamp();
+                }
+
                 foreach ($eventsToUpdate as $eventInSeries) {
+                    $seriesStart = Carbon::parse($eventInSeries->starts_at)->setTimeFromTimeString($newStartTime);
+
                     $eventInSeries->update(array_merge($updateData, [
-                        'starts_at' => Carbon::parse($eventInSeries->starts_at)->setTimeFromTimeString($newStartTime),
+                        'starts_at' => $seriesStart,
                         'ends_at' => Carbon::parse($eventInSeries->ends_at)->setTimeFromTimeString($newEndTime),
+                        'registration_deadline' => $deadlineLeadSeconds === null
+                            ? null
+                            : (clone $seriesStart)->addSeconds($deadlineLeadSeconds),
                     ]));
                     $audienceService->setSources($eventInSeries, $sources);
                 }

@@ -73,6 +73,8 @@
         </section>
 
         <form action="/attendance/{{ current_event.id }}" method="post">
+            {# Stand beim Laden: erkennt beim Speichern eine zwischenzeitliche Änderung. #}
+            <input type="hidden" name="state_hash" value="{{ state_hash|default("") }}">
             {% set has_members = false %}
             {% set show_registration = settings.modules.registration and current_event.registration_enabled %}
             <div class="row">
@@ -103,6 +105,19 @@
                                         </div>
 
                                         <div class="btn-group w-100 mb-2 attendance-status-group" role="group">
+                                            {# "Offen" ist der Ausgangszustand und macht ihn wieder
+                                               herstellbar; ohne ihn ließe sich ein einmal gesetzter
+                                               Status nie mehr zurücknehmen. #}
+                                            <input type="radio"
+                                                   class="btn-check"
+                                                   name="attendance[{{ member.user_id }}]"
+                                                   id="att_{{ member.user_id }}_open"
+                                                   value="unknown"
+                                                   {% if member.status not in ["present", "excused", "unexcused"] %}checked{% endif %}>
+                                            <label class="btn btn-outline-secondary" for="att_{{ member.user_id }}_open">
+                                                <i class="bi bi-dash-circle"></i> Offen
+                                            </label>
+
                                             <input type="radio"
                                                    class="btn-check"
                                                    name="attendance[{{ member.user_id }}]"
@@ -137,6 +152,7 @@
                                         <input type="text"
                                                class="form-control form-control-sm"
                                                name="note[{{ member.user_id }}]"
+                                               maxlength="255"
                                                placeholder="Notiz (optional)"
                                                value="{{ member.note }}">
                                     </li>

@@ -154,12 +154,15 @@ class EventRegistrationSettingsFeatureTest extends TestCase
     }
 
     /**
-     * Series propagation: registration_enabled/attendance_required must propagate to all
-     * (current and future) events of the series, but registration_deadline is per-event and
-     * must never be touched by a series-wide update -- neither for other members nor for the
-     * event being edited directly.
+     * Serienuebernahme: registration_enabled/attendance_required gelten fuer alle
+     * Termine ab dem bearbeiteten. Der Anmeldeschluss bleibt pro Termin eigen,
+     * wird aber als Vorlauf zum jeweiligen Beginn uebernommen.
+     *
+     * Frueher blieb er bei einer Serienaenderung komplett unangetastet. Das war
+     * als "per-event" gedacht, hat den eingegebenen Wert aber kommentarlos
+     * verworfen - inklusive Erfolgsmeldung.
      */
-    public function testSeriesUpdatePropagatesFlagsButNeverRegistrationDeadline(): void
+    public function testSeriesUpdateAppliesTheRegistrationDeadlineAsALeadTime(): void
     {
         $series = EventSeries::create([
             'frequency' => 'weekly',
@@ -239,16 +242,29 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             $this->assertTrue((bool) $freshFuture->registration_enabled);
             $this->assertTrue((bool) $freshFuture->attendance_required);
 
-            // ...but registration_deadline is untouched for every series member, including the
-            // event being edited directly -- it is intentionally per-event, not series-wide.
+            // ...und den Anmeldeschluss als Vorlauf zum jeweiligen Terminbeginn.
+            // Frueher blieb er unangetastet - der eingegebene Wert verschwand
+            // dann kommentarlos, obwohl die Erfolgsmeldung erschien.
+            $expectedLeadSeconds = Carbon::now()->addDay()->getTimestamp()
+                - Carbon::parse($current->starts_at)->getTimestamp();
+
             $this->assertSame(
-                $currentDeadline,
+                Carbon::parse($freshCurrent->starts_at)->addSeconds($expectedLeadSeconds)->format('Y-m-d H:i'),
                 Carbon::parse($freshCurrent->registration_deadline)->format('Y-m-d H:i')
             );
             $this->assertSame(
-                $futureDeadline,
+                Carbon::parse($freshFuture->starts_at)->addSeconds($expectedLeadSeconds)->format('Y-m-d H:i'),
                 Carbon::parse($freshFuture->registration_deadline)->format('Y-m-d H:i')
             );
+
+            // Jeder Termin behaelt einen eigenen Anmeldeschluss; sie fallen
+            // ausdruecklich nicht auf denselben Zeitpunkt zusammen.
+            $this->assertNotSame(
+                Carbon::parse($freshCurrent->registration_deadline)->format('Y-m-d H:i'),
+                Carbon::parse($freshFuture->registration_deadline)->format('Y-m-d H:i')
+            );
+            $this->assertNotSame($currentDeadline, '');
+            $this->assertNotSame($futureDeadline, '');
         } finally {
             Event::where('series_id', $seriesId)->delete();
             $series->delete();
