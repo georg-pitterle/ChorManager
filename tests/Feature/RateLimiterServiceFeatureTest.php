@@ -43,6 +43,79 @@ class RateLimiterServiceFeatureTest extends TestCase
         $this->assertGreaterThan(0, $third['retry_after']);
     }
 
+    /**
+     * Ein festes Zeitfenster lässt an der Fenstergrenze bis zu doppelt so viele
+     * Versuche durch: Der Zähler springt auf null, obwohl die Versuche von
+     * gerade eben noch keine Minute zurückliegen.
+     */
+    public function testTheLimitAlsoHoldsAcrossTheWindowBoundary(): void
+    {
+        $now = 1000;
+        $limiter = new RateLimiterService($this->storeDir, function () use (&$now): int {
+            return $now;
+        });
+
+        $this->assertTrue($limiter->hit('login:boundary', 3, 60)['allowed']);
+
+        $now = 1059;
+        $this->assertTrue($limiter->hit('login:boundary', 3, 60)['allowed']);
+        $this->assertTrue($limiter->hit('login:boundary', 3, 60)['allowed']);
+
+        // Der Versuch von t=1000 ist raus, die beiden von t=1059 nicht.
+        $now = 1061;
+        $this->assertTrue($limiter->hit('login:boundary', 3, 60)['allowed']);
+        $this->assertFalse(
+            $limiter->hit('login:boundary', 3, 60)['allowed'],
+            'Innerhalb von 60 Sekunden dürfen nie mehr als 3 Versuche durchgehen.'
+        );
+    }
+
+    public function testAttemptsFallOutOfTheWindowAgain(): void
+    {
+        $now = 5000;
+        $limiter = new RateLimiterService($this->storeDir, function () use (&$now): int {
+            return $now;
+        });
+
+        $limiter->hit('login:expiry', 2, 60);
+        $limiter->hit('login:expiry', 2, 60);
+        $this->assertFalse($limiter->hit('login:expiry', 2, 60)['allowed']);
+
+        $now = 5000 + 61;
+        $this->assertTrue(
+            $limiter->hit('login:expiry', 2, 60)['allowed'],
+            'Nach Ablauf des Fensters muss wieder ein Versuch möglich sein.'
+        );
+    }
+
+    /**
+     * Auch ein abgelehnter Versuch zählt als Versuch. Wer weiter hämmert,
+     * schiebt die Freigabe damit vor sich her - genau das soll eine Bremse
+     * gegen Brute Force leisten.
+     */
+    public function testRetryAfterPointsAtTheMomentTheNextAttemptBecomesPossible(): void
+    {
+        $now = 8000;
+        $limiter = new RateLimiterService($this->storeDir, function () use (&$now): int {
+            return $now;
+        });
+
+        $limiter->hit('login:retry', 2, 60);
+        $now = 8030;
+        $limiter->hit('login:retry', 2, 60);
+
+        $now = 8040;
+        $blocked = $limiter->hit('login:retry', 2, 60);
+
+        $this->assertFalse($blocked['allowed']);
+        // Im Fenster liegen jetzt 8000, 8030 und der abgelehnte von 8040. Platz
+        // ist wieder, sobald der von 8030 herausfällt: 8030 + 60 - 8040 = 50.
+        $this->assertSame(50, $blocked['retry_after']);
+
+        $now = 8090;
+        $this->assertTrue($limiter->hit('login:retry', 2, 60)['allowed']);
+    }
+
     public function testResetClearsCounters(): void
     {
         $limiter = new RateLimiterService($this->storeDir);

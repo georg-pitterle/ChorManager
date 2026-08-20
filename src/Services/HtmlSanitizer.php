@@ -108,10 +108,14 @@ class HtmlSanitizer
             'span',
         ]));
 
-        // Strict security: only allow data: and blob: URIs for images, disable external resources
+        // Externe Ressourcen (Bilder, Tracking-Pixel) bleiben gesperrt. Links
+        // dürfen dagegen http/https tragen: Der Editor bietet sie an, und ohne
+        // erlaubtes Schema wurde das Ziel beim Speichern kommentarlos entfernt.
         $config->set('URI.DisableExternalResources', true);
         $config->set('URI.DisableResources', false);
         $config->set('URI.AllowedSchemes', [
+            'http' => true,
+            'https' => true,
             'data' => true,
             'blob' => true,
             'mailto' => true,

@@ -662,8 +662,6 @@ class NewsletterController
             $this->lockingService->acquireLock($newsletter, $userId);
         }
 
-        $this->lockingService->releaseLock($newsletter);
-
         try {
             $recipientCount = $this->newsletterService->send($newsletter, $userId);
             if (EnvHelper::readBool('DISABLE_MAIL_SEND', true)) {
@@ -719,6 +717,11 @@ class NewsletterController
 
             $_SESSION['error'] = $message;
             return $this->jsonResponse($response, ['error' => $message], 500);
+        } finally {
+            // Die Sperre erst nach dem Versand freigeben. Wird sie vorher gelöst,
+            // kann ein zweiter Request den Entwurf mitten im laufenden Versand
+            // übernehmen.
+            $this->lockingService->releaseLock($newsletter);
         }
 
         return $response->withHeader(

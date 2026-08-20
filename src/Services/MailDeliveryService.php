@@ -25,7 +25,12 @@ class MailDeliveryService
      */
     public function processDueEntries(int $batchSize = 50): array
     {
+        // Ohne ausdrückliche Sortierung entscheidet die Datenbank, welchen
+        // Ausschnitt der Warteschlange der Durchlauf erwischt - einzelne Mails
+        // könnten dabei beliebig lange liegen bleiben.
         $entries = MailQueue::dueSoon()
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->limit($batchSize)
             ->get();
 

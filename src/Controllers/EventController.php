@@ -10,6 +10,7 @@ use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Exceptions\InvalidAudienceSourcesException;
 use App\Models\AppSetting;
 use App\Models\Comment;
 use App\Models\Event;
@@ -544,7 +545,17 @@ class EventController
         ];
 
         $audienceService = new EventAudienceService();
-        $sources = $audienceService->normalizeSources($this->readAudienceSources($data));
+        $rawSources = $this->readAudienceSources($data);
+        $sources = $audienceService->normalizeSources($rawSources);
+
+        // Ein Termin ohne Quellen gilt für alle Mitglieder. Bleibt von einer
+        // angegebenen Zielgruppe nichts übrig, wäre das Speichern also eine
+        // stillschweigende Verbreiterung - dann lieber gar nicht speichern.
+        if ($rawSources !== [] && $sources === []) {
+            $createService = new ModalFormService('event_create');
+            $createService->setError(InvalidAudienceSourcesException::MESSAGE, $formData);
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
 
         if (!$startsAtDate || !$startTime || !$endTime) {
             $createService = new ModalFormService('event_create');
@@ -805,7 +816,16 @@ class EventController
         ];
 
         $audienceService = new EventAudienceService();
-        $sources = $audienceService->normalizeSources($this->readAudienceSources($data));
+        $rawSources = $this->readAudienceSources($data);
+        $sources = $audienceService->normalizeSources($rawSources);
+
+        // Siehe save(): Eine verworfene Zielgruppe würde den Termin auf alle
+        // Mitglieder ausweiten, statt die Änderung zu verweigern.
+        if ($rawSources !== [] && $sources === []) {
+            $editService = new ModalFormService('event_edit');
+            $editService->setError(InvalidAudienceSourcesException::MESSAGE, $formData);
+            return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
+        }
 
         if (!$startsAtDate || !$startTime || !$endTime) {
             $editService = new ModalFormService('event_edit');

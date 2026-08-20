@@ -29,6 +29,7 @@ use Tests\Unit\Bootstrap;
 final class FinancePaymentDatePeriodTest extends TestCase
 {
     use TestHttpHelpers;
+    use FinanceAccountFixture;
 
     private FinanceController $controller;
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
@@ -92,6 +93,7 @@ final class FinancePaymentDatePeriodTest extends TestCase
             'type' => 'income',
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
+            'finance_account_id' => $this->fixtureAccountId(),
         ]);
     }
 
@@ -176,6 +178,7 @@ final class FinancePaymentDatePeriodTest extends TestCase
             'type' => 'income',
             'amount' => '200.00',
             'payment_method' => 'bank_transfer',
+            'finance_account_id' => $this->fixtureAccountId(),
         ]);
 
         [$day, $month] = $service->getFiscalConfig();

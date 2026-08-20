@@ -67,6 +67,48 @@ class NewsletterService
             throw new NewsletterWithoutRecipientsException();
         }
 
+        $sentAt = Carbon::now();
+
+        // Bedingtes Update als Claim: Der Übergang Entwurf -> Versendet gehört
+        // genau einem Versandlauf. Ohne diesen Claim würden ein Doppelklick oder
+        // zwei gleichzeitig sendende Personen denselben Newsletter zweimal
+        // einreihen und die Empfängerzuordnung überschreiben.
+        $claimed = Newsletter::query()
+            ->whereKey((int) $newsletter->id)
+            ->where('status', Newsletter::STATUS_DRAFT)
+            ->update([
+                'status' => Newsletter::STATUS_SENT,
+                'sent_at' => $sentAt,
+            ]);
+
+        if ($claimed === 0) {
+            throw new Exception('Nur Entwürfe können versendet werden');
+        }
+
+        $newsletter->status = Newsletter::STATUS_SENT;
+        $newsletter->sent_at = $sentAt;
+        $newsletter->syncOriginal();
+
+        try {
+            return $this->deliver($newsletter, $resolvedRecipients, $sentAt);
+        } catch (Exception $e) {
+            // Der Claim gilt nur für einen tatsächlich angelaufenen Versand.
+            // Bricht er ab, bevor eine Mail in der Queue liegt, bliebe der
+            // Entwurf sonst dauerhaft als "versendet" blockiert.
+            $this->releaseClaim($newsletter);
+            throw $e;
+        }
+    }
+
+    /**
+     * Reiht den Newsletter für alle aufgelösten Empfänger in die Mail-Queue ein.
+     *
+     * @param \Illuminate\Support\Collection<int, User> $resolvedRecipients
+     * @return int Number of recipients actually enqueued
+     * @throws Exception
+     */
+    private function deliver(Newsletter $newsletter, $resolvedRecipients, Carbon $sentAt): int
+    {
         $this->recipientService->setRecipients(
             $newsletter,
             $resolvedRecipients->pluck('id')->map(static function ($id): int {
@@ -77,7 +119,6 @@ class NewsletterService
         $recipients = $this->recipientService->getRecipients($newsletter->id);
 
         $sentCount = 0;
-        $sentAt = Carbon::now();
         $emailContent = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
 
         // Enqueue newsletter for each recipient
@@ -137,11 +178,23 @@ class NewsletterService
             throw new Exception('Newsletter konnte nicht in Queue eingereiht werden');
         }
 
-        $newsletter->update([
-            'status' => Newsletter::STATUS_SENT,
-            'sent_at' => $sentAt,
-        ]);
-
         return $sentCount;
+    }
+
+    /**
+     * Gibt einen Entwurf nach einem gescheiterten Versand wieder frei.
+     */
+    private function releaseClaim(Newsletter $newsletter): void
+    {
+        Newsletter::query()
+            ->whereKey((int) $newsletter->id)
+            ->update([
+                'status' => Newsletter::STATUS_DRAFT,
+                'sent_at' => null,
+            ]);
+
+        $newsletter->status = Newsletter::STATUS_DRAFT;
+        $newsletter->sent_at = null;
+        $newsletter->syncOriginal();
     }
 }

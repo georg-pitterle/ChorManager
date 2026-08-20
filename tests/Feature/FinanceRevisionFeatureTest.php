@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\FinanceController;
+use App\Models\Attachment;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceRevision;
@@ -371,6 +372,101 @@ final class FinanceRevisionFeatureTest extends TestCase
         $this->assertSame('finances/journal.twig', end($this->renderCalls)[0]);
         $this->assertCount(2, $data['revisions']);
         $this->assertSame(FinanceRevision::ACTION_UPDATE, $data['revisions'][0]->action);
+    }
+
+    /**
+     * Der Beleg gehört zur Buchung. Ist deren Zeitraum abgeschlossen, darf er
+     * nicht mehr verschwinden - sonst fehlt der Nachweis zu einer geprüften Zahl.
+     */
+    public function testAttachmentsOfALockedPeriodCannotBeDeleted(): void
+    {
+        $this->save();
+        $booking = $this->latestBooking();
+        $attachment = $this->attachTo($booking);
+
+        $this->journal->setClosedUntil('2026-06-30');
+
+        $this->controller->deleteAttachment(
+            $this->makeRequest('POST', '/finances/attachments/' . $attachment->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $attachment->id]
+        );
+
+        $this->assertSame(1, Attachment::where('id', $attachment->id)->count());
+        $this->assertStringContainsString('abgeschlossen', (string) $_SESSION['error']);
+    }
+
+    public function testDeletingAnAttachmentIsRecordedInTheJournal(): void
+    {
+        $this->save();
+        $booking = $this->latestBooking();
+        $attachment = $this->attachTo($booking);
+
+        $this->controller->deleteAttachment(
+            $this->makeRequest('POST', '/finances/attachments/' . $attachment->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $attachment->id]
+        );
+
+        $this->assertSame(0, Attachment::where('id', $attachment->id)->count());
+
+        $revision = FinanceRevision::where('finance_id', $booking->id)
+            ->where('action', FinanceRevision::ACTION_UPDATE)
+            ->firstOrFail();
+        $changes = $revision->changeSet();
+
+        $this->assertSame('beleg.pdf', $changes['attachment']['from']);
+        $this->assertNull($changes['attachment']['to']);
+        $this->assertSame(42, $revision->user_id);
+    }
+
+    private function attachTo(Finance $booking): Attachment
+    {
+        return Attachment::create([
+            'entity_type' => 'finance',
+            'entity_id' => $booking->id,
+            'filename' => 'beleg.pdf',
+            'original_name' => 'beleg.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 4,
+            'file_content' => 'test',
+        ]);
+    }
+
+    /**
+     * Der Buchungsabschluss lässt sich zurückdatieren und öffnet damit einen
+     * bereits geprüften Zeitraum wieder. Wer das wann getan hat, muss
+     * nachvollziehbar bleiben.
+     */
+    public function testChangingTheBookingLockIsLogged(): void
+    {
+        [$logger, $handler] = $this->logger();
+        $controller = new FinanceController(
+            $this->createStub(Twig::class),
+            new BudgetService(),
+            $logger,
+            new FinanceReportPdfService(new TcLibPdfCanvas()),
+            new BankStatementImportService(new NullLogger()),
+            new FinanceAccountService(),
+            $this->journal,
+            new FinanceCsvExportService()
+        );
+
+        $this->journal->setClosedUntil('2026-06-30');
+
+        $controller->updateSettings(
+            $this->makeRequest('POST', '/finances/settings', [
+                'fiscal_year_start' => '01.09.',
+                'closed_until' => '2026-03-31',
+            ]),
+            $this->makeResponse()
+        );
+
+        $record = $this->recordFor($handler, 'finance.closed_until.changed');
+        $this->assertNotNull($record, 'Eine Änderung des Buchungsabschlusses muss protokolliert werden.');
+        $this->assertSame('2026-06-30', $record->context['from']);
+        $this->assertSame('2026-03-31', $record->context['to']);
+        $this->assertSame(42, $record->context['user_id']);
     }
 
     public function testDeleteRouteIsGoneInFavourOfReversal(): void

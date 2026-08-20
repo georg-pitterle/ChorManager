@@ -441,6 +441,8 @@ class FinanceController
             'groups' => FinanceGroup::orderBy('name')->pluck('name'),
             'importable_count' => count(array_filter($rows, static fn(array $r): bool => $r['importable'])),
             'duplicate_count' => count(array_filter($rows, static fn(array $r): bool => $r['duplicate'])),
+            'locked_count' => count(array_filter($rows, static fn(array $r): bool => $r['period_locked'])),
+            'closed_until' => $this->journal->closedUntil()?->format('d.m.Y'),
             'error_count' => count(array_filter($rows, static fn(array $r): bool => $r['error'] !== null)),
             'estimated_payment_date_count' => count(array_filter(
                 $rows,
@@ -478,6 +480,11 @@ class FinanceController
         // jemand anderes dieselben Zeilen importiert haben.
         $rows = $this->flagKnownRows($payload['rows']);
 
+        // Der Stichtag des Kontos steht erst hier fest - er hängt am gewählten
+        // Konto, nicht am Auszug. Zahlungen davor stecken bereits im
+        // Anfangsbestand und würden den Kassabericht doppelt belasten.
+        $openingDate = FinanceAccountService::openingDate($account);
+
         $queued = [];
         $skipped = 0;
         foreach ($selected as $index) {
@@ -490,6 +497,12 @@ class FinanceController
                 continue;
             }
 
+            $paymentDate = $row['payment_date'] ?? null;
+            if (is_string($paymentDate) && $openingDate !== '' && $paymentDate < $openingDate) {
+                $skipped++;
+                continue;
+            }
+
             $groupName = trim((string) ($postedGroups[$index] ?? ''));
             $row['group_name'] = $groupName !== '' ? $groupName : null;
             $queued[] = $row;
@@ -498,11 +511,12 @@ class FinanceController
         $imported = 0;
         try {
             if ($queued !== []) {
-                Capsule::connection()->transaction(function () use ($queued, $account, &$imported): void {
+                $userId = $this->currentUserId();
+                Capsule::connection()->transaction(function () use ($queued, $account, $userId, &$imported): void {
                     $runningNumber = $this->reserveRunningNumbers(count($queued));
                     foreach ($queued as $row) {
                         $groupName = $row['group_name'];
-                        Finance::create([
+                        $finance = Finance::create([
                             'running_number' => $runningNumber,
                             'invoice_date' => $row['invoice_date'],
                             'payment_date' => $row['payment_date'],
@@ -519,6 +533,9 @@ class FinanceController
                             'payment_method' => $account->paymentMethod(),
                             'import_hash' => $row['import_hash'],
                         ]);
+                        // Auch importierte Buchungen brauchen einen Journaleintrag,
+                        // sonst hat die Prüfspur genau dort eine Lücke.
+                        $this->journal->recordCreate($finance, $userId);
                         $runningNumber++;
                         $imported++;
                     }
@@ -555,7 +572,9 @@ class FinanceController
 
     /**
      * Marks rows whose import hash is already stored, so neither the preview nor the
-     * confirmation step can create the same booking twice.
+     * confirmation step can create the same booking twice. Zeilen aus einem
+     * abgeschlossenen Zeitraum werden ebenso gesperrt: § 131 BAO lässt dort auch
+     * über den Import keine neue Buchung mehr zu.
      *
      * @param array<int, array<string, mixed>> $rows
      * @return array<int, array<string, mixed>>
@@ -570,8 +589,14 @@ class FinanceController
         foreach ($rows as $index => $row) {
             $hash = $row['import_hash'] ?? null;
             $duplicate = $hash !== null && in_array($hash, $known, true);
+            $paymentDate = $row['payment_date'] ?? null;
+            $periodLocked = $this->journal->isLocked(is_string($paymentDate) ? $paymentDate : null);
             $rows[$index]['duplicate'] = $duplicate;
-            $rows[$index]['importable'] = !$duplicate && $hash !== null && ($row['error'] ?? null) === null;
+            $rows[$index]['period_locked'] = $periodLocked;
+            $rows[$index]['importable'] = !$duplicate
+                && !$periodLocked
+                && $hash !== null
+                && ($row['error'] ?? null) === null;
         }
 
         return $rows;
@@ -857,7 +882,23 @@ class FinanceController
         }
 
         Setting::updateOrCreate(['setting_key' => 'fiscal_year_start'], ['setting_value' => $startStr]);
-        $this->journal->setClosedUntil($closedUntilRaw === '' ? null : $closedUntilRaw);
+
+        // Der Buchungsabschluss lässt sich zurückdatieren und öffnet damit einen
+        // bereits geprüften Zeitraum wieder. Ohne Protokoll bliebe offen, wer das
+        // wann getan hat.
+        $previousClosedUntil = $this->journal->closedUntil()?->format('Y-m-d');
+        $newClosedUntil = $closedUntilRaw === '' ? null : $closedUntilRaw;
+        $this->journal->setClosedUntil($newClosedUntil);
+
+        if ($previousClosedUntil !== ($this->journal->closedUntil()?->format('Y-m-d'))) {
+            $this->logger->info('Finance booking lock changed.', [
+                'event' => 'finance.closed_until.changed',
+                'user_id' => $this->currentUserId(),
+                'from' => $previousClosedUntil,
+                'to' => $this->journal->closedUntil()?->format('Y-m-d'),
+            ]);
+        }
+
         $_SESSION['success'] = 'Konfiguration aktualisiert.';
 
         return $response->withHeader('Location', '/finances')->withStatus(302);
@@ -885,10 +926,31 @@ class FinanceController
     {
         try {
             $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
+            $finance = Finance::find((int) $attachment->entity_id);
+
+            // Der Beleg gehört zur Buchung: Ist deren Zeitraum abgeschlossen,
+            // darf der Nachweis zu einer geprüften Zahl nicht mehr verschwinden.
+            if ($finance !== null && $this->journal->isFinanceLocked($finance)) {
+                $_SESSION['error'] = $this->lockMessage();
+                return $response->withHeader('Location', '/finances')->withStatus(302);
+            }
+
+            $filename = (string) $attachment->filename;
             $attachment->delete();
+
+            // Ohne Journaleintrag wäre ein gelöschter Beleg nicht nachvollziehbar.
+            if ($finance !== null) {
+                $this->journal->recordAttachmentDelete($finance, $filename, $this->currentUserId());
+            }
+
             $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen des Anhangs: ';
+            $this->logger->error('Finance attachment delete failed.', [
+                'event' => 'finance.attachment.delete_failed',
+                'attachment_id' => (int) $args['id'],
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Fehler beim Löschen des Anhangs.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }

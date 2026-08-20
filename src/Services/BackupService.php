@@ -77,9 +77,16 @@ class BackupService
             );
         }
 
-        if ($type === self::TYPE_AUTO && $this->maxAuto > 0 && count($existingOfType) >= $this->maxAuto) {
-            $oldest = end($existingOfType);
-            if ($oldest !== false) {
+        // Bis unter die Grenze rotieren, nicht nur ein Backup je Lauf: Wurde die
+        // Obergrenze nachträglich gesenkt, liegen mehrere Backups zu viel herum
+        // und der Ordner bliebe sonst dauerhaft darüber.
+        if ($type === self::TYPE_AUTO && $this->maxAuto > 0) {
+            while (count($existingOfType) >= $this->maxAuto) {
+                $oldest = array_pop($existingOfType);
+                if (!is_array($oldest)) {
+                    break;
+                }
+
                 $this->delete((string) $oldest['id']);
                 $this->logger->info('Oldest automatic backup rotated out.', [
                     'event' => 'backup.rotate',
