@@ -13,56 +13,29 @@ use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\TcLibPdfCanvas;
-use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 final class FinanceReportPdfControllerTest extends TestCase
 {
     use TestHttpHelpers;
     use FinanceAccountFixture;
 
-    private static ?Capsule $capsule = null;
-
-    public static function setUpBeforeClass(): void
-    {
-        parent::setUpBeforeClass();
-        if (self::$capsule !== null) {
-            return;
-        }
-        $envPath = dirname(__DIR__, 2) . '/.env';
-        if (file_exists($envPath)) {
-            Dotenv::createImmutable(dirname(__DIR__, 2))->safeLoad();
-        }
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'mysql',
-            'host' => $_ENV['DB_HOST'] ?? 'db',
-            'database' => $_ENV['DB_DATABASE'] ?? 'db',
-            'username' => $_ENV['DB_USERNAME'] ?? 'db',
-            'password' => $_ENV['DB_PASSWORD'] ?? 'db',
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
-        self::$capsule = $capsule;
-    }
-
     protected function setUp(): void
     {
         parent::setUp();
-        self::$capsule?->connection()->beginTransaction();
+        Bootstrap::setupTestDatabase();
+        Capsule::connection()->beginTransaction();
     }
 
     protected function tearDown(): void
     {
-        $c = self::$capsule?->connection();
-        if ($c !== null && $c->transactionLevel() > 0) {
-            $c->rollBack();
+        $connection = Capsule::connection();
+        if ($connection->transactionLevel() > 0) {
+            $connection->rollBack();
         }
         parent::tearDown();
     }
