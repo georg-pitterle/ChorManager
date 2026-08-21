@@ -36,6 +36,10 @@ class SheetArchive extends Model
      *
      * Caches result during request lifecycle to prevent N+1 queries.
      * Use formatArchiveResponse() to calculate once for API responses.
+     *
+     * Sind die Positionen bereits geladen, wird ueber sie summiert. Die eigene
+     * Abfrage haette den Eager-Load sonst wirkungslos gemacht und waere einmal
+     * pro Archiv gelaufen.
      */
     public function getTotalCount(): int
     {
@@ -43,7 +47,10 @@ class SheetArchive extends Model
             return $this->totalCountCache;
         }
 
-        $this->totalCountCache = (int) $this->lineItems()->sum('count');
+        $this->totalCountCache = $this->relationLoaded('lineItems')
+            ? (int) $this->lineItems->sum('count')
+            : (int) $this->lineItems()->sum('count');
+
         return $this->totalCountCache;
     }
 }

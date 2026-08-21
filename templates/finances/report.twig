@@ -168,6 +168,27 @@
                         <p class="text-muted small mt-2 mb-0">
                             Der Endbestand ist mit dem gezählten Bargeld bzw. dem Kontoauszug abzustimmen. Offene Posten ohne Zahldatum sind nicht enthalten.
                         </p>
+                        {% set _before_opening = account_statement.totals.before_opening_count|default(0) %}
+                        {% if _before_opening > 0 %}
+                            <div class="alert alert-warning small mt-3 mb-0" role="alert">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <strong>{{ _before_opening }} Buchung(en) liegen vor dem Stichtag ihres Kontos</strong>
+                                und sind in diesem Kassabericht deshalb nicht enthalten - der Anfangsbestand deckt
+                                laut Konvention alles davor ab. Betroffen:
+                                <ul class="mb-0 mt-1">
+                                    {% for row in account_statement.accounts %}
+                                        {% set _row_before = row.before_opening_count|default(0) %}
+                                        {% if _row_before > 0 %}
+                                            <li>
+                                                {{ row.account.name }}: {{ _row_before }} Buchung(en) ab
+                                                {{ row.before_opening_first|date("d.m.Y") }}, Stichtag
+                                                {{ row.account.opening_date|date("d.m.Y") }}
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 

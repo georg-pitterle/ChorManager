@@ -213,6 +213,40 @@ final class FinanceCsvExportTest extends TestCase
         $this->assertStringContainsString('"Miete; Strom; Wasser"', $this->export());
     }
 
+    public function testFormulaLikeTextIsNeutralizedForSpreadsheets(): void
+    {
+        Finance::create([
+            'running_number' => 6010,
+            'invoice_date' => '2025-10-06',
+            'payment_date' => '2025-10-06',
+            'description' => '=HYPERLINK("http://evil.example/x";"Klick")',
+            'group_name' => '+Sonderposten',
+            'finance_group_id' => null,
+            'type' => 'expense',
+            'amount' => '10.00',
+            'payment_method' => 'bank_transfer',
+            'finance_account_id' => $this->account->id,
+        ]);
+
+        $csv = $this->export();
+
+        // Der Zellinhalt bleibt lesbar, wird aber durch das vorangestellte
+        // Hochkomma nicht mehr als Formel ausgewertet.
+        $this->assertStringContainsString("'=HYPERLINK", $csv);
+        $this->assertStringNotContainsString(';=HYPERLINK', $csv);
+        $this->assertStringNotContainsString('";=HYPERLINK', $csv);
+        $this->assertStringContainsString("'+Sonderposten", $csv);
+    }
+
+    public function testExpenseAmountsKeepTheirLeadingMinus(): void
+    {
+        $this->booking(6011, '2025-10-07', 'expense', '42.00');
+
+        // Der Betrag ist eine Zahl, kein Text: Ein Hochkomma davor machte die
+        // Spalte in der Tabellenkalkulation unsummierbar.
+        $this->assertStringContainsString(';-42,00;', $this->export());
+    }
+
     public function testExportRouteIsReadableWithoutWritePermission(): void
     {
         $routes = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');

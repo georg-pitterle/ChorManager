@@ -27,9 +27,20 @@ class Attachment extends Model
         'created_at' => 'datetime',
     ];
 
+    /**
+     * Rueckrichtung des polymorphen Anhangs auf das Lied. entity_type steht auf
+     * der Anhang-Zeile selbst; als Relations-Bedingung landete die Spalte in der
+     * Abfrage auf songs und liess die Relation mit einem SQL-Fehler auflaufen.
+     * Die Unterscheidung gehoert deshalb vor die Abfrage.
+     */
     public function song()
     {
-        return $this->belongsTo(Song::class, 'entity_id', 'id')
-            ->where($this->getTable() . '.entity_type', 'song');
+        $relation = $this->belongsTo(Song::class, 'entity_id', 'id');
+
+        if ($this->entity_type !== 'song') {
+            $relation->whereRaw('1 = 0');
+        }
+
+        return $relation;
     }
 }

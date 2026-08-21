@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\SheetArchive;
 use App\Models\SheetArchiveLineItem;
 use App\Models\Song;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Tests\Unit\Bootstrap;
 use PHPUnit\Framework\TestCase;
 
@@ -108,6 +109,45 @@ class SheetArchiveTest extends TestCase
         ]);
 
         $this->assertEquals(25, $archive->getTotalCount());
+    }
+
+    /**
+     * Die Positionen werden fuer die Anzeige ohnehin mitgeladen. getTotalCount()
+     * hat sie trotzdem erneut aus der Datenbank summiert - der Eager-Load war
+     * fuer die Summe wirkungslos und die Abfrage lief einmal pro Archiv.
+     */
+    public function testTotalCountUsesTheAlreadyLoadedLineItems(): void
+    {
+        $archive = SheetArchive::create([
+            'song_id' => $this->song->id,
+            'archive_number' => 'ARCH-005',
+            'location' => 'Cabinet E',
+        ]);
+
+        SheetArchiveLineItem::create([
+            'sheet_archive_id' => $archive->id,
+            'voice_category' => 'Sopran',
+            'count' => 6,
+            'sort_order' => 0,
+        ]);
+        SheetArchiveLineItem::create([
+            'sheet_archive_id' => $archive->id,
+            'voice_category' => 'Alt',
+            'count' => 4,
+            'sort_order' => 1,
+        ]);
+
+        $loaded = SheetArchive::with('lineItems')->findOrFail($archive->id);
+
+        $connection = Capsule::connection();
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+        $total = $loaded->getTotalCount();
+        $queries = $connection->getQueryLog();
+        $connection->disableQueryLog();
+
+        $this->assertSame(10, $total);
+        $this->assertSame([], $queries, 'Geladene Positionen duerfen keine weitere Abfrage ausloesen.');
     }
 
     public function testArchiveCanBeCascadeDeleted(): void

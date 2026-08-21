@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use Carbon\Carbon;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -153,6 +154,25 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
 
         $this->assertSame(count($ids), count(array_unique($ids)));
         $this->assertSame($this->sortedIds([$roleMember, $bothMember]), $ids);
+    }
+
+    /**
+     * Die Spalte source_type ist nullable, und die Auswertung kennt nur vier
+     * Typen. Eine Quelle ausserhalb davon liess alle vier Listen leer, die
+     * Bedingungsgruppe blieb leer - und der eingeschraenkte Termin galt
+     * stillschweigend wieder fuer alle aktiven Mitglieder.
+     */
+    public function testAnUnknownSourceTypeDoesNotOpenTheEventForEveryone(): void
+    {
+        $this->createUser();
+        $event = $this->createEvent();
+        Capsule::connection()->table('event_audience_sources')->insert([
+            'event_id' => (int) $event->id,
+            'source_type' => null,
+            'reference_id' => 0,
+        ]);
+
+        $this->assertSame([], $this->eligibleIds($event));
     }
 
     /**

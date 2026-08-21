@@ -127,4 +127,60 @@ class RateLimiterServiceFeatureTest extends TestCase
         $afterReset = $limiter->hit('forgot:test', 1, 60);
         $this->assertTrue($afterReset['allowed']);
     }
+
+    /**
+     * Jeder Schlüssel legt eine eigene Datei an - eine je Mailadresse und je
+     * IP-Adresse. Ohne Aufräumen bleiben sie für immer im Temp-Verzeichnis
+     * liegen, obwohl ihr Inhalt nach wenigen Minuten wertlos ist.
+     */
+    public function testStaleFilesAreCleanedUp(): void
+    {
+        $now = 1_000_000;
+        $limiter = new RateLimiterService($this->storeDir, function () use (&$now): int {
+            return $now;
+        });
+
+        $limiter->hit('login:alt@example.test', 5, 60);
+        $this->assertCount(1, $this->storeFiles());
+
+        // Einen Tag später ist der alte Eintrag längst aus jedem Fenster
+        // gefallen; der nächste Zugriff räumt ihn weg.
+        $now += 86_400 + 60;
+        $limiter->hit('login:neu@example.test', 5, 60);
+
+        $files = $this->storeFiles();
+        $this->assertCount(1, $files, 'Nur der frische Eintrag darf übrig bleiben.');
+    }
+
+    /**
+     * Aufgeräumt wird nur, was wirklich alt ist: Eine laufende Sperre darf der
+     * Kehraus nicht aufheben.
+     */
+    public function testAnActiveCounterSurvivesTheCleanup(): void
+    {
+        $now = 1_000_000;
+        $limiter = new RateLimiterService($this->storeDir, function () use (&$now): int {
+            return $now;
+        });
+
+        $limiter->hit('login:alt@example.test', 2, 3600);
+
+        // Einen Tag später ist der alte Eintrag reif für den Kehraus. Der
+        // laufende Zähler entsteht im selben Moment und muss ihn überleben.
+        $now += 86_400 + 60;
+        $this->assertTrue($limiter->hit('login:aktiv@example.test', 2, 3600)['allowed']);
+        $this->assertTrue($limiter->hit('login:aktiv@example.test', 2, 3600)['allowed']);
+        $this->assertFalse($limiter->hit('login:aktiv@example.test', 2, 3600)['allowed']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function storeFiles(): array
+    {
+        return array_values(array_filter(
+            (array) glob($this->storeDir . DIRECTORY_SEPARATOR . '*.json'),
+            static fn(string $file): bool => is_file($file)
+        ));
+    }
 }

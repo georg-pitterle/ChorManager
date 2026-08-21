@@ -98,11 +98,36 @@ class FinanceJournalService
     public function isLocked(?string $paymentDate): bool
     {
         $closedUntil = $this->closedUntil();
-        if ($closedUntil === null || $paymentDate === null || trim($paymentDate) === '') {
+        if ($closedUntil === null) {
             return false;
         }
 
-        return $paymentDate <= $closedUntil->format('Y-m-d');
+        $normalized = self::normalizeDate($paymentDate);
+        if ($normalized === null) {
+            return false;
+        }
+
+        return $normalized <= $closedUntil->format('Y-m-d');
+    }
+
+    /**
+     * Zahldatum als Y-m-d-String. Der Vergleich mit dem Stichtag laeuft auf
+     * Zeichenketten-Ebene, und dort steht "2026-5-1" hinter "2026-06-30", weil
+     * die "5" groesser als die "0" ist. Ohne Normalisierung liesse die Sperre
+     * eine Buchung mitten im abgeschlossenen Zeitraum durch. Ein unlesbarer
+     * Wert ist kein Zeitraum und sperrt deshalb nichts.
+     */
+    private static function normalizeDate(?string $date): ?string
+    {
+        if ($date === null || trim($date) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse(trim($date))->format('Y-m-d');
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     public function isFinanceLocked(Finance $finance): bool
@@ -242,8 +267,8 @@ class FinanceJournalService
                 continue;
             }
 
-            $from = self::stringify($before[$field] ?? null);
-            $to = self::stringify($after[$field]);
+            $from = self::stringify($field, $before[$field] ?? null);
+            $to = self::stringify($field, $after[$field]);
             if ($from === $to) {
                 continue;
             }
@@ -261,13 +286,13 @@ class FinanceJournalService
     {
         $snapshot = [];
         foreach (self::TRACKED_FIELDS as $field) {
-            $snapshot[$field] = self::stringify($finance->getAttribute($field));
+            $snapshot[$field] = self::stringify($field, $finance->getAttribute($field));
         }
 
         return $snapshot;
     }
 
-    private static function stringify(mixed $value): ?string
+    private static function stringify(string $field, mixed $value): ?string
     {
         if ($value === null) {
             return null;
@@ -284,7 +309,10 @@ class FinanceJournalService
         $stringValue = (string) $value;
 
         // Beträge normalisieren, damit "10" und "10.00" nicht als Änderung gelten.
-        if (is_numeric($stringValue) && str_contains($stringValue, '.')) {
+        // Nur der Betrag: eine Beschreibung wie "1.100" ist ebenfalls rein
+        // numerisch und stünde sonst als "1.1" im Journal - ein Text, den so
+        // niemand eingegeben hat.
+        if ($field === 'amount' && is_numeric($stringValue) && str_contains($stringValue, '.')) {
             return rtrim(rtrim($stringValue, '0'), '.');
         }
 

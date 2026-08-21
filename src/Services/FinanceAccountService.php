@@ -61,18 +61,40 @@ class FinanceAccountService
      * Kassabericht for a fiscal year: opening balance, movements and closing
      * balance per account plus the totals across all accounts.
      *
-     * @return array{accounts: list<array<string, mixed>>, totals: array<string, float>}
+     * Zusätzlich wird je Konto ausgewiesen, wie viele Buchungen vor dem Stichtag
+     * liegen. Diese Buchungen stecken laut Konvention im Anfangsbestand und
+     * zählen deshalb nicht in der Bewegungsrechnung mit - stehen aber in der
+     * Buchungsliste. Ohne diesen Ausweis wäre der Unterschied zwischen Bericht
+     * und Liste von außen nicht erklärbar.
+     *
+     * @return array{accounts: list<array<string, mixed>>, totals: array<string, mixed>}
      */
     public function statement(Carbon $fiscalStart, Carbon $fiscalEnd): array
     {
         $accounts = [];
-        $totals = ['opening' => 0.0, 'income' => 0.0, 'expense' => 0.0, 'closing' => 0.0];
+        $totals = [
+            'opening' => 0.0,
+            'income' => 0.0,
+            'expense' => 0.0,
+            'closing' => 0.0,
+            'before_opening_count' => 0,
+        ];
+
+        $periodEnd = $fiscalEnd->format('Y-m-d');
 
         foreach ($this->allAccounts() as $account) {
-            $opening = $this->balanceBefore($account, $fiscalStart);
+            // Ein Konto, dessen Stichtag erst nach dem Berichtsende liegt, gab es
+            // in diesem Geschaeftsjahr noch nicht. Sein Anfangsbestand ist eine
+            // Aussage ueber einen spaeteren Tag; im laengst abgeschlossenen
+            // Vorjahr wuerde er Geld ausweisen, das damals nicht existierte.
+            $accountOpening = self::openingDate($account);
+            $notYetOpen = $accountOpening !== '' && $accountOpening > $periodEnd;
+
+            $opening = $notYetOpen ? 0.0 : $this->balanceBefore($account, $fiscalStart);
             $income = $this->periodSum($account, 'income', $fiscalStart, $fiscalEnd);
             $expense = $this->periodSum($account, 'expense', $fiscalStart, $fiscalEnd);
-            $closing = $this->balanceAt($account, $fiscalEnd);
+            $closing = $notYetOpen ? 0.0 : $this->balanceAt($account, $fiscalEnd);
+            $beforeOpening = $this->bookingsBeforeOpening($account);
 
             $accounts[] = [
                 'account' => $account,
@@ -80,15 +102,48 @@ class FinanceAccountService
                 'income' => $income,
                 'expense' => $expense,
                 'closing' => $closing,
+                'before_opening_count' => $beforeOpening['count'],
+                'before_opening_first' => $beforeOpening['first'],
             ];
 
             $totals['opening'] += $opening;
             $totals['income'] += $income;
             $totals['expense'] += $expense;
             $totals['closing'] += $closing;
+            $totals['before_opening_count'] += $beforeOpening['count'];
         }
 
         return ['accounts' => $accounts, 'totals' => $totals];
+    }
+
+    /**
+     * Buchungen des Kontos, die vor dessen Stichtag liegen und deshalb in keiner
+     * Bewegungssumme auftauchen.
+     *
+     * @return array{count: int, first: string|null}
+     */
+    private function bookingsBeforeOpening(FinanceAccount $account): array
+    {
+        $openingDate = self::openingDate($account);
+        if ($openingDate === '') {
+            return ['count' => 0, 'first' => null];
+        }
+
+        $query = Finance::where('finance_account_id', $account->id)
+            ->whereNotNull('payment_date')
+            ->whereDate('payment_date', '<', $openingDate);
+
+        $count = $query->count();
+        if ($count === 0) {
+            return ['count' => 0, 'first' => null];
+        }
+
+        $first = $query->min('payment_date');
+
+        return [
+            'count' => $count,
+            'first' => $first === null ? null : Carbon::parse((string) $first)->format('Y-m-d'),
+        ];
     }
 
     /**

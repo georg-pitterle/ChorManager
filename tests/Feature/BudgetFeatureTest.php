@@ -9,6 +9,7 @@ use App\Models\BudgetItem;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -175,6 +176,41 @@ final class BudgetFeatureTest extends TestCase
         $this->assertTrue($rc->hasMethod('normalizeAmount'));
         $method = $rc->getMethod('normalizeAmount');
         $this->assertTrue($method->isPrivate());
+    }
+
+    /**
+     * Das Budget hatte eine eigene, aeltere Kopie der Betragsnormalisierung. Sie
+     * kannte die Tausenderpunkte ohne Dezimalstelle nicht: "1.234.567" hat das
+     * Kassabuch angenommen und das Budget als ungueltig abgewiesen. Derselbe
+     * Betrag muss an beiden Stellen dasselbe bedeuten.
+     */
+    #[DataProvider('groupedAmountProvider')]
+    public function testBudgetNormalizesAmountsLikeTheCashbook(string $input, string $expected): void
+    {
+        $rc = new \ReflectionClass(\App\Controllers\BudgetController::class);
+        $method = $rc->getMethod('normalizeAmount');
+        $controller = $rc->newInstanceWithoutConstructor();
+
+        $this->assertSame(
+            $expected,
+            $method->invoke($controller, $input),
+            sprintf('"%s" muss im Budget wie im Kassabuch gelesen werden.', $input)
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function groupedAmountProvider(): array
+    {
+        return [
+            'Dezimalkomma' => ['1234,50', '1234.50'],
+            'Tausenderpunkt mit Dezimalkomma' => ['1.234,50', '1234.50'],
+            'Tausenderkomma mit Dezimalpunkt' => ['1,234.50', '1234.50'],
+            'Tausenderpunkte ohne Dezimalstelle' => ['1.234.567', '1234567.00'],
+            'Tausenderkommas ohne Dezimalstelle' => ['1,234,567', '1234567.00'],
+            'Leerzeichen als Gruppierung' => ['1 234,50', '1234.50'],
+        ];
     }
 
     public function testBudgetControllerRendersCorrectTemplate(): void

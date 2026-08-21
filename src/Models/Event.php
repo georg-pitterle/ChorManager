@@ -79,10 +79,18 @@ class Event extends Model
             && \Carbon\Carbon::parse($this->starts_at)->isFuture();
     }
 
+    /**
+     * Notizen des Termins. Private Notizen bleiben hier aussen vor: die Relation
+     * kennt die angemeldete Person nicht, und ohne diese Grenze haengt es am
+     * jeweiligen Aufrufer, ob eine fremde private Notiz in der Ausgabe landet.
+     * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
+     * Comment::visibleTo() bewusst selbst.
+     */
     public function comments()
     {
         return $this->hasMany(Comment::class, 'entity_id', 'id')
             ->where('entity_type', 'event')
+            ->where('is_private', false)
             ->orderBy('created_at', 'desc');
     }
 
@@ -111,6 +119,15 @@ class Event extends Model
         $roleIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_ROLE);
         $voiceGroupIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_VOICE_GROUP);
         $userIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_USER);
+
+        // Quellen sind hinterlegt, aber keine davon ist auswertbar - etwa weil
+        // source_type leer ist oder einen hier unbekannten Typ traegt. Eine leere
+        // Bedingungsgruppe wuerde die Einschraenkung stillschweigend aufheben und
+        // den Termin fuer alle aktiven Mitglieder oeffnen. Eine Zielgruppe, die
+        // sich nicht aufloesen laesst, umfasst niemanden.
+        if ($projectIds === [] && $roleIds === [] && $voiceGroupIds === [] && $userIds === []) {
+            return $query->whereRaw('1 = 0');
+        }
 
         $query->where(function ($grouped) use ($projectIds, $roleIds, $voiceGroupIds, $userIds) {
             if ($projectIds !== []) {

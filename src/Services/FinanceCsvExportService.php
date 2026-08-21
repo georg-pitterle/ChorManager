@@ -70,17 +70,41 @@ class FinanceCsvExportService
             (string) $finance->running_number,
             $finance->invoice_date?->format('d.m.Y') ?? '',
             $finance->payment_date?->format('d.m.Y') ?? '',
-            (string) $finance->description,
-            (string) ($finance->group_name ?? ''),
+            self::neutralizeFormula((string) $finance->description),
+            self::neutralizeFormula((string) ($finance->group_name ?? '')),
             $finance->type === 'income' ? 'Eingang' : 'Ausgang',
             $this->money((string) $finance->amount, $finance->type === 'expense'),
-            (string) ($finance->financeAccount->name ?? ''),
+            self::neutralizeFormula((string) ($finance->financeAccount->name ?? '')),
             $finance->payment_method === 'cash' ? 'Bar' : 'Überweisung',
             $finance->reversalOf?->running_number === null
                 ? ''
                 : (string) $finance->reversalOf->running_number,
             (string) $finance->attachments->count(),
         ];
+    }
+
+    /**
+     * Entschärft CSV-Formel-Injection: Tabellenkalkulationen werten eine Zelle als
+     * Formel aus, sobald sie mit `=`, `+`, `-` oder `@` beginnt. Der Verwendungszweck
+     * eines Bankauszugs ist Fremdtext, also kann dort `=HYPERLINK(...)` stehen. Das
+     * vorangestellte Hochkomma macht die Zelle wieder zu Text, ohne den Inhalt zu
+     * verändern. Nur Textspalten laufen hier durch - die Betragsspalte braucht ihr
+     * führendes Minus, damit sie summierbar bleibt.
+     */
+    private static function neutralizeFormula(string $value): string
+    {
+        if ($value === '') {
+            return $value;
+        }
+
+        // Führende Steuerzeichen zählen mit: Excel überliest Tabulator und
+        // Zeilenumbruch und wertet das erste sichtbare Zeichen aus.
+        $firstVisible = ltrim($value, " \t\r\n");
+        if ($firstVisible === '' || !in_array($firstVisible[0], ['=', '+', '-', '@'], true)) {
+            return $value;
+        }
+
+        return "'" . $value;
     }
 
     /**

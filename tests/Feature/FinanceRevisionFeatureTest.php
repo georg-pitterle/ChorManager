@@ -143,6 +143,46 @@ final class FinanceRevisionFeatureTest extends TestCase
         $this->assertSame('Notenkauf korrigiert', $changes['description']['to']);
     }
 
+    /**
+     * Die Betragsnormalisierung lief ueber jedes protokollierte Feld. Eine
+     * Beschreibung wie "1.100" ist rein numerisch und wurde dabei auf "1.1"
+     * gekuerzt - im Journal stand dann ein Text, den niemand eingegeben hat.
+     */
+    public function testJournalKeepsNumericLookingTextExactlyAsEntered(): void
+    {
+        $this->save();
+        $booking = $this->latestBooking();
+
+        $this->save(['id' => (string) $booking->id, 'description' => '1.100']);
+
+        $revision = FinanceRevision::where('finance_id', $booking->id)
+            ->where('action', FinanceRevision::ACTION_UPDATE)
+            ->firstOrFail();
+        $changes = $revision->changeSet();
+
+        $this->assertSame('1.100', $changes['description']['to']);
+    }
+
+    /**
+     * Zwei verschiedene Beschreibungen duerfen nach der Normalisierung nicht
+     * gleich aussehen - sonst faellt die Aenderung aus dem Journal heraus.
+     */
+    public function testJournalRecordsTextChangesThatOnlyDifferInTrailingZeros(): void
+    {
+        $this->save(['description' => '1.10']);
+        $booking = $this->latestBooking();
+
+        $this->save(['id' => (string) $booking->id, 'description' => '1.1']);
+
+        $revision = FinanceRevision::where('finance_id', $booking->id)
+            ->where('action', FinanceRevision::ACTION_UPDATE)
+            ->firstOrFail();
+        $changes = $revision->changeSet();
+
+        $this->assertSame('1.10', $changes['description']['from']);
+        $this->assertSame('1.1', $changes['description']['to']);
+    }
+
     public function testUnchangedSaveDoesNotWriteARevision(): void
     {
         $this->save();
@@ -271,6 +311,33 @@ final class FinanceRevisionFeatureTest extends TestCase
 
         $this->assertSame(1, Finance::count());
         $this->assertArrayNotHasKey('error', $_SESSION);
+    }
+
+    /**
+     * Der Sperrvergleich lief auf Zeichenketten-Ebene. Dort steht "2026-5-1"
+     * hinter "2026-06-30", weil die "5" groesser als die "0" ist - ein nicht
+     * normalisiertes Zahldatum waere trotz Sperre durchgelaufen.
+     */
+    public function testLockAlsoCoversPaymentDatesThatAreNotNormalized(): void
+    {
+        $this->journal->setClosedUntil('2026-06-30');
+
+        $this->assertTrue($this->journal->isLocked('2026-5-1'));
+        $this->assertTrue($this->journal->isLocked('01.05.2026'));
+        $this->assertFalse($this->journal->isLocked('2026-7-1'));
+    }
+
+    /**
+     * Ein unlesbares Datum ist kein Zeitraum und sperrt deshalb nichts; die
+     * Formatpruefung der Eingabe faengt solche Werte davor ab.
+     */
+    public function testUnparsableDatesAreNotTreatedAsLocked(): void
+    {
+        $this->journal->setClosedUntil('2026-06-30');
+
+        $this->assertFalse($this->journal->isLocked('kein Datum'));
+        $this->assertFalse($this->journal->isLocked('   '));
+        $this->assertFalse($this->journal->isLocked(null));
     }
 
     public function testOpenItemsAreNeverLocked(): void

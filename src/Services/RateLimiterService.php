@@ -14,6 +14,23 @@ use Closure;
  */
 class RateLimiterService
 {
+    /**
+     * Höchstens einmal pro Stunde wird aufgeräumt: Der Kehraus liest jede Datei
+     * im Verzeichnis, das lohnt nicht bei jedem Login-Versuch.
+     */
+    private const GC_INTERVAL_SECONDS = 3600;
+
+    /**
+     * Kein Fenster dieser Anwendung ist länger als ein Tag. Was so lange nicht
+     * mehr angefasst wurde, kann keine Sperre mehr auslösen.
+     */
+    private const GC_MAX_AGE_SECONDS = 86400;
+
+    // Bewusst ohne führenden Punkt und ohne .json-Endung: Der Marker soll beim
+    // Aufräumen des Verzeichnisses mit erfasst werden, aber nicht selbst als
+    // Zählerdatei gelten.
+    private const GC_MARKER = 'gc-state.txt';
+
     private string $storeDir;
     private Closure $clock;
 
@@ -72,7 +89,7 @@ class RateLimiterService
             fwrite($handle, (string) json_encode(['hits' => $this->prune($hits, $maxAttempts)]));
             fflush($handle);
 
-            return [
+            $result = [
                 'allowed' => $allowed,
                 'retry_after' => $retryAfter,
                 'remaining' => $remaining,
@@ -81,6 +98,79 @@ class RateLimiterService
             flock($handle, LOCK_UN);
             fclose($handle);
         }
+
+        // Aufgeräumt wird erst nach dem Freigeben der Sperre, damit der Kehraus
+        // keinen Login-Versuch aufhält.
+        $this->collectGarbage($now);
+
+        return $result;
+    }
+
+    /**
+     * Entfernt Zählerdateien, deren jüngster Versuch aus jedem Fenster gefallen
+     * ist. Jeder Schlüssel legt eine eigene Datei an - eine je Mailadresse und je
+     * IP-Adresse - und ohne Kehraus bleiben sie für immer im Temp-Verzeichnis
+     * liegen, obwohl ihr Inhalt nach Minuten wertlos ist.
+     */
+    private function collectGarbage(int $now): void
+    {
+        if (!$this->claimGarbageCollection($now)) {
+            return;
+        }
+
+        foreach ((array) glob($this->storeDir . DIRECTORY_SEPARATOR . '*.json') as $file) {
+            if (!is_string($file) || !is_file($file)) {
+                continue;
+            }
+
+            if ($this->lastHitIn($file) > $now - self::GC_MAX_AGE_SECONDS) {
+                continue;
+            }
+
+            @unlink($file);
+        }
+    }
+
+    /**
+     * Ist der nächste Kehraus fällig? Der Zeitpunkt des letzten steht in einer
+     * eigenen Datei, damit die Entscheidung prozessübergreifend gilt und nicht
+     * an der Lebensdauer eines einzelnen Requests hängt.
+     */
+    private function claimGarbageCollection(int $now): bool
+    {
+        $marker = $this->storeDir . DIRECTORY_SEPARATOR . self::GC_MARKER;
+        $last = is_file($marker) ? (int) @file_get_contents($marker) : null;
+
+        if ($last !== null && $now - $last < self::GC_INTERVAL_SECONDS) {
+            return false;
+        }
+
+        @file_put_contents($marker, (string) $now, LOCK_EX);
+
+        // Beim allerersten Aufruf gibt es noch nichts aufzuräumen; der Marker
+        // ist damit gesetzt und der erste echte Kehraus kommt eine Stunde später.
+        return $last !== null;
+    }
+
+    /**
+     * Zeitstempel des jüngsten gespeicherten Versuchs. Eine unlesbare oder
+     * inhaltslose Datei gilt als abgelaufen.
+     */
+    private function lastHitIn(string $file): int
+    {
+        $raw = @file_get_contents($file);
+        if (!is_string($raw) || trim($raw) === '') {
+            return PHP_INT_MIN;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) || !is_array($decoded['hits'] ?? null)) {
+            return PHP_INT_MIN;
+        }
+
+        $timestamps = array_map('intval', array_filter($decoded['hits'], 'is_numeric'));
+
+        return $timestamps === [] ? PHP_INT_MIN : max($timestamps);
     }
 
     public function reset(string $key): void

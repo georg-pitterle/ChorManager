@@ -8,6 +8,7 @@ use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\FinanceGroup;
 use App\Services\BudgetService;
+use App\Util\AmountNormalizer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -289,21 +290,15 @@ class BudgetController
     /**
      * Normalizes amount string (comma/dot handling) to a float-compatible string.
      * Returns null if the value is not a valid positive number.
+     *
+     * Die Trennzeichen liest derselbe AmountNormalizer wie im Kassabuch. Die
+     * fruehere eigene Kopie kannte reine Tausendergruppen wie "1.234.567" nicht
+     * und hat sie als ungueltig abgewiesen, waehrend die Kassa denselben Betrag
+     * angenommen hat.
      */
     private function normalizeAmount(string $raw): ?string
     {
-        $normalized = preg_replace('/[\s\x{00A0}\']+/u', '', $raw) ?? $raw;
-        $lastComma = strrpos($normalized, ',');
-        $lastDot = strrpos($normalized, '.');
-
-        if ($lastComma !== false && $lastDot !== false) {
-            $decimalSep = $lastComma > $lastDot ? ',' : '.';
-            $thousandsSep = $decimalSep === ',' ? '.' : ',';
-            $normalized = str_replace($thousandsSep, '', $normalized);
-            $normalized = $decimalSep === ',' ? str_replace(',', '.', $normalized) : $normalized;
-        } elseif ($lastComma !== false) {
-            $normalized = str_replace(',', '.', $normalized);
-        }
+        $normalized = AmountNormalizer::normalize($raw);
 
         if (!is_numeric($normalized) || (float) $normalized < 0) {
             return null;

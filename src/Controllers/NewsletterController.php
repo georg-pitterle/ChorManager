@@ -564,7 +564,13 @@ class NewsletterController
 
         $canEdit = $this->lockingService->canEdit($newsletter, $userId);
 
-        if (!$canEdit) {
+        // Zwischen der Prüfung und dem Setzen der Sperre liegt ein Zeitfenster, in
+        // dem jemand anderes zugreifen kann. Erst der Rückgabewert von
+        // acquireLock() bestätigt, dass die Sperre wirklich bei dieser Person liegt.
+        $hasLock = $canEdit && $this->lockingService->acquireLock($newsletter, $userId);
+
+        if (!$hasLock) {
+            $newsletter->refresh();
             $lockedByUser = User::find($newsletter->locked_by);
             return $this->view->render($response->withStatus(423), 'newsletters/locked.twig', [
                 'newsletter' => $newsletter,
@@ -572,8 +578,6 @@ class NewsletterController
                 'is_modal' => $isModal,
             ]);
         }
-
-        $this->lockingService->acquireLock($newsletter, $userId);
 
         $project = $newsletter->project;
         $events = Event::query()
@@ -796,6 +800,29 @@ class NewsletterController
         ]);
     }
 
+    /**
+     * Antwort für einen Versandversuch an einem Newsletter, den gerade jemand
+     * anderes bearbeitet - je nach Aufrufer als Flash-Redirect oder als JSON.
+     */
+    private function lockedElsewhereResponse(
+        Response $response,
+        Newsletter $newsletter,
+        bool $expectsJson
+    ): Response {
+        $message = 'Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.';
+
+        if (!$expectsJson) {
+            $_SESSION['error'] = $message;
+            return $response->withHeader(
+                'Location',
+                "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
+            )
+                ->withStatus(302);
+        }
+
+        return $this->jsonResponse($response, ['error' => $message], 409);
+    }
+
     public function send(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');
@@ -814,21 +841,17 @@ class NewsletterController
         }
 
         if ($newsletter->isLocked() && !$this->lockingService->isLockedBy($newsletter, $userId)) {
-            $message = 'Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.';
-            if (!$expectsJson) {
-                $_SESSION['error'] = $message;
-                return $response->withHeader(
-                    'Location',
-                    "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
-                )
-                    ->withStatus(302);
-            }
-
-            return $this->jsonResponse($response, ['error' => $message], 409);
+            return $this->lockedElsewhereResponse($response, $newsletter, $expectsJson);
         }
 
         if (!$newsletter->isLocked()) {
-            $this->lockingService->acquireLock($newsletter, $userId);
+            // Der Stand von der Prüfung oben ist einen Moment alt. Ist die Sperre
+            // inzwischen an jemand anderen gegangen, meldet acquireLock() false -
+            // dann darf hier nichts mehr versendet werden.
+            $lockAcquired = $this->lockingService->acquireLock($newsletter, $userId);
+            if (!$lockAcquired) {
+                return $this->lockedElsewhereResponse($response, $newsletter, $expectsJson);
+            }
         }
 
         $warnings = $this->placeholderWarnings(

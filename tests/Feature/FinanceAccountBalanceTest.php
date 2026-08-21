@@ -197,4 +197,86 @@ final class FinanceAccountBalanceTest extends TestCase
         $this->assertSame($cash->id, $this->service->defaultAccountForPaymentMethod('cash')?->id);
         $this->assertSame($bank->id, $this->service->defaultAccountForPaymentMethod('bank_transfer')?->id);
     }
+
+    /**
+     * Buchungen vor dem Stichtag fallen aus der Bewegungsrechnung heraus - genau
+     * so entstand nach der Kontomigration ein Kassabericht, der für Vorjahre
+     * 0,00 € auswies, während die Buchungsliste daneben Beträge zeigte. Der
+     * Bericht muss diese Buchungen wenigstens ausweisen.
+     */
+    public function testStatementReportsBookingsBeforeTheOpeningDate(): void
+    {
+        $cash = $this->account('Barkassa', FinanceAccount::TYPE_CASH, '0.00', '2026-01-01');
+        $this->booking($cash, 7001, '2025-05-04', 'income', '120.00');
+        $this->booking($cash, 7002, '2025-06-08', 'expense', '20.00');
+        $this->booking($cash, 7003, '2026-02-01', 'income', '50.00');
+
+        $statement = $this->service->statement(
+            Carbon::parse('2025-01-01'),
+            Carbon::parse('2025-12-31')
+        );
+
+        $row = $statement['accounts'][0];
+        $this->assertSame(2, $row['before_opening_count']);
+        $this->assertSame('2025-05-04', $row['before_opening_first']);
+        $this->assertSame(2, $statement['totals']['before_opening_count']);
+    }
+
+    /**
+     * Ein Konto, dessen Stichtag nach dem Berichtsende liegt, gab es im
+     * Berichtszeitraum noch nicht. Sein Anfangsbestand ist eine Aussage ueber
+     * einen spaeteren Tag und hat im abgeschlossenen Vorjahr nichts verloren -
+     * sonst weist der Kassabericht 2025 Geld aus, das erst 2026 existierte.
+     */
+    public function testStatementIgnoresAccountsOpenedAfterTheReportPeriod(): void
+    {
+        $future = $this->account('Neues Bankkonto', FinanceAccount::TYPE_BANK, '1500.00', '2026-01-01');
+        $this->booking($future, 7020, '2026-02-01', 'income', '50.00');
+
+        $statement = $this->service->statement(Carbon::parse('2025-01-01'), Carbon::parse('2025-12-31'));
+        $row = $statement['accounts'][0];
+
+        $this->assertSame(0.0, $row['opening']);
+        $this->assertSame(0.0, $row['income']);
+        $this->assertSame(0.0, $row['expense']);
+        $this->assertSame(0.0, $row['closing']);
+        $this->assertSame(0.0, $statement['totals']['opening']);
+        $this->assertSame(0.0, $statement['totals']['closing']);
+    }
+
+    /**
+     * Faellt der Stichtag noch in den Berichtszeitraum, gilt der Anfangsbestand
+     * wieder - und der Bericht muss aufgehen.
+     */
+    public function testStatementKeepsTheOpeningBalanceWhenTheAccountOpensInThePeriod(): void
+    {
+        $account = $this->account('Bankkonto', FinanceAccount::TYPE_BANK, '1500.00', '2026-12-31');
+
+        $row = $this->service->statement(Carbon::parse('2026-01-01'), Carbon::parse('2026-12-31'))['accounts'][0];
+
+        $this->assertSame(1500.0, $row['opening']);
+        $this->assertSame(1500.0, $row['closing']);
+        $this->assertSame(
+            $row['closing'],
+            $row['opening'] + $row['income'] - $row['expense']
+        );
+    }
+
+    /**
+     * Ohne Buchungen vor dem Stichtag darf der Bericht keine Warnung tragen.
+     */
+    public function testStatementCarriesNoWarningWithoutBookingsBeforeTheOpeningDate(): void
+    {
+        $cash = $this->account('Barkassa', FinanceAccount::TYPE_CASH, '0.00', '2026-01-01');
+        $this->booking($cash, 7004, '2026-02-01', 'income', '50.00');
+
+        $statement = $this->service->statement(
+            Carbon::parse('2026-01-01'),
+            Carbon::parse('2026-12-31')
+        );
+
+        $this->assertSame(0, $statement['accounts'][0]['before_opening_count']);
+        $this->assertNull($statement['accounts'][0]['before_opening_first']);
+        $this->assertSame(0, $statement['totals']['before_opening_count']);
+    }
 }

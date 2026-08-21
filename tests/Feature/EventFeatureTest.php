@@ -572,6 +572,42 @@ class EventFeatureTest extends TestCase
         $this->assertStringNotContainsString('Meine private Bemerkung', $otherBody);
     }
 
+    /**
+     * Die Sichtbarkeit privater Notizen hing allein an den beiden Stellen im
+     * Controller, die sie herausfiltern. Die Relation selbst lieferte jede
+     * Notiz - jeder neue Aufrufer haette fremde private Bemerkungen mit
+     * ausgegeben, ohne dass es auffaellt.
+     */
+    public function testTheEventCommentsRelationDoesNotCarryPrivateNotes(): void
+    {
+        $event = Event::create([
+            'title' => 'Event With Private Note',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+
+        $author = $this->createUser('relation-author');
+        Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $author->id,
+            'comment' => 'Öffentliche Bemerkung der Relation',
+            'is_private' => false,
+        ]);
+        Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $author->id,
+            'comment' => 'Private Bemerkung der Relation',
+            'is_private' => true,
+        ]);
+
+        $notes = $event->fresh()->comments->pluck('comment')->all();
+
+        $this->assertSame(['Öffentliche Bemerkung der Relation'], $notes);
+    }
+
     public function testEventDetailShowsEditButtonForEditors(): void
     {
         $event = Event::create([

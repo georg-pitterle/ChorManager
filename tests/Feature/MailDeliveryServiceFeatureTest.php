@@ -84,4 +84,88 @@ final class MailDeliveryServiceFeatureTest extends TestCase
             'Der jüngste Eintrag muss auf den nächsten Durchlauf warten.'
         );
     }
+
+    /**
+     * Stellt einen Mailer, dessen Versand mit der übergebenen Fehlermeldung
+     * scheitert - so wie PHPMailer die Antwort des Servers durchreicht.
+     */
+    private function failingMailer(string $errorMessage): Mailer
+    {
+        $mailer = $this->createStub(Mailer::class);
+        $mailer->method('sendHtmlMailDetailed')->willReturn(['success' => false]);
+        $mailer->method('getLastError')->willReturn($errorMessage);
+        $mailer->method('isUsingSmtp')->willReturn(true);
+
+        return $mailer;
+    }
+
+    /**
+     * Ein dauerhafter 5xx-Fehler bedeutet: Diese Adresse gibt es nicht. Weitere
+     * Versuche wären reines Zustellrauschen an einen toten Empfänger und
+     * schaden der Reputation des Absenders.
+     */
+    public function testAPermanentSmtpFailureIsNotRetried(): void
+    {
+        $entry = $this->enqueue('Dauerhaft gescheitert', Carbon::now());
+        $service = new MailDeliveryService(
+            $this->failingMailer('SMTP Error: 550 5.1.1 <weg@example.test>: Recipient address rejected: User unknown')
+        );
+
+        $service->sendEntry($entry);
+
+        $stored = MailQueue::findOrFail($entry->id);
+        $this->assertSame('dead', $stored->status);
+        $this->assertFalse((bool) $stored->is_retryable);
+        $this->assertSame(1, (int) $stored->attempts, 'Der erste Versuch muss der letzte gewesen sein.');
+    }
+
+    /**
+     * Auch ohne Klartext-Code muss der erweiterte Statuscode der Klasse 5
+     * als dauerhaft erkannt werden.
+     */
+    public function testAnEnhancedFiveClassStatusCodeIsNotRetried(): void
+    {
+        $entry = $this->enqueue('Mailbox gibt es nicht', Carbon::now());
+        $service = new MailDeliveryService(
+            $this->failingMailer('Mailbox unavailable (5.1.1)')
+        );
+
+        $service->sendEntry($entry);
+
+        $this->assertSame('dead', MailQueue::findOrFail($entry->id)->status);
+    }
+
+    /**
+     * Ein 4xx-Fehler ist vorübergehend - da muss der Worker es erneut versuchen.
+     */
+    public function testATemporarySmtpFailureStaysRetryable(): void
+    {
+        $entry = $this->enqueue('Vorübergehend gescheitert', Carbon::now());
+        $service = new MailDeliveryService(
+            $this->failingMailer('SMTP Error: 451 4.3.0 Temporary lookup failure, try again later')
+        );
+
+        $service->sendEntry($entry);
+
+        $stored = MailQueue::findOrFail($entry->id);
+        $this->assertSame('failed', $stored->status);
+        $this->assertTrue((bool) $stored->is_retryable);
+        $this->assertNotNull($stored->next_attempt_at);
+    }
+
+    /**
+     * Zahlen im Fließtext dürfen keinen dauerhaften Fehler vortäuschen, sonst
+     * bleiben zustellbare Mails liegen.
+     */
+    public function testAPlainNumberInTheMessageDoesNotLookPermanent(): void
+    {
+        $entry = $this->enqueue('Netzwerkfehler', Carbon::now());
+        $service = new MailDeliveryService(
+            $this->failingMailer('Connection timed out after 500 ms')
+        );
+
+        $service->sendEntry($entry);
+
+        $this->assertSame('failed', MailQueue::findOrFail($entry->id)->status);
+    }
 }

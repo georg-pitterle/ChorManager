@@ -22,13 +22,38 @@ final class RequestContextMiddlewareFeatureTest extends TestCase
 {
     protected function setUp(): void
     {
-        $_SESSION = [];
+        parent::setUp();
+        $this->discardSession();
     }
 
     protected function tearDown(): void
     {
         unset($_ENV['TRUSTED_PROXIES'], $_SERVER['TRUSTED_PROXIES']);
+        $this->discardSession();
         parent::tearDown();
+    }
+
+    /**
+     * Die Tests dieser Klasse legen echte Sessions an, weil das Middleware selbst
+     * `session_start()` aufruft. Eine geschlossene Session bleibt aber auf der
+     * Platte liegen, und ihre Kennung bleibt im Prozess stehen: Der nächste
+     * `session_start()` liest die Daten des Vorgängers zurück und überschreibt
+     * damit ein frisch geleertes `$_SESSION`. Ohne dieses Aufräumen entscheidet
+     * die Testreihenfolge über das Ergebnis.
+     */
+    private function discardSession(): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE && session_id() !== '') {
+            @session_start();
+        }
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION = [];
+            @session_destroy();
+        }
+
+        @session_id('');
+        $_SESSION = [];
     }
 
     /**

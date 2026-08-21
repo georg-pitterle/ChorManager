@@ -189,6 +189,125 @@ final class FinanceBusinessLogicTest extends TestCase
         unset($_SESSION['error']);
     }
 
+    /**
+     * Die Datumsfelder wurden bisher nur als Zeichenkette verglichen. Ein leeres
+     * oder unsinniges Rechnungsdatum lief damit bis in die Datenbank durch und
+     * landete bei nicht-striktem SQL-Modus als 0000-00-00 in den Büchern.
+     */
+    public function testSaveRejectsAMissingInvoiceDate(): void
+    {
+        $controller = $this->makeController();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData(['invoice_date' => '']));
+
+        $countBefore = Finance::count();
+        $controller->save($request, $this->makeResponse());
+
+        $this->assertSame($countBefore, Finance::count(), 'Ohne Rechnungsdatum darf keine Buchung entstehen.');
+        $this->assertArrayHasKey('error', $_SESSION);
+        unset($_SESSION['error']);
+    }
+
+    public function testSaveRejectsAMalformedInvoiceDate(): void
+    {
+        $controller = $this->makeController();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'invoice_date' => '01.10.2025',
+        ]));
+
+        $countBefore = Finance::count();
+        $controller->save($request, $this->makeResponse());
+
+        $this->assertSame($countBefore, Finance::count(), 'Ein Datum im falschen Format darf nicht durchlaufen.');
+        $this->assertArrayHasKey('error', $_SESSION);
+        unset($_SESSION['error']);
+    }
+
+    public function testSaveRejectsACalendricallyImpossibleDate(): void
+    {
+        $controller = $this->makeController();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'invoice_date' => '2025-02-30',
+        ]));
+
+        $countBefore = Finance::count();
+        $controller->save($request, $this->makeResponse());
+
+        $this->assertSame($countBefore, Finance::count(), 'Den 30. Februar gibt es nicht.');
+        $this->assertArrayHasKey('error', $_SESSION);
+        unset($_SESSION['error']);
+    }
+
+    public function testSaveRejectsAMalformedPaymentDate(): void
+    {
+        $controller = $this->makeController();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'invoice_date' => '2025-10-01',
+            'payment_date' => 'heute',
+        ]));
+
+        $countBefore = Finance::count();
+        $controller->save($request, $this->makeResponse());
+
+        $this->assertSame($countBefore, Finance::count(), 'Ein unlesbares Zahldatum darf nicht durchlaufen.');
+        $this->assertArrayHasKey('error', $_SESSION);
+        unset($_SESSION['error']);
+    }
+
+    /**
+     * Die Beschreibung war nur im Formular als Pflichtfeld markiert. Wer den
+     * Request an der Oberfläche vorbei schickt, hat damit eine Buchung ohne
+     * jeden Text angelegt - im Kassabuch nicht mehr zuordenbar.
+     */
+    public function testSaveRejectsAnEmptyDescription(): void
+    {
+        $controller = $this->makeController();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'description' => '   ',
+        ]));
+
+        $countBefore = Finance::count();
+        $controller->save($request, $this->makeResponse());
+
+        $this->assertSame($countBefore, Finance::count(), 'Ohne Beschreibung darf keine Buchung entstehen.');
+        $this->assertArrayHasKey('error', $_SESSION);
+        unset($_SESSION['error']);
+    }
+
+    public function testSaveRejectsAMissingDescriptionOnUpdate(): void
+    {
+        $controller = $this->makeController();
+        $controller->save($this->makeRequest('POST', '/finances/save', $this->baseFinanceData()), $this->makeResponse());
+        unset($_SESSION['success'], $_SESSION['error']);
+
+        $finance = Finance::orderByDesc('id')->firstOrFail();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'id' => (string) $finance->id,
+            'description' => '',
+        ]));
+
+        $controller->save($request, $this->makeResponse());
+
+        $this->assertSame('Test booking', $finance->fresh()?->description);
+        $this->assertArrayHasKey('error', $_SESSION);
+        unset($_SESSION['error']);
+    }
+
+    public function testSaveAcceptsAValidDatePair(): void
+    {
+        $controller = $this->makeController();
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'invoice_date' => '2025-10-01',
+            'payment_date' => '2025-10-05',
+        ]));
+
+        $controller->save($request, $this->makeResponse());
+
+        $finance = Finance::orderByDesc('id')->first();
+        $this->assertNotNull($finance);
+        $this->assertSame('2025-10-05', $finance->payment_date?->format('Y-m-d'));
+        unset($_SESSION['success'], $_SESSION['error']);
+    }
+
     public function testRunningNumberIsNeverReusedAfterDeletingHighestEntry(): void
     {
         $controller = $this->makeController();
@@ -267,8 +386,12 @@ final class FinanceBusinessLogicTest extends TestCase
             );
 
         $controller = $this->makeController($logger);
-        // Missing required 'invoice_date' triggers a DB-level failure inside the try block.
-        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData(['invoice_date' => '']));
+        // Eine zu lange Beschreibung (Spalte: varchar(255)) lässt das Insert im
+        // try-Block scheitern. Ein leeres Rechnungsdatum taugt dafür nicht mehr:
+        // Das wird jetzt validiert, bevor es überhaupt in die Datenbank geht.
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData([
+            'description' => str_repeat('x', 300),
+        ]));
 
         $controller->save($request, $this->makeResponse());
         unset($_SESSION['success'], $_SESSION['error']);

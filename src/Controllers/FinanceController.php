@@ -89,6 +89,18 @@ class FinanceController
             : $currentYear - 1;
     }
 
+    /**
+     * Kalendarisch gültiges Datum im Speicherformat? `createFromFormat` allein
+     * genügt nicht: Es rollt den 30. Februar stillschweigend auf den 2. März
+     * weiter, deshalb muss der Rückweg denselben Text ergeben.
+     */
+    private static function isValidDate(string $value): bool
+    {
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $parsed !== false && $parsed->format('Y-m-d') === $value;
+    }
+
     public static function normalizeAmountInput(string $amount): string
     {
         return AmountNormalizer::normalize($amount);
@@ -182,10 +194,32 @@ class FinanceController
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
+        // Die Datumsfelder werden als Zeichenkette verglichen und gespeichert. Ohne
+        // Formatprüfung landet ein unsinniger Wert als 0000-00-00 in den Büchern,
+        // sobald der SQL-Modus nicht strikt ist.
         $invoiceDate = (string) ($data['invoice_date'] ?? '');
+        if (!self::isValidDate($invoiceDate)) {
+            $_SESSION['error'] = 'Bitte ein gültiges Rechnungsdatum angeben.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
         $paymentDate = !empty($data['payment_date']) ? (string) $data['payment_date'] : null;
-        if ($paymentDate !== null && $invoiceDate !== '' && $paymentDate < $invoiceDate) {
+        if ($paymentDate !== null && !self::isValidDate($paymentDate)) {
+            $_SESSION['error'] = 'Bitte ein gültiges Zahlungsdatum angeben.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        if ($paymentDate !== null && $paymentDate < $invoiceDate) {
             $_SESSION['error'] = 'Das Zahlungsdatum darf nicht vor dem Rechnungsdatum liegen.';
+            return $response->withHeader('Location', '/finances')->withStatus(302);
+        }
+
+        // Pflichtfeld auch serverseitig: das `required` im Formular haelt nur die
+        // Oberflaeche auf, und eine Buchung ohne Text ist im Kassabuch spaeter
+        // niemandem mehr zuzuordnen.
+        $description = trim($data['description'] ?? '');
+        if ($description === '') {
+            $_SESSION['error'] = 'Bitte eine Beschreibung angeben.';
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
@@ -214,7 +248,7 @@ class FinanceController
             $recordData = [
                 'invoice_date' => $invoiceDate,
                 'payment_date' => $paymentDate,
-                'description' => trim($data['description'] ?? ''),
+                'description' => $description,
                 'group_name' => $groupName,
                 // Keep the canonical finance_group_id in sync so budget actuals stay
                 // linked even when the displayed group label changes.

@@ -1012,12 +1012,7 @@ class EventController
         $comments = Comment::with('user')
             ->where('entity_type', 'event')
             ->whereIn('entity_id', $eventIds)
-            ->where(function ($query) use ($userId) {
-                $query->where('is_private', false)
-                    ->orWhere(function ($subQuery) use ($userId) {
-                        $subQuery->where('is_private', true)->where('user_id', $userId);
-                    });
-            })
+            ->visibleTo($userId)
             ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy('entity_id');
@@ -1032,12 +1027,7 @@ class EventController
         return Comment::with('user')
             ->where('entity_type', 'event')
             ->where('entity_id', $eventId)
-            ->where(function ($query) use ($userId) {
-                $query->where('is_private', false)
-                    ->orWhere(function ($subQuery) use ($userId) {
-                        $subQuery->where('is_private', true)->where('user_id', $userId);
-                    });
-            })
+            ->visibleTo($userId)
             ->orderBy('created_at', 'desc')
             ->get()
             ->values();

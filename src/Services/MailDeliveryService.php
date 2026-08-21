@@ -254,35 +254,67 @@ class MailDeliveryService
     /**
      * Classify error as retryable or permanent.
      *
+     * Der Fehlercode der Warteschlange ist immer `send_failed` oder `exception`;
+     * die Antwort des Servers steckt allein im Meldungstext, so wie PHPMailer sie
+     * durchreicht. Ein Muster wie `smtp_5xx` traf darauf nie zu - dauerhaft tote
+     * Adressen wurden deshalb bis zum letzten Versuch weiter angeschrieben.
+     *
+     * Erkannt werden deshalb die tatsächlichen Formen einer SMTP-Antwort: der
+     * dreistellige Antwortcode am Anfang der Zeile (RFC 5321) und der erweiterte
+     * Statuscode der Klasse 5 (RFC 3463). Eine beliebige Zahl im Fließtext zählt
+     * ausdrücklich nicht, sonst bliebe zustellbare Post liegen.
+     *
      * @param string $errorCode
      * @param string $errorMessage
      * @return bool
      */
     private function classifyError(string $errorCode, string $errorMessage): bool
     {
-        // Permanent errors (no retry)
+        $haystack = $errorCode . ' ' . $errorMessage;
+
+        // Vorübergehende Fehler zuerst: Steht im selben Text ein 4xx-Code, ist die
+        // Zustellung nur aufgeschoben.
+        if (self::matchesSmtpStatus($haystack, '4')) {
+            return true;
+        }
+
         $permanentPatterns = [
             'invalid_email',
-            'smtp_5[0-9]{2}',  // 500-599 permanent SMTP errors
             'invalid_config',
         ];
 
         foreach ($permanentPatterns as $pattern) {
-            if (
-                preg_match('/' . $pattern . '/i', $errorCode) ||
-                preg_match('/' . $pattern . '/i', $errorMessage)
-            ) {
+            if (preg_match('/' . $pattern . '/i', $haystack)) {
                 return false;
             }
         }
 
-        // Temporary SMTP errors are retryable (4xx)
-        if (preg_match('/smtp_4[0-9]{2}/i', $errorCode)) {
-            return true;
+        if (self::matchesSmtpStatus($haystack, '5')) {
+            return false;
         }
 
         // Default: assume retryable for transient issues
         return true;
+    }
+
+    /**
+     * Trägt der Text einen SMTP-Antwortcode oder erweiterten Statuscode der
+     * angegebenen Klasse?
+     */
+    private static function matchesSmtpStatus(string $text, string $class): bool
+    {
+        // Erweiterter Statuscode, z. B. "5.1.1" - auch eingeklammert oder am Satzende.
+        if (preg_match('/(?<![0-9.])' . $class . '\.\d{1,3}\.\d{1,3}(?![0-9.])/', $text)) {
+            return true;
+        }
+
+        // Klassischer Antwortcode: dreistellig, am Zeilenanfang oder direkt hinter
+        // dem Doppelpunkt, mit dem PHPMailer die Serverantwort anhängt. Eine Zahl
+        // mitten im Fließtext ("timed out after 500 ms") zählt dadurch nicht mit.
+        return (bool) preg_match(
+            '/(?:^|[\r\n]|:[ \t]*|>[ \t]*)' . $class . '[0-9]{2}(?![0-9.])(?=$|[\s\-:,;)\]])/',
+            $text
+        );
     }
 
     /**
