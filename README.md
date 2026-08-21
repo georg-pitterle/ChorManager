@@ -14,6 +14,39 @@ Newslettern und auswertbaren Berichten.
 - Entwicklungsfreundliche Dev-Seed-Daten für reproduzierbare Testszenarien.
 - SMTP-Konfiguration über Umgebungsvariablen statt UI-Settings.
 
+## Module
+
+### Immer aktiv
+
+- **Dashboard** – zentrale Startseite mit Überblick über anstehende Termine und offene Aufgaben.
+- **Termine** – Veranstaltungsplanung inkl. Termin-Typen und Kalenderabo.
+- **Anwesenheit** – Erfassung und Auswertung von Anwesenheiten je Termin.
+- **Mitgliederverwaltung** – Benutzer-, Rollen- und Stimmgruppenverwaltung.
+- **Projekte** – Projekte, Projektmitglieder und Aufgabenplanung je Projekt.
+- **Repertoire** – Verwaltung des Song-/Noten-Repertoires.
+- **Auswertungen** – Anwesenheitsquoten und weitere Statistiken.
+- **Downloads** – Bereitstellung von Dateien für Mitglieder.
+- **App-Einstellungen** – Stammdaten- und Anwendungskonfiguration.
+- **Mailversand** – Überwachung der Mail-Queue und des Versandstatus.
+- **Backup-Verwaltung** – Erstellen, Auflisten und Wiederherstellen von Backups.
+
+### Optional (per Feature-Flag aktivierbar)
+
+Diese Module sind standardmäßig deaktiviert und werden über Umgebungsvariablen (`.env`) freigeschaltet:
+
+| Modul | Umgebungsvariable | Beschreibung |
+| --- | --- | --- |
+| Kassa (Finanzen) | `FEATURE_FINANCE=true` | Kassabuch, Konten, Kontoauszüge, Import und Journal. |
+| Budget | `FEATURE_BUDGET=true` | Budgetplanung je Kategorie; setzt aktiviertes Finanzmodul voraus. |
+| Sponsoring | `FEATURE_SPONSORING=true` | Sponsoren, Sponsoring-Pakete, Kontakte und Sponsoring-Dashboard. |
+| Newsletter | `FEATURE_NEWSLETTER=true` | Newsletter-Erstellung, -Versand und -Archiv. |
+| Anmeldungen | `FEATURE_REGISTRATION=true` | Termin-Anmeldungen inkl. Auswertung. |
+| Aufgaben | `FEATURE_TASKS=true` | Aufgabenverwaltung innerhalb von Projekten. |
+| Noten-Archiv | `FEATURE_SHEET_ARCHIVE=true` | Digitales Archiv für Notenblätter. |
+| Webmail | `FEATURE_WEBMAIL=true` | Eingebettete IMAP-Webmail-Integration via Tachyon (siehe unten). |
+
+Die Sichtbarkeit einzelner Module und Menüpunkte hängt zusätzlich von den Rechten der jeweiligen Rolle ab (siehe `/roles`).
+
 ## Schnellstart (DDEV empfohlen)
 
 1. DDEV starten:
