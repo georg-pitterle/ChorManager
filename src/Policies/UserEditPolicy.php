@@ -12,6 +12,12 @@ use App\Models\User;
  * Mirrors the rule previously inlined in UserController::index():
  * global can_edit_users, otherwise voice group representatives are
  * limited to members of their own voice groups.
+ *
+ * Ueber beiden Wegen steht die Rollenhierarchie: ein Mitglied, dessen hoechste
+ * Rolle ueber dem eigenen Level liegt, bleibt unantastbar. UserController::update()
+ * und ::deactivate() weisen solche Ziele ohnehin ab - ohne dieselbe Regel hier
+ * haette die Mitgliederliste einen Bearbeiten-Link angeboten, der beim Klick
+ * zwangslaeufig in einer 403-Meldung endet.
  */
 class UserEditPolicy
 {
@@ -21,6 +27,10 @@ class UserEditPolicy
     public function canEdit(array $session, User $target): bool
     {
         if ((int) ($target->is_active ?? 1) !== 1) {
+            return false;
+        }
+
+        if ($this->outranksActor($session, $target)) {
             return false;
         }
 
@@ -74,6 +84,29 @@ class UserEditPolicy
             $ids->map(static fn ($id): int => (int) $id)->all(),
             true
         );
+    }
+
+    /**
+     * True when the target holds a role that outranks the acting session's own level.
+     *
+     * Die Rollen sind an beiden Aufrufstellen (UserQuery::getAllUsers() und
+     * ::findById()) bereits eager-geladen, ein zusaetzlicher Query entsteht nicht.
+     *
+     * @param array<string, mixed> $session
+     */
+    private function outranksActor(array $session, User $target): bool
+    {
+        $actorLevel = (int) ($session['role_level'] ?? 0);
+        $targetLevel = 0;
+
+        foreach ($target->roles as $role) {
+            $level = (int) ($role->hierarchy_level ?? 0);
+            if ($level > $targetLevel) {
+                $targetLevel = $level;
+            }
+        }
+
+        return $targetLevel > $actorLevel;
     }
 
     /**
