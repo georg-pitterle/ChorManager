@@ -117,6 +117,7 @@ class ProjectMemberArchivedFeatureTest extends TestCase
     {
         $twig = $this->createStub(Twig::class);
         $projectQuery = $this->createStub(ProjectQuery::class);
+        $projectQuery->method('userExists')->willReturn(true);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->once())

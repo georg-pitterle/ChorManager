@@ -155,6 +155,18 @@ class ProjectQuery
     }
 
     /**
+     * True when the given member exists at all.
+     *
+     * getUserVoiceGroupIds() liefert fuer ein unbekanntes Mitglied dasselbe leere
+     * Array wie fuer eines ohne Stimmgruppe - die Existenz muss deshalb getrennt
+     * geprueft werden, bevor eine Zuordnung in den Fremdschluessel laeuft.
+     */
+    public function userExists(int $userId): bool
+    {
+        return User::whereKey($userId)->exists();
+    }
+
+    /**
      * Returns project members grouped by voice group and sub-voice for the evaluation view.
      */
     public function getProjectMembersGroupedByVoice(int $projectId, ?array $filterVoiceGroupIds = null): array

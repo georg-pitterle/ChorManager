@@ -236,6 +236,13 @@ class ProjectController
             return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
         }
 
+        // Ohne diese Pruefung liefe eine unbekannte ID in den Fremdschluessel der
+        // Zuordnungstabelle und quittierte die Eingabe mit einem HTTP 500.
+        if (!$this->projectQuery->userExists($userId)) {
+            $_SESSION['error'] = 'Das ausgewählte Mitglied existiert nicht.';
+            return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
+        }
+
         if (!$this->userIsInManageableVoiceGroup($projectId, $userId)) {
             $_SESSION['error'] = 'Sie dürfen nur Mitglieder Ihrer eigenen Stimmgruppe zuweisen.';
             return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
@@ -280,7 +287,9 @@ class ProjectController
     /**
      * Guards add/remove against the voice-group scope. A broad project member
      * manager passes for every user; a voice-group-scoped holder only for users
-     * that share one of their own voice groups. A missing user is rejected.
+     * that share one of their own voice groups. Ein unbekanntes Mitglied hat
+     * keine Stimmgruppen und ist daher nur fuer das stimmgruppen-beschraenkte
+     * Recht ausgeschlossen - die Existenz prueft addMember() separat.
      */
     private function userIsInManageableVoiceGroup(int $projectId, int $userId): bool
     {

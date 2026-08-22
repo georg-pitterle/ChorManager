@@ -74,6 +74,7 @@ class ProjectMemberSuccessFeatureTest extends TestCase
     {
         $twig = $this->createStub(Twig::class);
         $projectQuery = $this->createStub(\App\Queries\ProjectQuery::class);
+        $projectQuery->method('userExists')->willReturn(true);
 
         $projectPersistence = $this->createMock(\App\Persistence\ProjectPersistence::class);
         $projectPersistence->expects($this->once())
