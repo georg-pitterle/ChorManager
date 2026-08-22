@@ -71,7 +71,7 @@ class TaskController
 
     private function hasTaskAccess(Project $project): bool
     {
-        $canManageTasks = $this->policy->canManageTasks((int) $project->id);
+        $canManageTasks = $this->policy->canManageTasks();
 
         // Die Middleware lässt jeden mit can_manage_tasks passieren; fällt die
         // Entscheidung erst hier, blieb die Abweisung früher unprotokolliert.
@@ -460,7 +460,7 @@ class TaskController
         $attachmentId = (int) $args['attachment_id'];
         $task = Task::findOrFail($taskId);
 
-        if (!$this->policy->canManageTasks($task->project_id)) {
+        if (!$this->policy->canManageTasks()) {
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }

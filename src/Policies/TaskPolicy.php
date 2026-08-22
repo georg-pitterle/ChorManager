@@ -20,17 +20,18 @@ class TaskPolicy
     }
 
     /**
-     * Check if the user can manage tasks in a specific project.
+     * Check if the user can manage tasks.
      *
      * Ausschlaggebend ist allein das explizite Recht can_manage_tasks -
      * Mitgliederverwaltung ist kein Ersatz dafuer, sonst haetten Rollenverwalter
      * still Zugriff auf Projektaufgaben.
      *
-     * Eine eigene Projektmitgliedschaft wird bewusst nicht verlangt: die Planung
-     * eines frisch angelegten Projekts hat noch keine Mitglieder und waere sonst
-     * fuer niemanden erreichbar.
+     * Die Entscheidung faellt bewusst projektunabhaengig: eine eigene
+     * Projektmitgliedschaft wird nicht verlangt, weil die Planung eines frisch
+     * angelegten Projekts noch keine Mitglieder hat und sonst fuer niemanden
+     * erreichbar waere.
      */
-    public function canManageTasks(int $projectId): bool
+    public function canManageTasks(): bool
     {
         return $this->canManageTasks;
     }

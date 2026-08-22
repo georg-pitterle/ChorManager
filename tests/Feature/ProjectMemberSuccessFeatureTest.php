@@ -58,7 +58,6 @@ class ProjectMemberSuccessFeatureTest extends TestCase
         // getUsersNotInProject() path is taken.
         $policy->expects($this->once())
             ->method('canViewAllCandidates')
-            ->with(42)
             ->willReturn(true);
 
         $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy);

@@ -155,7 +155,7 @@ class ProjectController
 
         // The broad right sees every candidate; the voice-group-scoped right only sees
         // members of its own voice group so it cannot pull in foreign singers.
-        $availableUsers = $this->policy->canViewAllCandidates($projectId)
+        $availableUsers = $this->policy->canViewAllCandidates()
             ? $this->projectQuery->getUsersNotInProject($projectId)
             : $this->projectQuery->getUsersNotInProjectForVoiceGroups(
                 $projectId,

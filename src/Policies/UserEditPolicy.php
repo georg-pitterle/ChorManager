@@ -52,41 +52,6 @@ class UserEditPolicy
     }
 
     /**
-     * Editable member IDs for list views that only carry plain arrays.
-     *
-     * @param array<string, mixed> $session
-     * @return array<int, true>
-     */
-    public function editableUserIdMap(array $session): array
-    {
-        if (!empty($session['can_edit_users'])) {
-            $ids = User::query()->where('is_active', 1)->pluck('id');
-
-            return array_fill_keys(
-                $ids->map(static fn ($id): int => (int) $id)->all(),
-                true
-            );
-        }
-
-        $ownGroupIds = $this->sessionVoiceGroupIds($session);
-        if ($ownGroupIds === []) {
-            return [];
-        }
-
-        $ids = User::query()
-            ->where('is_active', 1)
-            ->whereHas('voiceGroups', static function ($query) use ($ownGroupIds): void {
-                $query->whereIn('voice_groups.id', $ownGroupIds);
-            })
-            ->pluck('id');
-
-        return array_fill_keys(
-            $ids->map(static fn ($id): int => (int) $id)->all(),
-            true
-        );
-    }
-
-    /**
      * True when the target holds a role that outranks the acting session's own level.
      *
      * Die Rollen sind an beiden Aufrufstellen (UserQuery::getAllUsers() und

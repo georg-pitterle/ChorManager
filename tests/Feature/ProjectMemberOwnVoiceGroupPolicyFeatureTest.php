@@ -54,8 +54,7 @@ class ProjectMemberOwnVoiceGroupPolicyFeatureTest extends TestCase
         $this->assertTrue($policy->canAddMember(42));
         $this->assertTrue($policy->canRemoveMember(42));
         // The candidate list must stay restricted to the own voice group.
-        $this->assertFalse($policy->canViewAllCandidates(42));
-        $this->assertTrue($policy->restrictsToOwnVoiceGroup(42));
+        $this->assertFalse($policy->canViewAllCandidates());
     }
 
     public function testOwnVoiceGroupHolderDeniedForForeignProject(): void
@@ -96,8 +95,7 @@ class ProjectMemberOwnVoiceGroupPolicyFeatureTest extends TestCase
 
         $policy = $this->policyWithAccessibleProjects([42]);
 
-        $this->assertTrue($policy->canViewAllCandidates(42));
-        $this->assertFalse($policy->restrictsToOwnVoiceGroup(42));
+        $this->assertTrue($policy->canViewAllCandidates());
         $this->assertTrue($policy->canManageMember(42, [3]));
         $this->assertTrue($policy->canManageMember(42, []));
     }

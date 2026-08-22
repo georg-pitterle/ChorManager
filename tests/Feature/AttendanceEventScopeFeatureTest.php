@@ -239,6 +239,6 @@ final class AttendanceEventScopeFeatureTest extends TestCase
             'can_manage_tasks' => false,
         ];
 
-        $this->assertFalse((new TaskPolicy())->canManageTasks(1));
+        $this->assertFalse((new TaskPolicy())->canManageTasks());
     }
 }

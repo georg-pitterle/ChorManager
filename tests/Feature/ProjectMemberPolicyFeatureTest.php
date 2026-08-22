@@ -32,7 +32,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $this->assertFalse($policy->canViewMembers(1));
         $this->assertFalse($policy->canAddMember(1));
         $this->assertFalse($policy->canRemoveMember(1));
-        $this->assertFalse($policy->canViewAllCandidates(1));
+        $this->assertFalse($policy->canViewAllCandidates());
         $this->assertSame([], $policy->getAccessibleProjectIds());
     }
 
@@ -49,7 +49,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $this->assertFalse($policy->canViewMembers(999));
         $this->assertFalse($policy->canAddMember(999));
         $this->assertFalse($policy->canRemoveMember(999));
-        $this->assertFalse($policy->canViewAllCandidates(999));
+        $this->assertFalse($policy->canViewAllCandidates());
     }
 
     public function testProjectMemberManagerReachesProjectsWithoutOwnMembership(): void
@@ -72,7 +72,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $this->assertTrue($policy->canViewMembers(42));
         $this->assertTrue($policy->canAddMember(42));
         $this->assertTrue($policy->canRemoveMember(42));
-        $this->assertTrue($policy->canViewAllCandidates(42));
+        $this->assertTrue($policy->canViewAllCandidates());
     }
 
     public function testVoiceGroupScopedRightStaysBoundToOwnProjects(): void
@@ -91,6 +91,6 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $this->assertFalse($policy->canViewMembers(42));
         $this->assertFalse($policy->canAddMember(42));
         $this->assertFalse($policy->canRemoveMember(42));
-        $this->assertFalse($policy->canViewAllCandidates(42));
+        $this->assertFalse($policy->canViewAllCandidates());
     }
 }

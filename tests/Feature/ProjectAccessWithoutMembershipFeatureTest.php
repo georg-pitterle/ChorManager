@@ -95,8 +95,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $this->assertTrue($policy->canViewMembers(self::EMPTY_PROJECT));
         $this->assertTrue($policy->canAddMember(self::EMPTY_PROJECT));
         $this->assertTrue($policy->canRemoveMember(self::EMPTY_PROJECT));
-        $this->assertTrue($policy->canViewAllCandidates(self::EMPTY_PROJECT));
-        $this->assertFalse($policy->restrictsToOwnVoiceGroup(self::EMPTY_PROJECT));
+        $this->assertTrue($policy->canViewAllCandidates());
     }
 
     public function testBroadManagerListsEveryProjectAsAccessible(): void
@@ -143,7 +142,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_tasks'] = true;
 
-        $this->assertTrue((new TaskPolicy())->canManageTasks(self::EMPTY_PROJECT));
+        $this->assertTrue((new TaskPolicy())->canManageTasks());
     }
 
     public function testTaskPolicyStillRequiresTheTaskRight(): void
@@ -151,6 +150,6 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_tasks'] = false;
 
-        $this->assertFalse((new TaskPolicy())->canManageTasks(self::PROJECT_WITH_MEMBER));
+        $this->assertFalse((new TaskPolicy())->canManageTasks());
     }
 }

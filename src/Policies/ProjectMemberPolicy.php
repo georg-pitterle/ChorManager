@@ -72,23 +72,15 @@ class ProjectMemberPolicy
     }
 
     /**
-     * Check if the user can view all active users as candidates for the specified project.
+     * Check if the user can view all active users as candidates.
      *
      * Only the broad can_manage_project_members right sees every candidate. A
      * holder of the voice-group-scoped right gets a candidate list filtered to
-     * their own voice group instead (see restrictsToOwnVoiceGroup()).
+     * their own voice group instead (see ownVoiceGroupIds()).
      */
-    public function canViewAllCandidates(int $projectId): bool
+    public function canViewAllCandidates(): bool
     {
         return $this->canManageProjectMembers;
-    }
-
-    /**
-     * True when the user may act on the project but only within their own voice group.
-     */
-    public function restrictsToOwnVoiceGroup(int $projectId): bool
-    {
-        return $this->canViewMembers($projectId) && !$this->canViewAllCandidates($projectId);
     }
 
     /**
@@ -113,7 +105,7 @@ class ProjectMemberPolicy
             return false;
         }
 
-        if ($this->canViewAllCandidates($projectId)) {
+        if ($this->canViewAllCandidates()) {
             return true;
         }
 

@@ -12,6 +12,11 @@ class ProjectPersistence
     /**
      * Assigns a user to a project. Archived (inactive) users are reactivated by the assignment.
      *
+     * Die Reaktivierung ist ausdruecklich gewollt und nicht an ein Benutzerverwaltungsrecht
+     * gebunden: wer Projektmitglieder pflegen darf, holt ein archiviertes Mitglied damit auch
+     * ohne can_manage_users zurueck - beim breiten Recht systemweit, beim stimmgruppen-
+     * beschraenkten Recht innerhalb der eigenen Stimmgruppe.
+     *
      * @return bool True if the user was reactivated by this assignment.
      */
     public function addProjectMember(int $projectId, int $userId): bool
