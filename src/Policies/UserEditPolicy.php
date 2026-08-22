@@ -10,7 +10,7 @@ use App\Models\User;
  * Decides whether the current session may edit a given member.
  *
  * Mirrors the rule previously inlined in UserController::index():
- * global can_edit_users, otherwise voice group representatives are
+ * global can_edit_users, otherwise holders of can_manage_own_voice_group are
  * limited to members of their own voice groups.
  *
  * Ueber beiden Wegen steht die Rollenhierarchie: ein Mitglied, dessen hoechste
@@ -36,6 +36,16 @@ class UserEditPolicy
 
         if (!empty($session['can_edit_users'])) {
             return true;
+        }
+
+        // Die gemeinsame Stimmgruppe allein reicht nicht: UserController::update(),
+        // ::deactivate() und ::invite() verlangen zusaetzlich can_manage_own_voice_group.
+        // Da jede angemeldete Sitzung voice_group_ids traegt, haette die Policy sonst
+        // jedem Mitgliederverwalter ohne dieses Recht einen Bearbeiten-Link auf die
+        // eigene Stimmgruppe angeboten, den das Speichern mit "Keine Berechtigung"
+        // quittiert.
+        if (empty($session['can_manage_own_voice_group'])) {
+            return false;
         }
 
         $ownGroupIds = $this->sessionVoiceGroupIds($session);

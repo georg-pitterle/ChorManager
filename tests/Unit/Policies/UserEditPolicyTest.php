@@ -65,7 +65,11 @@ final class UserEditPolicyTest extends TestCase
     public function testVoiceGroupRepresentativeCanEditOwnVoiceGroupMember(): void
     {
         $policy = new UserEditPolicy();
-        $session = ['can_edit_users' => false, 'voice_group_ids' => [2, 3]];
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_own_voice_group' => true,
+            'voice_group_ids' => [2, 3],
+        ];
 
         $this->assertTrue($policy->canEdit($session, $this->makeUser(7, [3])));
     }
@@ -73,9 +77,30 @@ final class UserEditPolicyTest extends TestCase
     public function testVoiceGroupRepresentativeCannotEditForeignMember(): void
     {
         $policy = new UserEditPolicy();
-        $session = ['can_edit_users' => false, 'voice_group_ids' => [2]];
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_own_voice_group' => true,
+            'voice_group_ids' => [2],
+        ];
 
         $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [5])));
+    }
+
+    /**
+     * Die gemeinsame Stimmgruppe allein darf keinen Bearbeiten-Einstieg oeffnen:
+     * UserController::update() verlangt zusaetzlich can_manage_own_voice_group.
+     */
+    public function testSharedVoiceGroupWithoutCapabilityFlagCannotEdit(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_users' => true,
+            'can_manage_own_voice_group' => false,
+            'voice_group_ids' => [2],
+        ];
+
+        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [2])));
     }
 
     public function testArchivedMemberIsNeverEditable(): void
@@ -112,7 +137,12 @@ final class UserEditPolicyTest extends TestCase
     public function testVoiceGroupRepresentativeCannotEditHigherRankedOwnGroupMember(): void
     {
         $policy = new UserEditPolicy();
-        $session = ['can_edit_users' => false, 'voice_group_ids' => [2], 'role_level' => 10];
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_own_voice_group' => true,
+            'voice_group_ids' => [2],
+            'role_level' => 10,
+        ];
 
         $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [2], 1, [50])));
     }
