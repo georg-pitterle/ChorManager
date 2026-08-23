@@ -57,9 +57,11 @@ class ProjectController
 
     public function index(Request $request, Response $response): Response
     {
-        $projects = clone $this->projectQuery->getAllProjects();
-        $userId = $_SESSION['user_id'] ?? 0;
-        $userProjectIds = \App\Models\User::find($userId)->projects()->pluck('projects.id')->toArray();
+        $projects = $this->projectQuery->getAllProjects();
+        // Über die Query-Schicht, nicht über das Model: ein direktes
+        // User::find(...)->projects() bricht mit einem Fatal Error ab, sobald die
+        // Session auf ein Konto zeigt, das es nicht mehr gibt.
+        $userProjectIds = $this->projectQuery->getUserProjectIds((int) ($_SESSION['user_id'] ?? 0));
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;

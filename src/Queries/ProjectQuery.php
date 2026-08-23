@@ -133,13 +133,25 @@ class ProjectQuery
         return $query->get();
     }
 
+    /**
+     * The project ids a single user belongs to. A missing user yields [].
+     *
+     * Die Projektliste markiert damit die eigenen Projekte und muss auch dann
+     * noch rendern, wenn die Session auf ein gelöschtes Konto zeigt.
+     *
+     * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
+     * Projektmodelle selbst nicht gebraucht.
+     *
+     * @return array<int>
+     */
     public function getUserProjectIds(int $userId): array
     {
-        $user = User::with('projects')->find($userId);
+        $user = User::select(['id'])->find($userId);
         if (!$user) {
             return [];
         }
-        return $user->projects->pluck('id')->toArray();
+
+        return $user->projects()->pluck('projects.id')->map('intval')->all();
     }
 
     /**
@@ -150,12 +162,12 @@ class ProjectQuery
      */
     public function getUserVoiceGroupIds(int $userId): array
     {
-        $user = User::with('voiceGroups')->find($userId);
+        $user = User::select(['id'])->find($userId);
         if (!$user) {
             return [];
         }
 
-        return $user->voiceGroups->pluck('id')->map('intval')->all();
+        return $user->voiceGroups()->pluck('voice_groups.id')->map('intval')->all();
     }
 
     /**
