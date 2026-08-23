@@ -51,6 +51,8 @@ Mit diesem Recht darf die Rolle die Zuweisungen anderer Mitglieder bearbeiten, a
 
 Ist dieses Recht aktiv, darf die Rolle Mitglieder einzelnen Projekten (z. B. einem Konzertprojekt) zuordnen oder aus ihnen entfernen. Damit steuert diese Rolle, wer als Teilnehmer in einem Projekt geführt wird, ohne dass sie zwangsläufig auch globale Mitgliederverwaltung besitzen muss. Das Recht gilt für alle Projekte – auch für solche, in denen die Rolle selbst nicht mitwirkt. Das ist nötig, damit ein frisch angelegtes Projekt, das noch gar keine Mitglieder hat, überhaupt besetzt werden kann.
 
+Das Recht endet aber bei der Projektzuordnung: Öffnet die Rolle ein Mitglied aus der Mitgliederliste, zeigt das Formular ausschließlich die Projekte. Name, E-Mail-Adresse, Rollen und Stimmgruppen bleiben unangetastet – dafür braucht es **„Mitglieder editieren erlauben"** oder die auf die eigene Stimmgruppe beschränkte Mitgliederpflege.
+
 ### Eigene Stimmgruppe ins Projekt zuweisen
 
 Dieses Recht ist die auf die eigene Stimmgruppe beschränkte Variante der Projektmitglieder-Verwaltung. Ist es aktiv, darf die Rolle ausschließlich Mitglieder ihrer eigenen Stimmgruppe den Projekten zuordnen oder daraus entfernen, in denen sie selbst mitwirkt. Die Auswahlliste zeigt dabei nur Personen der eigenen Stimmgruppe – fremde Stimmgruppen bleiben unsichtbar und können weder hinzugefügt noch entfernt werden. Es eignet sich für Personen, die die Besetzung ihrer eigenen Stimmgruppe im Projekt pflegen sollen, ohne Zugriff auf den gesamten Chor zu erhalten. Wer die volle „Projektmitglieder verwalten"-Berechtigung besitzt, braucht dieses Recht nicht zusätzlich.

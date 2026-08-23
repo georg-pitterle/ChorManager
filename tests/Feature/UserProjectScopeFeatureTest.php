@@ -81,6 +81,11 @@ class UserProjectScopeFeatureTest extends TestCase
      * can_manage_project_members wirkt projektuebergreifend: der Verwalter darf
      * auch Projekte zuweisen, in denen er selbst nicht Mitglied ist. Andernfalls
      * bliebe ein frisch angelegtes Projekt ohne Mitglieder unerreichbar.
+     *
+     * Geschrieben wird dabei ausschliesslich die Projektzuordnung. Name, E-Mail,
+     * Rollen und Stimmgruppen bleiben unangetastet, auch wenn das Formular sie
+     * mitschickt - eine fremde E-Mail-Adresse plus Passwort-Reset waere sonst ein
+     * Uebernahmepfad auf das Zielkonto.
      */
     public function testUpdateAssignsEveryProjectForProjectMemberManagers(): void
     {
@@ -110,15 +115,9 @@ class UserProjectScopeFeatureTest extends TestCase
         $projectQuery = $this->createStub(ProjectQuery::class);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->once())
-            ->method('save')
-            ->with($targetUser);
-        $userPersistence->expects($this->once())
-            ->method('syncRoles')
-            ->with($targetUser, [1]);
-        $userPersistence->expects($this->once())
-            ->method('syncVoiceGroups')
-            ->with($targetUser, []);
+        $userPersistence->expects($this->never())->method('save');
+        $userPersistence->expects($this->never())->method('syncRoles');
+        $userPersistence->expects($this->never())->method('syncVoiceGroups');
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->once())
@@ -140,9 +139,9 @@ class UserProjectScopeFeatureTest extends TestCase
         );
 
         $request = $this->makeRequest('POST', '/users/5', [
-            'first_name' => 'Target',
-            'last_name' => 'User',
-            'email' => 'target@example.test',
+            'first_name' => 'Gekapert',
+            'last_name' => 'Uebernommen',
+            'email' => 'angreifer@example.test',
             'password' => '',
             'roles' => [1],
             'voice_groups' => [],
@@ -154,7 +153,9 @@ class UserProjectScopeFeatureTest extends TestCase
         $result = $controller->update($request, $response, ['id' => '5']);
 
         $this->assertRedirect($result, '/users');
-        $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
+        $this->assertSame('Projektzuordnung erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
+        $this->assertSame('Target', $targetUser->first_name);
+        $this->assertSame('target@example.test', $targetUser->email);
     }
 
     public function testUpdateDoesNotFilterProjectsForGlobalEditors(): void

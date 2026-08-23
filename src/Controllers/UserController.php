@@ -288,7 +288,6 @@ class UserController
     {
         $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
-        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
         $userLevel = $_SESSION['role_level'] ?? 0;
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
@@ -301,7 +300,6 @@ class UserController
         }
 
         $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
-        $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
 
         // Nobody may modify a member who outranks them in the role hierarchy - not even global
         // user managers. This prevents lower-ranked admins from hijacking higher-ranked accounts
@@ -311,12 +309,15 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
+        // Die Policy entscheidet ueber beide Stufen, damit Mitgliederliste, Formular
+        // und Speichern nicht auseinanderlaufen: canEdit() oeffnet das Formular,
+        // canEditProfile() erlaubt das Schreiben der Mitgliedsdaten.
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
-        if (!$canEditGlobal && !$canManageProjectMembers) {
-            if (!$canManageOwnVoiceGroup || !$isInMyGroup) {
-                $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
-                return $response->withHeader('Location', '/users')->withStatus(302);
-            }
+        $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
+
+        if (!$canEditProfile && !$canManageProjectMembers) {
+            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
         $data = (array) $request->getParsedBody();
@@ -331,6 +332,23 @@ class UserController
             array_map('intval', (array) ($data['projects'] ?? [])),
             fn(int $id): bool => $id > 0
         ));
+
+        // Wer nur can_manage_project_members haelt, aendert ausschliesslich die
+        // Projektzuordnung. Die uebrigen Formularfelder werden bewusst verworfen
+        // statt validiert: sie stehen dieser Rolle nicht zu, und eine E-Mail-Kollision
+        // im Zielkonto duerfte die erlaubte Projektzuordnung nicht blockieren.
+        if (!$canEditProfile) {
+            $this->projectPersistence->setUserProjects($userId, $projectIds);
+
+            $this->logger->info('User project assignment changed.', [
+                'event' => 'user.projects.changed',
+                'user_id' => $userId,
+                'project_ids' => $projectIds,
+            ]);
+
+            $_SESSION['success'] = 'Projektzuordnung erfolgreich aktualisiert.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
 
         $formData = [
             'first_name' => $firstName,
@@ -502,7 +520,7 @@ class UserController
         }
 
         // Mirror update()'s guards: never expose an editable form the actor could not save.
-        if ($this->outranksActor($targetUser) || !$this->userEditPolicy->canEdit($_SESSION, $targetUser)) {
+        if (!$this->userEditPolicy->canEdit($_SESSION, $targetUser)) {
             $response->getBody()->write(
                 '<div class="modal-content"><div class="modal-body">'
                 . '<div class="alert alert-danger mb-0">Keine Berechtigung, dieses Mitglied zu bearbeiten.</div>'
@@ -516,6 +534,10 @@ class UserController
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
         $canEditUsers = (bool) ($_SESSION['can_edit_users'] ?? false);
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
+        // Deckt sich mit der Schreibpruefung in update(): ohne dieses Recht zeigt das
+        // Formular nur die Projektzuordnung, damit niemand Felder ausfuellt, die beim
+        // Speichern stillschweigend verworfen wuerden.
+        $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
 
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
@@ -547,6 +569,7 @@ class UserController
             'sub_voices' => $subVoices,
             'projects' => $projects,
             'can_edit_users' => $canEditUsers,
+            'can_edit_profile' => $canEditProfile,
             'can_manage_project_members' => $canManageProjectMembers,
             'edit_state' => $editState,
         ]);

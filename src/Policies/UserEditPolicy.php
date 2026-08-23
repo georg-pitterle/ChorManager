@@ -9,11 +9,18 @@ use App\Models\User;
 /**
  * Decides whether the current session may edit a given member.
  *
- * Mirrors the rule previously inlined in UserController::index():
- * global can_edit_users, otherwise holders of can_manage_own_voice_group are
- * limited to members of their own voice groups.
+ * Zwei Stufen, weil das Bearbeiten-Formular zwei Zwecke bedient:
+ *  - canEdit(): darf das Formular ueberhaupt geoeffnet werden? Neben
+ *    can_edit_users und can_manage_own_voice_group (eigene Stimmgruppe) reicht
+ *    dafuer auch can_manage_project_members, dessen Traeger die Projektzuordnung
+ *    ueber genau dieses Formular pflegt.
+ *  - canEditProfile(): duerfen Name, E-Mail, Rollen und Stimmgruppen geschrieben
+ *    werden? Das bleibt can_edit_users und der eigenen Stimmgruppe vorbehalten.
+ *    Ein reiner Projektmitglieder-Verwalter aendert nur die Projektzuordnung -
+ *    eine fremde E-Mail-Adresse plus Passwort-Reset waere sonst ein
+ *    Uebernahmepfad auf das Zielkonto.
  *
- * Ueber beiden Wegen steht die Rollenhierarchie: ein Mitglied, dessen hoechste
+ * Ueber allen Wegen steht die Rollenhierarchie: ein Mitglied, dessen hoechste
  * Rolle ueber dem eigenen Level liegt, bleibt unantastbar. UserController::update()
  * und ::deactivate() weisen solche Ziele ohnehin ab - ohne dieselbe Regel hier
  * haette die Mitgliederliste einen Bearbeiten-Link angeboten, der beim Klick
@@ -22,18 +29,60 @@ use App\Models\User;
 class UserEditPolicy
 {
     /**
+     * True when the session may open the edit form for the target at all.
+     *
      * @param array<string, mixed> $session
      */
     public function canEdit(array $session, User $target): bool
+    {
+        if (!$this->passesBaseGuards($session, $target)) {
+            return false;
+        }
+
+        if ($this->holdsProfileRight($session, $target)) {
+            return true;
+        }
+
+        // Die Projektzuordnung haengt im selben Formular. Ohne diesen Weg blieben
+        // Projekte fuer einen reinen Projektmitglieder-Verwalter ueber die
+        // Mitgliederliste unerreichbar, obwohl update() den POST akzeptiert.
+        return !empty($session['can_manage_project_members']);
+    }
+
+    /**
+     * True when the session may write the member's own data - first name, last name,
+     * e-mail, roles and voice groups.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function canEditProfile(array $session, User $target): bool
+    {
+        return $this->passesBaseGuards($session, $target)
+            && $this->holdsProfileRight($session, $target);
+    }
+
+    /**
+     * Guards that apply to every path: archived members stay untouchable, and so
+     * does anybody who outranks the acting session.
+     *
+     * @param array<string, mixed> $session
+     */
+    private function passesBaseGuards(array $session, User $target): bool
     {
         if ((int) ($target->is_active ?? 1) !== 1) {
             return false;
         }
 
-        if ($this->outranksActor($session, $target)) {
-            return false;
-        }
+        return !$this->outranksActor($session, $target);
+    }
 
+    /**
+     * The two rights that unlock the member's own data.
+     *
+     * @param array<string, mixed> $session
+     */
+    private function holdsProfileRight(array $session, User $target): bool
+    {
         if (!empty($session['can_edit_users'])) {
             return true;
         }

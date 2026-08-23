@@ -118,6 +118,83 @@ final class UserEditPolicyTest extends TestCase
         $this->assertFalse($policy->canEdit([], $this->makeUser(7, [1])));
     }
 
+    /**
+     * can_manage_project_members darf die Projektzuordnung pflegen und deshalb das
+     * Bearbeiten-Formular oeffnen - sonst bliebe die Zuordnung ueber die
+     * Mitgliederliste unerreichbar.
+     */
+    public function testProjectMemberManagerMayOpenTheEditForm(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_users' => true,
+            'can_manage_project_members' => true,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertTrue($policy->canEdit($session, $this->makeUser(7, [1])));
+    }
+
+    /**
+     * ... schreiben darf es dort aber nur die Projekte. Name, E-Mail, Rollen und
+     * Stimmgruppen bleiben tabu: eine fremde E-Mail-Adresse plus Passwort-Reset
+     * waere sonst ein Uebernahmepfad auf das Zielkonto.
+     */
+    public function testProjectMemberManagerMayNotEditProfileFields(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_users' => true,
+            'can_manage_project_members' => true,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertFalse($policy->canEditProfile($session, $this->makeUser(7, [1])));
+    }
+
+    public function testProjectMemberManagerCannotOpenFormForHigherRankedMember(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => true,
+            'role_level' => 50,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [1], 1, [80])));
+    }
+
+    public function testGlobalEditPermissionAllowsProfileEditing(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['can_edit_users' => true, 'can_manage_users' => true];
+
+        $this->assertTrue($policy->canEditProfile($session, $this->makeUser(7, [])));
+    }
+
+    public function testVoiceGroupRepresentativeMayEditProfileOfOwnGroupMember(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_own_voice_group' => true,
+            'voice_group_ids' => [2],
+        ];
+
+        $this->assertTrue($policy->canEditProfile($session, $this->makeUser(7, [2])));
+    }
+
+    public function testArchivedMemberIsNeverProfileEditable(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['can_edit_users' => true, 'can_manage_users' => true];
+
+        $this->assertFalse($policy->canEditProfile($session, $this->makeUser(7, [1], 0)));
+    }
+
     public function testHigherRankedMemberIsNotEditableDespiteGlobalEditPermission(): void
     {
         $policy = new UserEditPolicy();
