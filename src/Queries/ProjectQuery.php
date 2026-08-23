@@ -157,9 +157,9 @@ class ProjectQuery
     /**
      * True when the given member exists at all.
      *
-     * getUserVoiceGroupIds() liefert fuer ein unbekanntes Mitglied dasselbe leere
-     * Array wie fuer eines ohne Stimmgruppe - die Existenz muss deshalb getrennt
-     * geprueft werden, bevor eine Zuordnung in den Fremdschluessel laeuft.
+     * getUserVoiceGroupIds() liefert für ein unbekanntes Mitglied dasselbe leere
+     * Array wie für eines ohne Stimmgruppe - die Existenz muss deshalb getrennt
+     * geprüft werden, bevor eine Zuordnung in den Fremdschlüssel läuft.
      */
     public function userExists(int $userId): bool
     {
@@ -168,14 +168,19 @@ class ProjectQuery
 
     /**
      * Returns project members grouped by voice group and sub-voice for the evaluation view.
+     *
+     * @param array<int>|null $filterVoiceGroupIds
+     * @return array<string, array<string, list<array<string, mixed>>>>
      */
     public function getProjectMembersGroupedByVoice(int $projectId, ?array $filterVoiceGroupIds = null): array
     {
+        // Nur die Namen der Teilstimmen werden gebraucht; die Stimmgruppe hinter einer
+        // Teilstimme mitzuladen wäre eine zusätzliche Query ohne Verwendung.
         $query = User::whereHas('projects', function ($query) use ($projectId) {
             $query->where('project_id', $projectId);
         })
             ->where('is_active', 1)
-            ->with(['voiceGroups', 'subVoices.voiceGroup']);
+            ->with(['voiceGroups', 'subVoices']);
 
         if ($filterVoiceGroupIds !== null && count($filterVoiceGroupIds) > 0) {
             $query->whereHas('voiceGroups', function ($q) use ($filterVoiceGroupIds) {
@@ -231,7 +236,7 @@ class ProjectQuery
         $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, ['_ohne_stimmgruppe']);
 
         // Sort sub-voices within each voice group by name (except _ohne_teilstimme)
-        foreach ($grouped as $vg => &$subVoices) {
+        foreach ($grouped as &$subVoices) {
             ksort($subVoices);
             if (isset($subVoices['_ohne_teilstimme'])) {
                 $ungroupedSv = $subVoices['_ohne_teilstimme'];
@@ -239,6 +244,9 @@ class ProjectQuery
                 $subVoices['_ohne_teilstimme'] = $ungroupedSv;
             }
         }
+        // Die Referenz zeigt nach der Schleife noch auf das letzte Element und würde
+        // bei jeder späteren Verwendung von $subVoices dorthin schreiben.
+        unset($subVoices);
 
         return $grouped;
     }
