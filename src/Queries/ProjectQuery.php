@@ -6,6 +6,7 @@ namespace App\Queries;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
@@ -58,9 +59,10 @@ class ProjectQuery
 
     public function getProjectMembers(int $projectId): Collection
     {
-        $query = User::whereHas('projects', function ($query) use ($projectId) {
-            $query->where('project_id', $projectId);
-        })
+        $query = User::select(User::LIST_COLUMNS)
+            ->whereHas('projects', function ($query) use ($projectId) {
+                $query->where('project_id', $projectId);
+            })
             ->where('is_active', 1)
             ->with([
                 'voiceGroups' => function ($query) {
@@ -91,9 +93,10 @@ class ProjectQuery
      */
     public function getUsersNotInProject(int $projectId): Collection
     {
-        $query = User::whereDoesntHave('projects', function ($query) use ($projectId) {
-            $query->where('project_id', $projectId);
-        });
+        $query = User::select(User::LIST_COLUMNS)
+            ->whereDoesntHave('projects', function ($query) use ($projectId) {
+                $query->where('project_id', $projectId);
+            });
 
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $query->orderBy($column);
@@ -116,11 +119,12 @@ class ProjectQuery
             return new Collection();
         }
 
-        $query = User::whereDoesntHave('projects', function ($query) use ($projectId) {
-            $query->where('project_id', $projectId);
-        })->whereHas('voiceGroups', function ($query) use ($voiceGroupIds) {
-            $query->whereIn('voice_group_id', $voiceGroupIds);
-        });
+        $query = User::select(User::LIST_COLUMNS)
+            ->whereDoesntHave('projects', function ($query) use ($projectId) {
+                $query->where('project_id', $projectId);
+            })->whereHas('voiceGroups', function ($query) use ($voiceGroupIds) {
+                $query->whereIn('voice_group_id', $voiceGroupIds);
+            });
 
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $query->orderBy($column);
@@ -169,22 +173,37 @@ class ProjectQuery
     /**
      * Returns project members grouped by voice group and sub-voice for the evaluation view.
      *
-     * @param array<int>|null $filterVoiceGroupIds
+     * Jedes Mitglied erscheint genau einmal: unter seiner ersten Stimmgruppe. Ist ein
+     * Filter gesetzt, zählt die erste Stimmgruppe, die der Filter zulässt.
+     *
+     * @param array<int>|null $filterVoiceGroupIds null = kein Filter, [] = keine Treffer
      * @return array<string, array<string, list<array<string, mixed>>>>
      */
     public function getProjectMembersGroupedByVoice(int $projectId, ?array $filterVoiceGroupIds = null): array
     {
+        // Eine leere Stimmgruppen-Liste schränkt auf nichts ein und darf nicht als
+        // "kein Filter" durchgehen - sonst wäre der Filter im Zweifel wirkungslos.
+        // Dieselbe Semantik wie in getUsersNotInProjectForVoiceGroups().
+        if ($filterVoiceGroupIds === []) {
+            return [];
+        }
+
+        $allowedVoiceGroupIds = $filterVoiceGroupIds === null
+            ? null
+            : array_map('intval', $filterVoiceGroupIds);
+
         // Nur die Namen der Teilstimmen werden gebraucht; die Stimmgruppe hinter einer
         // Teilstimme mitzuladen wäre eine zusätzliche Query ohne Verwendung.
-        $query = User::whereHas('projects', function ($query) use ($projectId) {
-            $query->where('project_id', $projectId);
-        })
+        $query = User::select(User::LIST_COLUMNS)
+            ->whereHas('projects', function ($query) use ($projectId) {
+                $query->where('project_id', $projectId);
+            })
             ->where('is_active', 1)
             ->with(['voiceGroups', 'subVoices']);
 
-        if ($filterVoiceGroupIds !== null && count($filterVoiceGroupIds) > 0) {
-            $query->whereHas('voiceGroups', function ($q) use ($filterVoiceGroupIds) {
-                $q->whereIn('voice_group_id', $filterVoiceGroupIds);
+        if ($allowedVoiceGroupIds !== null) {
+            $query->whereHas('voiceGroups', function ($q) use ($allowedVoiceGroupIds) {
+                $q->whereIn('voice_group_id', $allowedVoiceGroupIds);
             });
         }
 
@@ -201,7 +220,7 @@ class ProjectQuery
             $vgName = '_ohne_stimmgruppe';
             $svName = '_ohne_teilstimme';
 
-            $voiceGroup = $user->voiceGroups->first();
+            $voiceGroup = $this->resolveVoiceGroup($user, $allowedVoiceGroupIds);
             if ($voiceGroup) {
                 $vgName = $voiceGroup->name;
                 // sub_voice_id is stored in the pivot table for user_voice_groups
@@ -249,5 +268,27 @@ class ProjectQuery
         unset($subVoices);
 
         return $grouped;
+    }
+
+    /**
+     * Die Stimmgruppe, unter der ein Mitglied in der Besetzung erscheint.
+     *
+     * Ohne Filter ist das die erste Stimmgruppe des Mitglieds. Mit Filter muss es die
+     * erste zugelassene sein: gefiltert wird über whereHas, also über *irgendeine*
+     * passende Stimmgruppe - ein Mitglied, das nur über seine zweite Stimmgruppe in
+     * den Filter fällt, landete sonst unter einer Überschrift, die der Filter gar
+     * nicht enthält.
+     *
+     * @param array<int>|null $allowedVoiceGroupIds
+     */
+    private function resolveVoiceGroup(User $user, ?array $allowedVoiceGroupIds): ?VoiceGroup
+    {
+        if ($allowedVoiceGroupIds === null) {
+            return $user->voiceGroups->first();
+        }
+
+        return $user->voiceGroups->first(static function (VoiceGroup $voiceGroup) use ($allowedVoiceGroupIds): bool {
+            return in_array((int) $voiceGroup->id, $allowedVoiceGroupIds, true);
+        });
     }
 }

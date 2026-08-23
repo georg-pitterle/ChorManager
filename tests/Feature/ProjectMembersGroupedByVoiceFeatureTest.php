@@ -79,6 +79,7 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
             ['id' => 3, 'email' => 'a1@example.test', 'first_name' => 'Clara', 'last_name' => 'Chor', 'is_active' => 1],
             ['id' => 4, 'email' => 'x1@example.test', 'first_name' => 'Dora', 'last_name' => 'Dunkel', 'is_active' => 1],
             ['id' => 5, 'email' => 'old@example.test', 'first_name' => 'Emil', 'last_name' => 'Ehemalig', 'is_active' => 0],
+            ['id' => 6, 'email' => 'sa@example.test', 'first_name' => 'Frieda', 'last_name' => 'Doppel', 'is_active' => 1],
         ]);
         Capsule::table('project_users')->insert([
             ['user_id' => 1, 'project_id' => 10],
@@ -86,13 +87,32 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
             ['user_id' => 3, 'project_id' => 10],
             ['user_id' => 4, 'project_id' => 10],
             ['user_id' => 5, 'project_id' => 10],
+            ['user_id' => 6, 'project_id' => 10],
         ]);
         Capsule::table('user_voice_groups')->insert([
             ['user_id' => 1, 'voice_group_id' => 1, 'sub_voice_id' => 1],
             ['user_id' => 2, 'voice_group_id' => 1, 'sub_voice_id' => 2],
             ['user_id' => 3, 'voice_group_id' => 2, 'sub_voice_id' => null],
             ['user_id' => 5, 'voice_group_id' => 1, 'sub_voice_id' => 1],
+            // Frieda singt in zwei Stimmgruppen - Sopran ist die erste.
+            ['user_id' => 6, 'voice_group_id' => 1, 'sub_voice_id' => 2],
+            ['user_id' => 6, 'voice_group_id' => 2, 'sub_voice_id' => null],
         ]);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function idsIn(array $grouped): array
+    {
+        $ids = [];
+        foreach ($grouped as $subVoices) {
+            foreach ($subVoices as $members) {
+                $ids = array_merge($ids, array_column($members, 'id'));
+            }
+        }
+
+        return $ids;
     }
 
     public function testGroupsMembersByVoiceGroupAndSubVoice(): void
@@ -112,10 +132,61 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
             'Teilstimmen werden innerhalb der Stimmgruppe alphabetisch sortiert.'
         );
 
-        $this->assertSame([2], array_column($grouped['Sopran']['Sopran 1'], 'id'));
+        $this->assertSame([2, 6], array_column($grouped['Sopran']['Sopran 1'], 'id'));
         $this->assertSame([1], array_column($grouped['Sopran']['Sopran 2'], 'id'));
         $this->assertSame('Sopran', $grouped['Sopran']['Sopran 1'][0]['voice_group_name']);
         $this->assertSame('Sopran 1', $grouped['Sopran']['Sopran 1'][0]['sub_voice_name']);
+    }
+
+    public function testMemberOfSeveralVoiceGroupsAppearsOnlyInTheFirstOne(): void
+    {
+        $grouped = (new ProjectQuery(new NameFormatterService()))
+            ->getProjectMembersGroupedByVoice(10);
+
+        $this->assertContains(6, array_column($grouped['Sopran']['Sopran 1'], 'id'));
+        $this->assertNotContains(
+            6,
+            $this->idsIn(['Alt' => $grouped['Alt']]),
+            'Ein Mitglied erscheint genau einmal, in seiner ersten Stimmgruppe.'
+        );
+        $occurrences = count(array_filter($this->idsIn($grouped), static fn($id): bool => $id === 6));
+        $this->assertSame(1, $occurrences, 'Frieda darf in der Besetzung nicht doppelt gezählt werden.');
+    }
+
+    public function testFilterGroupsAMemberUnderTheMatchingVoiceGroup(): void
+    {
+        $grouped = (new ProjectQuery(new NameFormatterService()))
+            ->getProjectMembersGroupedByVoice(10, [2]);
+
+        $this->assertSame(['Alt'], array_keys($grouped), 'Der Filter lässt nur Alt übrig.');
+        $this->assertSame(
+            [3, 6],
+            $this->idsIn($grouped),
+            'Frieda fällt nur über ihre zweite Stimmgruppe in den Filter und gehört deshalb unter Alt.'
+        );
+        $this->assertSame('Alt', $grouped['Alt']['_ohne_teilstimme'][0]['voice_group_name']);
+    }
+
+    public function testFilterKeepsMembersWhoseFirstVoiceGroupMatches(): void
+    {
+        $grouped = (new ProjectQuery(new NameFormatterService()))
+            ->getProjectMembersGroupedByVoice(10, [1]);
+
+        $this->assertSame(['Sopran'], array_keys($grouped));
+        // Reihenfolge folgt den Teilstimmen-Buckets: "Sopran 1" (2, 6) vor "Sopran 2" (1).
+        $this->assertSame([2, 6, 1], $this->idsIn($grouped));
+    }
+
+    public function testEmptyFilterYieldsNoMembers(): void
+    {
+        $grouped = (new ProjectQuery(new NameFormatterService()))
+            ->getProjectMembersGroupedByVoice(10, []);
+
+        $this->assertSame(
+            [],
+            $grouped,
+            'Eine leere Stimmgruppen-Liste schränkt auf nichts ein und darf nicht als "kein Filter" gelten.'
+        );
     }
 
     public function testMembersWithoutVoiceGroupOrSubVoiceUseThePlaceholderBuckets(): void
@@ -137,15 +208,10 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
         $grouped = (new ProjectQuery(new NameFormatterService()))
             ->getProjectMembersGroupedByVoice(10);
 
-        $ids = [];
-        foreach ($grouped as $subVoices) {
-            foreach ($subVoices as $members) {
-                $ids = array_merge($ids, array_column($members, 'id'));
-            }
-        }
+        $ids = $this->idsIn($grouped);
 
         $this->assertNotContains(5, $ids, 'Archivierte Mitglieder gehören nicht in die Besetzung.');
-        $this->assertCount(4, $ids);
+        $this->assertCount(5, $ids);
     }
 
     public function testUnknownProjectYieldsAnEmptyGrouping(): void

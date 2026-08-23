@@ -59,7 +59,10 @@ class UserManagementFeatureTest extends TestCase
         $this->assertStringNotContainsString("'status_label' => \$isArchived ? 'Archiviert' : 'Aktiv',", $controller);
         $this->assertStringNotContainsString("'is_archived' => \$isArchived,", $controller);
         $this->assertStringNotContainsString('private function isArchivedProject(Project $project): bool', $controller);
-        $this->assertStringContainsString("User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])", $query);
+        // Die Liste lädt seit der exklusiven Spaltenauswahl über User::select(...);
+        // entscheidend bleibt, dass alle vier Relationen eager geladen werden.
+        $this->assertStringContainsString("->with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])", $query);
+        $this->assertStringContainsString('User::select(User::LIST_COLUMNS)', $query);
         $this->assertStringContainsString('user.project_participations', $twig);
         $this->assertStringContainsString('participation.name', $twig);
         $this->assertStringContainsString('data-role-options="{{ role_options_attr|replace({', $twig);

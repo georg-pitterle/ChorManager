@@ -11,6 +11,23 @@ class User extends Model
     protected $table = 'users';
     public $timestamps = false;
 
+    /**
+     * Spalten, die Listenabfragen laden dürfen. Solche Abfragen reichen ihre
+     * Modelle unverändert an die View-Schicht durch; der Passwort-Hash hat dort
+     * nichts verloren, `last_project_id` ist reiner Sitzungszustand.
+     *
+     * `id` muss enthalten bleiben, sonst lassen sich die Relationen nicht zuordnen.
+     *
+     * @var list<string>
+     */
+    public const LIST_COLUMNS = [
+        'id',
+        'email',
+        'first_name',
+        'last_name',
+        'is_active',
+    ];
+
     protected $fillable = [
         'email',
         'password',

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Queries;
 
 use App\Models\User;
-use App\Models\Role;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -47,30 +46,29 @@ class UserQuery
 
     public function getAllUsers(): Collection
     {
-        $query = User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
-            ->where('is_active', 1);
-
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
-
-        return $query->get();
+        return $this->orderedListQuery(1);
     }
 
     public function getArchivedUsers(): Collection
     {
-        $query = User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
-            ->where('is_active', 0);
+        return $this->orderedListQuery(0);
+    }
+
+    /**
+     * Mitgliederliste in der konfigurierten Namensreihenfolge. Geladen werden nur
+     * die Listenspalten (User::LIST_COLUMNS) - das Ergebnis geht unverändert an
+     * die View-Schicht, der Passwort-Hash bleibt deshalb in der Datenbank.
+     */
+    private function orderedListQuery(int $isActive): Collection
+    {
+        $query = User::select(User::LIST_COLUMNS)
+            ->with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
+            ->where('is_active', $isActive);
 
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $query->orderBy($column);
         }
 
         return $query->get();
-    }
-
-    public function getRole(int $roleId): ?Role
-    {
-        return Role::find($roleId);
     }
 }

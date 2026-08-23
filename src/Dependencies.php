@@ -12,6 +12,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use App\Queries\ProjectQuery;
+use App\Queries\RoleQuery;
 use App\Queries\UserQuery;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\UserPersistence;
@@ -145,6 +146,7 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         UserQuery::class => \DI\autowire(),
+        RoleQuery::class => \DI\autowire(),
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
