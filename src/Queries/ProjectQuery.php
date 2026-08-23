@@ -10,6 +10,7 @@ use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 
 class ProjectQuery
 {
@@ -79,14 +80,6 @@ class ProjectQuery
         return $query->get();
     }
 
-    public function isProjectMember(int $projectId, int $userId): bool
-    {
-        return User::where('id', $userId)
-            ->whereHas('projects', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            })->exists();
-    }
-
     /**
      * Returns all users that are not yet assigned to the project, including archived (inactive) ones.
      * Archived users can be assigned to a project and are reactivated on assignment.
@@ -151,7 +144,7 @@ class ProjectQuery
             return [];
         }
 
-        return $user->projects()->pluck('projects.id')->map('intval')->all();
+        return self::toIntList($user->projects()->pluck('projects.id'));
     }
 
     /**
@@ -167,7 +160,23 @@ class ProjectQuery
             return [];
         }
 
-        return $user->voiceGroups()->pluck('voice_groups.id')->map('intval')->all();
+        return self::toIntList($user->voiceGroups()->pluck('voice_groups.id'));
+    }
+
+    /**
+     * Wandelt eine über pluck() geladene Id-Spalte in eine Liste von Integern.
+     *
+     * Nicht `->map('intval')`: Collection::map() reicht den Schlüssel als zweites
+     * Argument weiter, und das ist bei intval() die Zahlenbasis. Aus der zweiten
+     * Id einer Liste würde damit intval($id, 1), aus der dritten intval($id, 2) -
+     * bei String-Werten aus dem Treiber also stillschweigend falsche Ids.
+     *
+     * @param SupportCollection<int, mixed> $ids
+     * @return array<int>
+     */
+    private static function toIntList(SupportCollection $ids): array
+    {
+        return $ids->map(static fn ($id): int => (int) $id)->all();
     }
 
     /**

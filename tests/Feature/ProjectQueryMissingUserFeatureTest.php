@@ -27,10 +27,12 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
     use TestHttpHelpers;
 
     private const MEMBER_ID = 1;
+    private const MULTI_PROJECT_MEMBER_ID = 2;
     private const DELETED_USER_ID = 999;
     private const OWN_PROJECT = 1;
     private const FOREIGN_PROJECT = 2;
     private const ALTO = 3;
+    private const TENOR = 7;
 
     protected function setUp(): void
     {
@@ -76,26 +78,54 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         });
 
         Capsule::table('users')->insert([
-            'id' => self::MEMBER_ID,
-            'email' => 'saengerin@example.test',
-            'first_name' => 'Marlene',
-            'last_name' => 'Größing',
+            [
+                'id' => self::MEMBER_ID,
+                'email' => 'saengerin@example.test',
+                'first_name' => 'Marlene',
+                'last_name' => 'Größing',
+            ],
+            [
+                'id' => self::MULTI_PROJECT_MEMBER_ID,
+                'email' => 'doppelt@example.test',
+                'first_name' => 'Konrad',
+                'last_name' => 'Vielsinger',
+            ],
         ]);
         Capsule::table('projects')->insert([
             ['id' => self::OWN_PROJECT, 'name' => 'Frühjahrskonzert'],
             ['id' => self::FOREIGN_PROJECT, 'name' => 'Adventsingen'],
         ]);
         Capsule::table('project_users')->insert([
-            'user_id' => self::MEMBER_ID,
-            'project_id' => self::OWN_PROJECT,
+            [
+                'user_id' => self::MEMBER_ID,
+                'project_id' => self::OWN_PROJECT,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'project_id' => self::OWN_PROJECT,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'project_id' => self::FOREIGN_PROJECT,
+            ],
         ]);
         Capsule::table('voice_groups')->insert([
             ['id' => self::ALTO, 'name' => 'Alt'],
-            ['id' => 7, 'name' => 'Tenor'],
+            ['id' => self::TENOR, 'name' => 'Tenor'],
         ]);
         Capsule::table('user_voice_groups')->insert([
-            'user_id' => self::MEMBER_ID,
-            'voice_group_id' => self::ALTO,
+            [
+                'user_id' => self::MEMBER_ID,
+                'voice_group_id' => self::ALTO,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'voice_group_id' => self::ALTO,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'voice_group_id' => self::TENOR,
+            ],
         ]);
     }
 
@@ -129,6 +159,30 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         $query = new ProjectQuery(new NameFormatterService());
 
         $this->assertSame([self::ALTO], $query->getUserVoiceGroupIds(self::MEMBER_ID));
+    }
+
+    /**
+     * Ab der zweiten Id greift die Umwandlung auf einen anderen Schlüssel zu -
+     * genau dort verrutschte eine Zahlenbasis-basierte Umwandlung.
+     */
+    public function testEveryProjectIdOfAMultiProjectMemberSurvivesTheConversion(): void
+    {
+        $query = new ProjectQuery(new NameFormatterService());
+
+        $ids = $query->getUserProjectIds(self::MULTI_PROJECT_MEMBER_ID);
+        sort($ids);
+
+        $this->assertSame([self::OWN_PROJECT, self::FOREIGN_PROJECT], $ids);
+    }
+
+    public function testEveryVoiceGroupIdOfAMemberWithTwoVoiceGroupsSurvivesTheConversion(): void
+    {
+        $query = new ProjectQuery(new NameFormatterService());
+
+        $ids = $query->getUserVoiceGroupIds(self::MULTI_PROJECT_MEMBER_ID);
+        sort($ids);
+
+        $this->assertSame([self::ALTO, self::TENOR], $ids);
     }
 
     public function testUnknownMemberHasNoVoiceGroupIds(): void
