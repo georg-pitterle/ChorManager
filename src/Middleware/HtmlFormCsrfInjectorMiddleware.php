@@ -9,10 +9,19 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Psr7\Factory\StreamFactory;
 
 class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
 {
+    private LoggerInterface $logger;
+
+    public function __construct(LoggerInterface $logger = new NullLogger())
+    {
+        $this->logger = $logger;
+    }
+
     public function process(Request $request, RequestHandler $handler): Response
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -68,11 +77,31 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
             $body
         );
 
-        if ($updatedBody === null || $updatedBody === $body) {
+        if ($updatedBody === null) {
+            // Ohne diese Zeile ist der Ausfall von außen nicht zu erkennen: Die Antwort
+            // geht ohne Token hinaus und jede Absendung des Formulars endet danach mit
+            // 403 - ununterscheidbar von einem echten Angriff.
+            $this->logger->error('CSRF form injection failed.', [
+                'event' => 'security.csrf.form_injection_failed',
+                'reason' => preg_last_error_msg(),
+            ]);
+
+            return $response;
+        }
+
+        if ($updatedBody === $body) {
             return $response;
         }
 
         $stream = (new StreamFactory())->createStream($updatedBody);
-        return $response->withBody($stream);
+        $response = $response->withBody($stream);
+
+        // Das eingefügte Feld verlängert den Rumpf. Eine bereits gesetzte Längenangabe
+        // zeigte danach auf die alte, kürzere Länge - der Browser schnitte die Seite dort ab.
+        if ($response->hasHeader('Content-Length')) {
+            $response = $response->withHeader('Content-Length', (string) strlen($updatedBody));
+        }
+
+        return $response;
     }
 }

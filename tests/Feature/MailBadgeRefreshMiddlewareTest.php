@@ -240,4 +240,79 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
         $this->assertSame(9, $account->mail_last_unseen_count);
         $this->assertSame('77', $account->mail_last_uid_seen);
     }
+
+    public function testFailedRefreshStillArmsTheStalenessWindow(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $crypto = new MailCredentialCryptoService();
+
+        $staleCheckedAt = Carbon::now()->subMinutes(10);
+
+        UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => '127.0.0.1',
+            'imap_port' => 1,
+            'imap_encryption' => 'none',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => $crypto->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 9,
+            'mail_last_uid_seen' => '77',
+            'mail_last_checked_at' => $staleCheckedAt,
+        ]);
+
+        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+
+        // MailBadgeService::refresh() lässt mail_last_checked_at bei einem Fehlschlag
+        // unberührt. Ohne einen eigenen Vermerk bliebe der Zeitstempel für immer alt und
+        // jeder einzelne Seitenaufruf dieses Mitglieds öffnete erneut eine Verbindung zum
+        // nicht erreichbaren IMAP-Server - inklusive Verbindungszeitüberschreitung.
+        $account = UserMailAccount::where('user_id', $user->id)->first();
+        $this->assertNotNull($account->mail_last_checked_at);
+        $this->assertTrue(
+            Carbon::parse($account->mail_last_checked_at)->greaterThan($staleCheckedAt),
+            'Ein fehlgeschlagener Abgleich muss die Wartezeit trotzdem starten.'
+        );
+
+        // Der zwischengespeicherte Zählerstand bleibt dabei unverändert.
+        $this->assertSame(9, $account->mail_last_unseen_count);
+        $this->assertSame('77', $account->mail_last_uid_seen);
+    }
+
+    public function testSecondRequestAfterAFailedRefreshDoesNotRetryImmediately(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $crypto = new MailCredentialCryptoService();
+
+        UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => '127.0.0.1',
+            'imap_port' => 1,
+            'imap_encryption' => 'none',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => $crypto->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 9,
+            'mail_last_uid_seen' => '77',
+            'mail_last_checked_at' => Carbon::now()->subMinutes(10),
+        ]);
+
+        $attempts = 0;
+        $factory = function () use (&$attempts): MailBadgeService {
+            $attempts++;
+
+            return $this->makeBadgeService();
+        };
+
+        $middleware = new MailBadgeRefreshMiddleware($factory, new NullLogger());
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+
+        $this->assertSame(1, $attempts);
+    }
 }
