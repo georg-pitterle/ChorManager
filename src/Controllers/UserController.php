@@ -8,7 +8,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Queries\UserQuery;
-use App\Queries\ProjectQuery;
 use App\Logging\ExceptionLogContext;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
@@ -32,7 +31,6 @@ class UserController
 {
     private Twig $view;
     private UserQuery $userQuery;
-    private ProjectQuery $projectQuery;
     private UserPersistence $userPersistence;
     private ProjectPersistence $projectPersistence;
     private MailQueueService $mailQueueService;
@@ -42,7 +40,6 @@ class UserController
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
-        ProjectQuery $projectQuery,
         UserPersistence $userPersistence,
         ProjectPersistence $projectPersistence,
         MailQueueService $mailQueueService,
@@ -51,7 +48,6 @@ class UserController
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
-        $this->projectQuery = $projectQuery;
         $this->userPersistence = $userPersistence;
         $this->projectPersistence = $projectPersistence;
         $this->mailQueueService = $mailQueueService;

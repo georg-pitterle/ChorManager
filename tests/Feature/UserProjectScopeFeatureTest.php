@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -112,7 +111,6 @@ class UserProjectScopeFeatureTest extends TestCase
             ->with(5)
             ->willReturn($targetUser);
 
-        $projectQuery = $this->createStub(ProjectQuery::class);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -130,7 +128,6 @@ class UserProjectScopeFeatureTest extends TestCase
         $controller = new UserController(
             $twig,
             $userQuery,
-            $projectQuery,
             $userPersistence,
             $projectPersistence,
             $mailQueueService,
@@ -183,7 +180,6 @@ class UserProjectScopeFeatureTest extends TestCase
             ->with(5)
             ->willReturn($targetUser);
 
-        $projectQuery = $this->createStub(ProjectQuery::class);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())
@@ -207,7 +203,6 @@ class UserProjectScopeFeatureTest extends TestCase
         $controller = new UserController(
             $twig,
             $userQuery,
-            $projectQuery,
             $userPersistence,
             $projectPersistence,
             $mailQueueService,

@@ -57,13 +57,20 @@ class ProjectQuery
         return $project ? (int) $project->id : 0;
     }
 
+    /**
+     * Alle dem Projekt zugeordneten Mitglieder, archivierte eingeschlossen.
+     *
+     * Ein Filter auf is_active würde ein archiviertes Mitglied unsichtbar machen,
+     * ohne die Zuordnung zu lösen: als Kandidat erscheint es ebenfalls nicht, weil
+     * getUsersNotInProject() bereits Zugeordnete ausblendet. Es hinge damit still
+     * am Projekt und ließe sich über die Oberfläche nicht mehr entfernen.
+     */
     public function getProjectMembers(int $projectId): Collection
     {
         $query = User::select(User::LIST_COLUMNS)
             ->whereHas('projects', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);
             })
-            ->where('is_active', 1)
             ->with([
                 'voiceGroups' => function ($query) {
                     $query->select('voice_groups.id', 'voice_groups.name')
@@ -77,14 +84,6 @@ class ProjectQuery
         }
 
         return $query->get();
-    }
-
-    public function isProjectMember(int $projectId, int $userId): bool
-    {
-        return User::where('id', $userId)
-            ->whereHas('projects', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            })->exists();
     }
 
     /**
