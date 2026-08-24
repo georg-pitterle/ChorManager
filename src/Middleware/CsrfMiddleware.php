@@ -39,8 +39,10 @@ class CsrfMiddleware implements MiddlewareInterface
         $bodyToken = null;
         if (is_array($parsedBody)) {
             $candidate = $parsedBody['_csrf'] ?? null;
-            if (is_scalar($candidate)) {
-                $bodyToken = (string) $candidate;
+            // Ein leeres Feld zählt als "nicht gesendet": sonst verdeckt ein leerer
+            // versteckter Eingabewert den ansonsten gültigen Header-Token.
+            if (is_scalar($candidate) && trim((string) $candidate) !== '') {
+                $bodyToken = trim((string) $candidate);
             }
         }
 
@@ -60,13 +62,13 @@ class CsrfMiddleware implements MiddlewareInterface
 
         if (str_contains($accept, 'application/json')) {
             $response->getBody()->write((string) json_encode([
-                'error' => 'Ungueltiger CSRF-Token',
+                'error' => 'Ungültiger CSRF-Token',
             ]));
 
             return $response->withHeader('Content-Type', 'application/json');
         }
 
-        $response->getBody()->write('Ungueltiger CSRF-Token');
+        $response->getBody()->write('Ungültiger CSRF-Token');
         return $response->withHeader('Content-Type', 'text/plain; charset=utf-8');
     }
 }

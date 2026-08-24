@@ -137,7 +137,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
         $canManageOwnVoiceGroup = $_SESSION['can_manage_own_voice_group'] ?? false;
         $canAssignOwnVoiceGroupToProject = $_SESSION['can_assign_own_voice_group_to_project'] ?? false;
-        $userLevel = $_SESSION['role_level'] ?? 0;
+        $userLevel = (int) ($_SESSION['role_level'] ?? 0);
 
         if ($this->requiresTaskManagement && !$canManageTasks) {
             return $this->deny(
@@ -330,6 +330,10 @@ class RoleMiddleware implements MiddlewareInterface
             'permission' => $permission,
         ]);
 
-        return $response->withStatus(403);
+        // Ohne Zeichensatzangabe zeigt der Browser die Umlaute der Meldung als
+        // Ersatzzeichen an - `X-Content-Type-Options: nosniff` verbietet ihm das Raten.
+        return $response
+            ->withHeader('Content-Type', 'text/plain; charset=utf-8')
+            ->withStatus(403);
     }
 }

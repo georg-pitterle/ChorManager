@@ -36,6 +36,31 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $this->assertStringContainsString((string) $_SESSION[Csrf::SESSION_KEY], $body);
     }
 
+    public function testDoesNotInjectIntoGetFormCarryingADataMethodAttribute(): void
+    {
+        $_SESSION = [];
+
+        $middleware = new HtmlFormCsrfInjectorMiddleware();
+        $request = $this->createStub(ServerRequestInterface::class);
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $response = new Response();
+                $response->getBody()->write(
+                    '<form action="/search" method="get" data-method="post"><button>Suchen</button></form>'
+                );
+                return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+        $body = (string) $response->getBody();
+
+        // Ein GET-Formular hängt seine Felder an die URL - ein dort eingefügter Token
+        // stünde in Verlauf, Referrer und Zugriffsprotokollen.
+        $this->assertStringNotContainsString('name="_csrf"', $body);
+    }
+
     public function testDoesNotDuplicateExistingCsrfField(): void
     {
         $_SESSION = [Csrf::SESSION_KEY => bin2hex(random_bytes(32))];

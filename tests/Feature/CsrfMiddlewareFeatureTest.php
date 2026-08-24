@@ -61,6 +61,31 @@ class CsrfMiddlewareFeatureTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
     }
 
+    public function testEmptyBodyTokenDoesNotShadowValidHeaderToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $request = $this->makeRequest(
+            'POST',
+            '/profile',
+            ['_csrf' => ''],
+            [],
+            ['X-CSRF-Token' => $_SESSION[Csrf::SESSION_KEY]]
+        );
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        $result = $middleware->process($request, $handler);
+
+        $this->assertSame(200, $result->getStatusCode());
+    }
+
     public function testPostRequestWithInvalidTokenReturns403(): void
     {
         $middleware = new CsrfMiddleware();

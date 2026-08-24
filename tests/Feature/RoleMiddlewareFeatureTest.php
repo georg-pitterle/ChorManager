@@ -89,6 +89,29 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $this->assertSame(403, $response->getStatusCode());
     }
 
+    public function testForbiddenResponseDeclaresPlainTextWithUtf8Charset(): void
+    {
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_own_voice_group'] = false;
+
+        $middleware = new RoleMiddleware(requiresUserManagement: true);
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/users'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        // Die Meldung enthält Umlaute; ohne Zeichensatzangabe stellt der Browser sie
+        // wegen `X-Content-Type-Options: nosniff` als Ersatzzeichen dar.
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('text/plain; charset=utf-8', $response->getHeaderLine('Content-Type'));
+        $this->assertStringContainsString('für', (string) $response->getBody());
+    }
+
     public function testUserWithMailQueuePermissionCanPassMailQueueGate(): void
     {
         $_SESSION['can_manage_mail_queue'] = true;

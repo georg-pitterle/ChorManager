@@ -37,11 +37,15 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
             static function (array $matches) use ($token): string {
                 $formMarkup = $matches[0];
 
-                if (!preg_match('/<form\b[^>]*\bmethod\s*=\s*(["\'])post\1/i', $formMarkup)) {
+                // Das Leerzeichen vor dem Attributnamen ist Absicht: `\bmethod` würde
+                // auch auf `data-method="post"` eines GET-Formulars passen und den
+                // Token dort in die URL-Abfragezeichenfolge schreiben. Dasselbe gilt
+                // für `data-name="_csrf"`, das sonst eine nötige Einfügung unterdrückt.
+                if (!preg_match('/<form\b[^>]*\smethod\s*=\s*(["\'])post\1/i', $formMarkup)) {
                     return $formMarkup;
                 }
 
-                if (preg_match('/name\s*=\s*(["\'])_csrf\1/i', $formMarkup)) {
+                if (preg_match('/\sname\s*=\s*(["\'])_csrf\1/i', $formMarkup)) {
                     return $formMarkup;
                 }
 
