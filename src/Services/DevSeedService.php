@@ -114,6 +114,7 @@ class DevSeedService
                 'user_mail_accounts' => 0,
                 'projects' => 0,
                 'project_users' => 0,
+                'project_users_archived' => 0,
                 'songs' => 0,
                 'song_attachments' => 0,
                 'song_link_resources' => 0,
@@ -176,7 +177,7 @@ class DevSeedService
             $this->buildCredentialsByRoleReport($users['credentials_candidates']);
 
             $projects = $this->seedProjects($years);
-            $projectMembers = $this->seedProjectMembers($projects, $users['active']);
+            $projectMembers = $this->seedProjectMembers($projects, $users['active'], $users['archived']);
             $categories = $this->seedCategories();
             $songs = $this->seedSongs($users['active']);
             $this->seedSongCategoryAssignments($songs, $categories);
@@ -552,6 +553,7 @@ class DevSeedService
     {
         $users = [];
         $activeUsers = [];
+        $archivedUsers = [];
         $credentialsCandidates = [];
         $usedFullNames = [];
 
@@ -631,12 +633,15 @@ class DevSeedService
             $users[] = $user;
             if ((int) $user->is_active === 1) {
                 $activeUsers[] = $user;
+            } else {
+                $archivedUsers[] = $user;
             }
         }
 
         return [
             'all' => $users,
             'active' => $activeUsers,
+            'archived' => $archivedUsers,
             'credentials_candidates' => $credentialsCandidates,
         ];
     }
@@ -712,9 +717,15 @@ class DevSeedService
         return $projects;
     }
 
-    private function seedProjectMembers(array $projects, array $activeUsers): array
+    /**
+     * @param array<User> $activeUsers
+     * @param array<User> $archivedUsers
+     */
+    private function seedProjectMembers(array $projects, array $activeUsers, array $archivedUsers = []): array
     {
         $projectMembers = [];
+        $this->seedArchivedProjectMembers($projects, $archivedUsers);
+
         $activeIds = array_map(fn(User $user) => (int) $user->id, $activeUsers);
         $activeIds = $this->shuffled($activeIds);
 
@@ -749,6 +760,41 @@ class DevSeedService
         }
 
         return $projectMembers;
+    }
+
+    /**
+     * Ausgetretene Mitglieder bleiben ihren früheren Projekten zugeordnet. Ohne
+     * diesen Fall lässt sich in Dev nicht prüfen, dass die Mitgliederliste
+     * archivierte Zuordnungen anzeigt und entfernen lässt.
+     *
+     * Die Zuordnung bleibt bewusst aus der zurückgegebenen Mitgliederliste: die
+     * treibt Anwesenheit und Anmeldungen, und beides gehört Aktiven.
+     *
+     * @param array<Project> $projects
+     * @param array<User> $archivedUsers
+     */
+    private function seedArchivedProjectMembers(array $projects, array $archivedUsers): void
+    {
+        if ($projects === [] || $archivedUsers === []) {
+            return;
+        }
+
+        // Die ältesten Projekte: dort ist ein zwischenzeitlicher Austritt plausibel.
+        $pastProjects = array_slice($projects, 0, 2);
+        $leavers = array_slice($archivedUsers, 0, 3);
+
+        foreach ($pastProjects as $project) {
+            foreach ($leavers as $user) {
+                $userId = (int) $user->id;
+
+                if ($project->users()->where('user_id', $userId)->exists()) {
+                    continue;
+                }
+
+                $project->users()->attach($userId);
+                $this->report['counts']['project_users_archived']++;
+            }
+        }
     }
 
     private function seedProjectEvents(array $projects, array $eventTypes): array

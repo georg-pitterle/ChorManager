@@ -184,6 +184,9 @@ class ProjectController
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'voice_groups_display' => implode(', ', array_unique($vgDisplays)),
+                // Archivierte Mitglieder bleiben in der Liste, damit sie sich
+                // entfernen lassen - die Oberfläche kennzeichnet sie.
+                'is_active' => (bool) $user->is_active,
                 'can_remove' => $this->policy->canManageMember($projectId, $memberVoiceGroupIds),
             ];
         });

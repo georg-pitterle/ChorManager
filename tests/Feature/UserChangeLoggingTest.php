@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
@@ -296,7 +295,6 @@ final class UserChangeLoggingTest extends TestCase
         $controller = new UserController(
             $this->createStub(Twig::class),
             new UserQuery(new NameFormatterService()),
-            $this->createStub(ProjectQuery::class),
             $throwingPersistence,
             new ProjectPersistence(),
             $this->createStub(MailQueueService::class),
@@ -342,7 +340,6 @@ final class UserChangeLoggingTest extends TestCase
         return new UserController(
             $this->createStub(Twig::class),
             new UserQuery(new NameFormatterService()),
-            $this->createStub(ProjectQuery::class),
             new UserPersistence($logger),
             new ProjectPersistence(),
             $this->createStub(MailQueueService::class),
