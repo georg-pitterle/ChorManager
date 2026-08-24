@@ -62,6 +62,7 @@ use App\Services\MailBadgeService;
 use App\Services\MailBadgeViewService;
 use App\Services\MailCredentialCryptoService;
 use App\Middleware\CsrfMiddleware;
+use App\Middleware\HtmlFormCsrfInjectorMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
@@ -219,6 +220,12 @@ return function (ContainerBuilder $containerBuilder) {
         },
         CsrfMiddleware::class => function (ContainerInterface $c) {
             return new CsrfMiddleware($c->get(LoggerInterface::class));
+        },
+        // Derselbe Grund wie bei CsrfMiddleware: Der Logger hat einen NullLogger-Default,
+        // den die Autowiring-Reflexion sonst stehen laesst - die Warnung ueber einen
+        // fehlgeschlagenen Token-Einbau kaeme dann nie im Log an.
+        HtmlFormCsrfInjectorMiddleware::class => function (ContainerInterface $c) {
+            return new HtmlFormCsrfInjectorMiddleware($c->get(LoggerInterface::class));
         },
         // Der Logger ist optional mit NullLogger-Default (bestehende Tests bauen den
         // Controller mit nur $view), daher hier explizit verdrahten - sonst ueberspringt
