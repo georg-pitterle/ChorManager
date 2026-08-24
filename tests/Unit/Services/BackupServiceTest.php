@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Models\RememberLogin;
 use App\Services\BackupLimitReachedException;
 use App\Services\BackupService;
+use App\Services\SessionInvalidationService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
@@ -176,6 +177,36 @@ final class BackupServiceTest extends TestCase
         $service->restore($metadata['id']);
 
         $this->assertSame(0, RememberLogin::count());
+    }
+
+    /**
+     * Der eingespielte Stand kennt die laufenden Anmeldungen nicht mehr. Dass sie
+     * dabei entwertet werden, hängt nicht mehr daran, dass diese Klasse an die
+     * Remember-Me-Token denkt - sie reicht die Sperre geschlossen weiter.
+     */
+    public function testRestoreDelegatesLoginInvalidationToTheSessionInvalidationService(): void
+    {
+        $sessionInvalidation = $this->createMock(SessionInvalidationService::class);
+        $sessionInvalidation->expects($this->once())->method('invalidateAllLogins');
+
+        $service = new BackupService(
+            $this->dumpRunner,
+            new NullLogger(),
+            $this->backupDir,
+            5,
+            5,
+            true,
+            'chormanager_test',
+            'test-version',
+            null,
+            $sessionInvalidation
+        );
+
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+
+        $service->restore($metadata['id']);
+
+        $this->assertSame(1, $this->dumpRunner->restoreCallCount);
     }
 
     public function testRestoreThrowsWhenChecksumMismatches(): void

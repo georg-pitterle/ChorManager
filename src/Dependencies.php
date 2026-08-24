@@ -28,6 +28,7 @@ use App\Services\FinanceAccountService;
 use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
+use App\Services\SessionInvalidationService;
 use App\Services\SheetArchiveService;
 use App\Services\MailQueueService;
 use App\Services\MailDeliveryService;
@@ -166,6 +167,12 @@ return function (ContainerBuilder $containerBuilder) {
         MailDeliveryWebhookController::class => \DI\autowire(),
         MailDeliveryDsnController::class => \DI\autowire(),
         ProcessMailQueueCommand::class => \DI\autowire(),
+        // Nicht `autowire()`: Der Logger-Parameter hat einen Vorgabewert, und PHP-DI
+        // füllt optionale Parameter nicht aus dem Container. Die Sperre liefe dann
+        // still mit einem NullLogger.
+        SessionInvalidationService::class => function (ContainerInterface $c) {
+            return new SessionInvalidationService($c->get(LoggerInterface::class));
+        },
         RegistrationReminderService::class => \DI\autowire(),
         SendRegistrationRemindersCommand::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
@@ -275,7 +282,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $backupSettings['gzip'],
                 EnvHelper::read('DB_DATABASE', 'db'),
                 $backupSettings['app_version'],
-                $mailKeyId
+                $mailKeyId,
+                $c->get(SessionInvalidationService::class)
             );
         },
         BackupController::class => \DI\autowire(),
