@@ -16,7 +16,8 @@ use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
 
 /**
- * Die Id-Listen der Query-Schicht müssen ein unbekanntes Mitglied verkraften.
+ * Die Id-Listen der Query- und Policy-Schicht müssen ein unbekanntes Mitglied
+ * verkraften.
  *
  * Zeigt die Session auf ein Konto, das es nicht mehr gibt - gelöschtes Mitglied,
  * Session aus einem anderen Datenbestand -, darf die Projektliste nicht mit
@@ -27,10 +28,12 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
     use TestHttpHelpers;
 
     private const MEMBER_ID = 1;
+    private const MULTI_PROJECT_MEMBER_ID = 2;
     private const DELETED_USER_ID = 999;
     private const OWN_PROJECT = 1;
     private const FOREIGN_PROJECT = 2;
     private const ALTO = 3;
+    private const TENOR = 7;
 
     protected function setUp(): void
     {
@@ -76,26 +79,54 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         });
 
         Capsule::table('users')->insert([
-            'id' => self::MEMBER_ID,
-            'email' => 'saengerin@example.test',
-            'first_name' => 'Marlene',
-            'last_name' => 'Größing',
+            [
+                'id' => self::MEMBER_ID,
+                'email' => 'saengerin@example.test',
+                'first_name' => 'Marlene',
+                'last_name' => 'Größing',
+            ],
+            [
+                'id' => self::MULTI_PROJECT_MEMBER_ID,
+                'email' => 'doppelt@example.test',
+                'first_name' => 'Konrad',
+                'last_name' => 'Vielsinger',
+            ],
         ]);
         Capsule::table('projects')->insert([
             ['id' => self::OWN_PROJECT, 'name' => 'Frühjahrskonzert'],
             ['id' => self::FOREIGN_PROJECT, 'name' => 'Adventsingen'],
         ]);
         Capsule::table('project_users')->insert([
-            'user_id' => self::MEMBER_ID,
-            'project_id' => self::OWN_PROJECT,
+            [
+                'user_id' => self::MEMBER_ID,
+                'project_id' => self::OWN_PROJECT,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'project_id' => self::OWN_PROJECT,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'project_id' => self::FOREIGN_PROJECT,
+            ],
         ]);
         Capsule::table('voice_groups')->insert([
             ['id' => self::ALTO, 'name' => 'Alt'],
-            ['id' => 7, 'name' => 'Tenor'],
+            ['id' => self::TENOR, 'name' => 'Tenor'],
         ]);
         Capsule::table('user_voice_groups')->insert([
-            'user_id' => self::MEMBER_ID,
-            'voice_group_id' => self::ALTO,
+            [
+                'user_id' => self::MEMBER_ID,
+                'voice_group_id' => self::ALTO,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'voice_group_id' => self::ALTO,
+            ],
+            [
+                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
+                'voice_group_id' => self::TENOR,
+            ],
         ]);
     }
 
@@ -110,25 +141,25 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testProjectIdsOfAMemberComeBackAsIntegers(): void
-    {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $this->assertSame([self::OWN_PROJECT], $query->getUserProjectIds(self::MEMBER_ID));
-    }
-
-    public function testUnknownMemberHasNoProjectIds(): void
-    {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $this->assertSame([], $query->getUserProjectIds(self::DELETED_USER_ID));
-    }
-
     public function testVoiceGroupIdsOfAMemberComeBackAsIntegers(): void
     {
         $query = new ProjectQuery(new NameFormatterService());
 
         $this->assertSame([self::ALTO], $query->getUserVoiceGroupIds(self::MEMBER_ID));
+    }
+
+    /**
+     * Ab der zweiten Id greift die Umwandlung auf einen anderen Schlüssel zu -
+     * genau dort verrutschte eine Zahlenbasis-basierte Umwandlung.
+     */
+    public function testEveryVoiceGroupIdOfAMemberWithTwoVoiceGroupsSurvivesTheConversion(): void
+    {
+        $query = new ProjectQuery(new NameFormatterService());
+
+        $ids = $query->getUserVoiceGroupIds(self::MULTI_PROJECT_MEMBER_ID);
+        sort($ids);
+
+        $this->assertSame([self::ALTO, self::TENOR], $ids);
     }
 
     public function testUnknownMemberHasNoVoiceGroupIds(): void
@@ -138,29 +169,36 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         $this->assertSame([], $query->getUserVoiceGroupIds(self::DELETED_USER_ID));
     }
 
-    public function testIndexMarksTheOwnProjectsOfTheLoggedInMember(): void
+    public function testIndexListsTheOwnProjectsOfAVoiceGroupScopedMember(): void
     {
         $_SESSION['user_id'] = self::MEMBER_ID;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderIndex();
 
-        $this->assertSame([self::OWN_PROJECT], $data['userProjectIds']);
+        $this->assertCount(2, $data['projects']);
+        $this->assertSame([self::OWN_PROJECT], $data['memberManagedProjectIds']);
     }
 
     public function testIndexRendersWhenTheSessionUserNoLongerExists(): void
     {
         $_SESSION['user_id'] = self::DELETED_USER_ID;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderIndex();
 
-        $this->assertSame([], $data['userProjectIds']);
+        $this->assertCount(2, $data['projects']);
+        $this->assertSame([], $data['memberManagedProjectIds']);
     }
 
     public function testIndexRendersWithoutAUserIdInTheSession(): void
     {
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
+
         $data = $this->renderIndex();
 
-        $this->assertSame([], $data['userProjectIds']);
+        $this->assertCount(2, $data['projects']);
+        $this->assertSame([], $data['memberManagedProjectIds']);
     }
 
     /**

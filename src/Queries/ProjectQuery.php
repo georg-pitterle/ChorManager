@@ -10,6 +10,7 @@ use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 
 class ProjectQuery
 {
@@ -110,6 +111,10 @@ class ProjectQuery
      * project assignment right, where the candidate list must not leak members
      * of foreign voice groups. An empty voice group list yields no candidates.
      *
+     * Archivierte Mitglieder der eigenen Stimmgruppe stehen hier bewusst mit in der
+     * Auswahl: die Zuordnung reaktiviert sie (siehe ProjectPersistence::addProjectMember()),
+     * und das ist auch fuer dieses eingeschraenkte Recht so gewollt.
+     *
      * @param array<int> $voiceGroupIds
      */
     public function getUsersNotInProjectForVoiceGroups(int $projectId, array $voiceGroupIds): Collection
@@ -133,29 +138,13 @@ class ProjectQuery
     }
 
     /**
-     * The project ids a single user belongs to. A missing user yields [].
-     *
-     * Die Projektliste markiert damit die eigenen Projekte und muss auch dann
-     * noch rendern, wenn die Session auf ein gelöschtes Konto zeigt.
-     *
-     * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
-     * Projektmodelle selbst nicht gebraucht.
-     *
-     * @return array<int>
-     */
-    public function getUserProjectIds(int $userId): array
-    {
-        $user = User::select(['id'])->find($userId);
-        if (!$user) {
-            return [];
-        }
-
-        return $user->projects()->pluck('projects.id')->map('intval')->all();
-    }
-
-    /**
      * The voice group ids a single user belongs to. Used to authorize
      * voice-group-scoped project member changes. A missing user yields [].
+     *
+     * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
+     * Stimmgruppen-Modelle selbst nicht gebraucht. Ein fehlendes Konto darf
+     * nicht durchschlagen - zeigt die Session auf ein gelöschtes Mitglied,
+     * bräche ein direktes User::find(...)->voiceGroups() mit einem Fatal Error ab.
      *
      * @return array<int>
      */
@@ -166,7 +155,23 @@ class ProjectQuery
             return [];
         }
 
-        return $user->voiceGroups()->pluck('voice_groups.id')->map('intval')->all();
+        return self::toIntList($user->voiceGroups()->pluck('voice_groups.id'));
+    }
+
+    /**
+     * Wandelt eine über pluck() geladene Id-Spalte in eine Liste von Integern.
+     *
+     * Nicht `->map('intval')`: Collection::map() reicht den Schlüssel als zweites
+     * Argument weiter, und das ist bei intval() die Zahlenbasis. Aus der zweiten
+     * Id einer Liste würde damit intval($id, 1), aus der dritten intval($id, 2) -
+     * bei String-Werten aus dem Treiber also stillschweigend falsche Ids.
+     *
+     * @param SupportCollection<int, mixed> $ids
+     * @return array<int>
+     */
+    private static function toIntList(SupportCollection $ids): array
+    {
+        return $ids->map(static fn ($id): int => (int) $id)->all();
     }
 
     /**

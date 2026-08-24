@@ -42,15 +42,18 @@ class AuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $this->rememberLoginService->clearExpiredTokens();
-
         if (!isset($_SESSION['user_id'])) {
+            // Aufräumen nur auf dem Pfad, der Remember-Me überhaupt auswertet. Vorher lief
+            // die Löschabfrage bei jedem einzelnen Aufruf einer geschützten Route, also auch
+            // für längst angemeldete Sitzungen, die den Tokenbestand nie anfassen.
+            $this->rememberLoginService->clearExpiredTokens();
+
             $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
             if (is_string($rememberCookie) && $rememberCookie !== '') {
                 $rememberToken = $this->rememberLoginService->validateCookieValue($rememberCookie);
 
                 if ($rememberToken) {
-                    $user = $this->userQuery->findById((int) $rememberToken->user_id);
+                    $user = $this->userQuery->findForSession((int) $rememberToken->user_id);
                     if ($user && (bool) $user->is_active) {
                         session_regenerate_id(true);
                         $this->sessionAuthService->setAuthenticatedUser($user);
@@ -82,7 +85,7 @@ class AuthMiddleware implements MiddlewareInterface
             return $this->redirectToLogin($request);
         }
 
-        $currentUser = $this->userQuery->findById((int) $_SESSION['user_id']);
+        $currentUser = $this->userQuery->findForSession((int) $_SESSION['user_id']);
         if (!$currentUser || !(bool) $currentUser->is_active) {
             $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
             if (is_string($rememberCookie) && $rememberCookie !== '') {

@@ -280,7 +280,7 @@ class AuthController
             return false;
         }
 
-        $user = $this->userQuery->findById((int) $rememberToken->user_id);
+        $user = $this->userQuery->findForSession((int) $rememberToken->user_id);
         if (!$user || !(bool) $user->is_active) {
             $rememberToken->delete();
             $this->rememberLoginService->clearRememberCookie();
