@@ -261,4 +261,75 @@ final class RoleMiddlewareFeatureTest extends TestCase
             'After reset, the old handler must no longer receive log records from new instances.'
         );
     }
+
+    /**
+     * Die Oberfläche ruft rechtegeschützte Routen per fetch auf und wertet JSON
+     * aus. Kam die Abweisung als text/plain zurück, fiel newsletters.js auf ein
+     * pauschales "Speichern fehlgeschlagen." zurück - der eigentliche Grund
+     * ("keine Berechtigung zur Newsletter-Verwaltung") ging verloren.
+     */
+    public function testDeniesWithJsonWhenTheCallerAcceptsJson(): void
+    {
+        $_SESSION['can_manage_newsletters'] = false;
+
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/newsletters')
+            ->withHeader('Accept', 'application/json');
+
+        $middleware = new RoleMiddleware(requiresNewsletterManagement: true);
+        $response = $middleware->process($request, $this->passthroughHandler());
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+
+        $payload = json_decode((string) $response->getBody(), true);
+
+        $this->assertIsArray($payload);
+        // newsletters.js liest `error`, users.js liest `message` - beide Schlüssel
+        // tragen denselben Text, damit kein Aufrufer angepasst werden muss.
+        $this->assertSame($payload['error'] ?? null, $payload['message'] ?? null);
+        $this->assertStringContainsString('Newsletter-Verwaltung', (string) ($payload['error'] ?? ''));
+    }
+
+    public function testDeniesWithJsonForXmlHttpRequestWithoutAcceptHeader(): void
+    {
+        $_SESSION['can_manage_tasks'] = false;
+
+        // newsletters.js schickt nur X-Requested-With, kein Accept.
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/tasks/1/status')
+            ->withHeader('X-Requested-With', 'XMLHttpRequest');
+
+        $middleware = new RoleMiddleware(requiresTaskManagement: true);
+        $response = $middleware->process($request, $this->passthroughHandler());
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+    }
+
+    public function testDeniesWithPlainTextForAnOrdinaryBrowserRequest(): void
+    {
+        $_SESSION['can_manage_roles'] = false;
+
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('GET', '/roles')
+            ->withHeader('Accept', 'text/html,application/xhtml+xml');
+
+        $middleware = new RoleMiddleware(requiresRoleManagement: true);
+        $response = $middleware->process($request, $this->passthroughHandler());
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('text/plain; charset=utf-8', $response->getHeaderLine('Content-Type'));
+        $this->assertStringContainsString('Rollenverwaltung', (string) $response->getBody());
+    }
+
+    private function passthroughHandler(): RequestHandlerInterface
+    {
+        return new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new Response(200);
+            }
+        };
+    }
 }
