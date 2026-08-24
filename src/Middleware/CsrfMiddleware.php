@@ -15,6 +15,23 @@ use Slim\Psr7\Response as SlimResponse;
 
 class CsrfMiddleware implements MiddlewareInterface
 {
+    /**
+     * Öffentliche Ingest-Endpunkte, deren Absender ein Mailprovider ist und kein
+     * angemeldeter Browser. Sie haben keine Sitzung und damit keinen Token, den sie
+     * mitschicken könnten; ausgewiesen wird sich stattdessen über den
+     * ProviderWebhookVerifier (HMAC-Signatur bzw. Ingest-Token), noch bevor der
+     * Controller die Nutzlast anfasst. Beide werten ausschließlich diesen Nachweis
+     * aus und nie die Sitzung, weshalb hier nichts zu schützen ist - ohne diese
+     * Ausnahme hat die Middleware jede Rückmeldung des Providers mit 403 abgewiesen
+     * und Zustell- sowie Unzustellbarkeitsereignisse kamen nie an.
+     *
+     * @var list<string>
+     */
+    private const EXEMPT_PATHS = [
+        '/mail/delivery/webhook',
+        '/mail/delivery/dsn',
+    ];
+
     private LoggerInterface $logger;
 
     public function __construct(LoggerInterface $logger = new NullLogger())
@@ -35,12 +52,18 @@ class CsrfMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
+        if ($this->isExemptPath($request->getUri()->getPath())) {
+            return $handler->handle($request);
+        }
+
         $parsedBody = $request->getParsedBody();
         $bodyToken = null;
         if (is_array($parsedBody)) {
             $candidate = $parsedBody['_csrf'] ?? null;
-            if (is_scalar($candidate)) {
-                $bodyToken = (string) $candidate;
+            // Ein leeres Feld zählt als "nicht gesendet": sonst verdeckt ein leerer
+            // versteckter Eingabewert den ansonsten gültigen Header-Token.
+            if (is_scalar($candidate) && trim((string) $candidate) !== '') {
+                $bodyToken = trim((string) $candidate);
             }
         }
 
@@ -60,13 +83,24 @@ class CsrfMiddleware implements MiddlewareInterface
 
         if (str_contains($accept, 'application/json')) {
             $response->getBody()->write((string) json_encode([
-                'error' => 'Ungueltiger CSRF-Token',
+                'error' => 'Ungültiger CSRF-Token',
             ]));
 
             return $response->withHeader('Content-Type', 'application/json');
         }
 
-        $response->getBody()->write('Ungueltiger CSRF-Token');
+        $response->getBody()->write('Ungültiger CSRF-Token');
         return $response->withHeader('Content-Type', 'text/plain; charset=utf-8');
+    }
+
+    /**
+     * Vergleicht auf ganze Pfade, nicht auf Präfixe: `/mail/delivery/webhook/x` bleibt
+     * damit geschützt, ein angehängter Schrägstrich hebt die Ausnahme aber nicht auf.
+     */
+    private function isExemptPath(string $path): bool
+    {
+        $normalizedPath = rtrim($path, '/');
+
+        return $normalizedPath !== '' && in_array($normalizedPath, self::EXEMPT_PATHS, true);
     }
 }

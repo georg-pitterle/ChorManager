@@ -61,6 +61,73 @@ class CsrfMiddlewareFeatureTest extends TestCase
         $this->assertSame(200, $result->getStatusCode());
     }
 
+    public function testEmptyBodyTokenDoesNotShadowValidHeaderToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $request = $this->makeRequest(
+            'POST',
+            '/profile',
+            ['_csrf' => ''],
+            [],
+            ['X-CSRF-Token' => $_SESSION[Csrf::SESSION_KEY]]
+        );
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        $result = $middleware->process($request, $handler);
+
+        $this->assertSame(200, $result->getStatusCode());
+    }
+
+    public function testSignatureVerifiedIngestEndpointsPassWithoutCsrfToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        // Absender ist der Mailprovider, nicht der Browser eines Mitglieds: ohne Sitzung
+        // gibt es keinen Token, den er mitschicken könnte. Beide Endpunkte weisen sich
+        // stattdessen über ProviderWebhookVerifier aus.
+        foreach (['/mail/delivery/webhook', '/mail/delivery/dsn'] as $path) {
+            $result = $middleware->process($this->makeRequest('POST', $path), $handler);
+
+            $this->assertSame(200, $result->getStatusCode(), $path);
+        }
+    }
+
+    public function testPathBelowAnIngestEndpointStaysCsrfProtected(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        $result = $middleware->process(
+            $this->makeRequest('POST', '/mail/delivery/webhook/anything'),
+            $handler
+        );
+
+        $this->assertSame(403, $result->getStatusCode());
+    }
+
     public function testPostRequestWithInvalidTokenReturns403(): void
     {
         $middleware = new CsrfMiddleware();
