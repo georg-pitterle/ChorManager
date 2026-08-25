@@ -24,14 +24,39 @@ DB_PASS="db"
 DB_HOST="127.0.0.1"
 DB_PORT="3306"
 
+# PHP-Erweiterungen, die das Projekt braucht: pdo_mysql für Eloquent und Phinx,
+# sqlite3 für die Tests mit In-Memory-Datenbank, der Rest für PDF, Mail und Twig.
+# sodium ist in die sury-Binary eingebaut und braucht kein eigenes Paket.
+PHP_EXTENSION_SUFFIXES=(cli common curl gd intl mbstring mysql opcache readline sqlite3 xml zip)
+
+# Quelle, aus der schon das mitgelieferte PHP 8.4 stammt. Wird nur zur Diagnose
+# angefragt, wenn die Installation scheitert.
+PHP_PACKAGE_SOURCE_HOST="ppa.launchpadcontent.net"
+PHP_PACKAGE_SOURCE="https://${PHP_PACKAGE_SOURCE_HOST}/ondrej/php/ubuntu/dists/noble/InRelease"
+
+APT_UPDATED=0
+LOG_DIR="/var/log"
+
 log() { printf '[session-start] %s\n' "$1"; }
+
+ensure_apt_updated() {
+    if [ "$APT_UPDATED" -eq 0 ]; then
+        # Der Paketindex im Image ist älter als die Spiegel; ohne update schlagen
+        # die Downloads mit 404 fehl.
+        apt-get update -qq || true
+        APT_UPDATED=1
+    fi
+}
+
+# "8.5" >= "8.4"? Nutzt sort -V, damit 8.10 nicht kleiner als 8.9 wirkt.
+version_at_least() {
+    [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
 
 # ---------------------------------------------------------------- MariaDB ----
 if ! command -v mariadbd >/dev/null 2>&1; then
     log "MariaDB installieren"
-    # Der Paketindex im Image ist älter als die Spiegel; ohne update schlagen
-    # die Downloads mit 404 fehl.
-    apt-get update -qq
+    ensure_apt_updated
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
 else
     log "MariaDB bereits installiert"
@@ -41,7 +66,7 @@ if ! mariadb-admin ping >/dev/null 2>&1; then
     log "MariaDB starten"
     # Kein systemd im Container, also direkt über mariadbd-safe.
     install -d -o mysql -g mysql /var/run/mysqld
-    nohup mariadbd-safe --user=mysql --skip-syslog >/var/log/mariadb-session-start.log 2>&1 &
+    nohup mariadbd-safe --user=mysql --skip-syslog >"$LOG_DIR/mariadb-session-start.log" 2>&1 &
 
     for _ in $(seq 1 60); do
         mariadb-admin ping >/dev/null 2>&1 && break
@@ -49,7 +74,7 @@ if ! mariadb-admin ping >/dev/null 2>&1; then
     done
 
     if ! mariadb-admin ping >/dev/null 2>&1; then
-        log "FEHLER: MariaDB ist nicht hochgekommen, siehe /var/log/mariadb-session-start.log"
+        log "FEHLER: MariaDB ist nicht hochgekommen, siehe $LOG_DIR/mariadb-session-start.log"
         exit 1
     fi
 fi
@@ -72,6 +97,109 @@ GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
 FLUSH PRIVILEGES;
 SQL
+
+# --------------------------------------------------------------------- PHP ----
+# Das Image bringt PHP 8.4 aus dem ondrej/php-PPA mit, composer.json verlangt
+# aber ^8.5. Dieselbe Paketquelle hätte 8.5, nur blockt die Netzwerkrichtlinie
+# der Remote-Umgebung ppa.launchpadcontent.net derzeit mit 403.
+#
+# Der Hook versucht das Upgrade deshalb bei jedem Start und fällt zurück, wenn
+# die Quelle nicht erreichbar ist. Wird der Host in der Umgebung freigegeben,
+# zieht die nächste Sitzung PHP 8.5 von selbst - ohne Änderung an diesem Skript.
+required_php="$(
+    php -r '
+        $manifest = json_decode(file_get_contents("composer.json"), true);
+        $constraint = $manifest["require"]["php"] ?? "";
+        echo preg_match("/(\d+)\.(\d+)/", $constraint, $m) === 1 ? $m[1] . "." . $m[2] : "";
+    ' 2>/dev/null || true
+)"
+current_php="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"
+
+composer_platform_args=()
+
+install_php_version() {
+    local version="$1"
+    local packages=() suffix
+    for suffix in "${PHP_EXTENSION_SUFFIXES[@]}"; do
+        packages+=("php${version}-${suffix}")
+    done
+
+    ensure_apt_updated
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${packages[@]}" \
+        >"$LOG_DIR/php-upgrade-session-start.log" 2>&1; then
+        return 1
+    fi
+
+    activate_php_version "$version"
+}
+
+# Schaltet /usr/bin/php auf die Zielversion um und prüft, dass sie auch trägt.
+# Eine falsche Version oder eine fehlende Erweiterung würde sonst jeden Testlauf
+# der Sitzung kippen - dann lieber zurück auf die alte Binary.
+activate_php_version() {
+    local version="$1" previous
+    previous="$(readlink -f /usr/bin/php || true)"
+
+    if ! update-alternatives --set php "/usr/bin/php${version}" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    if ! php -r '
+        $wanted = $argv[1];
+        if (PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION !== $wanted) {
+            fwrite(STDERR, "unerwartete Version: " . PHP_VERSION . "\n");
+            exit(1);
+        }
+        foreach (["pdo_mysql", "sqlite3", "mbstring", "xml", "curl", "sodium"] as $extension) {
+            if (!extension_loaded($extension)) {
+                fwrite(STDERR, "fehlende Erweiterung: {$extension}\n");
+                exit(1);
+            }
+        }
+    ' "$version" 2>>"$LOG_DIR/php-upgrade-session-start.log"; then
+        [ -n "$previous" ] && update-alternatives --set php "$previous" >/dev/null 2>&1 || true
+        return 1
+    fi
+
+    return 0
+}
+
+php_fallback_notice() {
+    log "Composer läuft solange mit --ignore-platform-req=php (PHP $(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;') statt $1)."
+    composer_platform_args+=(--ignore-platform-req=php)
+}
+
+if [ -z "$required_php" ]; then
+    log "PHP-Anforderung aus composer.json nicht lesbar, bleibe bei PHP $current_php"
+elif version_at_least "$current_php" "$required_php"; then
+    log "PHP $current_php erfüllt die Anforderung (>= $required_php)"
+elif command -v "php${required_php}" >/dev/null 2>&1; then
+    log "PHP $required_php ist installiert, wird aktiviert"
+    if activate_php_version "$required_php"; then
+        log "PHP $(php -r 'echo PHP_VERSION;') aktiv"
+    else
+        log "PHP $required_php ließ sich nicht aktivieren (siehe $LOG_DIR/php-upgrade-session-start.log)."
+        php_fallback_notice "$required_php"
+    fi
+else
+    log "PHP $current_php < $required_php - versuche PHP $required_php zu installieren"
+    if install_php_version "$required_php"; then
+        log "PHP $(php -r 'echo PHP_VERSION;') aktiv"
+    else
+        # Nicht raten, warum: Die Paketquelle einmal direkt anfragen. Ein 403 auf
+        # dem CONNECT-Tunnel heißt Netzwerkrichtlinie, alles andere ist ein echtes
+        # Paketproblem und gehört anders behandelt.
+        if curl --silent --show-error --max-time 20 --output /dev/null \
+            "$PHP_PACKAGE_SOURCE" >/dev/null 2>&1; then
+            log "PHP $required_php nicht installierbar, obwohl die Paketquelle erreichbar ist."
+            log "Das ist kein Netzproblem - siehe $LOG_DIR/php-upgrade-session-start.log."
+        else
+            log "PHP $required_php nicht installierbar: $PHP_PACKAGE_SOURCE_HOST ist von hier nicht erreichbar."
+            log "Die Netzwerkrichtlinie der Umgebung muss den Host freigeben, dann zieht die nächste Sitzung PHP $required_php von selbst."
+        fi
+        php_fallback_notice "$required_php"
+    fi
+fi
 
 # -------------------------------------------------------------------- .env ----
 # Tests lesen die Zugangsdaten über Dotenv aus .env, phinx.php dagegen über
@@ -116,10 +244,7 @@ fi
 # ---------------------------------------------------------------- Composer ----
 if [ ! -f vendor/autoload.php ]; then
     log "Composer-Abhängigkeiten installieren"
-    # composer.json verlangt PHP ^8.5, im Image liegt 8.4. PHP 8.5 käme nur aus
-    # dem ondrej/php-PPA, das der Agent-Proxy blockt (403) - deshalb der
-    # Plattform-Override statt eines PHP-Upgrades.
-    composer install --no-interaction --no-progress --ignore-platform-req=php
+    composer install --no-interaction --no-progress "${composer_platform_args[@]+"${composer_platform_args[@]}"}"
 else
     log "vendor/ vorhanden"
 fi
