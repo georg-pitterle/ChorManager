@@ -26,18 +26,28 @@ use App\Services\EventAudienceService;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
+use App\Util\SafeRedirect;
 use App\Util\Timezone;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Psr\Log\LoggerInterface;
 
 class EventController
 {
+    /**
+     * Schlüssel, unter dem die frisch erzeugte Abo-Adresse genau einen
+     * Seitenaufruf lang in der Sitzung liegt.
+     */
+    private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_url';
+
     private Twig $view;
     private NameFormatterService $nameFormatter;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view, NameFormatterService $nameFormatter)
+    public function __construct(Twig $view, NameFormatterService $nameFormatter, LoggerInterface $logger)
     {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
+        $this->logger = $logger;
     }
 
     public function index(Request $request, Response $response): Response
@@ -181,12 +191,7 @@ class EventController
         $createState = $createService->getState();
         $createService->clear();
 
-        $calendarSubscriptionUrl = null;
-        if ($userId > 0) {
-            $subscriptionService = new CalendarSubscriptionService();
-            $token = $subscriptionService->getOrCreateTokenForUser($userId);
-            $calendarSubscriptionUrl = AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
-        }
+        $calendarSubscription = $this->calendarSubscriptionState($request, $userId);
 
         return $this->view->render($response, 'events/index.twig', [
             'events' => $events,
@@ -204,7 +209,7 @@ class EventController
             'create_form' => $createState,
             'view_mode' => $viewMode,
             'calendar_events' => $calendarEventsJson,
-            'calendar_subscription_url' => $calendarSubscriptionUrl,
+            'calendar_subscription' => $calendarSubscription,
             'roles' => $roles,
             'voice_groups' => $voiceGroups,
             'audience_users' => $audienceUsers,
@@ -230,19 +235,103 @@ class EventController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
-        $calendarSubscriptionUrl = null;
-        if ($userId > 0) {
-            $subscriptionService = new CalendarSubscriptionService();
-            $token = $subscriptionService->getOrCreateTokenForUser($userId);
-            $calendarSubscriptionUrl = AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
-        }
-
         return $this->view->render($response, 'events/detail.twig', [
             'event' => $event,
             'success' => $success,
             'error' => $error,
-            'calendar_subscription_url' => $calendarSubscriptionUrl,
+            'calendar_subscription' => $this->calendarSubscriptionState($request, $userId),
         ]);
+    }
+
+    /**
+     * Erzeugt ein Kalender-Abo und verwirft ein vorhandenes.
+     *
+     * Die Adresse wird nur hier ausgegeben - gespeichert ist ab Migration
+     * 20260825120300 nur noch ihr Hash. Sie liegt deshalb genau einen
+     * Seitenaufruf lang in der Sitzung und wird von der Zielseite geleert.
+     */
+    public function createSubscription(Request $request, Response $response): Response
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return $response->withStatus(403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $target = $this->subscriptionRedirectTarget($data['redirect_to'] ?? null);
+
+        $subscriptionService = new CalendarSubscriptionService();
+        $rotated = $subscriptionService->hasTokenForUser($userId);
+        $token = $subscriptionService->rotateTokenForUser($userId);
+
+        $_SESSION[self::SUBSCRIPTION_FLASH_KEY] = $this->subscriptionUrl($request, $token);
+
+        // Bewusst ohne Token im Kontext: Die Adresse ist das Geheimnis selbst und
+        // hat in keinem Log etwas verloren.
+        $this->logger->info('Calendar subscription token issued.', [
+            'event' => 'calendar_subscription.token.issued',
+            'user_id' => $userId,
+            'replaced_existing' => $rotated,
+        ]);
+
+        $_SESSION['success'] = $rotated
+            ? 'Neue Abo-Adresse erzeugt. Die bisherige ist ab sofort ungültig.'
+            : 'Abo-Adresse erzeugt.';
+
+        return $response->withHeader('Location', $target)->withStatus(302);
+    }
+
+    /**
+     * Anzeigezustand des Kalender-Abos.
+     *
+     * `url` ist nur gesetzt, wenn die Adresse überhaupt zeigbar ist: direkt nach
+     * dem Erzeugen, oder bei einem Altbestand-Abo, das noch im Klartext vorliegt.
+     * Sonst steht nur fest, ob ein Abo aktiv ist.
+     *
+     * @return array{exists: bool, url: string|null}|null
+     */
+    private function calendarSubscriptionState(Request $request, int $userId): ?array
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $freshUrl = $_SESSION[self::SUBSCRIPTION_FLASH_KEY] ?? null;
+        unset($_SESSION[self::SUBSCRIPTION_FLASH_KEY]);
+
+        if (is_string($freshUrl) && $freshUrl !== '') {
+            return ['exists' => true, 'url' => $freshUrl];
+        }
+
+        $subscriptionService = new CalendarSubscriptionService();
+        $legacyToken = $subscriptionService->findLegacyTokenForUser($userId);
+
+        if ($legacyToken !== null) {
+            return ['exists' => true, 'url' => $this->subscriptionUrl($request, $legacyToken)];
+        }
+
+        return ['exists' => $subscriptionService->hasTokenForUser($userId), 'url' => null];
+    }
+
+    private function subscriptionUrl(Request $request, string $token): string
+    {
+        return AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
+    }
+
+    /**
+     * Rücksprungziel nach dem Erzeugen. Zugelassen sind nur Termin-Seiten dieser
+     * Anwendung - SafeRedirect wehrt fremde Ziele ab, die Präfixprüfung hält den
+     * Knopf auf den Seiten, die das Abo-Fenster überhaupt kennen.
+     */
+    private function subscriptionRedirectTarget(mixed $candidate): string
+    {
+        $target = SafeRedirect::sanitize(is_string($candidate) ? $candidate : null);
+
+        if ($target === null || !str_starts_with($target, '/events')) {
+            return '/events';
+        }
+
+        return $target;
     }
 
     public function exportCalendar(Request $request, Response $response, array $args): Response

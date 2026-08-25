@@ -7,8 +7,10 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\EventSeries;
+use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -50,7 +52,11 @@ class EventRegistrationSettingsFeatureTest extends TestCase
 
     private function controller(): EventController
     {
-        return new EventController(Twig::create(dirname(__DIR__) . '/../templates'), new \App\Services\NameFormatterService());
+        return new EventController(
+            Twig::create(dirname(__DIR__) . '/../templates'),
+            new NameFormatterService(),
+            new NullLogger()
+        );
     }
 
     /**
