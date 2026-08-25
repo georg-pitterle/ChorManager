@@ -19,6 +19,10 @@ final class CreateCalendarSubscriptionTokens extends AbstractMigration
 
     public function down(): void
     {
-        $this->table('calendar_subscription_tokens')->drop();
+        // drop() reiht die Aktion nur ein, ausgeführt wird sie erst durch save().
+        // Ohne den Abschluss meldet der Rollback Erfolg, lässt die Tabelle aber
+        // stehen - ein anschließendes migrate scheitert dann daran, dass
+        // "calendar_subscription_tokens" bereits existiert.
+        $this->table('calendar_subscription_tokens')->drop()->save();
     }
 }

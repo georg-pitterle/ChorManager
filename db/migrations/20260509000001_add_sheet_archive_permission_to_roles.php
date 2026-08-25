@@ -8,7 +8,10 @@ final class AddSheetArchivePermissionToRoles extends AbstractMigration
 {
     public function up(): void
     {
-        $this->execute("ALTER TABLE roles ADD COLUMN can_manage_sheet_archive TINYINT(1) NOT NULL DEFAULT 0 AFTER can_manage_mail_queue;");
+        $this->execute(
+            "ALTER TABLE roles
+             ADD COLUMN can_manage_sheet_archive TINYINT(1) NOT NULL DEFAULT 0 AFTER can_manage_mail_queue;"
+        );
     }
 
     public function down(): void

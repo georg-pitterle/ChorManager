@@ -131,7 +131,8 @@ final class Initial extends AbstractMigration
             KEY event_type_id (event_type_id),
             CONSTRAINT events_ibfk_1 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
             CONSTRAINT fk_events_series FOREIGN KEY (series_id) REFERENCES event_series (id) ON DELETE SET NULL ON UPDATE CASCADE,
-            CONSTRAINT fk_events_event_type FOREIGN KEY (event_type_id) REFERENCES event_types (id) ON DELETE SET NULL ON UPDATE CASCADE
+            CONSTRAINT fk_events_event_type FOREIGN KEY (event_type_id) REFERENCES event_types (id)
+                ON DELETE SET NULL ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
 
         // attendance
@@ -277,7 +278,8 @@ final class Initial extends AbstractMigration
             KEY sponsorship_id (sponsorship_id),
             KEY user_id (user_id),
             CONSTRAINT sponsoring_contacts_sponsor_fk FOREIGN KEY (sponsor_id) REFERENCES sponsors (id) ON DELETE CASCADE,
-            CONSTRAINT sponsoring_contacts_sponsorship_fk FOREIGN KEY (sponsorship_id) REFERENCES sponsorships (id) ON DELETE SET NULL,
+            CONSTRAINT sponsoring_contacts_sponsorship_fk FOREIGN KEY (sponsorship_id)
+                REFERENCES sponsorships (id) ON DELETE SET NULL,
             CONSTRAINT sponsoring_contacts_user_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
 
