@@ -8,6 +8,7 @@ use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Services\AttendanceScopeService;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
@@ -24,6 +25,7 @@ class RegistrationProxyFeatureTest extends TestCase
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
 
         $this->event = Event::create([
@@ -37,9 +39,35 @@ class RegistrationProxyFeatureTest extends TestCase
 
     protected function tearDown(): void
     {
-        EventRegistration::where('event_id', $this->event->id)->delete();
-        $this->event->delete();
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
+    }
+
+    private function createUser(bool $active = true): User
+    {
+        $suffix = bin2hex(random_bytes(6));
+
+        return User::create([
+            'email' => "proxy_{$suffix}@example.test",
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Test',
+            'last_name' => 'Person',
+            'is_active' => $active ? 1 : 0,
+        ]);
+    }
+
+    private function createVoiceGroup(): VoiceGroup
+    {
+        return VoiceGroup::create(['name' => 'Testgruppe ' . bin2hex(random_bytes(4))]);
+    }
+
+    private function attachToVoiceGroup(User $user, VoiceGroup $voiceGroup): void
+    {
+        $user->voiceGroups()->attach($voiceGroup->id);
     }
 
     private function controller(): RegistrationController
@@ -54,9 +82,8 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testAdminCanRegisterForOthersAndUpdatedByIsSet(): void
     {
-        $admin = User::where('is_active', 1)->firstOrFail();
-        $member = User::where('is_active', 1)
-            ->where('id', '!=', $admin->id)->firstOrFail();
+        $admin = $this->createUser();
+        $member = $this->createUser();
 
         $_SESSION['user_id'] = (int) $admin->id;
         $_SESSION['can_manage_attendance_all'] = true;
@@ -79,14 +106,17 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testForeignVoiceGroupRejectedWith403(): void
     {
-        $rep = User::where('is_active', 1)->whereHas('voiceGroups')->firstOrFail();
-        $repGroupIds = $rep->voiceGroups->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $ownGroup = $this->createVoiceGroup();
+        $foreignGroup = $this->createVoiceGroup();
 
-        $outsider = User::where('is_active', 1)
-            ->whereDoesntHave('voiceGroups', function ($q) use ($repGroupIds) {
-                $q->whereIn('voice_group_id', $repGroupIds);
-            })
-            ->firstOrFail();
+        $rep = $this->createUser();
+        $this->attachToVoiceGroup($rep, $ownGroup);
+        $peer = $this->createUser();
+        $this->attachToVoiceGroup($peer, $ownGroup);
+        $outsider = $this->createUser();
+        $this->attachToVoiceGroup($outsider, $foreignGroup);
+
+        $repGroupIds = [(int) $ownGroup->id];
 
         $_SESSION['user_id'] = (int) $rep->id;
         $_SESSION['can_manage_users'] = false;
@@ -107,8 +137,8 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testPlainMemberCannotProxyAtAll(): void
     {
-        $member = User::where('is_active', 1)->firstOrFail();
-        $other = User::where('is_active', 1)->where('id', '!=', $member->id)->firstOrFail();
+        $member = $this->createUser();
+        $other = $this->createUser();
 
         $_SESSION['user_id'] = (int) $member->id;
         $_SESSION['can_manage_users'] = false;
@@ -127,9 +157,8 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testClosedDeadlineRejectedWith403(): void
     {
-        $admin = User::where('is_active', 1)->firstOrFail();
-        $member = User::where('is_active', 1)
-            ->where('id', '!=', $admin->id)->firstOrFail();
+        $admin = $this->createUser();
+        $member = $this->createUser();
 
         $this->event->update(['registration_deadline' => Carbon::now()->subHour()]);
 
@@ -149,9 +178,8 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testPastEventRejectedWith403(): void
     {
-        $admin = User::where('is_active', 1)->firstOrFail();
-        $member = User::where('is_active', 1)
-            ->where('id', '!=', $admin->id)->firstOrFail();
+        $admin = $this->createUser();
+        $member = $this->createUser();
 
         $this->event->update([
             'starts_at' => Carbon::now()->subDay(),
@@ -173,21 +201,17 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testPartialUnauthorizedBatchRejectsEntireRequestAtomically(): void
     {
-        $rep = User::where('is_active', 1)->whereHas('voiceGroups')->firstOrFail();
-        $repGroupIds = $rep->voiceGroups->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $ownGroup = $this->createVoiceGroup();
+        $foreignGroup = $this->createVoiceGroup();
 
-        $allowedMember = User::where('is_active', 1)
-            ->whereHas('voiceGroups', function ($q) use ($repGroupIds) {
-                $q->whereIn('voice_group_id', $repGroupIds);
-            })
-            ->where('id', '!=', $rep->id)
-            ->firstOrFail();
+        $rep = $this->createUser();
+        $this->attachToVoiceGroup($rep, $ownGroup);
+        $allowedMember = $this->createUser();
+        $this->attachToVoiceGroup($allowedMember, $ownGroup);
+        $outsider = $this->createUser();
+        $this->attachToVoiceGroup($outsider, $foreignGroup);
 
-        $outsider = User::where('is_active', 1)
-            ->whereDoesntHave('voiceGroups', function ($q) use ($repGroupIds) {
-                $q->whereIn('voice_group_id', $repGroupIds);
-            })
-            ->firstOrFail();
+        $repGroupIds = [(int) $ownGroup->id];
 
         $_SESSION['user_id'] = (int) $rep->id;
         $_SESSION['can_manage_users'] = false;
@@ -211,21 +235,17 @@ class RegistrationProxyFeatureTest extends TestCase
 
     public function testUnauthorizedTargetWithEmptyStatusStillRejectsEntireBatch(): void
     {
-        $rep = User::where('is_active', 1)->whereHas('voiceGroups')->firstOrFail();
-        $repGroupIds = $rep->voiceGroups->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $ownGroup = $this->createVoiceGroup();
+        $foreignGroup = $this->createVoiceGroup();
 
-        $allowedMember = User::where('is_active', 1)
-            ->whereHas('voiceGroups', function ($q) use ($repGroupIds) {
-                $q->whereIn('voice_group_id', $repGroupIds);
-            })
-            ->where('id', '!=', $rep->id)
-            ->firstOrFail();
+        $rep = $this->createUser();
+        $this->attachToVoiceGroup($rep, $ownGroup);
+        $allowedMember = $this->createUser();
+        $this->attachToVoiceGroup($allowedMember, $ownGroup);
+        $outsider = $this->createUser();
+        $this->attachToVoiceGroup($outsider, $foreignGroup);
 
-        $outsider = User::where('is_active', 1)
-            ->whereDoesntHave('voiceGroups', function ($q) use ($repGroupIds) {
-                $q->whereIn('voice_group_id', $repGroupIds);
-            })
-            ->firstOrFail();
+        $repGroupIds = [(int) $ownGroup->id];
 
         $_SESSION['user_id'] = (int) $rep->id;
         $_SESSION['can_manage_users'] = false;

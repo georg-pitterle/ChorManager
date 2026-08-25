@@ -15,6 +15,7 @@ use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
+use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
@@ -22,6 +23,7 @@ use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Slim\Views\Twig;
 
 /**
  * Behavioural coverage for the send flow: the audience is resolved fresh at
@@ -85,13 +87,16 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
 
     private function makeService(): NewsletterService
     {
+        $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
+
         return new NewsletterService(
             new NewsletterRecipientService(),
             new Mailer(new NullLogger()),
             new HtmlSanitizer(),
             new MailQueueService(),
             new NullLogger(),
-            new NewsletterPlaceholderService(new NameFormatterService())
+            new NewsletterPlaceholderService(new NameFormatterService()),
+            new NewsletterMailRenderer($twig)
         );
     }
 

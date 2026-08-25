@@ -1,0 +1,28 @@
+{% extends "emails/_layout.twig" %}
+
+{% block mail_title %}{{ subject }}{% endblock %}
+
+{% block preheader %}{{ subject }}{% endblock %}
+
+{% block eyebrow %}{{ eyebrow_label }}{% endblock %}
+
+{% block heading %}{{ subject }}{% endblock %}
+
+{# Anrede und Grußformel bringt der Newsletter-Text selbst mit, die Hülle trägt hier nichts bei. #}
+{% block greeting %}{% endblock %}
+{% block closing %}{% endblock %}
+
+{# content_html ist bereits sanitisiert und die Platzhalter sind ersetzt: hier nicht erneut escapen. #}
+{% block content %}{{ content_html|raw }}{% endblock %}
+
+{% block footer_note %}
+    Diese Nachricht wurde von {{ app_name|default("Chor-Manager") }} versendet.
+    {# Wer die Vorschau ansieht, ist bereits in der Browser-Ansicht: previewFrame() und
+       previewRender() setzen include_browse_link auf false, damit der Link dort nicht in den
+       eigenen, streng sandboxten Rahmen navigiert. Versand und Testmail belassen ihn. #}
+    {% if include_browse_link %}
+        <a href="{{ browse_url }}" class="cm-linkaccent" style="color:#667085; text-decoration:underline">
+            Diesen Newsletter im Browser ansehen
+        </a>
+    {% endif %}
+{% endblock %}

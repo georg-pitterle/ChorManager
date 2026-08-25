@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\NewsletterController;
+use App\Controllers\NewsletterTemplateController;
 use App\Models\Newsletter;
+use App\Models\NewsletterTemplate;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Persistence\NewsletterTemplatePersistence;
+use App\Queries\NewsletterTemplateQuery;
 use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterLockingService;
+use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
@@ -82,6 +87,17 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
         ]);
     }
 
+    private function createTemplate(User $creator): NewsletterTemplate
+    {
+        return NewsletterTemplate::create([
+            'name' => 'Vorlage ' . bin2hex(random_bytes(4)),
+            'description' => '',
+            'content_html' => '<p>Hallo {{vorname}}!</p>',
+            'project_id' => null,
+            'created_by' => $creator->id,
+        ]);
+    }
+
     /**
      * Baut den Controller mit einer echten Twig-Umgebung auf, analog zu
      * NewsletterProjectDecouplingFeatureTest::newsletterController(): create()
@@ -121,7 +137,8 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
                 new HtmlSanitizer(),
                 new MailQueueService(),
                 new NullLogger(),
-                new NewsletterPlaceholderService(new NameFormatterService())
+                new NewsletterPlaceholderService(new NameFormatterService()),
+                new NewsletterMailRenderer($twig)
             ),
             new NewsletterLockingService(),
             new NewsletterRecipientService(),
@@ -129,7 +146,47 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
             new NullLogger(),
             new NameFormatterService(),
             new NewsletterPlaceholderService(new NameFormatterService()),
-            new MailQueueService()
+            new MailQueueService(),
+            new NewsletterMailRenderer($twig)
+        );
+    }
+
+    /**
+     * Baut den NewsletterTemplateController mit einer echten Twig-Umgebung
+     * auf, analog zu newsletterController(): index() und edit() rendern die
+     * vollständige Seite samt layout.twig, daher müssen dessen Filter,
+     * Funktionen und Globals hier nachgebildet werden.
+     */
+    private function newsletterTemplateController(): NewsletterTemplateController
+    {
+        $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
+        $environment = $twig->getEnvironment();
+        $environment->addFilter(new TwigFilter(
+            'person_name',
+            static fn (mixed $person): string => (new NameFormatterService())->formatPerson($person)
+        ));
+        $environment->addGlobal('session', $_SESSION);
+        $environment->addGlobal('app_settings', []);
+        $environment->addGlobal('current_path', '/newsletters/templates');
+        $this->registerMailBadgeStub($environment);
+        $environment->addFunction(new TwigFunction(
+            'asset_path',
+            static fn (string $path): string => $path
+        ));
+        $environment->addFunction(new TwigFunction(
+            'navigation',
+            static function (string $activeNav = ''): array {
+                $context = NavigationContext::fromSession($_SESSION, [], '/newsletters/templates', $activeNav);
+
+                return (new NavigationBuilder())->build($context);
+            }
+        ));
+
+        return new NewsletterTemplateController(
+            $twig,
+            new HtmlSanitizer(),
+            new NewsletterTemplateQuery(),
+            new NewsletterTemplatePersistence()
         );
     }
 
@@ -194,6 +251,58 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
             '/newsletters/placeholders',
             $this->contentTextareaPlaceholderSource((string) $response->getBody()),
             'Die Inhalts-Textarea von edit.twig muss die Platzhalter-Quelle deklarieren.'
+        );
+    }
+
+    /**
+     * Vorlagen landen unverändert im daraus erstellten Newsletter, daher
+     * braucht auch der Anlege-Dialog für Vorlagen den Platzhalter-Knopf.
+     */
+    public function testTemplatesIndexCreateDialogDeclaresPlaceholderSourceOnContentTextarea(): void
+    {
+        $manager = $this->createUser();
+
+        $_SESSION['user_id'] = (int) $manager->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $response = $this->newsletterTemplateController()->index(
+            $this->makeRequest('GET', '/newsletters/templates'),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(
+            '/newsletters/placeholders',
+            $this->contentTextareaPlaceholderSource((string) $response->getBody()),
+            'Die Inhalts-Textarea des Anlege-Dialogs in templates_index.twig muss die '
+                . 'Platzhalter-Quelle deklarieren.'
+        );
+    }
+
+    /**
+     * Auch beim Bearbeiten einer bestehenden Vorlage muss der Platzhalter-Knopf
+     * verfügbar sein, denn hier werden Platzhalter genauso eingefügt wie im
+     * Newsletter-Editor selbst.
+     */
+    public function testTemplatesEditFormDeclaresPlaceholderSourceOnContentTextarea(): void
+    {
+        $manager = $this->createUser();
+        $template = $this->createTemplate($manager);
+
+        $_SESSION['user_id'] = (int) $manager->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $response = $this->newsletterTemplateController()->edit(
+            $this->makeRequest('GET', '/newsletters/templates/' . $template->id . '/edit')
+                ->withAttribute('id', (string) $template->id),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(
+            '/newsletters/placeholders',
+            $this->contentTextareaPlaceholderSource((string) $response->getBody()),
+            'Die Inhalts-Textarea von templates_edit.twig muss die Platzhalter-Quelle deklarieren.'
         );
     }
 

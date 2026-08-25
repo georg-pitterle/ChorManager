@@ -27,6 +27,7 @@ class EventFeatureTest extends TestCase
     use TwigViewStubs;
 
     private static ?Capsule $capsule = null;
+    private User $sessionUser;
 
     public static function setUpBeforeClass(): void
     {
@@ -61,13 +62,25 @@ class EventFeatureTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        self::$capsule?->connection()->beginTransaction();
+
+        // Eigene Person statt der fest angenommenen Kennung 1: Auf einer frisch aufgesetzten
+        // Datenbank gibt es diesen Datensatz nicht, und die Termin-Detailansicht antwortet dann
+        // mit 403, weil die Zielgruppenprüfung ohne Sitzungsnutzer nicht greifen kann.
+        $this->sessionUser = User::create([
+            'email' => 'events_' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Eva',
+            'last_name' => 'Terminlein',
+            'is_active' => 1,
+        ]);
+
         $_SESSION = [
-            'user_id' => 1,
+            'user_id' => (int) $this->sessionUser->id,
             'can_manage_users' => true,
             'can_manage_events' => true,
         ];
-
-        self::$capsule?->connection()->beginTransaction();
     }
 
     protected function tearDown(): void
@@ -1160,7 +1173,7 @@ class EventFeatureTest extends TestCase
     {
         $this->createEvent('Probe-Termin', '+3 days');
 
-        $token = (new CalendarSubscriptionService())->getOrCreateTokenForUser(1);
+        $token = (new CalendarSubscriptionService())->getOrCreateTokenForUser((int) $this->sessionUser->id);
         $response = $this->renderEventCalendarExport($token);
 
         $this->assertSame(200, $response->getStatusCode());

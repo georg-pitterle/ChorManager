@@ -1,3 +1,27 @@
+/**
+ * Baut ein minimales HTML-Dokument für den eingebetteten Vorschau-Rahmen, wenn preview-render
+ * fehlschlägt. Die Fehlermeldung stammt aus der JSON-Antwort des Endpunkts (statische, vom
+ * Server formulierte Texte) oder fällt auf einen Standardtext zurück; textContent entschärft
+ * sie in jedem Fall, bevor sie ins Markup wandert.
+ */
+function errorPreviewDocument(responseText) {
+    let message = "Vorschau konnte nicht geladen werden.";
+
+    try {
+        const data = JSON.parse(responseText);
+        if (data && typeof data.error === "string" && data.error !== "") {
+            message = data.error;
+        }
+    } catch (_error) {
+        // Antwort war kein JSON, Standardmeldung bleibt bestehen.
+    }
+
+    const paragraph = document.createElement("p");
+    paragraph.textContent = message;
+
+    return `<!DOCTYPE html><html lang="de"><body>${paragraph.outerHTML}</body></html>`;
+}
+
 function initNewsletterEdit() {
     const editForm = document.getElementById("edit-newsletter-form");
     const sendForm = document.getElementById("send-form");
@@ -401,34 +425,33 @@ function initNewsletterEdit() {
         });
     }
 
+    // Öffnet das Vorschaufenster über dem Editor. Im klassischen Seitenaufruf erledigen das
+    // die data-bs-Attribute am Knopf; im Modal-Weg gibt es sie nicht, weil das Fenster sonst
+    // innerhalb des Bearbeiten-Modals läge. Wer die Vorschau schließt, steht wieder im Editor,
+    // mit allen noch nicht gespeicherten Änderungen.
+    function openPreviewOverlay() {
+        if (!isModalView) {
+            return;
+        }
+
+        const previewModal = document.getElementById("previewModal");
+        if (!previewModal || !window.bootstrap || !window.bootstrap.Modal) {
+            return;
+        }
+
+        if (previewModal.parentElement !== document.body) {
+            document.body.appendChild(previewModal);
+        }
+
+        window.bootstrap.Modal.getOrCreateInstance(previewModal).show();
+    }
+
     if (previewButton) {
         previewButton.addEventListener("click", function () {
             const recipientSelect = document.getElementById("preview-recipient");
 
-            if (isModalView && newsletterId && typeof window.newsletterModalNavigate === "function") {
-                // Die gespeicherte Vorschau akzeptiert und prüft recipient_id bereits serverseitig;
-                // ohne diesen Parameter zeigt sie immer die eigenen Daten der Sitzung an, wodurch das
-                // Auswahlfeld "Vorschau für" auf dem Modal-Weg wirkungslos bliebe.
-                const selectedRecipientId = recipientSelect ? recipientSelect.value : "";
-                const recipientQuery = selectedRecipientId
-                    ? `&recipient_id=${encodeURIComponent(selectedRecipientId)}`
-                    : "";
-                window.newsletterModalNavigate(
-                    `/newsletters/${newsletterId}/preview?modal=1${recipientQuery}`,
-                    "Newsletter Vorschau"
-                );
-                return;
-            }
-
-            const previewTitle = document.getElementById("preview-modal-title");
-            const previewProject = document.getElementById("preview-modal-project");
-            const previewContent = document.getElementById("preview-modal-content");
+            const previewFrame = document.getElementById("preview-modal-frame");
             const editor = typeof tinymce !== "undefined" ? tinymce.get("content_html") : null;
-
-            if (previewProject && projectSelect) {
-                const selectedProject = projectSelect.options[projectSelect.selectedIndex];
-                previewProject.textContent = selectedProject ? selectedProject.textContent.trim() : "";
-            }
 
             const body = new FormData();
             body.set("title", titleInput && titleInput.value ? titleInput.value : "Ohne Titel");
@@ -437,6 +460,12 @@ function initNewsletterEdit() {
             if (csrfToken) {
                 body.set("_csrf", csrfToken);
             }
+
+            // Im Modal-Weg trägt der Knopf keine data-bs-Attribute, sonst läge das
+            // Vorschaufenster im DOM des Bearbeiten-Modals und würde von dessen Fokusfalle und
+            // Hintergrund verdeckt. Es wird deshalb einmalig an das body-Element gehängt und
+            // von Hand geöffnet - der Editor bleibt darunter unangetastet stehen.
+            openPreviewOverlay();
 
             fetch(`/newsletters/${newsletterId}/preview-render`, {
                 method: "POST",
@@ -447,31 +476,22 @@ function initNewsletterEdit() {
                 body: body
             })
                 .then(function (response) {
-                    return response.json().then(function (data) {
-                        return { ok: response.ok, data: data };
+                    return response.text().then(function (text) {
+                        return { ok: response.ok, text: text };
                     });
                 })
                 .then(function (result) {
-                    if (!result.ok) {
-                        if (previewContent) {
-                            previewContent.textContent = (result.data && result.data.error)
-                                || "Vorschau konnte nicht geladen werden.";
-                        }
+                    if (!previewFrame) {
                         return;
                     }
 
-                    const data = result.data;
-                    if (previewTitle) {
-                        previewTitle.textContent = data.title || "Ohne Titel";
-                    }
-
-                    if (previewContent) {
-                        previewContent.innerHTML = data.content_html || "";
-                    }
+                    previewFrame.srcdoc = result.ok
+                        ? result.text
+                        : errorPreviewDocument(result.text);
                 })
                 .catch(function () {
-                    if (previewContent) {
-                        previewContent.textContent = "Vorschau konnte nicht geladen werden.";
+                    if (previewFrame) {
+                        previewFrame.srcdoc = errorPreviewDocument("");
                     }
                 });
         });

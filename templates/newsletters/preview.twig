@@ -41,8 +41,12 @@
                             </p>
                         {% endif %}
                     </div>
-                    <div class="card-body">
-                        <div class="newsletter-content newsletter-content-preview">{{ preview_content_html|raw }}</div>
+                    <div class="card-body p-0">
+                        <iframe src="{{ preview_frame_url }}"
+                                class="newsletter-preview-frame"
+                                title="Newsletter-Vorschau"
+                                sandbox=""
+                                loading="lazy"></iframe>
                     </div>
                     <div class="card-footer">
                         <div class="text-muted text-center">

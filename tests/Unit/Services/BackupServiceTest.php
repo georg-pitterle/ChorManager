@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Models\RememberLogin;
+use App\Models\User;
 use App\Services\BackupLimitReachedException;
 use App\Services\BackupService;
 use PHPUnit\Framework\TestCase;
@@ -162,8 +163,19 @@ final class BackupServiceTest extends TestCase
 
     public function testRestoreInvalidatesAllRememberLoginTokens(): void
     {
+        // Eigene Person statt der fest angenommenen Kennung 1: remember_logins hängt per
+        // Fremdschlüssel an users, auf einer frisch aufgesetzten Datenbank schlägt das Anlegen
+        // sonst mit einer Integritätsverletzung fehl.
+        $user = User::create([
+            'email' => 'backup_' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Bea',
+            'last_name' => 'Sicherung',
+            'is_active' => 1,
+        ]);
+
         RememberLogin::create([
-            'user_id' => 1,
+            'user_id' => (int) $user->id,
             'selector' => bin2hex(random_bytes(9)),
             'token_hash' => password_hash('irrelevant', PASSWORD_DEFAULT),
             'expires_at' => date('Y-m-d H:i:s', time() + 86400),

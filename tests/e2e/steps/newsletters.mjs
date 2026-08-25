@@ -327,10 +327,11 @@ export async function saveOpenNewsletterDraft(page, newsletterId) {
 
 /**
  * Öffnet die Vorschau auf der Bearbeiten-SEITE (nicht im Modal) für eine bestimmte empfangende
- * Person und liefert den sichtbaren Vorschautext. Nur auf der echten Seite läuft der
- * Vorschau-Knopf über den fetch-Weg (#previewModal, /newsletters/{id}/preview-render) - im
- * Modal navigiert derselbe Knopf stattdessen auf eine andere, serverseitig gerenderte Ansicht
- * (public/js/newsletters-edit.js: window.newsletterModalNavigate).
+ * Person und liefert den sichtbaren Vorschautext aus dem eingebetteten Rahmen. Nur auf der
+ * echten Seite läuft der Vorschau-Knopf über den fetch-Weg (#previewModal,
+ * /newsletters/{id}/preview-render), dessen fertiges Mail-HTML als srcdoc des Rahmens
+ * #preview-modal-frame landet - im Modal navigiert derselbe Knopf stattdessen auf eine andere,
+ * serverseitig gerenderte Ansicht (public/js/newsletters-edit.js: window.newsletterModalNavigate).
  */
 export async function previewOpenNewsletterFor(page, recipientFirstName) {
     const option = page.locator('#preview-recipient option', { hasText: recipientFirstName });
@@ -340,9 +341,9 @@ export async function previewOpenNewsletterFor(page, recipientFirstName) {
     await page.click('#preview-btn');
     const previewModal = page.locator('#previewModal');
     await previewModal.waitFor({ state: 'visible', timeout: MODAL_CONTENT_TIMEOUT });
-    const content = page.locator('#preview-modal-content');
-    await expect(content).not.toBeEmpty({ timeout: MODAL_CONTENT_TIMEOUT });
-    const text = (await content.innerText()).trim();
+    const frameBody = page.frameLocator('#preview-modal-frame').locator('body');
+    await expect(frameBody).not.toBeEmpty({ timeout: MODAL_CONTENT_TIMEOUT });
+    const text = (await frameBody.innerText()).trim();
 
     // Auf der Bearbeiten-SEITE öffnet der Vorschau-Knopf ein echtes Bootstrap-Modal
     // (data-bs-toggle="modal"), das nach dem Lesen offen bliebe und mit seinem Backdrop jeden

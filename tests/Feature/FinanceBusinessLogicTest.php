@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\FinanceController;
 use App\Models\Attachment;
 use App\Models\Finance;
+use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\Setting;
 use App\Services\BankStatementImportService;
@@ -74,6 +75,19 @@ final class FinanceBusinessLogicTest extends TestCase
     {
         parent::setUp();
         self::$capsule?->connection()->beginTransaction();
+
+        // Ohne Bargeldkonto findet der Controller kein Ziel für die Buchung und bricht mit einer
+        // Meldung ab, statt zu speichern. Auf einer frisch aufgesetzten Datenbank gibt es keins,
+        // deshalb legt der Test es selbst an, statt auf Seed-Daten zu hoffen.
+        FinanceAccount::firstOrCreate(
+            ['type' => FinanceAccount::TYPE_CASH, 'name' => 'Kassa (Test)'],
+            [
+                'opening_balance' => 0,
+                'opening_date' => '2020-01-01',
+                'is_active' => true,
+                'sort_order' => 0,
+            ]
+        );
     }
 
     protected function tearDown(): void

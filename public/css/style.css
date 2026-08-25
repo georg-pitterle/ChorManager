@@ -1196,37 +1196,12 @@ a:hover {
     border-left-color: transparent !important;
 }
 
-/* Newsletter HTML-content preview area */
-.newsletter-content-preview {
-    background-color: #f8f9fa;
-    padding: 20px;
-    border-radius: 4px;
-}
-
-.newsletter-content img {
-    max-width: 100%;
-    height: auto;
-}
-
-.newsletter-content table {
+/* Newsletter-Vorschau: eingebetteter Rahmen zeigt dieselbe Mail-Hülle wie der Versand */
+.newsletter-preview-frame {
+    display: block;
     width: 100%;
-    border-collapse: collapse;
-}
-
-.newsletter-content table,
-.newsletter-content th,
-.newsletter-content td {
-    border: 1px solid #ddd;
-}
-
-.newsletter-content th,
-.newsletter-content td {
-    padding: 12px;
-    text-align: left;
-}
-
-.newsletter-content th {
-    background-color: #f2f2f2;
+    min-height: 70vh;
+    border: 0;
 }
 
 /* Newsletter action modal: almost full width, but capped at 1200px */

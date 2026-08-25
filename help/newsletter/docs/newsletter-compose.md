@@ -113,6 +113,23 @@ Personen, die für diesen Newsletter tatsächlich als Empfänger aufgelöst wurd
 dann deren Werte. Ohne Auswahl siehst du deine eigenen Daten. Der Knopf **Testmail** schickt den
 aktuellen Stand an deine eigene Adresse, ohne die Empfängerliste zu berühren.
 
+## Textgestaltung
+
+Farben und Schriftgrößen frei zu setzen ist bewusst nicht möglich — sonst sähe jede Aussendung
+anders aus. Stattdessen gibt es fünf fertige Formate unter **Format → Formate**. Markiere den
+Absatz und wähle eines davon:
+
+| Format | Wofür |
+|---|---|
+| Einleitung (hervorgehoben) | Der erste Absatz, etwas größer und kräftiger |
+| Nebentext (gedämpft) | Anmerkungen, die nicht ins Auge springen sollen |
+| Zwischenüberschrift in Markenfarbe | Gliedert lange Aussendungen, in der Farbe des Chores |
+| Zentriert | Für einzelne Zeilen, etwa einen Termin oder einen Aufruf |
+| Hinweiskasten | Hebt Wichtiges auf ruhiger Fläche hervor |
+
+Kopierst du Text aus einem anderen Programm hinein, bleiben dessen Farben und Schriftarten nicht
+erhalten. Das ist Absicht: In der Mail zählt, was auch in älteren E-Mail-Programmen ankommt.
+
 **Tippfehler.** Ein unbekannter Platzhalter wie `{{vorrname}}` wird nicht ersetzt, sondern bleibt
 im Text stehen. Beim Speichern erscheint dazu ein Hinweis mit den betroffenen Platzhaltern.
 
