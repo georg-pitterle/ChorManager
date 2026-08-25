@@ -27,7 +27,12 @@ DB_PORT="3306"
 # PHP-Erweiterungen, die das Projekt braucht: pdo_mysql für Eloquent und Phinx,
 # sqlite3 für die Tests mit In-Memory-Datenbank, der Rest für PDF, Mail und Twig.
 # sodium ist in die sury-Binary eingebaut und braucht kein eigenes Paket.
-PHP_EXTENSION_SUFFIXES=(cli common curl gd intl mbstring mysql opcache readline sqlite3 xml zip)
+PHP_REQUIRED_SUFFIXES=(cli common curl gd intl mbstring mysql sqlite3 xml zip)
+
+# Angenehm, aber nicht notwendig - und nicht in jeder Version einzeln paketiert:
+# php8.4-opcache gibt es, php8.5-opcache nicht (dort steckt OPcache schon drin).
+# Deshalb werden diese übersprungen, wenn die Zielversion sie nicht kennt.
+PHP_OPTIONAL_SUFFIXES=(opcache readline)
 
 # Quelle, aus der schon das mitgelieferte PHP 8.4 stammt. Wird nur zur Diagnose
 # angefragt, wenn die Installation scheitert.
@@ -119,12 +124,29 @@ composer_platform_args=()
 
 install_php_version() {
     local version="$1"
-    local packages=() suffix
-    for suffix in "${PHP_EXTENSION_SUFFIXES[@]}"; do
+    local packages=() skipped=() suffix package
+
+    ensure_apt_updated
+
+    for suffix in "${PHP_REQUIRED_SUFFIXES[@]}"; do
         packages+=("php${version}-${suffix}")
     done
 
-    ensure_apt_updated
+    # Optionale Pakete nur mitnehmen, wenn es sie für diese Version gibt - sonst
+    # bricht apt am ersten unbekannten Namen ab und das ganze Upgrade fällt aus.
+    for suffix in "${PHP_OPTIONAL_SUFFIXES[@]}"; do
+        package="php${version}-${suffix}"
+        if apt-cache show "$package" >/dev/null 2>&1; then
+            packages+=("$package")
+        else
+            skipped+=("$package")
+        fi
+    done
+
+    if [ "${#skipped[@]}" -gt 0 ]; then
+        log "Nicht paketiert für PHP ${version}, wird übersprungen: ${skipped[*]}"
+    fi
+
     if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${packages[@]}" \
         >"$LOG_DIR/php-upgrade-session-start.log" 2>&1; then
         return 1
