@@ -1,4 +1,5 @@
 <?php
+
 use Phinx\Migration\AbstractMigration;
 
 class CreateMailQueueTable extends AbstractMigration
@@ -6,7 +7,7 @@ class CreateMailQueueTable extends AbstractMigration
     public function change()
     {
         $table = $this->table('mail_queue', ['id' => false, 'primary_key' => ['id']]);
-        
+
         $table
             ->addColumn('id', 'biginteger', ['signed' => false, 'identity' => true])
             ->addColumn('mail_type', 'enum', ['values' => ['newsletter', 'invitation', 'password_reset']])

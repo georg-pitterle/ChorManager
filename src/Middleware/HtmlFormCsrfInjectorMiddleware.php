@@ -29,9 +29,8 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
         }
 
         $response = $handler->handle($request);
-        $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
-        if ($contentType !== '' && !str_contains($contentType, 'text/html')) {
+        if (!$this->isRewritableHtml($response)) {
             return $response;
         }
 
@@ -103,5 +102,26 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
         }
 
         return $response;
+    }
+
+    /**
+     * Entscheidet, ob der Rumpf überhaupt eingelesen und umgeschrieben werden darf.
+     *
+     * Eine fehlende Typangabe bedeutet hier "Seite": `Slim\Views\Twig::render()`
+     * schreibt nur in den Rumpf und setzt keinen `Content-Type`, deshalb kommt die
+     * überwiegende Mehrheit der gerenderten Seiten ohne Kopfzeile an. Diesen Fall zu
+     * überspringen würde jedem Formular der Anwendung den Token nehmen. Ausgeschlossen
+     * werden stattdessen die Antworten, die erkennbar keine Seite sind: ein gesetzter
+     * Nicht-HTML-Typ und jede Auslieferung mit `Content-Disposition` - dort ist der
+     * Rumpf eine Datei, die sonst nur zum Verwerfen vollständig in den Speicher ginge.
+     */
+    private function isRewritableHtml(Response $response): bool
+    {
+        $contentType = strtolower($response->getHeaderLine('Content-Type'));
+        if ($contentType !== '' && !str_contains($contentType, 'text/html')) {
+            return false;
+        }
+
+        return !$response->hasHeader('Content-Disposition');
     }
 }

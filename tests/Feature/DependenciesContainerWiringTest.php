@@ -18,9 +18,11 @@ use App\Logging\DatabaseWriteLogger;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Persistence\UserPersistence;
+use App\Services\BackupService;
 use App\Services\Mailer;
 use App\Services\MailCredentialCryptoService;
 use App\Services\RememberLoginService;
+use App\Services\SessionInvalidationService;
 use DI\Container;
 use DI\ContainerBuilder;
 use Monolog\Logger;
@@ -256,6 +258,24 @@ final class DependenciesContainerWiringTest extends TestCase
 
         $this->assertInstanceOf(FinanceController::class, $controller);
         $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
+    }
+
+    /**
+     * BackupService baut den SessionInvalidationService notfalls selbst (Vorgabewert
+     * im Konstruktor), damit die bestehenden Aufrufstellen mit neun Argumenten
+     * gültig bleiben. Genau das kann eine fehlende Container-Verdrahtung verdecken:
+     * Die Sperre liefe dann still mit einem NullLogger statt mit dem echten.
+     */
+    public function testBackupServiceResolvesWithTheContainerBuiltSessionInvalidation(): void
+    {
+        $container = $this->buildContainer();
+
+        $service = $container->get(BackupService::class);
+        $this->assertInstanceOf(BackupService::class, $service);
+
+        $sessionInvalidation = $this->propertyOf($service, 'sessionInvalidation');
+        $this->assertInstanceOf(SessionInvalidationService::class, $sessionInvalidation);
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($sessionInvalidation));
     }
 
     public function testProfileControllerResolvesWithRealLogger(): void

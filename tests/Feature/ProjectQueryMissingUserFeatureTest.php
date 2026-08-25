@@ -16,7 +16,8 @@ use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
 
 /**
- * Die Id-Listen der Query-Schicht müssen ein unbekanntes Mitglied verkraften.
+ * Die Id-Listen der Query- und Policy-Schicht müssen ein unbekanntes Mitglied
+ * verkraften.
  *
  * Zeigt die Session auf ein Konto, das es nicht mehr gibt - gelöschtes Mitglied,
  * Session aus einem anderen Datenbestand -, darf die Projektliste nicht mit
@@ -140,20 +141,6 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testProjectIdsOfAMemberComeBackAsIntegers(): void
-    {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $this->assertSame([self::OWN_PROJECT], $query->getUserProjectIds(self::MEMBER_ID));
-    }
-
-    public function testUnknownMemberHasNoProjectIds(): void
-    {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $this->assertSame([], $query->getUserProjectIds(self::DELETED_USER_ID));
-    }
-
     public function testVoiceGroupIdsOfAMemberComeBackAsIntegers(): void
     {
         $query = new ProjectQuery(new NameFormatterService());
@@ -165,16 +152,6 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
      * Ab der zweiten Id greift die Umwandlung auf einen anderen Schlüssel zu -
      * genau dort verrutschte eine Zahlenbasis-basierte Umwandlung.
      */
-    public function testEveryProjectIdOfAMultiProjectMemberSurvivesTheConversion(): void
-    {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $ids = $query->getUserProjectIds(self::MULTI_PROJECT_MEMBER_ID);
-        sort($ids);
-
-        $this->assertSame([self::OWN_PROJECT, self::FOREIGN_PROJECT], $ids);
-    }
-
     public function testEveryVoiceGroupIdOfAMemberWithTwoVoiceGroupsSurvivesTheConversion(): void
     {
         $query = new ProjectQuery(new NameFormatterService());
@@ -192,29 +169,36 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
         $this->assertSame([], $query->getUserVoiceGroupIds(self::DELETED_USER_ID));
     }
 
-    public function testIndexMarksTheOwnProjectsOfTheLoggedInMember(): void
+    public function testIndexListsTheOwnProjectsOfAVoiceGroupScopedMember(): void
     {
         $_SESSION['user_id'] = self::MEMBER_ID;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderIndex();
 
-        $this->assertSame([self::OWN_PROJECT], $data['userProjectIds']);
+        $this->assertCount(2, $data['projects']);
+        $this->assertSame([self::OWN_PROJECT], $data['memberManagedProjectIds']);
     }
 
     public function testIndexRendersWhenTheSessionUserNoLongerExists(): void
     {
         $_SESSION['user_id'] = self::DELETED_USER_ID;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderIndex();
 
-        $this->assertSame([], $data['userProjectIds']);
+        $this->assertCount(2, $data['projects']);
+        $this->assertSame([], $data['memberManagedProjectIds']);
     }
 
     public function testIndexRendersWithoutAUserIdInTheSession(): void
     {
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
+
         $data = $this->renderIndex();
 
-        $this->assertSame([], $data['userProjectIds']);
+        $this->assertCount(2, $data['projects']);
+        $this->assertSame([], $data['memberManagedProjectIds']);
     }
 
     /**

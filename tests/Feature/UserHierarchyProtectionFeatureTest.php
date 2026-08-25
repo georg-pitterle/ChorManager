@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -95,7 +94,6 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         return new UserController(
             $this->createStub(Twig::class),
             $userQuery,
-            $this->createStub(ProjectQuery::class),
             $userPersistence,
             $projectPersistence,
             $this->createStub(MailQueueService::class),

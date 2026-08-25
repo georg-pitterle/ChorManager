@@ -31,7 +31,26 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             $response = $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        return $response;
+        return $this->applyCachePolicy($response);
+    }
+
+    /**
+     * Die Zwischenspeicherung entscheidet die Route, nicht diese Middleware: Wer
+     * etwas ausliefert, das zwischengespeichert werden darf, setzt `Cache-Control`
+     * selbst (etwa die Hilfe-Anhänge mit `public, max-age=86400`). Alles andere -
+     * und das ist jede Seite hinter der Anmeldung - bekommt hier `no-store`, damit
+     * Mitgliederdaten weder im Verlauf noch in einem Zwischenspeicher liegen
+     * bleiben, wenn ein Gerät später jemand anderem gehört.
+     */
+    private function applyCachePolicy(Response $response): Response
+    {
+        if ($response->hasHeader('Cache-Control')) {
+            return $response;
+        }
+
+        return $response
+            ->withHeader('Cache-Control', 'no-store, max-age=0')
+            ->withHeader('Pragma', 'no-cache');
     }
 
     /**

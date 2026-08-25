@@ -8,7 +8,10 @@ final class AddCanManageBudgetToRoles extends AbstractMigration
 {
     public function up(): void
     {
-        $this->execute("ALTER TABLE roles ADD COLUMN can_manage_budget TINYINT(1) NOT NULL DEFAULT 0 AFTER can_manage_sheet_archive;");
+        $this->execute(
+            "ALTER TABLE roles
+             ADD COLUMN can_manage_budget TINYINT(1) NOT NULL DEFAULT 0 AFTER can_manage_sheet_archive;"
+        );
     }
 
     public function down(): void

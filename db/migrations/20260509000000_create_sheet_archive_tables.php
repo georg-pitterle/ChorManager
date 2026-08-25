@@ -26,7 +26,8 @@ final class CreateSheetArchiveTables extends AbstractMigration
             sort_order int(11) NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
             KEY sheet_archive_line_items_archive_id_idx (sheet_archive_id),
-            CONSTRAINT sheet_archive_line_items_archive_fk FOREIGN KEY (sheet_archive_id) REFERENCES sheet_archives (id) ON DELETE CASCADE
+            CONSTRAINT sheet_archive_line_items_archive_fk FOREIGN KEY (sheet_archive_id)
+                REFERENCES sheet_archives (id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
     }
 

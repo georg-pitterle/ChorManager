@@ -102,13 +102,15 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% set seen_ids = [] %}
                             {% for m in members %}
                                 <tr data-sort-member_name="{{ m|person_name|lower }}"
                                     data-sort-email="{{ m.email|lower }}"
                                     data-sort-voice="{{ m.voice_groups_display|default('')|lower }}">
                                     <td data-label="Name">
                                         <strong>{{ m|person_name }}</strong>
+                                        {% if not m.is_active|default(true) %}
+                                            <span class="badge text-bg-secondary ms-1">Archiviert</span>
+                                        {% endif %}
                                     </td>
                                     <td data-label="E-Mail">{{ m.email }}</td>
                                     <td data-label="Stimmgruppe / Teilstimme">{{ m.voice_groups_display|default('-') }}</td>

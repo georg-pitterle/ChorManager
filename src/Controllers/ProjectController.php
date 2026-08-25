@@ -58,10 +58,6 @@ class ProjectController
     public function index(Request $request, Response $response): Response
     {
         $projects = $this->projectQuery->getAllProjects();
-        // Über die Query-Schicht, nicht über das Model: ein direktes
-        // User::find(...)->projects() bricht mit einem Fatal Error ab, sobald die
-        // Session auf ein Konto zeigt, das es nicht mehr gibt.
-        $userProjectIds = $this->projectQuery->getUserProjectIds((int) ($_SESSION['user_id'] ?? 0));
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -69,7 +65,6 @@ class ProjectController
 
         return $this->view->render($response, 'projects/index.twig', [
             'projects' => $projects,
-            'userProjectIds' => $userProjectIds,
             // Die Liste spiegelt die Policy: das breite Recht erreicht jedes Projekt,
             // das stimmgruppen-beschränkte nur die eigenen. So bietet die Oberfläche
             // keinen Mitglieder-Link an, der im 403 endet.
@@ -189,6 +184,9 @@ class ProjectController
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'voice_groups_display' => implode(', ', array_unique($vgDisplays)),
+                // Archivierte Mitglieder bleiben in der Liste, damit sie sich
+                // entfernen lassen - die Oberfläche kennzeichnet sie.
+                'is_active' => (bool) $user->is_active,
                 'can_remove' => $this->policy->canManageMember($projectId, $memberVoiceGroupIds),
             ];
         });

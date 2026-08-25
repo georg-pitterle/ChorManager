@@ -39,6 +39,48 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $this->assertStringContainsString((string) $_SESSION[Csrf::SESSION_KEY], $body);
     }
 
+    public function testInjectsIntoResponsesWithoutContentTypeBecauseTwigSetsNone(): void
+    {
+        $_SESSION = [];
+
+        $middleware = new HtmlFormCsrfInjectorMiddleware();
+        $request = $this->createStub(ServerRequestInterface::class);
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                // Genau so kommt eine gerenderte Seite an: Slim\Views\Twig::render()
+                // schreibt nur in den Rumpf und setzt keinen Content-Type.
+                $response = new Response();
+                $response->getBody()->write('<form action="/profile" method="post"><button>Save</button></form>');
+                return $response;
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertStringContainsString('name="_csrf"', (string) $response->getBody());
+    }
+
+    public function testSkipsDownloadsAnnouncedByContentDisposition(): void
+    {
+        $_SESSION = [];
+
+        $middleware = new HtmlFormCsrfInjectorMiddleware();
+        $request = $this->createStub(ServerRequestInterface::class);
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $response = new Response();
+                $response->getBody()->write('<form method="post">Bericht</form>');
+                return $response->withHeader('Content-Disposition', 'attachment; filename="report.html"');
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertStringNotContainsString('name="_csrf"', (string) $response->getBody());
+    }
+
     public function testDoesNotInjectIntoGetFormCarryingADataMethodAttribute(): void
     {
         $_SESSION = [];

@@ -58,13 +58,20 @@ class ProjectQuery
         return $project ? (int) $project->id : 0;
     }
 
+    /**
+     * Alle dem Projekt zugeordneten Mitglieder, archivierte eingeschlossen.
+     *
+     * Ein Filter auf is_active würde ein archiviertes Mitglied unsichtbar machen,
+     * ohne die Zuordnung zu lösen: als Kandidat erscheint es ebenfalls nicht, weil
+     * getUsersNotInProject() bereits Zugeordnete ausblendet. Es hinge damit still
+     * am Projekt und ließe sich über die Oberfläche nicht mehr entfernen.
+     */
     public function getProjectMembers(int $projectId): Collection
     {
         $query = User::select(User::LIST_COLUMNS)
             ->whereHas('projects', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);
             })
-            ->where('is_active', 1)
             ->with([
                 'voiceGroups' => function ($query) {
                     $query->select('voice_groups.id', 'voice_groups.name')
@@ -104,6 +111,10 @@ class ProjectQuery
      * project assignment right, where the candidate list must not leak members
      * of foreign voice groups. An empty voice group list yields no candidates.
      *
+     * Archivierte Mitglieder der eigenen Stimmgruppe stehen hier bewusst mit in der
+     * Auswahl: die Zuordnung reaktiviert sie (siehe ProjectPersistence::addProjectMember()),
+     * und das ist auch fuer dieses eingeschraenkte Recht so gewollt.
+     *
      * @param array<int> $voiceGroupIds
      */
     public function getUsersNotInProjectForVoiceGroups(int $projectId, array $voiceGroupIds): Collection
@@ -127,29 +138,13 @@ class ProjectQuery
     }
 
     /**
-     * The project ids a single user belongs to. A missing user yields [].
-     *
-     * Die Projektliste markiert damit die eigenen Projekte und muss auch dann
-     * noch rendern, wenn die Session auf ein gelöschtes Konto zeigt.
-     *
-     * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
-     * Projektmodelle selbst nicht gebraucht.
-     *
-     * @return array<int>
-     */
-    public function getUserProjectIds(int $userId): array
-    {
-        $user = User::select(['id'])->find($userId);
-        if (!$user) {
-            return [];
-        }
-
-        return self::toIntList($user->projects()->pluck('projects.id'));
-    }
-
-    /**
      * The voice group ids a single user belongs to. Used to authorize
      * voice-group-scoped project member changes. A missing user yields [].
+     *
+     * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
+     * Stimmgruppen-Modelle selbst nicht gebraucht. Ein fehlendes Konto darf
+     * nicht durchschlagen - zeigt die Session auf ein gelöschtes Mitglied,
+     * bräche ein direktes User::find(...)->voiceGroups() mit einem Fatal Error ab.
      *
      * @return array<int>
      */
