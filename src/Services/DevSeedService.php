@@ -9,6 +9,7 @@ use App\Models\Activity;
 use App\Models\Attendance;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
+use App\Models\CalendarSubscriptionToken;
 use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventAudienceSource;
@@ -33,6 +34,7 @@ use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Services\BackupService;
+use App\Services\CalendarSubscriptionService;
 use App\Services\FinanceJournalService;
 use App\Models\Setting;
 use App\Models\Song;
@@ -158,6 +160,7 @@ class DevSeedService
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
                 'mail_queue' => 0,
+                'calendar_subscription_tokens' => 0,
                 'backups' => 0,
             ],
         ];
@@ -175,6 +178,8 @@ class DevSeedService
 
             $users = $this->seedUsers($roles, $voiceData);
             $this->buildCredentialsByRoleReport($users['credentials_candidates']);
+
+            $this->seedCalendarSubscriptionTokens($users['active']);
 
             $projects = $this->seedProjects($years);
             $projectMembers = $this->seedProjectMembers($projects, $users['active'], $users['archived']);
@@ -260,6 +265,7 @@ class DevSeedService
             'repertoire_categories',
             'remember_logins',
             'password_resets',
+            'calendar_subscription_tokens',
             'sponsoring_contacts',
             'sponsorships',
             'sponsors',
@@ -938,6 +944,47 @@ class DevSeedService
      * @param array<string, \App\Models\Role> $roles
      * @param array{groups: array<string, \App\Models\VoiceGroup>, subs: mixed} $voiceData
      */
+    /**
+     * Legt zwei Kalender-Abos an, damit in Dev beide Wege sichtbar sind:
+     *
+     * - Ein Altbestand-Abo im Klartext, wie es vor Migration 20260825120300
+     *   entstanden ist. Nur an diesem lässt sich prüfen, dass alte Abos weiter
+     *   funktionieren und ihre Adresse weiterhin angezeigt wird.
+     * - Ein aktuelles Abo, das nur als Prüfsumme vorliegt. Dort zeigt die
+     *   Oberfläche das Neuerzeugen statt der Adresse.
+     *
+     * @param array<int, \App\Models\User> $activeUsers
+     */
+    private function seedCalendarSubscriptionTokens(array $activeUsers): void
+    {
+        $users = array_values($activeUsers);
+        if ($users === []) {
+            return;
+        }
+
+        $legacyToken = bin2hex(random_bytes(32));
+        CalendarSubscriptionToken::create([
+            'user_id' => (int) $users[0]->id,
+            'token' => $legacyToken,
+            'token_hash' => null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->report['counts']['calendar_subscription_tokens']++;
+        $this->report['calendar_subscription']['legacy_url'] = '/events/export/' . $legacyToken . '.ics';
+
+        if (!isset($users[1])) {
+            return;
+        }
+
+        CalendarSubscriptionToken::create([
+            'user_id' => (int) $users[1]->id,
+            'token' => null,
+            'token_hash' => CalendarSubscriptionService::hashToken(bin2hex(random_bytes(32))),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->report['counts']['calendar_subscription_tokens']++;
+    }
+
     private function seedEventAudienceSources(array $projectEvents, array $roles, array $voiceData): void
     {
         $voiceGroupIds = array_values(array_map(

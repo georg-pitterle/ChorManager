@@ -24,7 +24,7 @@
                     <i class="bi bi-calendar3"></i> Kalender
                 </a>
             </div>
-            {% if calendar_subscription_url %}
+            {% if calendar_subscription %}
                 <button type="button"
                         class="btn btn-outline-secondary me-2"
                         data-bs-toggle="modal"
@@ -124,33 +124,11 @@
             </div>
         </section>
 
-        {% if calendar_subscription_url %}
-            <div class="modal fade" id="calendarSubscriptionModal" tabindex="-1" aria-labelledby="calendarSubscriptionModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content border-0 shadow-sm">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="calendarSubscriptionModalLabel">Kalender abonnieren</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p class="mb-3">Kopiere den persönlichen Kalenderlink in deine Kalender-App oder füge ihn als URL-Abonnement hinzu.</p>
-                            <div class="input-group">
-                                <input id="calendarSubscriptionUrlInput"
-                                       type="text"
-                                       class="form-control"
-                                       value="{{ calendar_subscription_url }}"
-                                       readonly>
-                                <button id="copyCalendarSubscriptionUrl" type="button" class="btn btn-outline-secondary">
-                                    <i class="bi bi-clipboard"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        {% if calendar_subscription %}
+            {{ include("partials/calendar_subscription_modal.twig", {
+                calendar_subscription: calendar_subscription,
+                redirect_to: "/events",
+            }, with_context: false) }}
         {% endif %}
 
         {% if view_mode == 'list' %}
@@ -517,8 +495,5 @@
         <script src="/vendor/fullcalendar/list/index.global.min.js"></script>
         <script src="/vendor/fullcalendar/interaction/index.global.min.js"></script>
         <script src="/js/event-calendar.js"></script>
-    {% endif %}
-    {% if calendar_subscription_url %}
-        {# copy button behavior is handled by /js/events.js #}
     {% endif %}
 {% endblock scripts %}

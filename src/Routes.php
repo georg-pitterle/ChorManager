@@ -148,6 +148,7 @@ return function (App $app) {
 
             // Here we'll add /attendance, etc.
             $group->get('/events', [EventController::class, 'index']);
+            $group->post('/events/calendar-subscription', [EventController::class, 'createSubscription']);
             $group->get('/events/{id:[0-9]+}', [EventController::class, 'detail']);
             $group->post('/events/{id:[0-9]+}/notes', [EventController::class, 'addNote']);
             $group->post('/events/{id:[0-9]+}/notes/{note_id:[0-9]+}/update', [EventController::class, 'updateNote']);

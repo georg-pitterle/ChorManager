@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use Carbon\Carbon;
+use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -46,7 +47,8 @@ final class EventAudienceControllerFeatureTest extends TestCase
     {
         return new EventController(
             Twig::create(dirname(__DIR__, 2) . '/templates'),
-            new NameFormatterService()
+            new NameFormatterService(),
+            new NullLogger()
         );
     }
 

@@ -122,4 +122,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Eine frisch erzeugte Abo-Adresse ist die einzige Gelegenheit, sie zu sehen -
+    // gespeichert ist nur ihre Prüfsumme. Das Fenster geht deshalb von selbst auf,
+    // sobald der Server eine anzeigbare Adresse mitgeschickt hat.
+    var subscriptionModal = document.getElementById('calendarSubscriptionModal');
+    if (subscriptionModal
+        && subscriptionModal.dataset.calendarSubscriptionAutoshow === '1'
+        && window.bootstrap
+        && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(subscriptionModal).show();
+    }
 });
