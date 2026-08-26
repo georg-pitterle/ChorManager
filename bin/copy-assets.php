@@ -65,6 +65,22 @@ function copyAssets(): void
         throw new RuntimeException("Failed to copy $source to $dest");
     }
 
+    $source = 'node_modules/tone/build/Tone.js';
+    $dest = 'public/vendor/tone/Tone.js';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
+
+    $source = 'node_modules/@magenta/music/es6/core.js';
+    $dest = 'public/vendor/magenta-music/core.js';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
+
     $source = 'node_modules/html-midi-player/dist/midi-player.min.js';
     $dest = 'public/vendor/html-midi-player/dist/midi-player.min.js';
 
