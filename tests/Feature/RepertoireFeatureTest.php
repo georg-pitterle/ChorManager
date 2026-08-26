@@ -15,41 +15,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\Bootstrap;
 
 class RepertoireFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
-    public static function setUpBeforeClass(): void
-    {
-        parent::setUpBeforeClass();
-
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
-
-        $schema = $capsule->schema();
-        if (!$schema->hasTable('project_song_assignments')) {
-            $schema->create('project_song_assignments', function ($table): void {
-                $table->increments('id');
-                $table->integer('project_id');
-                $table->integer('song_id');
-                $table->text('note')->nullable();
-                $table->timestamp('created_at')->nullable();
-            });
-        }
-    }
-
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
-        Capsule::table('project_song_assignments')->delete();
+    }
+
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        $_SESSION = [];
+        parent::tearDown();
     }
 
     public function testMigrationForRepertoireTablesExists(): void
@@ -275,9 +263,11 @@ class RepertoireFeatureTest extends TestCase
 
     public function testAssignmentUpdateUpdatesNoteByAssignmentId(): void
     {
+        $projectId = (int) Capsule::table('projects')->insertGetId(['name' => 'Update-Projekt ' . bin2hex(random_bytes(4))]);
+        $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Update-Lied ' . bin2hex(random_bytes(4))]);
         $id = (int) Capsule::table('project_song_assignments')->insertGetId([
-            'project_id' => 101,
-            'song_id' => 202,
+            'project_id' => $projectId,
+            'song_id' => $songId,
             'note' => 'alt',
             'created_at' => '2026-04-21 10:00:00',
         ]);
@@ -290,16 +280,18 @@ class RepertoireFeatureTest extends TestCase
 
         $result = $controller->update($request, $response, ['id' => (string) $id]);
 
-        $this->assertRedirect($result, '/song-library/202');
+        $this->assertRedirect($result, '/song-library/' . $songId);
         $this->assertSame('Zuordnung erfolgreich aktualisiert.', $_SESSION['success']);
         $this->assertSame('neu', Capsule::table('project_song_assignments')->where('id', $id)->value('note'));
     }
 
     public function testAssignmentDeleteRemovesAssignmentById(): void
     {
+        $projectId = (int) Capsule::table('projects')->insertGetId(['name' => 'Delete-Projekt ' . bin2hex(random_bytes(4))]);
+        $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Delete-Lied ' . bin2hex(random_bytes(4))]);
         $id = (int) Capsule::table('project_song_assignments')->insertGetId([
-            'project_id' => 111,
-            'song_id' => 222,
+            'project_id' => $projectId,
+            'song_id' => $songId,
             'note' => 'x',
             'created_at' => '2026-04-21 10:00:00',
         ]);
@@ -310,7 +302,7 @@ class RepertoireFeatureTest extends TestCase
 
         $result = $controller->delete($request, $response, ['id' => (string) $id]);
 
-        $this->assertRedirect($result, '/song-library/222');
+        $this->assertRedirect($result, '/song-library/' . $songId);
         $this->assertSame('Zuordnung erfolgreich geloescht.', $_SESSION['success']);
         $this->assertSame(0, Capsule::table('project_song_assignments')->where('id', $id)->count());
     }

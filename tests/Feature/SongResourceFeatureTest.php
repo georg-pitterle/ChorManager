@@ -9,56 +9,29 @@ use App\Models\Song;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class SongResourceFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
-    public static function setUpBeforeClass(): void
-    {
-        parent::setUpBeforeClass();
-
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
-
-        $schema = $capsule->schema();
-        if (!$schema->hasTable('songs')) {
-            $schema->create('songs', function ($table): void {
-                $table->increments('id');
-                $table->string('title');
-                $table->string('composer')->nullable();
-                $table->string('arranger')->nullable();
-                $table->string('publisher')->nullable();
-                $table->integer('created_by_user_id')->nullable();
-            });
-        }
-
-        if (!$schema->hasTable('song_resources')) {
-            $schema->create('song_resources', function ($table): void {
-                $table->increments('id');
-                $table->integer('song_id');
-                $table->string('resource_type', 32);
-                $table->string('title');
-                $table->text('description')->nullable();
-                $table->string('url', 2048)->nullable();
-                $table->timestamp('created_at')->nullable();
-                $table->timestamp('updated_at')->nullable();
-            });
-        }
-    }
-
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
-        Capsule::table('song_resources')->delete();
-        Capsule::table('songs')->delete();
+    }
+
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        $_SESSION = [];
+        parent::tearDown();
     }
 
     public function testSongResourceMigrationExists(): void

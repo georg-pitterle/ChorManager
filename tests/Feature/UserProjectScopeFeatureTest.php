@@ -5,75 +5,56 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\UserController;
+use App\Models\Role;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
-use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class UserProjectScopeFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /** Rein synthetische Id des Ziel-Mitglieds, nie geladen aus der DB. */
+    private int $targetUserId = 0;
+    private string $targetEmail = '';
+
+    /** Reale Rolle bei hierarchy_level 10, benoetigt fuer die Rollenkappung in update(). */
+    private int $roleId = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+        $suffix = bin2hex(random_bytes(4));
+        $this->targetUserId = random_int(500000, 999999);
+        $this->targetEmail = 'target' . $suffix . '@example.test';
 
-        $schema = $capsule->schema();
-        $schema->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('email');
-            $table->string('password')->nullable();
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
-            $table->boolean('is_active')->default(true);
-        });
-        $schema->create('roles', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->integer('hierarchy_level')->default(0);
-        });
-        $schema->create('projects', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-        });
-        $schema->create('project_users', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('project_id');
-        });
+        $this->roleId = (int) Role::create([
+            'name' => 'Rolle ' . $suffix,
+            'hierarchy_level' => 10,
+        ])->id;
+    }
 
-        Capsule::table('users')->insert([
-            ['id' => 5, 'email' => 'target@example.test'],
-            ['id' => 100, 'email' => 'manager@example.test'],
-        ]);
-        Capsule::table('roles')->insert([
-            ['id' => 1, 'hierarchy_level' => 10],
-        ]);
-        Capsule::table('projects')->insert([
-            ['id' => 2, 'name' => 'Alpha'],
-            ['id' => 3, 'name' => 'Beta'],
-            ['id' => 4, 'name' => 'Gamma'],
-        ]);
-        Capsule::table('project_users')->insert([
-            ['user_id' => 100, 'project_id' => 2],
-            ['user_id' => 100, 'project_id' => 4],
-        ]);
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        $_SESSION = [];
+        parent::tearDown();
     }
 
     /**
@@ -96,10 +77,10 @@ class UserProjectScopeFeatureTest extends TestCase
         $_SESSION['voice_group_ids'] = [];
 
         $targetUser = new User();
-        $targetUser->id = 5;
+        $targetUser->id = $this->targetUserId;
         $targetUser->first_name = 'Target';
         $targetUser->last_name = 'User';
-        $targetUser->email = 'target@example.test';
+        $targetUser->email = $this->targetEmail;
         $targetUser->setRelation('roles', new Collection([]));
         $targetUser->setRelation('voiceGroups', new Collection([]));
 
@@ -108,7 +89,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $userQuery = $this->createMock(UserQuery::class);
         $userQuery->expects($this->once())
             ->method('findById')
-            ->with(5)
+            ->with($this->targetUserId)
             ->willReturn($targetUser);
 
 
@@ -120,7 +101,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->once())
             ->method('setUserProjects')
-            ->with(5, [2, 3, 4]);
+            ->with($this->targetUserId, [2, 3, 4]);
 
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);
@@ -135,24 +116,24 @@ class UserProjectScopeFeatureTest extends TestCase
             new UserEditPolicy()
         );
 
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Gekapert',
             'last_name' => 'Uebernommen',
             'email' => 'angreifer@example.test',
             'password' => '',
-            'roles' => [1],
+            'roles' => [$this->roleId],
             'voice_groups' => [],
             'sub_voices' => [],
             'projects' => [2, 3, 4],
         ]);
         $response = $this->makeResponse();
 
-        $result = $controller->update($request, $response, ['id' => '5']);
+        $result = $controller->update($request, $response, ['id' => (string) $this->targetUserId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Projektzuordnung erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
         $this->assertSame('Target', $targetUser->first_name);
-        $this->assertSame('target@example.test', $targetUser->email);
+        $this->assertSame($this->targetEmail, $targetUser->email);
     }
 
     public function testUpdateDoesNotFilterProjectsForGlobalEditors(): void
@@ -165,10 +146,10 @@ class UserProjectScopeFeatureTest extends TestCase
         $_SESSION['voice_group_ids'] = [];
 
         $targetUser = new User();
-        $targetUser->id = 5;
+        $targetUser->id = $this->targetUserId;
         $targetUser->first_name = 'Target';
         $targetUser->last_name = 'User';
-        $targetUser->email = 'target@example.test';
+        $targetUser->email = $this->targetEmail;
         $targetUser->setRelation('roles', new Collection([]));
         $targetUser->setRelation('voiceGroups', new Collection([]));
 
@@ -177,7 +158,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $userQuery = $this->createMock(UserQuery::class);
         $userQuery->expects($this->once())
             ->method('findById')
-            ->with(5)
+            ->with($this->targetUserId)
             ->willReturn($targetUser);
 
 
@@ -187,7 +168,7 @@ class UserProjectScopeFeatureTest extends TestCase
             ->with($targetUser);
         $userPersistence->expects($this->once())
             ->method('syncRoles')
-            ->with($targetUser, [1]);
+            ->with($targetUser, [$this->roleId]);
         $userPersistence->expects($this->once())
             ->method('syncVoiceGroups')
             ->with($targetUser, []);
@@ -195,7 +176,7 @@ class UserProjectScopeFeatureTest extends TestCase
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->once())
             ->method('setUserProjects')
-            ->with(5, [2, 3, 4]);
+            ->with($this->targetUserId, [2, 3, 4]);
 
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);
@@ -210,19 +191,19 @@ class UserProjectScopeFeatureTest extends TestCase
             new UserEditPolicy()
         );
 
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target@example.test',
+            'email' => $this->targetEmail,
             'password' => '',
-            'roles' => [1],
+            'roles' => [$this->roleId],
             'voice_groups' => [],
             'sub_voices' => [],
             'projects' => [2, 3, 4],
         ]);
         $response = $this->makeResponse();
 
-        $result = $controller->update($request, $response, ['id' => '5']);
+        $result = $controller->update($request, $response, ['id' => (string) $this->targetUserId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);

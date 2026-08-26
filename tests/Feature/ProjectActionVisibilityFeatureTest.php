@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\EvaluationController;
-use App\Models\Project;
 use App\Controllers\ProjectController;
+use App\Models\Project;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Eloquent\Collection;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 /**
  * Die Projektliste darf nur Aktionen anbieten, die der Aufrufer auch ausführen
@@ -27,56 +27,48 @@ class ProjectActionVisibilityFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
-    private const OWN_PROJECT = 1;
-    private const FOREIGN_PROJECT = 2;
+    private int $managerUserId = 0;
+    private int $ownProjectId = 0;
+    private int $foreignProjectId = 0;
 
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+        $suffix = bin2hex(random_bytes(4));
 
-        $schema = $capsule->schema();
-        $schema->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('email');
-            $table->boolean('is_active')->default(true);
-            $table->integer('last_project_id')->nullable();
-        });
-        $schema->create('projects', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-        });
-        $schema->create('project_users', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('project_id');
-        });
-
-        Capsule::table('users')->insert(['id' => 1, 'email' => 'manager@example.test']);
-        Capsule::table('projects')->insert([
-            ['id' => self::OWN_PROJECT, 'name' => 'Eigenes Projekt'],
-            ['id' => self::FOREIGN_PROJECT, 'name' => 'Fremdes Projekt'],
+        $this->managerUserId = (int) Capsule::table('users')->insertGetId([
+            'email' => 'manager' . $suffix . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'first_name' => 'Manager',
+            'last_name' => 'Person',
+            'is_active' => 1,
         ]);
+
+        $this->ownProjectId = (int) Capsule::table('projects')->insertGetId([
+            'name' => 'Eigenes Projekt ' . $suffix,
+        ]);
+        $this->foreignProjectId = (int) Capsule::table('projects')->insertGetId([
+            'name' => 'Fremdes Projekt ' . $suffix,
+        ]);
+
         Capsule::table('project_users')->insert([
-            'user_id' => 1,
-            'project_id' => self::OWN_PROJECT,
+            'user_id' => $this->managerUserId,
+            'project_id' => $this->ownProjectId,
         ]);
     }
 
     protected function tearDown(): void
     {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
-        Capsule::schema()->drop('project_users');
-        Capsule::schema()->drop('projects');
-        Capsule::schema()->drop('users');
         parent::tearDown();
     }
 
@@ -114,31 +106,36 @@ class ProjectActionVisibilityFeatureTest extends TestCase
 
     public function testBroadManagerSeesTheMemberLinkOnEveryProject(): void
     {
-        $_SESSION['user_id'] = 1;
+        $_SESSION['user_id'] = $this->managerUserId;
         $_SESSION['can_manage_project_members'] = true;
 
         $data = $this->renderData();
+        $memberManagedProjectIds = $data['memberManagedProjectIds'] ?? null;
 
-        $this->assertSame(
-            [self::OWN_PROJECT, self::FOREIGN_PROJECT],
-            $data['memberManagedProjectIds'] ?? null
-        );
+        // Gegen die echte Datenbank gibt es neben den beiden selbst angelegten
+        // Projekten auch Bestandsprojekte. Das breite Recht muss trotzdem
+        // WIRKLICH jedes Projekt liefern - geprueft ueber die beiden eigenen
+        // Ids und ueber die Gesamtzahl, die exakt der Projekttabelle entspricht.
+        $this->assertIsArray($memberManagedProjectIds);
+        $this->assertContains($this->ownProjectId, $memberManagedProjectIds);
+        $this->assertContains($this->foreignProjectId, $memberManagedProjectIds);
+        $this->assertCount((int) Project::query()->count(), $memberManagedProjectIds);
     }
 
     public function testVoiceGroupScopedRightSeesTheMemberLinkOnlyOnOwnProjects(): void
     {
-        $_SESSION['user_id'] = 1;
+        $_SESSION['user_id'] = $this->managerUserId;
         $_SESSION['can_manage_project_members'] = false;
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderData();
 
-        $this->assertSame([self::OWN_PROJECT], $data['memberManagedProjectIds'] ?? null);
+        $this->assertSame([$this->ownProjectId], $data['memberManagedProjectIds'] ?? null);
     }
 
     public function testWithoutAnyProjectMemberRightNoMemberLinkIsOffered(): void
     {
-        $_SESSION['user_id'] = 1;
+        $_SESSION['user_id'] = $this->managerUserId;
         $_SESSION['can_manage_project_members'] = false;
         $_SESSION['can_assign_own_voice_group_to_project'] = false;
 
@@ -198,15 +195,15 @@ class ProjectActionVisibilityFeatureTest extends TestCase
 
     public function testEvaluationOffersTheManageButtonOnlyWhereTheMemberPolicyAllowsIt(): void
     {
-        $_SESSION['user_id'] = 1;
+        $_SESSION['user_id'] = $this->managerUserId;
         // Die Auswertung selbst ist projektuebergreifend sichtbar ...
         $_SESSION['can_manage_attendance_all'] = true;
         // ... die Mitgliederpflege dagegen nur fuer die eigenen Projekte.
         $_SESSION['can_manage_project_members'] = false;
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
-        $this->assertTrue($this->evaluationRenderData(self::OWN_PROJECT)['can_manage_members'] ?? null);
-        $this->assertFalse($this->evaluationRenderData(self::FOREIGN_PROJECT)['can_manage_members'] ?? null);
+        $this->assertTrue($this->evaluationRenderData($this->ownProjectId)['can_manage_members'] ?? null);
+        $this->assertFalse($this->evaluationRenderData($this->foreignProjectId)['can_manage_members'] ?? null);
     }
 
     public function testEvaluationTemplateUsesThePolicyFlagInsteadOfTheBareRight(): void

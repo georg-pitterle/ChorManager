@@ -12,10 +12,10 @@ use App\Services\FlashMessageService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 
@@ -30,31 +30,29 @@ class AuthorizationFeedbackFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /** Id des selbst angelegten Projekts, mit dem die Tests dieser Klasse arbeiten. */
+    private int $projectId = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
+        $this->projectId = (int) Capsule::table('projects')->insertGetId([
+            'name' => 'Frisch angelegtes Projekt ' . bin2hex(random_bytes(4)),
         ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
-
-        Capsule::schema()->create('projects', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-        });
-        Capsule::table('projects')->insert(['id' => 7, 'name' => 'Frisch angelegtes Projekt']);
     }
 
     protected function tearDown(): void
     {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
-        Capsule::schema()->drop('projects');
         parent::tearDown();
     }
 
@@ -75,16 +73,16 @@ class AuthorizationFeedbackFeatureTest extends TestCase
         );
 
         $controller->showMembers(
-            $this->makeRequest('GET', '/projects/7/members'),
+            $this->makeRequest('GET', '/projects/' . $this->projectId . '/members'),
             $this->makeResponse(),
-            ['id' => '7']
+            ['id' => (string) $this->projectId]
         );
 
         $record = $this->recordFor($handler, 'authz.denied');
 
         $this->assertNotNull($record);
         $this->assertSame('can_manage_project_members', $record->context['permission'] ?? null);
-        $this->assertSame(7, $record->context['project_id'] ?? null);
+        $this->assertSame($this->projectId, $record->context['project_id'] ?? null);
     }
 
     public function testDeniedMemberPageRendersAnExplanationInsteadOfAnEmptyBody(): void
@@ -116,9 +114,9 @@ class AuthorizationFeedbackFeatureTest extends TestCase
         );
 
         $result = $controller->showMembers(
-            $this->makeRequest('GET', '/projects/7/members'),
+            $this->makeRequest('GET', '/projects/' . $this->projectId . '/members'),
             $this->makeResponse(),
-            ['id' => '7']
+            ['id' => (string) $this->projectId]
         );
 
         $this->assertSame(403, $result->getStatusCode());
@@ -139,16 +137,16 @@ class AuthorizationFeedbackFeatureTest extends TestCase
         );
 
         $controller->index(
-            $this->makeRequest('GET', '/projects/7/tasks'),
+            $this->makeRequest('GET', '/projects/' . $this->projectId . '/tasks'),
             $this->makeResponse(),
-            ['project_id' => '7']
+            ['project_id' => (string) $this->projectId]
         );
 
         $record = $this->recordFor($handler, 'authz.denied');
 
         $this->assertNotNull($record);
         $this->assertSame('can_manage_tasks', $record->context['permission'] ?? null);
-        $this->assertSame(7, $record->context['project_id'] ?? null);
+        $this->assertSame($this->projectId, $record->context['project_id'] ?? null);
     }
 
     public function testFlashServiceConsumesMessagesSoTheyCannotResurfaceLater(): void

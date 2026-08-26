@@ -7,8 +7,12 @@ namespace Tests\Feature;
 use App\Queries\UserQuery;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
+use App\Models\Role;
+use App\Models\SubVoice;
+use App\Models\User;
+use App\Models\VoiceGroup;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\Bootstrap;
 
 /**
  * Der Sitzungs-Lookup läuft bei jedem geschützten Request. Er darf deshalb nur die
@@ -21,76 +25,61 @@ class SessionUserLookupFeatureTest extends TestCase
     private const SESSION_RELATIONS = ['roles', 'voiceGroups'];
     private const DETAIL_RELATIONS = ['subVoices', 'mailAccount'];
 
+    private int $userId = 0;
+    private string $roleName = '';
+    private string $email = '';
+
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+        $sopran = VoiceGroup::where('name', 'Sopran')->firstOrFail();
+        $sopran1 = SubVoice::where('voice_group_id', $sopran->id)->where('name', 'Sopran 1')->firstOrFail();
 
-        $schema = $capsule->schema();
-        $schema->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('email');
-            $table->string('password');
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->integer('last_project_id')->nullable();
-        });
-        $schema->create('roles', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-            $table->integer('hierarchy_level')->default(0);
-        });
-        $schema->create('user_roles', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('role_id');
-        });
-        $schema->create('voice_groups', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-        });
-        $schema->create('sub_voices', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->integer('voice_group_id');
-            $table->string('name');
-        });
-        $schema->create('user_voice_groups', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('voice_group_id');
-            $table->integer('sub_voice_id')->nullable();
-        });
-        $schema->create('user_mail_accounts', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->integer('user_id');
-        });
-
-        Capsule::table('users')->insert([
-            'id' => 1,
-            'email' => 'member@example.test',
+        $this->email = 'sessionlookup_' . bin2hex(random_bytes(6)) . '@example.test';
+        $user = User::create([
+            'email' => $this->email,
+            // Der Hash darf die Query-Schicht nicht verlassen - genau das prüft diese Klasse.
             'password' => '$2y$12$souldneverleavethequerylayer',
             'first_name' => 'Anna',
             'last_name' => 'Alt',
             'is_active' => 1,
-            'last_project_id' => null,
         ]);
-        Capsule::table('roles')->insert(['id' => 1, 'name' => 'Mitglied', 'hierarchy_level' => 0]);
-        Capsule::table('user_roles')->insert(['user_id' => 1, 'role_id' => 1]);
-        Capsule::table('voice_groups')->insert(['id' => 1, 'name' => 'Sopran']);
-        Capsule::table('sub_voices')->insert(['id' => 1, 'voice_group_id' => 1, 'name' => 'Sopran 1']);
+        $this->userId = (int) $user->id;
+
+        $this->roleName = 'Mitglied ' . bin2hex(random_bytes(4));
+        $role = Role::create([
+            'name' => $this->roleName,
+            'hierarchy_level' => 0,
+        ]);
+        Capsule::table('user_roles')->insert(['user_id' => $this->userId, 'role_id' => $role->id]);
         Capsule::table('user_voice_groups')->insert([
-            'user_id' => 1,
-            'voice_group_id' => 1,
-            'sub_voice_id' => 1,
+            'user_id' => $this->userId,
+            'voice_group_id' => $sopran->id,
+            'sub_voice_id' => $sopran1->id,
         ]);
-        Capsule::table('user_mail_accounts')->insert(['id' => 1, 'user_id' => 1]);
+        // Das frühere Mini-Schema kannte hier nur zwei Spalten. Die echte Tabelle verlangt die
+        // Postfach-Zugangsdaten, also werden sie mit angelegt.
+        Capsule::table('user_mail_accounts')->insert([
+            'user_id' => $this->userId,
+            'imap_host' => 'imap.example.test',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'anna',
+            'imap_password_enc' => 'verschluesselt',
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        parent::tearDown();
     }
 
     private function query(): UserQuery
@@ -100,7 +89,7 @@ class SessionUserLookupFeatureTest extends TestCase
 
     public function testSitzungsLookupLaedtDenPasswortHashNicht(): void
     {
-        $user = $this->query()->findForSession(1);
+        $user = $this->query()->findForSession($this->userId);
 
         $this->assertNotNull($user);
         $this->assertArrayNotHasKey(
@@ -112,7 +101,7 @@ class SessionUserLookupFeatureTest extends TestCase
 
     public function testSitzungsLookupLiefertAlleFuerDenRechteSchnappschussNoetigenDaten(): void
     {
-        $user = $this->query()->findForSession(1);
+        $user = $this->query()->findForSession($this->userId);
 
         $this->assertNotNull($user);
 
@@ -128,12 +117,12 @@ class SessionUserLookupFeatureTest extends TestCase
         }
 
         $this->assertSame([1], $user->voiceGroups->pluck('id')->all());
-        $this->assertSame('Mitglied', $user->roles->first()->name);
+        $this->assertSame($this->roleName, $user->roles->first()->name);
     }
 
     public function testSitzungsLookupLaedtKeineDetailRelationen(): void
     {
-        $user = $this->query()->findForSession(1);
+        $user = $this->query()->findForSession($this->userId);
 
         $this->assertNotNull($user);
 
@@ -152,7 +141,7 @@ class SessionUserLookupFeatureTest extends TestCase
 
     public function testLoginLookupBehaeltDenHashUndLaedtNurDieSitzungsRelationen(): void
     {
-        $user = $this->query()->findByEmail('member@example.test');
+        $user = $this->query()->findByEmail($this->email);
 
         $this->assertNotNull($user);
         $this->assertArrayHasKey(
@@ -175,7 +164,7 @@ class SessionUserLookupFeatureTest extends TestCase
 
     public function testDetailLookupLaedtWeiterhinTeilstimmenUndPostfach(): void
     {
-        $user = $this->query()->findById(1);
+        $user = $this->query()->findById($this->userId);
 
         $this->assertNotNull($user);
 
