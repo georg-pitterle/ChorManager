@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Models\Event;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
+use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Project;
+use App\Models\Role;
+use App\Models\User;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Queries\NewsletterTemplateQuery;
 use App\Services\HtmlSanitizer;
+use App\Services\NameFormatterService;
+use App\Services\NewsletterRecipientService;
+use Illuminate\Database\Eloquent\Collection;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -17,24 +24,44 @@ use Slim\Views\Twig;
 /**
  * Verwaltung der Newsletter-Vorlagen. Der Zugang hängt allein am Recht
  * can_manage_newsletters, das die Routengruppe absichert.
+ *
+ * Eine Vorlage hält neben dem Inhalt auch die Newsletter-Einstellungen fest:
+ * Kontext (Projekt), vorgeschlagener Titel und Empfängerquellen.
  */
 class NewsletterTemplateController
 {
+    /**
+     * Formularfeld je Quellentyp. Die Mehrfachauswahl im Vorlagenformular
+     * liefert je Typ eine flache Liste von Referenz-IDs.
+     */
+    private const SOURCE_FIELDS = [
+        'source_project_members' => NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
+        'source_event_attendees' => NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES,
+        'source_role' => NewsletterTemplateRecipientSource::TYPE_ROLE,
+        'source_user' => NewsletterTemplateRecipientSource::TYPE_USER,
+    ];
+
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
     private NewsletterTemplateQuery $templateQuery;
     private NewsletterTemplatePersistence $templatePersistence;
+    private NewsletterRecipientService $recipientService;
+    private NameFormatterService $nameFormatter;
 
     public function __construct(
         Twig $view,
         HtmlSanitizer $htmlSanitizer,
         NewsletterTemplateQuery $templateQuery,
-        NewsletterTemplatePersistence $templatePersistence
+        NewsletterTemplatePersistence $templatePersistence,
+        NewsletterRecipientService $recipientService,
+        NameFormatterService $nameFormatter
     ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
         $this->templateQuery = $templateQuery;
         $this->templatePersistence = $templatePersistence;
+        $this->recipientService = $recipientService;
+        $this->nameFormatter = $nameFormatter;
     }
 
     /**
@@ -61,15 +88,20 @@ class NewsletterTemplateController
 
     /**
      * @param array<string, mixed> $data
-     * @return array{ok:bool, payload:array<string, string>}
+     * @return array{ok:bool, payload:array<string, string|null>}
      */
     private function validateTemplateInput(array $data): array
     {
         $name = trim((string) ($data['name'] ?? ''));
         $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
         $description = trim((string) ($data['description'] ?? ''));
+        $defaultTitle = trim((string) ($data['default_title'] ?? ''));
 
         if ($name === '' || mb_strlen($name) > 255 || $contentHtml === '') {
+            return ['ok' => false, 'payload' => []];
+        }
+
+        if (mb_strlen($defaultTitle) > 255) {
             return ['ok' => false, 'payload' => []];
         }
 
@@ -77,10 +109,63 @@ class NewsletterTemplateController
             'ok' => true,
             'payload' => [
                 'name' => $name,
+                'default_title' => $defaultTitle === '' ? null : $defaultTitle,
                 'content_html' => $contentHtml,
                 'description' => $description,
             ],
         ];
+    }
+
+    /**
+     * Baut die Empfängerquellen aus dem Vorlagenformular. Ein leeres Formularfeld
+     * heißt "keine Quelle dieses Typs" - deshalb ist das Fehlen eines Feldes kein
+     * Grund, die gespeicherte Auswahl stehen zu lassen.
+     *
+     * @param array<string, mixed> $data
+     * @return array<int, array{type:string, reference_id:int}>
+     */
+    private function recipientSourcesFromInput(array $data): array
+    {
+        $raw = [];
+
+        foreach (self::SOURCE_FIELDS as $field => $type) {
+            $values = $data[$field] ?? [];
+            if (!is_array($values)) {
+                $values = [$values];
+            }
+
+            foreach ($values as $value) {
+                $raw[] = ['type' => $type, 'reference_id' => (int) $value];
+            }
+        }
+
+        return $this->recipientService->normalizeSources($raw);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function projectIdFromInput(array $data): ?int
+    {
+        if (($data['project_id'] ?? '') === '') {
+            return null;
+        }
+
+        return (int) $data['project_id'];
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function activeUsersInNameOrder(): Collection
+    {
+        $query = User::query()->where('is_active', 1);
+
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->get();
     }
 
     public function index(Request $request, Response $response): Response
@@ -115,10 +200,7 @@ class NewsletterTemplateController
             return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten'], 422);
         }
 
-        $projectId = null;
-        if (($data['project_id'] ?? '') !== '') {
-            $projectId = (int) $data['project_id'];
-        }
+        $projectId = $this->projectIdFromInput($data);
 
         if ($projectId !== null && !Project::query()->where('id', $projectId)->exists()) {
             $message = 'Das gewählte Projekt existiert nicht.';
@@ -130,7 +212,12 @@ class NewsletterTemplateController
             return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
-        $template = $this->templatePersistence->createTemplate($validation['payload'], $userId, $projectId);
+        $template = $this->templatePersistence->createTemplate(
+            $validation['payload'],
+            $userId,
+            $projectId,
+            $this->recipientSourcesFromInput($data)
+        );
 
         if (!$this->expectsJson($request)) {
             $_SESSION['success'] = 'Vorlage erstellt';
@@ -159,6 +246,11 @@ class NewsletterTemplateController
 
         return $this->view->render($response, 'newsletters/templates_edit.twig', [
             'template' => $template,
+            'projects' => Project::query()->orderBy('name')->get(),
+            'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
+            'roles' => Role::query()->orderBy('name')->get(),
+            'users' => $this->activeUsersInNameOrder(),
+            'recipient_sources' => $this->templatePersistence->getRecipientSources($template),
             'is_modal' => $isModal,
         ]);
     }
@@ -172,7 +264,8 @@ class NewsletterTemplateController
             return $response->withStatus(404);
         }
 
-        $validation = $this->validateTemplateInput((array) $request->getParsedBody());
+        $data = (array) $request->getParsedBody();
+        $validation = $this->validateTemplateInput($data);
         if (!$validation['ok']) {
             if (!$this->expectsJson($request)) {
                 $_SESSION['error'] = 'Ungültige Vorlagendaten';
@@ -184,7 +277,31 @@ class NewsletterTemplateController
             return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten'], 422);
         }
 
-        $this->templatePersistence->updateTemplate($template, $validation['payload']);
+        $payload = $validation['payload'];
+
+        if (array_key_exists('project_id', $data)) {
+            $projectId = $this->projectIdFromInput($data);
+
+            if ($projectId !== null && !Project::query()->where('id', $projectId)->exists()) {
+                $message = 'Das gewählte Projekt existiert nicht.';
+                if (!$this->expectsJson($request)) {
+                    $_SESSION['error'] = $message;
+                    return $response
+                        ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
+                        ->withStatus(302);
+                }
+
+                return $this->jsonResponse($response, ['error' => $message], 422);
+            }
+
+            $payload['project_id'] = $projectId;
+        }
+
+        $this->templatePersistence->updateTemplate(
+            $template,
+            $payload,
+            $this->recipientSourcesFromInput($data)
+        );
         $_SESSION['success'] = 'Vorlage gespeichert';
 
         if (!$this->expectsJson($request)) {
@@ -238,7 +355,10 @@ class NewsletterTemplateController
         return $this->jsonResponse($response, [
             'id' => $template->id,
             'name' => $template->name,
+            'default_title' => $template->default_title,
+            'project_id' => $template->project_id === null ? null : (int) $template->project_id,
             'content_html' => $template->content_html,
+            'recipient_sources' => $this->templatePersistence->getRecipientSources($template),
         ]);
     }
 
@@ -270,14 +390,18 @@ class NewsletterTemplateController
             return $response->withHeader('Location', '/newsletters/' . $id . '/edit')->withStatus(302);
         }
 
+        $defaultTitle = trim((string) $newsletter->title);
+
         $template = $this->templatePersistence->createTemplate(
             [
                 'name' => $templateName,
+                'default_title' => $defaultTitle === '' ? null : mb_substr($defaultTitle, 0, 255),
                 'description' => $templateDescription,
                 'content_html' => $templateContentHtml,
             ],
             $userId,
-            $newsletter->project_id === null ? null : (int) $newsletter->project_id
+            $newsletter->project_id === null ? null : (int) $newsletter->project_id,
+            $this->recipientService->getSources($newsletter)
         );
 
         if (!$this->expectsJson($request)) {

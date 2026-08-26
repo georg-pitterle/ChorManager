@@ -16,6 +16,123 @@
                 <label class="form-label" for="description">Beschreibung</label>
                 <textarea class="form-control" id="description" name="description" rows="2">{{ template.description }}</textarea>
             </div>
+
+            <fieldset class="mb-3" id="template-settings">
+                <legend class="h5">Newsletter-Einstellungen</legend>
+                <p class="text-muted small">
+                    Diese Angaben werden übernommen, sobald die Vorlage in einen Newsletter geladen wird.
+                </p>
+
+                <div class="mb-3">
+                    <label class="form-label" for="project_id">Kontext</label>
+                    <select class="form-select" id="project_id" name="project_id">
+                        <option value="" {% if not template.project_id %}selected{% endif %}>Global</option>
+                        {% for project in projects %}
+                            <option value="{{ project.id }}"
+                                    {% if template.project_id == project.id %}selected{% endif %}>
+                                {{ project.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="default_title">Titelvorschlag (optional)</label>
+                    <input class="form-control"
+                           id="default_title"
+                           name="default_title"
+                           maxlength="255"
+                           value="{{ template.default_title }}"
+                           placeholder="z. B. Newsletter zur Probenwoche">
+                </div>
+
+                {% set project_source_ids = [] %}
+                {% set event_source_ids = [] %}
+                {% set role_source_ids = [] %}
+                {% set user_source_ids = [] %}
+                {% for source in recipient_sources %}
+                    {% if source.type == "project_members" %}
+                        {% set project_source_ids = project_source_ids|merge([source.reference_id]) %}
+                    {% elseif source.type == "event_attendees" %}
+                        {% set event_source_ids = event_source_ids|merge([source.reference_id]) %}
+                    {% elseif source.type == "role" %}
+                        {% set role_source_ids = role_source_ids|merge([source.reference_id]) %}
+                    {% elseif source.type == "user" %}
+                        {% set user_source_ids = user_source_ids|merge([source.reference_id]) %}
+                    {% endif %}
+                {% endfor %}
+
+                <section class="mb-0"
+                         id="template-recipient-sources"
+                         aria-labelledby="template-recipient-sources-title">
+                    <h2 class="h6" id="template-recipient-sources-title">Empfängerquellen</h2>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="template-source-project_members">Projektmitglieder</label>
+                        <select id="template-source-project_members"
+                                class="form-select"
+                                name="source_project_members[]"
+                                data-tom-select
+                                data-placeholder="Projekte auswählen …"
+                                multiple>
+                            {% for project in projects %}
+                                <option value="{{ project.id }}"
+                                        {% if project.id in project_source_ids %}selected{% endif %}>
+                                    {{ project.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="template-source-event_attendees">Veranstaltungsteilnehmer</label>
+                        <select id="template-source-event_attendees"
+                                class="form-select"
+                                name="source_event_attendees[]"
+                                data-tom-select
+                                data-placeholder="Veranstaltungen auswählen …"
+                                multiple>
+                            {% for event in events %}
+                                <option value="{{ event.id }}"
+                                        {% if event.id in event_source_ids %}selected{% endif %}>
+                                    {{ event.title }} ({{ event.starts_at|date("d.m.Y") }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="template-source-role">Rollen</label>
+                        <select id="template-source-role"
+                                class="form-select"
+                                name="source_role[]"
+                                data-tom-select
+                                data-placeholder="Rollen auswählen …"
+                                multiple>
+                            {% for role in roles %}
+                                <option value="{{ role.id }}"
+                                        {% if role.id in role_source_ids %}selected{% endif %}>{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="template-source-user">Einzelne Mitglieder</label>
+                        <select id="template-source-user"
+                                class="form-select"
+                                name="source_user[]"
+                                data-tom-select
+                                data-placeholder="Mitglieder auswählen …"
+                                multiple>
+                            {% for member in users %}
+                                <option value="{{ member.id }}"
+                                        {% if member.id in user_source_ids %}selected{% endif %}>{{ member|person_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </section>
+            </fieldset>
+
             <div class="mb-3">
                 <label class="form-label" for="content_html">Inhalt</label>
                 <textarea class="form-control tinymce-editor"
@@ -31,3 +148,12 @@
         </form>
     </div>
 {% endblock content %}
+
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
+{% block scripts %}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="{{ asset_path('/js/tom-select-init.js') }}"></script>
+{% endblock scripts %}

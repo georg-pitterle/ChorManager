@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class NewsletterTemplate extends Model
 {
@@ -14,6 +15,7 @@ class NewsletterTemplate extends Model
 
     protected $fillable = [
         'name',
+        'default_title',
         'description',
         'content_html',
         'project_id',
@@ -29,6 +31,14 @@ class NewsletterTemplate extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    /**
+     * Empfängerquellen, die beim Laden der Vorlage in den Newsletter übernommen werden.
+     */
+    public function recipientSources(): HasMany
+    {
+        return $this->hasMany(NewsletterTemplateRecipientSource::class, 'template_id');
     }
 
     public function createdBy(): BelongsTo

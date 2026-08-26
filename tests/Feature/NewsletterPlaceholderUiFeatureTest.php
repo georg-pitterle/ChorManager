@@ -186,7 +186,9 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
             $twig,
             new HtmlSanitizer(),
             new NewsletterTemplateQuery(),
-            new NewsletterTemplatePersistence()
+            new NewsletterTemplatePersistence(),
+            new NewsletterRecipientService(),
+            new NameFormatterService()
         );
     }
 

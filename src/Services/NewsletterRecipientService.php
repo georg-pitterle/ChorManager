@@ -8,6 +8,8 @@ use App\Models\Event;
 use App\Models\Newsletter;
 use App\Models\NewsletterRecipientSource;
 use App\Models\NewsletterRecipient;
+use App\Models\Project;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -168,6 +170,79 @@ class NewsletterRecipientService
 
         $newsletter->recipient_count = count($userIds);
         $newsletter->save();
+    }
+
+    /**
+     * Prüft eine rohe Quellenauswahl gegen die erlaubten Typen und die tatsächlich
+     * vorhandenen Datensätze. Unbekannte Typen, gelöschte Bezüge und Doppelungen
+     * fallen heraus. Newsletter und Vorlage teilen sich diese Prüfung, damit beide
+     * dieselbe Auswahl akzeptieren.
+     *
+     * @param mixed $sources
+     * @return array<int, array{type:string, reference_id:int}>
+     */
+    public function normalizeSources(mixed $sources): array
+    {
+        if (!is_array($sources)) {
+            return [];
+        }
+
+        $allowedTypes = [
+            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
+            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
+            NewsletterRecipientSource::TYPE_ROLE,
+            NewsletterRecipientSource::TYPE_USER,
+        ];
+
+        $normalized = [];
+        $seen = [];
+
+        foreach ($sources as $source) {
+            if (!is_array($source)) {
+                continue;
+            }
+
+            $type = trim((string) ($source['type'] ?? ''));
+            $referenceId = (int) ($source['reference_id'] ?? 0);
+
+            if (!in_array($type, $allowedTypes, true) || $referenceId <= 0) {
+                continue;
+            }
+
+            if (!$this->referenceExists($type, $referenceId)) {
+                continue;
+            }
+
+            $dedupeKey = $type . ':' . $referenceId;
+            if (isset($seen[$dedupeKey])) {
+                continue;
+            }
+
+            $seen[$dedupeKey] = true;
+            $normalized[] = [
+                'type' => $type,
+                'reference_id' => $referenceId,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function referenceExists(string $type, int $referenceId): bool
+    {
+        if ($type === NewsletterRecipientSource::TYPE_PROJECT_MEMBERS) {
+            return Project::query()->where('id', $referenceId)->exists();
+        }
+
+        if ($type === NewsletterRecipientSource::TYPE_EVENT_ATTENDEES) {
+            return Event::query()->where('id', $referenceId)->exists();
+        }
+
+        if ($type === NewsletterRecipientSource::TYPE_ROLE) {
+            return Role::query()->where('id', $referenceId)->exists();
+        }
+
+        return User::query()->where('id', $referenceId)->where('is_active', 1)->exists();
     }
 
     /**

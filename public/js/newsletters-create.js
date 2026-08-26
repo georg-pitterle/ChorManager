@@ -212,6 +212,64 @@ function initNewsletterCreate() {
         });
     }
 
+    function setSourceSelection(type, referenceIds) {
+        const select = getSourceSelect(type);
+        if (!select) {
+            return;
+        }
+
+        const wanted = referenceIds.map(referenceId => String(referenceId));
+        Array.from(select.options).forEach(option => {
+            option.selected = wanted.indexOf(option.value) !== -1;
+        });
+
+        // TomSelect rendert aus seinem eigenen Zustand; ohne sync bliebe die
+        // sichtbare Auswahl auf dem Stand vor dem Laden der Vorlage.
+        if (select.tomselect) {
+            select.tomselect.setValue(wanted, true);
+        }
+    }
+
+    // Eine Vorlage bringt die kompletten Newsletter-Einstellungen mit: Kontext,
+    // Titelvorschlag und Empfängerquellen ersetzen die bisherige Auswahl.
+    //
+    // Ersetzt wird nur, was die Vorlage auch festlegt: Eine globale Vorlage (ohne
+    // Projekt) und eine Vorlage ohne Empfängerquellen sagen nichts über den Kontext
+    // bzw. den Verteiler aus - sie würden eine bewusste Auswahl sonst wegräumen.
+    function applyTemplateSettings(data) {
+        if (titleInput) {
+            titleInput.value = data.default_title || data.name || "";
+        }
+
+        const templateProjectId = data.project_id === null || data.project_id === undefined
+            ? null
+            : String(data.project_id);
+        if (projectSelect && templateProjectId !== null) {
+            projectSelect.value = templateProjectId;
+        }
+
+        const sources = Array.isArray(data.recipient_sources) ? data.recipient_sources : [];
+        if (sources.length === 0) {
+            syncSourcesHiddenInputs();
+            refreshSourceSelectionCounts();
+            refreshRecipientPreviewDebounced();
+            return;
+        }
+
+        sourceTypes.forEach(type => {
+            const referenceIds = sources
+                .filter(source => source && source.type === type)
+                .map(source => Number(source.reference_id))
+                .filter(referenceId => Number.isInteger(referenceId) && referenceId > 0);
+
+            setSourceSelection(type, referenceIds);
+        });
+
+        syncSourcesHiddenInputs();
+        refreshSourceSelectionCounts();
+        refreshRecipientPreviewDebounced();
+    }
+
     if (templateSelect) {
         templateSelect.addEventListener("change", async function () {
             if (!templateSelect.value) {
@@ -233,9 +291,8 @@ function initNewsletterCreate() {
                     textarea.value = data.content_html || "";
                 }
             }
-            if (titleInput) {
-                titleInput.value = data.name || "";
-            }
+
+            applyTemplateSettings(data);
         });
     }
 

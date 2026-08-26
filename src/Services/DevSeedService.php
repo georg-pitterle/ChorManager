@@ -27,6 +27,7 @@ use App\Models\NewsletterTemplate;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
 use App\Models\NewsletterRecipientSource;
+use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Category;
 use App\Models\PasswordReset;
 use App\Models\Project;
@@ -155,6 +156,7 @@ class DevSeedService
                 'sponsoring_contacts' => 0,
                 'sponsor_attachments' => 0,
                 'newsletter_templates' => 0,
+                'newsletter_template_recipient_sources' => 0,
                 'newsletters' => 0,
                 'newsletter_recipient_sources' => 0,
                 'newsletter_recipients' => 0,
@@ -274,6 +276,7 @@ class DevSeedService
             'newsletter_recipient_sources',
             'newsletter_archive',
             'newsletters',
+            'newsletter_template_recipient_sources',
             'newsletter_templates',
             'mail_queue',
             'budget_items',
@@ -3341,12 +3344,57 @@ class DevSeedService
         return (new DateTimeImmutable())->setTimestamp($randomTs);
     }
 
+    /**
+     * Empfängerquellen einer Vorlage. Sie werden beim Laden der Vorlage in den
+     * Newsletter übernommen, damit ein neuer Newsletter direkt seinen Verteiler hat.
+     *
+     * @param array<int, string> $sourceTypes
+     * @param array<int, Project> $projects
+     */
+    private function seedNewsletterTemplateRecipientSources(
+        NewsletterTemplate $template,
+        array $sourceTypes,
+        array $projects
+    ): void {
+        $project = $projects[0] ?? null;
+        $event = Event::query()->orderBy('starts_at', 'desc')->first();
+        $role = Role::query()->orderBy('name')->first();
+
+        foreach ($sourceTypes as $sourceType) {
+            $referenceId = match ($sourceType) {
+                NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS => $project?->id,
+                NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES => $event?->id,
+                NewsletterTemplateRecipientSource::TYPE_ROLE => $role?->id,
+                default => null,
+            };
+
+            if ($referenceId === null) {
+                continue;
+            }
+
+            $source = NewsletterTemplateRecipientSource::updateOrCreate(
+                [
+                    'template_id' => $template->id,
+                    'source_type' => $sourceType,
+                    'reference_id' => (int) $referenceId,
+                ],
+                []
+            );
+
+            if ($source->wasRecentlyCreated) {
+                $this->report['counts']['newsletter_template_recipient_sources']++;
+            }
+        }
+    }
+
     private function seedNewsletters(array $projects, array $activeUsers): void
     {
         $templateDefinitions = [
             [
                 'name' => 'Event-Ankündigung',
                 'category' => 'event',
+                'default_title' => 'Einladung zu unserem nächsten Konzert',
+                'source_types' => [NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES],
                 'content_html' => '<h2>Kommender Auftritt</h2>' .
                     '<p>Liebe Sängerinnen und Sänger,</p>' .
                     '<p>wir heißen euch herzlich zu unserem kommenden Konzert willkommen!</p>' .
@@ -3358,6 +3406,8 @@ class DevSeedService
             [
                 'name' => 'Newsletter Standard',
                 'category' => 'general',
+                'default_title' => 'Neuigkeiten aus dem Chor',
+                'source_types' => [NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS],
                 'content_html' => '<h2>Newsletter</h2>' .
                     '<p>{{anrede}},</p>' .
                     '<p>hier sind die wichtigsten Neuigkeiten zu {{projekt}}:</p>' .
@@ -3368,6 +3418,11 @@ class DevSeedService
             [
                 'name' => 'Nachbericht',
                 'category' => 'report',
+                'default_title' => 'Rückblick auf unser Konzert',
+                'source_types' => [
+                    NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
+                    NewsletterTemplateRecipientSource::TYPE_ROLE,
+                ],
                 'content_html' => '<h2>Ein großartiger Erfolg!</h2>' .
                     '<p>Unser Konzert war ein voller Erfolg. Vielen Dank an alle Beteiligten!</p>' .
                     '<p>Weitere Bilder finden Sie auf unserer Website.</p>',
@@ -3381,6 +3436,7 @@ class DevSeedService
                 ['name' => $templateDef['name'], 'project_id' => null],
                 [
                     'description' => 'Vordefinierte Vorlage',
+                    'default_title' => $templateDef['default_title'],
                     'content_html' => $templateDef['content_html'],
                     'project_id' => null,
                     'category' => $templateDef['category'],
@@ -3391,6 +3447,8 @@ class DevSeedService
             if ($template->wasRecentlyCreated) {
                 $this->report['counts']['newsletter_templates']++;
             }
+
+            $this->seedNewsletterTemplateRecipientSources($template, $templateDef['source_types'], $projects);
         }
 
         // Create sent newsletters for each project

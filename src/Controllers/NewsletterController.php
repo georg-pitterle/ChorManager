@@ -287,77 +287,11 @@ class NewsletterController
      */
     private function validateNewsletterSourcesInput(array $data): array
     {
-        $sources = $data['sources'] ?? null;
-        if (!is_array($sources)) {
-            $sources = [];
-        }
-
-        $allowedTypes = [
-            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
-            NewsletterRecipientSource::TYPE_ROLE,
-            NewsletterRecipientSource::TYPE_USER,
-        ];
-
-        $normalized = [];
-        $seen = [];
-
-        foreach ($sources as $source) {
-            if (!is_array($source)) {
-                continue;
-            }
-
-            $type = trim((string) ($source['type'] ?? ''));
-            $referenceId = (int) ($source['reference_id'] ?? 0);
-
-            if (!in_array($type, $allowedTypes, true) || $referenceId <= 0) {
-                continue;
-            }
-
-            if ($type === NewsletterRecipientSource::TYPE_PROJECT_MEMBERS) {
-                if (!Project::query()->where('id', $referenceId)->exists()) {
-                    continue;
-                }
-            }
-
-            if ($type === NewsletterRecipientSource::TYPE_EVENT_ATTENDEES) {
-                $event = Event::query()->find($referenceId);
-                if (!$event) {
-                    continue;
-                }
-            }
-
-            if (
-                $type === NewsletterRecipientSource::TYPE_ROLE
-                && !Role::query()->where('id', $referenceId)->exists()
-            ) {
-                continue;
-            }
-
-            if (
-                $type === NewsletterRecipientSource::TYPE_USER
-                && !User::query()->where('id', $referenceId)->where('is_active', 1)->exists()
-            ) {
-                continue;
-            }
-
-            $dedupeKey = $type . ':' . $referenceId;
-            if (isset($seen[$dedupeKey])) {
-                continue;
-            }
-
-            $seen[$dedupeKey] = true;
-            $normalized[] = [
-                'type' => $type,
-                'reference_id' => $referenceId,
-            ];
-        }
-
         return [
             'ok' => true,
             'message' => null,
             'payload' => [
-                'sources' => $normalized,
+                'sources' => $this->recipientService->normalizeSources($data['sources'] ?? null),
             ],
         ];
     }
