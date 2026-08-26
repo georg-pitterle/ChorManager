@@ -23,13 +23,15 @@
     "tom-select": "^2.4.3"
   },
   "overrides": {
-    "minimist": "0.2.4"
+    "minimist": "0.2.4",
+    "protobufjs": "^8.7.2",
+    "static-eval": "^2.1.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0"
   },
   "allowScripts": {
     "core-js@3.49.0": true,
-    "protobufjs@6.11.6": true
+    "protobufjs@8.7.2": true
   }
 }
