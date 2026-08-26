@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\DownloadController;
+use App\Util\DownloadFileName;
 use App\Models\Attachment;
 use PHPUnit\Framework\TestCase;
 
@@ -36,10 +37,10 @@ class DownloadFeatureTest extends TestCase
 
     public function testNormalizeFileNameStripsUnsafeCharacters(): void
     {
-        $name = DownloadController::normalizeFileName(" bad\n\r\"\\/name.mp3 ");
+        $name = DownloadFileName::sanitize(" bad\n\r\"\\/name.mp3 ");
         $this->assertSame('bad_____name.mp3', $name);
 
-        $fallback = DownloadController::normalizeFileName("\n\r\"\\/");
+        $fallback = DownloadFileName::sanitize("\n\r\"\\/");
         $this->assertSame('_____', $fallback);
     }
 

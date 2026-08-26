@@ -43,19 +43,57 @@ class SecurityHardeningFeatureTest extends TestCase
         $this->assertStringContainsString("X-Forwarded-Proto", $resolverContent);
     }
 
+    /**
+     * Die Bereinigung lag früher als wortgleiche Kopie in jedem ausliefernden
+     * Controller; geprüft wurden aber nur zwei davon. Jetzt gibt es eine Stelle -
+     * der Test deckt damit alle fünf Aufrufer ab statt zweier.
+     */
     public function testFileNameSanitizationForContentDispositionExists(): void
     {
-        $finance = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
-        $settings = file_get_contents(dirname(__DIR__) . '/../src/Controllers/AppSettingController.php');
+        foreach (
+            [
+                'FinanceController',
+                'AppSettingController',
+                'DownloadController',
+                'TaskController',
+                'SponsorshipController',
+            ] as $controller
+        ) {
+            $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/' . $controller . '.php');
 
-        $this->assertIsString($finance);
-        $this->assertIsString($settings);
+            $this->assertIsString($content);
+            $this->assertStringContainsString('DownloadFileName::sanitize(', $content, $controller);
+            $this->assertStringNotContainsString(
+                'function normalizeFileName',
+                $content,
+                $controller . ' darf keine eigene Kopie der Bereinigung mehr halten'
+            );
+        }
 
-        $this->assertStringContainsString('private static function normalizeFileName', $finance);
-        $this->assertStringContainsString('filename*=', $finance);
+        foreach (['FinanceController', 'AppSettingController'] as $controller) {
+            $content = (string) file_get_contents(dirname(__DIR__) . '/../src/Controllers/' . $controller . '.php');
+            $this->assertStringContainsString('filename*=', $content, $controller);
+        }
+    }
 
-        $this->assertStringContainsString('private static function normalizeFileName', $settings);
-        $this->assertStringContainsString('filename*=', $settings);
+    /**
+     * Was die Bereinigung leisten muss: Steuerzeichen brechen den
+     * Content-Disposition-Kopf auf, Anführungszeichen beenden den quoted-string,
+     * Pfadtrenner laden zur Deutung als Pfad ein - und leer darf nie herauskommen.
+     */
+    public function testFileNameSanitizationNeutralisesHeaderBreakingCharacters(): void
+    {
+        $this->assertSame(
+            'bad__ok_name.pdf',
+            \App\Util\DownloadFileName::sanitize("bad\r\nok\"name.pdf")
+        );
+        $this->assertSame('a_b_c.pdf', \App\Util\DownloadFileName::sanitize('a/b\\c.pdf'));
+
+        // Der Fallback greift nur, wenn wirklich nichts übrig bleibt. Steuerzeichen
+        // werden zu Unterstrichen und zählen danach als Inhalt - "_____" ist ein
+        // harmloser Name, siehe DownloadFeatureTest.
+        $this->assertSame('download', \App\Util\DownloadFileName::sanitize('   '));
+        $this->assertSame('download', \App\Util\DownloadFileName::sanitize(''));
     }
 
     public function testCsrfTokenIsExposedInLayoutAndInjectedByJs(): void

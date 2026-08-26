@@ -11,6 +11,7 @@ use App\Models\AppSetting;
 use App\Util\UploadValidator;
 use App\Services\NameFormatterService;
 use Psr\Log\LoggerInterface;
+use App\Util\DownloadFileName;
 
 class AppSettingController
 {
@@ -184,7 +185,7 @@ class AppSettingController
                         return $response->withHeader('Location', '/settings')->withStatus(302);
                     }
 
-                    $safeName = self::normalizeFileName((string) $file->getClientFilename());
+                    $safeName = DownloadFileName::sanitize((string) $file->getClientFilename());
 
                     AppSetting::updateOrCreate(
                         ['setting_key' => 'app_logo'],
@@ -296,19 +297,12 @@ class AppSettingController
         return sprintf('#%02X%02X%02X', $red, $green, $blue);
     }
 
-    private static function normalizeFileName(string $name): string
-    {
-        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
-        $trimmed = trim($safe);
-        return $trimmed !== '' ? $trimmed : 'download';
-    }
-
     public function logo(Request $request, Response $response): Response
     {
         $logo = AppSetting::find('app_logo');
         if ($logo && $logo->binary_content) {
             $response->getBody()->write($logo->binary_content);
-            $safeName = self::normalizeFileName((string) $logo->setting_value);
+            $safeName = DownloadFileName::sanitize((string) $logo->setting_value);
             return $response
                 ->withHeader('Content-Type', $logo->mime_type)
                 ->withHeader(

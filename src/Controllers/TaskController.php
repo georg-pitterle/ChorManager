@@ -20,6 +20,7 @@ use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use App\Util\DownloadFileName;
 
 class TaskController
 {
@@ -517,7 +518,7 @@ class TaskController
             ->where('entity_id', $taskId)
             ->findOrFail($attachmentId);
 
-        $safeName = self::normalizeFileName((string) $attachment->original_name);
+        $safeName = DownloadFileName::sanitize((string) $attachment->original_name);
         $response->getBody()->write($attachment->file_content);
         return $response
             ->withHeader('Content-Type', $attachment->mime_type)
@@ -525,13 +526,6 @@ class TaskController
                 'Content-Disposition',
                 'attachment; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
             );
-    }
-
-    private static function normalizeFileName(string $name): string
-    {
-        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
-        $trimmed = trim($safe);
-        return $trimmed !== '' ? $trimmed : 'download';
     }
 
     public function updateStatus(Request $request, Response $response, array $args): Response
