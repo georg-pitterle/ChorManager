@@ -298,15 +298,11 @@
                                 data-bs-dismiss="modal"
                                 aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3 pb-3 border-bottom">
-                            <h4 id="preview-modal-title" class="mb-1"></h4>
-                            <small class="text-muted">
-                                Projekt: <span id="preview-modal-project"></span>
-                            </small>
-                        </div>
-                        <div id="preview-modal-content"
-                             class="newsletter-content bg-light p-4 rounded"></div>
+                    <div class="modal-body p-0">
+                        <iframe id="preview-modal-frame"
+                                class="newsletter-preview-frame"
+                                title="Newsletter-Vorschau"
+                                sandbox=""></iframe>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>

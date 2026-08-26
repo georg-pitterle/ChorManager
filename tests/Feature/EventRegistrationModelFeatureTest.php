@@ -16,6 +16,19 @@ class EventRegistrationModelFeatureTest extends TestCase
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
+    }
+
+    protected function tearDown(): void
+    {
+        // Ohne Rollback blieben Termin, Person und Anmeldung liegen und verfälschten spätere
+        // Tests, die Bestände zählen.
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        parent::tearDown();
     }
 
     public function testMigrationDefinesRegistrationSchema(): void
@@ -36,7 +49,15 @@ class EventRegistrationModelFeatureTest extends TestCase
 
     public function testEventRegistrationModelRoundTrip(): void
     {
-        $user = User::where('is_active', 1)->firstOrFail();
+        // Eigene Person statt einer beliebigen aus dem Bestand, damit der Test auch auf einer
+        // frisch aufgesetzten Datenbank läuft.
+        $user = User::create([
+            'email' => 'registration_model_' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Rudi',
+            'last_name' => 'Rückmeldung',
+            'is_active' => 1,
+        ]);
         $event = Event::create([
             'title' => 'Testprobe Anmeldung',
             'starts_at' => Carbon::now()->addDays(7)->setTime(19, 0),

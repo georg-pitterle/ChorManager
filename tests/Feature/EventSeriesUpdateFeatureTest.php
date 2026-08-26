@@ -10,6 +10,7 @@ use App\Models\EventSeries;
 use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
@@ -42,7 +43,7 @@ final class EventSeriesUpdateFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController($twig, new NameFormatterService());
+        $this->controller = new EventController($twig, new NameFormatterService(), new NullLogger());
 
         $this->series = EventSeries::create([
             'frequency' => 'weekly',

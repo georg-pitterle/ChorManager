@@ -11,7 +11,9 @@ use DOMXPath;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Der Editor-Stand wird serverseitig gerendert, bevor er in der Vorschau erscheint.
+ * Der Editor-Stand wird serverseitig gerendert, bevor er in der Vorschau erscheint - inklusive
+ * desselben Mail-Rahmens (Logo bzw. Markenfarbe, Betreff als Überschrift, Inhalt, Fußbereich)
+ * wie beim Versand.
  */
 final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
 {
@@ -33,11 +35,78 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
         ])->withAttribute('id', (string) $newsletter->id);
 
         $response = $this->controller()->previewRender($request, $this->makeResponse());
-        $payload = json_decode((string) $response->getBody(), true);
+        $html = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('Info für Georg', $payload['title']);
-        $this->assertSame('<p>Hallo Georg</p>', $payload['content_html']);
+        $this->assertStringContainsString('text/html', $response->getHeaderLine('Content-Type'));
+        $this->assertStringContainsString('Info für Georg', $html);
+        $this->assertStringContainsString('<p>Hallo Georg</p>', $html);
+    }
+
+    /**
+     * Belegt, dass der Editor-Stand denselben vollständigen Mail-Rahmen trägt wie der echte
+     * Versand: Markenfarbe, Kopfbereich, Betreff als Überschrift, Inhalt. Der Link "Diesen
+     * Newsletter im Browser ansehen" fehlt hier bewusst, siehe
+     * testUnsavedContentOmitsBrowseLink().
+     */
+    public function testUnsavedContentCarriesTheBrandFrame(): void
+    {
+        $creator = $this->createUser('Anna');
+        $recipient = $this->createUser('Georg');
+        $newsletter = $this->createNewsletter($creator, $recipient);
+
+        $_SESSION['user_id'] = (int) $creator->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $request = $this->makeRequest('POST', "/newsletters/{$newsletter->id}/preview-render", [
+            'title' => 'Herbstkonzert-Neuigkeiten',
+            'content_html' => '<p>Die Proben starten nächste Woche.</p>',
+        ])->withAttribute('id', (string) $newsletter->id);
+
+        $response = $this->controller()->previewRender($request, $this->makeResponse());
+        $html = (string) $response->getBody();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('#E8A817', $html, 'Markenfarbe fehlt.');
+        $this->assertStringContainsString('#1d2836', $html, 'Kopfbereich fehlt.');
+        $this->assertStringContainsString('Herbstkonzert-Neuigkeiten', $html, 'Betreff als Überschrift fehlt.');
+        $this->assertStringContainsString(
+            'Die Proben starten nächste Woche.',
+            $html,
+            'Newsletter-Inhalt fehlt.'
+        );
+    }
+
+    /**
+     * Wer den Editor-Stand vorschaut, ist bereits in der Browser-Ansicht: Ein Klick auf "im
+     * Browser ansehen" würde die Anwendungsseite samt Navigation und einem erneut
+     * verschachtelten Rahmen in den kleinen eingebetteten Rahmen laden, weil die Sandbox zwar
+     * fremde Navigation verhindert, die Selbstnavigation des Rahmens aber erlaubt bleibt.
+     * Deshalb entfällt der Link hier, bleibt aber im echten Versand und in der Testmail
+     * erhalten - siehe
+     * NewsletterPersonalizedSendFeatureTest::testQueuedMailCarriesTheBrandFrame() und
+     * NewsletterTestMailFeatureTest::testTestMailCarriesTheBrandFrame().
+     */
+    public function testUnsavedContentOmitsBrowseLink(): void
+    {
+        $creator = $this->createUser('Anna');
+        $recipient = $this->createUser('Georg');
+        $newsletter = $this->createNewsletter($creator, $recipient);
+
+        $_SESSION['user_id'] = (int) $creator->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $request = $this->makeRequest('POST', "/newsletters/{$newsletter->id}/preview-render", [
+            'title' => 'Herbstkonzert-Neuigkeiten',
+            'content_html' => '<p>Die Proben starten nächste Woche.</p>',
+        ])->withAttribute('id', (string) $newsletter->id);
+
+        $response = $this->controller()->previewRender($request, $this->makeResponse());
+        $html = (string) $response->getBody();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringNotContainsString('Diesen Newsletter im Browser ansehen', $html);
+        $this->assertStringNotContainsString('/newsletters/' . $newsletter->id . '/preview"', $html);
     }
 
     /**
@@ -61,13 +130,13 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
         ])->withAttribute('id', (string) $newsletter->id);
 
         $response = $this->controller()->previewRender($request, $this->makeResponse());
-        $payload = json_decode((string) $response->getBody(), true);
+        $html = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('Harmloser Text', $payload['content_html']);
-        $this->assertStringContainsString('Klick mich', $payload['content_html']);
-        $this->assertStringNotContainsString('<script', $payload['content_html']);
-        $this->assertStringNotContainsString('onclick', $payload['content_html']);
+        $this->assertStringContainsString('Harmloser Text', $html);
+        $this->assertStringContainsString('Klick mich', $html);
+        $this->assertStringNotContainsString('<script', $html);
+        $this->assertStringNotContainsString('onclick', $html);
     }
 
     public function testRenderEndpointRejectsUnrelatedRecipient(): void
@@ -163,9 +232,38 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
 
         $body = (string) $response->getBody();
 
+        // Ohne Verwaltungsrecht bleibt der Parameter wirkungslos: Die Rahmen-Adresse trägt keine
+        // recipient_id, der eingebettete Rahmen zeigt also stets die eigenen Daten der Sitzung.
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('Hallo Georg', $body);
-        $this->assertStringNotContainsString('Hallo Fremd', $body);
+        $this->assertStringContainsString('src="/newsletters/' . $newsletter->id . '/preview-frame"', $body);
+        $this->assertStringNotContainsString('recipient_id', $body);
+    }
+
+    /**
+     * Der eingebettete Rahmen im Editor-Modal (#preview-modal-frame) muss dieselbe strenge
+     * Sandbox tragen wie der Rahmen der eigenständigen Vorschauseite - siehe
+     * NewsletterPreviewFrameFeatureTest::testPreviewPageEmbedsSandboxedFrameAndKeepsDataHint().
+     * Ohne sandbox="" könnte der über previewRender() geladene Mail-Inhalt im Editor Skripte
+     * ausführen oder aus dem Rahmen heraus navigieren.
+     */
+    public function testEditPageEmbedsSandboxedPreviewFrame(): void
+    {
+        $creator = $this->createUser('Anna');
+        $recipient = $this->createUser('Georg');
+        $newsletter = $this->createNewsletter($creator, $recipient);
+
+        $_SESSION['user_id'] = (int) $creator->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $request = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/edit")
+            ->withAttribute('id', (string) $newsletter->id);
+
+        $response = $this->controller()->edit($request, $this->makeResponse());
+        $body = (string) $response->getBody();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('id="preview-modal-frame"', $body);
+        $this->assertStringContainsString('sandbox=""', $body);
     }
 
     /**

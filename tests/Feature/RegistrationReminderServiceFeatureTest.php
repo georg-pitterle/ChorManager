@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\MailQueueService;
 use App\Services\RegistrationReminderService;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
@@ -22,12 +23,12 @@ use Tests\Unit\Bootstrap;
 class RegistrationReminderServiceFeatureTest extends TestCase
 {
     private Event $event;
-    private ?Project $extraProject = null;
-    private array $extraUserIds = [];
+    private User $attendee;
 
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
 
         AppSetting::updateOrCreate(
             ['setting_key' => 'registration_reminder_days_before'],
@@ -41,22 +42,35 @@ class RegistrationReminderServiceFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => true,
         ]);
+
+        // Mindestens eine aktive, unregistrierte Person, damit processDue() in
+        // jedem Testfall tatsächlich jemanden anzuschreiben hat - sonst würden
+        // Tests wie "vor dem ersten Enqueue markiert" oder "bleibt bei Fehlern
+        // unmarkiert" mangels Empfänger nichts prüfen.
+        $this->attendee = $this->createUser('Erinnerung', 'Empfaenger');
     }
 
     protected function tearDown(): void
     {
-        MailQueue::where('mail_type', 'registration_reminder')->delete();
-        EventRegistration::where('event_id', $this->event->id)->delete();
-        $this->event->delete();
-        AppSetting::where('setting_key', 'registration_reminder_days_before')->delete();
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
 
-        if ($this->extraProject !== null) {
-            $this->extraProject->users()->detach();
-            $this->extraProject->delete();
-        }
-        if ($this->extraUserIds !== []) {
-            User::whereIn('id', $this->extraUserIds)->delete();
-        }
+        $_SESSION = [];
+    }
+
+    private function createUser(string $firstName, string $lastName): User
+    {
+        $suffix = bin2hex(random_bytes(6));
+
+        return User::create([
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => "reminder_{$suffix}@example.test",
+            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'is_active' => true,
+        ]);
     }
 
     private function service(): RegistrationReminderService
@@ -68,9 +82,23 @@ class RegistrationReminderServiceFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Scoped to this test's event so pre-existing dev-seed registration_reminder
+     * rows for unrelated events (from concurrently due seed events) cannot mask
+     * a failure or make an assertion pass on the neighbouring dataset.
+     *
+     * @return Collection<int, MailQueue>
+     */
+    private function reminderMailsForThisEvent(): Collection
+    {
+        return MailQueue::where('mail_type', 'registration_reminder')
+            ->get()
+            ->filter(fn (MailQueue $mail) => ($mail->payload_json['event_id'] ?? null) === $this->event->id);
+    }
+
     public function testRemindsOnlyUnregisteredUsersAndMarksEvent(): void
     {
-        $registered = User::where('is_active', 1)->whereNotNull('email')->firstOrFail();
+        $registered = $this->createUser('Erinnerung', 'Angemeldet');
         EventRegistration::create([
             'event_id' => $this->event->id,
             'user_id' => $registered->id,
@@ -82,11 +110,7 @@ class RegistrationReminderServiceFeatureTest extends TestCase
 
         $this->assertGreaterThan(0, $count);
 
-        // Scoped to this test's event so pre-existing dev-seed registration_reminder
-        // rows for the same recipient (from unrelated events) cannot mask a failure.
-        $reminderMailsForEvent = MailQueue::where('mail_type', 'registration_reminder')
-            ->get()
-            ->filter(fn (MailQueue $mail) => ($mail->payload_json['event_id'] ?? null) === $this->event->id);
+        $reminderMailsForEvent = $this->reminderMailsForThisEvent();
 
         $this->assertSame(0, $reminderMailsForEvent
             ->filter(fn (MailQueue $mail) => $mail->recipient_email === $registered->email)
@@ -105,43 +129,28 @@ class RegistrationReminderServiceFeatureTest extends TestCase
 
     public function testProjectBoundEventOnlyRemindsProjectMembers(): void
     {
-        $this->extraProject = Project::create([
-            'name' => 'Erinnerungstest-Projekt',
+        $project = Project::create([
+            'name' => 'Erinnerungstest-Projekt ' . bin2hex(random_bytes(4)),
             'description' => 'Fixture project for RegistrationReminderService test',
         ]);
 
-        $member = User::create([
-            'first_name' => 'Reminder',
-            'last_name' => 'Projektmitglied',
-            'email' => 'reminder-member@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
-            'is_active' => true,
-        ]);
-        $nonMember = User::create([
-            'first_name' => 'Reminder',
-            'last_name' => 'Nichtmitglied',
-            'email' => 'reminder-nonmember@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
-            'is_active' => true,
-        ]);
-        $this->extraUserIds = [$member->id, $nonMember->id];
+        $member = $this->createUser('Reminder', 'Projektmitglied');
+        $nonMember = $this->createUser('Reminder', 'Nichtmitglied');
 
-        $this->extraProject->users()->attach($member->id);
+        $project->users()->attach($member->id);
         // $nonMember is deliberately NOT attached to the project: only
         // project members may be reminded for a project-bound event.
 
-        $this->event->update(['project_id' => $this->extraProject->id]);
+        $this->event->update(['project_id' => $project->id]);
         EventAudienceSource::create([
             'event_id' => $this->event->id,
             'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $this->extraProject->id,
+            'reference_id' => (int) $project->id,
         ]);
 
         $this->service()->processDue('https://chor.example');
 
-        $reminderMailsForEvent = MailQueue::where('mail_type', 'registration_reminder')
-            ->get()
-            ->filter(fn (MailQueue $mail) => ($mail->payload_json['event_id'] ?? null) === $this->event->id);
+        $reminderMailsForEvent = $this->reminderMailsForThisEvent();
 
         $this->assertSame(
             1,
@@ -173,11 +182,15 @@ class RegistrationReminderServiceFeatureTest extends TestCase
             'ends_at' => Carbon::now()->addDays(30)->addHours(2),
         ]);
 
-        $count = $this->service()->processDue('https://chor.example');
+        // Der Rueckgabewert von processDue() zaehlt system-weit alle faelligen
+        // Termine, nicht nur diesen - mit echten Seed-Daten waeren auch andere,
+        // tatsaechlich faellige Termine faellig. Geprueft wird daher gezielt an
+        // diesem Termin: weder Markierung noch Erinnerungsmail.
+        $this->service()->processDue('https://chor.example');
 
-        $this->assertSame(0, $count);
         $this->event->refresh();
         $this->assertNull($this->event->registration_reminder_sent_at);
+        $this->assertCount(0, $this->reminderMailsForThisEvent());
     }
 
     public function testDisabledSettingSendsNothing(): void
@@ -244,9 +257,19 @@ class RegistrationReminderServiceFeatureTest extends TestCase
 
     public function testAlreadyClaimedEventIsSkipped(): void
     {
-        $this->event->update(['registration_reminder_sent_at' => Carbon::now()]);
+        $claimedAt = Carbon::now();
+        $this->event->update(['registration_reminder_sent_at' => $claimedAt]);
 
-        $this->assertSame(0, $this->service()->processDue('https://chor.example'));
+        // Wie bei testEventOutsideWindowIsSkipped(): der Rueckgabewert von
+        // processDue() ist system-weit, daher gezielt an diesem Termin geprueft.
+        $this->service()->processDue('https://chor.example');
+
+        $this->assertCount(0, $this->reminderMailsForThisEvent());
+        $this->event->refresh();
+        $this->assertSame(
+            $claimedAt->format('Y-m-d H:i:s'),
+            $this->event->registration_reminder_sent_at->format('Y-m-d H:i:s')
+        );
     }
 
     public function testTriggerWiringExists(): void

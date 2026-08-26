@@ -168,11 +168,17 @@ async function main() {
         await shotCapped(page, '06-overview-sent');
 
         // 7. Modal: Vorschau eines versendeten Newsletters
+        // Der Vorschau-Inhalt steckt seit der Umstellung auf den eingebetteten Mail-Rahmen in
+        // einem streng sandboxten iframe (.newsletter-preview-frame) statt in einem einfachen
+        // div. openActionModal() wartet nur, bis das iframe-Element selbst sichtbar ist - das
+        // Laden seines eigenen Dokuments (eigener Netzwerk-Request) ist ein separater Schritt,
+        // deshalb zusätzlich auf den body innerhalb des Rahmens warten.
         await openActionModal(
             page,
             page.locator('#newslettersTable tbody tr').first().locator('[data-newsletter-modal-url*="/preview"]'),
-            '.newsletter-content-preview'
+            '.newsletter-preview-frame'
         );
+        await page.frameLocator('.newsletter-preview-frame').locator('body').waitFor({ state: 'visible' });
         await shotViewport(page, '07-preview-modal');
 
         // 8. Vorlagenübersicht

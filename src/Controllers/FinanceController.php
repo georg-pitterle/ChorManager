@@ -25,6 +25,7 @@ use Psr\Http\Message\UploadedFileInterface;
 use Psr\Log\LoggerInterface;
 use App\Util\AmountNormalizer;
 use App\Util\UploadValidator;
+use App\Util\DownloadFileName;
 
 class FinanceController
 {
@@ -335,7 +336,7 @@ class FinanceController
                             continue;
                         }
 
-                        $safeName = self::normalizeFileName((string) $file->getClientFilename());
+                        $safeName = DownloadFileName::sanitize((string) $file->getClientFilename());
 
                         Attachment::create([
                             'entity_type' => 'finance',
@@ -382,20 +383,12 @@ class FinanceController
     }
 
     /**
-     * Atomically reserves the next running number via a locked settings counter row.
-     * The counter never decreases, so a running number is never reused even after the
-     * highest booking is deleted. Falls back to the current table max in case the
-     * counter is behind (e.g. after dev-seed data was inserted directly).
-     */
-    private function nextRunningNumber(): int
-    {
-        return $this->reserveRunningNumbers(1);
-    }
-
-    /**
-     * Reserves a contiguous block of running numbers in a single locked round trip
-     * and returns the first number of that block. Bulk imports would otherwise have
-     * to lock the counter row once per booking.
+     * Atomically reserves a contiguous block of running numbers in a single locked
+     * round trip and returns the first number of that block. The counter never
+     * decreases, so a running number is never reused even after the highest booking
+     * is deleted; it falls back to the current table max in case the counter is
+     * behind (e.g. after dev-seed data was inserted directly). Bulk imports would
+     * otherwise have to lock the counter row once per booking.
      */
     private function reserveRunningNumbers(int $count): int
     {
@@ -435,7 +428,7 @@ class FinanceController
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
-        $filename = self::normalizeFileName((string) $uploadedFile->getClientFilename());
+        $filename = DownloadFileName::sanitize((string) $uploadedFile->getClientFilename());
         $validationError = BankStatementImportService::validateUpload(
             $filename,
             (int) $uploadedFile->getSize(),
@@ -798,7 +791,7 @@ class FinanceController
             ->withHeader('Content-Type', 'application/pdf')
             ->withHeader(
                 'Content-Disposition',
-                'attachment; filename="' . self::normalizeFileName($filename) . '"'
+                'attachment; filename="' . DownloadFileName::sanitize($filename) . '"'
                     . '; filename*=UTF-8\'\'' . rawurlencode($filename)
             );
     }
@@ -834,7 +827,7 @@ class FinanceController
             ->withHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->withHeader(
                 'Content-Disposition',
-                'attachment; filename="' . self::normalizeFileName($filename) . '"'
+                'attachment; filename="' . DownloadFileName::sanitize($filename) . '"'
                     . '; filename*=UTF-8\'\'' . rawurlencode($filename)
             );
     }
@@ -943,7 +936,7 @@ class FinanceController
         try {
             $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
             $response->getBody()->write($attachment->file_content);
-            $safeName = self::normalizeFileName((string) $attachment->filename);
+            $safeName = DownloadFileName::sanitize((string) $attachment->filename);
             $disposition = self::isInlineViewableMimeType((string) $attachment->mime_type) ? 'inline' : 'attachment';
             return $response
                 ->withHeader('Content-Type', $attachment->mime_type)
@@ -987,13 +980,6 @@ class FinanceController
             $_SESSION['error'] = 'Fehler beim Löschen des Anhangs.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
-    }
-
-    private static function normalizeFileName(string $name): string
-    {
-        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
-        $trimmed = trim($safe);
-        return $trimmed !== '' ? $trimmed : 'download';
     }
 
     private static function isInlineViewableMimeType(string $mimeType): bool

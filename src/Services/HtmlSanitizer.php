@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Newsletter\ContentClasses;
 use HTMLPurifier;
 use HTMLPurifier_Config;
 
@@ -81,7 +82,7 @@ class HtmlSanitizer
         $config = $this->buildBaseConfig();
 
         $config->set('HTML.Allowed', implode(',', [
-            'p',
+            'p[class]',
             'br',
             'hr',
             'strong',
@@ -89,15 +90,15 @@ class HtmlSanitizer
             'em',
             'i',
             'u',
-            'ul',
-            'ol',
-            'li',
+            'ul[class]',
+            'ol[class]',
+            'li[class]',
             'a[href|title|target|rel]',
-            'blockquote',
-            'h1',
-            'h2',
-            'h3',
-            'h4',
+            'blockquote[class]',
+            'h1[class]',
+            'h2[class]',
+            'h3[class]',
+            'h4[class]',
             'table',
             'thead',
             'tbody',
@@ -105,8 +106,13 @@ class HtmlSanitizer
             'th',
             'td',
             'img[src|alt|width|height]',
-            'span',
+            'span[class]',
         ]));
+
+        // Gestaltung ist auf eine feste Liste begrenzt: Redakteure wählen im Editor aus,
+        // ein freies style-Attribut bleibt gesperrt. Eine nicht aufgeführte Klasse entfernt
+        // HTMLPurifier stillschweigend, Element und Text bleiben erhalten.
+        $config->set('Attr.AllowedClasses', ContentClasses::names());
 
         // Externe Ressourcen (Bilder, Tracking-Pixel) bleiben gesperrt. Links
         // dürfen dagegen http/https tragen: Der Editor bietet sie an, und ohne

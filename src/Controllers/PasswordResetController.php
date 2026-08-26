@@ -13,6 +13,7 @@ use App\Models\InvitationToken;
 use App\Services\Mailer;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
+use App\Services\RememberLoginService;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
 use App\Util\MailBranding;
@@ -27,6 +28,7 @@ class PasswordResetController
     private PasswordPolicyService $passwordPolicyService;
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
+    private RememberLoginService $rememberLoginService;
 
     public function __construct(
         Twig $view,
@@ -34,7 +36,8 @@ class PasswordResetController
         ?RateLimiterService $rateLimiter = null,
         ?PasswordPolicyService $passwordPolicyService = null,
         ?MailQueueService $mailQueueService = null,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?RememberLoginService $rememberLoginService = null
     ) {
         $this->view = $view;
         $this->mailer = $mailer ?? new Mailer();
@@ -42,6 +45,26 @@ class PasswordResetController
         $this->passwordPolicyService = $passwordPolicyService ?? new PasswordPolicyService();
         $this->mailQueueService = $mailQueueService ?? new MailQueueService();
         $this->logger = $logger ?? new NullLogger();
+        $this->rememberLoginService = $rememberLoginService ?? new RememberLoginService();
+    }
+
+    /**
+     * Nach einem gesetzten Passwort dürfen die Angemeldet-bleiben-Token des Kontos
+     * nicht weitergelten - sonst sperrt ein Zurücksetzen niemanden aus.
+     */
+    private function revokeRememberTokens(int $userId, string $reason): void
+    {
+        $revoked = $this->rememberLoginService->invalidateAllForUser($userId);
+        if ($revoked === 0) {
+            return;
+        }
+
+        $this->logger->info('Remember-me tokens revoked after password change.', [
+            'event' => 'auth.remember_me.revoked',
+            'reason' => $reason,
+            'user_id' => $userId,
+            'revoked_count' => $revoked,
+        ]);
     }
 
     public function showForgotForm(Request $request, Response $response): Response
@@ -196,6 +219,7 @@ class PasswordResetController
                 $user->password = password_hash($password, PASSWORD_DEFAULT);
                 $user->save();
                 PasswordReset::where('email', $email)->delete();
+                $this->revokeRememberTokens((int) $user->id, 'password_reset');
 
                 $this->logger->info('Password reset completed.', [
                     'event' => 'auth.password_reset.completed',
@@ -221,6 +245,7 @@ class PasswordResetController
                 $user->password = password_hash($password, PASSWORD_DEFAULT);
                 $user->save();
                 InvitationToken::where('user_id', $user->id)->delete();
+                $this->revokeRememberTokens((int) $user->id, 'invitation_consumed');
 
                 $this->logger->info('Invitation consumed.', [
                     'event' => 'invitation.consumed',

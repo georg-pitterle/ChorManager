@@ -12,12 +12,10 @@ use App\Models\VoiceGroup;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\AttendanceScopeService;
 use App\Services\MailQueueService;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -27,57 +25,62 @@ use Psr\Log\LoggerInterface;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class OwnVoiceGroupCallSitesFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /** Haengt an jeden Rollennamen, damit er in der geteilten Datenbank eindeutig bleibt. */
+    private string $suffix = '';
+
+    /** Reale Rolle bei hierarchy_level 0, benoetigt fuer den update()-Kappungspfad unten. */
+    private int $roleIdLevelZero = 0;
+
     protected function setUp(): void
     {
+        parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
+        $this->suffix = bin2hex(random_bytes(4));
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
-
-        $schema = $capsule->schema();
-        $schema->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('email');
-            $table->string('password')->nullable();
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
-            $table->boolean('is_active')->default(true);
-        });
-        $schema->create('roles', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->integer('hierarchy_level')->default(0);
-        });
-        $schema->create('invitation_tokens', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->integer('user_id');
-            $table->string('selector');
-            $table->string('token_hash');
-            $table->dateTime('expires_at');
-            $table->dateTime('created_at');
-        });
-
-        // Single role at hierarchy_level 0, used by the update()-flow tests below:
-        // an actor with role_level 0 can only keep roles the target already holds
-        // at/below that level, so the target must already carry this role for the
-        // "allowed" scenario to reach the persistence layer instead of bailing out
-        // earlier on "no roles selected".
-        Capsule::table('roles')->insert(['id' => 1, 'hierarchy_level' => 0]);
+        // Einzelne Rolle bei hierarchy_level 0, verwendet von den update()-Tests unten:
+        // ein Akteur mit role_level 0 darf dem Ziel nur Rollen belassen, die es bereits
+        // auf/unter diesem Level haelt, deshalb muss das Ziel diese Rolle schon besitzen,
+        // damit das "erlaubt"-Szenario bis zur Persistenzschicht kommt statt vorher am
+        // "keine Rolle ausgewaehlt" zu scheitern.
+        $this->roleIdLevelZero = (int) Role::create([
+            'name' => 'Rolle Level 0 ' . $this->suffix,
+            'hierarchy_level' => 0,
+        ])->id;
     }
 
     protected function tearDown(): void
     {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
+        parent::tearDown();
+    }
+
+    /**
+     * Legt einen echten Nutzer an. Noetig fuer die invite()-Tests: die eingeladene
+     * Person bekommt einen echten Fremdschluessel-Eintrag in invitation_tokens, den
+     * eine nur im Speicher existierende Id nicht erfuellen wuerde.
+     */
+    private function createRealUser(): int
+    {
+        return (int) Capsule::table('users')->insertGetId([
+            'email' => 'target' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'first_name' => 'Target',
+            'last_name' => 'User',
+            'is_active' => 1,
+        ]);
     }
 
     public function testCanManageOthersUsesFlagNotLevel(): void
@@ -180,7 +183,6 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         return new UserController(
             $this->createStub(Twig::class),
             $userQuery,
-            $this->createStub(ProjectQuery::class),
             $userPersistence,
             $this->createStub(ProjectPersistence::class),
             $this->createStub(MailQueueService::class),
@@ -220,7 +222,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(5, [1]);
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -231,7 +234,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeVoiceGroupRepController($userQuery, $userPersistence);
 
         $result = $controller->bulkDeactivate(
-            $this->makeRequest('POST', '/users/bulk-deactivate', ['user_ids' => [5]]),
+            $this->makeRequest('POST', '/users/bulk-deactivate', ['user_ids' => [$targetId]]),
             $this->makeResponse()
         );
 
@@ -251,7 +254,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(6, [2]);
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [2]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -262,7 +266,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeVoiceGroupRepController($userQuery, $userPersistence);
 
         $result = $controller->bulkDeactivate(
-            $this->makeRequest('POST', '/users/bulk-deactivate', ['user_ids' => [6]]),
+            $this->makeRequest('POST', '/users/bulk-deactivate', ['user_ids' => [$targetId]]),
             $this->makeResponse()
         );
 
@@ -314,7 +318,6 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         return new UserController(
             $this->createStub(Twig::class),
             $userQuery,
-            $this->createStub(ProjectQuery::class),
             $userPersistence,
             $projectPersistence,
             $this->createStub(MailQueueService::class),
@@ -333,17 +336,18 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        // Target already holds role id 1 (hierarchy_level 0) so the actor's
-        // own-level role restriction keeps it assigned and the request reaches
-        // the persistence layer instead of bailing out on "no roles selected".
-        $target = $this->makeTargetForUpdate(5, [1], [1]);
+        // Target already holds the level-0 role, so the actor's own-level role
+        // restriction keeps it assigned and the request reaches the persistence
+        // layer instead of bailing out on "no roles selected".
+        $targetId = random_int(500000, 999999);
+        $target = $this->makeTargetForUpdate($targetId, [1], [$this->roleIdLevelZero]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
-        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [1]);
+        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [$this->roleIdLevelZero]);
         $userPersistence->expects($this->once())->method('syncVoiceGroups');
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
@@ -351,17 +355,17 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
 
         $controller = $this->makeUpdateController($userQuery, $userPersistence, $projectPersistence);
 
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $targetId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target-5@example.test',
+            'email' => sprintf('target-%d@example.test', $targetId),
             'password' => '',
-            'roles' => [1],
+            'roles' => [$this->roleIdLevelZero],
             'voice_groups' => [1],
             'sub_voices' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '5']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $targetId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
@@ -377,7 +381,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeTargetForUpdate(6, [2], [1]);
+        $targetId = random_int(500000, 999999);
+        $target = $this->makeTargetForUpdate($targetId, [2], [$this->roleIdLevelZero]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -391,17 +396,17 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class)
         );
 
-        $request = $this->makeRequest('POST', '/users/6', [
+        $request = $this->makeRequest('POST', '/users/' . $targetId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target-6@example.test',
+            'email' => sprintf('target-%d@example.test', $targetId),
             'password' => '',
-            'roles' => [1],
+            'roles' => [$this->roleIdLevelZero],
             'voice_groups' => [2],
             'sub_voices' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '6']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $targetId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame(
@@ -420,7 +425,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeTargetForUpdate(7, [1], [1]);
+        $targetId = random_int(500000, 999999);
+        $target = $this->makeTargetForUpdate($targetId, [1], [$this->roleIdLevelZero]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -434,17 +440,17 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class)
         );
 
-        $request = $this->makeRequest('POST', '/users/7', [
+        $request = $this->makeRequest('POST', '/users/' . $targetId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target-7@example.test',
+            'email' => sprintf('target-%d@example.test', $targetId),
             'password' => '',
-            'roles' => [1],
+            'roles' => [$this->roleIdLevelZero],
             'voice_groups' => [1],
             'sub_voices' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '7']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $targetId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame(
@@ -464,7 +470,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(5, [1]);
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -475,9 +482,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeVoiceGroupRepController($userQuery, $userPersistence);
 
         $result = $controller->deactivate(
-            $this->makeRequest('POST', '/users/deactivate/5'),
+            $this->makeRequest('POST', '/users/deactivate/' . $targetId),
             $this->makeResponse(),
-            ['id' => '5']
+            ['id' => (string) $targetId]
         );
 
         $this->assertRedirect($result, '/users');
@@ -492,7 +499,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(6, [2]);
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [2]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -503,9 +511,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeVoiceGroupRepController($userQuery, $userPersistence);
 
         $result = $controller->deactivate(
-            $this->makeRequest('POST', '/users/deactivate/6'),
+            $this->makeRequest('POST', '/users/deactivate/' . $targetId),
             $this->makeResponse(),
-            ['id' => '6']
+            ['id' => (string) $targetId]
         );
 
         $this->assertRedirect($result, '/users');
@@ -523,7 +531,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(7, [1]);
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -534,9 +543,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeVoiceGroupRepController($userQuery, $userPersistence);
 
         $result = $controller->deactivate(
-            $this->makeRequest('POST', '/users/deactivate/7'),
+            $this->makeRequest('POST', '/users/deactivate/' . $targetId),
             $this->makeResponse(),
-            ['id' => '7']
+            ['id' => (string) $targetId]
         );
 
         $this->assertRedirect($result, '/users');
@@ -556,7 +565,6 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         return new UserController(
             $view,
             $userQuery,
-            $this->createStub(ProjectQuery::class),
             $this->createStub(UserPersistence::class),
             $this->createStub(ProjectPersistence::class),
             $this->createStub(MailQueueService::class),
@@ -573,7 +581,10 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(5, [1]);
+        // sendInvitationEmail() legt einen echten invitation_tokens-Eintrag an, dessen
+        // Fremdschluessel auf einen echten users-Datensatz zeigen muss.
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -581,9 +592,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeInviteController($userQuery);
 
         $result = $controller->invite(
-            $this->makeRequest('POST', '/users/5/invite'),
+            $this->makeRequest('POST', '/users/' . $targetId . '/invite'),
             $this->makeResponse(),
-            ['id' => '5']
+            ['id' => (string) $targetId]
         );
 
         $this->assertSame(200, $result->getStatusCode());
@@ -599,7 +610,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(6, [2]);
+        $targetId = random_int(500000, 999999);
+        $target = $this->makeUserWithVoiceGroups($targetId, [2]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -607,9 +619,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeInviteController($userQuery);
 
         $result = $controller->invite(
-            $this->makeRequest('POST', '/users/6/invite'),
+            $this->makeRequest('POST', '/users/' . $targetId . '/invite'),
             $this->makeResponse(),
-            ['id' => '6']
+            ['id' => (string) $targetId]
         );
 
         $this->assertSame(403, $result->getStatusCode());
@@ -626,7 +638,8 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
 
-        $target = $this->makeUserWithVoiceGroups(7, [1]);
+        $targetId = random_int(500000, 999999);
+        $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
         $userQuery->method('findById')->willReturn($target);
@@ -634,9 +647,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $controller = $this->makeInviteController($userQuery);
 
         $result = $controller->invite(
-            $this->makeRequest('POST', '/users/7/invite'),
+            $this->makeRequest('POST', '/users/' . $targetId . '/invite'),
             $this->makeResponse(),
-            ['id' => '7']
+            ['id' => (string) $targetId]
         );
 
         $this->assertSame(403, $result->getStatusCode());

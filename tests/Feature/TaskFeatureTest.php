@@ -94,10 +94,77 @@ class TaskFeatureTest extends TestCase
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
 
-        $this->assertStringNotContainsString("\$project->users()->where('users.id', \$userId)->exists()", $controllerContent);
+        // Die Prüfung gilt der Zugriffsentscheidung, nicht dem ganzen Controller: Die
+        // Zuweisungsprüfung in resolveAssignedUserId() fragt die Projektmitglieder
+        // ebenfalls ab, entscheidet damit aber über das Ziel einer Zuweisung und nie
+        // über Zugriff. Deshalb wird hier gezielt hasTaskAccess() isoliert.
+        $this->assertStringNotContainsString('users()', $this->methodBody('hasTaskAccess'));
         $this->assertStringContainsString('return $canManageTasks;', $controllerContent);
         $this->assertStringNotContainsString('can_manage_master_data', $controllerContent);
         $this->assertStringNotContainsString('can_manage_users', $controllerContent);
+    }
+
+    /**
+     * Ergänzt die Textprüfung oben um den Nachweis am Verhalten: Mitgliedschaft im
+     * Projekt öffnet die Aufgaben nicht, dafür braucht es can_manage_tasks.
+     */
+    public function testProjectMemberWithoutTaskPermissionIsDeniedByTheController(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $project = Project::create([
+            'name' => 'Aufgaben-Zugriff ' . bin2hex(random_bytes(4)),
+            'description' => 'Projekt für die Zugriffsprüfung',
+        ]);
+        $member = User::create([
+            'first_name' => 'Nur',
+            'last_name' => 'Mitglied',
+            'email' => 'task.member.' . bin2hex(random_bytes(5)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+        $project->users()->attach($member->id);
+
+        $_SESSION = ['user_id' => (int) $member->id, 'can_manage_tasks' => false];
+
+        try {
+            $controller = new TaskController(
+                $this->createStub(Twig::class),
+                new HtmlSanitizer(),
+                new TaskPolicy(),
+                new NameFormatterService(),
+                new Logger('test')
+            );
+
+            $response = $controller->index(
+                $this->makeRequest('GET', '/projects/' . $project->id . '/tasks'),
+                $this->makeResponse(),
+                ['project_id' => (string) $project->id]
+            );
+
+            $this->assertSame(302, $response->getStatusCode());
+            $this->assertSame('/dashboard', $response->getHeaderLine('Location'));
+            $this->assertSame('Zugriff verweigert.', $_SESSION['error'] ?? null);
+        } finally {
+            $project->users()->detach();
+            $project->delete();
+            $member->delete();
+            $_SESSION = [];
+        }
+    }
+
+    /**
+     * Quelltext genau einer Methode des TaskControllers, damit sich eine Prüfung auf
+     * die Zugriffsentscheidung beschränken lässt statt auf die ganze Datei.
+     */
+    private function methodBody(string $method): string
+    {
+        $reflection = new \ReflectionMethod(TaskController::class, $method);
+        $lines = (array) file((string) $reflection->getFileName());
+        $start = (int) $reflection->getStartLine() - 1;
+        $length = (int) $reflection->getEndLine() - $start;
+
+        return implode('', array_slice($lines, $start, $length));
     }
 
     public function testTaskControllerSanitizesHtmlDescriptions(): void

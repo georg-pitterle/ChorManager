@@ -22,6 +22,7 @@ class NewsletterService
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
     private NewsletterPlaceholderService $placeholderService;
+    private NewsletterMailRenderer $mailRenderer;
 
     public function __construct(
         NewsletterRecipientService $recipientService,
@@ -29,7 +30,8 @@ class NewsletterService
         HtmlSanitizer $htmlSanitizer,
         MailQueueService $mailQueueService,
         LoggerInterface $logger,
-        NewsletterPlaceholderService $placeholderService
+        NewsletterPlaceholderService $placeholderService,
+        NewsletterMailRenderer $mailRenderer
     ) {
         $this->recipientService = $recipientService;
         $this->mailer = $mailer;
@@ -37,6 +39,7 @@ class NewsletterService
         $this->mailQueueService = $mailQueueService;
         $this->logger = $logger;
         $this->placeholderService = $placeholderService;
+        $this->mailRenderer = $mailRenderer;
     }
 
     /**
@@ -137,18 +140,21 @@ class NewsletterService
             }
 
             try {
+                $subject = $this->placeholderService->renderSubject(
+                    (string) $newsletter->title,
+                    $renderContext,
+                    $recipient->user
+                );
+                $personalizedContent = $this->placeholderService->renderHtml(
+                    $emailContent,
+                    $renderContext,
+                    $recipient->user
+                );
+
                 $this->mailQueueService->enqueueNewsletterMail(
                     recipientEmail: $toEmail,
-                    subject: $this->placeholderService->renderSubject(
-                        (string) $newsletter->title,
-                        $renderContext,
-                        $recipient->user
-                    ),
-                    bodyHtml: $this->placeholderService->renderHtml(
-                        $emailContent,
-                        $renderContext,
-                        $recipient->user
-                    ),
+                    subject: $subject,
+                    bodyHtml: $this->mailRenderer->renderHtml($newsletter, $subject, $personalizedContent, $baseUrl),
                     newsletterId: (int) $newsletter->id,
                     recipientId: (int) $recipient->id
                 );

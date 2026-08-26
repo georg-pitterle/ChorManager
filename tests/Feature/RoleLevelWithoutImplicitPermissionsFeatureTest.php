@@ -25,12 +25,29 @@ final class RoleLevelWithoutImplicitPermissionsFeatureTest extends TestCase
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
     }
 
     protected function tearDown(): void
     {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
+    }
+
+    private function createActiveUser(string $lastName): User
+    {
+        return User::create([
+            'first_name' => 'Rolle',
+            'last_name' => $lastName,
+            'email' => 'rolelevel.' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
     }
 
     public function testHighLevelRoleWithoutFlagsGrantsNoPermissions(): void
@@ -60,16 +77,20 @@ final class RoleLevelWithoutImplicitPermissionsFeatureTest extends TestCase
         $this->assertFalse($_SESSION['can_manage_tasks']);
         $this->assertFalse($_SESSION['can_manage_attendance_all']);
 
-        $user->roles()->detach();
-        $user->delete();
-        $role->delete();
     }
 
     public function testHighLevelDoesNotWidenAttendanceScope(): void
     {
-        $groupIds = VoiceGroup::query()->orderBy('id')->limit(1)->pluck('id')
-            ->map(static fn ($id): int => (int) $id)->all();
-        $this->assertNotEmpty($groupIds, 'Seed-Daten mit mindestens einer Stimmgruppe erwartet.');
+        // Eigene Ausgangslage statt vorhandener Seed-Daten: eine Stimmgruppe mit genau einem
+        // Mitglied und eine weitere aktive Person außerhalb. Ohne die zweite Person wäre die
+        // letzte Zusicherung inhaltsleer, weil verwaltbare und vorhandene Menge gleich groß
+        // wären - auf einer leeren Datenbank sogar beide null.
+        $group = VoiceGroup::create(['name' => 'Stimmgruppe ' . bin2hex(random_bytes(4))]);
+        $insider = $this->createActiveUser('Innen');
+        $insider->voiceGroups()->attach($group->id);
+        $this->createActiveUser('Aussen');
+
+        $groupIds = [(int) $group->id];
 
         $_SESSION['can_manage_attendance_all'] = false;
         $_SESSION['can_manage_own_voice_group'] = true;

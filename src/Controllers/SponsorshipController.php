@@ -12,6 +12,7 @@ use App\Models\Attachment;
 use App\Util\AmountNormalizer;
 use App\Util\UploadValidator;
 use Psr\Log\LoggerInterface;
+use App\Util\DownloadFileName;
 
 class SponsorshipController
 {
@@ -204,9 +205,9 @@ class SponsorshipController
             ->withHeader('Content-Type', $attachment->mime_type)
             ->withHeader(
                 'Content-Disposition',
-                'attachment; filename="' . self::normalizeFileName((string) $attachment->original_name)
+                'attachment; filename="' . DownloadFileName::sanitize((string) $attachment->original_name)
                     . '"; filename*=UTF-8\'\''
-                    . rawurlencode(self::normalizeFileName((string) $attachment->original_name))
+                    . rawurlencode(DownloadFileName::sanitize((string) $attachment->original_name))
             );
     }
 
@@ -249,12 +250,5 @@ class SponsorshipController
         }
 
         return $normalized;
-    }
-
-    private static function normalizeFileName(string $name): string
-    {
-        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
-        $trimmed = trim($safe);
-        return $trimmed !== '' ? $trimmed : 'download';
     }
 }

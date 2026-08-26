@@ -133,13 +133,17 @@
                                        font-size:16px;
                                        line-height:1.65;
                                        color:#1f2937">
-                                <p class="cm-text" style="margin:0 0 18px 0; color:#1f2937">Hallo {{ user.first_name }},</p>
+                                {% block greeting %}
+                                    <p class="cm-text" style="margin:0 0 18px 0; color:#1f2937">Hallo {{ user.first_name }},</p>
+                                {% endblock %}
                                 {% block content %}{% endblock %}
-                                <p class="cm-text" style="margin:0; color:#1f2937">
-                                    Viele Grüße
-                                    <br>
-                                    dein {{ brand_name }}
-                                </p>
+                                {% block closing %}
+                                    <p class="cm-text" style="margin:0; color:#1f2937">
+                                        Viele Grüße
+                                        <br>
+                                        dein {{ brand_name }}
+                                    </p>
+                                {% endblock %}
                             </td>
                         </tr>
                         <tr>
@@ -152,7 +156,9 @@
                                           font-size:12px;
                                           line-height:1.6;
                                           color:#667085">
-                                    Automatisch versendet von {{ brand_name }}. Antworten auf diese Adresse werden nicht gelesen.
+                                    {% block footer_note %}
+                                        Automatisch versendet von {{ brand_name }}. Antworten auf diese Adresse werden nicht gelesen.
+                                    {% endblock %}
                                 </p>
                             </td>
                         </tr>

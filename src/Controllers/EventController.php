@@ -21,23 +21,49 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Queries\ProjectQuery;
 use App\Services\CalendarSubscriptionService;
 use App\Services\EventAudienceService;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
+use App\Util\SafeRedirect;
 use App\Util\Timezone;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Psr\Log\LoggerInterface;
 
 class EventController
 {
+    /**
+     * Schlüssel, unter dem die frisch erzeugte Abo-Adresse genau einen
+     * Seitenaufruf lang in der Sitzung liegt.
+     */
+    private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_url';
+
+    /**
+     * Zugelassene Takte einer Terminserie. Der Wert steuert, um wie viel die
+     * Erzeugungsschleife weiterrückt - ein unbekannter Takt rückt gar nicht
+     * weiter und die Schleife käme nie zum Ende.
+     */
+    private const SERIES_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
+
+    /**
+     * Notbremse der Erzeugungsschleife. Sie greift nie bei einer gültigen Eingabe:
+     * Der teuerste zulässige Fall (wöchentlich, ein Wochentag, großes Intervall)
+     * braucht rund sieben Durchläufe je Termin und endet damit weit vor dieser
+     * Grenze an der Terminzahl.
+     */
+    private const SERIES_MAX_ITERATIONS = 10000;
+
     private Twig $view;
     private NameFormatterService $nameFormatter;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view, NameFormatterService $nameFormatter)
+    public function __construct(Twig $view, NameFormatterService $nameFormatter, LoggerInterface $logger)
     {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
+        $this->logger = $logger;
     }
 
     public function index(Request $request, Response $response): Response
@@ -61,7 +87,11 @@ class EventController
             : 'list';
 
         if ($projectId !== null && $projectId > 0 && !$seesAllEvents && !in_array($projectId, $accessibleProjectIds, true)) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zu diesem Projekt.',
+                'event.index.project_forbidden'
+            );
         }
 
         // Allowed sort columns
@@ -181,12 +211,7 @@ class EventController
         $createState = $createService->getState();
         $createService->clear();
 
-        $calendarSubscriptionUrl = null;
-        if ($userId > 0) {
-            $subscriptionService = new CalendarSubscriptionService();
-            $token = $subscriptionService->getOrCreateTokenForUser($userId);
-            $calendarSubscriptionUrl = AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
-        }
+        $calendarSubscription = $this->calendarSubscriptionState($request, $userId);
 
         return $this->view->render($response, 'events/index.twig', [
             'events' => $events,
@@ -204,7 +229,7 @@ class EventController
             'create_form' => $createState,
             'view_mode' => $viewMode,
             'calendar_events' => $calendarEventsJson,
-            'calendar_subscription_url' => $calendarSubscriptionUrl,
+            'calendar_subscription' => $calendarSubscription,
             'roles' => $roles,
             'voice_groups' => $voiceGroups,
             'audience_users' => $audienceUsers,
@@ -220,7 +245,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.detail.forbidden',
+                (int) $event->id
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -230,19 +260,107 @@ class EventController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
-        $calendarSubscriptionUrl = null;
-        if ($userId > 0) {
-            $subscriptionService = new CalendarSubscriptionService();
-            $token = $subscriptionService->getOrCreateTokenForUser($userId);
-            $calendarSubscriptionUrl = AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
-        }
-
         return $this->view->render($response, 'events/detail.twig', [
             'event' => $event,
             'success' => $success,
             'error' => $error,
-            'calendar_subscription_url' => $calendarSubscriptionUrl,
+            'calendar_subscription' => $this->calendarSubscriptionState($request, $userId),
         ]);
+    }
+
+    /**
+     * Erzeugt ein Kalender-Abo und verwirft ein vorhandenes.
+     *
+     * Die Adresse wird nur hier ausgegeben - gespeichert ist ab Migration
+     * 20260825120300 nur noch ihr Hash. Sie liegt deshalb genau einen
+     * Seitenaufruf lang in der Sitzung und wird von der Zielseite geleert.
+     */
+    public function createSubscription(Request $request, Response $response): Response
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return $this->denyEventAccess(
+                $response,
+                'Für ein Kalender-Abo musst du angemeldet sein.',
+                'event.subscription.no_session'
+            );
+        }
+
+        $data = (array) $request->getParsedBody();
+        $target = $this->subscriptionRedirectTarget($data['redirect_to'] ?? null);
+
+        $subscriptionService = new CalendarSubscriptionService();
+        $rotated = $subscriptionService->hasTokenForUser($userId);
+        $token = $subscriptionService->rotateTokenForUser($userId);
+
+        $_SESSION[self::SUBSCRIPTION_FLASH_KEY] = $this->subscriptionUrl($request, $token);
+
+        // Bewusst ohne Token im Kontext: Die Adresse ist das Geheimnis selbst und
+        // hat in keinem Log etwas verloren.
+        $this->logger->info('Calendar subscription token issued.', [
+            'event' => 'calendar_subscription.token.issued',
+            'user_id' => $userId,
+            'replaced_existing' => $rotated,
+        ]);
+
+        $_SESSION['success'] = $rotated
+            ? 'Neue Abo-Adresse erzeugt. Die bisherige ist ab sofort ungültig.'
+            : 'Abo-Adresse erzeugt.';
+
+        return $response->withHeader('Location', $target)->withStatus(302);
+    }
+
+    /**
+     * Anzeigezustand des Kalender-Abos.
+     *
+     * `url` ist nur gesetzt, wenn die Adresse überhaupt zeigbar ist: direkt nach
+     * dem Erzeugen, oder bei einem Altbestand-Abo, das noch im Klartext vorliegt.
+     * Sonst steht nur fest, ob ein Abo aktiv ist.
+     *
+     * @return array{exists: bool, url: string|null}|null
+     */
+    private function calendarSubscriptionState(Request $request, int $userId): ?array
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $freshUrl = $_SESSION[self::SUBSCRIPTION_FLASH_KEY] ?? null;
+        unset($_SESSION[self::SUBSCRIPTION_FLASH_KEY]);
+
+        if (is_string($freshUrl) && $freshUrl !== '') {
+            return ['exists' => true, 'url' => $freshUrl];
+        }
+
+        $subscriptionService = new CalendarSubscriptionService();
+        $legacyToken = $subscriptionService->findLegacyTokenForUser($userId);
+
+        if ($legacyToken !== null) {
+            return ['exists' => true, 'url' => $this->subscriptionUrl($request, $legacyToken)];
+        }
+
+        return ['exists' => $subscriptionService->hasTokenForUser($userId), 'url' => null];
+    }
+
+    private function subscriptionUrl(Request $request, string $token): string
+    {
+        return AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
+    }
+
+    /**
+     * Rücksprungziel nach dem Erzeugen. Zugelassen sind nur Termin-Seiten dieser
+     * Anwendung - SafeRedirect wehrt fremde Ziele ab, die Präfixprüfung hält den
+     * Knopf auf den Seiten, die das Abo-Fenster überhaupt kennen.
+     */
+    private function subscriptionRedirectTarget(mixed $candidate): string
+    {
+        $target = SafeRedirect::sanitize(is_string($candidate) ? $candidate : null);
+
+        if ($target === null || !str_starts_with($target, '/events')) {
+            return '/events';
+        }
+
+        return $target;
     }
 
     public function exportCalendar(Request $request, Response $response, array $args): Response
@@ -397,8 +515,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.note.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -429,8 +551,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.note.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $note = $this->findEventNote($event->id, (int) $args['note_id']);
@@ -440,8 +566,12 @@ class EventController
         }
 
         if (!$this->canManageEventNote($note, $event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Diese Bemerkung darfst du nicht bearbeiten.',
+                'event.note.note_forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -466,8 +596,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.note.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $note = $this->findEventNote($event->id, (int) $args['note_id']);
@@ -477,8 +611,12 @@ class EventController
         }
 
         if (!$this->canManageEventNote($note, $event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Diese Bemerkung darfst du nicht bearbeiten.',
+                'event.note.note_forbidden',
+                (int) $event->id
+            );
         }
 
         $note->delete();
@@ -487,23 +625,15 @@ class EventController
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
 
+    /**
+     * Dieselbe Auswahl wie in den Auswertungen, deshalb liegt sie in ProjectQuery.
+     * Der Konstruktor bleibt unverändert: NameFormatterService ist ohnehin da, und
+     * ein zusätzlicher Parameter hätte jede Aufrufstelle im Container und in sechs
+     * Testdateien angefasst.
+     */
     private function getAccessibleProjects(int $userId, bool $seesAllEvents)
     {
-        if ($seesAllEvents) {
-            return Project::orderBy('name')->get();
-        }
-
-        if ($userId <= 0) {
-            return Project::query()->whereRaw('1 = 0')->get();
-        }
-
-        return Project::query()
-            ->select('projects.*')
-            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
-            ->where('project_users.user_id', $userId)
-            ->distinct()
-            ->orderBy('projects.name')
-            ->get();
+        return (new ProjectQuery($this->nameFormatter))->getAccessibleProjects($userId, $seesAllEvents);
     }
 
     public function create(Request $request, Response $response): Response
@@ -583,6 +713,31 @@ class EventController
         $startsAt = $parsedStart->format('Y-m-d H:i:s');
         $endsAt   = $parsedEnd->format('Y-m-d H:i:s');
 
+        // Takt und Intervall auch serverseitig prüfen: Das Formular bietet nur die
+        // vier Takte und `min="1"` an, ein manipulierter Beitrag käme sonst aber bis
+        // in die Erzeugungsschleife - mit unbekanntem Takt endlos, mit Intervall 0
+        // oder weniger mit 501 Terminen auf demselben Tag.
+        $frequency = 'weekly';
+        $interval = 1;
+        $weekdays = [];
+        if ($repeat) {
+            $frequency = self::normalizeSeriesFrequency($data['frequency'] ?? null);
+            $interval = self::normalizeRecurrenceInterval($data['recurrence_interval'] ?? null);
+
+            // Wie bei den Zielgruppen-Quellen: Bleibt von angegebenen Wochentagen
+            // nichts Gültiges übrig, wäre die Serie stillschweigend eine tägliche -
+            // dann lieber gar nicht anlegen.
+            $rawWeekdays = is_array($data['weekdays'] ?? null) ? $data['weekdays'] : [];
+            $weekdays = self::normalizeWeekdays($rawWeekdays);
+            $weekdaysDropped = $rawWeekdays !== [] && $weekdays === [];
+
+            if ($frequency === null || $interval === null || $weekdaysDropped) {
+                $createService = new ModalFormService('event_create');
+                $createService->setError('Ungültige Wiederholung. Bitte Takt und Intervall prüfen.', $formData);
+                return $response->withHeader('Location', '/events')->withStatus(302);
+            }
+        }
+
         try {
             $eventType = null;
             if ($eventTypeId) {
@@ -610,11 +765,9 @@ class EventController
                 $audienceService->setSources($event, $sources);
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
             } else {
-                // Series
-                $frequency = $data['frequency'] ?? 'weekly';
-                $interval = (int)($data['recurrence_interval'] ?? 1);
+                // Series - $frequency, $interval und $weekdays (1 = Mo bis 7 = So)
+                // sind oben bereits geprüft.
                 $endDateStr = $data['series_end_date'] ?? null;
-                $weekdays = $data['weekdays'] ?? []; // 1 (Mo) - 7 (So)
 
                 if (!$endDateStr) {
                     throw new Exception('Enddatum für die Serie ist erforderlich.');
@@ -633,8 +786,13 @@ class EventController
 
                 $currentDate = clone $startDate;
                 $count = 0;
+                $iterations = 0;
 
                 while ($currentDate <= $endDate) {
+                    if (++$iterations > self::SERIES_MAX_ITERATIONS) {
+                        break;
+                    }
+
                     $shouldCreate = false;
 
                     if ($frequency === 'daily') {
@@ -714,7 +872,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.edit.forbidden',
+                (int) $event->id
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -779,8 +942,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events')->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.update.forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array)$request->getParsedBody();
@@ -892,9 +1059,13 @@ class EventController
                 });
 
                 if ($hasUnauthorizedSeriesEvent) {
-                    $editService = new ModalFormService('event_edit');
-                    $editService->setError('Zugriff verweigert.', $formData);
-                    return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
+                    return $this->denyEventAccess(
+                        $response,
+                        'Die Serie enthält Termine, die du nicht bearbeiten darfst. '
+                        . 'Es wurde nichts geändert.',
+                        'event.update.series_forbidden',
+                        (int) $event->id
+                    );
                 }
 
                 $newStartTime = Carbon::parse($startsAt)->format('H:i');
@@ -948,8 +1119,12 @@ class EventController
             $event->delete();
             $_SESSION['success'] = 'Termin gelöscht.';
         } elseif ($event) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events')->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.delete.forbidden',
+                (int) $event->id
+            );
         }
         return $response->withHeader('Location', '/events')->withStatus(302);
     }
@@ -959,8 +1134,12 @@ class EventController
         $id = $args['id'];
         $event = Event::find($id);
         if ($event && !$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events')->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.delete_series.forbidden',
+                (int) $event->id
+            );
         }
 
         if ($event && $event->series_id) {
@@ -974,8 +1153,13 @@ class EventController
             });
 
             if ($hasUnauthorizedSeriesEvent) {
-                $_SESSION['error'] = 'Zugriff verweigert.';
-                return $response->withHeader('Location', '/events')->withStatus(403);
+                return $this->denyEventAccess(
+                    $response,
+                    'Die Serie enthält Termine, die du nicht löschen darfst. '
+                    . 'Es wurde nichts gelöscht.',
+                    'event.delete_series.series_forbidden',
+                    (int) $event->id
+                );
             }
 
             // Delete all future events of this series (including current)
@@ -1063,5 +1247,80 @@ class EventController
     private function canManageEvents(): bool
     {
         return (bool) ($_SESSION['can_manage_events'] ?? false);
+    }
+
+    /**
+     * Abweisung mit sichtbarer Begründung: Ein 403 mit Location-Header führt zu einer
+     * leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen - und ein 403 ganz
+     * ohne Körper ebenfalls. Die Flash-Meldung bekam dabei nie eine Seite, auf der
+     * sie erscheinen konnte.
+     */
+    private function denyEventAccess(
+        Response $response,
+        string $message,
+        string $reason,
+        ?int $eventId = null
+    ): Response {
+        $this->logger->info('Access denied.', [
+            'event' => 'authz.denied',
+            'reason' => $reason,
+            'event_id' => $eventId,
+        ]);
+
+        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
+            'error' => $message,
+        ]);
+    }
+
+    /**
+     * Liefert den Takt einer Serie oder null, wenn der Wert nicht zu den vier
+     * unterstützten Takten gehört. Ein fehlendes Feld gilt weiterhin als
+     * "wöchentlich", ein gesetzter, aber unbekannter Wert nicht.
+     */
+    private static function normalizeSeriesFrequency(mixed $value): ?string
+    {
+        if ($value === null) {
+            return 'weekly';
+        }
+
+        $candidate = strtolower(trim((string) $value));
+
+        return in_array($candidate, self::SERIES_FREQUENCIES, true) ? $candidate : null;
+    }
+
+    /**
+     * Liefert das Wiederholungsintervall oder null bei einer ungültigen Angabe.
+     * Ein leeres Feld bleibt beim bisherigen Standardwert 1; 0 oder weniger ist
+     * kein Intervall, sondern ein Stillstand der Erzeugungsschleife.
+     */
+    private static function normalizeRecurrenceInterval(mixed $value): ?int
+    {
+        $candidate = trim((string) ($value ?? ''));
+        if ($candidate === '') {
+            return 1;
+        }
+
+        return ctype_digit($candidate) && (int) $candidate >= 1 ? (int) $candidate : null;
+    }
+
+    /**
+     * Reduziert die gewählten Wochentage auf gültige ISO-Nummern (1 = Mo bis 7 = So).
+     * Ein unbekannter Wert würde sonst als Text in der Serie landen und auf keinen
+     * Kalendertag passen.
+     *
+     * @param array<array-key, mixed> $value
+     * @return list<int>
+     */
+    private static function normalizeWeekdays(array $value): array
+    {
+        $weekdays = [];
+        foreach ($value as $day) {
+            $candidate = trim((string) $day);
+            if (ctype_digit($candidate) && (int) $candidate >= 1 && (int) $candidate <= 7) {
+                $weekdays[] = (int) $candidate;
+            }
+        }
+
+        return array_values(array_unique($weekdays));
     }
 }

@@ -15,6 +15,7 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\MailCredentialCryptoService;
 use App\Services\PasswordPolicyService;
+use App\Services\RememberLoginService;
 use App\Util\BlockedHostException;
 use App\Util\OutboundConnectionGuard;
 use Psr\Log\LoggerInterface;
@@ -28,19 +29,22 @@ class ProfileController
     private PasswordPolicyService $passwordPolicyService;
     private LoggerInterface $logger;
     private MailCredentialCryptoService $crypto;
+    private RememberLoginService $rememberLoginService;
 
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
         PasswordPolicyService $passwordPolicyService,
         LoggerInterface $logger,
-        MailCredentialCryptoService $crypto
+        MailCredentialCryptoService $crypto,
+        ?RememberLoginService $rememberLoginService = null
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
         $this->passwordPolicyService = $passwordPolicyService;
         $this->logger = $logger;
         $this->crypto = $crypto;
+        $this->rememberLoginService = $rememberLoginService ?? new RememberLoginService();
     }
 
     public function index(Request $request, Response $response): Response
@@ -219,6 +223,25 @@ class ProfileController
 
         $user->password = password_hash($newPassword, PASSWORD_DEFAULT);
         $user->save();
+
+        // Von außen ist nicht erkennbar, ob der Wechsel freiwillig oder ein Ernstfall
+        // ist. Deshalb fliegen alle Angemeldet-bleiben-Token des Kontos hinaus - auch
+        // die der Geräte, deren Cookie hier gerade nicht vorliegt.
+        $revoked = $this->rememberLoginService->invalidateAllForUser($userId);
+        if ($revoked > 0) {
+            $this->logger->info('Remember-me tokens revoked after password change.', [
+                'event' => 'auth.remember_me.revoked',
+                'reason' => 'password_changed',
+                'user_id' => (int) $user->id,
+                'revoked_count' => $revoked,
+            ]);
+        }
+
+        // Die eigene Sitzung bleibt bestehen, bekommt aber eine neue Kennung: Wer sie
+        // mitgelesen hat, kommt mit der alten nicht weiter.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
 
         $this->logger->info('Password changed.', [
             'event' => 'auth.password.changed',

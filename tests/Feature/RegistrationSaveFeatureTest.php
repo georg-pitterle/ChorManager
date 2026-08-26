@@ -20,6 +20,7 @@ use Tests\Unit\Bootstrap;
 class RegistrationSaveFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private Event $event;
     private User $user;
@@ -27,9 +28,20 @@ class RegistrationSaveFeatureTest extends TestCase
     protected function setUp(): void
     {
         Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
 
-        $this->user = User::where('is_active', 1)->firstOrFail();
+        // Eigene Person statt einer beliebigen aus dem Bestand: Ein Seed-Lauf oder ein
+        // Browsertest, der die Datenbank neu aufsetzt, ließ diese Klasse sonst reihenweise
+        // mit ModelNotFoundException stehen.
+        $this->user = User::create([
+            'email' => 'registration_save_' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Rita',
+            'last_name' => 'Anmeldung',
+            'is_active' => 1,
+        ]);
+
         $this->event = Event::create([
             'title' => 'Konzert Anmeldetest',
             'starts_at' => Carbon::now()->addDays(10)->setTime(19, 0),
@@ -43,15 +55,20 @@ class RegistrationSaveFeatureTest extends TestCase
 
     protected function tearDown(): void
     {
-        EventRegistration::where('event_id', $this->event->id)->delete();
-        $this->event->delete();
+        // Die Transaktion räumt alles wieder weg, was der Test angelegt hat - eigene
+        // Löschbefehle sind damit überflüssig und würden nur eine zweite Wahrheit schaffen.
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
     }
 
     private function controller(): RegistrationController
     {
         return new RegistrationController(
-            Twig::create(dirname(__DIR__) . '/../templates'),
+            $this->createAppTwig('/registrations'),
             new AttendanceScopeService(),
             new NullLogger(),
             new \App\Services\NameFormatterService()

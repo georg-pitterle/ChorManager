@@ -13,10 +13,12 @@ use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\CalendarSubscriptionService;
+use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
@@ -27,6 +29,7 @@ class EventFeatureTest extends TestCase
     use TwigViewStubs;
 
     private static ?Capsule $capsule = null;
+    private User $sessionUser;
 
     public static function setUpBeforeClass(): void
     {
@@ -61,13 +64,25 @@ class EventFeatureTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        self::$capsule?->connection()->beginTransaction();
+
+        // Eigene Person statt der fest angenommenen Kennung 1: Auf einer frisch aufgesetzten
+        // Datenbank gibt es diesen Datensatz nicht, und die Termin-Detailansicht antwortet dann
+        // mit 403, weil die Zielgruppenprüfung ohne Sitzungsnutzer nicht greifen kann.
+        $this->sessionUser = User::create([
+            'email' => 'events_' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => 'Eva',
+            'last_name' => 'Terminlein',
+            'is_active' => 1,
+        ]);
+
         $_SESSION = [
-            'user_id' => 1,
+            'user_id' => (int) $this->sessionUser->id,
             'can_manage_users' => true,
             'can_manage_events' => true,
         ];
-
-        self::$capsule?->connection()->beginTransaction();
     }
 
     protected function tearDown(): void
@@ -167,7 +182,7 @@ class EventFeatureTest extends TestCase
             'location' => null,
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
 
         $request = $this->makeRequest('GET', '/events?show_old_events=1', [], ['show_old_events' => '1']);
         $response = $this->makeResponse();
@@ -218,7 +233,7 @@ class EventFeatureTest extends TestCase
             'location' => null,
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest(
             'GET',
             '/events?show_old_events=1&project_id=' . $project->id . '&event_type_id=' . $eventType->id,
@@ -288,7 +303,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventRequiresAllTimeFields(): void
     {
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         unset($_SESSION['error']);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Missing Time',
@@ -304,7 +319,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventRejectsInvertedTimeRange(): void
     {
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         unset($_SESSION['error']);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Bad Times',
@@ -321,7 +336,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventValidationErrorKeepsEnteredModalValues(): void
     {
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Probe Dienstag',
             'starts_at' => '2026-06-10',
@@ -355,7 +370,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventStoresTimeRange(): void
     {
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Probe Montag',
             'starts_at' => '2026-05-01',
@@ -380,7 +395,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
             'title' => 'New Probe',
             'starts_at' => '2026-05-08',
@@ -405,7 +420,7 @@ class EventFeatureTest extends TestCase
             'location' => 'Saal',
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
             'title' => 'Neue Probe',
             'starts_at' => '2026-06-10',
@@ -466,7 +481,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('POST', '/events/' . $event1->id . '/update', [
             'title' => 'Probe',
             'starts_at' => '2026-05-05',
@@ -712,7 +727,10 @@ class EventFeatureTest extends TestCase
 
         $this->assertStringContainsString('Kalender abonnieren', $body);
         $this->assertStringContainsString('data-bs-target="#calendarSubscriptionModal"', $body);
-        $this->assertStringContainsString('id="calendarSubscriptionUrlInput"', $body);
+        // Ohne bestehendes Abo bietet das Fenster das Erzeugen an; die Adresse
+        // erscheint erst danach und nur dieses eine Mal.
+        $this->assertStringContainsString('Abo-Adresse erzeugen', $body);
+        $this->assertStringNotContainsString('id="calendarSubscriptionUrlInput"', $body);
         $this->assertStringNotContainsString('Termin erstellen', $body);
     }
 
@@ -786,7 +804,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
             'content' => 'Neue private Bemerkung',
             'is_private' => '1',
@@ -829,7 +847,7 @@ class EventFeatureTest extends TestCase
             'is_private' => true,
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Aktualisierte private Bemerkung',
         ]);
@@ -882,7 +900,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Manipulationsversuch',
         ]);
@@ -930,7 +948,7 @@ class EventFeatureTest extends TestCase
             'is_private' => false,
         ]);
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Sollte nie gespeichert werden',
         ]);
@@ -980,7 +998,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = true;
 
-        $controller = new EventController($this->createTwig(), new \App\Services\NameFormatterService());
+        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Von Bearbeiter aktualisiert',
         ]);
@@ -1009,33 +1027,7 @@ class EventFeatureTest extends TestCase
 
     private function createTwig(): Twig
     {
-        $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
-        $environment = $twig->getEnvironment();
-        $environment->addFilter(new \Twig\TwigFilter(
-            'person_name',
-            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
-        ));
-        $environment->addGlobal('session', $_SESSION);
-        $this->registerMailBadgeStub($environment);
-        $environment->addGlobal('current_path', '/events');
-        $environment->addGlobal('app_settings', []);
-        $environment->addFunction(new TwigFunction(
-            'asset_path',
-            static function (string $path): string {
-                return $path;
-            }
-        ));
-
-        $environment->addFunction(new TwigFunction(
-            'navigation',
-            static function (string $activeNav = ''): array {
-                $context = NavigationContext::fromSession($_SESSION, [], '/events', $activeNav);
-
-                return (new NavigationBuilder())->build($context);
-            }
-        ));
-
-        return $twig;
+        return $this->createAppTwig('/events');
     }
 
     private function createUser(string $suffix): User
@@ -1079,7 +1071,7 @@ class EventFeatureTest extends TestCase
 
         $twig = $this->createTwig();
 
-        $controller = new EventController($twig, new \App\Services\NameFormatterService());
+        $controller = new EventController($twig, new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('GET', '/events', [], $queryParams);
         $response = $this->makeResponse();
 
@@ -1093,7 +1085,7 @@ class EventFeatureTest extends TestCase
         $_SERVER['REQUEST_URI'] = '/events/' . $eventId;
 
         $twig = $this->createTwig();
-        $controller = new EventController($twig, new \App\Services\NameFormatterService());
+        $controller = new EventController($twig, new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('GET', '/events/' . $eventId);
         $response = $this->makeResponse();
 
@@ -1105,7 +1097,7 @@ class EventFeatureTest extends TestCase
     private function renderEventCalendarExport(string $token)
     {
         $twig = $this->createTwig();
-        $controller = new EventController($twig, new \App\Services\NameFormatterService());
+        $controller = new EventController($twig, new NameFormatterService(), new NullLogger());
         $request = $this->makeRequest('GET', '/events/export/' . $token . '.ics');
         $response = $this->makeResponse();
 
@@ -1153,14 +1145,15 @@ class EventFeatureTest extends TestCase
 
         $this->assertStringContainsString('Kalender abonnieren', $body);
         $this->assertStringContainsString('id="calendarSubscriptionModal"', $body);
-        $this->assertStringContainsString('id="calendarSubscriptionUrlInput"', $body);
+        $this->assertStringContainsString('Abo-Adresse erzeugen', $body);
+        $this->assertStringNotContainsString('id="calendarSubscriptionUrlInput"', $body);
     }
 
     public function testPersonalCalendarExportReturnsIcsForValidToken(): void
     {
         $this->createEvent('Probe-Termin', '+3 days');
 
-        $token = (new CalendarSubscriptionService())->getOrCreateTokenForUser(1);
+        $token = (new CalendarSubscriptionService())->rotateTokenForUser((int) $this->sessionUser->id);
         $response = $this->renderEventCalendarExport($token);
 
         $this->assertSame(200, $response->getStatusCode());

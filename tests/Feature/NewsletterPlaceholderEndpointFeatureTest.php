@@ -10,6 +10,7 @@ use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterLockingService;
+use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
@@ -46,15 +47,18 @@ final class NewsletterPlaceholderEndpointFeatureTest extends TestCase
 
     private function controller(): NewsletterController
     {
+        $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
+
         return new NewsletterController(
-            Twig::create(dirname(__DIR__, 2) . '/templates'),
+            $twig,
             new NewsletterService(
                 new NewsletterRecipientService(),
                 new Mailer(new NullLogger()),
                 new HtmlSanitizer(),
                 new MailQueueService(),
                 new NullLogger(),
-                new NewsletterPlaceholderService(new NameFormatterService())
+                new NewsletterPlaceholderService(new NameFormatterService()),
+                new NewsletterMailRenderer($twig)
             ),
             new NewsletterLockingService(),
             new NewsletterRecipientService(),
@@ -62,7 +66,8 @@ final class NewsletterPlaceholderEndpointFeatureTest extends TestCase
             new NullLogger(),
             new NameFormatterService(),
             new NewsletterPlaceholderService(new NameFormatterService()),
-            new MailQueueService()
+            new MailQueueService(),
+            new NewsletterMailRenderer($twig)
         );
     }
 

@@ -12,7 +12,6 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use App\Queries\ProjectQuery;
-use App\Queries\RoleQuery;
 use App\Queries\UserQuery;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\UserPersistence;
@@ -21,6 +20,7 @@ use App\Persistence\NewsletterTemplatePersistence;
 use App\Services\Mailer;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
+use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\BankStatementImportService;
@@ -28,6 +28,7 @@ use App\Services\FinanceAccountService;
 use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
+use App\Services\SessionInvalidationService;
 use App\Services\SheetArchiveService;
 use App\Services\MailQueueService;
 use App\Services\MailDeliveryService;
@@ -39,6 +40,7 @@ use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
+use App\Controllers\EvaluationController;
 use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
 use App\Controllers\PasswordResetController;
@@ -61,6 +63,7 @@ use App\Services\MailBadgeService;
 use App\Services\MailBadgeViewService;
 use App\Services\MailCredentialCryptoService;
 use App\Middleware\CsrfMiddleware;
+use App\Middleware\HtmlFormCsrfInjectorMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
@@ -146,7 +149,6 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         UserQuery::class => \DI\autowire(),
-        RoleQuery::class => \DI\autowire(),
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
@@ -166,11 +168,18 @@ return function (ContainerBuilder $containerBuilder) {
         MailDeliveryWebhookController::class => \DI\autowire(),
         MailDeliveryDsnController::class => \DI\autowire(),
         ProcessMailQueueCommand::class => \DI\autowire(),
+        // Nicht `autowire()`: Der Logger-Parameter hat einen Vorgabewert, und PHP-DI
+        // füllt optionale Parameter nicht aus dem Container. Die Sperre liefe dann
+        // still mit einem NullLogger.
+        SessionInvalidationService::class => function (ContainerInterface $c) {
+            return new SessionInvalidationService($c->get(LoggerInterface::class));
+        },
         RegistrationReminderService::class => \DI\autowire(),
         SendRegistrationRemindersCommand::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterPlaceholderService::class => \DI\autowire(),
+        NewsletterMailRenderer::class => \DI\autowire(),
         NewsletterService::class => \DI\autowire(),
         BudgetService::class => \DI\autowire(),
         BudgetController::class => \DI\autowire(),
@@ -213,11 +222,29 @@ return function (ContainerBuilder $containerBuilder) {
         CsrfMiddleware::class => function (ContainerInterface $c) {
             return new CsrfMiddleware($c->get(LoggerInterface::class));
         },
+        // Derselbe Grund wie bei CsrfMiddleware: Der Logger hat einen NullLogger-Default,
+        // den die Autowiring-Reflexion sonst stehen laesst - die Warnung ueber einen
+        // fehlgeschlagenen Token-Einbau kaeme dann nie im Log an.
+        HtmlFormCsrfInjectorMiddleware::class => function (ContainerInterface $c) {
+            return new HtmlFormCsrfInjectorMiddleware($c->get(LoggerInterface::class));
+        },
         // Der Logger ist optional mit NullLogger-Default (bestehende Tests bauen den
         // Controller mit nur $view), daher hier explizit verdrahten - sonst ueberspringt
         // die Autowiring-Reflexion den Parameter und der echte Logger kommt nie an.
         SongLibraryController::class => function (ContainerInterface $c) {
             return new SongLibraryController($c->get(Twig::class), $c->get(LoggerInterface::class));
+        },
+        // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter faellt in
+        // die Autowiring-Luecke und bliebe der NullLogger - die authz.denied-Eintraege der
+        // Auswertungen kaemen dann nie im Log an.
+        EvaluationController::class => function (ContainerInterface $c) {
+            return new EvaluationController(
+                $c->get(Twig::class),
+                $c->get(ProjectQuery::class),
+                $c->get(NameFormatterService::class),
+                null,
+                $c->get(LoggerInterface::class)
+            );
         },
         // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter wird von
         // der Autowiring-Reflexion uebersprungen und blieb bislang stets der NullLogger - auch
@@ -235,7 +262,8 @@ return function (ContainerBuilder $containerBuilder) {
                 null,
                 null,
                 null,
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(RememberLoginService::class)
             );
         },
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale
@@ -275,7 +303,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $backupSettings['gzip'],
                 EnvHelper::read('DB_DATABASE', 'db'),
                 $backupSettings['app_version'],
-                $mailKeyId
+                $mailKeyId,
+                $c->get(SessionInvalidationService::class)
             );
         },
         BackupController::class => \DI\autowire(),

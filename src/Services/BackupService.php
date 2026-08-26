@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\AppSetting;
-use App\Models\RememberLogin;
 use Psr\Log\LoggerInterface;
 
 class BackupService
@@ -24,7 +22,8 @@ class BackupService
         private readonly bool $gzip,
         private readonly string $dbDatabase,
         private readonly string $appVersion,
-        private readonly ?string $mailKeyId = null
+        private readonly ?string $mailKeyId = null,
+        private readonly SessionInvalidationService $sessionInvalidation = new SessionInvalidationService()
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
@@ -228,21 +227,10 @@ class BackupService
             throw $exception;
         }
 
-        AppSetting::updateOrCreate(
-            ['setting_key' => 'session_valid_after'],
-            [
-                'setting_value' => (string) time(),
-                'binary_content' => '',
-                'mime_type' => 'text/plain',
-            ]
-        );
-
-        // "Angemeldet bleiben" tokens are a persistent login mechanism that bypasses
-        // the session_valid_after check (AuthMiddleware re-authenticates via a valid
-        // remember-login cookie before that check runs, producing a fresh auth_epoch).
-        // They must be invalidated too, otherwise remember-me users are silently
-        // logged back in right after a restore.
-        RememberLogin::query()->delete();
+        // Der eingespielte Stand kennt die aktuellen Anmeldungen nicht mehr, deshalb
+        // werden sie hier vollständig entwertet - Sitzungen und "Angemeldet bleiben"
+        // gemeinsam, siehe SessionInvalidationService.
+        $this->sessionInvalidation->invalidateAllLogins();
 
         $this->logger->info('Backup restore completed.', ['event' => 'backup.restore.completed', 'id' => $id]);
     }

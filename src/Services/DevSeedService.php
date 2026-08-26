@@ -9,6 +9,7 @@ use App\Models\Activity;
 use App\Models\Attendance;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
+use App\Models\CalendarSubscriptionToken;
 use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventAudienceSource;
@@ -33,6 +34,7 @@ use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
 use App\Services\BackupService;
+use App\Services\CalendarSubscriptionService;
 use App\Services\FinanceJournalService;
 use App\Models\Setting;
 use App\Models\Song;
@@ -114,6 +116,7 @@ class DevSeedService
                 'user_mail_accounts' => 0,
                 'projects' => 0,
                 'project_users' => 0,
+                'project_users_archived' => 0,
                 'songs' => 0,
                 'song_attachments' => 0,
                 'song_link_resources' => 0,
@@ -157,6 +160,7 @@ class DevSeedService
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
                 'mail_queue' => 0,
+                'calendar_subscription_tokens' => 0,
                 'backups' => 0,
             ],
         ];
@@ -175,8 +179,10 @@ class DevSeedService
             $users = $this->seedUsers($roles, $voiceData);
             $this->buildCredentialsByRoleReport($users['credentials_candidates']);
 
+            $this->seedCalendarSubscriptionTokens($users['active']);
+
             $projects = $this->seedProjects($years);
-            $projectMembers = $this->seedProjectMembers($projects, $users['active']);
+            $projectMembers = $this->seedProjectMembers($projects, $users['active'], $users['archived']);
             $categories = $this->seedCategories();
             $songs = $this->seedSongs($users['active']);
             $this->seedSongCategoryAssignments($songs, $categories);
@@ -259,6 +265,7 @@ class DevSeedService
             'repertoire_categories',
             'remember_logins',
             'password_resets',
+            'calendar_subscription_tokens',
             'sponsoring_contacts',
             'sponsorships',
             'sponsors',
@@ -552,6 +559,7 @@ class DevSeedService
     {
         $users = [];
         $activeUsers = [];
+        $archivedUsers = [];
         $credentialsCandidates = [];
         $usedFullNames = [];
 
@@ -631,12 +639,15 @@ class DevSeedService
             $users[] = $user;
             if ((int) $user->is_active === 1) {
                 $activeUsers[] = $user;
+            } else {
+                $archivedUsers[] = $user;
             }
         }
 
         return [
             'all' => $users,
             'active' => $activeUsers,
+            'archived' => $archivedUsers,
             'credentials_candidates' => $credentialsCandidates,
         ];
     }
@@ -712,9 +723,15 @@ class DevSeedService
         return $projects;
     }
 
-    private function seedProjectMembers(array $projects, array $activeUsers): array
+    /**
+     * @param array<User> $activeUsers
+     * @param array<User> $archivedUsers
+     */
+    private function seedProjectMembers(array $projects, array $activeUsers, array $archivedUsers = []): array
     {
         $projectMembers = [];
+        $this->seedArchivedProjectMembers($projects, $archivedUsers);
+
         $activeIds = array_map(fn(User $user) => (int) $user->id, $activeUsers);
         $activeIds = $this->shuffled($activeIds);
 
@@ -749,6 +766,41 @@ class DevSeedService
         }
 
         return $projectMembers;
+    }
+
+    /**
+     * Ausgetretene Mitglieder bleiben ihren früheren Projekten zugeordnet. Ohne
+     * diesen Fall lässt sich in Dev nicht prüfen, dass die Mitgliederliste
+     * archivierte Zuordnungen anzeigt und entfernen lässt.
+     *
+     * Die Zuordnung bleibt bewusst aus der zurückgegebenen Mitgliederliste: die
+     * treibt Anwesenheit und Anmeldungen, und beides gehört Aktiven.
+     *
+     * @param array<Project> $projects
+     * @param array<User> $archivedUsers
+     */
+    private function seedArchivedProjectMembers(array $projects, array $archivedUsers): void
+    {
+        if ($projects === [] || $archivedUsers === []) {
+            return;
+        }
+
+        // Die ältesten Projekte: dort ist ein zwischenzeitlicher Austritt plausibel.
+        $pastProjects = array_slice($projects, 0, 2);
+        $leavers = array_slice($archivedUsers, 0, 3);
+
+        foreach ($pastProjects as $project) {
+            foreach ($leavers as $user) {
+                $userId = (int) $user->id;
+
+                if ($project->users()->where('user_id', $userId)->exists()) {
+                    continue;
+                }
+
+                $project->users()->attach($userId);
+                $this->report['counts']['project_users_archived']++;
+            }
+        }
     }
 
     private function seedProjectEvents(array $projects, array $eventTypes): array
@@ -892,6 +944,47 @@ class DevSeedService
      * @param array<string, \App\Models\Role> $roles
      * @param array{groups: array<string, \App\Models\VoiceGroup>, subs: mixed} $voiceData
      */
+    /**
+     * Legt zwei Kalender-Abos an, damit in Dev beide Wege sichtbar sind:
+     *
+     * - Ein Altbestand-Abo im Klartext, wie es vor Migration 20260825120300
+     *   entstanden ist. Nur an diesem lässt sich prüfen, dass alte Abos weiter
+     *   funktionieren und ihre Adresse weiterhin angezeigt wird.
+     * - Ein aktuelles Abo, das nur als Prüfsumme vorliegt. Dort zeigt die
+     *   Oberfläche das Neuerzeugen statt der Adresse.
+     *
+     * @param array<int, \App\Models\User> $activeUsers
+     */
+    private function seedCalendarSubscriptionTokens(array $activeUsers): void
+    {
+        $users = array_values($activeUsers);
+        if ($users === []) {
+            return;
+        }
+
+        $legacyToken = bin2hex(random_bytes(32));
+        CalendarSubscriptionToken::create([
+            'user_id' => (int) $users[0]->id,
+            'token' => $legacyToken,
+            'token_hash' => null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->report['counts']['calendar_subscription_tokens']++;
+        $this->report['calendar_subscription']['legacy_url'] = '/events/export/' . $legacyToken . '.ics';
+
+        if (!isset($users[1])) {
+            return;
+        }
+
+        CalendarSubscriptionToken::create([
+            'user_id' => (int) $users[1]->id,
+            'token' => null,
+            'token_hash' => CalendarSubscriptionService::hashToken(bin2hex(random_bytes(32))),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->report['counts']['calendar_subscription_tokens']++;
+    }
+
     private function seedEventAudienceSources(array $projectEvents, array $roles, array $voiceData): void
     {
         $voiceGroupIds = array_values(array_map(

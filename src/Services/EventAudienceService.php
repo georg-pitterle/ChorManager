@@ -84,6 +84,63 @@ class EventAudienceService
         return $event->eligibleUsersQuery()->get();
     }
 
+    /**
+     * Berechtigte Mitglieder für mehrere Termine auf einmal.
+     *
+     * eligibleUsersQuery() hängt allein an den Zielgruppen-Quellen des Termins.
+     * Termine mit derselben Quellenmenge liefern deshalb zwangsläufig dieselben
+     * Mitglieder - bei einer Serie sind das alle Termine. Statt je Termin eine
+     * eigene Abfrage zu stellen, wird das Ergebnis über die Quellen-Signatur
+     * wiederverwendet: Die Zahl der Abfragen hängt danach an der Zahl der
+     * verschiedenen Zielgruppen, nicht mehr an der Zahl der Termine.
+     *
+     * Die Quellen sollten vorab geladen sein (`with('audienceSources')`), sonst
+     * holt schon die Signatur je Termin eine eigene Abfrage.
+     *
+     * @param iterable<Event> $events
+     * @return array<int, list<int>> Termin-Kennung => Kennungen der berechtigten Mitglieder
+     */
+    public function eligibleUserIdsForEvents(iterable $events): array
+    {
+        $idsByEvent = [];
+        $idsBySignature = [];
+
+        foreach ($events as $event) {
+            $signature = $this->audienceSignature($event);
+
+            if (!array_key_exists($signature, $idsBySignature)) {
+                $idsBySignature[$signature] = $event->eligibleUsersQuery()
+                    ->pluck('id')
+                    ->map(static fn ($id): int => (int) $id)
+                    ->all();
+            }
+
+            $idsByEvent[(int) $event->id] = $idsBySignature[$signature];
+        }
+
+        return $idsByEvent;
+    }
+
+    /**
+     * Stabiler Fingerabdruck der Zielgruppen-Quellen eines Termins. Die Reihenfolge
+     * der Quellen darf keine Rolle spielen, deshalb wird sortiert.
+     */
+    private function audienceSignature(Event $event): string
+    {
+        $sources = $event->relationLoaded('audienceSources')
+            ? $event->audienceSources
+            : $event->audienceSources()->get();
+
+        $parts = [];
+        foreach ($sources as $source) {
+            $parts[] = (string) $source->source_type . ':' . (int) $source->reference_id;
+        }
+
+        sort($parts);
+
+        return implode('|', $parts);
+    }
+
     public function isUserEligible(Event $event, int $userId): bool
     {
         return $event->eligibleUsersQuery()

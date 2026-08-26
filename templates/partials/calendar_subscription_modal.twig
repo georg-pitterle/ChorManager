@@ -1,0 +1,70 @@
+{#
+    Kalender-Abo-Fenster, geteilt von Terminliste und Termindetail.
+
+    Erwartet `calendar_subscription` mit:
+      exists - ob für das Mitglied ein Abo aktiv ist
+      url    - die Abo-Adresse, aber nur wenn sie zeigbar ist: direkt nach dem
+               Erzeugen oder bei einem Altbestand aus der Zeit vor dem Hashen.
+    Und `redirect_to` - Pfad, auf den nach dem Erzeugen zurückgesprungen wird.
+#}
+{% set _subscription_url = calendar_subscription.url|default(null) %}
+{% set _subscription_exists = calendar_subscription.exists|default(false) %}
+<div class="modal fade"
+     id="calendarSubscriptionModal"
+     tabindex="-1"
+     aria-labelledby="calendarSubscriptionModalLabel"
+     aria-hidden="true"
+     {% if _subscription_url %}data-calendar-subscription-autoshow="1"{% endif %}>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calendarSubscriptionModalLabel">Kalender abonnieren</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                {% if _subscription_url %}
+                    <p class="mb-3">
+                        Kopiere den persönlichen Kalenderlink in deine Kalender-App oder füge ihn als
+                        URL-Abonnement hinzu.
+                    </p>
+                    <div class="input-group">
+                        <input id="calendarSubscriptionUrlInput"
+                               type="text"
+                               class="form-control"
+                               value="{{ _subscription_url }}"
+                               readonly>
+                        <button id="copyCalendarSubscriptionUrl" type="button" class="btn btn-outline-secondary">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <p class="form-text mt-2 mb-0">
+                        Jeder, der diese Adresse hat, sieht deine Termine - auch ohne Anmeldung. Gib sie
+                        nicht weiter.
+                    </p>
+                {% elseif _subscription_exists %}
+                    <p class="mb-2">Für dich ist ein Kalender-Abo aktiv.</p>
+                    <p class="form-text mb-0">
+                        Die Adresse lässt sich nicht erneut anzeigen: Sie ist nur als Prüfsumme gespeichert,
+                        damit ein Datenbank-Auszug keine funktionierenden Kalenderlinks hergibt. Hast du sie
+                        verloren oder soll die bisherige nicht mehr gelten, erzeuge eine neue.
+                    </p>
+                {% else %}
+                    <p class="mb-2">Du hast noch kein Kalender-Abo.</p>
+                    <p class="form-text mb-0">
+                        Beim Erzeugen wird die Adresse einmalig angezeigt. Danach ist sie nur noch als
+                        Prüfsumme gespeichert und kann nicht wieder eingeblendet werden.
+                    </p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="/events/calendar-subscription" class="me-auto">
+                    <input type="hidden" name="redirect_to" value="{{ redirect_to }}">
+                    <button type="submit" class="btn {{ _subscription_exists ? "btn-outline-danger" : "btn-primary" }}">
+                        {{ _subscription_exists ? "Neue Adresse erzeugen" : "Abo-Adresse erzeugen" }}
+                    </button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>

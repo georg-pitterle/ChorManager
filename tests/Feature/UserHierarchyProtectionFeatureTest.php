@@ -10,57 +10,60 @@ use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
-use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 class UserHierarchyProtectionFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /** Haengt an jeden Rollennamen, damit er in der geteilten Datenbank eindeutig bleibt. */
+    private string $suffix = '';
+
+    /** Id des Ziel-Mitglieds als reines Stellvertreter-Objekt, nie geladen aus der DB. */
+    private int $targetUserId = 0;
+    private string $targetEmail = '';
+
+    /** @var array<int,int> hierarchy_level => reale Rollen-Id */
+    private array $roleIdByLevel = [];
+
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
+        $this->suffix = bin2hex(random_bytes(4));
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+        // Rein synthetischer Stellvertreter: UserQuery ist gestubbt und liefert
+        // das in makeTarget() gebaute User-Objekt, ohne die reale users-Tabelle
+        // anzufassen. Ein Bereich weit oberhalb realer Auto-Increment-Werte
+        // schliesst jede Kollision mit Bestandsdaten aus.
+        $this->targetUserId = random_int(500000, 999999);
+        $this->targetEmail = 'target' . $this->suffix . '@example.test';
 
-        $schema = $capsule->schema();
-        $schema->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('email');
-            $table->string('password')->nullable();
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
-            $table->boolean('is_active')->default(true);
-        });
-        $schema->create('roles', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->integer('hierarchy_level')->default(0);
-        });
+        foreach ([10, 50, 80, 100] as $level) {
+            $this->roleIdByLevel[$level] = (int) Role::create([
+                'name' => 'Rolle Level ' . $level . ' ' . $this->suffix,
+                'hierarchy_level' => $level,
+            ])->id;
+        }
+    }
 
-        Capsule::table('users')->insert([
-            ['id' => 5, 'email' => 'target@example.test'],
-        ]);
-        Capsule::table('roles')->insert([
-            ['id' => 1, 'hierarchy_level' => 10],
-            ['id' => 2, 'hierarchy_level' => 50],
-            ['id' => 3, 'hierarchy_level' => 80],
-            ['id' => 4, 'hierarchy_level' => 100],
-        ]);
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        $_SESSION = [];
+        parent::tearDown();
     }
 
     /**
@@ -69,14 +72,15 @@ class UserHierarchyProtectionFeatureTest extends TestCase
     private function makeTarget(array $roleLevels): User
     {
         $target = new User();
-        $target->id = 5;
+        $target->id = $this->targetUserId;
         $target->first_name = 'Target';
         $target->last_name = 'User';
-        $target->email = 'target@example.test';
+        $target->email = $this->targetEmail;
         $target->is_active = 1;
 
-        $roles = array_map(static function (int $level): Role {
+        $roles = array_map(function (int $level): Role {
             $role = new Role();
+            $role->id = $this->roleIdByLevel[$level];
             $role->hierarchy_level = $level;
             return $role;
         }, $roleLevels);
@@ -95,7 +99,6 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         return new UserController(
             $this->createStub(Twig::class),
             $userQuery,
-            $this->createStub(ProjectQuery::class),
             $userPersistence,
             $projectPersistence,
             $this->createStub(MailQueueService::class),
@@ -127,17 +130,17 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $controller = $this->makeController($userQuery, $userPersistence, $projectPersistence);
 
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target@example.test',
+            'email' => $this->targetEmail,
             'password' => 'irrelevant-but-present',
-            'roles' => [1],
+            'roles' => [$this->roleIdByLevel[10]],
             'voice_groups' => [],
             'sub_voices' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '5']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $this->targetUserId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertArrayNotHasKey('success', $_SESSION);
@@ -163,27 +166,36 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
-        // role id 3 (level 80) and 4 (level 100) outrank the actor (level 50) and must be dropped.
-        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [1, 2]);
+        // Rolle bei Level 80 und Level 100 liegen oberhalb des Akteurs (Level 50)
+        // und muessen deshalb aus der Zuweisung fallen.
+        $userPersistence->expects($this->once())->method('syncRoles')->with(
+            $target,
+            [$this->roleIdByLevel[10], $this->roleIdByLevel[50]]
+        );
         $userPersistence->expects($this->once())->method('syncVoiceGroups')->with($target, []);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
-        $projectPersistence->expects($this->once())->method('setUserProjects')->with(5, []);
+        $projectPersistence->expects($this->once())->method('setUserProjects')->with($this->targetUserId, []);
 
         $controller = $this->makeController($userQuery, $userPersistence, $projectPersistence);
 
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target@example.test',
+            'email' => $this->targetEmail,
             'password' => '',
-            'roles' => [1, 2, 3, 4],
+            'roles' => [
+                $this->roleIdByLevel[10],
+                $this->roleIdByLevel[50],
+                $this->roleIdByLevel[80],
+                $this->roleIdByLevel[100],
+            ],
             'voice_groups' => [],
             'sub_voices' => [],
             'projects' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '5']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $this->targetUserId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
@@ -205,26 +217,26 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
-        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [3]);
+        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [$this->roleIdByLevel[80]]);
         $userPersistence->expects($this->once())->method('syncVoiceGroups')->with($target, []);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
-        $projectPersistence->expects($this->once())->method('setUserProjects')->with(5, []);
+        $projectPersistence->expects($this->once())->method('setUserProjects')->with($this->targetUserId, []);
 
         $controller = $this->makeController($userQuery, $userPersistence, $projectPersistence);
 
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target@example.test',
+            'email' => $this->targetEmail,
             'password' => '',
-            'roles' => [3],
+            'roles' => [$this->roleIdByLevel[80]],
             'voice_groups' => [],
             'sub_voices' => [],
             'projects' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '5']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $this->targetUserId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
@@ -256,18 +268,18 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         );
 
         // Passwords are only ever set by the member via the invitation or reset link.
-        $request = $this->makeRequest('POST', '/users/5', [
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Target',
             'last_name' => 'User',
-            'email' => 'target@example.test',
+            'email' => $this->targetEmail,
             'password' => 'Injected-Secret-123!',
-            'roles' => [3],
+            'roles' => [$this->roleIdByLevel[80]],
             'voice_groups' => [],
             'sub_voices' => [],
             'projects' => [],
         ]);
 
-        $result = $controller->update($request, $this->makeResponse(), ['id' => '5']);
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $this->targetUserId]);
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
@@ -295,7 +307,11 @@ class UserHierarchyProtectionFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class)
         );
 
-        $result = $controller->deactivate($this->makeRequest('POST', '/users/deactivate/5'), $this->makeResponse(), ['id' => '5']);
+        $result = $controller->deactivate(
+            $this->makeRequest('POST', '/users/deactivate/' . $this->targetUserId),
+            $this->makeResponse(),
+            ['id' => (string) $this->targetUserId]
+        );
 
         $this->assertRedirect($result, '/users');
         $this->assertSame(

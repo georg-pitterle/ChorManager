@@ -148,6 +148,7 @@ return function (App $app) {
 
             // Here we'll add /attendance, etc.
             $group->get('/events', [EventController::class, 'index']);
+            $group->post('/events/calendar-subscription', [EventController::class, 'createSubscription']);
             $group->get('/events/{id:[0-9]+}', [EventController::class, 'detail']);
             $group->post('/events/{id:[0-9]+}/notes', [EventController::class, 'addNote']);
             $group->post('/events/{id:[0-9]+}/notes/{note_id:[0-9]+}/update', [EventController::class, 'updateNote']);
@@ -534,6 +535,10 @@ return function (App $app) {
                 // Authenticated users can access their own newsletter archive and previews.
                 $group->get('/newsletters/archive', [NewsletterController::class, 'archive']);
                 $group->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
+                $group->get(
+                    '/newsletters/{id:[0-9]+}/preview-frame',
+                    [NewsletterController::class, 'previewFrame']
+                );
 
                 // Newsletter management
                 $group->group(

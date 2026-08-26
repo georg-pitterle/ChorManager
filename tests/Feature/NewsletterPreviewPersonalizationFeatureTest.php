@@ -9,7 +9,9 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Die Vorschau löst Platzhalter live auf — für Empfänger mit deren eigenen Daten,
- * für Verwaltende wahlweise mit den Daten eines echten Empfängers.
+ * für Verwaltende wahlweise mit den Daten eines echten Empfängers. preview() selbst bettet nur
+ * noch den Rahmen ein (siehe NewsletterPreviewFrameFeatureTest für die tatsächlich
+ * personalisierten Inhalte); hier wird zusätzlich die Verdrahtung zur Rahmen-Adresse geprüft.
  */
 final class NewsletterPreviewPersonalizationFeatureTest extends TestCase
 {
@@ -34,9 +36,17 @@ final class NewsletterPreviewPersonalizationFeatureTest extends TestCase
         $request = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview")
             ->withAttribute('id', (string) $newsletter->id);
         $response = $this->controller()->preview($request, $this->makeResponse());
+        $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('Hallo Georg', (string) $response->getBody());
+        $this->assertStringContainsString('src="/newsletters/' . $newsletter->id . '/preview-frame"', $body);
+
+        $frameRequest = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview-frame")
+            ->withAttribute('id', (string) $newsletter->id);
+        $frameResponse = $this->controller()->previewFrame($frameRequest, $this->makeResponse());
+
+        $this->assertSame(200, $frameResponse->getStatusCode());
+        $this->assertStringContainsString('Hallo Georg', (string) $frameResponse->getBody());
     }
 
     public function testManagerCanPreviewAsResolvedRecipient(): void
@@ -55,9 +65,24 @@ final class NewsletterPreviewPersonalizationFeatureTest extends TestCase
             ['recipient_id' => (string) $recipient->id]
         )->withAttribute('id', (string) $newsletter->id);
         $response = $this->controller()->preview($request, $this->makeResponse());
+        $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('Hallo Georg', (string) $response->getBody());
+        $this->assertStringContainsString(
+            'src="/newsletters/' . $newsletter->id . '/preview-frame?recipient_id=' . $recipient->id . '"',
+            $body
+        );
+
+        $frameRequest = $this->makeRequest(
+            'GET',
+            "/newsletters/{$newsletter->id}/preview-frame",
+            [],
+            ['recipient_id' => (string) $recipient->id]
+        )->withAttribute('id', (string) $newsletter->id);
+        $frameResponse = $this->controller()->previewFrame($frameRequest, $this->makeResponse());
+
+        $this->assertSame(200, $frameResponse->getStatusCode());
+        $this->assertStringContainsString('Hallo Georg', (string) $frameResponse->getBody());
     }
 
     public function testManagerCannotPreviewAsUnrelatedUser(): void
@@ -93,11 +118,17 @@ final class NewsletterPreviewPersonalizationFeatureTest extends TestCase
         $request = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview")
             ->withAttribute('id', (string) $newsletter->id);
         $response = $this->controller()->preview($request, $this->makeResponse());
-
         $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('Hallo Anna', $body);
         $this->assertStringContainsString('eigenen Daten', $body);
+        $this->assertStringContainsString('src="/newsletters/' . $newsletter->id . '/preview-frame"', $body);
+
+        $frameRequest = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview-frame")
+            ->withAttribute('id', (string) $newsletter->id);
+        $frameResponse = $this->controller()->previewFrame($frameRequest, $this->makeResponse());
+
+        $this->assertSame(200, $frameResponse->getStatusCode());
+        $this->assertStringContainsString('Hallo Anna', (string) $frameResponse->getBody());
     }
 }

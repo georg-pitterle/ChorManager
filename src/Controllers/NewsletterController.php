@@ -19,6 +19,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
+use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterRecipientService;
 use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
@@ -40,6 +41,7 @@ class NewsletterController
     private NameFormatterService $nameFormatter;
     private NewsletterPlaceholderService $placeholderService;
     private MailQueueService $mailQueueService;
+    private NewsletterMailRenderer $mailRenderer;
 
     public function __construct(
         Twig $view,
@@ -50,7 +52,8 @@ class NewsletterController
         LoggerInterface $logger,
         NameFormatterService $nameFormatter,
         NewsletterPlaceholderService $placeholderService,
-        MailQueueService $mailQueueService
+        MailQueueService $mailQueueService,
+        NewsletterMailRenderer $mailRenderer
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -61,6 +64,7 @@ class NewsletterController
         $this->nameFormatter = $nameFormatter;
         $this->placeholderService = $placeholderService;
         $this->mailQueueService = $mailQueueService;
+        $this->mailRenderer = $mailRenderer;
     }
 
     /**
@@ -204,6 +208,49 @@ class NewsletterController
             ->where('newsletter_id', $newsletterId)
             ->where('user_id', (int) $userId)
             ->exists();
+    }
+
+    /**
+     * Prüft, ob eine angeforderte Person tatsächlich zu den aufgelösten Empfängern dieses
+     * Newsletters gehört. Nur so lässt sich verhindern, dass eine Vorschau-Route über die
+     * recipient_id beliebige Nutzerdaten preisgibt.
+     */
+    private function isResolvedRecipientOf(Newsletter $newsletter, int $recipientId): bool
+    {
+        return $this->recipientService
+            ->resolveRecipients($newsletter)
+            ->contains(static fn ($user): bool => (int) $user->id === $recipientId);
+    }
+
+    /**
+     * Sanitisiert den gespeicherten Inhalt und löst Betreff und Inhalt für eine Person auf -
+     * gemeinsame Grundlage für die Anwendungs-Vorschau und das Mail-HTML der Vorschau.
+     *
+     * @return array{title: string, content_html: string}
+     */
+    private function personalizedNewsletterContent(Newsletter $newsletter, ?User $recipient, string $baseUrl): array
+    {
+        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
+        $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
+
+        return [
+            'title' => $this->placeholderService->renderSubject((string) $newsletter->title, $context, $recipient),
+            'content_html' => $this->placeholderService->renderHtml($sanitized, $context, $recipient),
+        ];
+    }
+
+    /**
+     * Adresse des eingebetteten Rahmens für preview.twig; trägt recipient_id nur weiter, wenn
+     * der Parameter für diese Anfrage tatsächlich wirkt (siehe preview()).
+     */
+    private function previewFrameUrl(Newsletter $newsletter, bool $canManage, int $requestedRecipientId): string
+    {
+        $url = "/newsletters/{$newsletter->id}/preview-frame";
+        if ($canManage && $requestedRecipientId > 0) {
+            $url .= '?recipient_id=' . $requestedRecipientId;
+        }
+
+        return $url;
     }
 
     private function validateNewsletterDraftInput(array $data): array
@@ -718,11 +765,7 @@ class NewsletterController
         // dann nur für Personen, die tatsächlich zu den Empfängern zählen. Ohne diese
         // Prüfung würde die Route beliebige Nutzerdaten preisgeben.
         if ($canManage && $requestedRecipientId > 0) {
-            $isResolvedRecipient = $this->recipientService
-                ->resolveRecipients($newsletter)
-                ->contains(static fn ($user): bool => (int) $user->id === $requestedRecipientId);
-
-            if (!$isResolvedRecipient) {
+            if (!$this->isResolvedRecipientOf($newsletter, $requestedRecipientId)) {
                 return $response->withStatus(403);
             }
 
@@ -730,20 +773,13 @@ class NewsletterController
             $isOwnData = false;
         }
 
-        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
-        $context = $this->placeholderService->contextFor(
-            $newsletter,
-            AppUrlResolver::resolveBaseUrl($request)
-        );
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $rendered = $this->personalizedNewsletterContent($newsletter, $previewRecipient, $baseUrl);
 
         return $this->view->render($response, 'newsletters/preview.twig', [
             'newsletter' => $newsletter,
-            'preview_content_html' => $this->placeholderService->renderHtml($sanitized, $context, $previewRecipient),
-            'preview_title' => $this->placeholderService->renderSubject(
-                (string) $newsletter->title,
-                $context,
-                $previewRecipient
-            ),
+            'preview_title' => $rendered['title'],
+            'preview_frame_url' => $this->previewFrameUrl($newsletter, $canManage, $requestedRecipientId),
             'preview_recipient_name' => $previewRecipient === null
                 ? ''
                 : $this->nameFormatter->formatPerson($previewRecipient),
@@ -753,7 +789,66 @@ class NewsletterController
     }
 
     /**
-     * Rendert den noch nicht gespeicherten Editor-Inhalt mit den Daten eines Empfängers.
+     * Liefert das vollständige Mail-HTML eines gespeicherten Newsletters unmittelbar aus -
+     * denselben Rahmen (Logo, Kopfbereich, Akzentlinie, Fußbereich) wie beim Versand und bei
+     * der Testmail. Dient preview.twig als Quelle des eingebetteten Rahmens, deshalb dieselbe
+     * Berechtigungsprüfung wie preview() selbst: Wer weder das Recht zum Verwalten von
+     * Newslettern hat noch einen eigenen Archiveintrag zu diesem Newsletter, bekommt nichts, und
+     * der recipient_id-Parameter wirkt nur mit Verwaltungsrecht und nur für tatsächlich
+     * aufgelöste Empfänger.
+     */
+    public function previewFrame(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $userId = $_SESSION['user_id'] ?? null;
+
+        if (!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)) {
+            return $response->withStatus(403);
+        }
+
+        $canManage = $this->canManageNewsletters();
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter) {
+            return $response->withStatus(404);
+        }
+
+        $queryParams = $request->getQueryParams();
+        $requestedRecipientId = (int) ($queryParams['recipient_id'] ?? 0);
+        $viewer = $userId === null ? null : User::find((int) $userId);
+        $previewRecipient = $viewer;
+
+        if ($canManage && $requestedRecipientId > 0) {
+            if (!$this->isResolvedRecipientOf($newsletter, $requestedRecipientId)) {
+                return $response->withStatus(403);
+            }
+
+            $previewRecipient = User::find($requestedRecipientId);
+        }
+
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $rendered = $this->personalizedNewsletterContent($newsletter, $previewRecipient, $baseUrl);
+        // Wer diese Vorschau ansieht, ist bereits in der Browser-Ansicht: Der Fußzeilen-Link
+        // "Diesen Newsletter im Browser ansehen" entfällt daher hier, siehe
+        // NewsletterMailRenderer::renderHtml().
+        $mailHtml = $this->mailRenderer->renderHtml(
+            $newsletter,
+            $rendered['title'],
+            $rendered['content_html'],
+            $baseUrl,
+            includeBrowseLink: false
+        );
+
+        $response->getBody()->write($mailHtml);
+
+        return $response
+            ->withHeader('Content-Type', 'text/html; charset=utf-8')
+            ->withStatus(200);
+    }
+
+    /**
+     * Rendert den noch nicht gespeicherten Editor-Inhalt mit den Daten eines Empfängers und
+     * liefert dabei denselben vollständigen Mail-Rahmen wie previewFrame() - der Aufrufer setzt
+     * das Ergebnis unmittelbar als Inhalt eines eingebetteten Rahmens ein.
      */
     public function previewRender(Request $request, Response $response): Response
     {
@@ -773,31 +868,39 @@ class NewsletterController
         $recipient = $userId === null ? null : User::find((int) $userId);
 
         if ($requestedRecipientId > 0) {
-            $isResolvedRecipient = $this->recipientService
-                ->resolveRecipients($newsletter)
-                ->contains(static fn ($user): bool => (int) $user->id === $requestedRecipientId);
-
-            if (!$isResolvedRecipient) {
+            if (!$this->isResolvedRecipientOf($newsletter, $requestedRecipientId)) {
                 return $this->jsonResponse($response, ['error' => 'Unbekannter Empfänger.'], 403);
             }
 
             $recipient = User::find($requestedRecipientId);
         }
 
-        $context = $this->placeholderService->contextFor(
-            $newsletter,
-            AppUrlResolver::resolveBaseUrl($request)
-        );
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
         $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) ($data['content_html'] ?? ''));
 
-        return $this->jsonResponse($response, [
-            'title' => $this->placeholderService->renderSubject(
-                trim((string) ($data['title'] ?? '')),
-                $context,
-                $recipient
-            ),
-            'content_html' => $this->placeholderService->renderHtml($sanitized, $context, $recipient),
-        ]);
+        $subject = $this->placeholderService->renderSubject(
+            trim((string) ($data['title'] ?? '')),
+            $context,
+            $recipient
+        );
+        $contentHtml = $this->placeholderService->renderHtml($sanitized, $context, $recipient);
+        // Wer diese Vorschau ansieht, ist bereits in der Browser-Ansicht: Der Fußzeilen-Link
+        // "Diesen Newsletter im Browser ansehen" entfällt daher hier, siehe
+        // NewsletterMailRenderer::renderHtml().
+        $mailHtml = $this->mailRenderer->renderHtml(
+            $newsletter,
+            $subject,
+            $contentHtml,
+            $baseUrl,
+            includeBrowseLink: false
+        );
+
+        $response->getBody()->write($mailHtml);
+
+        return $response
+            ->withHeader('Content-Type', 'text/html; charset=utf-8')
+            ->withStatus(200);
     }
 
     /**
@@ -1038,20 +1141,21 @@ class NewsletterController
         }
 
         $data = (array) $request->getParsedBody();
-        $context = $this->placeholderService->contextFor(
-            $newsletter,
-            AppUrlResolver::resolveBaseUrl($request)
-        );
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
         $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) ($data['content_html'] ?? ''));
+
+        $subject = $this->placeholderService->renderSubject(
+            trim((string) ($data['title'] ?? '')),
+            $context,
+            $sender
+        );
+        $personalizedContent = $this->placeholderService->renderHtml($sanitized, $context, $sender);
 
         $this->mailQueueService->enqueueNewsletterTestMail(
             recipientEmail: $senderEmail,
-            subject: $this->placeholderService->renderSubject(
-                trim((string) ($data['title'] ?? '')),
-                $context,
-                $sender
-            ),
-            bodyHtml: $this->placeholderService->renderHtml($sanitized, $context, $sender),
+            subject: $subject,
+            bodyHtml: $this->mailRenderer->renderHtml($newsletter, $subject, $personalizedContent, $baseUrl),
             newsletterId: (int) $newsletter->id
         );
 

@@ -63,8 +63,7 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
                 }
             }
 
-            $badgeService = ($this->badgeServiceFactory)();
-            $badgeService->refresh($account);
+            $this->refreshWithBackOff($account);
         } catch (\Throwable $exception) {
             $this->logger->error(
                 'Mail badge opportunistic refresh failed.',
@@ -73,6 +72,31 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
                     'exception' => $exception,
                 ]
             );
+        }
+    }
+
+    /**
+     * Startet die Wartezeit auch dann, wenn der Abgleich scheitert.
+     *
+     * `MailBadgeService::refresh()` lässt die zwischengespeicherten Spalten bei einem
+     * Fehlschlag bewusst unberührt - `mail_last_checked_at` eingeschlossen. Damit blieb
+     * der Zeitstempel eines Kontos mit unerreichbarem oder falsch konfiguriertem
+     * IMAP-Server für immer veraltet: Die Prüfung oben griff nie, und jeder einzelne
+     * Seitenaufruf dieses Mitglieds baute erneut eine Verbindung auf, bis zur
+     * Verbindungszeitüberschreitung. Der Vermerk hier ist reiner Wartezeit-Marker und
+     * wird nirgends angezeigt; der zuletzt bekannte Zählerstand bleibt erhalten.
+     */
+    private function refreshWithBackOff(UserMailAccount $account): void
+    {
+        $refreshed = false;
+
+        try {
+            $refreshed = ($this->badgeServiceFactory)()->refresh($account);
+        } finally {
+            if (!$refreshed) {
+                $account->mail_last_checked_at = Carbon::now();
+                $account->save();
+            }
         }
     }
 }

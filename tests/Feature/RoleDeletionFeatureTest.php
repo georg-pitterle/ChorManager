@@ -7,9 +7,9 @@ namespace Tests\Feature;
 use App\Controllers\RoleController;
 use App\Models\Role;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 /**
  * Rollen loeschen darf nur, wer Rollen verwalten darf. Zusaetzlich muss die Rolle frei
@@ -21,40 +21,32 @@ final class RoleDeletionFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /** Haengt an jeden Rollennamen, damit er in der geteilten Datenbank eindeutig bleibt. */
+    private string $suffix = '';
+
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
+        $this->suffix = bin2hex(random_bytes(4));
+    }
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+    protected function tearDown(): void
+    {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
 
-        $capsule->schema()->create('roles', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-            $table->integer('hierarchy_level')->default(0);
-            $table->boolean('can_manage_users')->default(false);
-            $table->boolean('can_manage_roles')->default(false);
-        });
+        $_SESSION = [];
+        parent::tearDown();
+    }
 
-        $capsule->schema()->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('first_name')->default('Test');
-            $table->string('last_name')->default('Person');
-            $table->string('email')->default('test@example.test');
-            $table->boolean('is_active')->default(true);
-        });
-
-        $capsule->schema()->create('user_roles', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('role_id');
-        });
+    private function roleName(string $label): string
+    {
+        return $label . ' ' . $this->suffix;
     }
 
     private function controller(): RoleController
@@ -79,6 +71,7 @@ final class RoleDeletionFeatureTest extends TestCase
             'first_name' => 'Zuweisung',
             'last_name' => 'Testperson',
             'email' => 'zuweisung' . bin2hex(random_bytes(3)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
             'is_active' => $active,
         ]);
 
@@ -88,7 +81,7 @@ final class RoleDeletionFeatureTest extends TestCase
     public function testDeleteRemovesUnassignedRoleAtActorLevel(): void
     {
         $_SESSION['role_level'] = 50;
-        $role = Role::create(['name' => 'Frei', 'hierarchy_level' => 50]);
+        $role = Role::create(['name' => $this->roleName('Frei'), 'hierarchy_level' => 50]);
 
         $this->assertSame(302, $this->delete((int) $role->id));
         $this->assertSame('Rolle erfolgreich gelöscht.', $_SESSION['success'] ?? null);
@@ -98,7 +91,7 @@ final class RoleDeletionFeatureTest extends TestCase
     public function testDeleteRejectsRoleWithAssignedMember(): void
     {
         $_SESSION['role_level'] = 100;
-        $role = Role::create(['name' => 'Belegt', 'hierarchy_level' => 50]);
+        $role = Role::create(['name' => $this->roleName('Belegt'), 'hierarchy_level' => 50]);
         $this->assignMember($role, true);
 
         $this->assertSame(302, $this->delete((int) $role->id));
@@ -110,7 +103,7 @@ final class RoleDeletionFeatureTest extends TestCase
     public function testDeleteRejectsRoleWithArchivedMemberOnly(): void
     {
         $_SESSION['role_level'] = 100;
-        $role = Role::create(['name' => 'Nur archiviert', 'hierarchy_level' => 50]);
+        $role = Role::create(['name' => $this->roleName('Nur archiviert'), 'hierarchy_level' => 50]);
         $this->assignMember($role, false);
 
         $this->assertSame(302, $this->delete((int) $role->id));
@@ -121,7 +114,7 @@ final class RoleDeletionFeatureTest extends TestCase
     public function testDeleteRejectsRoleAboveActorLevel(): void
     {
         $_SESSION['role_level'] = 50;
-        $role = Role::create(['name' => 'Hoeher', 'hierarchy_level' => 80]);
+        $role = Role::create(['name' => $this->roleName('Hoeher'), 'hierarchy_level' => 80]);
 
         $this->assertSame(302, $this->delete((int) $role->id));
         $this->assertNotNull($_SESSION['error'] ?? null);
@@ -132,7 +125,12 @@ final class RoleDeletionFeatureTest extends TestCase
     {
         $_SESSION['role_level'] = 100;
 
-        $this->assertSame(302, $this->delete(4711));
+        // Bewusst weit ueber jeder real vergebenen Rollen-Id, damit der Test
+        // unabhaengig vom Bestand der geteilten Datenbank eine sicher nicht
+        // existierende Id trifft.
+        $missingRoleId = (int) (Role::query()->max('id') ?? 0) + 100000;
+
+        $this->assertSame(302, $this->delete($missingRoleId));
         $this->assertSame('Rolle nicht gefunden.', $_SESSION['error'] ?? null);
     }
 

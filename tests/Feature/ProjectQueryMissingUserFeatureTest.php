@@ -5,18 +5,22 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\ProjectController;
+use App\Models\Project;
+use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Persistence\ProjectPersistence;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Schema\Blueprint;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
+use Tests\Unit\Bootstrap;
 
 /**
- * Die Id-Listen der Query-Schicht müssen ein unbekanntes Mitglied verkraften.
+ * Die Id-Listen der Query- und Policy-Schicht müssen ein unbekanntes Mitglied
+ * verkraften.
  *
  * Zeigt die Session auf ein Konto, das es nicht mehr gibt - gelöschtes Mitglied,
  * Session aus einem anderen Datenbestand -, darf die Projektliste nicht mit
@@ -26,195 +30,154 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
-    private const MEMBER_ID = 1;
-    private const MULTI_PROJECT_MEMBER_ID = 2;
-    private const DELETED_USER_ID = 999;
-    private const OWN_PROJECT = 1;
-    private const FOREIGN_PROJECT = 2;
-    private const ALTO = 3;
-    private const TENOR = 7;
+    private int $memberId = 0;
+    private int $multiProjectMemberId = 0;
+    private int $deletedUserId = 0;
+    private int $ownProject = 0;
+    private int $foreignProject = 0;
+    private int $alto = 0;
+    private int $tenor = 0;
 
     protected function setUp(): void
     {
         parent::setUp();
+        Bootstrap::setupTestDatabase();
+        Bootstrap::getCapsule()?->connection()->beginTransaction();
         $_SESSION = [];
 
-        $capsule = new Capsule();
-        $capsule->addConnection([
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+        $this->alto = (int) VoiceGroup::where('name', 'Alt')->firstOrFail()->id;
+        $this->tenor = (int) VoiceGroup::where('name', 'Tenor')->firstOrFail()->id;
 
-        $schema = $capsule->schema();
-        $schema->create('users', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('email');
-            $table->string('first_name')->default('');
-            $table->string('last_name')->default('');
-            $table->boolean('is_active')->default(true);
-            $table->integer('last_project_id')->nullable();
-        });
-        $schema->create('projects', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-            $table->date('start_date')->nullable();
-            $table->date('end_date')->nullable();
-        });
-        $schema->create('project_users', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('project_id');
-        });
-        $schema->create('voice_groups', function (Blueprint $table): void {
-            $table->increments('id');
-            $table->string('name');
-        });
-        $schema->create('user_voice_groups', function (Blueprint $table): void {
-            $table->integer('user_id');
-            $table->integer('voice_group_id');
-            $table->integer('sub_voice_id')->nullable();
-        });
+        $member = $this->createUser('Marlene', 'Größing');
+        $multi = $this->createUser('Konrad', 'Vielsinger');
+        $this->memberId = (int) $member->id;
+        $this->multiProjectMemberId = (int) $multi->id;
 
-        Capsule::table('users')->insert([
-            [
-                'id' => self::MEMBER_ID,
-                'email' => 'saengerin@example.test',
-                'first_name' => 'Marlene',
-                'last_name' => 'Größing',
-            ],
-            [
-                'id' => self::MULTI_PROJECT_MEMBER_ID,
-                'email' => 'doppelt@example.test',
-                'first_name' => 'Konrad',
-                'last_name' => 'Vielsinger',
-            ],
-        ]);
-        Capsule::table('projects')->insert([
-            ['id' => self::OWN_PROJECT, 'name' => 'Frühjahrskonzert'],
-            ['id' => self::FOREIGN_PROJECT, 'name' => 'Adventsingen'],
-        ]);
+        // Eine Kennung, die es nachweislich nicht gibt: der Test steht und fällt damit, dass
+        // sie auch in der geteilten Datenbank auf kein Konto zeigt.
+        $this->deletedUserId = ((int) User::query()->max('id')) + 1000;
+
+        $this->ownProject = (int) Project::create([
+            'name' => 'Frühjahrskonzert ' . bin2hex(random_bytes(4)),
+        ])->id;
+        $this->foreignProject = (int) Project::create([
+            'name' => 'Adventsingen ' . bin2hex(random_bytes(4)),
+        ])->id;
+
         Capsule::table('project_users')->insert([
-            [
-                'user_id' => self::MEMBER_ID,
-                'project_id' => self::OWN_PROJECT,
-            ],
-            [
-                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
-                'project_id' => self::OWN_PROJECT,
-            ],
-            [
-                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
-                'project_id' => self::FOREIGN_PROJECT,
-            ],
-        ]);
-        Capsule::table('voice_groups')->insert([
-            ['id' => self::ALTO, 'name' => 'Alt'],
-            ['id' => self::TENOR, 'name' => 'Tenor'],
+            ['user_id' => $this->memberId, 'project_id' => $this->ownProject],
+            ['user_id' => $this->multiProjectMemberId, 'project_id' => $this->ownProject],
+            ['user_id' => $this->multiProjectMemberId, 'project_id' => $this->foreignProject],
         ]);
         Capsule::table('user_voice_groups')->insert([
-            [
-                'user_id' => self::MEMBER_ID,
-                'voice_group_id' => self::ALTO,
-            ],
-            [
-                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
-                'voice_group_id' => self::ALTO,
-            ],
-            [
-                'user_id' => self::MULTI_PROJECT_MEMBER_ID,
-                'voice_group_id' => self::TENOR,
-            ],
+            ['user_id' => $this->memberId, 'voice_group_id' => $this->alto, 'sub_voice_id' => null],
+            ['user_id' => $this->multiProjectMemberId, 'voice_group_id' => $this->alto, 'sub_voice_id' => null],
+            ['user_id' => $this->multiProjectMemberId, 'voice_group_id' => $this->tenor, 'sub_voice_id' => null],
         ]);
     }
 
     protected function tearDown(): void
     {
+        $connection = Bootstrap::getCapsule()?->connection();
+        if ($connection !== null && $connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
-        Capsule::schema()->drop('user_voice_groups');
-        Capsule::schema()->drop('voice_groups');
-        Capsule::schema()->drop('project_users');
-        Capsule::schema()->drop('projects');
-        Capsule::schema()->drop('users');
         parent::tearDown();
     }
 
-    public function testProjectIdsOfAMemberComeBackAsIntegers(): void
+    private function createUser(string $firstName, string $lastName): User
     {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $this->assertSame([self::OWN_PROJECT], $query->getUserProjectIds(self::MEMBER_ID));
+        return User::create([
+            'email' => 'projectquery_' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'is_active' => 1,
+        ]);
     }
 
-    public function testUnknownMemberHasNoProjectIds(): void
+    /**
+     * @return array<int, int>
+     */
+    private function projectIds(mixed $projects): array
     {
-        $query = new ProjectQuery(new NameFormatterService());
+        $ids = [];
+        foreach ($projects as $project) {
+            $ids[] = (int) (is_array($project) ? $project['id'] : $project->id);
+        }
 
-        $this->assertSame([], $query->getUserProjectIds(self::DELETED_USER_ID));
+        return $ids;
     }
 
     public function testVoiceGroupIdsOfAMemberComeBackAsIntegers(): void
     {
         $query = new ProjectQuery(new NameFormatterService());
 
-        $this->assertSame([self::ALTO], $query->getUserVoiceGroupIds(self::MEMBER_ID));
+        $this->assertSame([$this->alto], $query->getUserVoiceGroupIds($this->memberId));
     }
 
     /**
      * Ab der zweiten Id greift die Umwandlung auf einen anderen Schlüssel zu -
      * genau dort verrutschte eine Zahlenbasis-basierte Umwandlung.
      */
-    public function testEveryProjectIdOfAMultiProjectMemberSurvivesTheConversion(): void
-    {
-        $query = new ProjectQuery(new NameFormatterService());
-
-        $ids = $query->getUserProjectIds(self::MULTI_PROJECT_MEMBER_ID);
-        sort($ids);
-
-        $this->assertSame([self::OWN_PROJECT, self::FOREIGN_PROJECT], $ids);
-    }
-
     public function testEveryVoiceGroupIdOfAMemberWithTwoVoiceGroupsSurvivesTheConversion(): void
     {
         $query = new ProjectQuery(new NameFormatterService());
 
-        $ids = $query->getUserVoiceGroupIds(self::MULTI_PROJECT_MEMBER_ID);
+        $ids = $query->getUserVoiceGroupIds($this->multiProjectMemberId);
         sort($ids);
 
-        $this->assertSame([self::ALTO, self::TENOR], $ids);
+        $this->assertSame([min($this->alto, $this->tenor), max($this->alto, $this->tenor)], $ids);
     }
 
     public function testUnknownMemberHasNoVoiceGroupIds(): void
     {
         $query = new ProjectQuery(new NameFormatterService());
 
-        $this->assertSame([], $query->getUserVoiceGroupIds(self::DELETED_USER_ID));
+        $this->assertSame([], $query->getUserVoiceGroupIds($this->deletedUserId));
     }
 
-    public function testIndexMarksTheOwnProjectsOfTheLoggedInMember(): void
+    public function testIndexListsTheOwnProjectsOfAVoiceGroupScopedMember(): void
     {
-        $_SESSION['user_id'] = self::MEMBER_ID;
+        $_SESSION['user_id'] = $this->memberId;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderIndex();
 
-        $this->assertSame([self::OWN_PROJECT], $data['userProjectIds']);
+        // Die Liste zeigt alle Projekte; gegen die geteilte Datenbank zählt daher nicht ihre
+        // Gesamtzahl, sondern dass beide Testprojekte darin vorkommen.
+        $this->assertContains($this->ownProject, $this->projectIds($data['projects']));
+        $this->assertContains($this->foreignProject, $this->projectIds($data['projects']));
+        $this->assertSame([$this->ownProject], $data['memberManagedProjectIds']);
     }
 
     public function testIndexRendersWhenTheSessionUserNoLongerExists(): void
     {
-        $_SESSION['user_id'] = self::DELETED_USER_ID;
+        $_SESSION['user_id'] = $this->deletedUserId;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $data = $this->renderIndex();
 
-        $this->assertSame([], $data['userProjectIds']);
+        // Die Liste zeigt alle Projekte; gegen die geteilte Datenbank zählt daher nicht ihre
+        // Gesamtzahl, sondern dass beide Testprojekte darin vorkommen.
+        $this->assertContains($this->ownProject, $this->projectIds($data['projects']));
+        $this->assertContains($this->foreignProject, $this->projectIds($data['projects']));
+        $this->assertSame([], $data['memberManagedProjectIds']);
     }
 
     public function testIndexRendersWithoutAUserIdInTheSession(): void
     {
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
+
         $data = $this->renderIndex();
 
-        $this->assertSame([], $data['userProjectIds']);
+        // Die Liste zeigt alle Projekte; gegen die geteilte Datenbank zählt daher nicht ihre
+        // Gesamtzahl, sondern dass beide Testprojekte darin vorkommen.
+        $this->assertContains($this->ownProject, $this->projectIds($data['projects']));
+        $this->assertContains($this->foreignProject, $this->projectIds($data['projects']));
+        $this->assertSame([], $data['memberManagedProjectIds']);
     }
 
     /**

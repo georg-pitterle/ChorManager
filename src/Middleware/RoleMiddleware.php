@@ -323,17 +323,48 @@ class RoleMiddleware implements MiddlewareInterface
     private function deny(Request $request, string $message, string $permission): Response
     {
         $response = new SlimResponse();
-        $response->getBody()->write($message);
 
         $this->logger->info('Access denied.', [
             'event' => 'authz.denied',
             'permission' => $permission,
         ]);
 
+        // Die Oberflaeche ruft rechtegeschuetzte Routen per fetch auf und wertet JSON aus.
+        // Als text/plain blieb der eigentliche Grund unsichtbar: newsletters.js pruefte den
+        // Inhaltstyp und fiel auf ein pauschales "Speichern fehlgeschlagen." zurueck.
+        // `error` liest newsletters.js, `message` liest users.js - beide tragen denselben
+        // Text, damit kein Aufrufer angepasst werden muss.
+        if ($this->expectsJson($request)) {
+            $response->getBody()->write((string) json_encode([
+                'error' => $message,
+                'message' => $message,
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(403);
+        }
+
+        $response->getBody()->write($message);
+
         // Ohne Zeichensatzangabe zeigt der Browser die Umlaute der Meldung als
         // Ersatzzeichen an - `X-Content-Type-Options: nosniff` verbietet ihm das Raten.
         return $response
             ->withHeader('Content-Type', 'text/plain; charset=utf-8')
             ->withStatus(403);
+    }
+
+    /**
+     * Gleiche Erkennung wie in den Controllern (siehe `expectsJson` dort): die
+     * Oberflaeche schickt je nach Aufrufstelle nur `X-Requested-With` (etwa
+     * newsletters.js) oder zusaetzlich `Accept` (etwa users.js).
+     */
+    private function expectsJson(Request $request): bool
+    {
+        if (strtolower(trim($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest') {
+            return true;
+        }
+
+        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
     }
 }

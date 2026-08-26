@@ -15,11 +15,12 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     public function process(Request $request, RequestHandler $handler): Response
     {
         $response = $handler->handle($request);
+        $allowsSelfFraming = $this->allowsSelfFraming($request);
 
         $response = $response
-            ->withHeader('Content-Security-Policy', $this->buildCsp())
+            ->withHeader('Content-Security-Policy', $this->buildCsp($allowsSelfFraming))
             ->withHeader('X-Content-Type-Options', 'nosniff')
-            ->withHeader('X-Frame-Options', 'DENY')
+            ->withHeader('X-Frame-Options', $allowsSelfFraming ? 'SAMEORIGIN' : 'DENY')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
             ->withHeader(
                 'Permissions-Policy',
@@ -30,16 +31,47 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             $response = $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        return $response;
+        return $this->applyCachePolicy($response);
     }
 
-    private function buildCsp(): string
+    /**
+     * Die Zwischenspeicherung entscheidet die Route, nicht diese Middleware: Wer
+     * etwas ausliefert, das zwischengespeichert werden darf, setzt `Cache-Control`
+     * selbst (etwa die Hilfe-Anhänge mit `public, max-age=86400`). Alles andere -
+     * und das ist jede Seite hinter der Anmeldung - bekommt hier `no-store`, damit
+     * Mitgliederdaten weder im Verlauf noch in einem Zwischenspeicher liegen
+     * bleiben, wenn ein Gerät später jemand anderem gehört.
+     */
+    private function applyCachePolicy(Response $response): Response
+    {
+        if ($response->hasHeader('Cache-Control')) {
+            return $response;
+        }
+
+        return $response
+            ->withHeader('Cache-Control', 'no-store, max-age=0')
+            ->withHeader('Pragma', 'no-cache');
+    }
+
+    /**
+     * Einzige Ausnahme vom vollständigen Framing-Verbot: die Route, die das fertige Mail-HTML
+     * eines gespeicherten Newsletters ausliefert. Sie dient als Quelle des eingebetteten Rahmens
+     * auf templates/newsletters/preview.twig und muss dafür in ein Frame der eigenen Anwendung
+     * eingebettet werden dürfen. Jede andere Route bleibt uneingebettet - das ist der wirksamste
+     * Schutz gegen Clickjacking.
+     */
+    private function allowsSelfFraming(Request $request): bool
+    {
+        return (bool) preg_match('#^/newsletters/\d+/preview-frame$#', $request->getUri()->getPath());
+    }
+
+    private function buildCsp(bool $allowsSelfFraming): string
     {
         return implode('; ', [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
-            "frame-ancestors 'none'",
+            $allowsSelfFraming ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
             "form-action 'self'",
             "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",

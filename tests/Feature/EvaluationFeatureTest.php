@@ -18,7 +18,18 @@ class EvaluationFeatureTest extends TestCase
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EvaluationController.php');
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString('TableQueryParams::from', $controllerContent);
-        $this->assertStringContainsString('private function getAccessibleProjects(int $userId, bool $canSeeAllProjects)', $controllerContent);
+        // Die Projektauswahl liegt seit der Zusammenlegung in ProjectQuery - dort teilen
+        // Termine und Auswertungen dieselbe Abfrage, statt je eine Kopie zu halten.
+        $this->assertStringContainsString(
+            '$this->projectQuery->getAccessibleProjects($userId, $this->canSeeAllProjects())',
+            $controllerContent
+        );
+        $queryContent = file_get_contents(dirname(__DIR__) . '/../src/Queries/ProjectQuery.php');
+        $this->assertIsString($queryContent);
+        $this->assertStringContainsString(
+            'public function getAccessibleProjects(int $userId, bool $seesAllProjects)',
+            $queryContent
+        );
         $this->assertStringContainsString('if (!in_array($projectId, $accessibleProjectIds, true)) {', $controllerContent);
         $this->assertStringContainsString('->whereHas(\'projects\', function ($projectQuery) use ($projectId) {', $controllerContent);
 

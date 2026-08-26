@@ -36,6 +36,7 @@ final class FinanceImportFeatureTest extends TestCase
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
     private array $renderCalls = [];
     private int $baselineId = 0;
+    private FinanceAccount $defaultAccount;
 
     protected function setUp(): void
     {
@@ -44,6 +45,19 @@ final class FinanceImportFeatureTest extends TestCase
         Capsule::connection()->beginTransaction();
 
         $this->baselineId = (int) Finance::max('id');
+
+        // Ohne Konto scheitert der Import an "Bitte ein Konto ... auswählen": ein
+        // eigenes, sehr niedrig einsortiertes Bankkonto stellt sicher, dass die
+        // automatische Kontowahl (resolveAccount()) unabhängig vom Datenbestand
+        // immer genau dieses Konto trifft und keine Buchung am Stichtag scheitert.
+        $this->defaultAccount = FinanceAccount::create([
+            'name' => 'Import-Testkonto ' . bin2hex(random_bytes(4)),
+            'type' => FinanceAccount::TYPE_BANK,
+            'opening_balance' => '0.00',
+            'opening_date' => '2000-01-01',
+            'is_active' => 1,
+            'sort_order' => -1000000,
+        ]);
 
         $this->tempDir = sys_get_temp_dir() . '/chormanager_import_test_' . bin2hex(random_bytes(4));
         mkdir($this->tempDir, 0777, true);

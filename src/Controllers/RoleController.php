@@ -207,7 +207,12 @@ class RoleController
             if ($e->getCode() == 23000) {
                 $_SESSION['error'] = 'Eine Rolle mit diesem Namen existiert bereits.';
             } else {
-                $_SESSION['error'] = 'Datenbankfehler: ';
+                $this->logger->error('Role creation failed.', [
+                    'event' => 'role.create.failed',
+                    'role_name' => $name,
+                    'exception' => $e,
+                ]);
+                $_SESSION['error'] = 'Die Rolle konnte nicht angelegt werden. Bitte erneut versuchen.';
             }
         }
 
@@ -297,7 +302,12 @@ class RoleController
             if ($e->getCode() == 23000) {
                 $_SESSION['error'] = 'Eine andere Rolle mit diesem Namen existiert bereits.';
             } else {
-                $_SESSION['error'] = 'Datenbankfehler beim Aktualisieren: ';
+                $this->logger->error('Role update failed.', [
+                    'event' => 'role.update.failed',
+                    'role_id' => $roleId,
+                    'exception' => $e,
+                ]);
+                $_SESSION['error'] = 'Die Rolle konnte nicht aktualisiert werden. Bitte erneut versuchen.';
             }
         }
 

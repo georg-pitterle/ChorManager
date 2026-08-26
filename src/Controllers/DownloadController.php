@@ -9,6 +9,7 @@ use App\Models\Attachment;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Util\DownloadFileName;
 
 class DownloadController
 {
@@ -72,7 +73,7 @@ class DownloadController
             return $response->withStatus(404);
         }
 
-        $fileName = $this->safeFileName($attachment->original_name);
+        $fileName = DownloadFileName::sanitize($attachment->original_name);
         $response->getBody()->write($attachment->file_content);
 
         return $response
@@ -111,7 +112,10 @@ class DownloadController
                 ->withHeader('Content-Type', $mimeType)
                 ->withHeader('Content-Length', (string) $fileSize)
                 ->withHeader('Accept-Ranges', 'bytes')
-                ->withHeader('Content-Disposition', 'inline; filename="' . $this->safeFileName($attachment->original_name) . '"');
+                ->withHeader(
+                    'Content-Disposition',
+                    'inline; filename="' . DownloadFileName::sanitize($attachment->original_name) . '"'
+                );
         }
 
         $range = self::parseRangeHeader($rangeHeader, $fileSize);
@@ -132,7 +136,10 @@ class DownloadController
             ->withHeader('Content-Length', (string) $length)
             ->withHeader('Content-Range', 'bytes ' . $start . '-' . $end . '/' . $fileSize)
             ->withHeader('Accept-Ranges', 'bytes')
-            ->withHeader('Content-Disposition', 'inline; filename="' . $this->safeFileName($attachment->original_name) . '"');
+            ->withHeader(
+                'Content-Disposition',
+                'inline; filename="' . DownloadFileName::sanitize($attachment->original_name) . '"'
+            );
     }
 
     private function findMemberAttachment(int $userId, int $attachmentId): ?Attachment
@@ -152,18 +159,6 @@ class DownloadController
                     ->where('project_users.user_id', $userId);
             })
             ->first();
-    }
-
-    private function safeFileName(string $name): string
-    {
-        return self::normalizeFileName($name);
-    }
-
-    public static function normalizeFileName(string $name): string
-    {
-        $safe = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
-        $trimmed = trim($safe);
-        return $trimmed !== '' ? $trimmed : 'download';
     }
 
     /**
