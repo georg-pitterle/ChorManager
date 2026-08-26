@@ -69,6 +69,33 @@ class TaskController
         return in_array($priority, $validPriorities, true) ? $priority : 'Mittel';
     }
 
+    /**
+     * Prüft die gewählte Person gegen die Projektmitglieder - dieselbe Menge, die
+     * das Auswahlfeld anbietet. tasks.assigned_to hängt an einem Fremdschlüssel:
+     * Eine fremde oder unbekannte Kennung endete sonst in einer QueryException
+     * und damit in einem 500 statt in einer Meldung am Formular.
+     *
+     * Liefert die Kennung, null für "nicht zugewiesen" oder false, wenn die Angabe
+     * nicht zum Projekt gehört.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function resolveAssignedUserId(Project $project, array $data): int|null|false
+    {
+        $raw = trim((string) ($data['assigned_user_id'] ?? ''));
+        if ($raw === '' || $raw === '0') {
+            return null;
+        }
+
+        if (!ctype_digit($raw)) {
+            return false;
+        }
+
+        $userId = (int) $raw;
+
+        return $project->users()->where('users.id', $userId)->exists() ? $userId : false;
+    }
+
     private function hasTaskAccess(Project $project): bool
     {
         $canManageTasks = $this->policy->canManageTasks();
@@ -165,6 +192,12 @@ class TaskController
             return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
         }
 
+        $assignedUserId = $this->resolveAssignedUserId($project, $data);
+        if ($assignedUserId === false) {
+            $_SESSION['error'] = 'Die gewählte Person gehört nicht zu diesem Projekt.';
+            return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
+        }
+
         $description = $this->htmlSanitizer->sanitizeTaskHtml($data['description'] ?? '');
 
         // Parse and validate dates
@@ -176,12 +209,20 @@ class TaskController
             return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
         }
 
-        Capsule::connection()->transaction(function () use ($project, $data, $title, $description, $startDate, $endDate) {
+        Capsule::connection()->transaction(function () use (
+            $project,
+            $data,
+            $title,
+            $description,
+            $startDate,
+            $endDate,
+            $assignedUserId
+        ) {
             $task = Task::create([
                 'project_id'       => $project->id,
                 'name'             => $title,
                 'description'      => $description,
-                'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'assigned_to'      => $assignedUserId,
                 'created_by'       => $_SESSION['user_id'],
                 'start_date'       => $startDate,
                 'end_date'         => $endDate,
@@ -226,6 +267,12 @@ class TaskController
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
+        $assignedUserId = $this->resolveAssignedUserId($task->project, $data);
+        if ($assignedUserId === false) {
+            $_SESSION['error'] = 'Die gewählte Person gehört nicht zu diesem Projekt.';
+            return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
+        }
+
         $oldStatus = $task->status;
         $oldPriority = $task->priority;
         $oldAssigned = $task->assigned_to;
@@ -252,12 +299,13 @@ class TaskController
             $oldStatus,
             $oldPriority,
             $oldAssigned,
-            $oldDescription
+            $oldDescription,
+            $assignedUserId
         ) {
             $task->update([
                 'name'             => $title,
                 'description'      => $description,
-                'assigned_to'      => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'assigned_to'      => $assignedUserId,
                 'start_date'       => $startDate,
                 'end_date'         => $endDate,
                 'status'           => $this->validateStatus($data['status'] ?? $task->status),
