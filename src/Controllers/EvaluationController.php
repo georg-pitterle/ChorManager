@@ -20,6 +20,7 @@ use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\TableQueryParams;
 use Carbon\Carbon;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -221,22 +222,41 @@ class EvaluationController
         $includePast = (string) ($request->getQueryParams()['include_past'] ?? '') === '1';
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $audienceService = new EventAudienceService();
         $query = ((bool) ($_SESSION['can_manage_attendance_all'] ?? false)
             ? Event::query()
-            : (new EventAudienceService())->visibleEventsQuery($userId))
+            : $audienceService->visibleEventsQuery($userId))
             ->where('registration_enabled', true)
             ->orderBy('starts_at', 'asc');
         if (!$includePast) {
             $query->where('starts_at', '>', Carbon::now());
         }
-        $events = $query->get();
+        // audienceSources vorladen: Ohne das holte die Zielgruppen-Auflösung je
+        // Termin eine eigene Abfrage, noch vor allem Weiteren.
+        $events = $query->with('audienceSources')->get();
 
         $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';
 
+        // Alles, was je Termin gebraucht wird, wird hier einmal für alle Termine
+        // beschafft: berechtigte Mitglieder, deren Stimmgruppe, die Anmeldungen und
+        // die Anwesenheiten. Vorher stellte jede Zeile ihre eigenen Abfragen - bei
+        // einer Probenserie also dutzendfach dieselbe Arbeit.
+        $eligibleByEvent = $audienceService->eligibleUserIdsForEvents($events);
+        $voiceGroupByUser = $this->voiceGroupNamesByUser($eligibleByEvent);
+        $registrationsByEvent = $this->registrationsByEvent($events);
+        $attendanceByEvent = $this->presentCountsByEvent($events);
+
         $matrix = [];
         foreach ($events as $event) {
-            $matrix[] = $this->buildRegistrationRow($event, $voiceGroupNames);
+            $matrix[] = $this->buildRegistrationRow(
+                $event,
+                $voiceGroupNames,
+                $eligibleByEvent[(int) $event->id] ?? [],
+                $voiceGroupByUser,
+                $registrationsByEvent[(int) $event->id] ?? [],
+                $attendanceByEvent[(int) $event->id] ?? null
+            );
         }
 
         return $this->view->render($response, 'evaluations/registrations.twig', [
@@ -251,16 +271,16 @@ class EvaluationController
      * yes/maybe occupancy, total yes count, response rate, and (for past
      * events with attendance_required=true) the actual attendance count.
      *
-     * The eligible population used here — active users, restricted to
-     * project members for project-bound events — mirrors
-     * RegistrationController's eligibleUsers()/eligibleStatusCounts()
-     * exactly. Both the numerator (answered/yes/maybe counts) and the
-     * denominator (eligible count) are derived from the SAME queried user
-     * set, so they can never diverge (unlike a design that counts
-     * registrations from one query and eligible users from a second,
-     * differently-filtered query).
+     * Zähler und Bezugsgröße stammen weiterhin aus derselben Menge: Gezählt wird
+     * ausschließlich über $eligibleUserIds, und der Nenner ist die Länge genau
+     * dieser Liste. Sie kommt jetzt von aussen, weil sie für alle Termine
+     * gemeinsam bestimmt wird - an der Invariante ändert das nichts, die Menge
+     * ist dieselbe wie zuvor.
      *
      * @param string[] $voiceGroupNames
+     * @param list<int> $eligibleUserIds
+     * @param array<int, string> $voiceGroupByUser
+     * @param array<int, string> $statusByUser
      * @return array{
      *     event: Event,
      *     cells: array<string, array{yes: int, maybe: int}>,
@@ -269,47 +289,39 @@ class EvaluationController
      *     attendance_comparison: ?int
      * }
      */
-    private function buildRegistrationRow(Event $event, array $voiceGroupNames): array
-    {
-        $eligibleUsers = $event->eligibleUsersQuery()
-            ->with([
-                'voiceGroups',
-                'eventRegistrations' => fn($q) => $q->where('event_id', (int) $event->id),
-            ])
-            ->get();
-
+    private function buildRegistrationRow(
+        Event $event,
+        array $voiceGroupNames,
+        array $eligibleUserIds,
+        array $voiceGroupByUser,
+        array $statusByUser,
+        ?int $attendanceComparison
+    ): array {
         $cells = array_fill_keys($voiceGroupNames, ['yes' => 0, 'maybe' => 0]);
         $totalYes = 0;
         $answered = 0;
 
-        foreach ($eligibleUsers as $user) {
-            $registration = $user->eventRegistrations->first();
-            if (!$registration || !in_array($registration->status, EventRegistration::STATUSES, true)) {
+        foreach ($eligibleUserIds as $eligibleUserId) {
+            $status = $statusByUser[$eligibleUserId] ?? null;
+            if ($status === null || !in_array($status, EventRegistration::STATUSES, true)) {
                 continue;
             }
 
             $answered++;
-            $groupName = $user->voiceGroups->first()->name ?? 'Ohne Stimmgruppe';
+            $groupName = $voiceGroupByUser[$eligibleUserId] ?? 'Ohne Stimmgruppe';
             if (!isset($cells[$groupName])) {
                 $groupName = 'Ohne Stimmgruppe';
             }
 
-            if ($registration->status === EventRegistration::STATUS_YES) {
+            if ($status === EventRegistration::STATUS_YES) {
                 $cells[$groupName]['yes']++;
                 $totalYes++;
-            } elseif ($registration->status === EventRegistration::STATUS_MAYBE) {
+            } elseif ($status === EventRegistration::STATUS_MAYBE) {
                 $cells[$groupName]['maybe']++;
             }
         }
 
-        $eligible = $eligibleUsers->count();
-
-        $attendanceComparison = null;
-        if (Carbon::parse($event->starts_at)->isPast() && (bool) $event->attendance_required) {
-            $attendanceComparison = Attendance::where('event_id', (int) $event->id)
-                ->where('status', 'present')
-                ->count();
-        }
+        $eligible = count($eligibleUserIds);
 
         return [
             'event' => $event,
@@ -318,6 +330,113 @@ class EvaluationController
             'response_rate' => $eligible > 0 ? (int) round($answered * 100 / $eligible) : 0,
             'attendance_comparison' => $attendanceComparison,
         ];
+    }
+
+    /**
+     * Stimmgruppe je Mitglied, in einer Abfrage für alle beteiligten Mitglieder.
+     *
+     * Maßgeblich ist wie bisher die erste Stimmgruppe eines Mitglieds; die
+     * Reihenfolge über die Kennung entspricht der bisherigen Beziehungsabfrage.
+     *
+     * @param array<int, list<int>> $eligibleByEvent
+     * @return array<int, string>
+     */
+    private function voiceGroupNamesByUser(array $eligibleByEvent): array
+    {
+        $userIds = [];
+        foreach ($eligibleByEvent as $ids) {
+            foreach ($ids as $id) {
+                $userIds[$id] = true;
+            }
+        }
+
+        if ($userIds === []) {
+            return [];
+        }
+
+        $names = [];
+        $rows = Capsule::table('user_voice_groups')
+            ->join('voice_groups', 'voice_groups.id', '=', 'user_voice_groups.voice_group_id')
+            ->whereIn('user_voice_groups.user_id', array_keys($userIds))
+            ->orderBy('voice_groups.id')
+            ->get(['user_voice_groups.user_id', 'voice_groups.name']);
+
+        foreach ($rows as $row) {
+            $userId = (int) $row->user_id;
+            if (!isset($names[$userId])) {
+                $names[$userId] = (string) $row->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Anmeldestatus je Termin und Mitglied, in einer Abfrage für alle Termine.
+     *
+     * @param iterable<Event> $events
+     * @return array<int, array<int, string>>
+     */
+    private function registrationsByEvent(iterable $events): array
+    {
+        $eventIds = [];
+        foreach ($events as $event) {
+            $eventIds[] = (int) $event->id;
+        }
+
+        if ($eventIds === []) {
+            return [];
+        }
+
+        $byEvent = [];
+        $registrations = EventRegistration::whereIn('event_id', $eventIds)
+            ->get(['event_id', 'user_id', 'status']);
+
+        foreach ($registrations as $registration) {
+            $byEvent[(int) $registration->event_id][(int) $registration->user_id] = (string) $registration->status;
+        }
+
+        return $byEvent;
+    }
+
+    /**
+     * Zahl der Anwesenden je Termin, in einer Abfrage - und nur für die Termine,
+     * bei denen die Spalte überhaupt angezeigt wird: vergangen und mit geführter
+     * Anwesenheitsliste.
+     *
+     * @param iterable<Event> $events
+     * @return array<int, int>
+     */
+    private function presentCountsByEvent(iterable $events): array
+    {
+        $eventIds = [];
+        foreach ($events as $event) {
+            if (Carbon::parse($event->starts_at)->isPast() && (bool) $event->attendance_required) {
+                $eventIds[] = (int) $event->id;
+            }
+        }
+
+        if ($eventIds === []) {
+            return [];
+        }
+
+        $counts = [];
+        $rows = Attendance::whereIn('event_id', $eventIds)
+            ->where('status', 'present')
+            ->groupBy('event_id')
+            ->get([Capsule::raw('event_id'), Capsule::raw('COUNT(*) as present_count')]);
+
+        foreach ($rows as $row) {
+            $counts[(int) $row->event_id] = (int) $row->present_count;
+        }
+
+        // Termine ohne Anwesende bekommen ausdrücklich 0 - ein fehlender Eintrag
+        // würde in der Spalte sonst als "keine Liste geführt" erscheinen.
+        foreach ($eventIds as $eventId) {
+            $counts[$eventId] ??= 0;
+        }
+
+        return $counts;
     }
 
     /**

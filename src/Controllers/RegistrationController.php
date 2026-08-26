@@ -31,20 +31,31 @@ class RegistrationController
     public function index(Request $request, Response $response): Response
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $audienceService = new EventAudienceService();
 
         // Only events the user is actually part of (audience scope) are
         // relevant for self-registration.
-        $events = (new EventAudienceService())->visibleEventsQuery($userId)
+        //
+        // audienceSources wird mitgeladen, weil die Zielgruppe gleich für alle
+        // Termine auf einmal aufgelöst wird - ohne das Vorladen holte schon deren
+        // Bestimmung je Termin eine eigene Abfrage.
+        $events = $audienceService->visibleEventsQuery($userId)
             ->where('registration_enabled', true)
             ->where('starts_at', '>', Carbon::now())
             ->orderBy('starts_at', 'asc')
-            ->with(['registrations' => fn($q) => $q->where('user_id', $userId)])
+            ->with([
+                'audienceSources',
+                'registrations' => fn($q) => $q->where('user_id', $userId),
+            ])
             ->get();
+
+        $eligibleByEvent = $audienceService->eligibleUserIdsForEvents($events);
+        $countsByEvent = $this->statusCountsForEvents($events, $eligibleByEvent);
 
         $rows = [];
         foreach ($events as $event) {
             $own = $event->registrations->first();
-            $statusCounts = $this->eligibleStatusCounts($event);
+            $statusCounts = $countsByEvent[(int) $event->id];
 
             $rows[] = [
                 'event' => $event,
@@ -384,52 +395,75 @@ class RegistrationController
     }
 
     /**
-     * Yes/no/maybe/open registration counts scoped to the same eligible
-     * population as eligibleUsers()/eligibleUserCount() — active users,
-     * restricted to project members for project-bound events. Uses lean
-     * lookup queries instead of eager-loading full user models, so it is
-     * safe to call once per listed event.
+     * Yes/no/maybe/open-Zähler für mehrere Termine in einer einzigen Abfrage.
+     *
+     * Zähler und Bezugsmenge stammen zwingend aus derselben Menge: Gezählt wird
+     * nur, wessen Kennung in $eligibleByEvent steht, und die Bezugsgröße ist die
+     * Länge genau dieser Liste. Eine zweite, anders gefilterte Abfrage für den
+     * Nenner könnte dadurch gar nicht erst abweichen.
+     *
+     * @param iterable<Event> $events
+     * @param array<int, list<int>> $eligibleByEvent
+     * @return array<int, array{eligible_count: int, yes: int, no: int, maybe: int, open: int}>
+     */
+    private function statusCountsForEvents(iterable $events, array $eligibleByEvent): array
+    {
+        $eventIds = [];
+        foreach ($events as $event) {
+            $eventIds[] = (int) $event->id;
+        }
+
+        $counts = [];
+        $eligibleLookup = [];
+        foreach ($eventIds as $eventId) {
+            $counts[$eventId] = ['yes' => 0, 'no' => 0, 'maybe' => 0];
+            // Nachschlagen statt durchsuchen: in_array() über die Mitgliederliste
+            // würde bei jedem Eintrag erneut linear laufen.
+            $eligibleLookup[$eventId] = array_flip($eligibleByEvent[$eventId] ?? []);
+        }
+
+        $registrations = $eventIds === []
+            ? []
+            : EventRegistration::whereIn('event_id', $eventIds)
+                ->whereIn('status', EventRegistration::STATUSES)
+                ->get(['event_id', 'user_id', 'status']);
+
+        foreach ($registrations as $registration) {
+            $eventId = (int) $registration->event_id;
+            if (!isset($eligibleLookup[$eventId][(int) $registration->user_id])) {
+                continue;
+            }
+
+            $counts[$eventId][(string) $registration->status]++;
+        }
+
+        $result = [];
+        foreach ($eventIds as $eventId) {
+            $eligibleCount = count($eligibleByEvent[$eventId] ?? []);
+            $answered = $counts[$eventId]['yes'] + $counts[$eventId]['no'] + $counts[$eventId]['maybe'];
+
+            $result[$eventId] = [
+                'eligible_count' => $eligibleCount,
+                'yes' => $counts[$eventId]['yes'],
+                'no' => $counts[$eventId]['no'],
+                'maybe' => $counts[$eventId]['maybe'],
+                'open' => max(0, $eligibleCount - $answered),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Einzelfall für die JSON-Antwort nach dem Speichern.
      *
      * @return array{eligible_count: int, yes: int, no: int, maybe: int, open: int}
      */
     private function eligibleStatusCounts(Event $event): array
     {
-        $counts = ['yes' => 0, 'no' => 0, 'maybe' => 0];
+        $eligibleByEvent = (new EventAudienceService())->eligibleUserIdsForEvents([$event]);
 
-        $eligibleUserIds = $event->eligibleUsersQuery()->pluck('id');
-
-        $registrations = EventRegistration::where('event_id', (int) $event->id)
-            ->whereIn('status', EventRegistration::STATUSES)
-            ->whereHas('user', function ($query) use ($eligibleUserIds) {
-                $query->whereIn('id', $eligibleUserIds);
-            })
-            ->get(['status']);
-
-        foreach ($registrations as $registration) {
-            $counts[$registration->status]++;
-        }
-
-        $eligibleCount = $this->eligibleUserCount($event);
-        $answered = $counts['yes'] + $counts['no'] + $counts['maybe'];
-
-        return [
-            'eligible_count' => $eligibleCount,
-            'yes' => $counts['yes'],
-            'no' => $counts['no'],
-            'maybe' => $counts['maybe'],
-            'open' => max(0, $eligibleCount - $answered),
-        ];
-    }
-
-    /**
-     * Lean count of active users eligible for this event (project members
-     * for project-bound events, otherwise all active users) — mirrors the
-     * filtering of eligibleUsers() without eager-loading relations, so it
-     * is safe to call once per listed event.
-     */
-    private function eligibleUserCount(Event $event): int
-    {
-        return $event->eligibleUsersQuery()->count();
+        return $this->statusCountsForEvents([$event], $eligibleByEvent)[(int) $event->id];
     }
 
     /**
