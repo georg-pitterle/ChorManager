@@ -70,7 +70,7 @@ class EvaluationController
             $params,
             array_merge(
                 $this->nameFormatter->orderColumns(),
-                ['percentage', 'present_count', 'excused_count', 'unexcused_count']
+                ['percentage', 'present_count', 'excused_count', 'unexcused_count', 'total_recorded']
             )
         );
         $projectId = (int)($params['project_id'] ?? 0);
@@ -142,6 +142,11 @@ class EvaluationController
                             ->whereIn('status', Attendance::RECORDED_STATUSES)
                             ->count();
 
+                        // Bezugsgroesse ist jeder stattgefundene Pflichttermin, nicht nur der
+                        // erfasste: Eine nicht gefuehrte Liste ist eine fehlende Angabe, keine
+                        // Abwesenheit - sie darf die Quote der uebrigen aber auch nicht
+                        // schoenrechnen. Wie viele Termine tatsaechlich erfasst wurden, steht
+                        // daneben in der Spalte "Erfasst" und macht den Unterschied sichtbar.
                         $percentage = $totalEvents > 0 ? round(($present / $totalEvents) * 100, 1) : 0;
 
                         $stats[] = [

@@ -573,13 +573,42 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         );
     }
 
-    public function testInviteAllowsVoiceGroupRepWithOnlyFlagForOwnGroupMember(): void
+    /**
+     * Die Einladung setzt das Passwort des Zielkontos neu. Zusammen mit einer
+     * aenderbaren Adresse waere das ein Uebernahmepfad, deshalb bleibt sie der
+     * Mitgliederverwaltung vorbehalten - auch innerhalb der eigenen Stimmgruppe.
+     */
+    public function testInviteDeniesVoiceGroupRepWithOnlyFlagEvenForOwnGroupMember(): void
     {
         $_SESSION['user_id'] = 10;
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [1];
+
+        $targetId = $this->createRealUser();
+        $target = $this->makeUserWithVoiceGroups($targetId, [1]);
+
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findById')->willReturn($target);
+
+        $controller = $this->makeInviteController($userQuery);
+
+        $result = $controller->invite(
+            $this->makeRequest('POST', '/users/' . $targetId . '/invite'),
+            $this->makeResponse(),
+            ['id' => (string) $targetId]
+        );
+
+        $this->assertSame(403, $result->getStatusCode());
+    }
+
+    public function testInviteAllowsUserManager(): void
+    {
+        $_SESSION['user_id'] = 10;
+        $_SESSION['can_manage_users'] = true;
+        $_SESSION['role_level'] = 100;
+        $_SESSION['voice_group_ids'] = [];
 
         // sendInvitationEmail() legt einen echten invitation_tokens-Eintrag an, dessen
         // Fremdschluessel auf einen echten users-Datensatz zeigen muss.

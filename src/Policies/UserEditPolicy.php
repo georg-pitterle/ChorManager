@@ -14,11 +14,14 @@ use App\Models\User;
  *    can_edit_users und can_manage_own_voice_group (eigene Stimmgruppe) reicht
  *    dafuer auch can_manage_project_members, dessen Traeger die Projektzuordnung
  *    ueber genau dieses Formular pflegt.
- *  - canEditProfile(): duerfen Name, E-Mail, Rollen und Stimmgruppen geschrieben
+ *  - canEditProfile(): duerfen Name, Rollen und Stimmgruppen geschrieben
  *    werden? Das bleibt can_edit_users und der eigenen Stimmgruppe vorbehalten.
- *    Ein reiner Projektmitglieder-Verwalter aendert nur die Projektzuordnung -
- *    eine fremde E-Mail-Adresse plus Passwort-Reset waere sonst ein
- *    Uebernahmepfad auf das Zielkonto.
+ *    Ein reiner Projektmitglieder-Verwalter aendert nur die Projektzuordnung.
+ *  - canEditEmail(): die Adresse selbst haengt allein an can_edit_users. Eine
+ *    fremde Adresse umbiegen und anschliessend eine Einladung darauf ausloesen
+ *    ergibt einen vollstaendigen Uebernahmepfad auf das Zielkonto; fuer den
+ *    Projektmitglieder-Verwalter ist genau der ausgeschlossen, und fuer den
+ *    Stimmgruppen-Verwalter darf nichts anderes gelten.
  *
  * Ueber allen Wegen steht die Rollenhierarchie: ein Mitglied, dessen hoechste
  * Rolle ueber dem eigenen Level liegt, bleibt unantastbar. UserController::update()
@@ -51,7 +54,7 @@ class UserEditPolicy
 
     /**
      * True when the session may write the member's own data - first name, last name,
-     * e-mail, roles and voice groups.
+     * roles and voice groups. Die E-Mail-Adresse haengt an canEditEmail().
      *
      * @param array<string, mixed> $session
      */
@@ -59,6 +62,17 @@ class UserEditPolicy
     {
         return $this->passesBaseGuards($session, $target)
             && $this->holdsProfileRight($session, $target);
+    }
+
+    /**
+     * True when the session may write the member's e-mail address.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function canEditEmail(array $session, User $target): bool
+    {
+        return $this->passesBaseGuards($session, $target)
+            && !empty($session['can_edit_users']);
     }
 
     /**

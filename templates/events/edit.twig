@@ -143,6 +143,7 @@
                         {% include "events/_audience_sources.twig" %}
 
                         {% if event.series_id %}
+                            {% set series_fields = form.series_fields|default(["title", "location", "time", "registration", "attendance", "audience"]) %}
                             <div class="mb-3 form-check">
                                 <input type="checkbox"
                                        class="form-check-input"
@@ -152,6 +153,24 @@
                                        {% if form.update_series|default(false) %}checked{% endif %}>
                                 <label class="form-check-label" for="update_series">Änderungen auf zukünftige Termine der Serie anwenden?</label>
                             </div>
+                            <fieldset class="mb-3 ps-4">
+                                <legend class="form-label h6 mb-1">Was wird übertragen?</legend>
+                                <p class="form-text mt-0">
+                                    Nicht angehakte Bereiche bleiben bei den Folgeterminen so, wie sie dort
+                                    einzeln eingestellt wurden.
+                                </p>
+                                {% for group in series_field_groups %}
+                                    <div class="form-check">
+                                        <input type="checkbox"
+                                               class="form-check-input"
+                                               id="series_field_{{ group.key }}"
+                                               name="series_fields[]"
+                                               value="{{ group.key }}"
+                                               {% if group.key in series_fields %}checked{% endif %}>
+                                        <label class="form-check-label" for="series_field_{{ group.key }}">{{ group.label }}</label>
+                                    </div>
+                                {% endfor %}
+                            </fieldset>
                         {% endif %}
 
                         <div class="d-flex justify-content-between mt-4">

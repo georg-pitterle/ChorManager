@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use Carbon\Carbon;
-use DateTime;
+use Carbon\CarbonImmutable;
 use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -24,6 +24,7 @@ use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
 use App\Services\CalendarSubscriptionService;
 use App\Services\EventAudienceService;
+use App\Services\EventRecurrenceService;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
@@ -41,19 +42,28 @@ class EventController
     private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_url';
 
     /**
-     * Zugelassene Takte einer Terminserie. Der Wert steuert, um wie viel die
-     * Erzeugungsschleife weiterrückt - ein unbekannter Takt rückt gar nicht
-     * weiter und die Schleife käme nie zum Ende.
+     * Zugelassene Takte einer Terminserie. Ein unbekannter Takt darf nicht bis in
+     * die Terminerzeugung durchkommen - EventRecurrenceService kennt ihn nicht und
+     * würde ihn als Wochentakt auslegen.
      */
     private const SERIES_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
 
     /**
-     * Notbremse der Erzeugungsschleife. Sie greift nie bei einer gültigen Eingabe:
-     * Der teuerste zulässige Fall (wöchentlich, ein Wochentag, großes Intervall)
-     * braucht rund sieben Durchläufe je Termin und endet damit weit vor dieser
-     * Grenze an der Terminzahl.
+     * Feldgruppen, die eine Serienänderung auf die Folgetermine überträgt. Ohne
+     * Auswahl gelten alle - so verhält sich die Serienänderung wie bisher, wer
+     * einzelne Termine angepasst hat, kann sie aber gezielt aussparen.
      */
-    private const SERIES_MAX_ITERATIONS = 10000;
+    private const SERIES_FIELD_GROUPS = ['title', 'location', 'time', 'registration', 'attendance', 'audience'];
+
+    /** Beschriftungen derselben Feldgruppen für das Bearbeiten-Formular. */
+    private const SERIES_FIELD_GROUP_LABELS = [
+        'title' => 'Titel und Terminart',
+        'location' => 'Ort',
+        'time' => 'Uhrzeit',
+        'registration' => 'Anmeldung und Anmeldeschluss',
+        'attendance' => 'Anwesenheitspflicht',
+        'audience' => 'Zielgruppe',
+    ];
 
     private Twig $view;
     private NameFormatterService $nameFormatter;
@@ -736,6 +746,13 @@ class EventController
                 $createService->setError('Ungültige Wiederholung. Bitte Takt und Intervall prüfen.', $formData);
                 return $response->withHeader('Location', '/events')->withStatus(302);
             }
+
+            // Wochentage gehören zum Wochentakt. Bei täglich, monatlich und jährlich
+            // wertet sie niemand aus; gespeichert würden sie eine Regel behaupten,
+            // die die Serie nicht befolgt.
+            if ($frequency !== EventRecurrenceService::FREQUENCY_WEEKLY) {
+                $weekdays = [];
+            }
         }
 
         try {
@@ -780,77 +797,45 @@ class EventController
                     'end_date' => $endDateStr
                 ]);
 
-                $startDate = new DateTime($startsAtDate);
-                $endDate = new DateTime($endDateStr);
-                $endDate->setTime(23, 59, 59);
+                $occurrences = (new EventRecurrenceService())->occurrences(
+                    CarbonImmutable::parse($startsAtDate),
+                    $frequency,
+                    $interval,
+                    $weekdays,
+                    CarbonImmutable::parse($endDateStr)
+                );
 
-                $currentDate = clone $startDate;
+                // Anmeldeschluss wie bei der Serienänderung als Vorlauf zum jeweiligen
+                // Terminbeginn. Ein absoluter Zeitpunkt schlösse alle Termine der Serie
+                // gleichzeitig; ihn stattdessen zu verwerfen, ließe die Eingabe aus dem
+                // Formular kommentarlos verschwinden.
+                $deadlineLeadSeconds = null;
+                if ($registrationEnabled && $registrationDeadline !== null) {
+                    $deadlineLeadSeconds = Carbon::parse($registrationDeadline)->getTimestamp()
+                        - Carbon::parse($startsAt)->getTimestamp();
+                }
+
                 $count = 0;
-                $iterations = 0;
+                foreach ($occurrences as $occurrence) {
+                    $day = $occurrence->format('Y-m-d');
+                    $occurrenceStart = Carbon::parse($day . ' ' . $startTime . ':00');
 
-                while ($currentDate <= $endDate) {
-                    if (++$iterations > self::SERIES_MAX_ITERATIONS) {
-                        break;
-                    }
-
-                    $shouldCreate = false;
-
-                    if ($frequency === 'daily') {
-                        $shouldCreate = true;
-                    } elseif ($frequency === 'weekly') {
-                        $dayOfWeek = (int)$currentDate->format('N'); // 1 (mon) to 7 (sun)
-                        if (empty($weekdays) || in_array($dayOfWeek, $weekdays)) {
-                            $shouldCreate = true;
-                        }
-                    } elseif ($frequency === 'monthly') {
-                        $shouldCreate = true;
-                    } elseif ($frequency === 'yearly') {
-                        $shouldCreate = true;
-                    }
-
-                    if ($shouldCreate) {
-                        $seriesEvent = Event::create([
-                            'title' => $title,
-                            'starts_at' => $currentDate->format('Y-m-d') . ' ' . $startTime . ':00',
-                            'ends_at' => $currentDate->format('Y-m-d') . ' ' . $endTime . ':00',
-                            'event_type_id' => $eventTypeId,
-                            'type' => $typeName,
-                            'series_id' => $series->id,
-                            'location' => trim($data['location'] ?? ''),
-                            'registration_enabled' => $registrationEnabled,
-                            'registration_deadline' => null,
-                            'attendance_required' => $attendanceRequired,
-                        ]);
-                        $audienceService->setSources($seriesEvent, $sources);
-                        $count++;
-                    }
-
-                    // Increment
-                    if ($frequency === 'daily') {
-                        $currentDate->modify('+' . $interval . ' day');
-                    } elseif ($frequency === 'weekly') {
-                        // If it's weekly, we check all weekdays in the current week,
-                        // then jump by interval weeks if we've passed all selected weekdays.
-                        // Simplification for now: jump 1 day at a time, and when we finish a week,
-                        // skip (interval-1) weeks.
-                        $prevDay = (int)$currentDate->format('N');
-                        $currentDate->modify('+1 day');
-                        $nextDay = (int)$currentDate->format('N');
-
-                        if ($nextDay === 1) { // New week started
-                            if ($interval > 1) {
-                                $currentDate->modify('+' . ($interval - 1) . ' weeks');
-                            }
-                        }
-                    } elseif ($frequency === 'monthly') {
-                        $currentDate->modify('+' . $interval . ' month');
-                    } elseif ($frequency === 'yearly') {
-                        $currentDate->modify('+' . $interval . ' year');
-                    }
-
-                    if ($count > 500) {
-                        break; // Safety break
-                    }
+                    $seriesEvent = Event::create([
+                        'title' => $title,
+                        'starts_at' => $occurrenceStart->format('Y-m-d H:i:s'),
+                        'ends_at' => $day . ' ' . $endTime . ':00',
+                        'event_type_id' => $eventTypeId,
+                        'type' => $typeName,
+                        'series_id' => $series->id,
+                        'location' => trim($data['location'] ?? ''),
+                        'registration_enabled' => $registrationEnabled,
+                        'registration_deadline' => $deadlineLeadSeconds === null
+                            ? null
+                            : $occurrenceStart->copy()->addSeconds($deadlineLeadSeconds)->format('Y-m-d H:i:s'),
+                        'attendance_required' => $attendanceRequired,
+                    ]);
+                    $audienceService->setSources($seriesEvent, $sources);
+                    $count++;
                 }
 
                 $_SESSION['success'] = "Serie erfolgreich angelegt ($count Termine).";
@@ -929,6 +914,7 @@ class EventController
             'audience_sources' => $audienceSources,
             'error' => $error,
             'edit_form' => $editForm,
+            'series_field_groups' => self::seriesFieldGroupOptions(),
         ]);
     }
 
@@ -957,6 +943,7 @@ class EventController
         $endTime = $data['end_time'] ?? '';
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $updateSeries = !empty($data['update_series']);
+        $seriesFields = self::normalizeSeriesFieldGroups($data['series_fields'] ?? null);
         $registrationEnabled = !empty($data['registration_enabled']);
         $attendanceRequired = !empty($data['attendance_required']);
         $registrationDeadlineRaw = trim((string) ($data['registration_deadline'] ?? ''));
@@ -977,6 +964,7 @@ class EventController
             'event_type_id' => $eventTypeId ?? '',
             'location' => trim($data['location'] ?? ''),
             'update_series' => $updateSeries,
+            'series_fields' => $seriesFields,
             'registration_enabled' => $registrationEnabled,
             'registration_deadline' => $registrationDeadlineRaw,
             'attendance_required' => $attendanceRequired,
@@ -1080,17 +1068,53 @@ class EventController
                         - Carbon::parse($startsAt)->getTimestamp();
                 }
 
+                // Nur die gewählten Feldgruppen wandern auf die Folgetermine. Wer
+                // einen einzelnen Termin bewusst anders angesetzt hat - eigener
+                // Titel, eigener Ort, engere Zielgruppe - verliert das sonst mit
+                // jeder Serienänderung, ohne es zu merken.
                 foreach ($eventsToUpdate as $eventInSeries) {
+                    $seriesUpdate = [];
+
+                    if (in_array('title', $seriesFields, true)) {
+                        $seriesUpdate['title'] = $updateData['title'];
+                        $seriesUpdate['event_type_id'] = $updateData['event_type_id'];
+                        $seriesUpdate['type'] = $updateData['type'];
+                    }
+
+                    if (in_array('location', $seriesFields, true)) {
+                        $seriesUpdate['location'] = $updateData['location'];
+                    }
+
+                    if (in_array('attendance', $seriesFields, true)) {
+                        $seriesUpdate['attendance_required'] = $updateData['attendance_required'];
+                    }
+
                     $seriesStart = Carbon::parse($eventInSeries->starts_at)->setTimeFromTimeString($newStartTime);
 
-                    $eventInSeries->update(array_merge($updateData, [
-                        'starts_at' => $seriesStart,
-                        'ends_at' => Carbon::parse($eventInSeries->ends_at)->setTimeFromTimeString($newEndTime),
-                        'registration_deadline' => $deadlineLeadSeconds === null
+                    if (in_array('time', $seriesFields, true)) {
+                        $seriesUpdate['starts_at'] = $seriesStart;
+                        $seriesUpdate['ends_at'] = Carbon::parse($eventInSeries->ends_at)
+                            ->setTimeFromTimeString($newEndTime);
+                    }
+
+                    if (in_array('registration', $seriesFields, true)) {
+                        $seriesUpdate['registration_enabled'] = $updateData['registration_enabled'];
+                        // Der Vorlauf zählt ab dem Beginn, den dieser Termin nachher hat.
+                        $deadlineBase = in_array('time', $seriesFields, true)
+                            ? $seriesStart
+                            : Carbon::parse($eventInSeries->starts_at);
+                        $seriesUpdate['registration_deadline'] = $deadlineLeadSeconds === null
                             ? null
-                            : (clone $seriesStart)->addSeconds($deadlineLeadSeconds),
-                    ]));
-                    $audienceService->setSources($eventInSeries, $sources);
+                            : (clone $deadlineBase)->addSeconds($deadlineLeadSeconds);
+                    }
+
+                    if ($seriesUpdate !== []) {
+                        $eventInSeries->update($seriesUpdate);
+                    }
+
+                    if (in_array('audience', $seriesFields, true)) {
+                        $audienceService->setSources($eventInSeries, $sources);
+                    }
                 }
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
@@ -1162,10 +1186,20 @@ class EventController
                 );
             }
 
-            // Delete all future events of this series (including current)
+            // Gelöscht wird ab dem angeklickten Termin - liegt der in der
+            // Vergangenheit, trifft es auch vergangene Termine samt ihrer
+            // Anwesenheits- und Anmeldedaten (ON DELETE CASCADE). Die Meldung
+            // benennt deshalb den tatsächlichen Umfang.
+            $deletedFrom = Carbon::parse($event->starts_at)->format('d.m.Y');
+            $deletedCount = $eventsToDelete->count();
+
             Event::whereIn('id', $eventsToDelete->pluck('id')->all())->delete();
 
-            $_SESSION['success'] = 'Alle zukünftigen Termine der Serie wurden gelöscht.';
+            $_SESSION['success'] = sprintf(
+                'Termine der Serie ab dem %s gelöscht (%d Termine, inklusive Anwesenheiten und Anmeldungen).',
+                $deletedFrom,
+                $deletedCount
+            );
         }
         return $response->withHeader('Location', '/events')->withStatus(302);
     }
@@ -1277,6 +1311,45 @@ class EventController
      * unterstützten Takten gehört. Ein fehlendes Feld gilt weiterhin als
      * "wöchentlich", ein gesetzter, aber unbekannter Wert nicht.
      */
+    /**
+     * Feldgruppen, die eine Serienänderung überträgt. Fehlt die Angabe ganz -
+     * etwa aus einem älteren Formular -, gelten alle: das ist das bisherige
+     * Verhalten und die einzige Auslegung, die keine Änderung verschluckt.
+     *
+     * @return list<string>
+     */
+    /**
+     * Feldgruppen mit Beschriftung für das Formular.
+     *
+     * @return list<array{key: string, label: string}>
+     */
+    private static function seriesFieldGroupOptions(): array
+    {
+        $options = [];
+        foreach (self::SERIES_FIELD_GROUPS as $group) {
+            $options[] = ['key' => $group, 'label' => self::SERIES_FIELD_GROUP_LABELS[$group]];
+        }
+
+        return $options;
+    }
+
+    private static function normalizeSeriesFieldGroups(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return self::SERIES_FIELD_GROUPS;
+        }
+
+        $selected = [];
+        foreach ($value as $candidate) {
+            $group = strtolower(trim((string) $candidate));
+            if (in_array($group, self::SERIES_FIELD_GROUPS, true)) {
+                $selected[$group] = true;
+            }
+        }
+
+        return array_values(array_keys($selected));
+    }
+
     private static function normalizeSeriesFrequency(mixed $value): ?string
     {
         if ($value === null) {

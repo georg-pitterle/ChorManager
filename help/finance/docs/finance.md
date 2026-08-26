@@ -82,6 +82,12 @@ Gegenbuchung mit umgekehrter Richtung und gleichem Betrag an
 und sind mit **storniert** bzw. **Storno** gekennzeichnet; in Summe heben sie
 sich auf. Anschließend erfasst du die Buchung neu.
 
+Weil beide Buchungen stehen bleiben, zählen sie auch in den Summen "Einnahmen"
+und "Ausgaben" des Kassaberichts mit – der Saldo stimmt trotzdem, weil sie
+einander aufheben. Der Bericht weist unter den beiden Summen aus, wie viel davon
+auf Stornopaare entfällt. Die Budgetauswertung rechnet solche Paare dagegen
+heraus; ihre Ist-Werte liegen deshalb genau um diesen Betrag niedriger.
+
 Das ist keine Schikane, sondern Vorgabe: Eine Korrektur darf den
 ursprünglichen Inhalt nicht unkenntlich machen. Aus demselben Grund wird jede
 Änderung an einer Buchung mitprotokolliert.
@@ -90,8 +96,10 @@ ursprünglichen Inhalt nicht unkenntlich machen. Aus demselben Grund wird jede
 
 Unter **Kassabuch → Journal** siehst du, wer wann welche Buchung angelegt,
 geändert oder storniert hat – bei Änderungen mit dem alten und dem neuen Wert.
-Das Journal ist für alle sichtbar, die das Kassabuch lesen dürfen, und damit die
-erste Anlaufstelle der Rechnungsprüfer.
+Auch das Verschieben des Buchungsabschlusses steht dort, als Eintrag
+**Abschluss** ohne Bezug zu einer einzelnen Buchung. Das Journal ist für alle
+sichtbar, die das Kassabuch lesen dürfen, und damit die erste Anlaufstelle der
+Rechnungsprüfer.
 
 ![Änderungsjournal mit Anlage, Änderung und Storno](images/finance/15-journal.png)
 
@@ -101,8 +109,11 @@ Ist ein Jahr geprüft und in der Generalversammlung entlastet, trägst du unter
 **"Konfiguration"** bei **Buchungen abgeschlossen bis** das Enddatum ein.
 Zahlungen bis zu diesem Tag lassen sich danach nicht mehr ändern; auch neue
 Buchungen in diesem Zeitraum werden abgelehnt. Nötige Korrekturen laufen dann
-über eine Stornobuchung, die automatisch auf den heutigen Tag gebucht wird –
-das geprüfte Jahr bleibt also unverändert. Ein leeres Feld hebt die Sperre auf.
+über eine Stornobuchung, die automatisch auf den ersten wieder offenen Tag
+gebucht wird – das geprüfte Jahr bleibt also unverändert. Ein leeres Feld hebt
+die Sperre auf. Jede Änderung an diesem Datum landet im Änderungsjournal,
+einschließlich einer Rückdatierung, die einen bereits geprüften Zeitraum wieder
+öffnet.
 
 ### Beginn des Geschäftsjahres einstellen
 

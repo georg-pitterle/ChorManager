@@ -50,7 +50,13 @@
                        class="form-control"
                        name="email"
                        value="{{ edit_form.email|default(user.email) }}"
+                       {% if not can_edit_email %}readonly{% endif %}
                        required>
+                {% if not can_edit_email %}
+                    <div class="form-text">
+                        Die E-Mail-Adresse kann nur von der Mitgliederverwaltung geändert werden.
+                    </div>
+                {% endif %}
             </div>
             <hr class="my-4">
             <div class="row">
@@ -151,12 +157,14 @@
         {% endif %}
     </div>
     <div class="modal-footer">
-        <button type="button"
-                class="btn btn-outline-secondary me-auto js-invite-btn"
-                data-invite-url="/users/{{ user.id }}/invite"
-                title="Einladungs-E-Mail senden">
-            <i class="bi bi-envelope-fill me-1"></i>Einladungs-E-Mail
-        </button>
+        {% if can_invite %}
+            <button type="button"
+                    class="btn btn-outline-secondary me-auto js-invite-btn"
+                    data-invite-url="/users/{{ user.id }}/invite"
+                    title="Einladungs-E-Mail senden">
+                <i class="bi bi-envelope-fill me-1"></i>Einladungs-E-Mail
+            </button>
+        {% endif %}
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
         <button type="submit" class="btn btn-primary">Änderungen speichern</button>
     </div>

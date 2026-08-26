@@ -59,6 +59,9 @@
                                     <div>
                                         <h6 class="card-subtitle text-muted mb-1">Einnahmen</h6>
                                         <h3 class="card-title text-success mb-0">{{ total_income|number_format(2, ',', '.') }} €</h3>
+                                        {% if reversed_income > 0 %}
+                                            <div class="small text-muted">davon Storno: {{ reversed_income|number_format(2, ',', '.') }} €</div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -75,6 +78,9 @@
                                     <div>
                                         <h6 class="card-subtitle text-muted mb-1">Ausgaben</h6>
                                         <h3 class="card-title text-danger mb-0">{{ total_expense|number_format(2, ',', '.') }} €</h3>
+                                        {% if reversed_expense > 0 %}
+                                            <div class="small text-muted">davon Storno: {{ reversed_expense|number_format(2, ',', '.') }} €</div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -99,6 +105,15 @@
                         </div>
                     </div>
                 </div>
+
+                {% if reversed_income > 0 or reversed_expense > 0 %}
+                    <div class="alert alert-info" role="alert">
+                        Stornierte Buchungen und ihre Gegenbuchungen bleiben im Kassabuch stehen und sind
+                        in Einnahmen und Ausgaben enthalten; im Saldo heben sie einander auf. Die
+                        Budgetauswertung rechnet solche Paare dagegen heraus - deren Ist-Werte liegen
+                        deshalb um die oben ausgewiesenen Beträge niedriger.
+                    </div>
+                {% endif %}
 
                 <div class="row g-4 mb-4">
                     <div class="col-12">

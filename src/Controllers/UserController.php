@@ -29,6 +29,10 @@ use Psr\Log\LoggerInterface;
 
 class UserController
 {
+    /** Sperrgrund, wenn sonst niemand mehr an die Mitgliederverwaltung kaeme. */
+    private const LAST_MANAGER_MESSAGE = 'Das ist das letzte Mitglied mit Mitgliederverwaltung. '
+        . 'Vergib das Recht zuerst an ein anderes Mitglied.';
+
     private Twig $view;
     private UserQuery $userQuery;
     private UserPersistence $userPersistence;
@@ -310,6 +314,7 @@ class UserController
         // canEditProfile() erlaubt das Schreiben der Mitgliedsdaten.
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
         $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
+        $canEditEmail = $this->userEditPolicy->canEditEmail($_SESSION, $targetUser);
 
         if (!$canEditProfile && !$canManageProjectMembers) {
             $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
@@ -319,7 +324,12 @@ class UserController
         $data = (array) $request->getParsedBody();
         $firstName = trim($data['first_name'] ?? '');
         $lastName = trim($data['last_name'] ?? '');
-        $email = trim($data['email'] ?? '');
+
+        // Ohne can_edit_users bleibt die Adresse, wie sie ist. Ein uebermittelter
+        // Wert wird verworfen statt abgewiesen: das Formular zeigt das Feld dann
+        // nur lesend an, ein trotzdem gesendeter Wert stammt nicht aus der
+        // Oberflaeche und darf die erlaubten Aenderungen nicht blockieren.
+        $email = $canEditEmail ? trim($data['email'] ?? '') : (string) $targetUser->email;
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
@@ -376,6 +386,22 @@ class UserController
         // Never allow assigning a role that outranks the actor's own hierarchy level,
         // regardless of whether the actor is a global user manager.
         $roleIds = $this->capRoleIdsToActorLevel($roleIds);
+
+        // Gleichrangige duerfen einander verwalten - sonst koennten zwei Vorstaende
+        // einander nie vertreten. Damit laesst sich aber auch dem letzten
+        // verbleibenden Mitgliederverwalter sein Recht entziehen, und danach kommt
+        // niemand mehr an die Mitgliederverwaltung heran.
+        if ($this->wouldDropLastUserManager($targetUser, $roleIds)) {
+            $editService = new ModalFormService('user_edit_' . $userId);
+            $editService->setError(
+                'Das ist die letzte Rolle mit Mitgliederverwaltung. Vergib das Recht zuerst an '
+                . 'ein anderes Mitglied.',
+                $formData,
+                [],
+                false
+            );
+            return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
+        }
 
         if (!$firstName || !$lastName || !$email || empty($roleIds)) {
             $editService = new ModalFormService('user_edit_' . $userId);
@@ -554,6 +580,10 @@ class UserController
             'projects' => $projects,
             'can_edit_users' => $canEditUsers,
             'can_edit_profile' => $canEditProfile,
+            // Adresse und Einladung haengen an der Mitgliederverwaltung, nicht am
+            // Bearbeiten-Recht: siehe UserEditPolicy::canEditEmail().
+            'can_edit_email' => $this->userEditPolicy->canEditEmail($_SESSION, $targetUser),
+            'can_invite' => (bool) $canManageUsers,
             'can_manage_project_members' => $canManageProjectMembers,
             'edit_state' => $editState,
         ]);
@@ -590,6 +620,11 @@ class UserController
                 $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.';
                 return $response->withHeader('Location', '/users')->withStatus(302);
             }
+        }
+
+        if ($this->isLastUserManager($targetUser)) {
+            $_SESSION['error'] = self::LAST_MANAGER_MESSAGE;
+            return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
         $targetUser->is_active = 0;
@@ -662,12 +697,6 @@ class UserController
 
     public function restore(Request $request, Response $response, array $args): Response
     {
-        $canManageUsers = $_SESSION['can_manage_users'] ?? false;
-        if (!$canManageUsers) {
-            $_SESSION['error'] = 'Du hast keine Berechtigung, Mitglieder wiederherzustellen.';
-            return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
-        }
-
         $userId = (int) $args['id'];
         $targetUser = $this->userQuery->findById($userId);
 
@@ -676,7 +705,9 @@ class UserController
             return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
         }
 
-        if ($this->outranksActor($targetUser)) {
+        // Dieselbe Befugnis wie beim Archivieren: wer stilllegen darf, muss das
+        // auch zuruecknehmen koennen.
+        if (!$this->canArchiveTargetUser($targetUser)) {
             $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied wiederherzustellen.';
             return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
         }
@@ -756,6 +787,20 @@ class UserController
 
     private function canDeactivateTargetUser(User $targetUser): bool
     {
+        if ($this->isLastUserManager($targetUser)) {
+            return false;
+        }
+
+        return $this->canArchiveTargetUser($targetUser);
+    }
+
+    /**
+     * Archivieren und Wiederherstellen sind dieselbe Befugnis in zwei Richtungen.
+     * Waere nur das Archivieren erlaubt, koennte ein Stimmgruppen-Verwalter ein
+     * Mitglied stilllegen, aber nicht mehr zurueckholen.
+     */
+    private function canArchiveTargetUser(User $targetUser): bool
+    {
         if ($this->outranksActor($targetUser)) {
             return false;
         }
@@ -773,11 +818,59 @@ class UserController
         return $canManageOwnVoiceGroup && $isInMyGroup;
     }
 
+    /**
+     * Ist dieses Mitglied das letzte aktive, das ueber eine Rolle die
+     * Mitgliederverwaltung haelt?
+     */
+    private function isLastUserManager(User $targetUser): bool
+    {
+        if (!$this->holdsUserManagement($targetUser->roles->pluck('id')->all())) {
+            return false;
+        }
+
+        return !$this->otherActiveUserManagerExists((int) $targetUser->id);
+    }
+
+    /**
+     * Wuerde dieser Rollensatz dem letzten Mitgliederverwalter sein Recht nehmen?
+     *
+     * @param array<int|string> $newRoleIds
+     */
+    private function wouldDropLastUserManager(User $targetUser, array $newRoleIds): bool
+    {
+        if (!$this->isLastUserManager($targetUser)) {
+            return false;
+        }
+
+        return !$this->holdsUserManagement($newRoleIds);
+    }
+
+    /**
+     * @param array<int|string> $roleIds
+     */
+    private function holdsUserManagement(array $roleIds): bool
+    {
+        $ids = array_values(array_filter(array_map('intval', $roleIds)));
+        if ($ids === []) {
+            return false;
+        }
+
+        return Role::whereIn('id', $ids)->where('can_manage_users', 1)->exists();
+    }
+
+    private function otherActiveUserManagerExists(int $exceptUserId): bool
+    {
+        return User::where('is_active', 1)
+            ->where('id', '!=', $exceptUserId)
+            ->whereHas('roles', static function ($query): void {
+                $query->where('can_manage_users', 1);
+            })
+            ->exists();
+    }
+
     public function invite(Request $request, Response $response, array $args): Response
     {
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
-        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
-        $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
         $userId = (int) $args['id'];
         $targetUser = $this->userQuery->findById($userId);
@@ -792,13 +885,13 @@ class UserController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
+        // Die Einladung setzt das Passwort des Zielkontos neu. Zusammen mit einer
+        // aenderbaren Adresse waere das ein Uebernahmepfad; deshalb bleibt sie der
+        // Mitgliederverwaltung vorbehalten, so wie die Adresse selbst an
+        // can_edit_users haengt (siehe UserEditPolicy::canEditEmail()).
         if (!$canManageUsers) {
-            $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
-            $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
-            if (!$canManageOwnVoiceGroup || !$isInMyGroup) {
-                $response->getBody()->write(json_encode(['success' => false, 'message' => 'Keine Berechtigung.']));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-            }
+            $response->getBody()->write(json_encode(['success' => false, 'message' => 'Keine Berechtigung.']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
         $inviteResult = $this->sendInvitationEmail($targetUser, $request);

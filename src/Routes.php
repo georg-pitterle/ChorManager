@@ -190,7 +190,12 @@ return function (App $app) {
             );
             $group->get('/help/{slug:[a-z0-9\-]+}', [HelpController::class, 'show']);
 
-            // Evaluations - accessible for all logged-in users
+            // Auswertungen sind bewusst fuer jedes angemeldete Mitglied offen: Der Chor
+            // sieht seine Anwesenheit als gemeinsame Angelegenheit, und die Liste zeigt
+            // nur Projekte, zu denen der Nutzer ueber ProjectQuery::getAccessibleProjects()
+            // ohnehin Zugang hat. Wer die namentlichen Fehlzeiten enger fassen will,
+            // haengt die Routen an RoleMiddleware(requiresAttendanceManagement: true) -
+            // die Sichtbarkeit ist hier die Entscheidung, nicht ein Versehen.
             $group->get('/evaluations', [EvaluationController::class, 'index']);
             $group->get('/evaluations/project-members', [EvaluationController::class, 'projectMembers']);
 

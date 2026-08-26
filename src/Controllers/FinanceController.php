@@ -145,8 +145,13 @@ class FinanceController
         // Zufluss-Abfluss-Prinzip: maßgeblich ist der Tag der Zahlung. Buchungen
         // ohne Zahldatum sind noch kein Kassavorgang und gehören daher in kein
         // Geschäftsjahr - sie erscheinen jahresunabhängig als offene Posten.
+        // Nach Zahldatum, nicht nach Laufnummer: Die Laufnummer läuft global in der
+        // Reihenfolge der Erfassung, deshalb rutschte eine nacherfasste alte Buchung
+        // an den Anfang der Liste. Innerhalb eines Tages entscheidet weiterhin die
+        // Laufnummer, damit die Reihenfolge eindeutig bleibt.
         $finances = Finance::with(['attachments', 'financeAccount', 'reversedBy'])
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->orderBy('payment_date', 'desc')
             ->orderBy('running_number', 'desc')
             ->get();
 
@@ -664,11 +669,13 @@ class FinanceController
                 $originalPaymentDate = $original->payment_date?->format('Y-m-d');
 
                 // Ein abgeschlossener Zeitraum darf sich nicht mehr verändern; das
-                // Storno wandert dann auf den heutigen Tag. Sonst wird es in der
-                // Periode des Originals gebucht.
+                // Storno wandert dann auf den ersten wieder offenen Tag. Sonst wird
+                // es in der Periode des Originals gebucht. "Heute" reicht dafür
+                // nicht: steht der Abschluss-Stichtag in der Zukunft, ist heute
+                // selbst noch gesperrt.
                 $paymentDate = $originalPaymentDate;
                 if ($paymentDate !== null && $this->journal->isLocked($paymentDate)) {
-                    $paymentDate = Carbon::now()->format('Y-m-d');
+                    $paymentDate = $this->journal->firstOpenBookingDay();
                 }
 
                 $reversal = Finance::create([
@@ -847,6 +854,23 @@ class FinanceController
         $totalExpense = (float) $finances->where('type', 'expense')->sum('amount');
         $balance = $totalIncome - $totalExpense;
 
+        // Das Kassabuch bleibt brutto: § 131 BAO verlangt, dass jede Buchung
+        // sichtbar bleibt, und eine Gegenbuchung ist selbst eine Buchung. Der
+        // Saldo stimmt dadurch, die Brutto-Summen liegen aber über dem Ist der
+        // Budgetauswertung, die stornierte Paare herausrechnet
+        // (BudgetService::computeActual()). Ohne diesen Ausweis wäre die Differenz
+        // zwischen den beiden Ansichten von außen nicht erklärbar.
+        $reversedIds = $finances->pluck('reversal_of_id')
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+        $reversalPairs = $finances->filter(
+            static fn(Finance $finance): bool => $finance->reversal_of_id !== null
+                || in_array((int) $finance->id, $reversedIds, true)
+        );
+        $reversedIncome = (float) $reversalPairs->where('type', 'income')->sum('amount');
+        $reversedExpense = (float) $reversalPairs->where('type', 'expense')->sum('amount');
+
         $cashIncome = (float) $finances->where('type', 'income')
             ->where('payment_method', 'cash')->sum('amount');
         $cashExpense = (float) $finances->where('type', 'expense')
@@ -875,6 +899,8 @@ class FinanceController
             'total_income' => $totalIncome,
             'total_expense' => $totalExpense,
             'balance' => $balance,
+            'reversed_income' => $reversedIncome,
+            'reversed_expense' => $reversedExpense,
             'cash_income' => $cashIncome,
             'cash_expense' => $cashExpense,
             'bank_income' => $bankIncome,
@@ -918,6 +944,14 @@ class FinanceController
         $this->journal->setClosedUntil($newClosedUntil);
 
         if ($previousClosedUntil !== ($this->journal->closedUntil()?->format('Y-m-d'))) {
+            // Das Prüfjournal ist der Ort, an dem ein Rechnungsprüfer nachsieht;
+            // das Anwendungslog liest dort niemand.
+            $this->journal->recordLockChange(
+                $previousClosedUntil,
+                $this->journal->closedUntil()?->format('Y-m-d'),
+                $this->currentUserId()
+            );
+
             $this->logger->info('Finance booking lock changed.', [
                 'event' => 'finance.closed_until.changed',
                 'user_id' => $this->currentUserId(),

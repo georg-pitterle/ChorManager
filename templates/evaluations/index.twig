@@ -57,6 +57,8 @@
                                 <th class="text-center" data-sort-key="present" data-sort-type="number">Anwesend</th>
                                 <th class="text-center" data-sort-key="excused" data-sort-type="number">Entschuldigt</th>
                                 <th class="text-center" data-sort-key="unexcused" data-sort-type="number">Unentschuldigt</th>
+                                <th class="text-center" data-sort-key="recorded" data-sort-type="number"
+                                    title="Termine mit geführter Anwesenheitsliste">Erfasst</th>
                                 <th class="text-end" data-sort-key="percentage" data-sort-type="number">Quote</th>
                             </tr>
                         </thead>
@@ -67,6 +69,7 @@
                                     data-sort-present="{{ stat.present_count|default(0) }}"
                                     data-sort-excused="{{ stat.excused_count|default(0) }}"
                                     data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
+                                    data-sort-recorded="{{ stat.total_recorded|default(0) }}"
                                     data-sort-percentage="{{ stat.percentage|default(0) }}">
                                     <td data-label="Name">
                                         <strong>{{ stat|person_name }}</strong>
@@ -75,6 +78,9 @@
                                     <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
                                     <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
                                     <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
+                                    {# Macht die Bezugsgröße der Quote sichtbar: gerechnet wird gegen
+                                       alle stattgefundenen Pflichttermine, erfasst wurden ggf. weniger. #}
+                                    <td data-label="Erfasst" class="text-center text-muted">{{ stat.total_recorded|default('0') }} / {{ total_events }}</td>
                                     <td data-label="Quote" class="text-end">
                                         {% set bar_color = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
                                         <div class="d-flex align-items-center justify-content-end">
@@ -92,7 +98,7 @@
                                 </tr>
                             {% else %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">
+                                    <td colspan="7" class="text-center py-4 text-muted">
                                         Keine Statistiken für dieses Projekt verfügbar. Möglicherweise haben noch keine Termine stattgefunden oder es sind keine Mitglieder aktiv.
                                     </td>
                                 </tr>

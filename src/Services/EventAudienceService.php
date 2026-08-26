@@ -232,7 +232,12 @@ class EventAudienceService
             EventAudienceSource::TYPE_PROJECT_MEMBERS => Project::query()->whereKey($referenceId)->exists(),
             EventAudienceSource::TYPE_ROLE => Role::query()->whereKey($referenceId)->exists(),
             EventAudienceSource::TYPE_VOICE_GROUP => VoiceGroup::query()->whereKey($referenceId)->exists(),
-            EventAudienceSource::TYPE_USER => User::query()->whereKey($referenceId)->where('is_active', 1)->exists(),
+            // Bewusst ohne is_active-Filter: Ein archiviertes Mitglied wuerde sonst
+            // beim naechsten Speichern still aus einer namentlichen Zielgruppe
+            // fallen und auch nach der Reaktivierung nicht zurueckkehren. Ob es
+            // mitzaehlt, entscheidet die Aufloesung in Event::eligibleUsersQuery(),
+            // und die filtert is_active weiterhin.
+            EventAudienceSource::TYPE_USER => User::query()->whereKey($referenceId)->exists(),
             default => false,
         };
     }

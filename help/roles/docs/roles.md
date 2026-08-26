@@ -73,7 +73,9 @@ Dieses Recht erweitert das vorige: Die Rolle sieht und pflegt Anwesenheiten und 
 
 ### Eigene Stimmgruppe verwalten
 
-Ist dieses Recht aktiv, darf die Rolle die Mitglieder der eigenen Stimmgruppe pflegen (anlegen, bearbeiten, einladen, archivieren) und für sie Anmeldungen als Vertretung eintragen – unabhängig vom Hierarchie-Level der Rolle. Damit können auch Rollen mit niedrigem Level Verantwortung für ihre eigene Gruppe übernehmen, ohne Zugriff auf andere Stimmgruppen zu erhalten. Für die Anwesenheitsliste selbst braucht es zusätzlich eines der beiden Anwesenheitsrechte.
+Ist dieses Recht aktiv, darf die Rolle die Mitglieder der eigenen Stimmgruppe pflegen (anlegen, bearbeiten, archivieren und wieder herstellen) und für sie Anmeldungen als Vertretung eintragen – unabhängig vom Hierarchie-Level der Rolle. Damit können auch Rollen mit niedrigem Level Verantwortung für ihre eigene Gruppe übernehmen, ohne Zugriff auf andere Stimmgruppen zu erhalten. Für die Anwesenheitsliste selbst braucht es zusätzlich eines der beiden Anwesenheitsrechte.
+
+Zwei Dinge bleiben bewusst ausgenommen: Die **E-Mail-Adresse** eines fremden Kontos lässt sich damit nicht ändern (das Feld wird nur lesend angezeigt), und die **Einladungs-E-Mail** lässt sich nicht auslösen. Beides zusammen ergäbe einen Weg, ein fremdes Konto zu übernehmen: Adresse umbiegen, Einladung darauf schicken, Passwort neu setzen. Wer das braucht, benötigt **„Mitglieder verwalten"** bzw. **„Mitglieder editieren erlauben"**. Dieselbe Grenze gilt schon für **„Projektmitglieder verwalten"**.
 
 ### Finanzen nur lesen
 

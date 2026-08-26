@@ -39,7 +39,13 @@ Mit dem Recht "Termine verwalten" öffnest du über das Dropdown-Menü am Zeilen
 
 ![Formular zum Bearbeiten eines Termins](images/events/04-edit-event.png)
 
-Bei Serienterminen erscheint zusätzlich die Option **"Änderungen auf zukünftige Termine der Serie anwenden?"** – ist sie aktiviert, werden deine Änderungen auf alle noch bevorstehenden Termine der Serie übertragen, nicht nur auf den aktuellen. Über **Serie löschen** im Dropdown-Menü der Liste kannst du die gesamte Serie ab dem gewählten Termin entfernen.
+Bei Serienterminen erscheint zusätzlich die Option **"Änderungen auf zukünftige Termine der Serie anwenden?"** – ist sie aktiviert, werden deine Änderungen auf alle noch bevorstehenden Termine der Serie übertragen, nicht nur auf den aktuellen.
+
+Darunter wählst du unter **"Was wird übertragen?"** die Bereiche aus, die tatsächlich auf die Folgetermine wirken: Titel und Terminart, Ort, Uhrzeit, Anmeldung und Anmeldeschluss, Anwesenheitspflicht sowie Zielgruppe. Standardmäßig sind alle angehakt. Nimm den Haken weg, wenn einzelne Termine der Serie bewusst abweichen – etwa eine Generalprobe an einem anderen Ort oder mit engerer Zielgruppe. Nicht angehakte Bereiche bleiben bei den Folgeterminen unverändert.
+
+Der Anmeldeschluss wird bei Serien nie als fester Zeitpunkt übernommen, sondern als **Vorlauf** zum jeweiligen Terminbeginn: Trägst du beim bearbeiteten Termin zwei Tage vorher ein, gilt bei jedem Folgetermin ebenfalls "zwei Tage vorher". Das gilt genauso beim Anlegen einer Serie.
+
+Über **Serie löschen** im Dropdown-Menü der Liste entfernst du alle Termine der Serie ab dem gewählten Termin.
 
 ## 5. Termin-Detail und Bemerkungen
 
@@ -72,6 +78,8 @@ Unter **Verwaltung → Termin-Typen** legst du die Kategorien fest, mit denen Te
 
 ## Häufige Stolperfallen
 
-- **Serie löschen ist endgültig** – es löscht auch alle noch bevorstehenden Termine der Serie ab dem gewählten Termin, nicht nur den aktuellen.
+- **Serie löschen ist endgültig** – es löscht alle Termine der Serie ab dem gewählten Termin, nicht nur den aktuellen. Liegt der gewählte Termin in der Vergangenheit, trifft es auch die vergangenen Termine der Serie. Mit ihnen verschwinden ihre Anwesenheitslisten und Anmeldungen; die Erfolgsmeldung nennt deshalb Datum und Anzahl der gelöschten Termine.
+- **Termin löschen nimmt die Historie mit** – Anwesenheiten und Anmeldungen hängen am Termin und werden zusammen mit ihm entfernt. Soll die Historie erhalten bleiben, verschiebe den Termin, statt ihn zu löschen.
+- **Wochentage gelten nur bei wöchentlicher Wiederholung** – bei täglich, monatlich und jährlich haben sie keine Wirkung. Eine monatliche Serie hängt am Tag im Monat des ersten Termins; gibt es diesen Tag in einem Monat nicht (etwa den 31. im Februar), rückt der Termin auf den Monatsletzten und kehrt im nächsten Monat auf den ursprünglichen Tag zurück.
 - **Keine Zielgruppe gewählt** bedeutet nicht "niemand", sondern **alle aktiven Mitglieder** – schränke die Zielgruppe bewusst ein, wenn ein Termin nur für einen Teil des Chors gilt.
 - **Anmeldeschluss ohne Angabe** fällt automatisch auf den Terminbeginn zurück.

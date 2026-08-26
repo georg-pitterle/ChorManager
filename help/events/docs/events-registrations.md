@@ -22,9 +22,12 @@ Für jeden Termin siehst du die Anzahl der Zusagen, Absagen, Vielleicht-Antworte
 
 Im Bereich **"Meine Anmeldung"** wählst du deinen Status und kannst optional eine Begründung angeben (v. a. sinnvoll bei einer Absage). Personen mit Vertretungsfunktion (z. B. für eine Stimmgruppe) können zusätzlich für die ihnen zugeordneten Mitglieder Status und Begründung eintragen und mit **Vertretungseinträge speichern** gesammelt sichern. Bereits erfasste Einträge zeigen an, von wem sie stellvertretend eingetragen wurden.
 
+Neben Zusage, Vielleicht und Absage gibt es dort auch **Offen**: Damit nimmst du einen Eintrag wieder zurück, sodass die Person wieder als "nicht geantwortet" gilt. Die Begründung zu diesem Eintrag verschwindet dabei mit.
+
 Ist der Anmeldeschluss erreicht, sind keine Änderungen mehr möglich – die Ansicht wird dann nur noch lesend angezeigt.
 
 ## Häufige Stolperfallen
 
 - **Anmeldeschluss verpasst** – nach Ablauf der Frist kann niemand mehr Änderungen vornehmen, auch keine Vertretung.
 - **Vertretung nur für zugeordnete Mitglieder**: Eine Vertretungsberechtigung erlaubt Einträge nur für die Mitglieder der eigenen Gruppe, nicht für alle Teilnehmenden.
+- **Zwischenzeitliche Änderung**: Hat sich jemand selbst angemeldet, während du die Liste offen hattest, wird beim Speichern nichts übernommen und du bekommst eine Meldung. Lade die Liste neu und trage erneut ein – so überschreibt ein Vertretungseintrag nie unbemerkt eine frische Selbstauskunft.

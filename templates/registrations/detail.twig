@@ -97,6 +97,7 @@
 
     {% if proxy_mode %}
         <form method="post" action="/registrations/{{ event.id }}/proxy">
+            <input type="hidden" name="state_hash" value="{{ state_hash|default("") }}">
     {% endif %}
 
     <div class="row">
@@ -132,6 +133,18 @@
 
                                 {% if proxy_editable %}
                                     <div class="btn-group w-100 mb-2 attendance-status-group" role="group">
+                                        {# "Offen" ist der Ausgangszustand und macht ihn wieder
+                                           herstellbar; ohne ihn liesse sich ein einmal gesetzter
+                                           Eintrag nie mehr zuruecknehmen. #}
+                                        <input type="radio"
+                                               class="btn-check"
+                                               name="registration[{{ member.user_id }}]"
+                                               id="reg_{{ member.user_id }}_open"
+                                               value="open"
+                                               {% if member.status not in ["yes", "no", "maybe"] %}checked{% endif %}>
+                                        <label class="btn btn-outline-secondary" for="reg_{{ member.user_id }}_open">
+                                            <i class="bi bi-dash-circle"></i> Offen
+                                        </label>
                                         <input type="radio"
                                                class="btn-check"
                                                name="registration[{{ member.user_id }}]"

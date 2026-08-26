@@ -1528,8 +1528,11 @@ class DevSeedService
 
         // Nur Buchungen ohne Journaleintrag: sonst wuerde jeder Append-Lauf das
         // Journal aller bereits vorhandenen Buchungen erneut aufblaehen.
+        // whereNotNull in der Unterabfrage ist zwingend: Journaleintraege zum
+        // Buchungsabschluss haengen an keiner Buchung, und "id NOT IN (..., NULL)"
+        // ist in SQL niemals wahr - ohne den Filter kaeme hier keine Zeile zurueck.
         $bookings = Finance::whereNull('reversal_of_id')
-            ->whereNotIn('id', FinanceRevision::select('finance_id'))
+            ->whereNotIn('id', FinanceRevision::whereNotNull('finance_id')->select('finance_id'))
             ->orderBy('id')
             ->get();
         $runningNumber = ((int) Finance::max('running_number')) + 1;
@@ -1583,8 +1586,23 @@ class DevSeedService
             }
         }
 
-        // Das vorletzte Kalenderjahr gilt als geprüft und abgeschlossen.
-        $journal->setClosedUntil(sprintf('%d-12-31', (int) date('Y') - 2));
+        // Das vorletzte Kalenderjahr gilt als geprüft und abgeschlossen. Damit in
+        // Dev auch der Journaleintrag zum Buchungsabschluss sichtbar ist - der
+        // einzige, der an keiner einzelnen Buchung hängt -, wird der Stichtag in
+        // zwei Schritten gesetzt: erst das Vorvorjahr, dann das Vorjahr.
+        $steps = [
+            sprintf('%d-12-31', (int) date('Y') - 3),
+            sprintf('%d-12-31', (int) date('Y') - 2),
+        ];
+
+        foreach ($steps as $stepIndex => $closedUntil) {
+            $previousClosedUntil = $journal->closedUntil()?->format('Y-m-d');
+            $journal->setClosedUntil($closedUntil);
+
+            if ($journal->recordLockChange($previousClosedUntil, $closedUntil, $userIds[$stepIndex % count($userIds)])) {
+                $this->report['counts']['finance_revisions']++;
+            }
+        }
     }
 
     private function seedBudget(): void

@@ -52,6 +52,7 @@ class FinanceJournalService
         'finance_account_id' => 'Konto',
         'reversal_of' => 'Storno zu',
         'attachment' => 'Anhang',
+        'closed_until' => 'Buchungsabschluss',
     ];
 
     /** @var array<int, string>|null */
@@ -130,6 +131,25 @@ class FinanceJournalService
         }
     }
 
+    /**
+     * Erster Tag, auf den noch gebucht werden darf.
+     *
+     * In aller Regel ist das heute. Steht der Abschluss-Stichtag aber in der
+     * Zukunft, ist heute selbst gesperrt - eine Gegenbuchung "auf heute" landete
+     * dann mitten im abgeschlossenen Zeitraum, den sie gerade nicht anfassen darf.
+     */
+    public function firstOpenBookingDay(): string
+    {
+        $today = Carbon::now()->startOfDay();
+        $closedUntil = $this->closedUntil();
+
+        if ($closedUntil === null || $closedUntil->lessThan($today)) {
+            return $today->format('Y-m-d');
+        }
+
+        return $closedUntil->copy()->addDay()->format('Y-m-d');
+    }
+
     public function isFinanceLocked(Finance $finance): bool
     {
         $paymentDate = $finance->payment_date instanceof Carbon
@@ -180,6 +200,30 @@ class FinanceJournalService
     }
 
     /**
+     * Protokolliert eine Verschiebung des Buchungsabschlusses. Der Eintrag haengt
+     * an keiner Buchung: er betrifft einen ganzen Zeitraum. Ein Ruecksetzen des
+     * Stichtags oeffnet einen bereits geprueften Zeitraum wieder - ohne Eintrag im
+     * Pruefjournal bliebe offen, wer das wann getan hat.
+     *
+     * @return bool true, wenn ein Eintrag geschrieben wurde
+     */
+    public function recordLockChange(?string $from, ?string $to, ?int $userId): bool
+    {
+        $normalizedFrom = self::normalizeDate($from);
+        $normalizedTo = self::normalizeDate($to);
+
+        if ($normalizedFrom === $normalizedTo) {
+            return false;
+        }
+
+        $this->write(null, $userId, FinanceRevision::ACTION_LOCK, [
+            'closed_until' => ['from' => $normalizedFrom, 'to' => $normalizedTo],
+        ]);
+
+        return true;
+    }
+
+    /**
      * Bereitet einen Änderungssatz für die Anzeige auf: deutsche Feldnamen und
      * lesbare Werte statt Spaltennamen, Fremdschlüsseln und Enum-Codes.
      *
@@ -219,6 +263,7 @@ class FinanceJournalService
             'invoice_date', 'payment_date' => $this->formatDate($value),
             'amount' => number_format((float) $value, 2, ',', '.') . ' €',
             'reversal_of' => 'Nr. ' . $value,
+            'closed_until' => $this->formatDate($value),
             default => $value,
         };
     }
@@ -322,7 +367,7 @@ class FinanceJournalService
     /**
      * @param array<string, array{from: mixed, to: mixed}> $changes
      */
-    private function write(int $financeId, ?int $userId, string $action, array $changes): void
+    private function write(?int $financeId, ?int $userId, string $action, array $changes): void
     {
         FinanceRevision::create([
             'finance_id' => $financeId,

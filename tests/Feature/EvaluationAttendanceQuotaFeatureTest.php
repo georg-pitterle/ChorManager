@@ -175,6 +175,39 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
         $this->assertSame(100.0, $stat['percentage']);
     }
 
+    /**
+     * Bezugsgroesse der Quote ist jeder stattgefundene Pflichttermin, nicht nur
+     * der, fuer den jemand eine Liste gefuehrt hat. Wer bei zwei von vier Proben
+     * da war, steht bei 50 % - auch wenn zwei Listen nie ausgefuellt wurden.
+     * Waere die Erfassung die Basis, ergaeben dieselben zwei Haken 100 %.
+     */
+    public function testQuotaCountsEveryPastEventNotOnlyTheRecordedOnes(): void
+    {
+        $suffix = uniqid();
+        ['project' => $project, 'member' => $member] = $this->projectWithOneMember($suffix);
+
+        foreach ([12, 9] as $daysAgo) {
+            $event = $this->projectEvent($project, Carbon::now()->subDays($daysAgo));
+            Attendance::create([
+                'event_id' => $event->id,
+                'user_id' => $member->id,
+                'status' => 'present',
+            ]);
+        }
+
+        // Zwei weitere Proben ohne jede Erfassung.
+        foreach ([6, 3] as $daysAgo) {
+            $this->projectEvent($project, Carbon::now()->subDays($daysAgo));
+        }
+
+        $data = $this->renderIndex((int) $project->id);
+        $stat = $this->statFor($data, (int) $member->id);
+
+        $this->assertSame(4, $data['total_events']);
+        $this->assertSame(2, $stat['total_recorded'], 'Erfasst wurden nur zwei Termine.');
+        $this->assertSame(50.0, $stat['percentage'], 'Die Quote rechnet gegen alle vier Termine.');
+    }
+
     public function testQuotaStaysZeroWhileNoEventHasHappenedYet(): void
     {
         $suffix = uniqid();

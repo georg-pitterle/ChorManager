@@ -15,6 +15,8 @@ class FinanceRevision extends Model
     public const ACTION_CREATE = 'create';
     public const ACTION_UPDATE = 'update';
     public const ACTION_REVERSE = 'reverse';
+    /** Buchungsabschluss verschoben - haengt an keiner einzelnen Buchung. */
+    public const ACTION_LOCK = 'lock';
 
     protected $table = 'finance_revisions';
     public $timestamps = false;

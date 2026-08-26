@@ -94,7 +94,7 @@ class FinanceAccountService
             $income = $this->periodSum($account, 'income', $fiscalStart, $fiscalEnd);
             $expense = $this->periodSum($account, 'expense', $fiscalStart, $fiscalEnd);
             $closing = $notYetOpen ? 0.0 : $this->balanceAt($account, $fiscalEnd);
-            $beforeOpening = $this->bookingsBeforeOpening($account);
+            $beforeOpening = $this->bookingsBeforeOpening($account, $fiscalStart, $fiscalEnd);
 
             $accounts[] = [
                 'account' => $account,
@@ -120,10 +120,18 @@ class FinanceAccountService
      * Buchungen des Kontos, die vor dessen Stichtag liegen und deshalb in keiner
      * Bewegungssumme auftauchen.
      *
+     * Gezaehlt wird nur innerhalb des Berichtszeitraums: Erklaert werden soll die
+     * Differenz zwischen Bericht und Buchungsliste, und die Liste zeigt genau
+     * diesen Zeitraum. Eine Buchung aus einem laengst abgeschlossenen Vorjahr
+     * taucht dort gar nicht auf und waere als Hinweis nicht nachvollziehbar.
+     *
      * @return array{count: int, first: string|null}
      */
-    private function bookingsBeforeOpening(FinanceAccount $account): array
-    {
+    private function bookingsBeforeOpening(
+        FinanceAccount $account,
+        Carbon $fiscalStart,
+        Carbon $fiscalEnd
+    ): array {
         $openingDate = self::openingDate($account);
         if ($openingDate === '') {
             return ['count' => 0, 'first' => null];
@@ -131,7 +139,11 @@ class FinanceAccountService
 
         $query = Finance::where('finance_account_id', $account->id)
             ->whereNotNull('payment_date')
-            ->whereDate('payment_date', '<', $openingDate);
+            ->whereDate('payment_date', '<', $openingDate)
+            ->whereBetween('payment_date', [
+                $fiscalStart->format('Y-m-d'),
+                $fiscalEnd->format('Y-m-d'),
+            ]);
 
         $count = $query->count();
         if ($count === 0) {

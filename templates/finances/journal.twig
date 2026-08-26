@@ -71,6 +71,8 @@
                                                 <span class="badge bg-success">angelegt</span>
                                             {% elseif revision.action == "update" %}
                                                 <span class="badge bg-warning text-dark">geändert</span>
+                                            {% elseif revision.action == "lock" %}
+                                                <span class="badge bg-info text-dark">Abschluss</span>
                                             {% else %}
                                                 <span class="badge bg-secondary">storniert</span>
                                             {% endif %}

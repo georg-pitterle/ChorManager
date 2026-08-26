@@ -18,7 +18,7 @@ final class FinanceReportPdfService
     private const LINE_HEIGHT = 14.0;
     private const HEADER_HEIGHT = 18.0;
     private const CARRY_HEIGHT = 18.0;
-    private const KENNZAHLEN_HEIGHT = 70.0;
+    private const KENNZAHLEN_HEIGHT = 86.0;
     private const TITLE_HEIGHT = 44.0;
     private const LOGO_SIZE = 36.0;
     private const LOGO_TEXT_OFFSET = 46.0;
@@ -200,6 +200,26 @@ final class FinanceReportPdfService
             self::FONT,
             'B'
         );
+
+        // Das Kassabuch weist brutto aus - eine Gegenbuchung ist selbst eine
+        // Buchung und darf nicht verschwinden (§ 131 BAO). Die Budgetauswertung
+        // rechnet stornierte Paare heraus. Ohne diesen Ausweis stünden zwei
+        // unterschiedliche Summen ohne erkennbaren Grund nebeneinander.
+        $reversedIncome = (float) ($reportData['reversed_income'] ?? 0.0);
+        $reversedExpense = (float) ($reportData['reversed_expense'] ?? 0.0);
+        if ($reversedIncome > 0.0 || $reversedExpense > 0.0) {
+            $this->canvas->text(
+                $left,
+                $y + 48.0,
+                sprintf(
+                    'davon Storno: %s € Einnahmen, %s € Ausgaben (im Saldo aufgehoben)',
+                    $this->money($reversedIncome),
+                    $this->money($reversedExpense)
+                ),
+                self::FONT,
+                ''
+            );
+        }
 
         return $y + self::KENNZAHLEN_HEIGHT;
     }

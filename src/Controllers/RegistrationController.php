@@ -20,6 +20,9 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class RegistrationController
 {
+    /** Formularwert, mit dem ein Vertretungseintrag wieder auf "offen" gesetzt wird. */
+    private const PROXY_STATUS_OPEN = 'open';
+
     public function __construct(
         private readonly Twig $view,
         private readonly AttendanceScopeService $scopeService,
@@ -132,6 +135,14 @@ class RegistrationController
 
         $voiceGroups = VoiceGroupOrder::sortNameKeyedMap($voiceGroups, ['Ohne Stimmgruppe']);
 
+        // Fingerabdruck genau der Eintraege, die dieses Formular schreiben darf.
+        // Der eigene Eintrag bleibt aussen vor: er haengt am eigenen Formular
+        // weiter oben und wuerde den Vertretungs-Hash sonst grundlos entwerten.
+        $proxyUserIds = array_values(array_filter(
+            $users->pluck('id')->map(static fn($id): int => (int) $id)->all(),
+            static fn(int $id): bool => $id !== $userId && in_array($id, $manageableIds, true)
+        ));
+
         $total = $users->count();
         $answered = $total - $counts['open'];
 
@@ -149,6 +160,7 @@ class RegistrationController
             'response_rate' => $total > 0 ? (int) round($answered * 100 / $total) : 0,
             'registration_open' => $event->isRegistrationOpen(),
             'can_manage_others' => $this->scopeService->canManageOthers(),
+            'state_hash' => $this->registrationStateHash((int) $event->id, $proxyUserIds),
             'success' => $success,
             'error' => $error
         ]);
@@ -325,6 +337,7 @@ class RegistrationController
         $data = (array) $request->getParsedBody();
         $registrations = (array) ($data['registration'] ?? []);
         $notes = (array) ($data['note'] ?? []);
+        $loadedStateHash = (string) ($data['state_hash'] ?? '');
 
         // Vertretungseintraege sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
         // auf die Zielgruppe des Termins - sonst entstuenden Anmeldungen fuer Unbeteiligte.
@@ -347,12 +360,50 @@ class RegistrationController
 
         $actorId = (int) ($_SESSION['user_id'] ?? 0);
 
+        // Optimistisches Sperren wie in der Anwesenheitsliste: Ein Vertretungseintrag
+        // ueberschreibt fremde Angaben - darunter die Selbstauskunft des Mitglieds.
+        // Hat sich der Stand seit dem Laden des Formulars geaendert, wird nichts
+        // geschrieben. Massgeblich ist nur der Stand der uebermittelten Mitglieder,
+        // damit zwei Verwalter mit getrennten Stimmgruppen sich nicht blockieren.
+        if (
+            $loadedStateHash !== ''
+            && !hash_equals(
+                $this->registrationStateHash((int) $event->id, $submittedUserIds),
+                $loadedStateHash
+            )
+        ) {
+            $this->logger->info('Proxy registration save rejected due to a concurrent change.', [
+                'event' => 'registration.proxy_save.conflict',
+                'event_id' => (int) $event->id,
+                'actor_id' => $actorId,
+                'user_count' => count($submittedUserIds),
+            ]);
+
+            $_SESSION['error'] = 'Die Anmeldungen wurden zwischenzeitlich von jemand anderem geändert. '
+                . 'Es wurde nichts gespeichert - bitte die neu geladene Liste prüfen und erneut eintragen.';
+
+            return $response
+                ->withHeader('Location', '/registrations/' . $event->id)
+                ->withStatus(302);
+        }
+
         Capsule::beginTransaction();
 
         try {
+            $userIdsToClear = [];
+
             foreach ($registrations as $rawUserId => $status) {
                 $targetUserId = (int) $rawUserId;
                 $status = (string) $status;
+
+                // "Offen" ist der Ausgangszustand und wird durch das Fehlen einer
+                // Zeile abgebildet - die Statusspalte kennt nur yes/no/maybe. Ohne
+                // diesen Weg liesse sich ein einmal gesetzter Eintrag nie mehr
+                // zuruecknehmen. Die Notiz gehoert zum Eintrag und faellt mit ihm weg.
+                if ($status === self::PROXY_STATUS_OPEN) {
+                    $userIdsToClear[] = $targetUserId;
+                    continue;
+                }
 
                 if ($status === '' || !in_array($status, EventRegistration::STATUSES, true)) {
                     continue;
@@ -364,6 +415,12 @@ class RegistrationController
                     ['event_id' => (int) $event->id, 'user_id' => $targetUserId],
                     ['status' => $status, 'note' => $note !== '' ? $note : null, 'updated_by' => $actorId]
                 );
+            }
+
+            if ($userIdsToClear !== []) {
+                EventRegistration::where('event_id', (int) $event->id)
+                    ->whereIn('user_id', $userIdsToClear)
+                    ->delete();
             }
 
             Capsule::commit();
@@ -382,6 +439,31 @@ class RegistrationController
         return $response
             ->withHeader('Location', '/registrations/' . $event->id)
             ->withStatus(302);
+    }
+
+    /**
+     * Fingerabdruck des gespeicherten Standes für genau diese Mitglieder.
+     *
+     * @param list<int> $userIds
+     */
+    private function registrationStateHash(int $eventId, array $userIds): string
+    {
+        if ($userIds === []) {
+            return hash('sha256', '');
+        }
+
+        $parts = EventRegistration::where('event_id', $eventId)
+            ->whereIn('user_id', $userIds)
+            ->orderBy('user_id')
+            ->get(['user_id', 'status', 'note'])
+            ->map(static fn(EventRegistration $row): string => implode("", [
+                (string) $row->user_id,
+                (string) $row->status,
+                (string) $row->note,
+            ]))
+            ->all();
+
+        return hash('sha256', implode("", $parts));
     }
 
     private function findRegistrationEvent(int $eventId): ?Event
