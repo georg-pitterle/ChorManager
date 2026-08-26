@@ -116,7 +116,7 @@
                                                                             </audio>
                                                                         {% elseif is_midi %}
                                                                             <div class="midi-player-block" data-midi-id="{{ attachment.id }}">
-                                                                                <midi-player src="/downloads/attachments/{{ attachment.id }}/stream" sound-font visualizer="#none" class="w-100"></midi-player>
+                                                                                <midi-player src="/downloads/attachments/{{ attachment.id }}/stream" visualizer="#none" class="w-100"></midi-player>
                                                                                 <small class="text-muted d-none midi-fallback">MIDI-Playback im Browser nicht verfuegbar. Bitte Datei herunterladen.</small>
                                                                             </div>
                                                                         {% else %}
@@ -185,6 +185,8 @@
 {% endblock content %}
 
 {% block scripts %}
+    <script src="/vendor/tone/Tone.js"></script>
+    <script src="/vendor/magenta-music/core.js"></script>
     <script src="/vendor/html-midi-player/dist/midi-player.min.js"></script>
     <script src="{{ asset_path('/js/downloads.js') }}"></script>
 {% endblock scripts %}
