@@ -32,6 +32,33 @@ class ProjectQuery
     }
 
     /**
+     * Projekte, die der Nutzer auswählen darf: mit dem übergreifenden Recht alle,
+     * sonst nur die eigenen. Termine und Auswertungen filtern beide danach und
+     * hielten dafür bis hierher je eine wortgleiche Kopie.
+     *
+     * Ohne Sitzungsnutzer bleibt die Liste leer statt vollständig - das ist die
+     * sichere Richtung, wenn die Kennung fehlt.
+     */
+    public function getAccessibleProjects(int $userId, bool $seesAllProjects): Collection
+    {
+        if ($seesAllProjects) {
+            return Project::orderBy('name')->get();
+        }
+
+        if ($userId <= 0) {
+            return Project::query()->whereRaw('1 = 0')->get();
+        }
+
+        return Project::query()
+            ->select('projects.*')
+            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+            ->where('project_users.user_id', $userId)
+            ->distinct()
+            ->orderBy('projects.name')
+            ->get();
+    }
+
+    /**
      * Returns the id of the project running today (start_date <= today <= end_date),
      * restricted to the given accessible project ids. If several projects run in
      * parallel, the one ending first wins. Returns 0 if none is running.

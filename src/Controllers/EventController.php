@@ -21,6 +21,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Queries\ProjectQuery;
 use App\Services\CalendarSubscriptionService;
 use App\Services\EventAudienceService;
 use App\Services\ModalFormService;
@@ -624,23 +625,15 @@ class EventController
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
 
+    /**
+     * Dieselbe Auswahl wie in den Auswertungen, deshalb liegt sie in ProjectQuery.
+     * Der Konstruktor bleibt unverändert: NameFormatterService ist ohnehin da, und
+     * ein zusätzlicher Parameter hätte jede Aufrufstelle im Container und in sechs
+     * Testdateien angefasst.
+     */
     private function getAccessibleProjects(int $userId, bool $seesAllEvents)
     {
-        if ($seesAllEvents) {
-            return Project::orderBy('name')->get();
-        }
-
-        if ($userId <= 0) {
-            return Project::query()->whereRaw('1 = 0')->get();
-        }
-
-        return Project::query()
-            ->select('projects.*')
-            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
-            ->where('project_users.user_id', $userId)
-            ->distinct()
-            ->orderBy('projects.name')
-            ->get();
+        return (new ProjectQuery($this->nameFormatter))->getAccessibleProjects($userId, $seesAllEvents);
     }
 
     public function create(Request $request, Response $response): Response

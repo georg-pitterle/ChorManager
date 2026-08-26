@@ -74,7 +74,7 @@ class EvaluationController
         );
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
-        $projects = $this->getAccessibleProjects($userId, $this->canSeeAllProjects());
+        $projects = $this->projectQuery->getAccessibleProjects($userId, $this->canSeeAllProjects());
         $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         if ($projectId <= 0) {
@@ -173,7 +173,7 @@ class EvaluationController
         $params = $request->getQueryParams();
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
-        $projects = $this->getAccessibleProjects($userId, $this->canSeeAllProjects());
+        $projects = $this->projectQuery->getAccessibleProjects($userId, $this->canSeeAllProjects());
         $accessibleProjectIds = $projects->pluck('id')->map(static fn($id) => (int) $id)->all();
 
         if ($projectId <= 0) {
@@ -352,24 +352,5 @@ class EvaluationController
     private function canSeeAllProjects(): bool
     {
         return (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
-    }
-
-    private function getAccessibleProjects(int $userId, bool $canSeeAllProjects)
-    {
-        if ($canSeeAllProjects) {
-            return Project::orderBy('name')->get();
-        }
-
-        if ($userId <= 0) {
-            return Project::query()->whereRaw('1 = 0')->get();
-        }
-
-        return Project::query()
-            ->select('projects.*')
-            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
-            ->where('project_users.user_id', $userId)
-            ->distinct()
-            ->orderBy('projects.name')
-            ->get();
     }
 }

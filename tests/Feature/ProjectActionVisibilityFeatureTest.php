@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\EvaluationController;
+use App\Models\Project;
 use App\Controllers\ProjectController;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
@@ -175,6 +176,10 @@ class ProjectActionVisibilityFeatureTest extends TestCase
         $projectQuery = $this->createStub(ProjectQuery::class);
         $projectQuery->method('findCurrentProjectId')->willReturn(0);
         $projectQuery->method('getProjectMembersGroupedByVoice')->willReturn([]);
+        // can_manage_attendance_all ist gesetzt, die Auswahl umfasst also alle Projekte -
+        // genau das lieferte vorher die controllereigene Kopie der Abfrage.
+        $projectQuery->method('getAccessibleProjects')
+            ->willReturnCallback(static fn (): Collection => Project::orderBy('name')->get());
 
         $controller = new EvaluationController(
             $twig,

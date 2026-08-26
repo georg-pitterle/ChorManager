@@ -445,25 +445,13 @@ class UserController
                 ]);
             }
 
-            // Admin can override everything
-            if ($canManageUsers) {
-                $finalVgIds = (array) $voiceGroupIds;
-            } else {
-                // Non-admins can only touch their own groups, keep others
-                $unmanageableVgs = array_diff($targetVgIds, $myVgs);
-                $finalVgIds = array_merge(array_intersect((array) $voiceGroupIds, $myVgs), $unmanageableVgs);
-
-                // Add subvoices for unmanageable groups
-                foreach ($unmanageableVgs as $uVg) {
-                    $vgPivot = $targetUser->voiceGroups->firstWhere('id', $uVg);
-                    if ($vgPivot && $vgPivot->pivot->sub_voice_id) {
-                        $subVoices[$uVg] = $vgPivot->pivot->sub_voice_id;
-                    }
-                }
-            }
-
+            // $voiceGroupIds steht bereits fest: Für einen globalen Verwalter ist es die
+            // Auswahl aus dem Formular, sonst hat der Block oben die eigenen Gruppen mit
+            // den nicht verwaltbaren zusammengeführt und deren Untergruppen in $subVoices
+            // gesichert. Die frühere zweite Berechnung an dieser Stelle war Wort für Wort
+            // dieselbe und lieferte zwangsläufig dasselbe Ergebnis.
             $vgData = [];
-            foreach ($finalVgIds as $vgId) {
+            foreach ((array) $voiceGroupIds as $vgId) {
                 $svId = !empty($subVoices[$vgId]) ? (int) $subVoices[$vgId] : null;
                 $vgData[$vgId] = ['sub_voice_id' => $svId];
             }
