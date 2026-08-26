@@ -249,7 +249,8 @@ return function (ContainerBuilder $containerBuilder) {
                 null,
                 null,
                 null,
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(RememberLoginService::class)
             );
         },
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale

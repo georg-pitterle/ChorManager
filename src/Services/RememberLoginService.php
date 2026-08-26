@@ -109,6 +109,22 @@ class RememberLoginService
         RememberLogin::where('selector', $selector)->delete();
     }
 
+    /**
+     * Verwirft jedes Angemeldet-bleiben-Token eines Kontos und liefert deren Anzahl.
+     *
+     * Gegenstück zu invalidateByCookieValue(), das nur das Token der eigenen
+     * Sitzung trifft: Nach einem Passwortwechsel müssen auch die Geräte
+     * hinausfliegen, deren Cookie hier gerade nicht vorliegt.
+     */
+    public function invalidateAllForUser(int $userId): int
+    {
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        return RememberLogin::where('user_id', $userId)->delete();
+    }
+
     public function clearExpiredTokens(): void
     {
         RememberLogin::where('expires_at', '<=', date('Y-m-d H:i:s'))->delete();
