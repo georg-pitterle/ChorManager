@@ -78,14 +78,32 @@ export async function fillEditor(page, text) {
     const editorFrame = page.frameLocator(`${MODAL_CONTENT} .tox-edit-area iframe`);
     const body = editorFrame.locator('body');
     await body.waitFor({ state: 'visible' });
-    await body.click();
-    await body.fill(text);
 
-    // Gegenprobe am echten Editorinhalt: genau den liest das Formular beim Absenden
-    // (public/js/newsletters-create.js: tinymce.get("content_html").getContent()).
-    await expect
-        .poll(() => page.evaluate(() => window.tinymce.get('content_html').getContent({ format: 'text' }).trim()))
-        .not.toBe('');
+    // Unter paralleler Last kommt der erste Tippvorgang gelegentlich nicht im Editor an: Der
+    // Editorkörper ist sichtbar und beschreibbar, TinyMCE meldet danach aber weiter leeren
+    // Inhalt, und das Modal weist den Entwurf mit "Titel und Inhalt sind Pflichtfelder" ab.
+    // Deshalb mehrere Versuche, jeder mit Gegenprobe am echten Editorinhalt - genau den liest
+    // das Formular beim Absenden (public/js/newsletters-create.js:
+    // tinymce.get("content_html").getContent()).
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        await body.click();
+        await body.fill(text);
+
+        const arrived = await page
+            .waitForFunction(
+                () => window.tinymce.get('content_html').getContent({ format: 'text' }).trim() !== '',
+                null,
+                { timeout: 5_000 },
+            )
+            .then(() => true)
+            .catch(() => false);
+
+        if (arrived) {
+            return;
+        }
+    }
+
+    throw new Error('Der Text ist auch nach drei Versuchen nicht im TinyMCE-Editor angekommen.');
 }
 
 /**
@@ -98,15 +116,42 @@ export async function pickRecipientSource(page, sourceType, labels) {
     const search = control.locator('input');
     await control.waitFor({ state: 'visible' });
 
+    const dropdown = block.locator('.ts-dropdown');
+
     for (const label of labels) {
-        await control.click();
+        // Tom Select toggelt: Ein Klick auf ein bereits offenes Feld SCHLIESST die Liste. Offen
+        // sein kann sie z. B. nach clearRecipientSource(), dessen x-Klicks das Feld fokussieren.
+        // Der Suchtext filtert dann eine unsichtbare Liste - das Fehlerbild ist eine vorhandene,
+        // aber verborgene Option.
+        if (!(await dropdown.isVisible())) {
+            await control.click();
+        }
+
         // Tom Select lässt den Suchtext nach einer Auswahl stehen; ohne Leeren würde sich der
         // nächste Suchbegriff anhängen und keine Option mehr treffen.
         await search.fill('');
         await search.pressSequentially(label);
 
         const option = block.locator('.ts-dropdown .option', { hasText: label }).first();
-        await option.waitFor({ state: 'visible' });
+        // Die Liste kann zwischen Klick und Tippen wieder zugehen (Fokuswechsel im Modal).
+        // Deshalb nicht blind auf Sichtbarkeit warten, sondern sie notfalls erneut öffnen.
+        await expect
+            .poll(
+                async () => {
+                    if (await option.isVisible()) {
+                        return true;
+                    }
+
+                    await control.click();
+
+                    return option.isVisible();
+                },
+                {
+                    timeout: MODAL_CONTENT_TIMEOUT,
+                    message: `Die Option "${label}" muss in der Liste "${sourceType}" sichtbar werden`,
+                }
+            )
+            .toBe(true);
         await option.click();
 
         await expect(block.locator('.ts-control .item', { hasText: label })).toBeVisible();
@@ -227,6 +272,27 @@ export async function openEditPage(page, newsletterId) {
 }
 
 /**
+ * Verlässt den geöffneten Editor (Bearbeiten-Seite oder Modal) und wartet, bis die Sperre
+ * tatsächlich freigegeben ist.
+ *
+ * Warum nicht einfach wegnavigieren: Die Freigabe läuft per navigator.sendBeacon beim Entladen
+ * (public/js/newsletters-edit.js). Endet ein Test mit noch offenem Editor und wird der Kontext
+ * geschlossen, geht der Beacon verloren - der Entwurf bleibt bis zum Ablauf der 30-Minuten-Frist
+ * gesperrt (NewsletterLockingService::LOCK_TIMEOUT_MINUTES). Jede spätere Bearbeiten-Anfrage
+ * einer ANDEREN Sitzung endet dann auf HTTP 423, auch die des Crawlers, der nach den Szenarien
+ * über dieselbe Datenbank läuft.
+ */
+export async function leaveEditorAndAwaitLockRelease(page, newsletterId) {
+    await page.goto('/dashboard');
+    await expect
+        .poll(
+            async () => (await (await page.request.get(`/newsletters/${newsletterId}/check-lock`)).json()).locked,
+            { message: `Die Sperre auf Newsletter ${newsletterId} muss nach dem Verlassen freigegeben sein` }
+        )
+        .toBe(false);
+}
+
+/**
  * Versendet den auf der Bearbeiten-SEITE (nicht im Modal) geöffneten Newsletter.
  * Dort sendet die Schaltfläche das versteckte Formular ab, statt per fetch zu arbeiten.
  */
@@ -264,6 +330,24 @@ export async function openEditModalByTitle(page, title) {
     await row.waitFor({ state: 'visible' });
     await row.locator('[data-newsletter-modal-url*="/edit"]').click();
     await waitForModalContent(page, '#edit-newsletter-form');
+}
+
+/**
+ * Öffnet den Bearbeiten-Dialog aus der Übersicht für einen Entwurf, den gerade jemand anderes
+ * bearbeitet, und liefert den angezeigten Text zurück.
+ *
+ * Der Server antwortet in diesem Fall mit HTTP 423 und liefert dazu die fertige Sperrseite
+ * (newsletters/locked.twig, modaltauglich). Der Dialog muss sie anzeigen - eine Ersatzmeldung
+ * "Inhalt konnte nicht geladen werden" würde die Ursache verschweigen.
+ */
+export async function openEditModalForLockedDraft(page, title) {
+    await page.goto('/newsletters?status=draft');
+    const row = page.locator('#newslettersTable tbody tr', { hasText: title });
+    await row.waitFor({ state: 'visible' });
+    await row.locator('[data-newsletter-modal-url*="/edit"]').click();
+    await waitForModalContent(page, '#reload-locked-newsletter-btn');
+
+    return (await page.locator(MODAL_CONTENT).innerText()).trim();
 }
 
 /**

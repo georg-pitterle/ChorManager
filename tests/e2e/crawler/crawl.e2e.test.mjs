@@ -46,7 +46,25 @@ const KNOWN_BENIGN_CONSOLE_ERRORS = [
     },
 ];
 
+// Anders als die seitenscharfen Einträge oben ist diese Meldung auf JEDER Seite gutartig, weil
+// sie nicht aus der Anwendung stammt: Chromium meldet jede geblockte Skriptausführung in einem
+// sandboxed iframe als console.error, und ausgelöst wird sie hier von Playwright selbst. Der
+// Trace-Snapshotter (trace: 'retain-on-failure' in playwright.config.mjs) hängt sein
+// Aufzeichnungsskript in JEDEN Rahmen; in einem <iframe sandbox=""> ohne 'allow-scripts' scheitert
+// das zwangsläufig. Verifiziert: Mit tracing.start({ snapshots: true }) erscheint die Meldung schon
+// bei einem leeren sandboxed iframe, ohne Tracing nie.
+//
+// Die Sandbox ist Absicht - templates/newsletters/edit.twig, templates/newsletters/preview.twig und
+// templates/admin/mail_queue/show.twig zeigen fremdes Mail-HTML und dürfen daraus kein Skript
+// ausführen lassen. Greift die Sperre einmal bei echtem Newsletter-Inhalt statt beim
+// Playwright-Skript, ist auch das der Erfolgsfall und kein Befund.
+const SANDBOXED_FRAME_SCRIPT_BLOCK = /Blocked script execution in .* because the document's frame is sandboxed/;
+
 function isKnownBenignConsoleError(pageUrl, errorText) {
+    if (SANDBOXED_FRAME_SCRIPT_BLOCK.test(errorText)) {
+        return true;
+    }
+
     return KNOWN_BENIGN_CONSOLE_ERRORS.some((entry) => entry.pageUrl === pageUrl && entry.pattern.test(errorText));
 }
 

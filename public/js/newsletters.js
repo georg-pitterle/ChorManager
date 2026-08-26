@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const modal = new bootstrap.Modal(modalElement);
     let currentUrl = '';
     let isLoading = false;
+    // Antwortstatus, hinter denen der Server eine fertige, im Modal darstellbare Seite
+    // liefert - keine Fehlerlage, die eine Ersatzmeldung braucht. HTTP 423 kommt von
+    // NewsletterController::edit(), wenn den Entwurf gerade jemand anderes bearbeitet: Die
+    // Antwort ist newsletters/locked.twig samt Name der sperrenden Person und ist bereits
+    // modaltauglich gebaut (layout_modal.twig). Wird sie verworfen, sieht die Person nur
+    // "Inhalt konnte nicht geladen werden" statt der eigentlichen Ursache.
+    const RENDERABLE_ERROR_STATUSES = new Set([423]);
+
     const skippedModalScriptPaths = new Set([
         '/vendor/bootstrap/dist/js/bootstrap.bundle.min.js',
         '/js/common.js',
@@ -178,6 +186,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // newsletters-edit.js hängt das Vorschaufenster des Bearbeiten-Dialogs aus dem Modalinhalt
+    // direkt an das body-Element (openPreviewOverlay), damit es nicht in der Fokusfalle des
+    // Dialogs liegt. Wird der Dialog danach geleert oder mit anderem Inhalt neu geladen, bleibt
+    // es dort als Leiche zurück: Der nächste Dialog bringt sein eigenes #previewModal mit, im
+    // Dokument stehen dann mehrere Knoten mit derselben id (#previewModal, #preview-modal-frame),
+    // jeder mit dem vollständigen Vorschau-HTML im srcdoc.
+    function removeDetachedPreviewOverlay() {
+        document.querySelectorAll('body > #previewModal').forEach(function (overlay) {
+            if (window.bootstrap && window.bootstrap.Modal) {
+                const instance = window.bootstrap.Modal.getInstance(overlay);
+                if (instance) {
+                    instance.dispose();
+                }
+            }
+
+            overlay.remove();
+        });
+    }
+
     function cleanupTinymceInModal() {
         if (typeof tinymce === 'undefined') {
             return;
@@ -257,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 credentials: 'same-origin',
             });
 
-            if (!response.ok) {
+            if (!response.ok && !RENDERABLE_ERROR_STATUSES.has(response.status)) {
                 throw new Error('HTTP ' + response.status);
             }
 
@@ -268,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
             injectModalStylesheets(parsed);
 
             cleanupTinymceInModal();
+            removeDetachedPreviewOverlay();
             contentElement.innerHTML = body ? body.innerHTML : html;
             executeInlineScripts(contentElement);
             await executeExternalScripts(contentElement);
@@ -483,6 +511,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     modalElement.addEventListener('hidden.bs.modal', function () {
         cleanupTinymceInModal();
+        removeDetachedPreviewOverlay();
         currentUrl = '';
         contentElement.innerHTML = '';
         document.body.classList.remove('modal-open');

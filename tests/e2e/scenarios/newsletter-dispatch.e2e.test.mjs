@@ -51,6 +51,8 @@ import {
     readRecipientCount,
     listNewsletterTitles,
     openEditPage,
+    leaveEditorAndAwaitLockRelease,
+    openEditModalForLockedDraft,
     sendFromEditPage,
     saveOpenNewsletterAsTemplate,
     fillEditor,
@@ -281,6 +283,15 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
 
             // Das Bearbeitungsformular darf für die zweite Person nicht erscheinen.
             expect(await pageB.locator('#edit-newsletter-form').count()).toBe(0);
+
+            // Derselbe Fall über den verlinkten Weg aus der Übersicht: Der Bearbeiten-Dialog
+            // muss die Sperrseite zeigen. Der Server liefert sie zusammen mit HTTP 423; wer den
+            // Status blind als Ladefehler behandelt, blendet stattdessen nur "Inhalt konnte
+            // nicht geladen werden" ein und verschweigt die Ursache.
+            const modalText = await openEditModalForLockedDraft(pageB, NEWSLETTER_LOCKED.title);
+            expect(modalText, 'Der Dialog muss die Sperre benennen').toContain('gesperrt');
+            expect(modalText, 'Die sperrende Person muss genannt werden').toContain(lockEditorA.lastName);
+            expect(modalText).not.toContain('Inhalt konnte nicht geladen werden');
         });
 
         // Erste Sitzung verlässt die Seite -> die Sperre wird beim Entladen freigegeben.
@@ -298,13 +309,7 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
         // Sauber verlassen und die Freigabe abwarten: Ein zurückgelassener gesperrter Entwurf
         // würde jede spätere Bearbeiten-Anfrage mit 423 beantworten - auch die des Crawlers,
         // der nach den Szenarien über dieselbe DB läuft.
-        await pageB.goto('/dashboard');
-        await expect
-            .poll(
-                async () => (await (await pageB.request.get(`/newsletters/${newsletterId}/check-lock`)).json()).locked,
-                { message: 'Die Sperre muss nach dem Verlassen der Seite freigegeben sein' }
-            )
-            .toBe(false);
+        await leaveEditorAndAwaitLockRelease(pageB, newsletterId);
     });
 });
 
@@ -566,6 +571,8 @@ test('Newsletter: Vorschau und Testmail lösen Platzhalter auf', async ({ browse
 
         const testMailMessage = await sendTestMailFromEditPage(editorPage);
         expect(testMailMessage).toContain('eingereiht');
+
+        await leaveEditorAndAwaitLockRelease(editorPage, newsletterId);
     });
 
     // Die Testmail geht an die auslösende Person selbst, mit aufgelöster Anrede.

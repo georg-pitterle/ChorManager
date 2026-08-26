@@ -4,6 +4,7 @@ import {
     openCreateModal,
     createNewsletterDraft,
     fillEditor,
+    leaveEditorAndAwaitLockRelease,
 } from '../steps/newsletters.mjs';
 import { openToolbarOverflow, openSourceCodeDialog, typeIntoSourceCodeDialog } from '../steps/tinymce.mjs';
 
@@ -58,7 +59,7 @@ test('Newsletter-Editor im Modal: Vorschau lässt den Editor stehen', async ({ p
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
 
-    await createNewsletterDraft(page, {
+    const newsletterId = await createNewsletterDraft(page, {
         title: 'Vorschau-Rückkehr ' + Date.now(),
         content: 'Inhalt für die Vorschau-Prüfung.',
     });
@@ -88,4 +89,16 @@ test('Newsletter-Editor im Modal: Vorschau lässt den Editor stehen', async ({ p
     // Zurück im Editor, mit der Änderung.
     await expect(page.locator('#edit-newsletter-form')).toBeVisible();
     await expect(page.locator('#title')).toHaveValue(unsavedTitle);
+
+    // Das Vorschaufenster wird zum Öffnen aus dem Dialoginhalt an das body-Element gehängt
+    // (public/js/newsletters-edit.js, openPreviewOverlay). Beim Schließen des Dialogs muss es
+    // wieder verschwinden - sonst bleibt es dort liegen, der nächste Dialog bringt sein eigenes
+    // mit, und im Dokument stehen mehrere Knoten mit derselben id (#previewModal,
+    // #preview-modal-frame), jeder mit dem vollständigen Vorschau-HTML im srcdoc.
+    await page.locator('#newsletterActionModal > .modal-dialog > .modal-content > .modal-header > .btn-close').click();
+    await expect(page.locator('#newsletterActionModal')).toBeHidden();
+    await expect(page.locator('#previewModal')).toHaveCount(0);
+
+    // Den Entwurf nicht gesperrt zurücklassen (siehe leaveEditorAndAwaitLockRelease).
+    await leaveEditorAndAwaitLockRelease(page, newsletterId);
 });
