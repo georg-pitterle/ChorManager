@@ -418,31 +418,6 @@ class AttendanceRequiredFeatureTest extends TestCase
 
     private function createTwig(): Twig
     {
-        $twig = new Twig(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
-        $environment = $twig->getEnvironment();
-        $environment->addFilter(new \Twig\TwigFilter(
-            'person_name',
-            static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
-        ));
-        $environment->addGlobal('session', $_SESSION);
-        $this->registerMailBadgeStub($environment);
-        $environment->addGlobal('current_path', '/attendance');
-        $environment->addGlobal('app_settings', []);
-        $environment->addFunction(new TwigFunction(
-            'asset_path',
-            static function (string $path): string {
-                return $path;
-            }
-        ));
-        $environment->addFunction(new TwigFunction(
-            'navigation',
-            static function (string $activeNav = ''): array {
-                $context = NavigationContext::fromSession($_SESSION, [], '/attendance', $activeNav);
-
-                return (new NavigationBuilder())->build($context);
-            }
-        ));
-
-        return $twig;
+        return $this->createAppTwig('/attendance');
     }
 }

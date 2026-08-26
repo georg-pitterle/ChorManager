@@ -40,6 +40,7 @@ use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
+use App\Controllers\EvaluationController;
 use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
 use App\Controllers\PasswordResetController;
@@ -232,6 +233,18 @@ return function (ContainerBuilder $containerBuilder) {
         // die Autowiring-Reflexion den Parameter und der echte Logger kommt nie an.
         SongLibraryController::class => function (ContainerInterface $c) {
             return new SongLibraryController($c->get(Twig::class), $c->get(LoggerInterface::class));
+        },
+        // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter faellt in
+        // die Autowiring-Luecke und bliebe der NullLogger - die authz.denied-Eintraege der
+        // Auswertungen kaemen dann nie im Log an.
+        EvaluationController::class => function (ContainerInterface $c) {
+            return new EvaluationController(
+                $c->get(Twig::class),
+                $c->get(ProjectQuery::class),
+                $c->get(NameFormatterService::class),
+                null,
+                $c->get(LoggerInterface::class)
+            );
         },
         // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter wird von
         // der Autowiring-Reflexion uebersprungen und blieb bislang stets der NullLogger - auch

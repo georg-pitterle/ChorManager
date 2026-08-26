@@ -20,6 +20,8 @@ use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\TableQueryParams;
 use Carbon\Carbon;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class EvaluationController
 {
@@ -27,17 +29,37 @@ class EvaluationController
     private ProjectQuery $projectQuery;
     private NameFormatterService $nameFormatter;
     private ProjectMemberPolicy $memberPolicy;
+    private LoggerInterface $logger;
 
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
         NameFormatterService $nameFormatter,
-        ?ProjectMemberPolicy $memberPolicy = null
+        ?ProjectMemberPolicy $memberPolicy = null,
+        ?LoggerInterface $logger = null
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->nameFormatter = $nameFormatter;
         $this->memberPolicy = $memberPolicy ?? new ProjectMemberPolicy();
+        $this->logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Abweisung mit sichtbarer Begründung: Ein 403 ohne Körper liefert eine leere
+     * Seite, auf der niemand erkennt, woran es lag.
+     */
+    private function denyProjectAccess(Response $response, int $projectId): Response
+    {
+        $this->logger->info('Access denied.', [
+            'event' => 'authz.denied',
+            'reason' => 'evaluation.project_forbidden',
+            'project_id' => $projectId,
+        ]);
+
+        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
+            'error' => 'Du hast keinen Zugriff auf die Auswertungen dieses Projekts.',
+        ]);
     }
 
     public function index(Request $request, Response $response): Response
@@ -65,7 +87,7 @@ class EvaluationController
 
         if ($projectId > 0) {
             if (!in_array($projectId, $accessibleProjectIds, true)) {
-                return $response->withStatus(403);
+                return $this->denyProjectAccess($response, $projectId);
             }
 
             $selectedProject = Project::find($projectId);
@@ -163,7 +185,7 @@ class EvaluationController
 
         if ($projectId > 0) {
             if (!in_array($projectId, $accessibleProjectIds, true)) {
-                return $response->withStatus(403);
+                return $this->denyProjectAccess($response, $projectId);
             }
 
             $selectedProject = Project::find($projectId);

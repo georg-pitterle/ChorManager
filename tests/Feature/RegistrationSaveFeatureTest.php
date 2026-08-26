@@ -20,6 +20,7 @@ use Tests\Unit\Bootstrap;
 class RegistrationSaveFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private Event $event;
     private User $user;
@@ -67,7 +68,7 @@ class RegistrationSaveFeatureTest extends TestCase
     private function controller(): RegistrationController
     {
         return new RegistrationController(
-            Twig::create(dirname(__DIR__) . '/../templates'),
+            $this->createAppTwig('/registrations'),
             new AttendanceScopeService(),
             new NullLogger(),
             new \App\Services\NameFormatterService()

@@ -19,6 +19,7 @@ use Tests\Unit\Bootstrap;
 class RegistrationProxyFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private Event $event;
 
@@ -73,7 +74,7 @@ class RegistrationProxyFeatureTest extends TestCase
     private function controller(): RegistrationController
     {
         return new RegistrationController(
-            Twig::create(dirname(__DIR__) . '/../templates'),
+            $this->createAppTwig('/registrations'),
             new AttendanceScopeService(),
             new NullLogger(),
             new \App\Services\NameFormatterService()

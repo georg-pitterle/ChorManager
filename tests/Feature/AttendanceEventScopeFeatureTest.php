@@ -33,6 +33,7 @@ use Tests\Unit\Bootstrap;
 final class AttendanceEventScopeFeatureTest extends TestCase
 {
     use EventScopeFixtures;
+    use TwigViewStubs;
     use TestHttpHelpers;
 
     protected function setUp(): void
@@ -51,7 +52,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
     private function controller(): RegistrationController
     {
         return new RegistrationController(
-            Twig::create(dirname(__DIR__, 2) . '/templates'),
+            $this->createAppTwig('/registrations'),
             new AttendanceScopeService(),
             new NullLogger(),
             new NameFormatterService()

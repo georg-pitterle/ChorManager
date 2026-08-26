@@ -86,7 +86,11 @@ class EventController
             : 'list';
 
         if ($projectId !== null && $projectId > 0 && !$seesAllEvents && !in_array($projectId, $accessibleProjectIds, true)) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zu diesem Projekt.',
+                'event.index.project_forbidden'
+            );
         }
 
         // Allowed sort columns
@@ -240,7 +244,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.detail.forbidden',
+                (int) $event->id
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -269,7 +278,11 @@ class EventController
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         if ($userId <= 0) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Für ein Kalender-Abo musst du angemeldet sein.',
+                'event.subscription.no_session'
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -501,8 +514,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.note.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -533,8 +550,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.note.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $note = $this->findEventNote($event->id, (int) $args['note_id']);
@@ -544,8 +565,12 @@ class EventController
         }
 
         if (!$this->canManageEventNote($note, $event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Diese Bemerkung darfst du nicht bearbeiten.',
+                'event.note.note_forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -570,8 +595,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.note.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $note = $this->findEventNote($event->id, (int) $args['note_id']);
@@ -581,8 +610,12 @@ class EventController
         }
 
         if (!$this->canManageEventNote($note, $event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events/' . $event->id)->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Diese Bemerkung darfst du nicht bearbeiten.',
+                'event.note.note_forbidden',
+                (int) $event->id
+            );
         }
 
         $note->delete();
@@ -846,7 +879,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            return $response->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.edit.forbidden',
+                (int) $event->id
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -911,8 +949,12 @@ class EventController
         }
 
         if (!$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events')->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.update.forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array)$request->getParsedBody();
@@ -1024,9 +1066,13 @@ class EventController
                 });
 
                 if ($hasUnauthorizedSeriesEvent) {
-                    $editService = new ModalFormService('event_edit');
-                    $editService->setError('Zugriff verweigert.', $formData);
-                    return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(403);
+                    return $this->denyEventAccess(
+                        $response,
+                        'Die Serie enthält Termine, die du nicht bearbeiten darfst. '
+                        . 'Es wurde nichts geändert.',
+                        'event.update.series_forbidden',
+                        (int) $event->id
+                    );
                 }
 
                 $newStartTime = Carbon::parse($startsAt)->format('H:i');
@@ -1080,8 +1126,12 @@ class EventController
             $event->delete();
             $_SESSION['success'] = 'Termin gelöscht.';
         } elseif ($event) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events')->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.delete.forbidden',
+                (int) $event->id
+            );
         }
         return $response->withHeader('Location', '/events')->withStatus(302);
     }
@@ -1091,8 +1141,12 @@ class EventController
         $id = $args['id'];
         $event = Event::find($id);
         if ($event && !$this->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/events')->withStatus(403);
+            return $this->denyEventAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'event.delete_series.forbidden',
+                (int) $event->id
+            );
         }
 
         if ($event && $event->series_id) {
@@ -1106,8 +1160,13 @@ class EventController
             });
 
             if ($hasUnauthorizedSeriesEvent) {
-                $_SESSION['error'] = 'Zugriff verweigert.';
-                return $response->withHeader('Location', '/events')->withStatus(403);
+                return $this->denyEventAccess(
+                    $response,
+                    'Die Serie enthält Termine, die du nicht löschen darfst. '
+                    . 'Es wurde nichts gelöscht.',
+                    'event.delete_series.series_forbidden',
+                    (int) $event->id
+                );
             }
 
             // Delete all future events of this series (including current)
@@ -1195,6 +1254,29 @@ class EventController
     private function canManageEvents(): bool
     {
         return (bool) ($_SESSION['can_manage_events'] ?? false);
+    }
+
+    /**
+     * Abweisung mit sichtbarer Begründung: Ein 403 mit Location-Header führt zu einer
+     * leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen - und ein 403 ganz
+     * ohne Körper ebenfalls. Die Flash-Meldung bekam dabei nie eine Seite, auf der
+     * sie erscheinen konnte.
+     */
+    private function denyEventAccess(
+        Response $response,
+        string $message,
+        string $reason,
+        ?int $eventId = null
+    ): Response {
+        $this->logger->info('Access denied.', [
+            'event' => 'authz.denied',
+            'reason' => $reason,
+            'event_id' => $eventId,
+        ]);
+
+        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
+            'error' => $message,
+        ]);
     }
 
     /**

@@ -80,8 +80,12 @@ class RegistrationController
         // Die Anmeldeliste zeigt Namen, Status und Notizen aller Betroffenen - sie ist nur
         // fuer Mitglieder der Zielgruppe und fuer deren Verwalter bestimmt.
         if (!$this->scopeService->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Du gehörst nicht zur Zielgruppe dieses Termins.';
-            return $response->withHeader('Location', '/registrations')->withStatus(403);
+            return $this->denyRegistrationAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'registration.detail.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -155,10 +159,11 @@ class RegistrationController
             if ($expectsJson) {
                 return $this->jsonResponse($response, ['error' => 'Der Anmeldeschluss ist vorbei.'], 403);
             }
-            $_SESSION['error'] = 'Der Anmeldeschluss für diesen Termin ist vorbei.';
-            return $response
-                ->withHeader('Location', '/registrations/' . $event->id)
-                ->withStatus(403);
+
+            return $this->denyRegistrationAccess(
+                $response,
+                'Der Anmeldeschluss für diesen Termin ist vorbei.'
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -169,10 +174,13 @@ class RegistrationController
             if ($expectsJson) {
                 return $this->jsonResponse($response, ['error' => 'Du bist für diesen Termin nicht angemeldet.'], 403);
             }
-            $_SESSION['error'] = 'Du gehörst nicht zur Zielgruppe dieses Termins.';
-            return $response
-                ->withHeader('Location', '/registrations')
-                ->withStatus(403);
+
+            return $this->denyRegistrationAccess(
+                $response,
+                'Du gehörst nicht zur Zielgruppe dieses Termins.',
+                'registration.save.event_forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -231,6 +239,33 @@ class RegistrationController
             ->withStatus(302);
     }
 
+    /**
+     * Abweisung mit sichtbarer Begründung: Ein 403 mit Location-Header führt zu einer
+     * leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen - die Flash-Meldung
+     * bekam dabei nie eine Seite, auf der sie erscheinen konnte.
+     *
+     * Rechte-Abweisungen hinterlassen zusätzlich einen Protokolleintrag; fachliche
+     * Sperren wie ein abgelaufener Anmeldeschluss sind kein Autorisierungsvorfall.
+     */
+    private function denyRegistrationAccess(
+        Response $response,
+        string $message,
+        ?string $reason = null,
+        ?int $eventId = null
+    ): Response {
+        if ($reason !== null) {
+            $this->logger->info('Access denied.', [
+                'event' => 'authz.denied',
+                'reason' => $reason,
+                'event_id' => $eventId,
+            ]);
+        }
+
+        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
+            'error' => $message,
+        ]);
+    }
+
     private function expectsJson(Request $request): bool
     {
         if (strtolower(trim($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest') {
@@ -261,17 +296,19 @@ class RegistrationController
         }
 
         if (!$event->isRegistrationOpen()) {
-            $_SESSION['error'] = 'Der Anmeldeschluss für diesen Termin ist vorbei.';
-            return $response
-                ->withHeader('Location', '/registrations/' . $event->id)
-                ->withStatus(403);
+            return $this->denyRegistrationAccess(
+                $response,
+                'Der Anmeldeschluss für diesen Termin ist vorbei.'
+            );
         }
 
         if (!$this->scopeService->canManageOthers() || !$this->scopeService->canAccessEvent($event)) {
-            $_SESSION['error'] = 'Zugriff verweigert: Keine Berechtigung für Vertretungseinträge.';
-            return $response
-                ->withHeader('Location', '/registrations/' . $event->id)
-                ->withStatus(403);
+            return $this->denyRegistrationAccess(
+                $response,
+                'Zugriff verweigert: Keine Berechtigung für Vertretungseinträge.',
+                'registration.proxy.forbidden',
+                (int) $event->id
+            );
         }
 
         $data = (array) $request->getParsedBody();
@@ -289,10 +326,12 @@ class RegistrationController
         $unauthorized = array_diff($submittedUserIds, $allowedUserIds);
 
         if (!empty($unauthorized)) {
-            $_SESSION['error'] = 'Zugriff verweigert: Unzulässige Personen im Vertretungsformular.';
-            return $response
-                ->withHeader('Location', '/registrations/' . $event->id)
-                ->withStatus(403);
+            return $this->denyRegistrationAccess(
+                $response,
+                'Zugriff verweigert: Unzulässige Personen im Vertretungsformular.',
+                'registration.proxy.user_forbidden',
+                (int) $event->id
+            );
         }
 
         $actorId = (int) ($_SESSION['user_id'] ?? 0);
