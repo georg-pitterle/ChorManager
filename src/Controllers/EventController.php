@@ -325,9 +325,11 @@ class EventController
      *
      * `url` ist nur gesetzt, wenn die Adresse überhaupt zeigbar ist: direkt nach
      * dem Erzeugen, oder bei einem Altbestand-Abo, das noch im Klartext vorliegt.
-     * Sonst steht nur fest, ob ein Abo aktiv ist.
+     * Sonst steht nur fest, ob ein Abo aktiv ist. `autoshow` ist nur beim frischen
+     * Erzeugen wahr - ein zeigbares Altbestand-Abo würde sonst bei jedem Aufruf der
+     * Seite erneut das Fenster öffnen.
      *
-     * @return array{exists: bool, url: string|null}|null
+     * @return array{exists: bool, url: string|null, autoshow: bool}|null
      */
     private function calendarSubscriptionState(Request $request, int $userId): ?array
     {
@@ -339,17 +341,17 @@ class EventController
         unset($_SESSION[self::SUBSCRIPTION_FLASH_KEY]);
 
         if (is_string($freshUrl) && $freshUrl !== '') {
-            return ['exists' => true, 'url' => $freshUrl];
+            return ['exists' => true, 'url' => $freshUrl, 'autoshow' => true];
         }
 
         $subscriptionService = new CalendarSubscriptionService();
         $legacyToken = $subscriptionService->findLegacyTokenForUser($userId);
 
         if ($legacyToken !== null) {
-            return ['exists' => true, 'url' => $this->subscriptionUrl($request, $legacyToken)];
+            return ['exists' => true, 'url' => $this->subscriptionUrl($request, $legacyToken), 'autoshow' => false];
         }
 
-        return ['exists' => $subscriptionService->hasTokenForUser($userId), 'url' => null];
+        return ['exists' => $subscriptionService->hasTokenForUser($userId), 'url' => null, 'autoshow' => false];
     }
 
     private function subscriptionUrl(Request $request, string $token): string

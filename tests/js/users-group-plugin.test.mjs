@@ -198,7 +198,7 @@ function makeContext(overrides) {
 
     return {
         tableShell, pluginSlot, table, tbody, rows, localStorageStub,
-        MutationObserverStub, rafCb, storage,
+        MutationObserverStub, rafCb, storage, observers,
         triggerObservers: () => observers.forEach(o => o.trigger([])),
     };
 }
@@ -501,6 +501,38 @@ test('reset removes accordionOpen key and clears sets', () => {
     assert.equal(ctx.storage['chorte.users.manage.accordionOpen'], undefined, 'accordionOpen soll entfernt werden');
     assert.equal(ctx.storage['chorte.users.manage.groupByVoice'], undefined, 'groupByVoice soll entfernt werden');
     assert.deepEqual(plugin.getState(), { groupActive: false });
+});
+
+test('accordion rebuild after a filter change reuses the same observer instead of leaking a new one', () => {
+    // Regression: selecting a project filter while grouped by voice used to leave the
+    // list unexpandable, because activateGroup() created a *new* MutationObserver on
+    // every rebuild without disconnecting the previous one, and the rebuild itself
+    // flips tbody's own `hidden` attribute - which every still-connected observer
+    // picks up as "the filter changed again", causing an infinite rebuild loop.
+    const ctx = makeContext({
+        voiceOptions: '1::Sopran',
+        subVoiceOptions: '1:1::Sopran 1',
+        rows: [{ voice: '|1|', sortVoice: 'sopran sopran 1', hidden: false }]
+    });
+    const plugin = loadPlugin(ctx);
+    plugin.setState({ groupActive: true });
+    plugin.mount();
+
+    assert.equal(ctx.observers.length, 1, 'Beim ersten Aktivieren soll genau ein Observer entstehen');
+    const firstObserver = ctx.observers[0];
+
+    // Simulate several external filter changes (e.g. repeatedly picking a project)
+    // delivered one at a time, as the browser would.
+    for (let i = 0; i < 5; i += 1) {
+        firstObserver.trigger([]);
+    }
+
+    const distinctObservers = new Set(ctx.observers);
+    assert.equal(
+        distinctObservers.size,
+        1,
+        'Ein Filterwechsel darf keinen neuen Observer anlegen, sonst leckt/endlos-rebuiltet er'
+    );
 });
 
 test('reset updates toggle button label back to grouping mode', () => {

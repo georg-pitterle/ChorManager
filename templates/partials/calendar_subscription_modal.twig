@@ -2,19 +2,22 @@
     Kalender-Abo-Fenster, geteilt von Terminliste und Termindetail.
 
     Erwartet `calendar_subscription` mit:
-      exists - ob für das Mitglied ein Abo aktiv ist
-      url    - die Abo-Adresse, aber nur wenn sie zeigbar ist: direkt nach dem
-               Erzeugen oder bei einem Altbestand aus der Zeit vor dem Hashen.
+      exists   - ob für das Mitglied ein Abo aktiv ist
+      url      - die Abo-Adresse, aber nur wenn sie zeigbar ist: direkt nach dem
+                 Erzeugen oder bei einem Altbestand aus der Zeit vor dem Hashen.
+      autoshow - ob sich das Fenster beim Laden der Seite von selbst öffnen soll;
+                 nur beim frischen Erzeugen wahr, nie beim Altbestand.
     Und `redirect_to` - Pfad, auf den nach dem Erzeugen zurückgesprungen wird.
 #}
 {% set _subscription_url = calendar_subscription.url|default(null) %}
 {% set _subscription_exists = calendar_subscription.exists|default(false) %}
+{% set _subscription_autoshow = calendar_subscription.autoshow|default(false) %}
 <div class="modal fade"
      id="calendarSubscriptionModal"
      tabindex="-1"
      aria-labelledby="calendarSubscriptionModalLabel"
      aria-hidden="true"
-     {% if _subscription_url %}data-calendar-subscription-autoshow="1"{% endif %}>
+     {% if _subscription_autoshow %}data-calendar-subscription-autoshow="1"{% endif %}>
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-sm">
             <div class="modal-header">

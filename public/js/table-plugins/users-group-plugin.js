@@ -434,20 +434,32 @@
                 tableShell.appendChild(accordionEl);
             }
 
-            // Start MutationObserver on tbody
+            // Watch tbody so an outside filter/sort/page change (which flips `hidden`
+            // on rows) resyncs the accordion. The observer is created once and reused:
+            // re-creating it here on every rebuild left the previous instance running,
+            // and destroy+rebuild itself flips tbody's own `hidden` attribute, which
+            // that still-active instance would pick up as "the filter changed again" -
+            // an infinite rebuild loop that made the accordion unusable after the first
+            // real filter change (e.g. picking a project while grouped by voice).
             if (tbody && typeof window.MutationObserver === 'function') {
-                observer = new window.MutationObserver(function () {
-                    if (!rafPending) {
-                        rafPending = true;
-                        window.requestAnimationFrame(function () {
-                            rafPending = false;
-                            if (groupActive) {
+                if (!observer) {
+                    observer = new window.MutationObserver(function () {
+                        if (!rafPending) {
+                            rafPending = true;
+                            window.requestAnimationFrame(function () {
+                                rafPending = false;
+                                if (!groupActive) {
+                                    return;
+                                }
+                                if (observer) {
+                                    observer.disconnect();
+                                }
                                 destroyAccordion(tableShell);
                                 activateGroup(tableShell);
-                            }
-                        });
-                    }
-                });
+                            });
+                        }
+                    });
+                }
                 observer.observe(tbody, { attributes: true, subtree: true, attributeFilter: ['hidden'] });
             }
         }
