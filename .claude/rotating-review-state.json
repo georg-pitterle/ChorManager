@@ -1,0 +1,17 @@
+{
+    "runNumber": 1,
+    "lastRun": {
+        "runNumber": 0,
+        "sectionIndex": 0,
+        "section": "src/Controllers"
+    },
+    "sections": [
+        "src/Controllers",
+        "src/Services",
+        "src/Models",
+        "src/Policies",
+        "src/Queries",
+        "src/Middleware",
+        "db/migrations"
+    ]
+}

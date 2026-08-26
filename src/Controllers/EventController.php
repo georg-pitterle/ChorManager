@@ -39,6 +39,21 @@ class EventController
      */
     private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_url';
 
+    /**
+     * Zugelassene Takte einer Terminserie. Der Wert steuert, um wie viel die
+     * Erzeugungsschleife weiterrückt - ein unbekannter Takt rückt gar nicht
+     * weiter und die Schleife käme nie zum Ende.
+     */
+    private const SERIES_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
+
+    /**
+     * Notbremse der Erzeugungsschleife. Sie greift nie bei einer gültigen Eingabe:
+     * Der teuerste zulässige Fall (wöchentlich, ein Wochentag, großes Intervall)
+     * braucht rund sieben Durchläufe je Termin und endet damit weit vor dieser
+     * Grenze an der Terminzahl.
+     */
+    private const SERIES_MAX_ITERATIONS = 10000;
+
     private Twig $view;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
@@ -672,6 +687,31 @@ class EventController
         $startsAt = $parsedStart->format('Y-m-d H:i:s');
         $endsAt   = $parsedEnd->format('Y-m-d H:i:s');
 
+        // Takt und Intervall auch serverseitig prüfen: Das Formular bietet nur die
+        // vier Takte und `min="1"` an, ein manipulierter Beitrag käme sonst aber bis
+        // in die Erzeugungsschleife - mit unbekanntem Takt endlos, mit Intervall 0
+        // oder weniger mit 501 Terminen auf demselben Tag.
+        $frequency = 'weekly';
+        $interval = 1;
+        $weekdays = [];
+        if ($repeat) {
+            $frequency = self::normalizeSeriesFrequency($data['frequency'] ?? null);
+            $interval = self::normalizeRecurrenceInterval($data['recurrence_interval'] ?? null);
+
+            // Wie bei den Zielgruppen-Quellen: Bleibt von angegebenen Wochentagen
+            // nichts Gültiges übrig, wäre die Serie stillschweigend eine tägliche -
+            // dann lieber gar nicht anlegen.
+            $rawWeekdays = is_array($data['weekdays'] ?? null) ? $data['weekdays'] : [];
+            $weekdays = self::normalizeWeekdays($rawWeekdays);
+            $weekdaysDropped = $rawWeekdays !== [] && $weekdays === [];
+
+            if ($frequency === null || $interval === null || $weekdaysDropped) {
+                $createService = new ModalFormService('event_create');
+                $createService->setError('Ungültige Wiederholung. Bitte Takt und Intervall prüfen.', $formData);
+                return $response->withHeader('Location', '/events')->withStatus(302);
+            }
+        }
+
         try {
             $eventType = null;
             if ($eventTypeId) {
@@ -699,11 +739,9 @@ class EventController
                 $audienceService->setSources($event, $sources);
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
             } else {
-                // Series
-                $frequency = $data['frequency'] ?? 'weekly';
-                $interval = (int)($data['recurrence_interval'] ?? 1);
+                // Series - $frequency, $interval und $weekdays (1 = Mo bis 7 = So)
+                // sind oben bereits geprüft.
                 $endDateStr = $data['series_end_date'] ?? null;
-                $weekdays = $data['weekdays'] ?? []; // 1 (Mo) - 7 (So)
 
                 if (!$endDateStr) {
                     throw new Exception('Enddatum für die Serie ist erforderlich.');
@@ -722,8 +760,13 @@ class EventController
 
                 $currentDate = clone $startDate;
                 $count = 0;
+                $iterations = 0;
 
                 while ($currentDate <= $endDate) {
+                    if (++$iterations > self::SERIES_MAX_ITERATIONS) {
+                        break;
+                    }
+
                     $shouldCreate = false;
 
                     if ($frequency === 'daily') {
@@ -1152,5 +1195,57 @@ class EventController
     private function canManageEvents(): bool
     {
         return (bool) ($_SESSION['can_manage_events'] ?? false);
+    }
+
+    /**
+     * Liefert den Takt einer Serie oder null, wenn der Wert nicht zu den vier
+     * unterstützten Takten gehört. Ein fehlendes Feld gilt weiterhin als
+     * "wöchentlich", ein gesetzter, aber unbekannter Wert nicht.
+     */
+    private static function normalizeSeriesFrequency(mixed $value): ?string
+    {
+        if ($value === null) {
+            return 'weekly';
+        }
+
+        $candidate = strtolower(trim((string) $value));
+
+        return in_array($candidate, self::SERIES_FREQUENCIES, true) ? $candidate : null;
+    }
+
+    /**
+     * Liefert das Wiederholungsintervall oder null bei einer ungültigen Angabe.
+     * Ein leeres Feld bleibt beim bisherigen Standardwert 1; 0 oder weniger ist
+     * kein Intervall, sondern ein Stillstand der Erzeugungsschleife.
+     */
+    private static function normalizeRecurrenceInterval(mixed $value): ?int
+    {
+        $candidate = trim((string) ($value ?? ''));
+        if ($candidate === '') {
+            return 1;
+        }
+
+        return ctype_digit($candidate) && (int) $candidate >= 1 ? (int) $candidate : null;
+    }
+
+    /**
+     * Reduziert die gewählten Wochentage auf gültige ISO-Nummern (1 = Mo bis 7 = So).
+     * Ein unbekannter Wert würde sonst als Text in der Serie landen und auf keinen
+     * Kalendertag passen.
+     *
+     * @param array<array-key, mixed> $value
+     * @return list<int>
+     */
+    private static function normalizeWeekdays(array $value): array
+    {
+        $weekdays = [];
+        foreach ($value as $day) {
+            $candidate = trim((string) $day);
+            if (ctype_digit($candidate) && (int) $candidate >= 1 && (int) $candidate <= 7) {
+                $weekdays[] = (int) $candidate;
+            }
+        }
+
+        return array_values(array_unique($weekdays));
     }
 }

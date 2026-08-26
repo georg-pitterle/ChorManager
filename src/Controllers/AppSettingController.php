@@ -207,7 +207,11 @@ class AppSettingController
 
             $_SESSION['success'] = 'Einstellungen erfolgreich gespeichert.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Speichern: ';
+            $this->logger->error('Application settings update failed.', [
+                'event' => 'settings.update.failed',
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Fehler beim Speichern der Einstellungen. Bitte erneut versuchen.';
         }
 
         return $response->withHeader('Location', '/settings')->withStatus(302);

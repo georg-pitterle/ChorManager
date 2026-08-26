@@ -382,20 +382,12 @@ class FinanceController
     }
 
     /**
-     * Atomically reserves the next running number via a locked settings counter row.
-     * The counter never decreases, so a running number is never reused even after the
-     * highest booking is deleted. Falls back to the current table max in case the
-     * counter is behind (e.g. after dev-seed data was inserted directly).
-     */
-    private function nextRunningNumber(): int
-    {
-        return $this->reserveRunningNumbers(1);
-    }
-
-    /**
-     * Reserves a contiguous block of running numbers in a single locked round trip
-     * and returns the first number of that block. Bulk imports would otherwise have
-     * to lock the counter row once per booking.
+     * Atomically reserves a contiguous block of running numbers in a single locked
+     * round trip and returns the first number of that block. The counter never
+     * decreases, so a running number is never reused even after the highest booking
+     * is deleted; it falls back to the current table max in case the counter is
+     * behind (e.g. after dev-seed data was inserted directly). Bulk imports would
+     * otherwise have to lock the counter row once per booking.
      */
     private function reserveRunningNumbers(int $count): int
     {
