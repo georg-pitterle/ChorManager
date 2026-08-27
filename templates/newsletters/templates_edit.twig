@@ -141,7 +141,13 @@
                           data-placeholder-source="/newsletters/placeholders"
                           required>{{ template.content_html }}</textarea>
             </div>
-            <div class="d-flex gap-2 justify-content-end">
+            {# Bleibt am unteren Rand des Scrollbereichs stehen. Ohne das waren die Knöpfe
+               am Telefon das letzte Element hinter dem 400 px hohen Editor und dem
+               Einstellungs-Block: Der Inhalt ist rund 1400 px hoch, sichtbar sind im
+               Dialog je nach Gerät nur 220 bis 650 px. Der Erstellen-Dialog hat seine
+               Knöpfe in einer modal-footer-Leiste außerhalb des Scrollbereichs und war
+               deshalb nie betroffen. #}
+            <div class="d-flex gap-2 justify-content-end form-action-bar">
                 <a href="/newsletters/templates" class="btn btn-outline-secondary">Abbrechen</a>
                 <button type="submit" class="btn btn-primary">Speichern</button>
             </div>

@@ -1557,3 +1557,21 @@ a:hover {
     border-radius: 0.5rem;
     overflow-x: auto;
 }
+
+/* Aktionsleiste eines Formulars: bleibt beim Scrollen am unteren Rand stehen.
+
+   Gedacht fuer lange Formulare in einem scrollenden Dialog. Am Telefon ist der
+   sichtbare Bereich des Dialogs nur rund 220 bis 650 px hoch, der Inhalt des
+   Vorlagen-Formulars dagegen rund 1400 px - "Speichern" als letztes Element lag
+   damit weit unterhalb des Sichtfensters. Sticky haelt die Leiste immer erreichbar,
+   ohne die Knoepfe aus dem Formular herausloesen zu muessen (im Dialog wird nur der
+   Inhalt nachgeladen, eine modal-footer-Leiste steht dort nicht zur Verfuegung). */
+.form-action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    background-color: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+}
