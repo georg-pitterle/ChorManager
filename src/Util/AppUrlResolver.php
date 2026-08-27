@@ -10,18 +10,58 @@ final class AppUrlResolver
 {
     public static function resolveBaseUrl(Request $request): string
     {
+        $configuredUrl = self::configuredBaseUrl();
+        if ($configuredUrl !== null) {
+            return $configuredUrl;
+        }
+
+        // Ohne feste Angabe bliebe nur der Host-Kopf der Anfrage, und der ist frei
+        // wählbar. Jeder erzeugte Link - Passwort-Zurücksetzen, Einladung,
+        // Newsletter-Archiv - folgte dann dem, was in der Anfrage stand. Im
+        // Produktivbetrieb ist das keine brauchbare Grundlage.
+        self::assertConfiguredForProduction();
+
+        return self::resolveFromRequest($request);
+    }
+
+    /**
+     * Die fest angegebene Basisadresse, oder null wenn keine konfiguriert ist.
+     */
+    public static function configuredBaseUrl(): ?string
+    {
         $configured = trim((string) EnvHelper::read('APP_URL', ''));
         $configuredUrl = self::normalizeConfiguredUrl($configured);
         if ($configuredUrl !== null) {
             return $configuredUrl;
         }
 
-        $ddevUrl = self::resolveDdevUrl();
-        if ($ddevUrl !== null) {
-            return $ddevUrl;
+        return self::resolveDdevUrl();
+    }
+
+    /**
+     * Bricht ab, wenn im Produktivbetrieb keine Basisadresse feststeht.
+     *
+     * Wird zusätzlich beim Start aufgerufen (public/index.php), damit die
+     * fehlende Angabe sofort auffällt und nicht erst, wenn die erste Mail mit
+     * einem Link hinausgeht.
+     *
+     * @throws \RuntimeException
+     */
+    public static function assertConfiguredForProduction(): void
+    {
+        if (EnvHelper::read('APP_ENV', 'development') !== 'production') {
+            return;
         }
 
-        return self::resolveFromRequest($request);
+        if (self::configuredBaseUrl() !== null) {
+            return;
+        }
+
+        throw new \RuntimeException(
+            'APP_URL ist nicht gesetzt. Im Produktivbetrieb muss die Basisadresse der Anwendung '
+            . 'fest konfiguriert sein (z. B. APP_URL=https://chor.example.org), sonst stammt sie aus '
+            . 'dem frei wählbaren Host-Kopf der Anfrage.'
+        );
     }
 
     private static function normalizeConfiguredUrl(string $configured): ?string

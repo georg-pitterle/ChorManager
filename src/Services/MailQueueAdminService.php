@@ -10,14 +10,74 @@ use Exception;
 
 class MailQueueAdminService
 {
+    /** Zeilen je Seite, wenn der Aufrufer nichts anderes angibt. */
+    public const DEFAULT_PER_PAGE = 50;
+
+    /** Obergrenze, damit `per_page` aus der Adresszeile die Seite nicht sprengt. */
+    private const MAX_PER_PAGE = 200;
+
     /**
      * List queue entries with filters.
      *
+     * Seitenweise: Nach einem grossen Newsletter-Versand liegen entsprechend
+     * viele Zeilen in der Warteschlange, und die Verwaltungsseite lud sie
+     * vorher alle auf einmal.
+     *
      * @param array $filters ['status' => '...', 'mail_type' => '...', 'search' => '...',
-     *     'from_date' => '...', 'to_date' => '...']
+     *     'from_date' => '...', 'to_date' => '...', 'page' => 1, 'per_page' => 50]
      * @return \Illuminate\Support\Collection<int, MailQueue>
      */
     public function listEntries(array $filters = [])
+    {
+        $perPage = self::normalizePerPage($filters['per_page'] ?? null);
+        $page = self::normalizePage($filters['page'] ?? null);
+
+        return $this->buildQuery($filters)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->forPage($page, $perPage)
+            ->get();
+    }
+
+    /**
+     * Zahl der Zeilen, die zu den Filtern passen - Grundlage für die Blätterleiste.
+     */
+    public function countEntries(array $filters = []): int
+    {
+        return $this->buildQuery($filters)->count();
+    }
+
+    /**
+     * Zahl der Seiten, die sich mit diesen Filtern ergeben. Mindestens eine,
+     * damit die Leiste auch bei leerer Warteschlange eine gültige Seite kennt.
+     */
+    public function pageCount(array $filters = []): int
+    {
+        $perPage = self::normalizePerPage($filters['per_page'] ?? null);
+
+        return max(1, (int) ceil($this->countEntries($filters) / $perPage));
+    }
+
+    public static function normalizePerPage(mixed $value): int
+    {
+        $perPage = is_numeric($value) ? (int) $value : self::DEFAULT_PER_PAGE;
+
+        return max(1, min(self::MAX_PER_PAGE, $perPage));
+    }
+
+    public static function normalizePage(mixed $value): int
+    {
+        return max(1, is_numeric($value) ? (int) $value : 1);
+    }
+
+    /**
+     * Gemeinsamer Unterbau von listEntries() und countEntries(): Beide müssen
+     * dieselben Filter anlegen, sonst zählt die Blätterleiste etwas anderes,
+     * als die Liste zeigt.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<MailQueue>
+     */
+    private function buildQuery(array $filters)
     {
         $query = MailQueue::query();
 
@@ -48,9 +108,7 @@ class MailQueueAdminService
             $query->where('created_at', '<=', $toDate->endOfDay());
         }
 
-        return $query
-            ->orderByDesc('created_at')
-            ->get();
+        return $query;
     }
 
     /**

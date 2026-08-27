@@ -108,8 +108,13 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'releaseLock'));
         $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'canEdit'));
         $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedBy'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedByOther'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'getLockInfo'));
+
+        // isLockedByOther() und getLockInfo() gab es einmal, aufgerufen wurden sie
+        // nirgends - und sie schrieben beim blossen Nachfragen (releaseLock() in
+        // einer Abfrage). Sie sind entfernt; die Zusicherung haelt fest, dass sie
+        // nicht unbemerkt zurueckkehren.
+        $this->assertFalse(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedByOther'));
+        $this->assertFalse(method_exists(\App\Services\NewsletterLockingService::class, 'getLockInfo'));
     }
 
     /**

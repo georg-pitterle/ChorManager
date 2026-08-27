@@ -125,6 +125,29 @@ class BudgetService
     }
 
     /**
+     * Betrag, den computeActual() wegen Stornierung aussen vor lässt.
+     *
+     * Genau die Gegenprobe zu computeActual(): dieselbe Gruppe, dieselbe Art,
+     * derselbe Zeitraum, aber nur die stornierten Buchungen und ihre
+     * Gegenbuchungen. Das Kassabuch weist diese Beträge brutto aus (§ 131 BAO),
+     * die Budgetauswertung nicht - ohne die Zahl stünden zwei verschiedene
+     * Summen für denselben Zeitraum ohne erkennbaren Grund nebeneinander.
+     */
+    public function computeReversed(int $financeGroupId, string $type, Carbon $from, Carbon $to): string
+    {
+        $sum = Finance::where('finance_group_id', $financeGroupId)
+            ->where('type', $type)
+            ->whereBetween('payment_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->where(static function ($query): void {
+                $query->whereNotNull('reversal_of_id')
+                    ->orWhereHas('reversedBy');
+            })
+            ->sum('amount');
+
+        return number_format((float) $sum, 2, '.', '');
+    }
+
+    /**
      * Returns a structured overview for the given fiscal year.
      *
      * @return array<string, mixed>
@@ -145,15 +168,18 @@ class BudgetService
             'income' => [],
             'expense' => [],
             'totals' => [
-                'income' => ['planned' => '0.00', 'actual' => '0.00', 'diff' => '0.00'],
-                'expense' => ['planned' => '0.00', 'actual' => '0.00', 'diff' => '0.00'],
+                'income' => ['planned' => '0.00', 'actual' => '0.00', 'diff' => '0.00', 'reversed' => '0.00'],
+                'expense' => ['planned' => '0.00', 'actual' => '0.00', 'diff' => '0.00', 'reversed' => '0.00'],
             ],
+            'has_reversals' => false,
         ];
 
         foreach ($categories as $category) {
             $planned = (string) $category->items->sum(fn ($item) => (float) $item->planned_amount);
             $planned = number_format((float) $planned, 2, '.', '');
-            $actual = $this->computeActual((int) $category->finance_group_id, $category->type, $from, $to);
+            $groupId = (int) $category->finance_group_id;
+            $actual = $this->computeActual($groupId, $category->type, $from, $to);
+            $reversed = $this->computeReversed($groupId, $category->type, $from, $to);
             $diff = number_format((float) $planned - (float) $actual, 2, '.', '');
 
             $type = $category->type;
@@ -162,14 +188,20 @@ class BudgetService
                 'items' => $category->items,
                 'planned' => $planned,
                 'actual' => $actual,
+                'reversed' => $reversed,
                 'diff' => $diff,
             ];
 
             $totals = &$result['totals'][$type];
             $totals['planned'] = number_format((float) $totals['planned'] + (float) $planned, 2, '.', '');
             $totals['actual'] = number_format((float) $totals['actual'] + (float) $actual, 2, '.', '');
+            $totals['reversed'] = number_format((float) $totals['reversed'] + (float) $reversed, 2, '.', '');
             $totals['diff'] = number_format((float) $totals['diff'] + (float) $diff, 2, '.', '');
+            unset($totals);
         }
+
+        $result['has_reversals'] = (float) $result['totals']['income']['reversed'] > 0.0
+            || (float) $result['totals']['expense']['reversed'] > 0.0;
 
         return $result;
     }

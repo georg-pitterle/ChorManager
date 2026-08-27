@@ -106,8 +106,10 @@ class SheetArchiveService
 
             $category = trim($item['voice_category']);
 
-            // Validate length (DB column: varchar(100))
-            if (strlen($category) > 100) {
+            // Validate length (DB column: varchar(100)). MySQL zählt Zeichen, nicht
+            // Bytes - mit strlen() wurde eine Stimmkategorie mit Umlauten schon bei
+            // gut der halben erlaubten Länge abgelehnt.
+            if (mb_strlen($category) > 100) {
                 throw new InvalidArgumentException('voice_category must not exceed 100 characters');
             }
 

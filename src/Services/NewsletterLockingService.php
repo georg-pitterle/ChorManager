@@ -117,33 +117,15 @@ class NewsletterLockingService
             return false;
         }
 
+        // Bewusst ohne releaseLock(): Eine Abfrage beantwortet nur, ob gesperrt
+        // ist - sie schreibt nicht. Der abgelaufene Vermerk stört niemanden mehr,
+        // und wer als Nächster bearbeitet, überschreibt ihn ohnehin in
+        // acquireLock(), dessen Bedingung abgelaufene Sperren einschließt.
         if ($this->isLockExpired($newsletter)) {
-            $this->releaseLock($newsletter);
             return false;
         }
 
         return $newsletter->locked_by === $userId;
-    }
-
-    /**
-     * Check if locked by different user
-     *
-     * @param Newsletter $newsletter
-     * @param int|null $userId
-     * @return bool
-     */
-    public function isLockedByOther(Newsletter $newsletter, ?int $userId): bool
-    {
-        if (!$newsletter->isLocked() || $userId === null) {
-            return false;
-        }
-
-        if ($this->isLockExpired($newsletter)) {
-            $this->releaseLock($newsletter);
-            return false;
-        }
-
-        return $newsletter->locked_by !== $userId;
     }
 
     /**
@@ -162,24 +144,5 @@ class NewsletterLockingService
         $expiryTime = $lockTime->addMinutes(self::LOCK_TIMEOUT_MINUTES);
 
         return Carbon::now()->gt($expiryTime);
-    }
-
-    /**
-     * Get lock info for display
-     *
-     * @param Newsletter $newsletter
-     * @return array|null
-     */
-    public function getLockInfo(Newsletter $newsletter): ?array
-    {
-        if (!$newsletter->isLocked() || $this->isLockExpired($newsletter)) {
-            return null;
-        }
-
-        return [
-            'locked_by_user_id' => $newsletter->locked_by,
-            'locked_at' => $newsletter->locked_at,
-            'expires_at' => $newsletter->locked_at->addMinutes(self::LOCK_TIMEOUT_MINUTES),
-        ];
     }
 }

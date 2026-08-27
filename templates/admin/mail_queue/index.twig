@@ -184,6 +184,33 @@
                             </tbody>
                         </table>
                     </div>
+
+                    {% if page_count > 1 %}
+                        {% set _query = filters|filter(v => v is not null and v != "") %}
+                        {% set _base = _query|merge({"per_page": per_page}) %}
+                        <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3"
+                             aria-label="Blättern durch die Warteschlange">
+                            <span class="text-muted small">
+                                Seite {{ page }} von {{ page_count }} · {{ total_entries }} Einträge
+                            </span>
+                            <div class="btn-group" role="group">
+                                {% if page > 1 %}
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       href="?{{ _base|merge({"page": page - 1})|url_encode }}">Zurück</a>
+                                {% else %}
+                                    <span class="btn btn-sm btn-outline-secondary disabled"
+                                          aria-disabled="true">Zurück</span>
+                                {% endif %}
+                                {% if page < page_count %}
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       href="?{{ _base|merge({"page": page + 1})|url_encode }}">Weiter</a>
+                                {% else %}
+                                    <span class="btn btn-sm btn-outline-secondary disabled"
+                                          aria-disabled="true">Weiter</span>
+                                {% endif %}
+                            </div>
+                        </nav>
+                    {% endif %}
                 {% else %}
                     <p class="text-muted">Keine Einträge gefunden.</p>
                 {% endif %}

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Closure;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Gleitendes Zeitfenster: Gezählt werden die Zeitstempel der letzten Versuche,
@@ -26,16 +28,20 @@ class RateLimiterService
      */
     private const GC_MAX_AGE_SECONDS = 86400;
 
-    // Bewusst ohne führenden Punkt und ohne .json-Endung: Der Marker soll beim
-    // Aufräumen des Verzeichnisses mit erfasst werden, aber nicht selbst als
-    // Zählerdatei gelten.
+    // Bewusst ohne .json-Endung: Der Kehraus greift genau die Zählerdateien
+    // (`*.json`), der Marker bleibt damit liegen. Das ist so gewollt - er trägt
+    // den Zeitpunkt des letzten Laufs und wird für den nächsten gebraucht.
     private const GC_MARKER = 'gc-state.txt';
 
     private string $storeDir;
     private Closure $clock;
+    private LoggerInterface $logger;
 
-    public function __construct(?string $storeDir = null, ?Closure $clock = null)
-    {
+    public function __construct(
+        ?string $storeDir = null,
+        ?Closure $clock = null,
+        ?LoggerInterface $logger = null
+    ) {
         $this->storeDir = $storeDir ?? (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'chormanager_rate_limits');
         if (!is_dir($this->storeDir)) {
             @mkdir($this->storeDir, 0755, true);
@@ -44,6 +50,7 @@ class RateLimiterService
         // Die Uhr ist auswechselbar, damit das Verhalten an der Fenstergrenze
         // prüfbar bleibt, ohne im Test echte Minuten zu warten.
         $this->clock = $clock ?? static fn(): int => time();
+        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -60,12 +67,12 @@ class RateLimiterService
         $handle = @fopen($path, 'c+');
         if ($handle === false) {
             // Fail-open to avoid locking out users if filesystem is unavailable.
-            return ['allowed' => true, 'retry_after' => 0, 'remaining' => $maxAttempts];
+            return $this->allowUnchecked($maxAttempts, 'store_unwritable');
         }
 
         try {
             if (!flock($handle, LOCK_EX)) {
-                return ['allowed' => true, 'retry_after' => 0, 'remaining' => $maxAttempts];
+                return $this->allowUnchecked($maxAttempts, 'lock_unavailable');
             }
 
             $raw = stream_get_contents($handle);
@@ -104,6 +111,26 @@ class RateLimiterService
         $this->collectGarbage($now);
 
         return $result;
+    }
+
+    /**
+     * Lässt den Versuch durch, weil sich der Zählerstand nicht führen lässt.
+     *
+     * Ein Dateisystemproblem soll niemanden aussperren - die Bremse ist damit
+     * aber vollständig aus, und zwar für jeden Anmeldeversuch. Ohne diese Zeile
+     * im Protokoll bliebe das unbemerkt, bis jemand die Lücke ausnutzt.
+     *
+     * @return array{allowed:bool,retry_after:int,remaining:int}
+     */
+    private function allowUnchecked(int $maxAttempts, string $reason): array
+    {
+        $this->logger->warning('Rate limiting unavailable, request allowed unchecked.', [
+            'event' => 'auth.rate_limit.unavailable',
+            'reason' => $reason,
+            'store_dir' => $this->storeDir,
+        ]);
+
+        return ['allowed' => true, 'retry_after' => 0, 'remaining' => $maxAttempts];
     }
 
     /**

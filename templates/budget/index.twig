@@ -214,15 +214,31 @@
             {% endif %}
 
             {% set _tot_diff = is_income ? (totals.actual - totals.planned) : (totals.planned - totals.actual) %}
+            {% set _tot_reversed = totals.reversed is defined ? totals.reversed : 0 %}
             <div class="budget-summary-bar">
                 <span>Summe Geplant: <strong>{{ totals.planned|number_format(2, ",", ".") }} €</strong></span>
                 <span>Summe Ist: <strong>{{ totals.actual|number_format(2, ",", ".") }} €</strong></span>
+                {% if _tot_reversed > 0 %}
+                    <span class="text-muted">
+                        Storno herausgerechnet:
+                        <strong>{{ _tot_reversed|number_format(2, ",", ".") }} €</strong>
+                    </span>
+                {% endif %}
                 <span class="{{ _tot_diff < 0 ? "text-danger" : "text-success" }}">
                     Summe Differenz: <strong>{{ _tot_diff|number_format(2, ",", ".") }} €</strong>
                 </span>
             </div>
         </section>
     {% endmacro %}
+
+    {% if overview.has_reversals is defined and overview.has_reversals %}
+        <div class="alert alert-info" role="alert">
+            Stornierte Buchungen und ihre Gegenbuchungen heben einander auf und bleiben im Ist
+            dieser Auswertung außen vor. Das Kassabuch weist sie dagegen brutto aus (§ 131 BAO) -
+            dessen Einnahmen und Ausgaben liegen deshalb um die oben ausgewiesenen Storno-Beträge
+            höher.
+        </div>
+    {% endif %}
 
     <div class="dashboard-shell">
         {{ _self.category_section("Einnahmen", "Geplante und tatsächliche Einnahmen im Haushaltsjahr.", overview.income, overview.totals.income, can_write, true) }}

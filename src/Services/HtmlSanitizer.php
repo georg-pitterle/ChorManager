@@ -117,13 +117,18 @@ class HtmlSanitizer
         // Externe Ressourcen (Bilder, Tracking-Pixel) bleiben gesperrt. Links
         // dürfen dagegen http/https tragen: Der Editor bietet sie an, und ohne
         // erlaubtes Schema wurde das Ziel beim Speichern kommentarlos entfernt.
+        //
+        // `data` bleibt für eingebettete Bilder frei - der Upload-Helfer erzeugt
+        // sie, und HTMLPurifier lässt darunter ohnehin nur jpeg, gif und png zu.
+        // `blob` stand hier ebenfalls, war aber wirkungslos: HTMLPurifier kennt
+        // für dieses Schema keine Klasse und verwirft solche Adressen bei der
+        // Prüfung. Die Freigabe war damit toter Konfigurationsbestand.
         $config->set('URI.DisableExternalResources', true);
         $config->set('URI.DisableResources', false);
         $config->set('URI.AllowedSchemes', [
             'http' => true,
             'https' => true,
             'data' => true,
-            'blob' => true,
             'mailto' => true,
         ]);
 

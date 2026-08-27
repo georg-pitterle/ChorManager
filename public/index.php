@@ -3,6 +3,7 @@
 use DI\ContainerBuilder;
 use Slim\Factory\AppFactory;
 use Dotenv\Dotenv;
+use App\Util\AppUrlResolver;
 use App\Util\SessionConfig;
 use App\Util\Timezone;
 
@@ -12,6 +13,12 @@ $envPath = __DIR__ . '/../.env';
 if (file_exists($envPath)) {
     Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 }
+
+// Fehlt im Produktivbetrieb die Basisadresse, bricht der Start ab: Jeder Link in
+// einer Mail stammte sonst aus dem frei waehlbaren Host-Kopf der Anfrage. Die
+// Pruefung steht bewusst hier, damit die Fehlkonfiguration sofort auffaellt und
+// nicht erst beim ersten Passwort-Zuruecksetzen.
+AppUrlResolver::assertConfiguredForProduction();
 
 date_default_timezone_set(Timezone::resolveAppTimezone());
 

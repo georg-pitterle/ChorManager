@@ -34,7 +34,14 @@ class MailQueueController
             'to_date' => $params['to_date'] ?? null,
         ];
 
-        $entries = $this->adminService->listEntries($filters);
+        $perPage = MailQueueAdminService::normalizePerPage($params['per_page'] ?? null);
+        $pageCount = $this->adminService->pageCount($filters + ['per_page' => $perPage]);
+        // Eine Seitenzahl jenseits des Bestands zeigte eine leere Liste ohne
+        // erkennbaren Grund - etwa nach dem Zurueckblaettern mit engerem Filter.
+        $page = min(MailQueueAdminService::normalizePage($params['page'] ?? null), $pageCount);
+
+        $pagedFilters = $filters + ['per_page' => $perPage, 'page' => $page];
+        $entries = $this->adminService->listEntries($pagedFilters);
         $stats = $this->adminService->getStats();
 
         return $this->view->render(
@@ -44,6 +51,10 @@ class MailQueueController
                 'entries' => $entries,
                 'filters' => $filters,
                 'stats' => $stats,
+                'total_entries' => $this->adminService->countEntries($filters),
+                'page' => $page,
+                'page_count' => $pageCount,
+                'per_page' => $perPage,
             ]
         );
     }
