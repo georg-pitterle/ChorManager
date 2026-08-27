@@ -132,7 +132,14 @@
              aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
-                    <form method="post" action="/newsletters/templates">
+                    {# modal-form-shell: Bootstrap verteilt Kopf, Körper und Fußleiste über
+                       .modal-content. Dieses Formular umschließt die drei und ist damit das
+                       einzige Flex-Kind - ohne die Hülle reicht es die Höhenbeschränkung nicht
+                       weiter, der Körper wächst auf volle Inhaltshöhe und schiebt die Knöpfe
+                       aus dem Bild. #}
+                    <form method="post"
+                          action="/newsletters/templates"
+                          class="modal-form-shell">
                         <div class="modal-header">
                             <h2 class="modal-title h5" id="createTemplateModalLabel">Neue Vorlage erstellen</h2>
                             <button type="button"

@@ -1575,3 +1575,26 @@ a:hover {
     background-color: var(--bs-body-bg);
     border-top: 1px solid var(--bs-border-color);
 }
+
+/* Formular als Flex-Huelle in einem Dialog.
+
+   Bootstrap verteilt Kopf, Koerper und Fussleiste ueber .modal-content
+   (display: flex, flex-direction: column) und laesst nur den Koerper scrollen.
+   Umschliesst ein <form> die drei, ist das Formular das einzige Flex-Kind: Die
+   Hoehenbeschraenkung endet dort, der Koerper waechst auf volle Inhaltshoehe und
+   schiebt die Fussleiste mitsamt den Knoepfen aus dem Bild - trotz
+   modal-dialog-scrollable scrollt dann nichts. Gemessen im Erstellen-Dialog fuer
+   Newsletter-Vorlagen: Koerper 1261 px in einem 711 px hohen Dialog, Fussleiste bei
+   y=1333 in einem 727 px hohen Fenster.
+
+   Die Huelle macht das Formular selbst zur Flex-Spalte und reicht die Beschraenkung
+   an den Koerper weiter. */
+.modal-form-shell {
+    display: flex;
+    flex-direction: column;
+    /* Erlaubt dem Flex-Kind, unter seine Inhaltshoehe zu schrumpfen. Ohne das bleibt
+       die Mindesthoehe die Inhaltshoehe und overflow im Koerper greift nie. */
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+}
