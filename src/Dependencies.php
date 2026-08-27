@@ -44,6 +44,7 @@ use App\Controllers\EvaluationController;
 use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
 use App\Controllers\PasswordResetController;
+use App\Controllers\MailBadgeController;
 use App\Controllers\RoleController;
 use App\Controllers\SongLibraryController;
 use App\Services\FinanceReportPdfService;
@@ -327,6 +328,7 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         MailBadgeViewService::class => \DI\autowire(),
+        MailBadgeController::class => \DI\autowire(),
         FlashMessageService::class => \DI\autowire(),
         MailBadgeRefreshMiddleware::class => function (ContainerInterface $c) {
             // Resolve MailBadgeService lazily so a missing/invalid

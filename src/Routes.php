@@ -19,6 +19,7 @@ use App\Controllers\RoleController;
 use App\Controllers\VoiceGroupController;
 use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
+use App\Controllers\MailBadgeController;
 use App\Controllers\ProfileController;
 use App\Controllers\WebmailController;
 use App\Controllers\AppSettingController;
@@ -127,6 +128,7 @@ return function (App $app) {
             $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
             $group->post('/profile/mailbox/delete', [ProfileController::class, 'deleteMailbox']);
+            $group->get(MailBadgeController::REFRESH_PATH, [MailBadgeController::class, 'show']);
             if ($settings['modules']['webmail'] ?? false) {
                 $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
             }

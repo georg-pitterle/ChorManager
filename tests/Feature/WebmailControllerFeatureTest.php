@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Controllers\MailBadgeController;
 use App\Controllers\WebmailController;
 use App\Models\User;
 use App\Models\UserMailAccount;
@@ -155,6 +156,35 @@ final class WebmailControllerFeatureTest extends TestCase
         $this->assertGreaterThanOrEqual($beforeTime, $payload['exp']);
         $this->assertLessThanOrEqual(time() + 60, $payload['exp']);
         $this->assertNotEmpty($payload['jti']);
+    }
+
+    public function testStartArmsTheMailBadgeRefreshSignal(): void
+    {
+        UserMailAccount::create([
+            'user_id' => $this->user->id,
+            'imap_host' => 'imap.example.org',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'webmail.tester@example.org',
+            'imap_password_enc' => $this->crypto->encrypt('S3cr3t-Imap-Pass'),
+            'imap_enabled' => true,
+        ]);
+
+        $request = $this->makeRequest('POST', '/profile/webmail/start');
+        $this->controller->start($request, $this->makeResponse());
+
+        // Das Postfach öffnet sich in einem eigenen Tab; dieser Tab fragt von sich aus
+        // nichts mehr nach. Ohne diesen Vermerk sperrte die Wartezeit von fünf Minuten
+        // den nächsten IMAP-Abgleich, und der Zähler zeigte weiter die gelesenen Mails.
+        $this->assertTrue($_SESSION[MailBadgeController::FORCE_SESSION_KEY] ?? false);
+    }
+
+    public function testFailedStartDoesNotArmTheMailBadgeRefreshSignal(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/webmail/start');
+        $this->controller->start($request, $this->makeResponse());
+
+        $this->assertArrayNotHasKey(MailBadgeController::FORCE_SESSION_KEY, $_SESSION);
     }
 
     public function testStartWithoutSmtpConfigurationOmitsSmtpHostFromToken(): void

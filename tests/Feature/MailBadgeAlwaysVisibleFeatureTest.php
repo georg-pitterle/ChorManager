@@ -120,11 +120,19 @@ final class MailBadgeAlwaysVisibleFeatureTest extends TestCase
         $this->assertStringContainsString('bi-envelope-fill', $html);
     }
 
+    /**
+     * Die Pille steckt bei 0 zwar im Markup, ist aber unsichtbar (`d-none`).
+     *
+     * Sie bleibt im DOM, damit die Fokus-Abfrage des Frontends den Zähler nur ein-
+     * und ausblenden muss, statt das Markup samt Klassenliste in JavaScript
+     * nachzubauen - so gibt es die Gestaltung der Pille weiterhin nur an einer Stelle.
+     */
     public function testCountPillIsHiddenWithoutUnreadMessages(): void
     {
         $html = $this->renderUserMenuFor(0);
 
-        $this->assertStringNotContainsString('mail-badge-count', $html);
+        $this->assertStringContainsString('mail-badge-count', $html);
+        $this->assertMatchesRegularExpression('/class="[^"]*mail-badge-count[^"]*\bd-none\b/', $html);
     }
 
     public function testCountPillAppearsWithUnreadMessages(): void
@@ -134,6 +142,10 @@ final class MailBadgeAlwaysVisibleFeatureTest extends TestCase
         $this->assertStringContainsString('mail-badge-trigger', $html);
         $this->assertStringContainsString('mail-badge-count', $html);
         $this->assertStringContainsString('>3</span>', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/class="[^"]*mail-badge-count[^"]*\bd-none\b/',
+            $html
+        );
     }
 
     public function testNoMailElementWithoutAConfiguredMailbox(): void

@@ -76,6 +76,12 @@ class WebmailController
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
         $redirectUrl = $baseUrl . '/webmail/?chormanager-sso&token=' . rawurlencode($token);
 
+        // Das Postfach öffnet sich in einem eigenen Tab; der ChorManager-Tab daneben
+        // stellt von sich aus keine Anfrage mehr. Ohne diesen Vermerk sperrte die
+        // reguläre Wartezeit den nächsten IMAP-Abgleich, und das Badge zeigte nach dem
+        // Lesen weiterhin die alte Zahl ungelesener Nachrichten.
+        $_SESSION[MailBadgeController::FORCE_SESSION_KEY] = true;
+
         $this->logger->info(
             'Webmail SSO redirect issued.',
             [

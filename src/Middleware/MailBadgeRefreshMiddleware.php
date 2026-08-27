@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Controllers\MailBadgeController;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeService;
 use Carbon\Carbon;
@@ -17,6 +18,18 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 class MailBadgeRefreshMiddleware implements MiddlewareInterface
 {
     private const STALENESS_MINUTES = 5;
+
+    /**
+     * Untergrenze für erzwungene Abgleiche.
+     *
+     * Ein erzwungener Abgleich überspringt die reguläre Wartezeit, aber nicht jede
+     * Bremse: Die Fokus-Abfrage des Frontends feuert bei jedem Wechsel zurück in den
+     * Tab, und ohne Untergrenze entstünde beim schnellen Hin- und Herschalten für
+     * jeden einzelnen Wechsel eine eigene IMAP-Verbindung. Deutlich kürzer als die
+     * reguläre Wartezeit, weil hier ein konkreter Anlass vorliegt - jemand hat gerade
+     * sein Postfach angesehen.
+     */
+    private const FORCED_STALENESS_SECONDS = 15;
 
     /**
      * The badge service is resolved through a factory (rather than injected
@@ -35,33 +48,43 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $this->refreshIfDue();
+        $this->refreshIfDue($request);
 
         return $handler->handle($request);
     }
 
-    private function refreshIfDue(): void
+    private function refreshIfDue(Request $request): void
     {
         try {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
 
+            $forced = $this->isForced($request);
+
             if (!isset($_SESSION['user_id'])) {
+                $this->clearForceSignal();
                 return;
             }
 
             $account = UserMailAccount::where('user_id', (int) $_SESSION['user_id'])->first();
             if ($account === null || !$account->imap_enabled || !$account->mail_badge_enabled) {
+                // Es gibt nichts abzugleichen. Der Vermerk muss trotzdem weg, sonst
+                // liegt er den Rest der Sitzung nutzlos herum.
+                $this->clearForceSignal();
                 return;
             }
 
-            if ($account->mail_last_checked_at !== null) {
-                $lastChecked = Carbon::parse($account->mail_last_checked_at);
-                if ($lastChecked->addMinutes(self::STALENESS_MINUTES)->isFuture()) {
-                    return;
-                }
+            if (!$this->isDue($account, $forced)) {
+                // Der Vermerk bleibt hier bewusst stehen: Gebremst hat nur die
+                // Untergrenze. Räumte man ihn schon jetzt ab, könnte ihn eine beliebige
+                // Zwischenanfrage - ein Symbol, der Service Worker - wirkungslos
+                // aufbrauchen, und der Zähler bliebe bis zum Ablauf der regulären
+                // Wartezeit auf dem Stand von vor dem Lesen stehen.
+                return;
             }
+
+            $this->clearForceSignal();
 
             $this->refreshWithBackOff($account);
         } catch (\Throwable $exception) {
@@ -73,6 +96,51 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
                 ]
             );
         }
+    }
+
+    /**
+     * Ist die Wartezeit seit dem letzten Abgleich abgelaufen?
+     *
+     * Ein Konto, das noch nie abgeglichen wurde, ist immer fällig.
+     */
+    private function isDue(UserMailAccount $account, bool $forced): bool
+    {
+        if ($account->mail_last_checked_at === null) {
+            return true;
+        }
+
+        $lastChecked = Carbon::parse($account->mail_last_checked_at);
+
+        $nextDueAt = $forced
+            ? $lastChecked->copy()->addSeconds(self::FORCED_STALENESS_SECONDS)
+            : $lastChecked->copy()->addMinutes(self::STALENESS_MINUTES);
+
+        return !$nextDueAt->isFuture();
+    }
+
+    /**
+     * Verlangt dieser Request einen Abgleich ohne Rücksicht auf die reguläre Wartezeit?
+     *
+     * Zwei Anlässe zählen: der Einmalvermerk aus der Session, den der Start des
+     * Webmails setzt, und der Aufruf des Badge-Endpunkts selbst - den fragt das
+     * Frontend beim Zurückwechseln in den Tab ab, und zwar genau deshalb, weil der
+     * angezeigte Zähler dann überholt sein könnte.
+     *
+     * Liest nur; abgeräumt wird der Vermerk erst, wenn ein Abgleich tatsächlich
+     * stattfindet oder feststeht, dass es nichts abzugleichen gibt.
+     */
+    private function isForced(Request $request): bool
+    {
+        if (!empty($_SESSION[MailBadgeController::FORCE_SESSION_KEY])) {
+            return true;
+        }
+
+        return $request->getUri()->getPath() === MailBadgeController::REFRESH_PATH;
+    }
+
+    private function clearForceSignal(): void
+    {
+        unset($_SESSION[MailBadgeController::FORCE_SESSION_KEY]);
     }
 
     /**
