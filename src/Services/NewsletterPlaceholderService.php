@@ -199,8 +199,17 @@ class NewsletterPlaceholderService
                         return '';
                     }
 
-                    return '<a href="' . $context->baseUrl . '/newsletters/' . $context->newsletterId
-                        . '/preview">Im Browser ansehen</a>';
+                    // Dieser Platzhalter liefert fertiges Markup und läuft deshalb am
+                    // Escaping in renderHtml() vorbei. Die Basisadresse stammt ohne
+                    // gesetztes APP_URL aus dem Host-Kopf der Anfrage; ein
+                    // Anführungszeichen darin bräche sonst aus dem href-Attribut aus.
+                    $url = htmlspecialchars(
+                        $context->baseUrl . '/newsletters/' . $context->newsletterId . '/preview',
+                        ENT_QUOTES,
+                        'UTF-8'
+                    );
+
+                    return '<a href="' . $url . '">Im Browser ansehen</a>';
                 },
                 isRawHtml: true
             ),

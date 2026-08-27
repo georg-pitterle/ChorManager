@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Exceptions\NewsletterWithoutRecipientsException;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
-use App\Models\NewsletterRecipient;
 use App\Models\User;
 use App\Services\HtmlSanitizer;
 use Carbon\Carbon;
@@ -159,10 +158,10 @@ class NewsletterService
                     recipientId: (int) $recipient->id
                 );
 
-                // Mark as queued initially
-                NewsletterRecipient::where('newsletter_id', $newsletter->id)
-                    ->where('user_id', $recipient->user->id)
-                    ->update(['status' => 'queued']);
+                // Mark as queued initially. Die Zeile liegt bereits vor - sie erneut
+                // über Newsletter und Mitglied zu suchen kostet je Empfänger eine
+                // zusätzliche Abfrage und trifft dieselbe Zeile.
+                $recipient->update(['status' => 'queued']);
 
                 // Record a per-recipient archive entry so the newsletter shows up
                 // in the recipient's personal archive and can be previewed in-app,
@@ -190,9 +189,7 @@ class NewsletterService
                         'exception' => $e,
                     ]
                 );
-                NewsletterRecipient::where('newsletter_id', $newsletter->id)
-                    ->where('user_id', $recipient->user->id)
-                    ->update(['status' => 'failed']);
+                $recipient->update(['status' => 'failed']);
             }
         }
 

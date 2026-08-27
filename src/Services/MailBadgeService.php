@@ -163,7 +163,7 @@ class MailBadgeService
             }
 
             // Best-effort: refresh already succeeded regardless of LOGOUT outcome.
-            $loggedOut = $this->sendCommand($socket, "A3 LOGOUT\r\n");
+            $this->sendCommand($socket, "A3 LOGOUT\r\n");
 
             $uidnext = $statusResult['uidnext'];
             $highestUid = $uidnext > 0 ? $uidnext - 1 : 0;

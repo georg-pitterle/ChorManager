@@ -155,9 +155,13 @@ class EventAudienceService
      */
     public function visibleEventsQuery(int $userId): Builder
     {
-        $projectIds = $this->userReferenceIds($userId, 'projects', 'project_id');
-        $roleIds = $this->userReferenceIds($userId, 'roles', 'role_id');
-        $voiceGroupIds = $this->userReferenceIds($userId, 'voiceGroups', 'voice_group_id');
+        // Das Mitglied einmal laden, nicht je Zugehörigkeit erneut: Die drei
+        // Abfragen unten hängen alle am selben Datensatz.
+        $user = User::find($userId);
+
+        $projectIds = $this->userReferenceIds($user, 'projects', 'project_id');
+        $roleIds = $this->userReferenceIds($user, 'roles', 'role_id');
+        $voiceGroupIds = $this->userReferenceIds($user, 'voiceGroups', 'voice_group_id');
 
         return Event::query()->where(function ($query) use ($projectIds, $roleIds, $voiceGroupIds, $userId) {
             $query->whereDoesntHave('audienceSources')
@@ -245,10 +249,9 @@ class EventAudienceService
     /**
      * @return array<int, int>
      */
-    private function userReferenceIds(int $userId, string $relation, string $pivotColumn): array
+    private function userReferenceIds(?User $user, string $relation, string $pivotColumn): array
     {
-        $user = User::find($userId);
-        if (!$user) {
+        if ($user === null) {
             return [];
         }
 

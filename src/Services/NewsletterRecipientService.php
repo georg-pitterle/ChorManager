@@ -159,16 +159,22 @@ class NewsletterRecipientService
      */
     public function setRecipients(Newsletter $newsletter, array $userIds): void
     {
+        // Je Mitglied entsteht genau eine Zeile. `recipient_count` zählte davor die
+        // rohe Eingabe und stand damit bei einer doppelten Kennung höher als die
+        // Zahl der Empfängerzeilen - in der Oberfläche liest sich das wie Post, die
+        // unterwegs verloren ging.
+        $uniqueUserIds = array_values(array_unique($userIds));
+
         $newsletter->recipients()->delete();
 
-        foreach (array_values(array_unique($userIds)) as $userId) {
+        foreach ($uniqueUserIds as $userId) {
             $newsletter->recipients()->create([
                 'user_id' => $userId,
                 'status' => 'pending',
             ]);
         }
 
-        $newsletter->recipient_count = count($userIds);
+        $newsletter->recipient_count = count($uniqueUserIds);
         $newsletter->save();
     }
 

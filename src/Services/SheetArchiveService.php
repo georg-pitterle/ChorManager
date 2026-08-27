@@ -48,19 +48,22 @@ class SheetArchiveService
         // Merge duplicate categories and filter empty entries
         $mergedItems = $this->mergeAndFilterLineItems($lineItems);
 
-        // Delete all existing line items and recreate
-        $archive->lineItems()->delete();
+        // Löschen und Neuanlegen gehören zusammen: Scheitert eine Position beim
+        // Schreiben, stand das Archiv sonst ohne jede Position da - der alte Stand
+        // war bereits gelöscht, der neue nie vollständig geschrieben.
+        Capsule::connection()->transaction(function () use ($archive, $mergedItems): void {
+            $archive->lineItems()->delete();
 
-        // Create new line items
-        $sortOrder = 0;
-        foreach ($mergedItems as $item) {
-            SheetArchiveLineItem::create([
-                'sheet_archive_id' => $archive->id,
-                'voice_category' => trim($item['voice_category']),
-                'count' => (int) $item['count'],
-                'sort_order' => $sortOrder++,
-            ]);
-        }
+            $sortOrder = 0;
+            foreach ($mergedItems as $item) {
+                SheetArchiveLineItem::create([
+                    'sheet_archive_id' => $archive->id,
+                    'voice_category' => trim($item['voice_category']),
+                    'count' => (int) $item['count'],
+                    'sort_order' => $sortOrder++,
+                ]);
+            }
+        });
 
         return $archive->fresh();
     }

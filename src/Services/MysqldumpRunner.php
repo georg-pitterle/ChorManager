@@ -55,12 +55,27 @@ final class MysqldumpRunner implements DumpRunnerInterface
             throw new \RuntimeException('Failed to open backup destination file: ' . $destinationPath);
         }
 
+        // Ein abgebrochener Schreibvorgang - typischerweise ein voller Datenträger -
+        // darf nicht als fertiges Backup durchgehen. Die Prüfsumme entsteht erst
+        // danach und wiese die abgeschnittene Datei als unversehrt aus; beim
+        // Einspielen käme nur ein Teil der Datenbank zurück, ohne dass irgendwo
+        // ein Fehler stünde. Deshalb wird jeder Schreibvorgang geprüft.
+        $writeError = null;
         while (!feof($pipes[1])) {
             $chunk = fread($pipes[1], 8192);
             if ($chunk === false || $chunk === '') {
                 continue;
             }
-            $gzip ? gzwrite($out, $chunk) : fwrite($out, $chunk);
+
+            // Unterdrückt, weil der Rückgabewert selbst geprüft wird: Die
+            // Begründung von PHP wandert unten in die Ausnahme, statt als lose
+            // Meldung im Fehlerprotokoll zu landen.
+            $written = $gzip ? @gzwrite($out, $chunk) : @fwrite($out, $chunk);
+            if ($written === false || $written < strlen($chunk)) {
+                $writeError = 'Failed to write the full dump to ' . $destinationPath
+                    . ': ' . self::lastErrorMessage();
+                break;
+            }
         }
 
         fclose($pipes[1]);
@@ -70,10 +85,17 @@ final class MysqldumpRunner implements DumpRunnerInterface
         $errorOutput = (string) file_get_contents($stderrTmpPath);
         unlink($stderrTmpPath);
 
-        if ($exitCode !== 0) {
-            if (file_exists($destinationPath)) {
+        if ($exitCode !== 0 || $writeError !== null) {
+            // Nur eine reguläre Datei wegräumen: Zeigt das Ziel auf ein Gerät,
+            // gehört es nicht dieser Klasse und darf nicht gelöscht werden.
+            if (is_file($destinationPath)) {
                 unlink($destinationPath);
             }
+
+            if ($writeError !== null) {
+                throw new \RuntimeException($writeError);
+            }
+
             throw new \RuntimeException('mysqldump failed with exit code ' . $exitCode . ': ' . $errorOutput);
         }
     }
@@ -115,12 +137,21 @@ final class MysqldumpRunner implements DumpRunnerInterface
             throw new \RuntimeException('Failed to open backup source file: ' . $sourcePath);
         }
 
+        // Wie beim Dump: Bleibt ein Teil der Anweisungen im Rohr stecken, spielt der
+        // Lauf nur einen Ausschnitt ein. `mysql` kann dabei durchaus mit 0 enden.
+        $writeError = null;
         while (!($gzip ? gzeof($in) : feof($in))) {
             $chunk = $gzip ? gzread($in, 8192) : fread($in, 8192);
             if ($chunk === false || $chunk === '') {
                 continue;
             }
-            fwrite($pipes[0], $chunk);
+
+            $written = @fwrite($pipes[0], $chunk);
+            if ($written === false || $written < strlen($chunk)) {
+                $writeError = 'Failed to stream the full backup into mysql, the restore is incomplete: '
+                    . self::lastErrorMessage();
+                break;
+            }
         }
 
         $gzip ? gzclose($in) : fclose($in);
@@ -130,8 +161,24 @@ final class MysqldumpRunner implements DumpRunnerInterface
         $errorOutput = (string) file_get_contents($stderrTmpPath);
         unlink($stderrTmpPath);
 
+        if ($writeError !== null) {
+            throw new \RuntimeException($writeError);
+        }
+
         if ($exitCode !== 0) {
             throw new \RuntimeException('mysql restore failed with exit code ' . $exitCode . ': ' . $errorOutput);
         }
+    }
+
+    /**
+     * Begründung des zuletzt unterdrückten Schreibfehlers, etwa
+     * "No space left on device". Ohne sie stünde in der Ausnahme nur, dass
+     * geschrieben werden sollte - nicht, woran es lag.
+     */
+    private static function lastErrorMessage(): string
+    {
+        $message = trim((string) (error_get_last()['message'] ?? ''));
+
+        return $message === '' ? 'destination out of space or not writable' : $message;
     }
 }

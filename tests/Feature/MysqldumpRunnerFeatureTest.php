@@ -81,6 +81,27 @@ final class MysqldumpRunnerFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Ein abgebrochener Schreibvorgang - etwa weil der Datenträger voll ist - darf
+     * nicht als fertiges Backup durchgehen. Die Prüfsumme entsteht erst danach und
+     * würde die abgeschnittene Datei als unversehrt ausweisen; beim Einspielen käme
+     * nur ein Teil der Datenbank zurück, ohne dass irgendwo ein Fehler stünde.
+     *
+     * `/dev/full` verhält sich wie ein voller Datenträger: Schreiben schlägt mit
+     * ENOSPC fehl, Öffnen gelingt.
+     */
+    public function testDumpFailsWhenTheDestinationCannotTakeTheData(): void
+    {
+        if (!is_writable('/dev/full')) {
+            $this->markTestSkipped('/dev/full steht in dieser Umgebung nicht zur Verfügung.');
+        }
+
+        $runner = $this->makeRunner();
+
+        $this->expectException(\RuntimeException::class);
+        $runner->dump('/dev/full', false);
+    }
+
     public function testDumpAndRestoreRoundTripsProbeTable(): void
     {
         $runner = $this->makeRunner();
