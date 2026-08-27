@@ -174,9 +174,15 @@ class NewsletterTemplateController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        // Dieselben Auswahllisten wie in edit(): Der Erstellen-Dialog bietet die
+        // Newsletter-Einstellungen samt Empfängerquellen an, sonst müsste eine neue
+        // Vorlage erst gespeichert und danach ein zweites Mal geöffnet werden.
         return $this->view->render($response, 'newsletters/templates_index.twig', [
             'projects' => Project::query()->orderBy('name')->get(),
             'templates' => NewsletterTemplate::query()->orderBy('name')->get(),
+            'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
+            'roles' => Role::query()->orderBy('name')->get(),
+            'users' => $this->activeUsersInNameOrder(),
             'success' => $success,
             'error' => $error,
         ]);

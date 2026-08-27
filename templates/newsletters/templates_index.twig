@@ -140,35 +140,111 @@
                                     data-bs-dismiss="modal"
                                     aria-label="Close"></button>
                         </div>
+                        {# Eigene id-Vorsilbe: Der Bearbeiten-Dialog wird in
+                           #newsletterActionContent derselben Seite nachgeladen und bringt
+                           seine eigenen Felder mit. Ohne Vorsilbe stünde jede id zweimal im
+                           Dokument - Beschriftungen zeigten aufs falsche Feld und TinyMCE
+                           wie TomSelect griffen sich jeweils das erstbeste Element. #}
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-8">
-                                    <label class="form-label" for="name">Name</label>
-                                    <input class="form-control" id="name" name="name" required>
+                                    <label class="form-label" for="create-template-name">Name</label>
+                                    <input class="form-control" id="create-template-name" name="name" required>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label" for="project_id">Kontext</label>
-                                    <select class="form-select" id="project_id" name="project_id">
+                                    <label class="form-label" for="create-template-project_id">Kontext</label>
+                                    <select class="form-select" id="create-template-project_id" name="project_id">
                                         <option value="">Global</option>
                                         {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label" for="default_title">Titelvorschlag (optional)</label>
+                                    <label class="form-label" for="create-template-default_title">Titelvorschlag (optional)</label>
                                     <input class="form-control"
-                                           id="default_title"
+                                           id="create-template-default_title"
                                            name="default_title"
                                            maxlength="255"
                                            placeholder="Titel, den der Newsletter aus dieser Vorlage erhält">
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label" for="description">Beschreibung</label>
-                                    <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+                                    <label class="form-label" for="create-template-description">Beschreibung</label>
+                                    <textarea class="form-control"
+                                              id="create-template-description"
+                                              name="description"
+                                              rows="2"></textarea>
                                 </div>
+
                                 <div class="col-12">
-                                    <label class="form-label" for="content_html">Inhalt</label>
+                                    <section aria-labelledby="create-template-sources-title">
+                                        <h3 class="h6" id="create-template-sources-title">Empfängerquellen</h3>
+                                        <p class="text-muted small">
+                                            Diese Angaben werden übernommen, sobald die Vorlage in einen Newsletter geladen wird.
+                                        </p>
+
+                                        <div class="mb-3">
+                                            <label class="form-label" for="create-template-source-project_members">Projektmitglieder</label>
+                                            <select id="create-template-source-project_members"
+                                                    class="form-select"
+                                                    name="source_project_members[]"
+                                                    data-tom-select
+                                                    data-placeholder="Projekte auswählen …"
+                                                    multiple>
+                                                {% for project in projects %}
+                                                    <option value="{{ project.id }}">{{ project.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label" for="create-template-source-event_attendees">Veranstaltungsteilnehmer</label>
+                                            <select id="create-template-source-event_attendees"
+                                                    class="form-select"
+                                                    name="source_event_attendees[]"
+                                                    data-tom-select
+                                                    data-placeholder="Veranstaltungen auswählen …"
+                                                    multiple>
+                                                {% for event in events %}
+                                                    <option value="{{ event.id }}">
+                                                        {{ event.title }} ({{ event.starts_at|date("d.m.Y") }})
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label" for="create-template-source-role">Rollen</label>
+                                            <select id="create-template-source-role"
+                                                    class="form-select"
+                                                    name="source_role[]"
+                                                    data-tom-select
+                                                    data-placeholder="Rollen auswählen …"
+                                                    multiple>
+                                                {% for role in roles %}
+                                                    <option value="{{ role.id }}">{{ role.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-0">
+                                            <label class="form-label" for="create-template-source-user">Einzelne Mitglieder</label>
+                                            <select id="create-template-source-user"
+                                                    class="form-select"
+                                                    name="source_user[]"
+                                                    data-tom-select
+                                                    data-placeholder="Mitglieder auswählen …"
+                                                    multiple>
+                                                {% for member in users %}
+                                                    <option value="{{ member.id }}">{{ member|person_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label" for="create-template-content_html">Inhalt</label>
                                     <textarea class="form-control tinymce-editor"
-                                              id="content_html"
+                                              id="create-template-content_html"
                                               name="content_html"
                                               data-placeholder-source="/newsletters/placeholders"
                                               required></textarea>
@@ -209,6 +285,14 @@
     </div>
 {% endblock content %}
 
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
 {% block scripts %}
     <script src="/js/newsletters.js"></script>
+    {# Für die Empfängerquellen im Erstellen-Dialog. tom-select-init.js hängt sich an
+       shown.bs.modal, die Felder werden also beim Öffnen des Dialogs aufgebaut. #}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="{{ asset_path('/js/tom-select-init.js') }}"></script>
 {% endblock scripts %}

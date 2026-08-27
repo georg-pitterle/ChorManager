@@ -205,7 +205,11 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
         libxml_clear_errors();
 
         $xpath = new DOMXPath($document);
-        $textarea = $xpath->query('//textarea[@id="content_html"]')->item(0);
+        // Über den Feldnamen statt über die id: Der Anlege-Dialog in templates_index.twig
+        // trägt eine eigene id-Vorsilbe, weil der Bearbeiten-Dialog in dieselbe Seite
+        // nachgeladen wird und beide sonst dieselbe id im Dokument hätten. Der Feldname
+        // ist die eigentliche Identität des Inhaltsfelds und in allen drei Formularen gleich.
+        $textarea = $xpath->query('//textarea[@name="content_html"]')->item(0);
 
         if ($textarea === null || !$textarea->hasAttribute('data-placeholder-source')) {
             return null;
