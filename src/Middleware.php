@@ -15,6 +15,7 @@ use App\Middleware\MailQueueProcessingMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Middleware\RequestContextMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Views\Twig;
 
@@ -36,8 +37,16 @@ return function (App $app): void {
 
     $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
     $defaultErrorHandler = $errorMiddleware->getDefaultErrorHandler();
+
+    // ModelNotFoundException zaehlt hier wie eine unbekannte Route.
+    //
+    // findOrFail() wirft sie, wenn ein Datensatz nicht (mehr) existiert - ein
+    // veraltetes Lesezeichen auf /tasks/26 oder ein Link auf einen inzwischen
+    // geloeschten Eintrag reicht. Ohne eigene Behandlung landete das als
+    // "Slim Application Error" mit vollem Stapelverlauf im Fehlerprotokoll und die
+    // aufrufende Person sah eine 500-Seite, obwohl schlicht nichts zu finden war.
     $errorMiddleware->setErrorHandler(
-        HttpNotFoundException::class,
+        [HttpNotFoundException::class, ModelNotFoundException::class],
         function (
             Request $request,
             \Throwable $exception,
