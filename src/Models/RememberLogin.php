@@ -22,6 +22,17 @@ class RememberLogin extends Model
         'ip_address'
     ];
 
+    /**
+     * Der Hash ist das Geheimnis der Anmeldung "Angemeldet bleiben" und hat in
+     * Logs, Fehlerausgaben oder JSON-Antworten nichts verloren. Der `selector`
+     * bleibt sichtbar - er ist reiner Nachschlagewert.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'token_hash',
+    ];
+
     protected $casts = [
         'expires_at' => 'datetime',
         'created_at' => 'datetime',

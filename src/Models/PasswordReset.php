@@ -20,6 +20,17 @@ class PasswordReset extends Model
         'created_at'
     ];
 
+    /**
+     * Der Token ist der Zurücksetzen-Link selbst und darf nicht mitserialisiert
+     * werden. Der Abgleich in PasswordResetController liest die Eigenschaft
+     * direkt und bleibt davon unberührt.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'token',
+    ];
+
     protected $casts = [
         'created_at' => 'datetime',
     ];

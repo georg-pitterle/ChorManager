@@ -42,11 +42,11 @@ class Project extends Model
             });
     }
 
-    public function songs()
-    {
-        return $this->hasMany(Song::class, 'project_id', 'id');
-    }
-
+    /**
+     * Lieder des Projekts. Die Zuordnung laeuft ausschliesslich ueber
+     * project_song_assignments; `songs.project_id` gibt es seit
+     * 20260421120000_drop_songs_project_id nicht mehr.
+     */
     public function assignedSongs()
     {
         return $this->belongsToMany(

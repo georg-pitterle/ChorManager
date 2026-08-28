@@ -36,6 +36,18 @@ class User extends Model
         'is_active'
     ];
 
+    /**
+     * Zweite Absicherung neben LIST_COLUMNS: Wo ein Nutzer doch einmal mit allen
+     * Spalten geladen und danach serialisiert wird, bleibt der Passwort-Hash aus
+     * der Ausgabe. Auf `$user->password` wirkt sich das nicht aus - der
+     * Login-Abgleich liest die Eigenschaft direkt.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+    ];
+
     public function getPasswordAttribute()
     {
         return $this->attributes['password'] ?? null;

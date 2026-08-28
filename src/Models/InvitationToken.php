@@ -20,6 +20,16 @@ class InvitationToken extends Model
         'created_at',
     ];
 
+    /**
+     * Der Hash ist das Geheimnis der Einladung; er darf nicht mitserialisiert
+     * werden. Der `selector` bleibt sichtbar - er ist reiner Nachschlagewert.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'token_hash',
+    ];
+
     protected $casts = [
         'expires_at' => 'datetime',
         'created_at' => 'datetime',

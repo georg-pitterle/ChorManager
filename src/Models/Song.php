@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\SheetArchive;
 
 class Song extends Model
 {
@@ -13,18 +12,12 @@ class Song extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'project_id',
         'title',
         'composer',
         'arranger',
         'publisher',
         'created_by_user_id',
     ];
-
-    public function project()
-    {
-        return $this->belongsTo(Project::class, 'project_id', 'id');
-    }
 
     public function attachments()
     {
@@ -41,6 +34,11 @@ class Song extends Model
         );
     }
 
+    /**
+     * Einziger Weg vom Lied zum Projekt. Eine direkte belongsTo-Relation gibt es
+     * nicht mehr: `songs.project_id` ist mit
+     * 20260421120000_drop_songs_project_id entfallen.
+     */
     public function projectAssignments()
     {
         return $this->hasMany(ProjectSongAssignment::class, 'song_id', 'id');
