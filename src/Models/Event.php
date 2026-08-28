@@ -104,10 +104,10 @@ class Event extends Model
      * predicate.
      *
      * Geladen werden nur User::LIST_COLUMNS. Die Aufrufer reichen die Modelle
-     * unveraendert an Templates und Mail-Erzeugung weiter; der Passwort-Hash hat
+     * unverändert an Templates und Mail-Erzeugung weiter; der Passwort-Hash hat
      * dort nichts verloren. Wer eine weitere Spalte braucht, nimmt sie in
      * LIST_COLUMNS auf - nicht in einen eigenen select() an der Aufrufstelle,
-     * sonst faellt die Grenze wieder auseinander.
+     * sonst fällt die Grenze wieder auseinander.
      */
     public function eligibleUsersQuery(): Builder
     {

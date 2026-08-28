@@ -37,10 +37,10 @@ class Role extends Model
     ];
 
     /**
-     * Die Rechte sind tinyint(1) und kamen ohne Cast als 1/0 zurueck. Ein
-     * `$role->can_manage_users === true` waere damit still falsch gewesen,
-     * obwohl das Recht gesetzt ist. Templates pruefen die Rechte auf
-     * Wahrheitswert oder ueber `? '1' : '0'` - beides bleibt unveraendert.
+     * Die Rechte sind tinyint(1) und kamen ohne Cast als 1/0 zurück. Ein
+     * `$role->can_manage_users === true` wäre damit still falsch gewesen,
+     * obwohl das Recht gesetzt ist. Templates prüfen die Rechte auf
+     * Wahrheitswert oder über `? '1' : '0'` - beides bleibt unverändert.
      *
      * @var array<string, string>
      */

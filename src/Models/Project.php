@@ -43,7 +43,7 @@ class Project extends Model
     }
 
     /**
-     * Lieder des Projekts. Die Zuordnung laeuft ausschliesslich ueber
+     * Lieder des Projekts. Die Zuordnung läuft ausschließlich über
      * project_song_assignments; `songs.project_id` gibt es seit
      * 20260421120000_drop_songs_project_id nicht mehr.
      */

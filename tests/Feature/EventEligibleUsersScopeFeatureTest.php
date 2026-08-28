@@ -176,9 +176,9 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
     }
 
     /**
-     * Die Aufrufer reichen die Mitglieder unveraendert an Templates und
+     * Die Aufrufer reichen die Mitglieder unverändert an Templates und
      * Mail-Erzeugung weiter. Geladen werden deshalb nur die Listenspalten - der
-     * Passwort-Hash bleibt draussen.
+     * Passwort-Hash bleibt draußen.
      */
     public function testOnlyTheListColumnsAreLoaded(): void
     {

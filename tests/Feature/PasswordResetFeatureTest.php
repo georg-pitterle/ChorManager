@@ -74,8 +74,8 @@ class PasswordResetFeatureTest extends TestCase
     }
 
     /**
-     * Frueher stand `email` als Primaerschluessel im Modell, obwohl die Tabelle
-     * `id` als Auto-Increment fuehrt. Nach create() blieb die id deshalb leer.
+     * Früher stand `email` als Primärschlüssel im Modell, obwohl die Tabelle
+     * `id` als Auto-Increment führt. Nach create() blieb die id deshalb leer.
      */
     public function testCreateFillsTheAutoIncrementKey(): void
     {

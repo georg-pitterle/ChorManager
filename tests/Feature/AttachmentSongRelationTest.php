@@ -52,9 +52,9 @@ final class AttachmentSongRelationTest extends TestCase
     }
 
     /**
-     * Haelt die Grenze der Relation fest: Eloquent baut die Eager-Bedingung aus
+     * Hält die Grenze der Relation fest: Eloquent baut die Eager-Bedingung aus
      * einer leeren Modellinstanz, deren entity_type null ist - die Relation
-     * bleibt dadurch fuer jede Zeile leer. Wer viele Anhaenge mit ihrem Lied
+     * bleibt dadurch für jede Zeile leer. Wer viele Anhänge mit ihrem Lied
      * braucht, filtert vorher auf entity_type und holt die Lieder separat.
      */
     public function testEagerLoadingIsNotSupported(): void
@@ -65,7 +65,7 @@ final class AttachmentSongRelationTest extends TestCase
         $loaded = Attachment::with('song')->find($created->id);
 
         $this->assertNotNull($loaded);
-        $this->assertNull($loaded->song, 'Eager Loading traegt hier nicht - der Einzelzugriff schon.');
+        $this->assertNull($loaded->song, 'Eager Loading trägt hier nicht - der Einzelzugriff schon.');
         $this->assertSame((int) $song->id, (int) $created->song?->id);
     }
 

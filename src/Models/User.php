@@ -49,8 +49,8 @@ class User extends Model
     ];
 
     /**
-     * `is_active` ist tinyint(1) und kam ohne Cast als 1/0 zurueck. Templates
-     * pruefen die Spalte auf Wahrheitswert, das bleibt unveraendert; neuer Code
+     * `is_active` ist tinyint(1) und kam ohne Cast als 1/0 zurück. Templates
+     * prüfen die Spalte auf Wahrheitswert, das bleibt unverändert; neuer Code
      * mit `=== true` liest jetzt aber das, was dasteht.
      *
      * @var array<string, string>
