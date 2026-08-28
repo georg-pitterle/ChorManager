@@ -2,6 +2,12 @@
   "enabledPlugins": {
     "php-lsp@claude-plugins-official": true
   },
+  "permissions": {
+    "allow": [
+      "Write(.claude/rotating-review-state.json)",
+      "Edit(.claude/rotating-review-state.json)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
