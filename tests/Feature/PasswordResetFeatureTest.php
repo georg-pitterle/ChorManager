@@ -101,7 +101,9 @@ class PasswordResetFeatureTest extends TestCase
         $result = $controller->sendResetLink($request, $response);
 
         $this->assertRedirect($result, '/forgot-password');
-        $this->assertSame('Bitte gib eine gueltige E-Mail-Adresse ein.', str_replace('ü', 'ue', (string) $_SESSION['error']));
+        // Der Vergleich läuft bewusst gegen den transliterierten Text.
+        $actual = str_replace('ü', 'ue', (string) $_SESSION['error']);
+        $this->assertSame('Bitte gib eine gueltige E-Mail-Adresse ein.', $actual); // naming:ascii
     }
 
     public function testShowResetFormRejectsMissingTokenOrEmail(): void

@@ -29,6 +29,14 @@ keine Transliterationen (`pruefung`, `groesse`) in Bezeichnern.
 Deutscher Text nutzt immer echte Umlaute `ä ö ü ß`, nie `ae/oe/ue/ss`. Ausnahme: E-Mail-Adressen,
 Passwörter und andere Werte, die technisch ASCII bleiben müssen.
 
+Das gilt auch für **Commit-Nachrichten** — sie sind deutscher Fließtext wie Kommentare.
+
+Durchgesetzt wird die Regel vom Hook `.claude/hooks/check-german-umlauts.sh`: er prüft vor jedem
+`Write`, `Edit` und `git commit` gegen eine Liste transliterierter Wortstämme
+(`.claude/hooks/check-german-umlauts.patterns`) und weist den Aufruf ab. Muss ein Wert technisch
+ASCII bleiben, trägt **dieselbe Zeile** den Marker `naming:ascii` — der Hook prüft zeilenweise, ein
+Marker in der Zeile darüber wirkt nicht.
+
 ## Fachbegriffe ohne direkte Übersetzung
 
 Etablierten englischen Fachbegriff wählen (`cashbook`, `voiceGroup`, `attendance`, `dues`), nicht
