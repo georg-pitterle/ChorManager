@@ -36,6 +36,38 @@ class Role extends Model
         'can_assign_own_voice_group_to_project',
     ];
 
+    /**
+     * Die Rechte sind tinyint(1) und kamen ohne Cast als 1/0 zurueck. Ein
+     * `$role->can_manage_users === true` waere damit still falsch gewesen,
+     * obwohl das Recht gesetzt ist. Templates pruefen die Rechte auf
+     * Wahrheitswert oder ueber `? '1' : '0'` - beides bleibt unveraendert.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'hierarchy_level' => 'integer',
+        'can_manage_users' => 'boolean',
+        'can_manage_roles' => 'boolean',
+        'can_edit_users' => 'boolean',
+        'can_manage_attendance' => 'boolean',
+        'can_manage_attendance_all' => 'boolean',
+        'can_manage_events' => 'boolean',
+        'can_manage_project_members' => 'boolean',
+        'can_read_finances' => 'boolean',
+        'can_manage_finances' => 'boolean',
+        'can_manage_master_data' => 'boolean',
+        'can_manage_sponsoring' => 'boolean',
+        'can_manage_song_library' => 'boolean',
+        'can_manage_newsletters' => 'boolean',
+        'can_manage_mail_queue' => 'boolean',
+        'can_manage_sheet_archive' => 'boolean',
+        'can_manage_budget' => 'boolean',
+        'can_manage_tasks' => 'boolean',
+        'can_manage_backups' => 'boolean',
+        'can_manage_own_voice_group' => 'boolean',
+        'can_assign_own_voice_group_to_project' => 'boolean',
+    ];
+
     public function users()
     {
         return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id');

@@ -176,6 +176,23 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
     }
 
     /**
+     * Die Aufrufer reichen die Mitglieder unveraendert an Templates und
+     * Mail-Erzeugung weiter. Geladen werden deshalb nur die Listenspalten - der
+     * Passwort-Hash bleibt draussen.
+     */
+    public function testOnlyTheListColumnsAreLoaded(): void
+    {
+        $this->createUser();
+        $event = $this->createEvent();
+
+        $user = $event->eligibleUsersQuery()->first();
+
+        $this->assertNotNull($user);
+        $this->assertSame(User::LIST_COLUMNS, array_keys($user->getAttributes()));
+        $this->assertArrayNotHasKey('password', $user->getAttributes());
+    }
+
+    /**
      * @return array<int, int>
      */
     private function eligibleIds(Event $event): array

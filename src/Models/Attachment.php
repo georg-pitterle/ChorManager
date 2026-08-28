@@ -32,6 +32,14 @@ class Attachment extends Model
      * der Anhang-Zeile selbst; als Relations-Bedingung landete die Spalte in der
      * Abfrage auf songs und liess die Relation mit einem SQL-Fehler auflaufen.
      * Die Unterscheidung gehoert deshalb vor die Abfrage.
+     *
+     * Nur fuer den Einzelzugriff ($attachment->song). Eager Loading
+     * (Attachment::with('song')) traegt hier nicht: Eloquent baut die
+     * Eager-Bedingung aus einer leeren Modellinstanz, deren entity_type null
+     * ist - die Relation bleibt dann fuer jede Zeile leer. Wer viele Anhaenge
+     * mit ihrem Lied braucht, filtert vorher auf entity_type = 'song' und holt
+     * die Lieder in einer eigenen Abfrage. Sauber loesen liesse sich das nur
+     * mit morphTo und einer Morph-Map ueber alle Entitaetstypen.
      */
     public function song()
     {

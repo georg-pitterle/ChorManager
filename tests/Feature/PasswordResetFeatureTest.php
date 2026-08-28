@@ -73,6 +73,23 @@ class PasswordResetFeatureTest extends TestCase
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/emails/password_reset.twig'));
     }
 
+    /**
+     * Frueher stand `email` als Primaerschluessel im Modell, obwohl die Tabelle
+     * `id` als Auto-Increment fuehrt. Nach create() blieb die id deshalb leer.
+     */
+    public function testCreateFillsTheAutoIncrementKey(): void
+    {
+        $reset = PasswordReset::create([
+            'email' => 'reset-key-' . bin2hex(random_bytes(4)) . '@example.test',
+            'token' => bin2hex(random_bytes(16)),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->assertGreaterThan(0, (int) $reset->id);
+        $this->assertSame((int) $reset->id, (int) $reset->getKey());
+        $this->assertNotNull(PasswordReset::where('email', $reset->email)->first());
+    }
+
     public function testSendResetLinkRejectsInvalidEmail(): void
     {
         $twig = $this->createStub(Twig::class);

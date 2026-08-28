@@ -102,10 +102,16 @@ class Event extends Model
      * truth for event eligibility — every caller that needs to know "who counts
      * for this event" must build on this query rather than re-deriving the
      * predicate.
+     *
+     * Geladen werden nur User::LIST_COLUMNS. Die Aufrufer reichen die Modelle
+     * unveraendert an Templates und Mail-Erzeugung weiter; der Passwort-Hash hat
+     * dort nichts verloren. Wer eine weitere Spalte braucht, nimmt sie in
+     * LIST_COLUMNS auf - nicht in einen eigenen select() an der Aufrufstelle,
+     * sonst faellt die Grenze wieder auseinander.
      */
     public function eligibleUsersQuery(): Builder
     {
-        $query = User::where('is_active', 1);
+        $query = User::select(User::LIST_COLUMNS)->where('is_active', 1);
 
         $sources = $this->relationLoaded('audienceSources')
             ? $this->audienceSources

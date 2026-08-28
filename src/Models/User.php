@@ -48,6 +48,17 @@ class User extends Model
         'password',
     ];
 
+    /**
+     * `is_active` ist tinyint(1) und kam ohne Cast als 1/0 zurueck. Templates
+     * pruefen die Spalte auf Wahrheitswert, das bleibt unveraendert; neuer Code
+     * mit `=== true` liest jetzt aber das, was dasteht.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
     public function getPasswordAttribute()
     {
         return $this->attributes['password'] ?? null;
