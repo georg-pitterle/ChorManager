@@ -36,7 +36,7 @@ Klicke auf **Neue Vereinbarung**, um eine weitere Vereinbarung zu erfassen: Pake
 
 Sobald du beim **Anlegen** ein Projekt auswählst, füllt sich der Zeitraum mit dem Projektzeitraum – du kannst ihn jederzeit überschreiben. Beim späteren Bearbeiten bleibt ein leeres Datumsfeld leer; so lässt sich eine Vereinbarung auch unbefristet führen. Unter jeder Vereinbarung stehen ihre Kontakte, weil je Projekt neu verhandelt wird; über **Kontakt** dort protokollierst du einen Kontakt direkt zur richtigen Vereinbarung.
 
-Ohne das Recht "Sponsoring verwalten" kannst du nur die Vereinbarungen bearbeiten, die du selbst angelegt hast. Die Projektauswahl bietet dir dann genau die Projekte an, die du verwenden darfst – also die gerade laufenden. Fremde Vereinbarungen sind mit einem Schloss-Symbol gekennzeichnet.
+Ohne das Recht "Sponsoring verwalten" kannst du nur die Vereinbarungen bearbeiten, die du selbst angelegt hast. Die Projektauswahl bietet dir dann genau die Projekte an, die du verwenden darfst – also die gerade laufenden. Fremde Vereinbarungen sind mit einem Schloss-Symbol gekennzeichnet; bei ihnen stehen statt Betrag und Anhängen nur Striche, und die Gesprächsnotizen sind als "Zusammenfassung nicht sichtbar" ausgewiesen. Firma, Projekt, Paket, Status und Zuständige siehst du weiterhin – dafür ist die Liste da.
 
 ![Dialog "Neue Vereinbarung"](images/sponsoring/06-new-agreement-modal.png)
 

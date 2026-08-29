@@ -27,7 +27,13 @@
                  aria-labelledby="sponsoring-kpi-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="sponsoring-kpi-title">Kennzahlen</h2>
-                <p class="dashboard-section-lead mb-0">Zusagen, Volumen und offene Wiedervorlagen auf einen Blick.</p>
+                <p class="dashboard-section-lead mb-0">
+                    {% if sees_totals %}
+                        Zusagen, Volumen und offene Wiedervorlagen auf einen Blick.
+                    {% else %}
+                        Zusagen und deine offenen Wiedervorlagen auf einen Blick.
+                    {% endif %}
+                </p>
             </div>
 
             <div class="row g-3 mb-0">
@@ -46,36 +52,38 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-sm-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0 me-3">
-                                    <i class="bi bi-cash-coin fs-2 text-primary"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Zugesagter Gesamtbetrag</div>
-                                    <div class="fs-3 fw-bold">{{ total_amount|number_format(2, ",", ".") }} €</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0 me-3">
-                                    <i class="bi bi-graph-up-arrow fs-2 text-warning"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Pipeline (offene Anfragen)</div>
-                                    <div class="fs-3 fw-bold">{{ pipeline|number_format(2, ",", ".") }} €</div>
+                {% if sees_totals %}
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0 me-3">
+                                        <i class="bi bi-cash-coin fs-2 text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small">Zugesagter Gesamtbetrag</div>
+                                        <div class="fs-3 fw-bold">{{ total_amount|number_format(2, ",", ".") }} €</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0 me-3">
+                                        <i class="bi bi-graph-up-arrow fs-2 text-warning"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small">Pipeline (offene Anfragen)</div>
+                                        <div class="fs-3 fw-bold">{{ pipeline|number_format(2, ",", ".") }} €</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
                 <div class="col-sm-6 col-xl-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
@@ -101,7 +109,13 @@
                  aria-labelledby="sponsoring-followups-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="sponsoring-followups-title">Wiedervorlagen</h2>
-                <p class="dashboard-section-lead mb-0">Fällige und anstehende Follow-ups für die nächsten 7 Tage.</p>
+                <p class="dashboard-section-lead mb-0">
+                    {% if shows_own_only %}
+                        Deine fälligen und anstehenden Follow-ups für die nächsten 7 Tage.
+                    {% else %}
+                        Fällige und anstehende Follow-ups für die nächsten 7 Tage.
+                    {% endif %}
+                </p>
             </div>
 
             <div class="card border-0 shadow-sm table-shell"
@@ -166,7 +180,13 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="card-body text-muted">Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.</div>
+                    <div class="card-body text-muted">
+                        {% if shows_own_only %}
+                            Keine eigenen Wiedervorlagen in den nächsten 7 Tagen vorhanden.
+                        {% else %}
+                            Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.
+                        {% endif %}
+                    </div>
                 {% endif %}
             </div>
         </section>
@@ -175,7 +195,13 @@
                  aria-labelledby="sponsoring-recent-contacts-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="sponsoring-recent-contacts-title">Letzte Kontakte</h2>
-                <p class="dashboard-section-lead mb-0">Neueste Kommunikationshistorie mit Sponsoren und Zuständigkeiten.</p>
+                <p class="dashboard-section-lead mb-0">
+                    {% if shows_own_only %}
+                        Deine zuletzt protokollierten Kontakte.
+                    {% else %}
+                        Neueste Kommunikationshistorie mit Sponsoren und Zuständigkeiten.
+                    {% endif %}
+                </p>
             </div>
 
             <div class="card border-0 shadow-sm table-shell"

@@ -14,8 +14,11 @@ use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
 use App\Models\User;
+use App\Controllers\SponsoringAttachmentController;
 use App\Controllers\SponsoringContactController;
+use App\Controllers\SponsoringDashboardController;
 use App\Models\Attachment;
+use App\Services\NameFormatterService;
 use App\Policies\SponsoringPolicy;
 use App\Util\SponsorshipStatus;
 use PHPUnit\Framework\TestCase;
@@ -454,6 +457,216 @@ class SponsoringPermissionsFeatureTest extends TestCase
         // die Bestätigung verspricht aber, dass alles Verknüpfte mitgeht.
         $this->assertNull(Attachment::find($sponsorAttachment->id));
         $this->assertNull(Attachment::find($agreementAttachment->id));
+    }
+
+    public function testContributorCannotDownloadAForeignAgreementsContract(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $own = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+        $foreign = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+
+        $ownFile = $this->makeAttachment('sponsorship', (int) $own->id);
+        $foreignFile = $this->makeAttachment('sponsorship', (int) $foreign->id);
+
+        try {
+            $controller = $this->sponsorshipController();
+
+            $allowed = $controller->downloadAttachment(
+                $this->makeRequest('GET', '/x'),
+                $this->makeResponse(),
+                ['id' => (string) $own->id, 'attachment_id' => (string) $ownFile->id]
+            );
+            $this->assertSame(200, $allowed->getStatusCode());
+
+            // Der Vertrag einer fremden Vereinbarung geht niemanden an, der sie
+            // nicht angelegt hat - die Route liegt in der Zugangs-Gruppe und
+            // war vorher fuer jeden Beitragenden offen.
+            $denied = $controller->downloadAttachment(
+                $this->makeRequest('GET', '/x'),
+                $this->makeResponse(),
+                ['id' => (string) $foreign->id, 'attachment_id' => (string) $foreignFile->id]
+            );
+            $this->assertSame(403, $denied->getStatusCode());
+        } finally {
+            Attachment::whereIn('id', [$ownFile->id, $foreignFile->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    public function testContributorCannotDownloadAForeignSponsorsAttachment(): void
+    {
+        $this->loginAsContributor();
+        $foreignSponsor = $this->makeSponsor();
+        $foreignSponsor->update(['created_by_user_id' => $this->otherUser->id]);
+        $file = $this->makeAttachment('sponsor', (int) $foreignSponsor->id);
+
+        try {
+            $response = $this->sponsorController()->downloadAttachment(
+                $this->makeRequest('GET', '/x'),
+                $this->makeResponse(),
+                ['id' => (string) $foreignSponsor->id, 'attachment_id' => (string) $file->id]
+            );
+
+            $this->assertSame(403, $response->getStatusCode());
+        } finally {
+            $file->delete();
+            $this->cleanUp($foreignSponsor);
+        }
+    }
+
+    public function testAttachmentOverviewShowsAContributorOnlyTheirOwnFiles(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $own = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+        $foreign = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+
+        $ownFile = $this->makeAttachment('sponsorship', (int) $own->id);
+        $foreignFile = $this->makeAttachment('sponsorship', (int) $foreign->id);
+
+        try {
+            $rows = $this->attachmentOverviewRows();
+            $ids = array_column($rows, 'id');
+
+            // Sonst waere die Uebersicht der bequemste Weg an fremde Vertraege.
+            $this->assertContains((int) $ownFile->id, $ids);
+            $this->assertNotContains((int) $foreignFile->id, $ids);
+
+            $_SESSION['can_manage_sponsoring'] = true;
+            $idsForManager = array_column($this->attachmentOverviewRows(), 'id');
+            $this->assertContains((int) $foreignFile->id, $idsForManager);
+        } finally {
+            Attachment::whereIn('id', [$ownFile->id, $foreignFile->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    public function testDashboardShowsAContributorOnlyTheirOwnContactsAndNoTotals(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+
+        $mine = $this->makeContact($sponsor, $sponsorship, (int) $this->contributor->id, 'Eigener Anruf');
+        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremder Anruf');
+
+        try {
+            $data = $this->dashboardData();
+
+            $followUpOwners = array_column($data['upcoming_follow_ups'], 'owner_name');
+            $recentSummaries = array_column($data['recent_contacts'], 'summary');
+
+            $this->assertContains('Eigener Anruf', $recentSummaries);
+            $this->assertNotContains('Fremder Anruf', $recentSummaries);
+            $this->assertCount(1, $followUpOwners);
+
+            // Summen ueber alle Vereinbarungen bleiben dem Vollrecht vorbehalten.
+            $this->assertFalse($data['sees_totals']);
+            $this->assertNull($data['total_amount']);
+            $this->assertNull($data['pipeline']);
+            $this->assertTrue($data['shows_own_only']);
+
+            $_SESSION['can_manage_sponsoring'] = true;
+            $forManager = $this->dashboardData();
+            $this->assertTrue($forManager['sees_totals']);
+            $this->assertNotNull($forManager['total_amount']);
+            $this->assertContains('Fremder Anruf', array_column($forManager['recent_contacts'], 'summary'));
+        } finally {
+            SponsoringContact::whereIn('id', [$mine->id, $theirs->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    public function testOnlyTheOwnerMayTickOffAFollowUp(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+
+        $mine = $this->makeContact($sponsor, $sponsorship, (int) $this->contributor->id, 'Eigene Wiedervorlage');
+        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Wiedervorlage');
+
+        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy());
+
+        try {
+            $denied = $controller->markDone(
+                $this->makeRequest('POST', '/x', ['sponsor_id' => (string) $sponsor->id]),
+                $this->makeResponse(),
+                ['id' => (string) $theirs->id]
+            );
+            $this->assertSame(403, $denied->getStatusCode());
+            $this->assertSame(0, (int) $theirs->fresh()->follow_up_done);
+
+            $allowed = $controller->markDone(
+                $this->makeRequest('POST', '/x', ['sponsor_id' => (string) $sponsor->id]),
+                $this->makeResponse(),
+                ['id' => (string) $mine->id]
+            );
+            $this->assertSame(302, $allowed->getStatusCode());
+            $this->assertSame(1, (int) $mine->fresh()->follow_up_done);
+        } finally {
+            SponsoringContact::whereIn('id', [$mine->id, $theirs->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function attachmentOverviewRows(): array
+    {
+        $captured = [];
+        $twig = $this->createStub(Twig::class);
+        $twig->method('render')->willReturnCallback(
+            function ($response, string $template, array $data) use (&$captured): ResponseInterface {
+                $captured = $data;
+                return $response;
+            }
+        );
+
+        (new SponsoringAttachmentController($twig, new SponsoringPolicy()))
+            ->index($this->makeRequest('GET', '/sponsoring/attachments'), $this->makeResponse());
+
+        return $captured['attachments'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardData(): array
+    {
+        $captured = [];
+        $twig = $this->createStub(Twig::class);
+        $twig->method('render')->willReturnCallback(
+            function ($response, string $template, array $data) use (&$captured): ResponseInterface {
+                $captured = $data;
+                return $response;
+            }
+        );
+
+        (new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy()))
+            ->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
+
+        return $captured;
+    }
+
+    private function makeContact(
+        Sponsor $sponsor,
+        Sponsorship $sponsorship,
+        int $userId,
+        string $summary
+    ): SponsoringContact {
+        return SponsoringContact::create([
+            'sponsor_id' => $sponsor->id,
+            'sponsorship_id' => $sponsorship->id,
+            'user_id' => $userId,
+            'contact_date' => date('Y-m-d'),
+            'type' => 'call',
+            'summary' => $summary,
+            'follow_up_date' => date('Y-m-d', strtotime('+2 days')),
+            'follow_up_done' => 0,
+        ]);
     }
 
     private function makeAttachment(string $entityType, int $entityId): Attachment

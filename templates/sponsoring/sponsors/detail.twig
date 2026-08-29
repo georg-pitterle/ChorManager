@@ -290,7 +290,11 @@
                 {# ─── Tab 2: Vereinbarungen ─── #}
                 <div class="tab-pane fade" id="pane-vereinbarungen" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="text-muted">Zugesagt: <strong>{{ accepted_total|number_format(2, ",", ".") }} €</strong></span>
+                        {% if sees_totals %}
+                            <span class="text-muted">Zugesagt: <strong>{{ accepted_total|number_format(2, ",", ".") }} €</strong></span>
+                        {% else %}
+                            <span class="text-muted small">Beträge sieht die Sponsoring-Verwaltung.</span>
+                        {% endif %}
                         {% if sponsor.requests_blocked %}
                             <span class="text-danger small">
                                 <i class="bi bi-slash-circle me-1"></i>Keine Anfragen erwünscht
@@ -323,6 +327,7 @@
                                     {% for sp in sponsor.sponsorships %}
                                         {% set _sp_owned = sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id %}
                                         {% set can_edit_sp = can_manage_all or _sp_owned %}
+                                        {% set sees_sp = visible_details[sp.id] %}
                                         <tr>
                                             <td>
                                                 {% if sp.package %}
@@ -334,7 +339,13 @@
                                             <td>
                                                 <span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span>
                                             </td>
-                                            <td class="text-nowrap">{{ sp.amount|number_format(2, ",", ".") }} €</td>
+                                            <td class="text-nowrap">
+                                                {% if sees_sp %}
+                                                    {{ sp.amount|number_format(2, ",", ".") }} €
+                                                {% else %}
+                                                    <span class="text-muted" title="Nur für die Sponsoring-Verwaltung sichtbar">–</span>
+                                                {% endif %}
+                                            </td>
                                             <td>{{ sp.project ? sp.project.name : '–' }}</td>
                                             <td>{{ sp.assignedUser ? sp.assignedUser|person_name : "–" }}</td>
                                             <td class="text-nowrap small">
@@ -373,8 +384,8 @@
                                                 {% endif %}
                                             </td>
                                         </tr>
-                                        {# Anhänge-Zeile #}
-                                        {% if sp.attachments|length > 0 %}
+                                        {# Anhänge-Zeile: Dateinamen und Links nur mit Einsicht #}
+                                        {% if sp.attachments|length > 0 and sees_sp %}
                                             <tr class="table-light">
                                                 <td colspan="8" class="ps-4 py-1">
                                                     <small class="text-muted me-2"><i class="bi bi-paperclip"></i> Anhänge:</small>
@@ -426,7 +437,11 @@
                                                         {% for contact in sp.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
                                                             <li>
                                                                 <span class="text-nowrap text-muted">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</span>
-                                                                <span class="ms-1">{{ contact.summary }}</span>
+                                                                {% if visible_contacts[contact.id] %}
+                                                                    <span class="ms-1">{{ contact.summary }}</span>
+                                                                {% else %}
+                                                                    <span class="ms-1 fst-italic text-muted">Zusammenfassung nicht sichtbar</span>
+                                                                {% endif %}
                                                                 <span class="text-muted">– {{ contact.user ? contact.user|person_name : "unbekannt" }}</span>
                                                             </li>
                                                         {% endfor %}
@@ -701,6 +716,7 @@
                                     {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
                                         {% set _contact_owned = contact.user_id is not null and contact.user_id == current_user_id %}
                                         {% set can_edit_contact = can_manage_all or _contact_owned %}
+                                        {% set sees_contact = visible_contacts[contact.id] %}
                                         <tr>
                                             <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
                                             <td class="text-nowrap">
@@ -716,7 +732,13 @@
                                                     <i class="bi bi-chat-dots text-muted" title="Sonstiges"></i> Sonstiges
                                                 {% endif %}
                                             </td>
-                                            <td>{{ contact.summary }}</td>
+                                            <td>
+                                                {% if sees_contact %}
+                                                    {{ contact.summary }}
+                                                {% else %}
+                                                    <span class="fst-italic text-muted">Zusammenfassung nicht sichtbar</span>
+                                                {% endif %}
+                                            </td>
                                             <td class="small">
                                                 {% if contact.sponsorship %}
                                                     {{ contact.sponsorship.project ? contact.sponsorship.project.name : 'Ohne Projekt' }}
@@ -734,15 +756,17 @@
                                                         <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %} text-danger fw-semibold {% else %} text-warning {% endif %}">
                                                             <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
                                                         </span>
-                                                        <form method="post"
-                                                              action="/sponsoring/contacts/{{ contact.id }}/done"
-                                                              class="d-inline ms-1">
-                                                            <button type="submit"
-                                                                    class="btn btn-sm btn-outline-success py-0 px-1"
-                                                                    title="Erledigt">
-                                                                <i class="bi bi-check"></i>
-                                                            </button>
-                                                        </form>
+                                                        {% if can_edit_contact %}
+                                                            <form method="post"
+                                                                  action="/sponsoring/contacts/{{ contact.id }}/done"
+                                                                  class="d-inline ms-1">
+                                                                <button type="submit"
+                                                                        class="btn btn-sm btn-outline-success py-0 px-1"
+                                                                        title="Erledigt">
+                                                                    <i class="bi bi-check"></i>
+                                                                </button>
+                                                            </form>
+                                                        {% endif %}
                                                     {% endif %}
                                                 {% else %}
                                                     –

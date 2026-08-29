@@ -141,7 +141,7 @@ class SponsorshipStatusFeatureTest extends TestCase
                 }
             );
 
-            $controller = new SponsoringDashboardController($twig, new NameFormatterService());
+            $controller = new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy());
             $controller->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
 
             // Der Sponsor selbst traegt keinen Status mehr - die Kennzahl kommt
@@ -258,7 +258,7 @@ class SponsorshipStatusFeatureTest extends TestCase
             }
         );
 
-        (new SponsoringDashboardController($twig, new NameFormatterService()))
+        (new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy()))
             ->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
 
         return $captured;

@@ -126,7 +126,14 @@ class SponsorController
             'sponsor_state'  => SponsorEngagementState::forSponsor($sponsor),
             'state_labels'   => SponsorEngagementState::labels(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
-            'accepted_total' => $this->acceptedTotal($sponsor),
+            // Je Zeile vorberechnet, damit das Template nur ein Kennzeichen
+            // abfragt und die Regel an einer Stelle steht.
+            'visible_details' => $this->buildDetailVisibility($sponsor),
+            'visible_contacts' => $this->buildContactVisibility($sponsor),
+            'sees_totals'    => $this->policy->canSeeFinancialTotals(),
+            'accepted_total' => $this->policy->canSeeFinancialTotals()
+                ? $this->acceptedTotal($sponsor)
+                : null,
             'users'          => $users,
             'projects'       => $projects,
             'packages'       => $packages,
@@ -244,8 +251,13 @@ class SponsorController
         $sponsorId    = (int) $args['id'];
         $attachmentId = (int) $args['attachment_id'];
 
-        // Die Zugehörigkeit steckt in der Abfrage: ein fremder Anhang wird gar
-        // nicht erst gelesen.
+        $sponsor = Sponsor::find($sponsorId);
+        if ($sponsor === null || !$this->policy->canSeeSponsorDetails($sponsor)) {
+            return $this->deny($response);
+        }
+
+        // Die Zugehörigkeit steckt zusätzlich in der Abfrage: ein Anhang eines
+        // anderen Sponsors wird gar nicht erst gelesen.
         $attachment = $this->attachments->findWithContent(self::ENTITY_TYPE, $sponsorId, $attachmentId);
         if ($attachment === null) {
             return $this->deny($response);
@@ -381,6 +393,43 @@ class SponsorController
         }
 
         return $states;
+    }
+
+    /**
+     * Je Vereinbarung: darf Betrag und Anhang gesehen werden?
+     *
+     * @return array<int, bool>
+     */
+    private function buildDetailVisibility(Sponsor $sponsor): array
+    {
+        $visible = [];
+        foreach ($sponsor->sponsorships as $sponsorship) {
+            $visible[(int) $sponsorship->id] = $this->policy->canSeeSponsorshipDetails($sponsorship);
+        }
+
+        return $visible;
+    }
+
+    /**
+     * Je Kontakt: darf die Zusammenfassung gelesen werden? Deckt beide
+     * Darstellungen ab - die Liste unter der Vereinbarung und den Reiter.
+     *
+     * @return array<int, bool>
+     */
+    private function buildContactVisibility(Sponsor $sponsor): array
+    {
+        $visible = [];
+        foreach ($sponsor->contacts as $contact) {
+            $visible[(int) $contact->id] = $this->policy->canSeeContactDetails($contact);
+        }
+
+        foreach ($sponsor->sponsorships as $sponsorship) {
+            foreach ($sponsorship->contacts as $contact) {
+                $visible[(int) $contact->id] = $this->policy->canSeeContactDetails($contact);
+            }
+        }
+
+        return $visible;
     }
 
     /**
