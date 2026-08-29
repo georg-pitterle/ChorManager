@@ -547,7 +547,8 @@
                     </div>
 
                     {# Edit-Modals für jede Vereinbarung, die diese Person ändern darf #}
-                    {% for sp in sponsor.sponsorships if can_manage_all or (sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id) %}
+                    {% set editable_sponsorships = sponsor.sponsorships|filter(sp => can_manage_all or (sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id)) %}
+                    {% for sp in editable_sponsorships %}
                         <div class="modal fade"
                              id="editSponsorshipModal{{ sp.id }}"
                              tabindex="-1"

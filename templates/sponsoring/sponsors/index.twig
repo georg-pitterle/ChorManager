@@ -100,9 +100,7 @@
                                         {% endif %}
                                     </td>
                                     <td data-label="Zustand">
-                                        {% for option in state_options if option.value == sponsor_state %}
-                                            <span class="badge bg-{{ option.color }}{{ option.value == 'none' ? ' text-dark border' : '' }}">{{ option.label }}</span>
-                                        {% endfor %}
+                                        <span class="badge bg-{{ state_colors[sponsor_state] }}{{ sponsor_state == 'none' ? ' text-dark border' : '' }}">{{ state_labels[sponsor_state] }}</span>
                                     </td>
                                     <td data-label="E-Mail">
                                         {% if sponsor.email %}

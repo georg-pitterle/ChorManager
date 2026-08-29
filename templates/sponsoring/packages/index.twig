@@ -39,8 +39,10 @@
         </div>
     {% endif %}
 
-    <form id="createPackageForm" method="post" action="/sponsoring/packages">
-    </form>
+    {% if can_manage_all %}
+        <form id="createPackageForm" method="post" action="/sponsoring/packages">
+        </form>
+    {% endif %}
 
     <div class="dashboard-shell">
         <section class="dashboard-section dashboard-section--context"
@@ -129,7 +131,8 @@
                                 </tr>
                             {% endfor %}
                         </tbody>
-                        <tfoot{{ can_manage_all ? '' : ' hidden' }}>
+                        {% if can_manage_all %}
+                        <tfoot>
                             <tr class="table-light">
                                 <td data-label="Name">
                                     <input type="text"
@@ -171,13 +174,14 @@
                                 </td>
                             </tr>
                         </tfoot>
+                        {% endif %}
                     </table>
                 </div>
             </div>
         </section>
     </div>
 
-    {% for pkg in packages if can_manage_all %}
+    {% for pkg in can_manage_all ? packages : [] %}
         <div class="modal fade"
              id="editPackageModal{{ pkg.id }}"
              tabindex="-1"

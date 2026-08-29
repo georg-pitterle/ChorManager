@@ -75,6 +75,8 @@ class SponsorController
             'can_manage_all' => $this->policy->canManageAll(),
             'sponsor_states' => $this->buildSponsorStates($sponsors),
             'state_options'  => SponsorEngagementState::options(),
+            'state_labels'   => $this->stateLabels(),
+            'state_colors'   => $this->stateColors(),
             'q'              => $q,
             'state'          => $state,
             'success'        => $success,

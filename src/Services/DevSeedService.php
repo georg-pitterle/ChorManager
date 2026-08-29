@@ -729,7 +729,50 @@ class DevSeedService
             }
         }
 
+        $projects = $this->ensureRunningProject($projects);
+
         usort($projects, fn(Project $a, Project $b) => strcmp((string) $a->start_date, (string) $b->start_date));
+
+        return $projects;
+    }
+
+    /**
+     * Die Saisonen laufen Februar bis Juni und September bis Dezember - im
+     * Juli, August und Januar läuft damit kein Projekt. Für alles, was ein
+     * laufendes Projekt voraussetzt (etwa Vereinbarungen, die ein Mitglied mit
+     * can_create_own_sponsorships erfasst), wäre der Dev-Stand in diesen
+     * Monaten nicht durchklickbar. Deshalb kommt dann ein Sonderprojekt dazu,
+     * das den heutigen Tag einschließt.
+     *
+     * @param array<Project> $projects
+     * @return array<Project>
+     */
+    private function ensureRunningProject(array $projects): array
+    {
+        $today = date('Y-m-d');
+
+        foreach ($projects as $project) {
+            $start = (string) $project->start_date?->format('Y-m-d');
+            $end = (string) $project->end_date?->format('Y-m-d');
+
+            if ($start !== '' && $end !== '' && $start <= $today && $end >= $today) {
+                return $projects;
+            }
+        }
+
+        $definition = [
+            'name' => 'Sonderprojekt ' . date('Y') . ' - Zwischen den Saisonen',
+            'description' => 'Laufendes Sonderprojekt für Proben und Anfragen zwischen den beiden Saisonen.',
+            'start_date' => date('Y-m-d', strtotime('-1 month')),
+            'end_date' => date('Y-m-d', strtotime('+1 month')),
+        ];
+
+        $project = Project::firstOrCreate(['name' => $definition['name']], $definition);
+        if ($project->wasRecentlyCreated) {
+            $this->report['counts']['projects']++;
+        }
+
+        $projects[] = $project;
 
         return $projects;
     }
