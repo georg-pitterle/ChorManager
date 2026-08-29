@@ -3,32 +3,44 @@
         return;
     }
 
-    window.ChorTableEngine.registerFilterPlugin("sponsorStatus", function (context) {
-        let state = { status: "" };
+    window.ChorTableEngine.registerFilterPlugin("sponsorState", function (context) {
+        let state = { sponsorState: "" };
         let controls = null;
 
         function normalizeText(value) {
             return String(value || "").trim().toLowerCase();
         }
 
+        // Die Zustaende stehen im Template am Tabellenrahmen. Frueher pflegte
+        // dieses Plugin eine eigene Kopie der Liste - sie lief mit jeder
+        // Aenderung am Statusmodell auseinander.
+        function readOptions() {
+            const shell = context.root || document.querySelector("[data-state-options]");
+            const raw = shell && shell.getAttribute ? shell.getAttribute("data-state-options") : null;
+
+            if (!raw) {
+                return [];
+            }
+
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
         function createSelect() {
             const wrapper = document.createElement("label");
             wrapper.className = "d-flex align-items-center gap-1 small";
-            wrapper.textContent = "Status";
+            wrapper.textContent = "Zustand";
 
             const select = document.createElement("select");
             select.className = "form-select form-select-sm";
-            select.setAttribute("aria-label", "Status filtern");
+            select.setAttribute("aria-label", "Zustand filtern");
 
-            [
-                { value: "", label: "Alle" },
-                { value: "prospect", label: "Interessent" },
-                { value: "contacted", label: "Kontaktiert" },
-                { value: "negotiating", label: "Verhandlung" },
-                { value: "active", label: "Aktiv" },
-                { value: "paused", label: "Pausiert" },
-                { value: "closed", label: "Abgeschlossen" }
-            ].forEach(function (entry) {
+            const entries = [{ value: "", label: "Alle" }].concat(readOptions());
+            entries.forEach(function (entry) {
                 const option = document.createElement("option");
                 option.value = entry.value;
                 option.textContent = entry.label;
@@ -36,7 +48,7 @@
             });
 
             select.addEventListener("change", function () {
-                state.status = normalizeText(select.value);
+                state.sponsorState = normalizeText(select.value);
                 context.onPluginStateChange();
             });
 
@@ -59,19 +71,19 @@
                 }
             };
 
-            if (state.status) {
-                control.select.value = state.status;
+            if (state.sponsorState) {
+                control.select.value = state.sponsorState;
             }
         }
 
         function getPredicate() {
             return function (row) {
-                if (!state.status) {
+                if (!state.sponsorState) {
                     return true;
                 }
 
-                const rowStatus = row && row.dataset ? normalizeText(row.dataset.status || row.dataset.sortStatus || "") : "";
-                return rowStatus === state.status;
+                const rowState = row && row.dataset ? normalizeText(row.dataset.state || row.dataset.sortState || "") : "";
+                return rowState === state.sponsorState;
             };
         }
 
@@ -80,10 +92,10 @@
             getPredicate: getPredicate,
             getState: function () { return state; },
             setState: function (nextState) {
-                state = Object.assign({ status: "" }, nextState || {});
+                state = Object.assign({ sponsorState: "" }, nextState || {});
             },
             reset: function () {
-                state = { status: "" };
+                state = { sponsorState: "" };
                 if (controls) {
                     controls.reset();
                 }

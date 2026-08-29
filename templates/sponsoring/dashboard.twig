@@ -26,7 +26,7 @@
                  aria-labelledby="sponsoring-kpi-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="sponsoring-kpi-title">Kennzahlen</h2>
-                <p class="dashboard-section-lead mb-0">Aktive Sponsoren, Volumen und offene Wiedervorlagen auf einen Blick.</p>
+                <p class="dashboard-section-lead mb-0">Sponsoren mit Zusage, Volumen und offene Wiedervorlagen auf einen Blick.</p>
             </div>
 
             <div class="row g-3 mb-0">
@@ -38,7 +38,7 @@
                                     <i class="bi bi-people-fill fs-2 text-success"></i>
                                 </div>
                                 <div>
-                                    <div class="text-muted small">Aktive Sponsoren</div>
+                                    <div class="text-muted small">Sponsoren mit Zusage</div>
                                     <div class="fs-3 fw-bold">{{ total_active }}</div>
                                 </div>
                             </div>
@@ -53,7 +53,7 @@
                                     <i class="bi bi-cash-coin fs-2 text-primary"></i>
                                 </div>
                                 <div>
-                                    <div class="text-muted small">Gesamtbetrag aktiv</div>
+                                    <div class="text-muted small">Zugesagter Gesamtbetrag</div>
                                     <div class="fs-3 fw-bold">{{ total_amount|number_format(2, ",", ".") }} €</div>
                                 </div>
                             </div>
@@ -68,7 +68,7 @@
                                     <i class="bi bi-graph-up-arrow fs-2 text-warning"></i>
                                 </div>
                                 <div>
-                                    <div class="text-muted small">Pipeline (in Verhandlung)</div>
+                                    <div class="text-muted small">Pipeline (offene Anfragen)</div>
                                     <div class="fs-3 fw-bold">{{ pipeline|number_format(2, ",", ".") }} €</div>
                                 </div>
                             </div>

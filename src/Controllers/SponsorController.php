@@ -11,6 +11,8 @@ use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\Project;
 use App\Models\User;
+use App\Util\SponsorEngagementState;
+use App\Util\SponsorshipStatus;
 
 class SponsorController
 {
@@ -20,16 +22,9 @@ class SponsorController
     private const MAX_PHONE_LENGTH = 80;
     private const MAX_WEBSITE_LENGTH = 2048;
 
-    private Twig $view;
+    private const MAX_BLOCK_NOTE_LENGTH = 2000;
 
-    private const STATUSES = [
-        'prospect',
-        'contacted',
-        'negotiating',
-        'active',
-        'paused',
-        'closed',
-    ];
+    private Twig $view;
 
     public function __construct(Twig $view)
     {
@@ -40,13 +35,9 @@ class SponsorController
     {
         $params = $request->getQueryParams();
         $q      = trim($params['q'] ?? '');
-        $status = $params['status'] ?? '';
+        $state  = (string) ($params['state'] ?? '');
 
         $query = Sponsor::with('sponsorships')->orderBy('name');
-
-        if ($status && in_array($status, self::STATUSES, true)) {
-            $query->where('status', $status);
-        }
 
         if ($q !== '') {
             $query->where(function ($sub) use ($q) {
@@ -58,18 +49,27 @@ class SponsorController
 
         $sponsors = $query->get();
 
+        // Der Zustand steckt in den Vereinbarungen, nicht in einer Spalte auf
+        // sponsors - gefiltert wird deshalb nach dem Laden.
+        if ($state !== '' && SponsorEngagementState::isValid($state)) {
+            $sponsors = $sponsors
+                ->filter(static fn (Sponsor $sponsor): bool => SponsorEngagementState::forSponsor($sponsor) === $state)
+                ->values();
+        }
+
         $success = $_SESSION['success'] ?? null;
         $error   = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'sponsoring/sponsors/index.twig', [
-            'sponsors'   => $sponsors,
-            'statuses'   => self::STATUSES,
-            'q'          => $q,
-            'status'     => $status,
-            'success'    => $success,
-            'error'      => $error,
-            'active_nav' => 'sponsoring',
+            'sponsors'       => $sponsors,
+            'sponsor_states' => $this->buildSponsorStates($sponsors),
+            'state_options'  => SponsorEngagementState::options(),
+            'q'              => $q,
+            'state'          => $state,
+            'success'        => $success,
+            'error'          => $error,
+            'active_nav'     => 'sponsoring',
         ]);
     }
 
@@ -94,6 +94,8 @@ class SponsorController
         $address = $this->normalizeOptionalText($data['address'] ?? null);
         $website = $this->normalizeOptionalText($data['website'] ?? null);
         $notes = $this->normalizeOptionalText($data['notes'] ?? null);
+        $requestsBlocked = !empty($data['requests_blocked']);
+        $blockNote = $this->normalizeOptionalText($data['requests_blocked_note'] ?? null);
 
         if ($contactPerson !== null && mb_strlen($contactPerson) > self::MAX_CONTACT_PERSON_LENGTH) {
             $_SESSION['error'] = 'Die Kontaktperson ist zu lang (max. 255 Zeichen).';
@@ -119,6 +121,11 @@ class SponsorController
             }
         }
 
+        if ($blockNote !== null && mb_strlen($blockNote) > self::MAX_BLOCK_NOTE_LENGTH) {
+            $_SESSION['error'] = 'Die Begründung zur Absage ist zu lang (max. 2000 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
         try {
             Sponsor::create([
                 'type'           => in_array((string) ($data['type'] ?? ''), ['organization', 'person'], true)
@@ -131,9 +138,8 @@ class SponsorController
                 'address'        => $address,
                 'website'        => $website,
                 'notes'          => $notes,
-                'status'         => in_array((string) ($data['status'] ?? ''), self::STATUSES, true)
-                    ? (string) $data['status']
-                    : 'prospect',
+                'requests_blocked' => $requestsBlocked,
+                'requests_blocked_note' => $requestsBlocked ? $blockNote : null,
             ]);
             $_SESSION['success'] = 'Sponsor erfolgreich angelegt.';
         } catch (\Throwable $e) {
@@ -162,14 +168,19 @@ class SponsorController
         unset($_SESSION['success'], $_SESSION['error']);
 
         return $this->view->render($response, 'sponsoring/sponsors/detail.twig', [
-            'sponsor'    => $sponsor,
-            'users'      => $users,
-            'projects'   => $projects,
-            'packages'   => $packages,
-            'statuses'   => self::STATUSES,
-            'success'    => $success,
-            'error'      => $error,
-            'active_nav' => 'sponsoring',
+            'sponsor'        => $sponsor,
+            'sponsor_state'  => SponsorEngagementState::forSponsor($sponsor),
+            'state_labels'   => $this->stateLabels(),
+            'state_colors'   => $this->stateColors(),
+            'users'          => $users,
+            'projects'       => $projects,
+            'packages'       => $packages,
+            'status_options' => SponsorshipStatus::options(),
+            'status_labels'  => SponsorshipStatus::labels(),
+            'status_colors'  => SponsorshipStatus::colors(),
+            'success'        => $success,
+            'error'          => $error,
+            'active_nav'     => 'sponsoring',
         ]);
     }
 
@@ -195,6 +206,8 @@ class SponsorController
         $address = $this->normalizeOptionalText($data['address'] ?? null);
         $website = $this->normalizeOptionalText($data['website'] ?? null);
         $notes = $this->normalizeOptionalText($data['notes'] ?? null);
+        $requestsBlocked = !empty($data['requests_blocked']);
+        $blockNote = $this->normalizeOptionalText($data['requests_blocked_note'] ?? null);
 
         if ($contactPerson !== null && mb_strlen($contactPerson) > self::MAX_CONTACT_PERSON_LENGTH) {
             $_SESSION['error'] = 'Die Kontaktperson ist zu lang (max. 255 Zeichen).';
@@ -220,6 +233,11 @@ class SponsorController
             }
         }
 
+        if ($blockNote !== null && mb_strlen($blockNote) > self::MAX_BLOCK_NOTE_LENGTH) {
+            $_SESSION['error'] = 'Die Begründung zur Absage ist zu lang (max. 2000 Zeichen).';
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+        }
+
         try {
             $sponsor = Sponsor::findOrFail($id);
             $sponsor->update([
@@ -233,9 +251,8 @@ class SponsorController
                 'address'        => $address,
                 'website'        => $website,
                 'notes'          => $notes,
-                'status'         => in_array((string) ($data['status'] ?? ''), self::STATUSES, true)
-                    ? (string) $data['status']
-                    : 'prospect',
+                'requests_blocked' => $requestsBlocked,
+                'requests_blocked_note' => $requestsBlocked ? $blockNote : null,
             ]);
             $_SESSION['success'] = 'Sponsor erfolgreich aktualisiert.';
         } catch (\Throwable $e) {
@@ -263,5 +280,48 @@ class SponsorController
     {
         $normalized = trim((string) ($value ?? ''));
         return $normalized !== '' ? $normalized : null;
+    }
+
+    /**
+     * Zustand je Sponsor-Id, damit das Template ihn nicht pro Zeile neu
+     * berechnen muss.
+     *
+     * @param iterable<Sponsor> $sponsors
+     * @return array<int, string>
+     */
+    private function buildSponsorStates(iterable $sponsors): array
+    {
+        $states = [];
+        foreach ($sponsors as $sponsor) {
+            $states[(int) $sponsor->id] = SponsorEngagementState::forSponsor($sponsor);
+        }
+
+        return $states;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function stateLabels(): array
+    {
+        $labels = [];
+        foreach (SponsorEngagementState::options() as $option) {
+            $labels[$option['value']] = $option['label'];
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function stateColors(): array
+    {
+        $colors = [];
+        foreach (SponsorEngagementState::options() as $option) {
+            $colors[$option['value']] = $option['color'];
+        }
+
+        return $colors;
     }
 }

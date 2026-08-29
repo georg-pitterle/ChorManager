@@ -7,10 +7,10 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
-use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
 use App\Services\NameFormatterService;
+use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
 
 class SponsoringDashboardController
@@ -26,11 +26,17 @@ class SponsoringDashboardController
 
     public function index(Request $request, Response $response): Response
     {
-        $totalActive = Sponsor::where('status', 'active')->count();
+        // Aktive Sponsoren ergeben sich aus den Vereinbarungen. Vorher zählte
+        // hier `sponsors.status`, sodass ein Sponsor mit zugesagter Vereinbarung
+        // in der Kennzahl fehlte, solange niemand zusätzlich den Sponsor
+        // umgestellt hatte.
+        $totalActive = Sponsorship::where('status', SponsorshipStatus::ACCEPTED)
+            ->distinct()
+            ->count('sponsor_id');
 
-        $totalAmount = (float) Sponsorship::where('status', 'active')->sum('amount');
+        $totalAmount = (float) Sponsorship::where('status', SponsorshipStatus::ACCEPTED)->sum('amount');
 
-        $pipeline = (float) Sponsorship::where('status', 'negotiating')->sum('amount');
+        $pipeline = (float) Sponsorship::whereIn('status', SponsorshipStatus::OPEN)->sum('amount');
 
         $today = Carbon::today();
         $todayIso = $today->format('Y-m-d');
@@ -74,14 +80,7 @@ class SponsoringDashboardController
 
     private function mapUpcomingFollowUp(SponsoringContact $contact, string $todayIso): array
     {
-        $statusLabels = [
-            'prospect' => 'Interessent',
-            'contacted' => 'Kontaktiert',
-            'negotiating' => 'Verhandlung',
-            'active' => 'Aktiv',
-            'paused' => 'Pausiert',
-            'closed' => 'Abgeschlossen',
-        ];
+        $statusLabels = SponsorshipStatus::labels();
 
         $followUpDate = $contact->follow_up_date;
         $followUpDateSort = $followUpDate ? $followUpDate->format('Y-m-d') : '';

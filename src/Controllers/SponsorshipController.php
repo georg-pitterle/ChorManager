@@ -10,6 +10,7 @@ use Slim\Views\Twig;
 use App\Models\Sponsorship;
 use App\Models\Attachment;
 use App\Util\AmountNormalizer;
+use App\Util\SponsorshipStatus;
 use App\Util\UploadValidator;
 use Psr\Log\LoggerInterface;
 use App\Util\DownloadFileName;
@@ -17,6 +18,7 @@ use App\Util\DownloadFileName;
 class SponsorshipController
 {
     public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
+    public const STATUS_ERROR = 'Ungültiger Status für die Vereinbarung.';
 
     private Twig $view;
     private LoggerInterface $logger;
@@ -92,6 +94,15 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
+        // Ohne diese Prüfung landet ein unbekannter Wert direkt im Enum der
+        // Spalte: MySQL weist ihn ab, und der Fehler kam bisher als
+        // nichtssagendes "Fehler beim Anlegen" zurück.
+        $status = (string) ($data['status'] ?? SponsorshipStatus::DEFAULT);
+        if (!SponsorshipStatus::isValid($status)) {
+            $_SESSION['error'] = self::STATUS_ERROR;
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
         try {
             $sponsorship = Sponsorship::create([
                 'sponsor_id'       => $sponsorId,
@@ -99,7 +110,7 @@ class SponsorshipController
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
                 'amount'           => $normalizedAmount,
-                'status'           => $data['status'] ?? 'prospect',
+                'status'           => $status,
                 'start_date'       => !empty($data['start_date']) ? $data['start_date'] : null,
                 'end_date'         => !empty($data['end_date']) ? $data['end_date'] : null,
                 'notes'            => trim($data['notes'] ?? '') ?: null,
@@ -136,12 +147,18 @@ class SponsorshipController
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
             }
 
+            $status = (string) ($data['status'] ?? $sponsorship->status);
+            if (!SponsorshipStatus::isValid($status)) {
+                $_SESSION['error'] = self::STATUS_ERROR;
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
             $sponsorship->update([
                 'project_id'       => !empty($data['project_id']) ? (int) $data['project_id'] : null,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
                 'amount'           => $normalizedAmount,
-                'status'           => $data['status'] ?? $sponsorship->status,
+                'status'           => $status,
                 'start_date'       => !empty($data['start_date']) ? $data['start_date'] : null,
                 'end_date'         => !empty($data['end_date']) ? $data['end_date'] : null,
                 'notes'            => trim($data['notes'] ?? '') ?: null,

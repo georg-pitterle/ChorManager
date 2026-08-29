@@ -20,7 +20,12 @@ class Sponsor extends Model
         'address',
         'website',
         'notes',
-        'status',
+        'requests_blocked',
+        'requests_blocked_note',
+    ];
+
+    protected $casts = [
+        'requests_blocked' => 'boolean',
     ];
 
     public function sponsorships()
@@ -31,5 +36,15 @@ class Sponsor extends Model
     public function contacts()
     {
         return $this->hasMany(SponsoringContact::class, 'sponsor_id');
+    }
+
+    /**
+     * Anhänge am Sponsor selbst - Logos, Mediadaten, allgemeine Unterlagen, die
+     * zu keiner einzelnen Vereinbarung gehören. Gleiches Muster wie
+     * Sponsorship::attachments().
+     */
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'sponsor');
     }
 }
