@@ -14,8 +14,26 @@ Es gibt zwei Rechte:
 
 | Recht | Was damit möglich ist |
 | --- | --- |
-| **Eigene Sponsoring-Vereinbarungen erfassen** | Alle Sponsoren und Vereinbarungen ansehen, neue Sponsoren und Vereinbarungen anlegen, die selbst angelegten weiter bearbeiten. Vereinbarungen lassen sich nur einem laufenden Projekt zuordnen (oder gar keinem). |
-| **Sponsoring verwalten** | Zusätzlich alle fremden Einträge bearbeiten und löschen, Sponsoren löschen, Pakete pflegen und Vereinbarungen jedem Projekt zuordnen. |
+| **Eigene Sponsoring-Vereinbarungen erfassen** | Sehen, welche Firmen angefragt sind und wie es dort steht; neue Sponsoren und Vereinbarungen anlegen und die selbst angelegten weiter bearbeiten. Vereinbarungen lassen sich nur einem laufenden Projekt zuordnen (oder gar keinem). |
+| **Sponsoring verwalten** | Zusätzlich alle fremden Einträge sehen, bearbeiten und löschen, Sponsoren löschen, Pakete pflegen und Vereinbarungen jedem Projekt zuordnen. |
+
+### Was bei fremden Vereinbarungen verborgen bleibt
+
+Der Überblick ist Absicht: Du sollst vor einer Anfrage sehen, ob schon jemand an
+dieser Firma dran ist. Die Einzelheiten fremder Vorgänge gehören aber den
+Beteiligten. Ohne das Recht „Sponsoring verwalten" bleiben bei Vereinbarungen,
+die du nicht selbst angelegt hast, verborgen:
+
+- der **Betrag** und die Summe „Zugesagt"
+- die **Anhänge** – weder Dateiname noch Download, auch nicht über die Seite „Anhänge"
+- die **Zusammenfassung** der Gesprächsnotizen; dass ein Kontakt stattfand und wann, bleibt sichtbar
+
+Sichtbar bleiben Firma, Projekt, Paket, Status, Zuständige und Zeitraum – also
+alles, was die Frage „wo kann ich noch fragen" beantwortet.
+
+Das **Dashboard** ist in diesem Fall deine persönliche Arbeitsliste: Wiedervorlagen
+und letzte Kontakte zeigen nur, was du selbst protokolliert hast, und abhaken
+kannst du nur deine eigenen Wiedervorlagen. Die Geld-Kacheln erscheinen nicht.
 
 Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, während das Sponsoring-Team koordiniert und prüft. Vor jeder Anfrage lohnt ein Blick in die Sponsorenliste: dort steht, wo schon jemand angefragt hat.
 

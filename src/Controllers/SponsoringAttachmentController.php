@@ -10,6 +10,7 @@ use Slim\Views\Twig;
 use App\Models\Attachment;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
+use App\Policies\SponsoringPolicy;
 
 /**
  * Zentrale Sammlung aller Sponsoring-Anhänge.
@@ -18,14 +19,20 @@ use App\Models\Sponsorship;
  * jeweiligen Sponsor auffindbar; für Logos gab es überhaupt keinen Ort. Diese
  * Übersicht führt beide Ablagen zusammen, ohne eine dritte einzuführen: sie
  * liest dieselben Anhänge, die an Sponsor und Vereinbarung hängen.
+ *
+ * Gezeigt wird nur, was die anfragende Person auch einzeln herunterladen
+ * dürfte. Ohne diese Einschränkung wäre die Übersicht der bequemste Weg an
+ * fremde Verträge - eine Liste mit Download-Link je Zeile.
  */
 class SponsoringAttachmentController
 {
     private Twig $view;
+    private SponsoringPolicy $policy;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, SponsoringPolicy $policy)
     {
         $this->view = $view;
+        $this->policy = $policy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -57,8 +64,8 @@ class SponsoringAttachmentController
                 ? $this->mapSponsorshipAttachment($attachment, $sponsorships->get($attachment->entity_id))
                 : $this->mapSponsorAttachment($attachment, $sponsors->get($attachment->entity_id));
 
-            // Ein verwaister Anhang gehört zu einem inzwischen gelöschten
-            // Eintrag - er taucht hier nicht auf, statt ohne Bezug zu stehen.
+            // Null heißt: verwaist (der Eintrag ist gelöscht) oder für diese
+            // Person nicht einsehbar. Beides gehört nicht in die Liste.
             if ($row !== null) {
                 $rows[] = $row;
             }
@@ -70,6 +77,7 @@ class SponsoringAttachmentController
 
         return $this->view->render($response, 'sponsoring/attachments/index.twig', [
             'attachments' => $rows,
+            'can_manage_all' => $this->policy->canManageAll(),
             'success'     => $success,
             'error'       => $error,
             'active_nav'  => 'sponsoring',
@@ -101,6 +109,10 @@ class SponsoringAttachmentController
             return null;
         }
 
+        if (!$this->policy->canSeeSponsorshipDetails($sponsorship)) {
+            return null;
+        }
+
         $package = $sponsorship->package ? (string) $sponsorship->package->name : 'Ohne Paket';
 
         return $this->baseRow($attachment) + [
@@ -120,6 +132,10 @@ class SponsoringAttachmentController
     private function mapSponsorAttachment(Attachment $attachment, ?Sponsor $sponsor): ?array
     {
         if ($sponsor === null) {
+            return null;
+        }
+
+        if (!$this->policy->canSeeSponsorDetails($sponsor)) {
             return null;
         }
 

@@ -98,17 +98,73 @@ class SponsoringPolicy
     }
 
     /**
-     * Kontakte gehören dem, der sie protokolliert hat; die Wiedervorlage darf
-     * jeder Beitragende abhaken, weil sie oft jemand anderes erledigt.
+     * Kontakte gehören dem, der sie protokolliert hat.
      */
     public function canEditContact(SponsoringContact $contact): bool
     {
         return $this->canEditOwned($contact->user_id);
     }
 
-    public function canCompleteFollowUp(): bool
+    /**
+     * Eine Wiedervorlage hakt ab, wem sie gehört. Vorher durfte das jeder
+     * Beitragende mit der Begründung, sie werde oft von jemand anderem
+     * erledigt - das machte aus der Liste eine gemeinsame Aufgabenliste, in der
+     * jeder die Einträge aller anderen wegklicken konnte.
+     */
+    public function canCompleteFollowUp(SponsoringContact $contact): bool
     {
-        return $this->canContribute();
+        return $this->canEditOwned($contact->user_id);
+    }
+
+    /**
+     * Darf der Betrag und die Anhänge dieser Vereinbarung gesehen werden?
+     *
+     * Bewusst eine eigene Frage, obwohl die Bedingung heute dieselbe ist wie
+     * beim Ändern: "sehen" und "ändern" sind zwei Entscheidungen, und wer eine
+     * davon später lockert, soll nicht ungewollt die andere mitlockern.
+     */
+    public function canSeeSponsorshipDetails(Sponsorship $sponsorship): bool
+    {
+        return $this->canEditOwned($sponsorship->created_by_user_id);
+    }
+
+    public function canSeeSponsorDetails(Sponsor $sponsor): bool
+    {
+        return $this->canEditOwned($sponsor->created_by_user_id);
+    }
+
+    /**
+     * Darf die Zusammenfassung dieses Kontakts gelesen werden? Dass es ihn gibt
+     * und wann er stattfand, bleibt sichtbar - das ist der Überblick, um den es
+     * geht. Was besprochen wurde, ist Sache der Beteiligten.
+     */
+    public function canSeeContactDetails(SponsoringContact $contact): bool
+    {
+        return $this->canEditOwned($contact->user_id);
+    }
+
+    /**
+     * Summen über alle Vereinbarungen - zugesagter Gesamtbetrag, Pipeline.
+     * Anders als die Einzelbeträge lassen sie sich keiner Urheberschaft
+     * zuordnen und bleiben deshalb dem Vollrecht vorbehalten.
+     */
+    public function canSeeFinancialTotals(): bool
+    {
+        return $this->canManageSponsoring;
+    }
+
+    /**
+     * Beschränkung der Kontakt-Listen auf dem Dashboard: Beitragende sehen dort
+     * ihre eigene Arbeitsliste, nicht die aller anderen. Gibt null zurück, wenn
+     * nicht eingeschränkt werden muss.
+     */
+    public function ownContactUserIdFilter(): ?int
+    {
+        if ($this->canManageSponsoring) {
+            return null;
+        }
+
+        return $this->userId;
     }
 
     /**

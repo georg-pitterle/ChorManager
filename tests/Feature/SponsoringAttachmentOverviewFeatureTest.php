@@ -28,6 +28,9 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
     {
         parent::setUp();
         $_SESSION = [];
+        // Die Übersicht zeigt nur, was die anfragende Person auch einzeln
+        // herunterladen dürfte - diese Prüfungen brauchen daher das Vollrecht.
+        $_SESSION['can_manage_sponsoring'] = true;
         Bootstrap::setupTestDatabase();
     }
 
@@ -62,7 +65,7 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
                 }
             );
 
-            (new SponsoringAttachmentController($twig))
+            (new SponsoringAttachmentController($twig, new SponsoringPolicy()))
                 ->index($this->makeRequest('GET', '/sponsoring/attachments'), $this->makeResponse());
 
             $names = array_column($captured['attachments'], 'name');

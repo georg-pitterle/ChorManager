@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
+use App\Policies\SponsoringPolicy;
 use App\Services\NameFormatterService;
 use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
@@ -17,11 +18,16 @@ class SponsoringDashboardController
 {
     private Twig $view;
     private NameFormatterService $nameFormatter;
+    private SponsoringPolicy $policy;
 
-    public function __construct(Twig $view, NameFormatterService $nameFormatter)
-    {
+    public function __construct(
+        Twig $view,
+        NameFormatterService $nameFormatter,
+        SponsoringPolicy $policy
+    ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
+        $this->policy = $policy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -44,9 +50,20 @@ class SponsoringDashboardController
 
         $in7Days = $today->copy()->addDays(7)->format('Y-m-d');
 
+        // Wer nicht das Vollrecht hat, sieht hier die eigene Arbeitsliste. Die
+        // Einschränkung steht an einer Stelle, damit die beiden Tabellen nicht
+        // auseinanderlaufen.
+        $ownUserId = $this->policy->ownContactUserIdFilter();
+        $restrictToOwn = static function ($query) use ($ownUserId): void {
+            if ($ownUserId !== null) {
+                $query->where('user_id', $ownUserId);
+            }
+        };
+
         $upcomingFollowUps = SponsoringContact::where('follow_up_done', 0)
             ->whereNotNull('follow_up_date')
             ->where('follow_up_date', '<=', $in7Days)
+            ->where($restrictToOwn)
             ->with(['sponsor', 'user', 'sponsorship.package'])
             ->orderBy('follow_up_date')
             ->get()
@@ -62,6 +79,7 @@ class SponsoringDashboardController
         ));
 
         $recentContacts = SponsoringContact::with(['sponsor', 'user'])
+            ->where($restrictToOwn)
             ->orderBy('contact_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -70,10 +88,18 @@ class SponsoringDashboardController
             ->values()
             ->all();
 
+        $seesTotals = $this->policy->canSeeFinancialTotals();
+
         return $this->view->render($response, 'sponsoring/dashboard.twig', [
             'total_active'      => $totalActive,
-            'total_amount'      => $totalAmount,
-            'pipeline'          => $pipeline,
+            // Summen über alle Vereinbarungen lassen sich keiner Urheberschaft
+            // zuordnen und bleiben deshalb dem Vollrecht vorbehalten. Sie gar
+            // nicht erst zu übergeben ist sicherer, als sie im Template zu
+            // verstecken.
+            'sees_totals'       => $seesTotals,
+            'total_amount'      => $seesTotals ? $totalAmount : null,
+            'pipeline'          => $seesTotals ? $pipeline : null,
+            'shows_own_only'    => $ownUserId !== null,
             'open_follow_ups'   => $openFollowUps,
             'upcoming_follow_ups' => $upcomingFollowUps,
             'recent_contacts'   => $recentContacts,
@@ -96,11 +122,20 @@ class SponsoringDashboardController
             $packageName = '-';
             $amountDisplay = '-';
             $statusLabel = '-';
+            $amount = 0.0;
         } else {
             $packageName = $sponsorship->package ? (string) $sponsorship->package->name : 'Ohne Paket';
-            $amountDisplay = number_format($amount, 2, ',', '.') . ' EUR';
             $status = (string) $sponsorship->status;
             $statusLabel = $statusLabels[$status] ?? 'Sonstiges';
+
+            // Ein eigener Kontakt kann an einer fremden Vereinbarung hängen -
+            // deren Betrag gehört trotzdem nicht auf dieses Dashboard.
+            if ($this->policy->canSeeSponsorshipDetails($sponsorship)) {
+                $amountDisplay = number_format($amount, 2, ',', '.') . ' EUR';
+            } else {
+                $amountDisplay = '-';
+                $amount = 0.0;
+            }
         }
 
         return [

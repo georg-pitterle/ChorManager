@@ -72,14 +72,15 @@ class SponsoringContactController
         $redirectTo = (string) ($data['redirect_to'] ?? $queryParams['redirect_to'] ?? '');
         $providedSponsorId = (int) ($data['sponsor_id'] ?? $queryParams['sponsor_id'] ?? 0);
 
-        if (!$this->policy->canCompleteFollowUp()) {
-            return $this->deny($response);
-        }
-
         try {
             $contact = SponsoringContact::findOrFail($id);
 
             if ($providedSponsorId > 0 && $providedSponsorId !== (int) $contact->sponsor_id) {
+                return $this->deny($response);
+            }
+
+            // Abhaken darf, wem die Wiedervorlage gehört.
+            if (!$this->policy->canCompleteFollowUp($contact)) {
                 return $this->deny($response);
             }
 
