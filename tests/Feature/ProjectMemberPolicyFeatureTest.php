@@ -61,18 +61,24 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_project_members'] = true;
 
-        // Der Stub simuliert eine leere Liste eigener Projekte.
+        // Der Stub liefert das Projekt 42, in dem der Nutzer selbst kein Mitglied ist -
+        // für das breite Recht umfasst getAccessibleProjectIds() alle Projekte, nicht
+        // nur die eigenen. Der Beweis gegen die echte Datenbank steht in
+        // ProjectAccessWithoutMembershipFeatureTest.
         $policy = self::getStubBuilder(ProjectMemberPolicy::class)
             ->onlyMethods(['getAccessibleProjectIds'])
             ->getStub();
 
         $policy->method('getAccessibleProjectIds')
-            ->willReturn([]);
+            ->willReturn([42]);
 
         $this->assertTrue($policy->canViewMembers(42));
         $this->assertTrue($policy->canAddMember(42));
         $this->assertTrue($policy->canRemoveMember(42));
         $this->assertTrue($policy->canViewAllCandidates());
+
+        // Eine Projekt-Id außerhalb der Liste bleibt auch für das breite Recht zu.
+        $this->assertFalse($policy->canViewMembers(4711));
     }
 
     public function testVoiceGroupScopedRightStaysBoundToOwnProjects(): void

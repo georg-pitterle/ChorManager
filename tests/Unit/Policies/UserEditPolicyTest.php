@@ -223,4 +223,62 @@ final class UserEditPolicyTest extends TestCase
 
         $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [2], 1, [50])));
     }
+
+    /**
+     * Die dritte Stufe: canEditProjects() beantwortet, was UserController::update()
+     * bisher selbst aus der Session zusammengesetzt hat.
+     */
+    public function testProjectMemberManagerMayEditProjectsOfActiveMember(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => true,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertTrue($policy->canEditProjects($session, $this->makeUser(7, [1])));
+    }
+
+    /**
+     * Ein archiviertes Mitglied bleibt auf allen drei Stufen unantastbar. Ohne diese
+     * Regel ließe sich das Formular zwar nicht mehr öffnen, ein direkt abgesetzter
+     * POST auf /users/{id} hätte die Projektzuordnung aber weiterhin geschrieben.
+     */
+    public function testProjectMemberManagerMayNotEditProjectsOfArchivedMember(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => true,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1], 0)));
+    }
+
+    public function testProjectMemberManagerMayNotEditProjectsOfHigherRankedMember(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => true,
+            'voice_group_ids' => [],
+            'role_level' => 10,
+        ];
+
+        $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1], 1, [50])));
+    }
+
+    public function testWithoutProjectMemberRightNoProjectEditing(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => false,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1])));
+    }
 }

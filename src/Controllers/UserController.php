@@ -309,14 +309,16 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        // Die Policy entscheidet ueber beide Stufen, damit Mitgliederliste, Formular
-        // und Speichern nicht auseinanderlaufen: canEdit() oeffnet das Formular,
-        // canEditProfile() erlaubt das Schreiben der Mitgliedsdaten.
-        $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
+        // Die Policy entscheidet über jede Stufe, damit Mitgliederliste, Formular
+        // und Speichern nicht auseinanderlaufen: canEdit() öffnet das Formular,
+        // canEditProfile() erlaubt das Schreiben der Mitgliedsdaten,
+        // canEditProjects() das der Projektzuordnung. Die Basisprüfungen der Policy
+        // - archiviertes Ziel, höher gereihtes Ziel - gelten damit auf jeder Stufe.
+        $canEditProjects = $this->userEditPolicy->canEditProjects($_SESSION, $targetUser);
         $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
         $canEditEmail = $this->userEditPolicy->canEditEmail($_SESSION, $targetUser);
 
-        if (!$canEditProfile && !$canManageProjectMembers) {
+        if (!$canEditProfile && !$canEditProjects) {
             $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
@@ -485,9 +487,9 @@ class UserController
 
             $this->userPersistence->syncVoiceGroups($targetUser, $vgData);
 
-            // can_manage_project_members reicht projektuebergreifend, deshalb wird die
+            // can_manage_project_members reicht projektübergreifend, deshalb wird die
             // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
-            if ($canEditGlobal || $canManageProjectMembers) {
+            if ($canEditGlobal || $canEditProjects) {
                 $this->projectPersistence->setUserProjects($userId, $projectIds);
             }
 

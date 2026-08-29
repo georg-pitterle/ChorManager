@@ -128,6 +128,51 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $this->assertFalse($policy->canViewMembers($this->projectWithMemberId));
     }
 
+    /**
+     * Auch das breite Recht endet an einer Projekt-Id, die es gar nicht gibt.
+     * Sonst nimmt ProjectController::addMember() die Zuordnung an und der
+     * Fremdschlüssel project_users_ibfk_1 quittiert sie mit einem HTTP 500 -
+     * genau der Fall, den die Existenzprüfung des Mitglieds dort schon abfängt.
+     */
+    public function testBroadManagerIsDeniedForAProjectThatDoesNotExist(): void
+    {
+        $_SESSION['user_id'] = $this->adminUserId;
+        $_SESSION['can_manage_project_members'] = true;
+
+        $policy = new ProjectMemberPolicy();
+        $unknownProjectId = ((int) Project::query()->max('id')) + 1000;
+
+        $this->assertFalse($policy->canViewMembers($unknownProjectId));
+        $this->assertFalse($policy->canAddMember($unknownProjectId));
+        $this->assertFalse($policy->canRemoveMember($unknownProjectId));
+        $this->assertFalse($policy->canManageMember($unknownProjectId, [7]));
+    }
+
+    /**
+     * Die Session trägt heute echte Booleans (SessionAuthService), Middleware und
+     * Controller lesen sie aber überall nur auf Wahrheitswert. Eine Policy, die
+     * strikt auf === true prüft, würde bei einer 1 aus einer anderen Quelle still
+     * verweigern, obwohl die Middleware den Request längst durchgelassen hat.
+     */
+    public function testTruthyPermissionValuesCountAsGranted(): void
+    {
+        $_SESSION['user_id'] = $this->adminUserId;
+        $_SESSION['can_manage_project_members'] = 1;
+
+        $policy = new ProjectMemberPolicy();
+
+        $this->assertTrue($policy->canViewMembers($this->emptyProjectId));
+        $this->assertTrue($policy->canViewAllCandidates());
+    }
+
+    public function testTruthyTaskPermissionValueCountsAsGranted(): void
+    {
+        $_SESSION['user_id'] = $this->adminUserId;
+        $_SESSION['can_manage_tasks'] = 1;
+
+        $this->assertTrue((new TaskPolicy())->canManageTasks());
+    }
+
     public function testTaskManagerReachesPlanningOfProjectWithoutOwnMembership(): void
     {
         $_SESSION['user_id'] = $this->adminUserId;

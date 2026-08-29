@@ -31,24 +31,29 @@ class ProjectMemberPolicy
 
     public function __construct()
     {
+        // Auf Wahrheitswert prüfen, nicht strikt auf true: Middleware und Controller
+        // lesen dieselben Session-Schlüssel überall nur truthy. Eine 1 aus einer
+        // anderen Quelle ließe die Middleware passieren, während ein === true hier
+        // still verweigert - die Abweisung erschiene dann als Fehler ohne Ursache.
         $this->userId = (int) ($_SESSION['user_id'] ?? 0);
-        $this->canManageProjectMembers = ($_SESSION['can_manage_project_members'] ?? false) === true;
-        $this->canAssignOwnVoiceGroup = ($_SESSION['can_assign_own_voice_group_to_project'] ?? false) === true;
+        $this->canManageProjectMembers = (bool) ($_SESSION['can_manage_project_members'] ?? false);
+        $this->canAssignOwnVoiceGroup = (bool) ($_SESSION['can_assign_own_voice_group_to_project'] ?? false);
         $this->ownVoiceGroupIds = array_map('intval', (array) ($_SESSION['voice_group_ids'] ?? []));
     }
 
     /**
      * Check if the user can view members of the specified project.
+     *
+     * Ohne eines der beiden Rechte ist ohnehin Schluss. Darüber hinaus laufen beide
+     * über dieselbe Liste - welche Projekte sie umfasst, entscheidet
+     * getAccessibleProjectIds(). Damit endet auch das breite Recht an einer
+     * Projekt-Id, die es gar nicht gibt: sonst nimmt ProjectController::addMember()
+     * die Zuordnung an und der Fremdschlüssel auf projects quittiert sie mit einem
+     * HTTP 500 statt mit einer Abweisung.
      */
     public function canViewMembers(int $projectId): bool
     {
-        // Das breite Recht gilt projektuebergreifend, sonst waere ein neu
-        // angelegtes Projekt ohne Mitglieder fuer niemanden erreichbar.
-        if ($this->canManageProjectMembers) {
-            return true;
-        }
-
-        if (!$this->canAssignOwnVoiceGroup) {
+        if (!$this->canManageProjectMembers && !$this->canAssignOwnVoiceGroup) {
             return false;
         }
 

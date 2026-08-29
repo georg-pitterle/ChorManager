@@ -9,25 +9,27 @@ use App\Models\User;
 /**
  * Decides whether the current session may edit a given member.
  *
- * Zwei Stufen, weil das Bearbeiten-Formular zwei Zwecke bedient:
- *  - canEdit(): darf das Formular ueberhaupt geoeffnet werden? Neben
+ * Mehrere Stufen, weil das Bearbeiten-Formular mehrere Zwecke bedient:
+ *  - canEdit(): darf das Formular überhaupt geöffnet werden? Neben
  *    can_edit_users und can_manage_own_voice_group (eigene Stimmgruppe) reicht
- *    dafuer auch can_manage_project_members, dessen Traeger die Projektzuordnung
- *    ueber genau dieses Formular pflegt.
- *  - canEditProfile(): duerfen Name, Rollen und Stimmgruppen geschrieben
+ *    dafür auch can_manage_project_members, dessen Träger die Projektzuordnung
+ *    über genau dieses Formular pflegt.
+ *  - canEditProfile(): dürfen Name, Rollen und Stimmgruppen geschrieben
  *    werden? Das bleibt can_edit_users und der eigenen Stimmgruppe vorbehalten.
- *    Ein reiner Projektmitglieder-Verwalter aendert nur die Projektzuordnung.
- *  - canEditEmail(): die Adresse selbst haengt allein an can_edit_users. Eine
- *    fremde Adresse umbiegen und anschliessend eine Einladung darauf ausloesen
- *    ergibt einen vollstaendigen Uebernahmepfad auf das Zielkonto; fuer den
- *    Projektmitglieder-Verwalter ist genau der ausgeschlossen, und fuer den
+ *    Ein reiner Projektmitglieder-Verwalter ändert nur die Projektzuordnung.
+ *  - canEditProjects(): darf die Projektzuordnung geschrieben werden? Genau das
+ *    ist die Schreibstufe des Projektmitglieder-Verwalters.
+ *  - canEditEmail(): die Adresse selbst hängt allein an can_edit_users. Eine
+ *    fremde Adresse umbiegen und anschließend eine Einladung darauf auslösen
+ *    ergibt einen vollständigen Übernahmepfad auf das Zielkonto; für den
+ *    Projektmitglieder-Verwalter ist genau der ausgeschlossen, und für den
  *    Stimmgruppen-Verwalter darf nichts anderes gelten.
  *
- * Ueber allen Wegen steht die Rollenhierarchie: ein Mitglied, dessen hoechste
- * Rolle ueber dem eigenen Level liegt, bleibt unantastbar. UserController::update()
+ * Über allen Wegen steht die Rollenhierarchie: ein Mitglied, dessen höchste
+ * Rolle über dem eigenen Level liegt, bleibt unantastbar. UserController::update()
  * und ::deactivate() weisen solche Ziele ohnehin ab - ohne dieselbe Regel hier
- * haette die Mitgliederliste einen Bearbeiten-Link angeboten, der beim Klick
- * zwangslaeufig in einer 403-Meldung endet.
+ * hätte die Mitgliederliste einen Bearbeiten-Link angeboten, der beim Klick
+ * zwangsläufig in einer 403-Meldung endet.
  */
 class UserEditPolicy
 {
@@ -38,23 +40,36 @@ class UserEditPolicy
      */
     public function canEdit(array $session, User $target): bool
     {
-        if (!$this->passesBaseGuards($session, $target)) {
-            return false;
-        }
-
-        if ($this->holdsProfileRight($session, $target)) {
-            return true;
-        }
-
-        // Die Projektzuordnung haengt im selben Formular. Ohne diesen Weg blieben
-        // Projekte fuer einen reinen Projektmitglieder-Verwalter ueber die
+        // Das Formular öffnet, wer darin irgendetwas schreiben darf. Die
+        // Projektzuordnung hängt im selben Formular - ohne diesen zweiten Weg
+        // blieben Projekte für einen reinen Projektmitglieder-Verwalter über die
         // Mitgliederliste unerreichbar, obwohl update() den POST akzeptiert.
-        return !empty($session['can_manage_project_members']);
+        return $this->canEditProfile($session, $target)
+            || $this->canEditProjects($session, $target);
+    }
+
+    /**
+     * True when the session may write the member's project assignment - the only
+     * field a pure project member manager gets to change on this form.
+     *
+     * Die Basisprüfungen gelten hier genauso wie auf den anderen Stufen.
+     * UserController::update() hat diese Stufe zuvor selbst aus der Session
+     * zusammengesetzt und dabei die Basisprüfungen übersprungen: das Formular
+     * eines archivierten Mitglieds ließ sich zwar nicht mehr öffnen, ein direkt
+     * abgesetzter POST auf /users/{id} schrieb die Projektzuordnung aber
+     * weiterhin.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function canEditProjects(array $session, User $target): bool
+    {
+        return $this->passesBaseGuards($session, $target)
+            && !empty($session['can_manage_project_members']);
     }
 
     /**
      * True when the session may write the member's own data - first name, last name,
-     * roles and voice groups. Die E-Mail-Adresse haengt an canEditEmail().
+     * roles and voice groups. Die E-Mail-Adresse hängt an canEditEmail().
      *
      * @param array<string, mixed> $session
      */
@@ -102,8 +117,8 @@ class UserEditPolicy
         }
 
         // Die gemeinsame Stimmgruppe allein reicht nicht: UserController::update(),
-        // ::deactivate() und ::invite() verlangen zusaetzlich can_manage_own_voice_group.
-        // Da jede angemeldete Sitzung voice_group_ids traegt, haette die Policy sonst
+        // ::deactivate() und ::invite() verlangen zusätzlich can_manage_own_voice_group.
+        // Da jede angemeldete Sitzung voice_group_ids trägt, hätte die Policy sonst
         // jedem Mitgliederverwalter ohne dieses Recht einen Bearbeiten-Link auf die
         // eigene Stimmgruppe angeboten, den das Speichern mit "Keine Berechtigung"
         // quittiert.
@@ -128,7 +143,7 @@ class UserEditPolicy
      * True when the target holds a role that outranks the acting session's own level.
      *
      * Die Rollen sind an beiden Aufrufstellen (UserQuery::getAllUsers() und
-     * ::findById()) bereits eager-geladen, ein zusaetzlicher Query entsteht nicht.
+     * ::findById()) bereits eager-geladen, ein zusätzlicher Query entsteht nicht.
      *
      * @param array<string, mixed> $session
      */

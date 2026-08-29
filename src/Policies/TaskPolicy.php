@@ -16,7 +16,9 @@ class TaskPolicy
 
     public function __construct()
     {
-        $this->canManageTasks = ($_SESSION['can_manage_tasks'] ?? false) === true;
+        // Auf Wahrheitswert prüfen, nicht strikt auf true - RoleMiddleware und
+        // DashboardController lesen denselben Schlüssel ebenfalls nur truthy.
+        $this->canManageTasks = (bool) ($_SESSION['can_manage_tasks'] ?? false);
     }
 
     /**
