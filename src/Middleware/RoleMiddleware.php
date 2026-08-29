@@ -73,8 +73,8 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresEventManagement = false,
         bool $requiresRoleManagement = false,
         ?LoggerInterface $logger = null,
-        // Neue Schalter gehoeren ans Ende: mehrere Aufrufer uebergeben die
-        // Flags positionsweise, ein Einschub in der Mitte verschoebe still
+        // Neue Schalter gehören ans Ende: mehrere Aufrufer übergeben die
+        // Flags positionsweise, ein Einschub in der Mitte verschöbe still
         // deren Bedeutung.
         bool $requiresSponsoringAccess = false
     ) {
@@ -246,7 +246,7 @@ class RoleMiddleware implements MiddlewareInterface
         }
 
         // Lesen und eigene Vereinbarungen: hier reicht eines der beiden Rechte,
-        // den Umfang setzt anschliessend die SponsoringPolicy im Controller
+        // den Umfang setzt anschließend die SponsoringPolicy im Controller
         // durch - dasselbe Muster wie bei den Projektmitglieder-Routen.
         if (
             $this->requiresSponsoringAccess

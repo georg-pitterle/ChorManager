@@ -76,7 +76,7 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
                 }
             );
 
-            $controller = new SponsorController($twig, new SponsoringPolicy(), $this->logger()[0]);
+            $controller = new SponsorController($twig, new SponsoringPolicy(), $this->attachmentService());
             $controller->detail(
                 $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsor->id),
                 $this->makeResponse(),
@@ -105,5 +105,35 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
         $this->assertStringContainsString('data-contact-sponsorship=', $template);
         // Die Spalte zeigt Projekt und Paket statt der nackten Datensatz-Nummer.
         $this->assertStringNotContainsString("'#' ~ contact.sponsorship.id", $template);
+    }
+
+    public function testContactModalLivesOutsideTheTabPanesSoTheShortcutCanOpenIt(): void
+    {
+        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
+        $this->assertIsString($template);
+
+        $modalPosition = strpos($template, 'id="newContactModal"');
+        $lastPanePosition = strrpos($template, 'class="tab-pane fade"');
+
+        $this->assertIsInt($modalPosition);
+        $this->assertIsInt($lastPanePosition);
+
+        // Aus einem ausgeblendeten Tab heraus geöffnet zeigte Bootstrap nur den
+        // Hintergrund: das Modal muss hinter allen Tab-Bereichen stehen.
+        $this->assertGreaterThan($lastPanePosition, $modalPosition);
+        $this->assertStringNotContainsString(
+            'id="newContactModal"',
+            substr($template, 0, strpos($template, '</section>') ?: 0)
+        );
+    }
+
+    public function testGenericContactButtonResetsThePresetAgreement(): void
+    {
+        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
+        $this->assertIsString($template);
+
+        // Ohne leeres data-Attribut klebte die zuletzt gewählte Vereinbarung am
+        // geteilten Modal und ein sponsorweiter Kontakt landete an ihr.
+        $this->assertStringContainsString('data-contact-sponsorship=""', $template);
     }
 }

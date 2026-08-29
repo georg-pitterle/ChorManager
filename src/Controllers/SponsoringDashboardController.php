@@ -26,13 +26,14 @@ class SponsoringDashboardController
 
     public function index(Request $request, Response $response): Response
     {
-        // Aktive Sponsoren ergeben sich aus den Vereinbarungen. Vorher zählte
-        // hier `sponsors.status`, sodass ein Sponsor mit zugesagter Vereinbarung
-        // in der Kennzahl fehlte, solange niemand zusätzlich den Sponsor
-        // umgestellt hatte.
-        $totalActive = Sponsorship::where('status', SponsorshipStatus::ACCEPTED)
-            ->distinct()
-            ->count('sponsor_id');
+        // Gezählt werden Vereinbarungen, nicht Sponsoren. Als Sponsorenzahl ließ
+        // sich die Kachel nicht an der Sponsorenliste nachprüfen: deren Zustand
+        // beschreibt den Stand der Akquise (eine laufende Anfrage oder eine
+        // Generalabsage verdecken dort eine Zusage), die Kachel dagegen die
+        // eingegangenen Verpflichtungen. Zwei Fragen, zwei Einheiten - eine
+        // Zusage bleibt bestehen, auch wenn der Sponsor keine Anfragen mehr will
+        // oder für das nächste Projekt schon wieder angefragt wurde.
+        $totalActive = Sponsorship::where('status', SponsorshipStatus::ACCEPTED)->count();
 
         $totalAmount = (float) Sponsorship::where('status', SponsorshipStatus::ACCEPTED)->sum('amount');
 
@@ -40,11 +41,6 @@ class SponsoringDashboardController
 
         $today = Carbon::today();
         $todayIso = $today->format('Y-m-d');
-
-        $openFollowUps = SponsoringContact::where('follow_up_done', 0)
-            ->whereNotNull('follow_up_date')
-            ->where('follow_up_date', '<=', $todayIso)
-            ->count();
 
         $in7Days = $today->copy()->addDays(7)->format('Y-m-d');
 
@@ -57,6 +53,13 @@ class SponsoringDashboardController
             ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $todayIso))
             ->values()
             ->all();
+
+        // Die überfälligen sind eine Teilmenge der eben geladenen Zeilen -
+        // dafür braucht es keine zweite Abfrage.
+        $openFollowUps = count(array_filter(
+            $upcomingFollowUps,
+            static fn (array $followUp): bool => $followUp['is_overdue']
+        ));
 
         $recentContacts = SponsoringContact::with(['sponsor', 'user'])
             ->orderBy('contact_date', 'desc')

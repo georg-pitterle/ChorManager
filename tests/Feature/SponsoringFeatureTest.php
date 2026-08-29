@@ -8,6 +8,7 @@ use App\Controllers\SponsorshipController;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Policies\SponsoringPolicy;
+use App\Services\EntityAttachmentService;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -30,7 +31,7 @@ class SponsoringFeatureTest extends TestCase
         $logger = new Logger('test');
         $logger->pushHandler($handlerLog);
         $_SESSION['can_manage_sponsoring'] = true;
-        $controller = new SponsorshipController($this->createStub(Twig::class), $logger, new SponsoringPolicy());
+        $controller = new SponsorshipController(new SponsoringPolicy(), new EntityAttachmentService($logger));
 
         $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
         $stream = (new StreamFactory())->createStream($oversizedContent);
@@ -168,9 +169,14 @@ class SponsoringFeatureTest extends TestCase
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SponsorshipController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("Attachment::where('entity_type', 'sponsorship')", $controllerContent);
-        $this->assertStringContainsString("->where('entity_id', " . '$' . "id)", $controllerContent);
-        $this->assertStringContainsString("->delete();", $controllerContent);
+        $this->assertStringContainsString('deleteAllForEntities(self::ENTITY_TYPE, [$id])', $controllerContent);
+
+        // Aufgeräumt wird im gemeinsamen Dienst; die Bedingung muss beide
+        // Spalten binden, sonst träfe sie fremde Anhänge.
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/EntityAttachmentService.php');
+        $this->assertIsString($serviceContent);
+        $this->assertStringContainsString("where('entity_type', " . '$' . "entityType)", $serviceContent);
+        $this->assertStringContainsString("->whereIn('entity_id', " . '$' . "entityIds)", $serviceContent);
     }
 
     public function testSponsorshipControllerBindsUpdatesAndDeletesToPostedSponsorId(): void
@@ -183,6 +189,8 @@ class SponsoringFeatureTest extends TestCase
             "if (" . '$' . "providedSponsorId > 0 && " . '$' . "providedSponsorId !== (int) " . '$' . "sponsorship->sponsor_id)",
             $controllerContent
         );
-        $this->assertStringContainsString("'file_size'      => " . '$' . "size", $controllerContent);
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/EntityAttachmentService.php');
+        $this->assertIsString($serviceContent);
+        $this->assertStringContainsString("'file_size'     => " . '$' . "size", $serviceContent);
     }
 }

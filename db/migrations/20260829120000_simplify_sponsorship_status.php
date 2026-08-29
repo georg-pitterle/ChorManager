@@ -17,12 +17,22 @@ final class SimplifySponsorshipStatus extends AbstractMigration
     private const COMBINED_VALUES = "'prospect','contacted','negotiating','active','paused','closed',"
         . "'requested','reminded','accepted','declined'";
 
-    /** @var array<string, string> */
+    /**
+     * "Pausiert" beschrieb eine bestehende, ruhende Vereinbarung - keine
+     * offene Anfrage. Auf "Erinnert" abgebildet landete ihr Betrag in der
+     * Pipeline der offenen Anfragen, und der Sponsor erschien als "Anfrage
+     * läuft"; Mitglieder hätten bei jemandem nachgefasst, bei dem gar nichts
+     * offen ist. "Abgeschlossen" sagt weder eine Anfrage noch zugesagtes Geld
+     * zu und ist damit die ehrlichste Abbildung; wer eine pausierte
+     * Vereinbarung wieder aufnimmt, setzt den Status von Hand.
+     *
+     * @var array<string, string>
+     */
     private const FORWARD_MAP = [
         'prospect' => 'requested',
         'contacted' => 'requested',
         'negotiating' => 'reminded',
-        'paused' => 'reminded',
+        'paused' => 'closed',
         'active' => 'accepted',
     ];
 

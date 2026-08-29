@@ -2073,8 +2073,8 @@ class DevSeedService
 
     /**
      * Die letzten beiden Sponsoren legt bewusst ein einfaches Mitglied an -
-     * nur so laesst sich das Recht can_create_own_sponsorships im Dev
-     * durchklicken (eigene Eintraege aenderbar, fremde nicht).
+     * nur so lässt sich das Recht can_create_own_sponsorships im Dev
+     * durchklicken (eigene Einträge änderbar, fremde nicht).
      */
     private function seedSponsors(array $activeUsers): array
     {
@@ -2394,7 +2394,7 @@ class DevSeedService
                         'project_id' => $project?->id,
                         'package_id' => $package->id,
                         'assigned_user_id' => $assignedUser?->id,
-                        // Urheber und Zustaendige sind bewusst verschieden:
+                        // Urheber und Zuständige sind bewusst verschieden:
                         // so zeigt der Seed beide Rollen im Rechte-Modell.
                         'created_by_user_id' => $activeUserCount > 0
                             ? $activeUsers[($item['assigned_user_offset'] + 1) % $activeUserCount]->id
@@ -2649,9 +2649,9 @@ class DevSeedService
     }
 
     /**
-     * Anhaenge am Sponsor selbst. Logos und Mediadaten gehoeren zu keiner
-     * einzelnen Vereinbarung und tauchen zusammen mit den Vertraegen in der
-     * zentralen Anhang-Uebersicht auf.
+     * Anhänge am Sponsor selbst. Logos und Mediadaten gehören zu keiner
+     * einzelnen Vereinbarung und tauchen zusammen mit den Verträgen in der
+     * zentralen Anhang-Übersicht auf.
      */
     private function seedSponsorLogoAttachments(array $sponsors): void
     {

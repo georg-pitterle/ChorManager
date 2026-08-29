@@ -386,10 +386,10 @@ return function (App $app) {
                 // Sponsoring Routes
                 //
                 // Zwei Gruppen: alles, was jedes beitragende Mitglied braucht,
-                // haengt an requiresSponsoringAccess - den Umfang (eigene oder
-                // alle Eintraege) setzt anschliessend die SponsoringPolicy im
-                // Controller durch. Was ausschliesslich dem Sponsoring-Team
-                // gehoert - Sponsoren loeschen und die Paketverwaltung - bleibt
+                // hängt an requiresSponsoringAccess - den Umfang (eigene oder
+                // alle Einträge) setzt anschließend die SponsoringPolicy im
+                // Controller durch. Was ausschließlich dem Sponsoring-Team
+                // gehört - Sponsoren löschen und die Paketverwaltung - bleibt
                 // hinter requiresSponsoringManagement.
                 $group->group(
                     '/sponsoring',

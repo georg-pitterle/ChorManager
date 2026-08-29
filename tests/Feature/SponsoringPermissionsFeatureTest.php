@@ -12,7 +12,10 @@ use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
+use App\Models\SponsoringContact;
 use App\Models\User;
+use App\Controllers\SponsoringContactController;
+use App\Models\Attachment;
 use App\Policies\SponsoringPolicy;
 use App\Util\SponsorshipStatus;
 use PHPUnit\Framework\TestCase;
@@ -284,6 +287,190 @@ class SponsoringPermissionsFeatureTest extends TestCase
         }
     }
 
+    public function testBlockedSponsorRefusesNewAgreementsAndContacts(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $sponsor->update([
+            'requests_blocked' => true,
+            'requests_blocked_note' => 'Bittet ausdrücklich darum, nicht erneut angefragt zu werden.',
+        ]);
+
+        try {
+            $agreement = $this->sponsorshipController()->create(
+                $this->makeRequest('POST', '/sponsoring/sponsorships', [
+                    'sponsor_id' => (string) $sponsor->id,
+                    'amount' => '300',
+                ]),
+                $this->makeResponse()
+            );
+
+            $this->assertRedirect($agreement, '/sponsoring/sponsors/' . $sponsor->id);
+            $this->assertSame(SponsorshipController::BLOCKED_ERROR, $_SESSION['error'] ?? null);
+            $this->assertSame(0, Sponsorship::where('sponsor_id', $sponsor->id)->count());
+
+            $contactController = new SponsoringContactController(
+                $this->createStub(Twig::class),
+                new SponsoringPolicy()
+            );
+
+            $contact = $contactController->create(
+                $this->makeRequest('POST', '/sponsoring/contacts', [
+                    'sponsor_id' => (string) $sponsor->id,
+                    'contact_date' => date('Y-m-d'),
+                    'type' => 'call',
+                    'summary' => 'Doch noch einmal nachgefragt.',
+                ]),
+                $this->makeResponse()
+            );
+
+            $this->assertRedirect($contact, '/sponsoring/sponsors/' . $sponsor->id);
+            $this->assertSame(SponsoringContactController::BLOCKED_ERROR, $_SESSION['error'] ?? null);
+            $this->assertSame(0, SponsoringContact::where('sponsor_id', $sponsor->id)->count());
+        } finally {
+            SponsoringContact::where('sponsor_id', $sponsor->id)->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    public function testUpdateKeepsAClearedPeriodInsteadOfRefillingItFromTheProject(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $project = Project::create([
+            'name' => 'Zeitraum-Behalten ' . bin2hex(random_bytes(4)),
+            'start_date' => date('Y-m-d', strtotime('-1 month')),
+            'end_date' => date('Y-m-d', strtotime('+1 month')),
+        ]);
+
+        try {
+            $controller = $this->sponsorshipController();
+            $controller->create(
+                $this->makeRequest('POST', '/sponsoring/sponsorships', [
+                    'sponsor_id' => (string) $sponsor->id,
+                    'amount' => '500',
+                    'project_id' => (string) $project->id,
+                ]),
+                $this->makeResponse()
+            );
+
+            $sponsorship = Sponsorship::where('sponsor_id', $sponsor->id)->firstOrFail();
+            $this->assertNotNull($sponsorship->start_date);
+
+            // Leeren heißt "unbefristet" - eine Vorbelegung machte das unmöglich.
+            $controller->update(
+                $this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, [
+                    'sponsor_id' => (string) $sponsor->id,
+                    'amount' => '500',
+                    'project_id' => (string) $project->id,
+                    'start_date' => '',
+                    'end_date' => '',
+                ]),
+                $this->makeResponse(),
+                ['id' => (string) $sponsorship->id]
+            );
+
+            $reloaded = $sponsorship->fresh();
+            $this->assertNull($reloaded->start_date);
+            $this->assertNull($reloaded->end_date);
+        } finally {
+            $this->cleanUp($sponsor);
+            $project->delete();
+        }
+    }
+
+    public function testRunningProjectWithoutAnEndDateStaysSelectable(): void
+    {
+        $this->loginAsContributor();
+        $openEnded = Project::create([
+            'name' => 'Offenes Projekt ' . bin2hex(random_bytes(4)),
+            'start_date' => date('Y-m-d', strtotime('-1 month')),
+            'end_date' => null,
+        ]);
+
+        try {
+            $policy = new SponsoringPolicy();
+
+            // Ein fehlendes Datum heißt "offen", nicht "nicht laufend".
+            $this->assertTrue($policy->canUseProject((int) $openEnded->id));
+            $this->assertTrue(
+                $policy->selectableProjects()->contains(
+                    static fn (Project $project): bool => (int) $project->id === (int) $openEnded->id
+                )
+            );
+        } finally {
+            $openEnded->delete();
+        }
+    }
+
+    public function testContributorIsOnlyOfferedProjectsTheyMayActuallyUse(): void
+    {
+        $this->loginAsContributor();
+        $past = Project::create([
+            'name' => 'Abgeschlossenes Projekt ' . bin2hex(random_bytes(4)),
+            'start_date' => date('Y-m-d', strtotime('-2 years')),
+            'end_date' => date('Y-m-d', strtotime('-1 year')),
+        ]);
+
+        try {
+            // Die Auswahl bot vorher alle Projekte an; wer eines davon nahm,
+            // verlor beim Absenden das ganze ausgefüllte Formular.
+            $offered = (new SponsoringPolicy())->selectableProjects();
+            $this->assertFalse(
+                $offered->contains(static fn (Project $project): bool => (int) $project->id === (int) $past->id)
+            );
+
+            $_SESSION['can_manage_sponsoring'] = true;
+            $this->assertTrue(
+                (new SponsoringPolicy())->selectableProjects()
+                    ->contains(static fn (Project $project): bool => (int) $project->id === (int) $past->id)
+            );
+        } finally {
+            $past->delete();
+        }
+    }
+
+    public function testDeletingASponsorAlsoRemovesItsAttachments(): void
+    {
+        $_SESSION['user_id'] = (int) $this->contributor->id;
+        $_SESSION['can_manage_sponsoring'] = true;
+
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+
+        $sponsorAttachment = $this->makeAttachment('sponsor', (int) $sponsor->id);
+        $agreementAttachment = $this->makeAttachment('sponsorship', (int) $sponsorship->id);
+
+        $response = $this->sponsorController()->delete(
+            $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $sponsor->id]
+        );
+
+        $this->assertRedirect($response, '/sponsoring/sponsors');
+        $this->assertNull(Sponsor::find($sponsor->id));
+
+        // Ohne Aufräumen blieben die BLOB-Zeilen für immer unerreichbar liegen -
+        // die Bestätigung verspricht aber, dass alles Verknüpfte mitgeht.
+        $this->assertNull(Attachment::find($sponsorAttachment->id));
+        $this->assertNull(Attachment::find($agreementAttachment->id));
+    }
+
+    private function makeAttachment(string $entityType, int $entityId): Attachment
+    {
+        $content = 'Testinhalt ' . bin2hex(random_bytes(4));
+
+        return Attachment::create([
+            'entity_type'   => $entityType,
+            'entity_id'     => $entityId,
+            'filename'      => bin2hex(random_bytes(8)) . '_test.txt',
+            'original_name' => 'test.txt',
+            'mime_type'     => 'text/plain',
+            'file_size'     => strlen($content),
+            'file_content'  => $content,
+        ]);
+    }
+
     private function loginAsContributor(): void
     {
         $_SESSION['user_id'] = (int) $this->contributor->id;
@@ -293,11 +480,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
     private function sponsorshipController(): SponsorshipController
     {
-        return new SponsorshipController(
-            $this->createStub(Twig::class),
-            $this->logger()[0],
-            new SponsoringPolicy()
-        );
+        return new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
     }
 
     private function sponsorController(): SponsorController
@@ -305,7 +488,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         return new SponsorController(
             $this->createStub(Twig::class),
             new SponsoringPolicy(),
-            $this->logger()[0]
+            $this->attachmentService()
         );
     }
 

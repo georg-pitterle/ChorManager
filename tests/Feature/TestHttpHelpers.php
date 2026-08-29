@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Services\EntityAttachmentService;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use Psr\Log\NullLogger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Psr7\Factory\ServerRequestFactory;
@@ -46,6 +48,16 @@ trait TestHttpHelpers
     {
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame($location, $response->getHeaderLine('Location'));
+    }
+
+    /**
+     * Anhang-Dienst für Controller, deren Prüfung nichts mit Uploads zu tun
+     * hat. Wer die Protokollzeile einer abgelehnten Datei braucht, baut den
+     * Dienst mit dem eigenen Logger aus logger().
+     */
+    protected function attachmentService(): EntityAttachmentService
+    {
+        return new EntityAttachmentService(new NullLogger());
     }
 
     /**

@@ -47,6 +47,16 @@ class SponsoringPolicy
     }
 
     /**
+     * Kennung der handelnden Person, oder null ohne Anmeldung. Die Controller
+     * schreiben sie als Urheber an neue Einträge; ohne diesen Zugang läse jeder
+     * von ihnen denselben Sitzungsschlüssel noch einmal selbst aus.
+     */
+    public function currentUserId(): ?int
+    {
+        return $this->userId > 0 ? $this->userId : null;
+    }
+
+    /**
      * Das Vollrecht: Pakete, fremde Einträge, Löschen von Sponsoren.
      */
     public function canManageAll(): bool
@@ -119,14 +129,40 @@ class SponsoringPolicy
             return true;
         }
 
-        $today = date('Y-m-d');
+        return $this->selectableProjects()->contains(
+            static fn (Project $project): bool => (int) $project->id === $projectId
+        );
+    }
 
-        return Project::where('id', $projectId)
-            ->whereNotNull('start_date')
-            ->whereNotNull('end_date')
-            ->where('start_date', '<=', $today)
-            ->where('end_date', '>=', $today)
-            ->exists();
+    /**
+     * Projekte, die diese Person an eine Vereinbarung hängen darf. Das Formular
+     * bietet genau diese Liste an - vorher standen dort alle Projekte, und die
+     * Auswahl eines gesperrten Projekts verwarf beim Absenden das ganze
+     * ausgefüllte Formular samt gewählter Anhänge.
+     *
+     * Ein fehlendes Datum bedeutet "offen", nicht "nicht laufend": ein Projekt
+     * mit Beginn in der Vergangenheit und ohne gepflegtes Ende läuft. Vorher
+     * verlangte die Prüfung beide Daten und sperrte solche Projekte aus.
+     *
+     * @return \Illuminate\Support\Collection<int, Project>
+     */
+    public function selectableProjects(): \Illuminate\Support\Collection
+    {
+        $query = Project::orderBy('name');
+
+        if (!$this->canManageSponsoring) {
+            $today = date('Y-m-d');
+
+            $query
+                ->where(function ($sub) use ($today): void {
+                    $sub->whereNull('start_date')->orWhere('start_date', '<=', $today);
+                })
+                ->where(function ($sub) use ($today): void {
+                    $sub->whereNull('end_date')->orWhere('end_date', '>=', $today);
+                });
+        }
+
+        return $query->get();
     }
 
     private function canEditOwned(mixed $ownerId): bool

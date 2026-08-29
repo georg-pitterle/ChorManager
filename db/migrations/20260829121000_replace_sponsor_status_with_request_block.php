@@ -15,6 +15,7 @@ use Phinx\Migration\AbstractMigration;
 final class ReplaceSponsorStatusWithRequestBlock extends AbstractMigration
 {
     private const STATUS_NOTE_PREFIX = 'Bisheriger Sponsor-Status: ';
+    private const BLOCK_NOTE_PREFIX = 'Keine Anfragen erwünscht: ';
 
     /** @var array<string, string> */
     private const STATUS_LABELS = [
@@ -33,7 +34,7 @@ final class ReplaceSponsorStatusWithRequestBlock extends AbstractMigration
                 'null' => false,
                 'default' => false,
                 'after' => 'notes',
-                'comment' => 'Generalabsage: dieser Sponsor moechte nicht mehr angefragt werden',
+                'comment' => 'Generalabsage: dieser Sponsor möchte nicht mehr angefragt werden',
             ])
             ->addColumn('requests_blocked_note', 'text', [
                 'null' => true,
@@ -74,12 +75,43 @@ final class ReplaceSponsorStatusWithRequestBlock extends AbstractMigration
     }
 
     /**
-     * Legt die Spalte mit dem Standardwert neu an. Die alten Werte stehen als
-     * Zeile in den Notizen und werden bewusst nicht zurückgeschrieben - welcher
-     * Eintrag zu welchem Lauf gehört, lässt sich dort nicht sicher erkennen.
+     * Legt die Spalte mit dem Standardwert neu an. Die alten Statuswerte stehen
+     * als Zeile in den Notizen und werden bewusst nicht zurückgeschrieben -
+     * welcher Eintrag zu welchem Lauf gehört, lässt sich dort nicht sicher
+     * erkennen.
+     *
+     * Die Generalabsage dagegen wird gesichert, bevor ihre Spalten fallen. Sie
+     * ist der einzige Grund, aus dem es diese Migration gibt; ginge sie beim
+     * Zurückrollen verloren, käme jeder gesperrte Sponsor als "prospect" zurück
+     * - also genau in dem Zustand, der zu neuen Anfragen einlädt.
      */
     public function down(): void
     {
+        $this->execute(sprintf(
+            "UPDATE sponsors
+             SET notes = CONCAT(
+                 COALESCE(CONCAT(NULLIF(notes, ''), '\n'), ''),
+                 '%s',
+                 COALESCE(NULLIF(requests_blocked_note, ''), 'ohne Begründung')
+             )
+             WHERE requests_blocked = 1",
+            self::BLOCK_NOTE_PREFIX
+        ));
+
+        $unsaved = (int) ($this->fetchRow(sprintf(
+            "SELECT COUNT(*) AS unsaved FROM sponsors
+             WHERE requests_blocked = 1 AND (notes IS NULL OR notes NOT LIKE '%%%s%%')",
+            self::BLOCK_NOTE_PREFIX
+        ))['unsaved'] ?? 0);
+
+        if ($unsaved > 0) {
+            throw new RuntimeException(sprintf(
+                'Bei %d Sponsor(en) konnte die Sperre nicht in den Notizen gesichert werden. '
+                    . 'Die Spalten bleiben deshalb erhalten.',
+                $unsaved
+            ));
+        }
+
         $this->table('sponsors')
             ->addColumn('status', 'enum', [
                 'values' => array_keys(self::STATUS_LABELS),

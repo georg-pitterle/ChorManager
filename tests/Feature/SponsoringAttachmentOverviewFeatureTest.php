@@ -132,7 +132,7 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
         return new SponsorController(
             $this->createStub(Twig::class),
             new SponsoringPolicy(),
-            $this->logger()[0]
+            $this->attachmentService()
         );
     }
 }

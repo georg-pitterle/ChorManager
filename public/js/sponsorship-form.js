@@ -2,11 +2,11 @@
     "use strict";
 
     // Ausgehandelt wird je Projekt, deshalb deckt sich der Zeitraum einer
-    // Vereinbarung fast immer mit dem des Projekts. Das Formular schlaegt ihn
-    // deshalb vor, sobald ein Projekt gewaehlt wird und das Feld noch leer ist
-    // oder unveraendert dem zuletzt vorgeschlagenen Wert entspricht. Eine
-    // eigene Eingabe wird nie ueberschrieben; ohne JavaScript ergaenzt der
-    // SponsorshipController denselben Wert beim Speichern.
+    // Vereinbarung fast immer mit dem des Projekts. Das Formular schlägt ihn
+    // deshalb vor, sobald ein Projekt gewählt wird und das Feld noch leer ist
+    // oder unverändert dem zuletzt vorgeschlagenen Wert entspricht. Eine
+    // eigene Eingabe wird nie überschrieben; ohne JavaScript ergänzt der
+    // SponsorshipController denselben Wert beim Anlegen.
     function suggestedValue(field) {
         return field.dataset.suggestedValue || "";
     }
@@ -44,8 +44,11 @@
         });
     }
 
-    // Der "Kontakt"-Knopf unter einer Vereinbarung oeffnet dasselbe Modal wie
-    // der allgemeine Knopf, waehlt die Vereinbarung darin aber schon aus.
+    // Der "Kontakt"-Knopf unter einer Vereinbarung öffnet dasselbe Modal wie
+    // der allgemeine Knopf, wählt die Vereinbarung darin aber schon aus. Der
+    // allgemeine Knopf trägt dasselbe Attribut mit leerem Wert und setzt die
+    // Auswahl damit zurück - sonst klebte die zuletzt gewählte Vereinbarung am
+    // geteilten Modal, und ein sponsorweiter Kontakt landete an ihr.
     function bindContactShortcuts() {
         const modal = document.getElementById("newContactModal");
         if (!modal) {

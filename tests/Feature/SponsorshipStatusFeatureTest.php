@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Controllers\SponsorController;
 use App\Controllers\SponsoringDashboardController;
 use App\Controllers\SponsorshipController;
 use App\Models\Sponsor;
@@ -43,7 +44,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateRejectsAnUnknownStatusInsteadOfRunningIntoTheColumnEnum(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController($this->createStub(Twig::class), $this->logger()[0], new SponsoringPolicy());
+        $controller = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
 
         try {
             $response = $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -63,7 +64,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateFallsBackToRequestedWhenNoStatusIsSubmitted(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController($this->createStub(Twig::class), $this->logger()[0], new SponsoringPolicy());
+        $controller = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
 
         try {
             $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -92,14 +93,22 @@ class SponsorshipStatusFeatureTest extends TestCase
             ]);
             $this->assertSame(SponsorEngagementState::OPEN, SponsorEngagementState::forSponsor($sponsor->fresh()));
 
+            // Eine laufende Anfrage hat Vorrang vor einer Zusage: wer vor der
+            // eigenen Anfrage nachsieht, will wissen, ob schon jemand dran ist.
             Sponsorship::create([
                 'sponsor_id' => $sponsor->id,
                 'amount' => '900.00',
                 'status' => SponsorshipStatus::ACCEPTED,
             ]);
+            $this->assertSame(SponsorEngagementState::OPEN, SponsorEngagementState::forSponsor($sponsor->fresh()));
+
+            // Ohne offene Anfrage bleibt die Zusage der Zustand.
+            Sponsorship::where('sponsor_id', $sponsor->id)
+                ->where('status', SponsorshipStatus::REQUESTED)
+                ->update(['status' => SponsorshipStatus::CLOSED]);
             $this->assertSame(SponsorEngagementState::ACCEPTED, SponsorEngagementState::forSponsor($sponsor->fresh()));
 
-            // Die Generalabsage am Sponsor schlaegt jede Vereinbarung.
+            // Die Generalabsage am Sponsor schlägt jede Vereinbarung.
             $sponsor->update(['requests_blocked' => true]);
             $this->assertSame(SponsorEngagementState::BLOCKED, SponsorEngagementState::forSponsor($sponsor->fresh()));
         } finally {
@@ -143,6 +152,116 @@ class SponsorshipStatusFeatureTest extends TestCase
         } finally {
             $this->cleanUp($sponsor);
         }
+    }
+
+    public function testKeyFigureCountsCommitmentsAndSurvivesABlockedSponsor(): void
+    {
+        $sponsor = $this->makeSponsor();
+
+        try {
+            $before = $this->dashboardData();
+
+            Sponsorship::create([
+                'sponsor_id' => $sponsor->id,
+                'amount' => '4200.00',
+                'status' => SponsorshipStatus::ACCEPTED,
+            ]);
+
+            $withAgreement = $this->dashboardData();
+            $this->assertSame($before['total_active'] + 1, $withAgreement['total_active']);
+            $this->assertEqualsWithDelta($before['total_amount'] + 4200.0, $withAgreement['total_amount'], 0.001);
+
+            // Die Generalabsage betrifft künftige Anfragen, nicht eine bereits
+            // erteilte Zusage: das zugesagte Geld bleibt zugesagt.
+            $sponsor->update(['requests_blocked' => true]);
+            $afterBlock = $this->dashboardData();
+
+            $this->assertSame($withAgreement['total_active'], $afterBlock['total_active']);
+            $this->assertEqualsWithDelta($withAgreement['total_amount'], $afterBlock['total_amount'], 0.001);
+        } finally {
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    public function testKeyFigureCountsAgreementsNotSponsors(): void
+    {
+        $sponsor = $this->makeSponsor();
+
+        try {
+            $before = $this->dashboardData();
+
+            // Zwei Zusagen desselben Sponsors zählen zweimal - die Kachel misst
+            // Verpflichtungen, nicht Sponsoren, und ist deshalb nicht mit dem
+            // Zustandsfilter der Sponsorenliste zu verwechseln.
+            foreach (['1000.00', '2000.00'] as $amount) {
+                Sponsorship::create([
+                    'sponsor_id' => $sponsor->id,
+                    'amount' => $amount,
+                    'status' => SponsorshipStatus::ACCEPTED,
+                ]);
+            }
+
+            $after = $this->dashboardData();
+
+            $this->assertSame($before['total_active'] + 2, $after['total_active']);
+            $this->assertEqualsWithDelta($before['total_amount'] + 3000.0, $after['total_amount'], 0.001);
+        } finally {
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    public function testBlockNoteSurvivesTemporarilyLiftingTheBlock(): void
+    {
+        $_SESSION['user_id'] = 0;
+        $sponsor = $this->makeSponsor();
+        $sponsor->update([
+            'requests_blocked' => true,
+            'requests_blocked_note' => 'Kontakt nur über die Geschäftsführung.',
+        ]);
+
+        $controller = new SponsorController(
+            $this->createStub(Twig::class),
+            new \App\Policies\SponsoringPolicy(),
+            $this->attachmentService()
+        );
+
+        try {
+            // Sperre aufheben, Begründung steht weiterhin im Formular.
+            $controller->update(
+                $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id, [
+                    'name' => $sponsor->name,
+                    'requests_blocked_note' => 'Kontakt nur über die Geschäftsführung.',
+                ]),
+                $this->makeResponse(),
+                ['id' => (string) $sponsor->id]
+            );
+
+            $reloaded = $sponsor->fresh();
+            $this->assertFalse((bool) $reloaded->requests_blocked);
+            $this->assertSame('Kontakt nur über die Geschäftsführung.', $reloaded->requests_blocked_note);
+        } finally {
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardData(): array
+    {
+        $captured = [];
+        $twig = $this->createStub(Twig::class);
+        $twig->method('render')->willReturnCallback(
+            function ($response, string $template, array $data) use (&$captured): ResponseInterface {
+                $captured = $data;
+                return $response;
+            }
+        );
+
+        (new SponsoringDashboardController($twig, new NameFormatterService()))
+            ->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
+
+        return $captured;
     }
 
     private function makeSponsor(): Sponsor

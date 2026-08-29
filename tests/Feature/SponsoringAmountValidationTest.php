@@ -35,11 +35,7 @@ final class SponsoringAmountValidationTest extends TestCase
         Capsule::connection()->beginTransaction();
 
         $_SESSION['can_manage_sponsoring'] = true;
-        $this->sponsorships = new SponsorshipController(
-            $this->createStub(Twig::class),
-            new NullLogger(),
-            new SponsoringPolicy()
-        );
+        $this->sponsorships = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
         $this->packages = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy());
         $this->sponsor = Sponsor::create(['name' => 'Betragsprüfung ' . bin2hex(random_bytes(4))]);
 

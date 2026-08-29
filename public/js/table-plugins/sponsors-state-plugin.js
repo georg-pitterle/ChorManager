@@ -11,9 +11,9 @@
             return String(value || "").trim().toLowerCase();
         }
 
-        // Die Zustaende stehen im Template am Tabellenrahmen. Frueher pflegte
+        // Die Zustände stehen im Template am Tabellenrahmen. Früher pflegte
         // dieses Plugin eine eigene Kopie der Liste - sie lief mit jeder
-        // Aenderung am Statusmodell auseinander.
+        // Änderung am Statusmodell auseinander.
         function readOptions() {
             const shell = context.root || document.querySelector("[data-state-options]");
             const raw = shell && shell.getAttribute ? shell.getAttribute("data-state-options") : null;

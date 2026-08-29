@@ -27,11 +27,13 @@ Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, wäh
 | --- | --- |
 | **Angefragt** | Die Anfrage ist raus, eine Antwort steht aus. |
 | **Erinnert** | Es wurde nachgefasst oder verhandelt. |
-| **Zusage** | Die Unterstützung ist zugesagt. Diese Vereinbarungen zählen in die Kennzahlen des Dashboards. |
+| **Zusage** | Die Unterstützung ist zugesagt. Diese Vereinbarungen zählen in die Kennzahlen des Dashboards – auch dann noch, wenn der Sponsor später keine weiteren Anfragen mehr wünscht. |
 | **Absage** | Der Sponsor hat für dieses Vorhaben abgesagt. |
 | **Abgeschlossen** | Die Vereinbarung ist erfüllt und abgehakt. |
 
-Der Sponsor selbst hat keinen eigenen Status: sein Zustand ergibt sich aus seinen Vereinbarungen. Nur wenn jemand grundsätzlich nicht mehr angefragt werden möchte, wird beim Sponsor **"Keine Anfragen erwünscht"** gesetzt.
+Der Sponsor selbst hat keinen eigenen Status: sein Zustand ergibt sich aus seinen Vereinbarungen. Eine **laufende Anfrage** hat dabei Vorrang vor einer früheren Zusage – so siehst du vor der eigenen Anfrage, ob schon jemand an dieser Firma dran ist.
+
+Nur wenn jemand grundsätzlich nicht mehr angefragt werden möchte, wird beim Sponsor **"Keine Anfragen erwünscht"** gesetzt. Dann sperrt der Chor-Manager neue Vereinbarungen und Kontakte zu diesem Sponsor; bestehende Zusagen bleiben davon unberührt.
 
 ## Einstieg: das Dashboard
 
@@ -41,7 +43,7 @@ Klicke oben in der Navigation auf **Bereiche → Sponsoring**. Du landest auf de
 
 Das Dashboard zeigt dir:
 
-- **Kennzahlen**: Anzahl der Sponsoren mit Zusage, zugesagter Gesamtbetrag, Pipeline-Volumen (Vereinbarungen mit Status "Angefragt" oder "Erinnert") und Anzahl fälliger Wiedervorlagen.
+- **Kennzahlen**: Anzahl der Zusagen, zugesagter Gesamtbetrag, Pipeline-Volumen (Vereinbarungen mit Status "Angefragt" oder "Erinnert") und Anzahl fälliger Wiedervorlagen. Gezählt werden Vereinbarungen, nicht Sponsoren: die Kachel misst eingegangene Verpflichtungen, während der Zustand in der Sponsorenliste den Stand der Akquise zeigt.
 - **Wiedervorlagen**: Kontakte mit einem fälligen Erinnerungstermin in den nächsten 7 Tagen. Überfällige Einträge sind gelb markiert. Mit **Erledigt** markierst du eine Wiedervorlage als abgeschlossen.
 - **Letzte Kontakte**: die neueste Kommunikationshistorie mit allen Sponsoren.
 

@@ -100,7 +100,7 @@
                                         {% endif %}
                                     </td>
                                     <td data-label="Zustand">
-                                        <span class="badge bg-{{ state_colors[sponsor_state] }}{{ sponsor_state == 'none' ? ' text-dark border' : '' }}">{{ state_labels[sponsor_state] }}</span>
+                                        <span class="badge {{ state_badges[sponsor_state] }}">{{ state_labels[sponsor_state] }}</span>
                                     </td>
                                     <td data-label="E-Mail">
                                         {% if sponsor.email %}

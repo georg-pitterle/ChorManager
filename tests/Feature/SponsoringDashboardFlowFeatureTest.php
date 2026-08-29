@@ -8,6 +8,7 @@ use App\Controllers\SponsorController;
 use App\Controllers\SponsoringContactController;
 use App\Models\Sponsor;
 use App\Policies\SponsoringPolicy;
+use App\Services\EntityAttachmentService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
@@ -191,7 +192,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
         $controller = new SponsorController(
             Twig::create(dirname(__DIR__, 2) . '/templates'),
             new SponsoringPolicy(),
-            new NullLogger()
+            new EntityAttachmentService(new NullLogger())
         );
         $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
             'name' => 'Test Sponsor',
@@ -210,7 +211,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
         $controller = new SponsorController(
             Twig::create(dirname(__DIR__, 2) . '/templates'),
             new SponsoringPolicy(),
-            new NullLogger()
+            new EntityAttachmentService(new NullLogger())
         );
         $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
             'name' => 'Test Sponsor',
@@ -235,7 +236,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
         $controller = new SponsorController(
             Twig::create(dirname(__DIR__, 2) . '/templates'),
             new SponsoringPolicy(),
-            new NullLogger()
+            new EntityAttachmentService(new NullLogger())
         );
         $request = $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id, [
             'name' => str_repeat('x', 256),

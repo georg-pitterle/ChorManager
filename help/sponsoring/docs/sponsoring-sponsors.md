@@ -4,7 +4,7 @@ Diese Anleitung zeigt, wie du Sponsoren anlegst, ihre Daten pflegst, Vereinbarun
 
 ## 1. Sponsorenübersicht
 
-Klicke im Sponsoring-Dashboard oben rechts auf **Sponsoren**, um zur Liste aller Sponsoren zu gelangen. Über die Tabellenleiste kannst du nach Namen suchen und nach Zustand filtern. Der Zustand wird aus den Vereinbarungen abgeleitet – "Zusage", "Anfrage läuft", "Absage", "Abgeschlossen" oder "Keine Vereinbarung". Ein Klick auf einen Sponsor-Namen öffnet dessen Detailseite.
+Klicke im Sponsoring-Dashboard oben rechts auf **Sponsoren**, um zur Liste aller Sponsoren zu gelangen. Über die Tabellenleiste kannst du nach Namen suchen und nach Zustand filtern. Der Zustand wird aus den Vereinbarungen abgeleitet – "Anfrage läuft", "Zusage", "Absage", "Abgeschlossen" oder "Keine Vereinbarung"; eine laufende Anfrage hat Vorrang vor einer früheren Zusage. Ein Klick auf einen Sponsor-Namen öffnet dessen Detailseite.
 
 Diese Liste ist der Grund, warum jedes Mitglied Leserecht hat: Vor einer Anfrage siehst du hier, wo bereits jemand angefragt hat – und musst dich nicht vorher abstimmen.
 
@@ -14,7 +14,7 @@ Diese Liste ist der Grund, warum jedes Mitglied Leserecht hat: Vor einer Anfrage
 
 Klicke oben rechts auf **Neuer Sponsor**. Im Dialog trägst du die Stammdaten ein: Typ (Organisation/Firma oder Einzelperson), Name, Kontaktperson, E-Mail, Telefon, Website und Adresse. Mit **Anlegen** wird der Sponsor gespeichert.
 
-Einen eigenen Status hat der Sponsor nicht – der ergibt sich aus seinen Vereinbarungen. Nur wenn jemand ausdrücklich nicht mehr angefragt werden möchte, setzt du **"Keine Anfragen erwünscht"** und hinterlegst kurz den Grund.
+Einen eigenen Status hat der Sponsor nicht – der ergibt sich aus seinen Vereinbarungen. Nur wenn jemand ausdrücklich nicht mehr angefragt werden möchte, setzt du **"Keine Anfragen erwünscht"** und hinterlegst kurz den Grund. Danach lassen sich für diesen Sponsor keine neuen Vereinbarungen und Kontakte mehr anlegen. Die Begründung bleibt erhalten, auch wenn du die Sperre später wieder aufhebst.
 
 ![Dialog "Neuer Sponsor"](images/sponsoring/03-new-sponsor-modal.png)
 
@@ -34,9 +34,9 @@ Wechsle zum Reiter **Vereinbarungen**. Hier siehst du bestehende Vereinbarungen 
 
 Klicke auf **Neue Vereinbarung**, um eine weitere Vereinbarung zu erfassen: Paket, Status, Betrag, Zuständige Person, Projekt, Zeitraum, Notizen sowie optional Anhänge (z. B. ein unterschriebener Vertrag als PDF). Mit **Anlegen** wird die Vereinbarung gespeichert.
 
-Sobald du ein Projekt auswählst, füllt sich der Zeitraum mit dem Projektzeitraum – du kannst ihn jederzeit überschreiben. Unter jeder Vereinbarung stehen ihre Kontakte, weil je Projekt neu verhandelt wird; über **Kontakt** dort protokollierst du einen Kontakt direkt zur richtigen Vereinbarung.
+Sobald du beim **Anlegen** ein Projekt auswählst, füllt sich der Zeitraum mit dem Projektzeitraum – du kannst ihn jederzeit überschreiben. Beim späteren Bearbeiten bleibt ein leeres Datumsfeld leer; so lässt sich eine Vereinbarung auch unbefristet führen. Unter jeder Vereinbarung stehen ihre Kontakte, weil je Projekt neu verhandelt wird; über **Kontakt** dort protokollierst du einen Kontakt direkt zur richtigen Vereinbarung.
 
-Ohne das Recht "Sponsoring verwalten" kannst du nur die Vereinbarungen bearbeiten, die du selbst angelegt hast, und sie nur einem laufenden Projekt zuordnen. Fremde Vereinbarungen sind mit einem Schloss-Symbol gekennzeichnet.
+Ohne das Recht "Sponsoring verwalten" kannst du nur die Vereinbarungen bearbeiten, die du selbst angelegt hast. Die Projektauswahl bietet dir dann genau die Projekte an, die du verwenden darfst – also die gerade laufenden. Fremde Vereinbarungen sind mit einem Schloss-Symbol gekennzeichnet.
 
 ![Dialog "Neue Vereinbarung"](images/sponsoring/06-new-agreement-modal.png)
 
@@ -64,4 +64,4 @@ Wechsle zum Reiter **Kontakthistorie**, um alle bisherigen Kontakte mit dem Spon
 - **Bei einem Kontakt sind Datum, Art und Zusammenfassung Pflichtfelder.** Die Zusammenfassung darf maximal 2000 Zeichen lang sein.
 - **Anhänge haben eine Größengrenze:** Bilder bis 2 MB, andere Dateien (z. B. PDF) bis 10 MB.
 - **Einen Sponsor löschen ist endgültig.** Dabei werden auch alle zugehörigen Vereinbarungen und Kontakte gelöscht. Löschen darf nur, wer das Recht "Sponsoring verwalten" hat.
-- **Vereinbarungen zu abgeschlossenen Projekten** kann nur die Sponsoring-Verwaltung erfassen. Mit dem Recht "Eigene Sponsoring-Vereinbarungen erfassen" wählst du entweder ein laufendes Projekt oder gar keins.
+- **Vereinbarungen zu abgeschlossenen Projekten** kann nur die Sponsoring-Verwaltung erfassen. Mit dem Recht "Eigene Sponsoring-Vereinbarungen erfassen" stehen in der Auswahl nur laufende Projekte – oder du lässt das Projekt leer.

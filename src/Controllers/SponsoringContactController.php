@@ -7,6 +7,7 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Models\Sponsor;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
 use App\Policies\SponsoringPolicy;
@@ -15,6 +16,8 @@ class SponsoringContactController
 {
     private const ALLOWED_CONTACT_TYPES = ['call', 'email', 'meeting', 'letter', 'other'];
     private const MAX_SUMMARY_LENGTH = 2000;
+
+    public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';
 
     private Twig $view;
     private SponsoringPolicy $policy;
@@ -34,51 +37,23 @@ class SponsoringContactController
         $data      = (array) $request->getParsedBody();
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
 
-        $contactDate = trim((string) ($data['contact_date'] ?? ''));
-        $summary     = trim((string) ($data['summary'] ?? ''));
-        $type        = (string) ($data['type'] ?? '');
-        $followUpDate = trim((string) ($data['follow_up_date'] ?? ''));
-        $sponsorshipId = $this->normalizeOptionalId($data['sponsorship_id'] ?? null);
-
-        if (!$sponsorId || !$contactDate || !$summary || !$type) {
-            $_SESSION['error'] = 'Sponsor, Datum, Art und Zusammenfassung sind Pflichtfelder.';
+        $validation = $this->validateContactInput($data);
+        if ($validation['error'] !== null) {
+            $_SESSION['error'] = $validation['error'];
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
-        if (!in_array($type, self::ALLOWED_CONTACT_TYPES, true)) {
-            $_SESSION['error'] = 'Ungültige Kontaktart.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if (!$this->isValidDate($contactDate)) {
-            $_SESSION['error'] = 'Ungültiges Kontaktdatum.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if ($followUpDate !== '' && !$this->isValidDate($followUpDate)) {
-            $_SESSION['error'] = 'Ungültiges Wiedervorlage-Datum.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if (mb_strlen($summary) > self::MAX_SUMMARY_LENGTH) {
-            $_SESSION['error'] = 'Die Zusammenfassung ist zu lang (max. 2000 Zeichen).';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if ($sponsorshipId !== null && !$this->isSponsorshipLinkedToSponsor($sponsorshipId, $sponsorId)) {
-            $_SESSION['error'] = 'Ungültige Vereinbarung für diesen Sponsor.';
+        // Ein neuer Kontakt zu einem Sponsor, der sich Anfragen verbeten hat,
+        // ist genau das, was die Generalabsage verhindern soll.
+        if ($this->isBlocked($sponsorId)) {
+            $_SESSION['error'] = self::BLOCKED_ERROR;
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
         try {
-            SponsoringContact::create([
+            SponsoringContact::create($validation['values'] + [
                 'sponsor_id'     => $sponsorId,
-                'sponsorship_id' => $sponsorshipId,
-                'user_id'        => $this->normalizeOptionalId($_SESSION['user_id'] ?? null),
-                'contact_date'   => $contactDate,
-                'type'           => $type,
-                'summary'        => $summary,
-                'follow_up_date' => $followUpDate !== '' ? $followUpDate : null,
+                'user_id'        => $this->policy->currentUserId(),
                 'follow_up_done' => 0,
             ]);
             $_SESSION['success'] = 'Kontakt erfolgreich protokolliert.';
@@ -137,39 +112,10 @@ class SponsoringContactController
         }
 
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
-        $contactDate = trim((string) ($data['contact_date'] ?? ''));
-        $summary = trim((string) ($data['summary'] ?? ''));
-        $type = (string) ($data['type'] ?? '');
-        $followUpDate = trim((string) ($data['follow_up_date'] ?? ''));
-        $sponsorshipId = $this->normalizeOptionalId($data['sponsorship_id'] ?? null);
 
-        if (!$sponsorId || !$contactDate || !$summary || !$type) {
-            $_SESSION['error'] = 'Sponsor, Datum, Art und Zusammenfassung sind Pflichtfelder.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if (!in_array($type, self::ALLOWED_CONTACT_TYPES, true)) {
-            $_SESSION['error'] = 'Ungültige Kontaktart.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if (!$this->isValidDate($contactDate)) {
-            $_SESSION['error'] = 'Ungültiges Kontaktdatum.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if ($followUpDate !== '' && !$this->isValidDate($followUpDate)) {
-            $_SESSION['error'] = 'Ungültiges Wiedervorlage-Datum.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if (mb_strlen($summary) > self::MAX_SUMMARY_LENGTH) {
-            $_SESSION['error'] = 'Die Zusammenfassung ist zu lang (max. 2000 Zeichen).';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
-        }
-
-        if ($sponsorshipId !== null && !$this->isSponsorshipLinkedToSponsor($sponsorshipId, $sponsorId)) {
-            $_SESSION['error'] = 'Ungültige Vereinbarung für diesen Sponsor.';
+        $validation = $this->validateContactInput($data);
+        if ($validation['error'] !== null) {
+            $_SESSION['error'] = $validation['error'];
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
@@ -185,13 +131,7 @@ class SponsoringContactController
                 return $this->deny($response);
             }
 
-            $contact->update([
-                'sponsorship_id' => $sponsorshipId,
-                'contact_date' => $contactDate,
-                'type' => $type,
-                'summary' => $summary,
-                'follow_up_date' => $followUpDate !== '' ? $followUpDate : null,
-            ]);
+            $contact->update($validation['values']);
 
             $_SESSION['success'] = 'Kontakt erfolgreich aktualisiert.';
         } catch (\Throwable $e) {
@@ -233,6 +173,67 @@ class SponsoringContactController
     {
         $response->getBody()->write('Zugriff verweigert.');
         return $response->withStatus(403);
+    }
+
+    private function isBlocked(int $sponsorId): bool
+    {
+        return Sponsor::whereKey($sponsorId)->where('requests_blocked', true)->exists();
+    }
+
+    /**
+     * Prüft einen Protokolleintrag und gibt entweder die erste Beanstandung
+     * oder die fertigen Spaltenwerte zurück. Anlegen und Ändern hatten dieselbe
+     * Kette vorher doppelt; eine zusätzliche Regel wäre nur in einem der beiden
+     * Wege gelandet.
+     *
+     * @param array<string, mixed> $data
+     * @return array{error: ?string, values: array<string, mixed>}
+     */
+    private function validateContactInput(array $data): array
+    {
+        $fail = static fn (string $message): array => ['error' => $message, 'values' => []];
+
+        $sponsorId     = (int) ($data['sponsor_id'] ?? 0);
+        $contactDate   = trim((string) ($data['contact_date'] ?? ''));
+        $summary       = trim((string) ($data['summary'] ?? ''));
+        $type          = (string) ($data['type'] ?? '');
+        $followUpDate  = trim((string) ($data['follow_up_date'] ?? ''));
+        $sponsorshipId = $this->normalizeOptionalId($data['sponsorship_id'] ?? null);
+
+        if (!$sponsorId || !$contactDate || !$summary || !$type) {
+            return $fail('Sponsor, Datum, Art und Zusammenfassung sind Pflichtfelder.');
+        }
+
+        if (!in_array($type, self::ALLOWED_CONTACT_TYPES, true)) {
+            return $fail('Ungültige Kontaktart.');
+        }
+
+        if (!$this->isValidDate($contactDate)) {
+            return $fail('Ungültiges Kontaktdatum.');
+        }
+
+        if ($followUpDate !== '' && !$this->isValidDate($followUpDate)) {
+            return $fail('Ungültiges Wiedervorlage-Datum.');
+        }
+
+        if (mb_strlen($summary) > self::MAX_SUMMARY_LENGTH) {
+            return $fail('Die Zusammenfassung ist zu lang (max. 2000 Zeichen).');
+        }
+
+        if ($sponsorshipId !== null && !$this->isSponsorshipLinkedToSponsor($sponsorshipId, $sponsorId)) {
+            return $fail('Ungültige Vereinbarung für diesen Sponsor.');
+        }
+
+        return [
+            'error' => null,
+            'values' => [
+                'sponsorship_id' => $sponsorshipId,
+                'contact_date'   => $contactDate,
+                'type'           => $type,
+                'summary'        => $summary,
+                'follow_up_date' => $followUpDate !== '' ? $followUpDate : null,
+            ],
+        ];
     }
 
     private function isValidDate(string $date): bool

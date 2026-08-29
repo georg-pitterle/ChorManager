@@ -44,9 +44,9 @@ final class AuthMiddlewareRememberTokenCleanupFeatureTest extends TestCase
         $rememberLoginService->expects($this->once())->method('clearExpiredTokens');
 
         $middleware = new AuthMiddleware(
-            $this->createMock(UserQuery::class),
+            $this->createStub(UserQuery::class),
             $rememberLoginService,
-            $this->createMock(SessionAuthService::class)
+            $this->createStub(SessionAuthService::class)
         );
 
         $response = $middleware->process(
@@ -66,9 +66,9 @@ final class AuthMiddlewareRememberTokenCleanupFeatureTest extends TestCase
         $rememberLoginService->expects($this->never())->method('clearExpiredTokens');
 
         $middleware = new AuthMiddleware(
-            $this->createMock(UserQuery::class),
+            $this->createStub(UserQuery::class),
             $rememberLoginService,
-            $this->createMock(SessionAuthService::class)
+            $this->createStub(SessionAuthService::class)
         );
 
         try {

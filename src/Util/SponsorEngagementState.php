@@ -45,8 +45,15 @@ final class SponsorEngagementState
     ];
 
     /**
-     * Reihenfolge der Prüfung: die Generalabsage schlägt alles, danach zählt
-     * der jeweils "positivste" Stand, den eine Vereinbarung erreicht hat.
+     * Reihenfolge der Prüfung: die Generalabsage schlägt alles, danach hat eine
+     * laufende Anfrage Vorrang vor einer bereits erteilten Zusage.
+     *
+     * Die Reihenfolge von Anfrage und Zusage ist der eigentliche Zweck dieser
+     * Übersicht: Wer vor einer Anfrage nachsieht, will wissen, ob gerade schon
+     * jemand an dieser Firma dran ist. Stünde die Zusage vorn, verschwände ein
+     * Sponsor mit alter Zusage und neuer laufender Anfrage aus dem Filter
+     * "Anfrage läuft" - und genau dann fragen zwei Personen dieselbe Firma an.
+     * Eine Zusage ohne offene Anfrage bleibt "Zusage".
      */
     public static function forSponsor(Sponsor $sponsor): string
     {
@@ -63,12 +70,12 @@ final class SponsorEngagementState
             return self::NONE;
         }
 
-        if (in_array(SponsorshipStatus::ACCEPTED, $statuses, true)) {
-            return self::ACCEPTED;
-        }
-
         if (array_intersect(SponsorshipStatus::OPEN, $statuses) !== []) {
             return self::OPEN;
+        }
+
+        if (in_array(SponsorshipStatus::ACCEPTED, $statuses, true)) {
+            return self::ACCEPTED;
         }
 
         if (in_array(SponsorshipStatus::DECLINED, $statuses, true)) {
@@ -84,6 +91,46 @@ final class SponsorEngagementState
     public static function all(): array
     {
         return array_keys(self::LABELS);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function labels(): array
+    {
+        return self::LABELS;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function colors(): array
+    {
+        return self::COLORS;
+    }
+
+    /**
+     * Vollständige Badge-Klassen je Zustand. Der helle Zustand braucht
+     * zusätzlich Schrift- und Rahmenfarbe, sonst steht weiß auf weiß; diese
+     * Kenntnis stand vorher als Bedingung in zwei Templates.
+     *
+     * @return array<string, string>
+     */
+    public static function badgeClasses(): array
+    {
+        $classes = [];
+        foreach (self::COLORS as $state => $color) {
+            $classes[$state] = $color === 'light'
+                ? 'bg-light text-dark border'
+                : 'bg-' . $color;
+        }
+
+        return $classes;
+    }
+
+    public static function badgeClass(string $state): string
+    {
+        return self::badgeClasses()[$state] ?? 'bg-secondary';
     }
 
     public static function isValid(string $state): bool
@@ -102,7 +149,7 @@ final class SponsorEngagementState
     }
 
     /**
-     * @return list<array{value: string, label: string, color: string}>
+     * @return list<array{value: string, label: string, color: string, badge: string}>
      */
     public static function options(): array
     {
@@ -112,6 +159,7 @@ final class SponsorEngagementState
                 'value' => $value,
                 'label' => $label,
                 'color' => self::COLORS[$value],
+                'badge' => self::badgeClass($value),
             ];
         }
 
