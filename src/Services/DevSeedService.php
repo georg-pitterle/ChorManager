@@ -155,6 +155,7 @@ class DevSeedService
                 'sponsorships' => 0,
                 'sponsoring_contacts' => 0,
                 'sponsor_attachments' => 0,
+                'sponsor_logo_attachments' => 0,
                 'newsletter_templates' => 0,
                 'newsletter_template_recipient_sources' => 0,
                 'newsletters' => 0,
@@ -209,10 +210,10 @@ class DevSeedService
             $this->seedFinanceJournal();
             $this->seedBudget();
             $packages = $this->seedSponsorPackages();
-            $sponsors = $this->seedSponsors();
+            $sponsors = $this->seedSponsors($users['active']);
             $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
-            $this->seedSponsorAttachments($sponsorships);
+            $this->seedSponsorAttachments($sponsors, $sponsorships);
             $this->seedNewsletters($projects, $users['active']);
             $this->seedMailQueue($users['active']);
             $this->seedUserMailAccounts($users['active'], new MailCredentialCryptoService());
@@ -331,6 +332,7 @@ class DevSeedService
                 'can_manage_budget' => 1,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,
@@ -354,6 +356,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,
@@ -376,6 +379,7 @@ class DevSeedService
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -398,6 +402,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 0,
@@ -420,6 +425,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -442,6 +448,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -464,6 +471,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -2020,7 +2028,12 @@ class DevSeedService
         return $packages;
     }
 
-    private function seedSponsors(): array
+    /**
+     * Die letzten beiden Sponsoren legt bewusst ein einfaches Mitglied an -
+     * nur so laesst sich das Recht can_create_own_sponsorships im Dev
+     * durchklicken (eigene Eintraege aenderbar, fremde nicht).
+     */
+    private function seedSponsors(array $activeUsers): array
     {
         $definitions = [
             [
@@ -2128,7 +2141,16 @@ class DevSeedService
         ];
 
         $sponsors = [];
+        $activeUserCount = count($activeUsers);
+        $definitionIndex = 0;
+
         foreach ($definitions as $definition) {
+            $isMemberContributed = $definitionIndex >= count($definitions) - 2;
+            if ($isMemberContributed && $activeUserCount > 0) {
+                $definition['created_by_user_id'] = $activeUsers[$definitionIndex % $activeUserCount]->id;
+            }
+            $definitionIndex++;
+
             $sponsor = Sponsor::updateOrCreate(
                 ['name' => $definition['name']],
                 $definition
@@ -2329,6 +2351,11 @@ class DevSeedService
                         'project_id' => $project?->id,
                         'package_id' => $package->id,
                         'assigned_user_id' => $assignedUser?->id,
+                        // Urheber und Zustaendige sind bewusst verschieden:
+                        // so zeigt der Seed beide Rollen im Rechte-Modell.
+                        'created_by_user_id' => $activeUserCount > 0
+                            ? $activeUsers[($item['assigned_user_offset'] + 1) % $activeUserCount]->id
+                            : null,
                         'amount' => max((float) $item['amount'], (float) $package->min_amount),
                         'status' => $item['status'],
                         'start_date' => $startDate,
@@ -2514,8 +2541,10 @@ class DevSeedService
         }
     }
 
-    private function seedSponsorAttachments(array $sponsorships): void
+    private function seedSponsorAttachments(array $sponsors, array $sponsorships): void
     {
+        $this->seedSponsorLogoAttachments($sponsors);
+
         $definitions = [
             [
                 'sponsorship_key' => 'Musikhaus Weber-0',
@@ -2572,6 +2601,60 @@ class DevSeedService
 
             if ($attachment->wasRecentlyCreated) {
                 $this->report['counts']['sponsor_attachments']++;
+            }
+        }
+    }
+
+    /**
+     * Anhaenge am Sponsor selbst. Logos und Mediadaten gehoeren zu keiner
+     * einzelnen Vereinbarung und tauchen zusammen mit den Vertraegen in der
+     * zentralen Anhang-Uebersicht auf.
+     */
+    private function seedSponsorLogoAttachments(array $sponsors): void
+    {
+        $definitions = [
+            [
+                'sponsor' => 'Musikhaus Weber',
+                'original_name' => 'logo-musikhaus-weber.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Platzhalter für das Logo von Musikhaus Weber.',
+            ],
+            [
+                'sponsor' => 'Kulturstiftung am Fluss',
+                'original_name' => 'mediadaten-kulturstiftung.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Platzhalter für die Mediadaten der Kulturstiftung am Fluss.',
+            ],
+            [
+                'sponsor' => 'Eventagentur Taktvoll',
+                'original_name' => 'logo-taktvoll.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Platzhalter für das Logo der Eventagentur Taktvoll.',
+            ],
+        ];
+
+        foreach ($definitions as $definition) {
+            $sponsor = $sponsors[$definition['sponsor']] ?? null;
+            if (!$sponsor instanceof Sponsor) {
+                continue;
+            }
+
+            $attachment = Attachment::firstOrCreate(
+                [
+                    'entity_type' => 'sponsor',
+                    'entity_id' => $sponsor->id,
+                    'original_name' => $definition['original_name'],
+                ],
+                [
+                    'filename' => bin2hex(random_bytes(8)) . '_' . $definition['original_name'],
+                    'mime_type' => $definition['mime_type'],
+                    'file_size' => strlen($definition['file_content']),
+                    'file_content' => $definition['file_content'],
+                ]
+            );
+
+            if ($attachment->wasRecentlyCreated) {
+                $this->report['counts']['sponsor_logo_attachments']++;
             }
         }
     }

@@ -10,6 +10,7 @@ use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Util\SponsorEngagementState;
 use App\Util\SponsorshipStatus;
+use App\Policies\SponsoringPolicy;
 use App\Services\NameFormatterService;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -24,6 +25,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     {
         parent::setUp();
         $_SESSION = [];
+        $_SESSION['can_manage_sponsoring'] = true;
         Bootstrap::setupTestDatabase();
     }
 
@@ -41,7 +43,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateRejectsAnUnknownStatusInsteadOfRunningIntoTheColumnEnum(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController($this->createStub(Twig::class), $this->logger()[0]);
+        $controller = new SponsorshipController($this->createStub(Twig::class), $this->logger()[0], new SponsoringPolicy());
 
         try {
             $response = $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -61,7 +63,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateFallsBackToRequestedWhenNoStatusIsSubmitted(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController($this->createStub(Twig::class), $this->logger()[0]);
+        $controller = new SponsorshipController($this->createStub(Twig::class), $this->logger()[0], new SponsoringPolicy());
 
         try {
             $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [

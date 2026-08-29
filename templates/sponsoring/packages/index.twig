@@ -47,7 +47,13 @@
                  aria-labelledby="packages-list-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="packages-list-title">Paketübersicht</h2>
-                <p class="dashboard-section-lead mb-0">Pakete bearbeiten oder neue Pakete direkt in der Tabelle anlegen.</p>
+                <p class="dashboard-section-lead mb-0">
+                    {% if can_manage_all %}
+                        Pakete bearbeiten oder neue Pakete direkt in der Tabelle anlegen.
+                    {% else %}
+                        Übersicht der Pakete. Anlegen und Ändern übernimmt die Sponsoring-Verwaltung.
+                    {% endif %}
+                </p>
             </div>
 
             <div class="surface-card table-shell"
@@ -84,6 +90,7 @@
                                         <span class="badge bg-{{ pkg.color }}">{{ pkg.color }}</span>
                                     </td>
                                     <td data-label="Aktionen" class="text-end text-nowrap">
+                                        {% if can_manage_all %}
                                         <div class="btn-group"
                                              role="group"
                                              aria-label="Aktionen für Paket {{ pkg.name }}">
@@ -111,6 +118,9 @@
                                                 </li>
                                             </ul>
                                         </div>
+                                        {% else %}
+                                            <span class="text-muted small">–</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% else %}
@@ -119,7 +129,7 @@
                                 </tr>
                             {% endfor %}
                         </tbody>
-                        <tfoot>
+                        <tfoot{{ can_manage_all ? '' : ' hidden' }}>
                             <tr class="table-light">
                                 <td data-label="Name">
                                     <input type="text"
@@ -167,7 +177,7 @@
         </section>
     </div>
 
-    {% for pkg in packages %}
+    {% for pkg in packages if can_manage_all %}
         <div class="modal fade"
              id="editPackageModal{{ pkg.id }}"
              tabindex="-1"

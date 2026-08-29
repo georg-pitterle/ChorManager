@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 setCheckedIfPresent('edit_can_manage_finances', this.getAttribute('data-finances') === '1');
                 setCheckedIfPresent('edit_can_manage_master_data', this.getAttribute('data-master-data') === '1');
                 setCheckedIfPresent('edit_can_manage_sponsoring', this.getAttribute('data-sponsoring') === '1');
+                setCheckedIfPresent('edit_can_create_own_sponsorships', this.getAttribute('data-own-sponsorships') === '1');
                 setCheckedIfPresent('edit_can_manage_song_library', this.getAttribute('data-song-library') === '1');
                 setCheckedIfPresent('edit_can_manage_newsletters', this.getAttribute('data-newsletters') === '1');
                 setCheckedIfPresent('edit_can_manage_mail_queue', this.getAttribute('data-mail-queue') === '1');

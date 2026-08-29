@@ -16,6 +16,7 @@ class Sponsorship extends Model
         'project_id',
         'package_id',
         'assigned_user_id',
+        'created_by_user_id',
         'amount',
         'status',
         'start_date',
@@ -47,6 +48,16 @@ class Sponsorship extends Model
     public function assignedUser()
     {
         return $this->belongsTo(User::class, 'assigned_user_id');
+    }
+
+    /**
+     * Wer die Vereinbarung erfasst hat. Entscheidet zusammen mit
+     * can_create_own_sponsorships darüber, wer sie ändern darf - "zuständig"
+     * (assignedUser) ist etwas anderes und wird vom Sponsoring-Team vergeben.
+     */
+    public function createdByUser()
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
     public function contacts()

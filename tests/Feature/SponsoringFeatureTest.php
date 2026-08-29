@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\SponsorshipController;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
+use App\Policies\SponsoringPolicy;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -28,7 +29,8 @@ class SponsoringFeatureTest extends TestCase
         $handlerLog = new TestHandler();
         $logger = new Logger('test');
         $logger->pushHandler($handlerLog);
-        $controller = new SponsorshipController($this->createStub(Twig::class), $logger);
+        $_SESSION['can_manage_sponsoring'] = true;
+        $controller = new SponsorshipController($this->createStub(Twig::class), $logger, new SponsoringPolicy());
 
         $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
         $stream = (new StreamFactory())->createStream($oversizedContent);

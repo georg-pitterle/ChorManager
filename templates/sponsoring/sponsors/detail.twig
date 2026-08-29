@@ -29,14 +29,19 @@
             </h1>
             <p class="text-muted mb-0">Stammdaten, Vereinbarungen und Kontakthistorie im Überblick.</p>
         </div>
-        <div class="page-actions">
-            <form method="post"
-                  action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-                  data-confirm="Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
-                <button type="submit" class="btn btn-outline-danger btn-sm">
-                    <i class="bi bi-trash me-1"></i>Löschen
-                </button>
-            </form>
+        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            <a href="/sponsoring/attachments" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-paperclip me-1"></i>Alle Anhänge
+            </a>
+            {% if can_manage_all %}
+                <form method="post"
+                      action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+                      data-confirm="Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash me-1"></i>Löschen
+                    </button>
+                </form>
+            {% endif %}
         </div>
     </section>
 {% endblock page_header %}
@@ -208,12 +213,76 @@
                                         <textarea name="notes" class="form-control" rows="3">{{ sponsor.notes }}</textarea>
                                     </div>
                                     <div class="col-12">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="bi bi-check me-1"></i>Speichern
-                                        </button>
+                                        {% if can_edit_sponsor %}
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-check me-1"></i>Speichern
+                                            </button>
+                                        {% else %}
+                                            <p class="text-muted small mb-0">
+                                                Diese Stammdaten hat jemand anderes angelegt. Ändern darf sie die
+                                                Sponsoring-Verwaltung.
+                                            </p>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </form>
+
+                            <hr class="my-4">
+
+                            <h3 class="h6">
+                                <i class="bi bi-paperclip me-1"></i>Anhänge zum Sponsor
+                            </h3>
+                            <p class="text-muted small">Logo, Mediadaten oder Unterlagen, die zu keiner einzelnen Vereinbarung gehören.</p>
+
+                            {% if sponsor.attachments|length > 0 %}
+                                <ul class="list-unstyled mb-3">
+                                    {% for att in sponsor.attachments %}
+                                        <li class="mb-1">
+                                            <a href="/sponsoring/sponsors/{{ sponsor.id }}/attachments/{{ att.id }}"
+                                               class="small">
+                                                <i class="bi bi-file-earmark-arrow-down"></i> {{ att.original_name }}
+                                            </a>
+                                            {% if can_edit_sponsor %}
+                                                <form method="post"
+                                                      action="/sponsoring/sponsors/{{ sponsor.id }}/attachments/{{ att.id }}/delete"
+                                                      class="d-inline"
+                                                      data-confirm="Anhang löschen?">
+                                                    <button type="submit"
+                                                            class="btn btn-link btn-sm text-danger p-0 ms-1"
+                                                            title="Anhang löschen">
+                                                        <i class="bi bi-x-circle"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted small">Noch keine Anhänge vorhanden.</p>
+                            {% endif %}
+
+                            {% if can_edit_sponsor %}
+                                <form method="post"
+                                      action="/sponsoring/sponsors/{{ sponsor.id }}/attachments"
+                                      enctype="multipart/form-data"
+                                      id="sponsor-attachment-form"
+                                      data-upload-compress="true"
+                                      class="row g-2 align-items-end">
+                                    <div class="col-md-8">
+                                        <label class="form-label" for="sponsor_attachments">Dateien hinzufügen</label>
+                                        <input type="file"
+                                               id="sponsor_attachments"
+                                               name="attachments[]"
+                                               class="form-control"
+                                               multiple>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-outline-primary w-100">
+                                            <i class="bi bi-upload me-1"></i>Hochladen
+                                        </button>
+                                    </div>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -253,6 +322,8 @@
                                 </thead>
                                 <tbody>
                                     {% for sp in sponsor.sponsorships %}
+                                        {% set _sp_owned = sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id %}
+                                        {% set can_edit_sp = can_manage_all or _sp_owned %}
                                         <tr>
                                             <td>
                                                 {% if sp.package %}
@@ -280,21 +351,27 @@
                                                 {% endif %}
                                             </td>
                                             <td class="text-end text-nowrap">
-                                                <button class="btn btn-sm btn-outline-secondary"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#editSponsorshipModal{{ sp.id }}"
-                                                        title="Bearbeiten">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <form method="post"
-                                                      action="/sponsoring/sponsorships/{{ sp.id }}/delete"
-                                                      class="d-inline"
-                                                      data-confirm="Vereinbarung löschen?">
-                                                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                                        <i class="bi bi-trash"></i>
+                                                {% if can_edit_sp %}
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editSponsorshipModal{{ sp.id }}"
+                                                            title="Bearbeiten">
+                                                        <i class="bi bi-pencil"></i>
                                                     </button>
-                                                </form>
+                                                    <form method="post"
+                                                          action="/sponsoring/sponsorships/{{ sp.id }}/delete"
+                                                          class="d-inline"
+                                                          data-confirm="Vereinbarung löschen?">
+                                                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <span class="text-muted small">
+                                                        <i class="bi bi-lock" title="Von jemand anderem angelegt"></i>
+                                                    </span>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         {# Anhänge-Zeile #}
@@ -308,22 +385,56 @@
                                                                class="small">
                                                                 <i class="bi bi-file-earmark-arrow-down"></i> {{ att.original_name }}
                                                             </a>
-                                                            <form method="post"
-                                                                  action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
-                                                                  class="d-inline"
-                                                                  data-confirm="Anhang löschen?">
-                                                                <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                                                <button type="submit"
-                                                                        class="btn btn-link btn-sm text-danger p-0 ms-1"
-                                                                        title="Anhang löschen">
-                                                                    <i class="bi bi-x-circle"></i>
-                                                                </button>
-                                                            </form>
+                                                            {% if can_edit_sp %}
+                                                                <form method="post"
+                                                                      action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
+                                                                      class="d-inline"
+                                                                      data-confirm="Anhang löschen?">
+                                                                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                                    <button type="submit"
+                                                                            class="btn btn-link btn-sm text-danger p-0 ms-1"
+                                                                            title="Anhang löschen">
+                                                                        <i class="bi bi-x-circle"></i>
+                                                                    </button>
+                                                                </form>
+                                                            {% endif %}
                                                         </span>
                                                     {% endfor %}
                                                 </td>
                                             </tr>
                                         {% endif %}
+                                        {# Kontakthistorie der Vereinbarung: verhandelt wird je Projekt, deshalb
+                                           stehen die Kontakte hier und nicht nur in der Gesamtliste am Sponsor. #}
+                                        <tr>
+                                            <td colspan="8" class="ps-4 py-2 border-top-0">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-chat-dots"></i>
+                                                        Kontakte zu dieser Vereinbarung ({{ sp.contacts|length }})
+                                                    </small>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary py-0"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#newContactModal"
+                                                            data-contact-sponsorship="{{ sp.id }}">
+                                                        <i class="bi bi-plus-lg"></i> Kontakt
+                                                    </button>
+                                                </div>
+                                                {% if sp.contacts|length > 0 %}
+                                                    <ul class="list-unstyled mb-0 small">
+                                                        {% for contact in sp.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                                                            <li>
+                                                                <span class="text-nowrap text-muted">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</span>
+                                                                <span class="ms-1">{{ contact.summary }}</span>
+                                                                <span class="text-muted">– {{ contact.user ? contact.user|person_name : "unbekannt" }}</span>
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <p class="text-muted small mb-0">Noch kein Kontakt protokolliert.</p>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -389,18 +500,30 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label">Projekt</label>
-                                                <select name="project_id" class="form-select">
+                                                <select name="project_id" class="form-select" data-sponsorship-project>
                                                     <option value="">– Kein Projekt –</option>
-                                                    {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+                                                    {% for project in projects %}
+                                                        <option value="{{ project.id }}"
+                                                                data-start-date="{{ project.start_date ? project.start_date.format('Y-m-d') : '' }}"
+                                                                data-end-date="{{ project.end_date ? project.end_date.format('Y-m-d') : '' }}">
+                                                            {{ project.name }}
+                                                        </option>
+                                                    {% endfor %}
                                                 </select>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Von</label>
-                                                <input type="date" name="start_date" class="form-control">
+                                                <input type="date"
+                                                       name="start_date"
+                                                       class="form-control"
+                                                       data-sponsorship-start>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Bis</label>
-                                                <input type="date" name="end_date" class="form-control">
+                                                <input type="date"
+                                                       name="end_date"
+                                                       class="form-control"
+                                                       data-sponsorship-end>
                                             </div>
                                             <div class="col-12">
                                                 <label class="form-label">Notizen</label>
@@ -423,8 +546,8 @@
                         </div>
                     </div>
 
-                    {# Edit-Modals für jede Vereinbarung #}
-                    {% for sp in sponsor.sponsorships %}
+                    {# Edit-Modals für jede Vereinbarung, die diese Person ändern darf #}
+                    {% for sp in sponsor.sponsorships if can_manage_all or (sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id) %}
                         <div class="modal fade"
                              id="editSponsorshipModal{{ sp.id }}"
                              tabindex="-1"
@@ -491,10 +614,12 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label">Projekt</label>
-                                                    <select name="project_id" class="form-select">
+                                                    <select name="project_id" class="form-select" data-sponsorship-project>
                                                         <option value="">– Kein Projekt –</option>
                                                         {% for project in projects %}
                                                             <option value="{{ project.id }}"
+                                                                    data-start-date="{{ project.start_date ? project.start_date.format('Y-m-d') : '' }}"
+                                                                    data-end-date="{{ project.end_date ? project.end_date.format('Y-m-d') : '' }}"
                                                                     {{ sp.project_id == project.id ? 'selected' : '' }}>{{ project.name }}
                                                             </option>
                                                         {% endfor %}
@@ -505,6 +630,7 @@
                                                     <input type="date"
                                                            name="start_date"
                                                            class="form-control"
+                                                           data-sponsorship-start
                                                            value="{{ sp.start_date ? sp.start_date.format('Y-m-d') : '' }}">
                                                 </div>
                                                 <div class="col-md-3">
@@ -512,6 +638,7 @@
                                                     <input type="date"
                                                            name="end_date"
                                                            class="form-control"
+                                                           data-sponsorship-end
                                                            value="{{ sp.end_date ? sp.end_date.format('Y-m-d') : '' }}">
                                                 </div>
                                                 <div class="col-12">
@@ -563,6 +690,8 @@
                                 </thead>
                                 <tbody>
                                     {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                                        {% set _contact_owned = contact.user_id is not null and contact.user_id == current_user_id %}
+                                        {% set can_edit_contact = can_manage_all or _contact_owned %}
                                         <tr>
                                             <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
                                             <td class="text-nowrap">
@@ -579,7 +708,14 @@
                                                 {% endif %}
                                             </td>
                                             <td>{{ contact.summary }}</td>
-                                            <td>{{ contact.sponsorship ? '#' ~ contact.sponsorship.id : '–' }}</td>
+                                            <td class="small">
+                                                {% if contact.sponsorship %}
+                                                    {{ contact.sponsorship.project ? contact.sponsorship.project.name : 'Ohne Projekt' }}
+                                                    <div class="text-muted">{{ contact.sponsorship.package ? contact.sponsorship.package.name : 'Ohne Paket' }}</div>
+                                                {% else %}
+                                                    <span class="text-muted">Ohne Vereinbarung</span>
+                                                {% endif %}
+                                            </td>
                                             <td>{{ contact.user ? contact.user|person_name : "–" }}</td>
                                             <td class="text-nowrap">
                                                 {% if contact.follow_up_date %}
@@ -604,22 +740,28 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-secondary"
-                                                        title="Bearbeiten"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#editContactModal{{ contact.id }}">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <form method="post"
-                                                      action="/sponsoring/contacts/{{ contact.id }}/delete"
-                                                      class="d-inline"
-                                                      data-confirm="Kontakt löschen?">
-                                                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-                                                        <i class="bi bi-trash"></i>
+                                                {% if can_edit_contact %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            title="Bearbeiten"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editContactModal{{ contact.id }}">
+                                                        <i class="bi bi-pencil"></i>
                                                     </button>
-                                                </form>
+                                                    <form method="post"
+                                                          action="/sponsoring/contacts/{{ contact.id }}/delete"
+                                                          class="d-inline"
+                                                          data-confirm="Kontakt löschen?">
+                                                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <span class="text-muted small">
+                                                        <i class="bi bi-lock" title="Von jemand anderem protokolliert"></i>
+                                                    </span>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -627,7 +769,8 @@
                             </table>
                         </div>
 
-                        {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                        {% set editable_contacts = sponsor.contacts|filter(contact => can_manage_all or (contact.user_id is not null and contact.user_id == current_user_id)) %}
+                        {% for contact in editable_contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
                             <div class="modal fade"
                                  id="editContactModal{{ contact.id }}"
                                  tabindex="-1"
@@ -681,7 +824,7 @@
                                                             {% for sp in sponsor.sponsorships %}
                                                                 <option value="{{ sp.id }}"
                                                                         {{ contact.sponsorship_id == sp.id ? 'selected' : '' }}>
-                                                                    #{{ sp.id }}
+                                                                    {{ sp.project ? sp.project.name : 'Ohne Projekt' }}
                                                                     {% if sp.package %}– {{ sp.package.name }}{% endif %}
                                                                     ({{ sp.amount|number_format(2, ",", ".") }} €)
                                                                 </option>
@@ -762,11 +905,11 @@
                                             </div>
                                             <div class="col-12">
                                                 <label class="form-label">Vereinbarung</label>
-                                                <select name="sponsorship_id" class="form-select">
+                                                <select name="sponsorship_id" class="form-select" data-contact-sponsorship-select>
                                                     <option value="">– Keine –</option>
                                                     {% for sp in sponsor.sponsorships %}
                                                         <option value="{{ sp.id }}">
-                                                            #{{ sp.id }}
+                                                            {{ sp.project ? sp.project.name : 'Ohne Projekt' }}
                                                             {% if sp.package %}– {{ sp.package.name }}{% endif %}
                                                             ({{ sp.amount|number_format(2, ",", ".") }} €)
                                                         </option>
@@ -800,3 +943,8 @@
         </section>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/js/sponsorship-form.js"></script>
+{% endblock scripts %}

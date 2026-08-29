@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
+use App\Policies\SponsoringPolicy;
 
 class SponsoringContactController
 {
@@ -16,14 +17,20 @@ class SponsoringContactController
     private const MAX_SUMMARY_LENGTH = 2000;
 
     private Twig $view;
+    private SponsoringPolicy $policy;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, SponsoringPolicy $policy)
     {
         $this->view = $view;
+        $this->policy = $policy;
     }
 
     public function create(Request $request, Response $response): Response
     {
+        if (!$this->policy->canContribute()) {
+            return $this->deny($response);
+        }
+
         $data      = (array) $request->getParsedBody();
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
 
@@ -90,12 +97,15 @@ class SponsoringContactController
         $redirectTo = (string) ($data['redirect_to'] ?? $queryParams['redirect_to'] ?? '');
         $providedSponsorId = (int) ($data['sponsor_id'] ?? $queryParams['sponsor_id'] ?? 0);
 
+        if (!$this->policy->canCompleteFollowUp()) {
+            return $this->deny($response);
+        }
+
         try {
             $contact = SponsoringContact::findOrFail($id);
 
             if ($providedSponsorId > 0 && $providedSponsorId !== (int) $contact->sponsor_id) {
-                $response->getBody()->write('Zugriff verweigert.');
-                return $response->withStatus(403);
+                return $this->deny($response);
             }
 
             $contact->update(['follow_up_done' => 1]);
@@ -121,6 +131,10 @@ class SponsoringContactController
     {
         $id   = (int) ($args['id'] ?? 0);
         $data = (array) $request->getParsedBody();
+
+        if (!$this->policy->canContribute()) {
+            return $this->deny($response);
+        }
 
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         $contactDate = trim((string) ($data['contact_date'] ?? ''));
@@ -163,8 +177,12 @@ class SponsoringContactController
             $contact = SponsoringContact::findOrFail($id);
 
             if ($contact->sponsor_id !== $sponsorId) {
-                $response->getBody()->write('Zugriff verweigert.');
-                return $response->withStatus(403);
+                return $this->deny($response);
+            }
+
+            // Einen fremden Protokolleintrag ändert nur das Sponsoring-Team.
+            if (!$this->policy->canEditContact($contact)) {
+                return $this->deny($response);
             }
 
             $contact->update([
@@ -193,8 +211,11 @@ class SponsoringContactController
             $contact   = SponsoringContact::findOrFail($id);
 
             if ($providedSponsorId > 0 && $providedSponsorId !== (int) $contact->sponsor_id) {
-                $response->getBody()->write('Zugriff verweigert.');
-                return $response->withStatus(403);
+                return $this->deny($response);
+            }
+
+            if (!$this->policy->canEditContact($contact)) {
+                return $this->deny($response);
             }
 
             $sponsorId = (int) $contact->sponsor_id;
@@ -206,6 +227,12 @@ class SponsoringContactController
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+    }
+
+    private function deny(Response $response): Response
+    {
+        $response->getBody()->write('Zugriff verweigert.');
+        return $response->withStatus(403);
     }
 
     private function isValidDate(string $date): bool

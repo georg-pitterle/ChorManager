@@ -22,11 +22,17 @@ class Sponsor extends Model
         'notes',
         'requests_blocked',
         'requests_blocked_note',
+        'created_by_user_id',
     ];
 
     protected $casts = [
         'requests_blocked' => 'boolean',
     ];
+
+    public function createdByUser()
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
 
     public function sponsorships()
     {

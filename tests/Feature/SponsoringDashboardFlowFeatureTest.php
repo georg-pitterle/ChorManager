@@ -6,7 +6,11 @@ namespace Tests\Feature;
 
 use App\Controllers\SponsorController;
 use App\Controllers\SponsoringContactController;
+use App\Models\Sponsor;
+use App\Policies\SponsoringPolicy;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Tests\Unit\Bootstrap;
 use Slim\Views\Twig;
 
 class SponsoringDashboardFlowFeatureTest extends TestCase
@@ -17,6 +21,9 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
     {
         parent::setUp();
         $_SESSION = [];
+        // Diese Ablaeufe pruefen Validierung und Weiterleitung, nicht die
+        // Rechte - deshalb laufen sie mit dem Vollrecht.
+        $_SESSION['can_manage_sponsoring'] = true;
     }
 
     public function testDashboardControllerBuildsExplicitFollowUpViewModelFields(): void
@@ -68,7 +75,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testMarkDoneRedirectsToDashboardWhenDashboardOriginIsProvided(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts/999999/done', ['redirect_to' => 'dashboard']);
         $response = $this->makeResponse();
 
@@ -79,7 +86,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testMarkDoneKeepsSponsorDetailRedirectWhenNotFromDashboard(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts/999999/done', ['sponsor_id' => '42']);
         $response = $this->makeResponse();
 
@@ -90,7 +97,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testMarkDoneDefaultsToDashboardWhenNoSponsorContextExists(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts/999999/done');
         $response = $this->makeResponse();
 
@@ -101,7 +108,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testContactUpdateValidationFailureRedirectsBackToSponsorDetail(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts/999999', ['sponsor_id' => '42']);
         $response = $this->makeResponse();
 
@@ -113,7 +120,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testContactUpdateRejectsUnknownContactType(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts/999999', [
             'sponsor_id' => '42',
             'contact_date' => '2026-04-03',
@@ -130,7 +137,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testContactCreateRejectsUnknownContactTypeBeforePersistence(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts', [
             'sponsor_id' => '42',
             'contact_date' => '2026-04-03',
@@ -147,7 +154,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testContactCreateRejectsInvalidContactDateBeforePersistence(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts', [
             'sponsor_id' => '42',
             'contact_date' => '2026-02-31',
@@ -164,7 +171,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testContactCreateRejectsTooLongSummaryBeforePersistence(): void
     {
-        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsoringContactController(Twig::create(dirname(__DIR__, 2) . '/templates'), new SponsoringPolicy());
         $request = $this->makeRequest('POST', '/sponsoring/contacts', [
             'sponsor_id' => '42',
             'contact_date' => '2026-04-03',
@@ -181,7 +188,11 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testSponsorCreateRejectsInvalidEmailBeforePersistence(): void
     {
-        $controller = new SponsorController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsorController(
+            Twig::create(dirname(__DIR__, 2) . '/templates'),
+            new SponsoringPolicy(),
+            new NullLogger()
+        );
         $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
             'name' => 'Test Sponsor',
             'email' => 'invalid-mail',
@@ -196,7 +207,11 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testSponsorCreateRejectsInvalidWebsiteBeforePersistence(): void
     {
-        $controller = new SponsorController(Twig::create(dirname(__DIR__, 2) . '/templates'));
+        $controller = new SponsorController(
+            Twig::create(dirname(__DIR__, 2) . '/templates'),
+            new SponsoringPolicy(),
+            new NullLogger()
+        );
         $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
             'name' => 'Test Sponsor',
             'website' => 'notaurl',
@@ -211,15 +226,30 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testSponsorUpdateRejectsTooLongNameBeforePersistence(): void
     {
-        $controller = new SponsorController(Twig::create(dirname(__DIR__, 2) . '/templates'));
-        $request = $this->makeRequest('POST', '/sponsoring/sponsors/42', [
+        Bootstrap::setupTestDatabase();
+
+        // Der Sponsor muss es geben: update() laedt ihn zuerst, weil die
+        // Rechtepruefung den Datensatz braucht.
+        $sponsor = Sponsor::create(['name' => 'Namenspruefung ' . bin2hex(random_bytes(4))]);
+
+        $controller = new SponsorController(
+            Twig::create(dirname(__DIR__, 2) . '/templates'),
+            new SponsoringPolicy(),
+            new NullLogger()
+        );
+        $request = $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id, [
             'name' => str_repeat('x', 256),
         ]);
         $response = $this->makeResponse();
 
-        $result = $controller->update($request, $response, ['id' => '42']);
+        try {
+            $result = $controller->update($request, $response, ['id' => (string) $sponsor->id]);
 
-        $this->assertRedirect($result, '/sponsoring/sponsors/42');
-        $this->assertSame('Der Name ist zu lang (max. 255 Zeichen).', $_SESSION['error']);
+            $this->assertRedirect($result, '/sponsoring/sponsors/' . $sponsor->id);
+            $this->assertSame('Der Name ist zu lang (max. 255 Zeichen).', $_SESSION['error']);
+            $this->assertNotSame(str_repeat('x', 256), $sponsor->fresh()->name);
+        } finally {
+            $sponsor->delete();
+        }
     }
 }

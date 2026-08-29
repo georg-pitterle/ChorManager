@@ -37,6 +37,7 @@ class RoleMiddleware implements MiddlewareInterface
     private bool $requiresFinanceManagement;
     private bool $requiresMasterDataManagement;
     private bool $requiresSponsoringManagement;
+    private bool $requiresSponsoringAccess;
     private bool $requiresSongLibraryManagement;
     private bool $requiresNewsletterManagement;
     private bool $requiresMailQueueManagement;
@@ -71,7 +72,11 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresBackupManagement = false,
         bool $requiresEventManagement = false,
         bool $requiresRoleManagement = false,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        // Neue Schalter gehoeren ans Ende: mehrere Aufrufer uebergeben die
+        // Flags positionsweise, ein Einschub in der Mitte verschoebe still
+        // deren Bedeutung.
+        bool $requiresSponsoringAccess = false
     ) {
         $this->requiresUserManagement = $requiresUserManagement;
         $this->minHierarchyLevel = $minHierarchyLevel;
@@ -80,6 +85,7 @@ class RoleMiddleware implements MiddlewareInterface
         $this->requiresFinanceManagement = $requiresFinanceManagement;
         $this->requiresMasterDataManagement = $requiresMasterDataManagement;
         $this->requiresSponsoringManagement = $requiresSponsoringManagement;
+        $this->requiresSponsoringAccess = $requiresSponsoringAccess;
         $this->requiresSongLibraryManagement = $requiresSongLibraryManagement;
         $this->requiresTaskManagement = $requiresTaskManagement;
         $this->requiresAttendanceManagement = $requiresAttendanceManagement;
@@ -125,6 +131,7 @@ class RoleMiddleware implements MiddlewareInterface
         $canManageFinances = $_SESSION['can_manage_finances'] ?? false;
         $canManageMasterData = $_SESSION['can_manage_master_data'] ?? false;
         $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
+        $canCreateOwnSponsorships = $_SESSION['can_create_own_sponsorships'] ?? false;
         $canManageSongLibrary = $_SESSION['can_manage_song_library'] ?? false;
         $canManageNewsletters = $_SESSION['can_manage_newsletters'] ?? false;
         $canManageMailQueue = $_SESSION['can_manage_mail_queue'] ?? false;
@@ -235,6 +242,20 @@ class RoleMiddleware implements MiddlewareInterface
                 $request,
                 'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.',
                 'can_read_finances'
+            );
+        }
+
+        // Lesen und eigene Vereinbarungen: hier reicht eines der beiden Rechte,
+        // den Umfang setzt anschliessend die SponsoringPolicy im Controller
+        // durch - dasselbe Muster wie bei den Projektmitglieder-Routen.
+        if (
+            $this->requiresSponsoringAccess
+            && !$canManageSponsoring && !$canCreateOwnSponsorships
+        ) {
+            return $this->deny(
+                $request,
+                'Zugriff verweigert: Sie haben keine Berechtigung für den Sponsoring-Bereich.',
+                'can_create_own_sponsorships'
             );
         }
 

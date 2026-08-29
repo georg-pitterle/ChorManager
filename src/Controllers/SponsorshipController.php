@@ -7,8 +7,10 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Models\Project;
 use App\Models\Sponsorship;
 use App\Models\Attachment;
+use App\Policies\SponsoringPolicy;
 use App\Util\AmountNormalizer;
 use App\Util\SponsorshipStatus;
 use App\Util\UploadValidator;
@@ -19,14 +21,17 @@ class SponsorshipController
 {
     public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
     public const STATUS_ERROR = 'Ungültiger Status für die Vereinbarung.';
+    public const PROJECT_ERROR = 'Vereinbarungen lassen sich nur zu einem laufenden Projekt erfassen.';
 
     private Twig $view;
     private LoggerInterface $logger;
+    private SponsoringPolicy $policy;
 
-    public function __construct(Twig $view, LoggerInterface $logger)
+    public function __construct(Twig $view, LoggerInterface $logger, SponsoringPolicy $policy)
     {
         $this->view = $view;
         $this->logger = $logger;
+        $this->policy = $policy;
     }
 
     private function handleAttachments(Request $request, int $sponsorshipId): void
@@ -79,6 +84,10 @@ class SponsorshipController
 
     public function create(Request $request, Response $response): Response
     {
+        if (!$this->policy->canCreateSponsorship()) {
+            return $this->deny($response);
+        }
+
         $data      = (array) $request->getParsedBody();
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         $amount    = trim($data['amount'] ?? '');
@@ -103,16 +112,25 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
+        $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : null;
+        if (!$this->policy->canUseProject($projectId)) {
+            $_SESSION['error'] = self::PROJECT_ERROR;
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
+        $period = $this->resolvePeriod($data, $projectId);
+
         try {
             $sponsorship = Sponsorship::create([
                 'sponsor_id'       => $sponsorId,
-                'project_id'       => !empty($data['project_id']) ? (int) $data['project_id'] : null,
+                'project_id'       => $projectId,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'created_by_user_id' => $this->currentUserId(),
                 'amount'           => $normalizedAmount,
                 'status'           => $status,
-                'start_date'       => !empty($data['start_date']) ? $data['start_date'] : null,
-                'end_date'         => !empty($data['end_date']) ? $data['end_date'] : null,
+                'start_date'       => $period['start_date'],
+                'end_date'         => $period['end_date'],
                 'notes'            => trim($data['notes'] ?? '') ?: null,
             ]);
 
@@ -137,8 +155,12 @@ class SponsorshipController
             $providedSponsorId = (int) ($data['sponsor_id'] ?? 0);
 
             if ($providedSponsorId > 0 && $providedSponsorId !== (int) $sponsorship->sponsor_id) {
-                $response->getBody()->write('Zugriff verweigert.');
-                return $response->withStatus(403);
+                return $this->deny($response);
+            }
+
+            // Fremde Vereinbarungen ändert nur das Sponsoring-Team.
+            if (!$this->policy->canEditSponsorship($sponsorship)) {
+                return $this->deny($response);
             }
 
             $normalizedAmount = self::validateAmount(trim((string) ($data['amount'] ?? '')));
@@ -153,14 +175,22 @@ class SponsorshipController
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
             }
 
+            $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : null;
+            if ($projectId !== (int) $sponsorship->project_id && !$this->policy->canUseProject($projectId)) {
+                $_SESSION['error'] = self::PROJECT_ERROR;
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
+            $period = $this->resolvePeriod($data, $projectId);
+
             $sponsorship->update([
-                'project_id'       => !empty($data['project_id']) ? (int) $data['project_id'] : null,
+                'project_id'       => $projectId,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
                 'amount'           => $normalizedAmount,
                 'status'           => $status,
-                'start_date'       => !empty($data['start_date']) ? $data['start_date'] : null,
-                'end_date'         => !empty($data['end_date']) ? $data['end_date'] : null,
+                'start_date'       => $period['start_date'],
+                'end_date'         => $period['end_date'],
                 'notes'            => trim($data['notes'] ?? '') ?: null,
             ]);
 
@@ -186,8 +216,11 @@ class SponsorshipController
             $providedSponsorId = (int) ($data['sponsor_id'] ?? 0);
 
             if ($providedSponsorId > 0 && $providedSponsorId !== (int) $sponsorship->sponsor_id) {
-                $response->getBody()->write('Zugriff verweigert.');
-                return $response->withStatus(403);
+                return $this->deny($response);
+            }
+
+            if (!$this->policy->canDeleteSponsorship($sponsorship)) {
+                return $this->deny($response);
             }
 
             Attachment::where('entity_type', 'sponsorship')
@@ -212,8 +245,7 @@ class SponsorshipController
 
         // IDOR-Schutz: Anhang muss zur angeforderten Vereinbarung gehören
         if ($attachment->entity_id !== $sponsorshipId) {
-            $response->getBody()->write('Zugriff verweigert.');
-            return $response->withStatus(403);
+            return $this->deny($response);
         }
 
         $response->getBody()->write($attachment->file_content);
@@ -239,11 +271,15 @@ class SponsorshipController
 
             // IDOR-Schutz
             if ($attachment->entity_id !== $sponsorshipId) {
-                $response->getBody()->write('Zugriff verweigert.');
-                return $response->withStatus(403);
+                return $this->deny($response);
             }
 
-            $sponsorId = Sponsorship::findOrFail($sponsorshipId)->sponsor_id;
+            $sponsorship = Sponsorship::findOrFail($sponsorshipId);
+            if (!$this->policy->canEditSponsorship($sponsorship)) {
+                return $this->deny($response);
+            }
+
+            $sponsorId = $sponsorship->sponsor_id;
             $attachment->delete();
             $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         } catch (\Exception $e) {
@@ -252,6 +288,48 @@ class SponsorshipController
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+    }
+
+    private function deny(Response $response): Response
+    {
+        $response->getBody()->write('Zugriff verweigert.');
+        return $response->withStatus(403);
+    }
+
+    private function currentUserId(): ?int
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        return $userId > 0 ? $userId : null;
+    }
+
+    /**
+     * Zeitraum der Vereinbarung. Bleibt ein Feld leer und hängt die
+     * Vereinbarung an einem Projekt, wird der Projektzeitraum übernommen -
+     * ausgehandelt wird ohnehin je Projekt, und bisher tippte ihn jede Person
+     * von Hand ab. Das Formular schlägt denselben Wert schon im Browser vor;
+     * diese Ergänzung greift auch ohne JavaScript.
+     *
+     * @param array<string, mixed> $data
+     * @return array{start_date: ?string, end_date: ?string}
+     */
+    private function resolvePeriod(array $data, ?int $projectId): array
+    {
+        $startDate = !empty($data['start_date']) ? (string) $data['start_date'] : null;
+        $endDate   = !empty($data['end_date']) ? (string) $data['end_date'] : null;
+
+        if (($startDate !== null && $endDate !== null) || $projectId === null) {
+            return ['start_date' => $startDate, 'end_date' => $endDate];
+        }
+
+        $project = Project::find($projectId);
+        if ($project === null) {
+            return ['start_date' => $startDate, 'end_date' => $endDate];
+        }
+
+        return [
+            'start_date' => $startDate ?? $project->start_date?->format('Y-m-d'),
+            'end_date'   => $endDate ?? $project->end_date?->format('Y-m-d'),
+        ];
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Models\Sponsorship;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use App\Policies\SponsoringPolicy;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -33,8 +34,13 @@ final class SponsoringAmountValidationTest extends TestCase
         Bootstrap::setupTestDatabase();
         Capsule::connection()->beginTransaction();
 
-        $this->sponsorships = new SponsorshipController($this->createStub(Twig::class), new NullLogger());
-        $this->packages = new SponsorPackageController($this->createStub(Twig::class));
+        $_SESSION['can_manage_sponsoring'] = true;
+        $this->sponsorships = new SponsorshipController(
+            $this->createStub(Twig::class),
+            new NullLogger(),
+            new SponsoringPolicy()
+        );
+        $this->packages = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy());
         $this->sponsor = Sponsor::create(['name' => 'Betragsprüfung ' . bin2hex(random_bytes(4))]);
 
         $_SESSION = [];

@@ -208,6 +208,7 @@ class AuthController
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,

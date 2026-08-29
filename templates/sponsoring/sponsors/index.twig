@@ -15,6 +15,7 @@
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
             <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house me-1"></i> Dashboard</a>
+            <a href="/sponsoring/attachments" class="btn btn-outline-secondary btn-sm"><i class="bi bi-paperclip me-1"></i> Anhänge</a>
             <button class="btn btn-primary btn-sm"
                     data-bs-toggle="modal"
                     data-bs-target="#createSponsorModal">
@@ -125,24 +126,26 @@
                                                title="Details">
                                                 <i class="bi bi-eye"></i> Details
                                             </a>
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                                    data-bs-toggle="dropdown"
-                                                    aria-expanded="false"
-                                                    data-bs-boundary="viewport">
-                                                <span class="visually-hidden">Weitere Aktionen</span>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                <li>
-                                                    <form method="post"
-                                                          action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-                                                          data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
-                                                        <button type="submit" class="dropdown-item text-danger">
-                                                            <i class="bi bi-trash me-2"></i> Löschen
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            </ul>
+                                            {% if can_manage_all %}
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        data-bs-boundary="viewport">
+                                                    <span class="visually-hidden">Weitere Aktionen</span>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <form method="post"
+                                                              action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
+                                                              data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
+                                                            <button type="submit" class="dropdown-item text-danger">
+                                                                <i class="bi bi-trash me-2"></i> Löschen
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>

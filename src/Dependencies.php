@@ -71,6 +71,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
+use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\UserEditPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -350,6 +351,7 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         ProjectMemberPolicy::class => \DI\autowire(),
+        SponsoringPolicy::class => \DI\autowire(),
         TaskPolicy::class => \DI\autowire(),
         UserEditPolicy::class => \DI\autowire(),
 

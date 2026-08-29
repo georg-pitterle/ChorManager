@@ -8,16 +8,19 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\SponsorPackage;
+use App\Policies\SponsoringPolicy;
 
 class SponsorPackageController
 {
     private const AMOUNT_ERROR = 'Ungültiger Mindestbetrag. Bitte eine Zahl ab 0 eingeben.';
 
     private Twig $view;
+    private SponsoringPolicy $policy;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, SponsoringPolicy $policy)
     {
         $this->view = $view;
+        $this->policy = $policy;
     }
 
     public function index(Request $request, Response $response): Response
@@ -29,6 +32,7 @@ class SponsorPackageController
 
         return $this->view->render($response, 'sponsoring/packages/index.twig', [
             'packages' => $packages,
+            'can_manage_all' => $this->policy->canManageAll(),
             'success'  => $success,
             'error'    => $error,
             'active_nav' => 'sponsoring',

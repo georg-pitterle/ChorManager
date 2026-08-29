@@ -216,7 +216,8 @@ final class NavigationBuilder
                         'prefixes' => ['/sponsoring'],
                         'navKeys' => ['sponsoring'],
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->module('sponsoring') && $c->can('can_manage_sponsoring'),
+                            $c->module('sponsoring')
+                            && ($c->can('can_manage_sponsoring') || $c->can('can_create_own_sponsorships')),
                     ],
                     [
                         'label' => 'Repertoire',

@@ -1,0 +1,127 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Anhänge - Sponsoring - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item">
+                        <a href="/sponsoring">Sponsoring</a>
+                    </li>
+                    <li class="breadcrumb-item active">Anhänge</li>
+                </ol>
+            </nav>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+            <h1 class="h2 mb-1">
+                <i class="bi bi-paperclip me-2"></i>Anhänge
+            </h1>
+            <p class="text-muted mb-0">Verträge, Logos und Unterlagen aus allen Vereinbarungen an einem Ort.</p>
+        </div>
+        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house me-1"></i> Dashboard</a>
+            <a href="/sponsoring/sponsors" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people me-1"></i> Sponsoren</a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context"
+                 aria-labelledby="sponsoring-attachments-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="sponsoring-attachments-title">Alle Anhänge</h2>
+                <p class="dashboard-section-lead mb-0">
+                    {{ attachments|length }} Dateien aus Vereinbarungen und Sponsor-Stammdaten. Hochgeladen wird weiterhin
+                    beim jeweiligen Sponsor.
+                </p>
+            </div>
+
+            <div class="surface-card table-shell"
+                 data-table-engine="true"
+                 data-table-id="sponsoring.attachments.index"
+                 data-default-view="auto"
+                 data-default-page-size="50"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="created_at">
+                {{ include('partials/table_toolbar.twig') }}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-responsive-cards"
+                           id="sponsoringAttachmentsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-sort-key="name" data-sort-type="text">Datei</th>
+                                <th data-sort-key="context" data-sort-type="text">Herkunft</th>
+                                <th data-sort-key="sponsor_name" data-sort-type="text">Sponsor</th>
+                                <th data-sort-key="project" data-sort-type="text">Projekt</th>
+                                <th data-sort-key="size" data-sort-type="number">Größe</th>
+                                <th data-sort-key="created_at" data-sort-type="text">Hochgeladen</th>
+                                <th class="text-end">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attachment in attachments %}
+                                <tr data-sort-name="{{ attachment.name_sort }}"
+                                    data-sort-context="{{ attachment.context_label|lower }}"
+                                    data-sort-sponsor_name="{{ attachment.sponsor_name|lower }}"
+                                    data-sort-project="{{ attachment.project_name|lower }}"
+                                    data-sort-size="{{ attachment.size_bytes }}"
+                                    data-sort-created_at="{{ attachment.created_at_sort }}">
+                                    <td data-label="Datei">
+                                        <a href="{{ attachment.download_url }}" class="fw-semibold text-decoration-none">
+                                            <i class="bi bi-file-earmark-arrow-down me-1"></i>{{ attachment.name }}
+                                        </a>
+                                        <div class="text-muted small">{{ attachment.mime_type }}</div>
+                                    </td>
+                                    <td data-label="Herkunft">
+                                        <span class="badge bg-light text-dark border">{{ attachment.context_label }}</span>
+                                        <div class="text-muted small">{{ attachment.reference }}</div>
+                                    </td>
+                                    <td data-label="Sponsor">
+                                        <a href="{{ attachment.sponsor_url }}" class="text-decoration-none">{{ attachment.sponsor_name }}</a>
+                                    </td>
+                                    <td data-label="Projekt" class="small">{{ attachment.project_name }}</td>
+                                    <td data-label="Größe" class="text-nowrap small">{{ attachment.size_display }}</td>
+                                    <td data-label="Hochgeladen" class="text-nowrap small">{{ attachment.created_at_display }}</td>
+                                    <td data-label="Aktionen" class="text-end text-nowrap">
+                                        <a href="{{ attachment.download_url }}"
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Herunterladen">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">Noch keine Anhänge vorhanden.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock content %}
