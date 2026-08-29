@@ -54,6 +54,8 @@ Wechsle zum Reiter **Kontakthistorie**, um alle bisherigen Kontakte mit dem Spon
 
 Über **Anhänge** im Kopf der Seite kommst du zu einer Liste aller Dateien aus dem Sponsoring – Verträge und Angebote aus den Vereinbarungen sowie Logos und Unterlagen aus den Stammdaten. Dort suchst, sortierst und lädst du sie herunter, ohne dich vorher durch die einzelnen Sponsoren klicken zu müssen.
 
+![Zentrale Anhangsammlung](images/sponsoring/10-attachments.png)
+
 ## Häufige Stolperfallen
 
 - **Name ist Pflicht** und darf maximal 255 Zeichen lang sein.

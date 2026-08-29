@@ -165,6 +165,11 @@ async function main() {
         await page.locator('#sponsorPackagesTable').waitFor({ state: 'visible' });
         await shot(page, '09-packages');
 
+        // 10. Zentrale Anhangsammlung
+        await page.goto(`${BASE_URL}/sponsoring/attachments`, { waitUntil: 'networkidle' });
+        await page.locator('#sponsoringAttachmentsTable').waitFor({ state: 'visible' });
+        await shot(page, '10-attachments');
+
         console.log('Fertig: alle Sponsoring-Screenshots erstellt.');
     } finally {
         await browser.close();
