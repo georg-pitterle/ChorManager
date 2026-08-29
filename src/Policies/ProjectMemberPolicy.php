@@ -19,6 +19,19 @@ use App\Models\User;
  *    one of the actor's own voice groups, and only in projects the actor
  *    participates in. The candidate list and every add/remove is filtered to
  *    that voice-group scope.
+ *
+ * Zwei bewusste Entscheidungen, damit sie nicht bei jeder Durchsicht neu
+ * aufgeworfen werden:
+ *
+ *  - Die Rollenhierarchie gilt hier NICHT. Anders als UserEditPolicy, wo ein
+ *    höher gereihtes Mitglied unantastbar bleibt, darf ein Projektmitglieder-
+ *    Verwalter jedes Mitglied einer Besetzung zuordnen oder daraus entfernen -
+ *    auch ein höher gereihtes. Die Projektzuordnung ist Besetzungsliste, nicht
+ *    Kontoverwaltung: mit Hierarchie könnte die Chorleitung den Vorstand nicht
+ *    mehr in ein Projekt aufnehmen.
+ *  - Ansehen und Ändern sind dasselbe Recht. canAddMember() und
+ *    canRemoveMember() sind deshalb canViewMembers(); ein reines Lese-Recht auf
+ *    die Besetzung gibt es absichtlich nicht.
  */
 class ProjectMemberPolicy
 {
