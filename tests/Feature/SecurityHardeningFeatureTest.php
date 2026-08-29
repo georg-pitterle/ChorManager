@@ -56,7 +56,6 @@ class SecurityHardeningFeatureTest extends TestCase
                 'AppSettingController',
                 'DownloadController',
                 'TaskController',
-                'SponsorshipController',
             ] as $controller
         ) {
             $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/' . $controller . '.php');
@@ -67,6 +66,23 @@ class SecurityHardeningFeatureTest extends TestCase
                 'function normalizeFileName',
                 $content,
                 $controller . ' darf keine eigene Kopie der Bereinigung mehr halten'
+            );
+        }
+
+        // Sponsoren und Vereinbarungen liefern ihre Anhänge über den
+        // gemeinsamen Dienst aus; die Bereinigung steht dort einmal statt in
+        // jedem Controller erneut.
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/EntityAttachmentService.php');
+        $this->assertIsString($serviceContent);
+        $this->assertStringContainsString('DownloadFileName::sanitize(', $serviceContent);
+        $this->assertStringContainsString('filename*=', $serviceContent);
+
+        foreach (['SponsorController', 'SponsorshipController'] as $controller) {
+            $content = (string) file_get_contents(dirname(__DIR__) . '/../src/Controllers/' . $controller . '.php');
+            $this->assertStringNotContainsString(
+                'Content-Disposition',
+                $content,
+                $controller . ' darf den Download-Header nicht selbst bauen'
             );
         }
 

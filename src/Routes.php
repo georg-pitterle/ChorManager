@@ -29,6 +29,7 @@ use App\Controllers\HelpController;
 use App\Controllers\SponsoringDashboardController;
 use App\Controllers\SponsorController;
 use App\Controllers\SponsorshipController;
+use App\Controllers\SponsoringAttachmentController;
 use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SongLibraryController;
@@ -383,6 +384,13 @@ return function (App $app) {
 
             if ($settings['modules']['sponsoring'] ?? false) {
                 // Sponsoring Routes
+                //
+                // Zwei Gruppen: alles, was jedes beitragende Mitglied braucht,
+                // hängt an requiresSponsoringAccess - den Umfang (eigene oder
+                // alle Einträge) setzt anschließend die SponsoringPolicy im
+                // Controller durch. Was ausschließlich dem Sponsoring-Team
+                // gehört - Sponsoren löschen und die Paketverwaltung - bleibt
+                // hinter requiresSponsoringManagement.
                 $group->group(
                     '/sponsoring',
                     function (RouteCollectorProxy $sponsoringGroup) {
@@ -393,7 +401,18 @@ return function (App $app) {
                         $sponsoringGroup->post('/sponsors', [SponsorController::class, 'create']);
                         $sponsoringGroup->get('/sponsors/{id:[0-9]+}', [SponsorController::class, 'detail']);
                         $sponsoringGroup->post('/sponsors/{id:[0-9]+}', [SponsorController::class, 'update']);
-                        $sponsoringGroup->post('/sponsors/{id:[0-9]+}/delete', [SponsorController::class, 'delete']);
+                        $sponsoringGroup->post(
+                            '/sponsors/{id:[0-9]+}/attachments',
+                            [SponsorController::class, 'uploadAttachment']
+                        );
+                        $sponsoringGroup->get(
+                            '/sponsors/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}',
+                            [SponsorController::class, 'downloadAttachment']
+                        );
+                        $sponsoringGroup->post(
+                            '/sponsors/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                            [SponsorController::class, 'deleteAttachment']
+                        );
 
                         // Vereinbarungen
                         $sponsoringGroup->post('/sponsorships', [SponsorshipController::class, 'create']);
@@ -429,11 +448,32 @@ return function (App $app) {
                             [SponsoringContactController::class, 'delete']
                         );
 
-                        // Paketverwaltung
+                        // Zentrale Anhangsammlung
+                        $sponsoringGroup->get(
+                            '/attachments',
+                            [SponsoringAttachmentController::class, 'index']
+                        );
+
+                        // Paketuebersicht
                         $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
-                        $sponsoringGroup->post('/packages', [SponsorPackageController::class, 'create']);
-                        $sponsoringGroup->post('/packages/{id:[0-9]+}', [SponsorPackageController::class, 'update']);
-                        $sponsoringGroup->post(
+                    }
+                )->add(new RoleMiddleware(requiresSponsoringAccess: true));
+
+                $group->group(
+                    '/sponsoring',
+                    function (RouteCollectorProxy $sponsoringAdminGroup) {
+                        $sponsoringAdminGroup->post(
+                            '/sponsors/{id:[0-9]+}/delete',
+                            [SponsorController::class, 'delete']
+                        );
+
+                        // Paketverwaltung
+                        $sponsoringAdminGroup->post('/packages', [SponsorPackageController::class, 'create']);
+                        $sponsoringAdminGroup->post(
+                            '/packages/{id:[0-9]+}',
+                            [SponsorPackageController::class, 'update']
+                        );
+                        $sponsoringAdminGroup->post(
                             '/packages/{id:[0-9]+}/delete',
                             [SponsorPackageController::class, 'delete']
                         );

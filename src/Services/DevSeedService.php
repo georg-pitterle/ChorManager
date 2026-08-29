@@ -155,6 +155,7 @@ class DevSeedService
                 'sponsorships' => 0,
                 'sponsoring_contacts' => 0,
                 'sponsor_attachments' => 0,
+                'sponsor_logo_attachments' => 0,
                 'newsletter_templates' => 0,
                 'newsletter_template_recipient_sources' => 0,
                 'newsletters' => 0,
@@ -209,10 +210,10 @@ class DevSeedService
             $this->seedFinanceJournal();
             $this->seedBudget();
             $packages = $this->seedSponsorPackages();
-            $sponsors = $this->seedSponsors();
+            $sponsors = $this->seedSponsors($users['active']);
             $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
-            $this->seedSponsorAttachments($sponsorships);
+            $this->seedSponsorAttachments($sponsors, $sponsorships);
             $this->seedNewsletters($projects, $users['active']);
             $this->seedMailQueue($users['active']);
             $this->seedUserMailAccounts($users['active'], new MailCredentialCryptoService());
@@ -331,6 +332,7 @@ class DevSeedService
                 'can_manage_budget' => 1,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,
@@ -354,6 +356,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 1,
@@ -376,6 +379,7 @@ class DevSeedService
                 'can_manage_finances' => 1,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -398,6 +402,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 1,
                 'can_manage_sponsoring' => 1,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 1,
                 'can_manage_newsletters' => 1,
                 'can_manage_mail_queue' => 0,
@@ -420,6 +425,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -442,6 +448,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -464,6 +471,7 @@ class DevSeedService
                 'can_manage_finances' => 0,
                 'can_manage_master_data' => 0,
                 'can_manage_sponsoring' => 0,
+                'can_create_own_sponsorships' => 1,
                 'can_manage_song_library' => 0,
                 'can_manage_newsletters' => 0,
                 'can_manage_mail_queue' => 0,
@@ -721,7 +729,50 @@ class DevSeedService
             }
         }
 
+        $projects = $this->ensureRunningProject($projects);
+
         usort($projects, fn(Project $a, Project $b) => strcmp((string) $a->start_date, (string) $b->start_date));
+
+        return $projects;
+    }
+
+    /**
+     * Die Saisonen laufen Februar bis Juni und September bis Dezember - im
+     * Juli, August und Januar läuft damit kein Projekt. Für alles, was ein
+     * laufendes Projekt voraussetzt (etwa Vereinbarungen, die ein Mitglied mit
+     * can_create_own_sponsorships erfasst), wäre der Dev-Stand in diesen
+     * Monaten nicht durchklickbar. Deshalb kommt dann ein Sonderprojekt dazu,
+     * das den heutigen Tag einschließt.
+     *
+     * @param array<Project> $projects
+     * @return array<Project>
+     */
+    private function ensureRunningProject(array $projects): array
+    {
+        $today = date('Y-m-d');
+
+        foreach ($projects as $project) {
+            $start = (string) $project->start_date?->format('Y-m-d');
+            $end = (string) $project->end_date?->format('Y-m-d');
+
+            if ($start !== '' && $end !== '' && $start <= $today && $end >= $today) {
+                return $projects;
+            }
+        }
+
+        $definition = [
+            'name' => 'Sonderprojekt ' . date('Y') . ' - Zwischen den Saisonen',
+            'description' => 'Laufendes Sonderprojekt für Proben und Anfragen zwischen den beiden Saisonen.',
+            'start_date' => date('Y-m-d', strtotime('-1 month')),
+            'end_date' => date('Y-m-d', strtotime('+1 month')),
+        ];
+
+        $project = Project::firstOrCreate(['name' => $definition['name']], $definition);
+        if ($project->wasRecentlyCreated) {
+            $this->report['counts']['projects']++;
+        }
+
+        $projects[] = $project;
 
         return $projects;
     }
@@ -2020,7 +2071,12 @@ class DevSeedService
         return $packages;
     }
 
-    private function seedSponsors(): array
+    /**
+     * Die letzten beiden Sponsoren legt bewusst ein einfaches Mitglied an -
+     * nur so lässt sich das Recht can_create_own_sponsorships im Dev
+     * durchklicken (eigene Einträge änderbar, fremde nicht).
+     */
+    private function seedSponsors(array $activeUsers): array
     {
         $definitions = [
             [
@@ -2032,7 +2088,6 @@ class DevSeedService
                 'address' => 'Linzer Gasse 12, 5020 Salzburg',
                 'website' => 'https://musikhaus-weber.local',
                 'notes' => 'Langjähriger Förderer regionaler Kulturprojekte.',
-                'status' => 'active',
             ],
             [
                 'type' => 'organization',
@@ -2043,7 +2098,6 @@ class DevSeedService
                 'address' => 'Uferstraße 8, 5020 Salzburg',
                 'website' => 'https://kulturstiftung-fluss.local',
                 'notes' => 'Interessiert an Jugend- und Bildungsprojekten.',
-                'status' => 'negotiating',
             ],
             [
                 'type' => 'organization',
@@ -2054,7 +2108,6 @@ class DevSeedService
                 'address' => 'Musterweg 5, 5071 Wals',
                 'website' => null,
                 'notes' => 'Bietet Sachleistungen für Drucksorten an.',
-                'status' => 'contacted',
             ],
             [
                 'type' => 'organization',
@@ -2065,7 +2118,6 @@ class DevSeedService
                 'address' => 'Technikpark 3, 5020 Salzburg',
                 'website' => 'https://proaudio-salzburg.local',
                 'notes' => 'Gute Option für Technik-Sponsoring bei Konzerten.',
-                'status' => 'prospect',
             ],
             [
                 'type' => 'organization',
@@ -2076,7 +2128,6 @@ class DevSeedService
                 'address' => 'Rathausplatz 1, 5020 Salzburg',
                 'website' => 'https://bankhaus-fortschritt.local',
                 'notes' => 'Fragt nach Gegenleistungen im Jahresbericht.',
-                'status' => 'paused',
             ],
             [
                 'type' => 'organization',
@@ -2087,7 +2138,6 @@ class DevSeedService
                 'address' => 'Mozartkai 17, 5020 Salzburg',
                 'website' => null,
                 'notes' => 'Prüft Unterstützung für Gastkünstler-Unterbringung.',
-                'status' => 'negotiating',
             ],
             [
                 'type' => 'person',
@@ -2098,7 +2148,6 @@ class DevSeedService
                 'address' => 'Aiglhofstraße 22, 5020 Salzburg',
                 'website' => null,
                 'notes' => 'Private Förderin mit starkem Bezug zum Chor.',
-                'status' => 'active',
             ],
             [
                 'type' => 'person',
@@ -2109,7 +2158,6 @@ class DevSeedService
                 'address' => null,
                 'website' => null,
                 'notes' => 'Hat nach erstem Konzertbesuch Interesse signalisiert.',
-                'status' => 'contacted',
             ],
             [
                 'type' => 'organization',
@@ -2120,7 +2168,8 @@ class DevSeedService
                 'address' => 'Marktplatz 6, 5020 Salzburg',
                 'website' => 'https://baeckerei-morgenstern.local',
                 'notes' => 'Frühere Kooperation abgeschlossen, evtl. Wiederaufnahme.',
-                'status' => 'closed',
+                'requests_blocked' => true,
+                'requests_blocked_note' => 'Bittet ausdrücklich darum, nicht erneut angefragt zu werden.',
             ],
             [
                 'type' => 'organization',
@@ -2131,12 +2180,20 @@ class DevSeedService
                 'address' => 'Messeallee 4, 5020 Salzburg',
                 'website' => 'https://taktvoll.local',
                 'notes' => 'Interesse an Projektpartnerschaft für Herbstkonzert.',
-                'status' => 'active',
             ],
         ];
 
         $sponsors = [];
+        $activeUserCount = count($activeUsers);
+        $definitionIndex = 0;
+
         foreach ($definitions as $definition) {
+            $isMemberContributed = $definitionIndex >= count($definitions) - 2;
+            if ($isMemberContributed && $activeUserCount > 0) {
+                $definition['created_by_user_id'] = $activeUsers[$definitionIndex % $activeUserCount]->id;
+            }
+            $definitionIndex++;
+
             $sponsor = Sponsor::updateOrCreate(
                 ['name' => $definition['name']],
                 $definition
@@ -2161,7 +2218,7 @@ class DevSeedService
                     'project_offset' => -1,
                     'assigned_user_offset' => 0,
                     'amount' => 3200.00,
-                    'status' => 'active',
+                    'status' => 'accepted',
                     'start_date' => '-8 months',
                     'end_date' => '+4 months',
                     'notes' => 'Aktive Saisonpartnerschaft inklusive Logo auf allen Konzertmedien.',
@@ -2183,7 +2240,7 @@ class DevSeedService
                     'project_offset' => -2,
                     'assigned_user_offset' => 2,
                     'amount' => 7500.00,
-                    'status' => 'negotiating',
+                    'status' => 'reminded',
                     'start_date' => '+1 month',
                     'end_date' => '+13 months',
                     'notes' => 'Förderantrag für Jubiläumsprojekt in finaler Abstimmung.',
@@ -2195,7 +2252,7 @@ class DevSeedService
                     'project_offset' => -1,
                     'assigned_user_offset' => 3,
                     'amount' => 650.00,
-                    'status' => 'contacted',
+                    'status' => 'requested',
                     'start_date' => '-1 month',
                     'end_date' => '+11 months',
                     'notes' => 'Sachleistung für Programmhefte wurde angeboten.',
@@ -2207,7 +2264,7 @@ class DevSeedService
                     'project_offset' => -1,
                     'assigned_user_offset' => 4,
                     'amount' => 1400.00,
-                    'status' => 'prospect',
+                    'status' => 'requested',
                     'start_date' => '+2 months',
                     'end_date' => '+14 months',
                     'notes' => 'Erstgespräch für Technikpartnerschaft geplant.',
@@ -2219,7 +2276,7 @@ class DevSeedService
                     'project_offset' => null,
                     'assigned_user_offset' => 5,
                     'amount' => 2600.00,
-                    'status' => 'paused',
+                    'status' => 'reminded',
                     'start_date' => '-10 months',
                     'end_date' => '+2 months',
                     'notes' => 'Entscheidung vertagt bis nach Budgetrunde.',
@@ -2231,7 +2288,7 @@ class DevSeedService
                     'project_offset' => -2,
                     'assigned_user_offset' => 6,
                     'amount' => 1800.00,
-                    'status' => 'negotiating',
+                    'status' => 'reminded',
                     'start_date' => '+3 months',
                     'end_date' => '+15 months',
                     'notes' => 'Kombination aus Zimmerkontingent und Geldleistung in Verhandlung.',
@@ -2243,7 +2300,7 @@ class DevSeedService
                     'project_offset' => null,
                     'assigned_user_offset' => 7,
                     'amount' => 800.00,
-                    'status' => 'active',
+                    'status' => 'accepted',
                     'start_date' => '-4 months',
                     'end_date' => '+8 months',
                     'notes' => 'Private Förderzusage mit jährlicher Verlängerungsoption.',
@@ -2255,7 +2312,7 @@ class DevSeedService
                     'project_offset' => null,
                     'assigned_user_offset' => 8,
                     'amount' => 500.00,
-                    'status' => 'contacted',
+                    'status' => 'requested',
                     'start_date' => '+1 month',
                     'end_date' => '+12 months',
                     'notes' => 'Nachfassgespräch nach persönlicher Zusage offen.',
@@ -2267,10 +2324,10 @@ class DevSeedService
                     'project_offset' => -3,
                     'assigned_user_offset' => 9,
                     'amount' => 700.00,
-                    'status' => 'closed',
+                    'status' => 'declined',
                     'start_date' => '-24 months',
                     'end_date' => '-13 months',
-                    'notes' => 'Frühere Kooperation beendet, Kontakt bleibt erhalten.',
+                    'notes' => 'Absage nach der letzten Anfrage, weitere Anfragen sind nicht erwünscht.',
                 ],
             ],
             'Eventagentur Taktvoll' => [
@@ -2279,7 +2336,7 @@ class DevSeedService
                     'project_offset' => -1,
                     'assigned_user_offset' => 10,
                     'amount' => 6200.00,
-                    'status' => 'active',
+                    'status' => 'accepted',
                     'start_date' => '-2 months',
                     'end_date' => '+10 months',
                     'notes' => 'Leitpartnerschaft für Herbstprojekt inklusive Social-Media-Paket.',
@@ -2289,7 +2346,7 @@ class DevSeedService
                     'project_offset' => null,
                     'assigned_user_offset' => 11,
                     'amount' => 3000.00,
-                    'status' => 'negotiating',
+                    'status' => 'reminded',
                     'start_date' => '+5 months',
                     'end_date' => '+17 months',
                     'notes' => 'Zusätzliche Kooperation für Sommergala in Vorbereitung.',
@@ -2337,6 +2394,11 @@ class DevSeedService
                         'project_id' => $project?->id,
                         'package_id' => $package->id,
                         'assigned_user_id' => $assignedUser?->id,
+                        // Urheber und Zuständige sind bewusst verschieden:
+                        // so zeigt der Seed beide Rollen im Rechte-Modell.
+                        'created_by_user_id' => $activeUserCount > 0
+                            ? $activeUsers[($item['assigned_user_offset'] + 1) % $activeUserCount]->id
+                            : null,
                         'amount' => max((float) $item['amount'], (float) $package->min_amount),
                         'status' => $item['status'],
                         'start_date' => $startDate,
@@ -2522,8 +2584,10 @@ class DevSeedService
         }
     }
 
-    private function seedSponsorAttachments(array $sponsorships): void
+    private function seedSponsorAttachments(array $sponsors, array $sponsorships): void
     {
+        $this->seedSponsorLogoAttachments($sponsors);
+
         $definitions = [
             [
                 'sponsorship_key' => 'Musikhaus Weber-0',
@@ -2580,6 +2644,60 @@ class DevSeedService
 
             if ($attachment->wasRecentlyCreated) {
                 $this->report['counts']['sponsor_attachments']++;
+            }
+        }
+    }
+
+    /**
+     * Anhänge am Sponsor selbst. Logos und Mediadaten gehören zu keiner
+     * einzelnen Vereinbarung und tauchen zusammen mit den Verträgen in der
+     * zentralen Anhang-Übersicht auf.
+     */
+    private function seedSponsorLogoAttachments(array $sponsors): void
+    {
+        $definitions = [
+            [
+                'sponsor' => 'Musikhaus Weber',
+                'original_name' => 'logo-musikhaus-weber.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Platzhalter für das Logo von Musikhaus Weber.',
+            ],
+            [
+                'sponsor' => 'Kulturstiftung am Fluss',
+                'original_name' => 'mediadaten-kulturstiftung.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Platzhalter für die Mediadaten der Kulturstiftung am Fluss.',
+            ],
+            [
+                'sponsor' => 'Eventagentur Taktvoll',
+                'original_name' => 'logo-taktvoll.txt',
+                'mime_type' => 'text/plain',
+                'file_content' => 'Platzhalter für das Logo der Eventagentur Taktvoll.',
+            ],
+        ];
+
+        foreach ($definitions as $definition) {
+            $sponsor = $sponsors[$definition['sponsor']] ?? null;
+            if (!$sponsor instanceof Sponsor) {
+                continue;
+            }
+
+            $attachment = Attachment::firstOrCreate(
+                [
+                    'entity_type' => 'sponsor',
+                    'entity_id' => $sponsor->id,
+                    'original_name' => $definition['original_name'],
+                ],
+                [
+                    'filename' => bin2hex(random_bytes(8)) . '_' . $definition['original_name'],
+                    'mime_type' => $definition['mime_type'],
+                    'file_size' => strlen($definition['file_content']),
+                    'file_content' => $definition['file_content'],
+                ]
+            );
+
+            if ($attachment->wasRecentlyCreated) {
+                $this->report['counts']['sponsor_logo_attachments']++;
             }
         }
     }

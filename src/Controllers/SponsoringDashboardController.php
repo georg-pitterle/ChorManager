@@ -7,10 +7,10 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
-use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
 use App\Services\NameFormatterService;
+use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
 
 class SponsoringDashboardController
@@ -26,19 +26,21 @@ class SponsoringDashboardController
 
     public function index(Request $request, Response $response): Response
     {
-        $totalActive = Sponsor::where('status', 'active')->count();
+        // Gezählt werden Vereinbarungen, nicht Sponsoren. Als Sponsorenzahl ließ
+        // sich die Kachel nicht an der Sponsorenliste nachprüfen: deren Zustand
+        // beschreibt den Stand der Akquise (eine laufende Anfrage oder eine
+        // Generalabsage verdecken dort eine Zusage), die Kachel dagegen die
+        // eingegangenen Verpflichtungen. Zwei Fragen, zwei Einheiten - eine
+        // Zusage bleibt bestehen, auch wenn der Sponsor keine Anfragen mehr will
+        // oder für das nächste Projekt schon wieder angefragt wurde.
+        $totalActive = Sponsorship::where('status', SponsorshipStatus::ACCEPTED)->count();
 
-        $totalAmount = (float) Sponsorship::where('status', 'active')->sum('amount');
+        $totalAmount = (float) Sponsorship::where('status', SponsorshipStatus::ACCEPTED)->sum('amount');
 
-        $pipeline = (float) Sponsorship::where('status', 'negotiating')->sum('amount');
+        $pipeline = (float) Sponsorship::whereIn('status', SponsorshipStatus::OPEN)->sum('amount');
 
         $today = Carbon::today();
         $todayIso = $today->format('Y-m-d');
-
-        $openFollowUps = SponsoringContact::where('follow_up_done', 0)
-            ->whereNotNull('follow_up_date')
-            ->where('follow_up_date', '<=', $todayIso)
-            ->count();
 
         $in7Days = $today->copy()->addDays(7)->format('Y-m-d');
 
@@ -51,6 +53,13 @@ class SponsoringDashboardController
             ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $todayIso))
             ->values()
             ->all();
+
+        // Die überfälligen sind eine Teilmenge der eben geladenen Zeilen -
+        // dafür braucht es keine zweite Abfrage.
+        $openFollowUps = count(array_filter(
+            $upcomingFollowUps,
+            static fn (array $followUp): bool => $followUp['is_overdue']
+        ));
 
         $recentContacts = SponsoringContact::with(['sponsor', 'user'])
             ->orderBy('contact_date', 'desc')
@@ -74,14 +83,7 @@ class SponsoringDashboardController
 
     private function mapUpcomingFollowUp(SponsoringContact $contact, string $todayIso): array
     {
-        $statusLabels = [
-            'prospect' => 'Interessent',
-            'contacted' => 'Kontaktiert',
-            'negotiating' => 'Verhandlung',
-            'active' => 'Aktiv',
-            'paused' => 'Pausiert',
-            'closed' => 'Abgeschlossen',
-        ];
+        $statusLabels = SponsorshipStatus::labels();
 
         $followUpDate = $contact->follow_up_date;
         $followUpDateSort = $followUpDate ? $followUpDate->format('Y-m-d') : '';

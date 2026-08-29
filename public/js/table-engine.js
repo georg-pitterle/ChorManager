@@ -631,6 +631,9 @@
                 }
 
                 const plugin = factory({
+                    // Der Tabellenrahmen selbst: Plugins lesen ihre Konfiguration
+                    // aus dessen data-Attributen, statt eigene Kopien zu pflegen.
+                    root: container,
                     pluginSlot: pluginSlot,
                     onPluginStateChange: onPluginStateChange,
                     matchCell: matchCell,

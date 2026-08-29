@@ -12,6 +12,7 @@ use App\Controllers\ProfileController;
 use App\Controllers\RoleController;
 use App\Controllers\SongLibraryController;
 use App\Controllers\SponsorshipController;
+use App\Services\EntityAttachmentService;
 use App\Controllers\TaskController;
 use App\Controllers\UserController;
 use App\Logging\DatabaseWriteLogger;
@@ -295,7 +296,14 @@ final class DependenciesContainerWiringTest extends TestCase
         $controller = $container->get(SponsorshipController::class);
 
         $this->assertInstanceOf(SponsorshipController::class, $controller);
-        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
+
+        // Protokolliert wird seit dem gemeinsamen Anhang-Dienst dort, nicht mehr
+        // im Controller: eine abgelehnte Datei muss weiterhin im echten Log
+        // landen und nicht in einem NullLogger.
+        $this->assertInstanceOf(
+            Logger::class,
+            $this->loggerPropertyOf($container->get(EntityAttachmentService::class))
+        );
     }
 
     public function testTaskControllerResolvesWithRealLogger(): void

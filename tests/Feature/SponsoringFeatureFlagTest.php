@@ -92,7 +92,8 @@ final class SponsoringFeatureFlagTest extends TestCase
         $this->assertIsString($content);
 
         $this->assertMatchesRegularExpression(
-            "/'label' => 'Sponsoring',.*?\\\$c->module\('sponsoring'\) && \\\$c->can\('can_manage_sponsoring'\)/s",
+            "/'label' => 'Sponsoring',.*?\\\$c->module\('sponsoring'\)"
+                . ".*?\\\$c->can\('can_manage_sponsoring'\) \|\| \\\$c->can\('can_create_own_sponsorships'\)/s",
             $content
         );
     }

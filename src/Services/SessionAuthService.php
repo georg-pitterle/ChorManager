@@ -38,6 +38,7 @@ class SessionAuthService
         $canManageFinances = false;
         $canManageMasterData = false;
         $canManageSponsoring = false;
+        $canCreateOwnSponsorships = false;
         $canManageSongLibrary = false;
         $canManageNewsletters = false;
         $canManageMailQueue = false;
@@ -86,6 +87,12 @@ class SessionAuthService
             }
             if ($role->can_manage_sponsoring) {
                 $canManageSponsoring = true;
+                // Das Vollrecht schliesst das kleinere Recht ein, wie
+                // can_manage_finances das Lesen der Finanzen einschliesst.
+                $canCreateOwnSponsorships = true;
+            }
+            if (($role->can_create_own_sponsorships ?? false)) {
+                $canCreateOwnSponsorships = true;
             }
             if ($role->can_manage_song_library) {
                 $canManageSongLibrary = true;
@@ -131,6 +138,7 @@ class SessionAuthService
         $_SESSION['can_manage_finances'] = $canManageFinances;
         $_SESSION['can_manage_master_data'] = $canManageMasterData;
         $_SESSION['can_manage_sponsoring'] = $canManageSponsoring;
+        $_SESSION['can_create_own_sponsorships'] = $canCreateOwnSponsorships;
         $_SESSION['can_manage_song_library'] = $canManageSongLibrary;
         $_SESSION['can_manage_newsletters'] = $canManageNewsletters;
         $_SESSION['can_manage_mail_queue'] = $canManageMailQueue;

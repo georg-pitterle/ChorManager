@@ -248,6 +248,20 @@
                                             {% endfor %}
                                         </tr>
                                     {% endif %}
+                                    {% if settings.modules.sponsoring %}
+                                        <tr>
+                                            <th scope="row" class="roles-matrix-label">Eigene Sponsoring-Vereinbarungen erfassen</th>
+                                            {% for role in roles %}
+                                                <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                    {% if role.can_create_own_sponsorships %}
+                                                        <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                    {% else %}
+                                                        <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endif %}
                                     <tr>
                                         <th scope="row" class="roles-matrix-label">Repertoire verwalten</th>
                                         {% for role in roles %}
@@ -377,6 +391,7 @@
                                                             data-finances="{{ role.can_manage_finances ? '1' : '0' }}"
                                                             data-master-data="{{ role.can_manage_master_data ? '1' : '0' }}"
                                                             data-sponsoring="{{ role.can_manage_sponsoring ? '1' : '0' }}"
+                                                            data-own-sponsorships="{{ role.can_create_own_sponsorships ? '1' : '0' }}"
                                                             data-song-library="{{ role.can_manage_song_library ? '1' : '0' }}"
                                                             data-newsletters="{{ role.can_manage_newsletters ? '1' : '0' }}"
                                                             data-mail-queue="{{ role.can_manage_mail_queue ? '1' : '0' }}"
@@ -644,6 +659,20 @@
                                    for="can_manage_sponsoring">Sponsoring verwalten</label>
                             <div class="form-text">
                                 Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="can_create_own_sponsorships"
+                                   name="can_create_own_sponsorships"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-info"
+                                   for="can_create_own_sponsorships">Eigene Sponsoring-Vereinbarungen erfassen</label>
+                            <div class="form-text">
+                                Wenn aktiv, sieht diese Person alle Sponsoren und Vereinbarungen und darf eigene anlegen und
+                                bearbeiten. Fremde Einträge, das Löschen von Sponsoren und die Paketverwaltung bleiben gesperrt.
                             </div>
                         </div>
                     {% endif %}
@@ -976,6 +1005,20 @@
                                    for="edit_can_manage_sponsoring">Sponsoring verwalten</label>
                             <div class="form-text">
                                 Wenn aktiv, darf diese Person das Sponsoring-Modul sehen und Sponsoren, Vereinbarungen und Kontakte verwalten.
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit_can_create_own_sponsorships"
+                                   name="can_create_own_sponsorships"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-info"
+                                   for="edit_can_create_own_sponsorships">Eigene Sponsoring-Vereinbarungen erfassen</label>
+                            <div class="form-text">
+                                Wenn aktiv, sieht diese Person alle Sponsoren und Vereinbarungen und darf eigene anlegen und
+                                bearbeiten. Fremde Einträge, das Löschen von Sponsoren und die Paketverwaltung bleiben gesperrt.
                             </div>
                         </div>
                     {% endif %}

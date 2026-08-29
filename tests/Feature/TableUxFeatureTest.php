@@ -244,7 +244,7 @@ class TableUxFeatureTest extends TestCase
         $sponsorsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/sponsoring/sponsors/index.twig');
 
         $this->assertIsString($sponsorsTemplate);
-        $this->assertStringContainsString('data-table-plugins="sponsorStatus"', $sponsorsTemplate);
+        $this->assertStringContainsString('data-table-plugins="sponsorState"', $sponsorsTemplate);
         $this->assertStringNotContainsString('method="get" action="/sponsoring/sponsors"', $sponsorsTemplate);
     }
 

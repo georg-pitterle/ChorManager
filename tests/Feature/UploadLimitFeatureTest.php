@@ -29,8 +29,9 @@ class UploadLimitFeatureTest extends TestCase
             dirname(__DIR__, 2) . '/src/Controllers/AppSettingController.php',
             dirname(__DIR__, 2) . '/src/Controllers/FinanceController.php',
             dirname(__DIR__, 2) . '/src/Controllers/SongLibraryController.php',
-            dirname(__DIR__, 2) . '/src/Controllers/SponsorshipController.php',
             dirname(__DIR__, 2) . '/src/Controllers/TaskController.php',
+            // Sponsoring lädt über den gemeinsamen Dienst hoch.
+            dirname(__DIR__, 2) . '/src/Services/EntityAttachmentService.php',
         ];
 
         foreach ($files as $path) {

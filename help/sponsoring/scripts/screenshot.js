@@ -116,8 +116,16 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 4. Sponsor-Detail: Stammdaten (erster Eintrag der Übersicht)
-        await page.locator('#sponsorsTable tbody tr').first().locator('a.fw-semibold').click();
+        // 4. Sponsor-Detail: Stammdaten
+        //
+        // Bewusst nicht der erste Eintrag: bei einem Sponsor mit Generalabsage
+        // ("Keine Anfragen erwünscht") blendet die Oberfläche die Knöpfe zum
+        // Anlegen aus, und die folgenden Schritte fänden ihre Dialoge nicht.
+        await page
+            .locator('#sponsorsTable tbody tr:not([data-state="blocked"])')
+            .first()
+            .locator('a.fw-semibold')
+            .click();
         await page.waitForLoadState('networkidle');
         await page.locator('#pane-stammdaten').waitFor({ state: 'visible' });
         await shot(page, '04-sponsor-detail-master-data');
@@ -164,6 +172,11 @@ async function main() {
         await page.goto(`${BASE_URL}/sponsoring/packages`, { waitUntil: 'networkidle' });
         await page.locator('#sponsorPackagesTable').waitFor({ state: 'visible' });
         await shot(page, '09-packages');
+
+        // 10. Zentrale Anhangsammlung
+        await page.goto(`${BASE_URL}/sponsoring/attachments`, { waitUntil: 'networkidle' });
+        await page.locator('#sponsoringAttachmentsTable').waitFor({ state: 'visible' });
+        await shot(page, '10-attachments');
 
         console.log('Fertig: alle Sponsoring-Screenshots erstellt.');
     } finally {
