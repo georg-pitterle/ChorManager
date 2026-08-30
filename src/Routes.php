@@ -108,8 +108,14 @@ return function (App $app) {
         return $response->withHeader('Content-Type', 'text/plain');
     });
 
-    // Public calendar subscription feed
+    // Public calendar subscription feeds - beide über denselben Abo-Token
     $app->get('/events/export/{token:[a-f0-9]{64}}.ics', [EventController::class, 'exportCalendar']);
+
+    // Der Aufgaben-Feed steht und faellt mit dem Modul: Ist es aus, gibt es keine
+    // Aufgaben und der Feed haette nur einen leeren Kalender zu liefern.
+    if ($settings['modules']['tasks'] ?? false) {
+        $app->get('/tasks/export/{token:[a-f0-9]{64}}.ics', [TaskController::class, 'exportCalendar']);
+    }
 
     // Provider feedback ingest endpoints (public, verified/trusted channels)
     $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
@@ -126,6 +132,7 @@ return function (App $app) {
             $group->get('/profile', [ProfileController::class, 'index']);
             $group->post('/profile', [ProfileController::class, 'updateProfile']);
             $group->post('/profile/password', [ProfileController::class, 'updatePassword']);
+            $group->post('/profile/calendar', [ProfileController::class, 'updateCalendarSettings']);
             $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
             $group->post('/profile/mailbox/delete', [ProfileController::class, 'deleteMailbox']);

@@ -189,6 +189,56 @@ class ProfileController
         return $response->withHeader('Location', '/profile')->withStatus(302);
     }
 
+    /**
+     * Ob und wie die eigenen Aufgaben im abonnierten Kalender ankommen.
+     *
+     * Eigene Route statt eines weiteren Felds im Profilformular: Das Formular
+     * oben verlangt Vorname, Nachname und E-Mail und weist unvollständige
+     * Eingaben ab - eine Kalendereinstellung dort mitzuführen hieße, sie bei
+     * jeder abgewiesenen Namensänderung mit zu verlieren.
+     */
+    public function updateCalendarSettings(Request $request, Response $response): Response
+    {
+        $userId = (int)$_SESSION['user_id'];
+        $data = (array)$request->getParsedBody();
+
+        $feed = (string)($data['calendar_task_feed'] ?? '');
+        $format = (string)($data['calendar_task_format'] ?? '');
+
+        if (!in_array($feed, User::CALENDAR_TASK_FEEDS, true)) {
+            $_SESSION['error'] = 'Ungültige Auswahl für die Aufgaben im Kalender.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        if (!in_array($format, User::CALENDAR_TASK_FORMATS, true)) {
+            $_SESSION['error'] = 'Ungültige Auswahl für die Darstellung der Aufgaben.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        try {
+            $user = User::find($userId);
+            if ($user) {
+                $user->calendar_task_feed = $feed;
+                $user->calendar_task_format = $format;
+                $user->save();
+
+                $_SESSION['success'] = 'Deine Kalendereinstellungen wurden gespeichert.';
+            }
+        } catch (\Exception $e) {
+            $this->logger->error(
+                'Calendar settings update failed.',
+                [
+                    'event' => 'profile.calendar.update.failed',
+                    'user_id' => $userId,
+                    'exception' => $e,
+                ]
+            );
+            $_SESSION['error'] = 'Fehler beim Speichern.';
+        }
+
+        return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
     public function updatePassword(Request $request, Response $response): Response
     {
         $userId = (int)$_SESSION['user_id'];

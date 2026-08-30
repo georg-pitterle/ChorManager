@@ -110,7 +110,7 @@ class SongLibraryController
         }
 
         $allCategories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
-        $allProjects = Project::orderBy('name', 'asc')->get();
+        $allProjects = Project::query()->chronological()->get();
         $assignedProjectIds = $song->projectAssignments->pluck('project_id')->toArray();
 
         $success = $_SESSION['success'] ?? null;

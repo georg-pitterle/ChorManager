@@ -127,6 +127,7 @@ class DevSeedService
                 'song_category_assignments' => 0,
                 'project_song_assignments' => 0,
                 'tasks' => 0,
+                'task_assignees' => 0,
                 'task_activities' => 0,
                 'task_comments' => 0,
                 'event_notes' => 0,
@@ -258,6 +259,7 @@ class DevSeedService
             'activities',
             'attachments',
             'comments',
+            'task_assignees',
             'tasks',
             'project_song_assignments',
             'song_category_assignments',
@@ -619,6 +621,10 @@ class DevSeedService
             $user->last_name = $lastName;
             $user->password = password_hash(self::DEFAULT_SEED_PASSWORD, PASSWORD_DEFAULT);
             $user->is_active = $isActive ? 1 : 0;
+            // Alle drei Kalender-Varianten streuen, damit im Dev jede davon
+            // vorkommt und nicht nur die Voreinstellung.
+            $user->calendar_task_feed = User::CALENDAR_TASK_FEEDS[$i % count(User::CALENDAR_TASK_FEEDS)];
+            $user->calendar_task_format = User::CALENDAR_TASK_FORMATS[$i % count(User::CALENDAR_TASK_FORMATS)];
             $user->save();
 
             if ($user->wasRecentlyCreated) {
@@ -1016,6 +1022,13 @@ class DevSeedService
             return;
         }
 
+        // Die Altbestands-Adresse ist die einzige, die der Bericht ausgeben kann -
+        // alle anderen liegen nur als Pruefsumme vor. Ihr Besitzer bekommt
+        // deshalb das getrennte Aufgaben-Abo, damit beide Links im Dev etwas
+        // liefern; auf "gemeinsam" umstellen ist im Profil ein Klick.
+        $users[0]->calendar_task_feed = User::CALENDAR_TASK_FEED_SEPARATE;
+        $users[0]->save();
+
         $legacyToken = bin2hex(random_bytes(32));
         CalendarSubscriptionToken::create([
             'user_id' => (int) $users[0]->id,
@@ -1025,6 +1038,9 @@ class DevSeedService
         ]);
         $this->report['counts']['calendar_subscription_tokens']++;
         $this->report['calendar_subscription']['legacy_url'] = '/events/export/' . $legacyToken . '.ics';
+        // Derselbe Token bedient beide Feeds - der Aufgaben-Link gehoert deshalb
+        // mit in den Bericht, sonst muesste man ihn zum Ausprobieren abtippen.
+        $this->report['calendar_subscription']['legacy_task_url'] = '/tasks/export/' . $legacyToken . '.ics';
 
         if (!isset($users[1])) {
             return;
@@ -3029,6 +3045,7 @@ class DevSeedService
 
         $tasks = [];
         $userCount = count($activeUsers);
+        $taskNumber = 0;
 
         foreach ($projects as $projectIndex => $project) {
             $baseDate = $project->start_date
@@ -3037,9 +3054,18 @@ class DevSeedService
 
             foreach ($taskTemplates as $templateIndex => $template) {
                 $creator = $activeUsers[($projectIndex + $templateIndex) % $userCount];
-                $assigned = (($templateIndex + $projectIndex) % 4 === 0)
-                    ? null
-                    : $activeUsers[($projectIndex + $templateIndex + 3) % $userCount];
+
+                // Keine bis drei Zugewiesene, damit im Dev sowohl unbesetzte als
+                // auch gemeinsam betreute Aufgaben vorkommen. Die Reihe beginnt
+                // beim ersten aktiven Mitglied - ihm gehoert der Abo-Link aus dem
+                // Bericht, und ohne eigene Aufgaben bliebe der Aufgaben-Feed leer.
+                $assigneeCount = ($taskNumber + 1) % 4;
+                $assigneeIds = [];
+                for ($offset = 0; $offset < $assigneeCount; $offset++) {
+                    $assigneeIds[] = $activeUsers[($taskNumber + $offset) % $userCount]->id;
+                }
+                $assigneeIds = array_values(array_unique($assigneeIds));
+                $taskNumber++;
 
                 $startDate = $baseDate->modify('+' . ($templateIndex * 5) . ' days')->format('Y-m-d');
                 $endDate = $baseDate->modify('+' . (($templateIndex * 5) + 14) . ' days')->format('Y-m-d');
@@ -3051,7 +3077,6 @@ class DevSeedService
                     ],
                     [
                         'description' => $template['description'],
-                        'assigned_to' => $assigned?->id,
                         'start_date' => $startDate,
                         'end_date' => $endDate,
                         'status' => $statuses[($projectIndex + $templateIndex) % count($statuses)],
@@ -3065,6 +3090,9 @@ class DevSeedService
                 if ($task->wasRecentlyCreated) {
                     $this->report['counts']['tasks']++;
                 }
+
+                $syncResult = $task->assignees()->sync($assigneeIds);
+                $this->report['counts']['task_assignees'] += count($syncResult['attached']);
 
                 $tasks[] = $task;
             }

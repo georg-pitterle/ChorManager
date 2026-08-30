@@ -40,26 +40,20 @@ class ProjectQuery
     }
 
     /**
-     * Gemeinsame Reihenfolge aller Projektlisten: das zuletzt gestartete Projekt
-     * oben, damit das laufende dort steht, wo gesucht wird. Projekte ohne
-     * Startdatum landen von selbst am Ende - NULL ist der kleinste Wert und bei
-     * absteigender Sortierung damit der letzte. Der Name entscheidet bei gleichem
-     * Datum, sonst wechselte die Reihenfolge zwischen zwei Aufrufen.
+     * Reihenfolge aller Projektlisten. Definiert ist sie am Model
+     * (Project::scopeChronological), damit auch Abfragen ausserhalb dieser
+     * Klasse - etwa die Projektauswahl im Sponsoring - dieselbe Reihenfolge
+     * bekommen, ohne sie abzuschreiben.
      *
      * Vorher sortierte diese Liste nach Datum und getAccessibleProjects() nach
      * Namen; dasselbe Mitglied sah die Projekte je nach Seite anders geordnet.
-     *
-     * Die Spalten sind qualifiziert, weil getAccessibleProjects() über
-     * project_users joint.
      *
      * @param \Illuminate\Database\Eloquent\Builder<Project> $query
      * @return \Illuminate\Database\Eloquent\Builder<Project>
      */
     private static function orderedByStart($query)
     {
-        return $query
-            ->orderBy('projects.start_date', 'desc')
-            ->orderBy('projects.name');
+        return $query->chronological();
     }
 
     /**

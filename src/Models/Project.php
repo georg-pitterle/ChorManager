@@ -23,6 +23,28 @@ class Project extends Model
         'end_date' => 'date',
     ];
 
+    /**
+     * Gemeinsame Reihenfolge aller Projektlisten: das zuletzt gestartete Projekt
+     * oben, damit das laufende dort steht, wo gesucht wird. Projekte ohne
+     * Startdatum landen von selbst am Ende - NULL ist der kleinste Wert und bei
+     * absteigender Sortierung damit der letzte. Der Name entscheidet bei gleichem
+     * Datum, sonst wechselte die Reihenfolge zwischen zwei Aufrufen.
+     *
+     * Die Spalten sind qualifiziert, weil Aufrufer über project_users joinen.
+     *
+     * Liegt am Model und nicht nur in ProjectQuery, damit auch Abfragen mit
+     * eigenen Bedingungen dieselbe Reihenfolge bekommen, ohne sie abzuschreiben.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<Project> $query
+     * @return \Illuminate\Database\Eloquent\Builder<Project>
+     */
+    public function scopeChronological($query)
+    {
+        return $query
+            ->orderBy('projects.start_date', 'desc')
+            ->orderBy('projects.name');
+    }
+
     public function users()
     {
         return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');

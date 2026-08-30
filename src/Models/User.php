@@ -28,6 +28,30 @@ class User extends Model
         'is_active',
     ];
 
+    /**
+     * Ob und wie die eigenen Aufgaben im abonnierten Kalender ankommen. Die
+     * Werte spiegeln das ENUM aus Migration 20260830130000.
+     */
+    public const CALENDAR_TASK_FEED_NONE = 'none';
+    public const CALENDAR_TASK_FEED_COMBINED = 'combined';
+    public const CALENDAR_TASK_FEED_SEPARATE = 'separate';
+
+    /** @var list<string> */
+    public const CALENDAR_TASK_FEEDS = [
+        self::CALENDAR_TASK_FEED_NONE,
+        self::CALENDAR_TASK_FEED_COMBINED,
+        self::CALENDAR_TASK_FEED_SEPARATE,
+    ];
+
+    public const CALENDAR_TASK_FORMAT_EVENT = 'event';
+    public const CALENDAR_TASK_FORMAT_TODO = 'todo';
+
+    /** @var list<string> */
+    public const CALENDAR_TASK_FORMATS = [
+        self::CALENDAR_TASK_FORMAT_EVENT,
+        self::CALENDAR_TASK_FORMAT_TODO,
+    ];
+
     protected $fillable = [
         'email',
         'password',
@@ -110,7 +134,7 @@ class User extends Model
 
     public function tasks()
     {
-        return $this->hasMany(Task::class, 'assigned_to', 'id');
+        return $this->belongsToMany(Task::class, 'task_assignees', 'user_id', 'task_id');
     }
 
     public function comments()

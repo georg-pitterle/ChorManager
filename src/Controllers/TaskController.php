@@ -10,8 +10,11 @@ use App\Models\Activity;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\User;
+use App\Services\CalendarFeedService;
+use App\Services\CalendarSubscriptionService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Util\AppUrlResolver;
 use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -45,6 +48,34 @@ class TaskController
     }
 
     /**
+     * Der eigene Aufgaben-Feed. Öffentlich erreichbar wie der Termin-Feed und
+     * über denselben Token abgesichert: Ein zweites Geheimnis mit eigener
+     * Erneuerung hätte bedeutet, dass ein zurückgezogenes Abo nur eine Hälfte
+     * trifft.
+     */
+    public function exportCalendar(Request $request, Response $response, array $args): Response
+    {
+        $subscription = (new CalendarSubscriptionService())->findByToken((string) $args['token']);
+        if (!$subscription) {
+            return $response->withStatus(404);
+        }
+
+        $user = User::find((int) $subscription->user_id);
+        if (!$user) {
+            return $response->withStatus(404);
+        }
+
+        $content = (new CalendarFeedService($this->nameFormatter))
+            ->buildTaskCalendar($user, AppUrlResolver::resolveBaseUrl($request));
+
+        $response->getBody()->write($content);
+
+        return $response
+            ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
+            ->withHeader('Content-Disposition', 'inline; filename="chor-manager-aufgaben.ics"');
+    }
+
+    /**
      * Project members ordered by the configured name display format.
      */
     private function projectUsersInNameOrder(Project $project): \Illuminate\Database\Eloquent\Collection
@@ -71,30 +102,105 @@ class TaskController
     }
 
     /**
-     * Prüft die gewählte Person gegen die Projektmitglieder - dieselbe Menge, die
-     * das Auswahlfeld anbietet. tasks.assigned_to hängt an einem Fremdschlüssel:
+     * Prüft die gewählten Personen gegen die Projektmitglieder - dieselbe Menge,
+     * die das Auswahlfeld anbietet. task_assignees hängt an Fremdschlüsseln:
      * Eine fremde oder unbekannte Kennung endete sonst in einer QueryException
      * und damit in einem 500 statt in einer Meldung am Formular.
      *
-     * Liefert die Kennung, null für "nicht zugewiesen" oder false, wenn die Angabe
-     * nicht zum Projekt gehört.
+     * Liefert die Kennungen, ein leeres Feld für "nicht zugewiesen" oder false,
+     * sobald eine Angabe nicht zum Projekt gehört. Eine einzelne ungültige
+     * Kennung lässt die ganze Eingabe scheitern, statt sie stillschweigend zu
+     * verwerfen - sonst spricht das Formular von drei Zugewiesenen und
+     * gespeichert werden zwei.
      *
      * @param array<string, mixed> $data
+     * @return list<int>|false
      */
-    private function resolveAssignedUserId(Project $project, array $data): int|null|false
+    private function resolveAssignedUserIds(Project $project, array $data): array|false
     {
-        $raw = trim((string) ($data['assigned_user_id'] ?? ''));
-        if ($raw === '' || $raw === '0') {
-            return null;
+        $raw = $data['assigned_user_ids'] ?? [];
+        if (!is_array($raw)) {
+            $raw = [$raw];
         }
 
-        if (!ctype_digit($raw)) {
-            return false;
+        $userIds = [];
+        foreach ($raw as $value) {
+            $candidate = trim((string) $value);
+            if ($candidate === '' || $candidate === '0') {
+                continue;
+            }
+
+            if (!ctype_digit($candidate)) {
+                return false;
+            }
+
+            $userIds[] = (int) $candidate;
         }
 
-        $userId = (int) $raw;
+        $userIds = array_values(array_unique($userIds));
+        if ($userIds === []) {
+            return [];
+        }
 
-        return $project->users()->where('users.id', $userId)->exists() ? $userId : false;
+        $known = $project->users()->whereIn('users.id', $userIds)->pluck('users.id')->all();
+
+        return count($known) === count($userIds) ? $userIds : false;
+    }
+
+    /**
+     * Nennt die Zugewiesenen einer Aufgabe in stabiler Reihenfolge, damit der
+     * Verlaufseintrag bei unveränderter Zuweisung nicht anschlägt.
+     *
+     * @return list<int>
+     */
+    private function assigneeIds(Task $task): array
+    {
+        $ids = array_map('intval', $task->assignees()->pluck('users.id')->all());
+        sort($ids);
+
+        return $ids;
+    }
+
+    /**
+     * Beschreibt die Änderung an der Zuweisung als Zugang und Abgang. Die
+     * frühere Fassung nannte nur den neuen Namen; bei mehreren Zugewiesenen
+     * bliebe damit offen, wer dazugekommen und wer gegangen ist.
+     *
+     * @param list<int> $oldIds
+     * @param list<int> $newIds
+     */
+    private function describeAssigneeChange(array $oldIds, array $newIds): string
+    {
+        $added = array_values(array_diff($newIds, $oldIds));
+        $removed = array_values(array_diff($oldIds, $newIds));
+
+        $names = User::whereIn('id', array_merge($added, $removed))
+            ->get()
+            ->keyBy('id');
+
+        $format = static function (array $ids) use ($names): string {
+            $labels = [];
+            foreach ($ids as $id) {
+                $user = $names->get($id);
+                $labels[] = $user ? trim($user->first_name . ' ' . $user->last_name) : 'Unbekannt';
+            }
+
+            return implode(', ', $labels);
+        };
+
+        $parts = [];
+        if ($added !== []) {
+            $parts[] = 'Zugewiesen an: ' . $format($added);
+        }
+        if ($removed !== []) {
+            $parts[] = 'Zuweisung entfernt: ' . $format($removed);
+        }
+
+        if ($parts === []) {
+            return 'Zuweisung geändert';
+        }
+
+        return implode('; ', $parts);
     }
 
     private function hasTaskAccess(Project $project): bool
@@ -125,7 +231,7 @@ class TaskController
         }
 
         $tasks = $project->tasks()
-            ->with(['assignee', 'createdBy'])
+            ->with(['assignees', 'createdBy'])
             ->withCount('comments')
             ->orderBy('end_date', 'asc')
             ->get();
@@ -147,7 +253,7 @@ class TaskController
     public function detail(Request $request, Response $response, array $args): Response
     {
         $taskId = (int) $args['id'];
-        $task = Task::with(['project', 'assignee', 'createdBy', 'comments.user', 'attachments', 'activities.user'])
+        $task = Task::with(['project', 'assignees', 'createdBy', 'comments.user', 'attachments', 'activities.user'])
             ->findOrFail($taskId);
 
         if (!$this->hasTaskAccess($task->project)) {
@@ -193,9 +299,9 @@ class TaskController
             return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
         }
 
-        $assignedUserId = $this->resolveAssignedUserId($project, $data);
-        if ($assignedUserId === false) {
-            $_SESSION['error'] = 'Die gewählte Person gehört nicht zu diesem Projekt.';
+        $assignedUserIds = $this->resolveAssignedUserIds($project, $data);
+        if ($assignedUserIds === false) {
+            $_SESSION['error'] = 'Mindestens eine gewählte Person gehört nicht zu diesem Projekt.';
             return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
         }
 
@@ -217,19 +323,20 @@ class TaskController
             $description,
             $startDate,
             $endDate,
-            $assignedUserId
+            $assignedUserIds
         ) {
             $task = Task::create([
                 'project_id'       => $project->id,
                 'name'             => $title,
                 'description'      => $description,
-                'assigned_to'      => $assignedUserId,
                 'created_by'       => $_SESSION['user_id'],
                 'start_date'       => $startDate,
                 'end_date'         => $endDate,
                 'status'           => $this->validateStatus($data['status'] ?? 'Offen'),
                 'priority'         => $this->validatePriority($data['priority'] ?? 'Mittel'),
             ]);
+
+            $task->assignees()->sync($assignedUserIds);
 
             Activity::create([
                 'entity_type' => 'task',
@@ -268,15 +375,15 @@ class TaskController
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
-        $assignedUserId = $this->resolveAssignedUserId($task->project, $data);
-        if ($assignedUserId === false) {
-            $_SESSION['error'] = 'Die gewählte Person gehört nicht zu diesem Projekt.';
+        $assignedUserIds = $this->resolveAssignedUserIds($task->project, $data);
+        if ($assignedUserIds === false) {
+            $_SESSION['error'] = 'Mindestens eine gewählte Person gehört nicht zu diesem Projekt.';
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
         $oldStatus = $task->status;
         $oldPriority = $task->priority;
-        $oldAssigned = $task->assigned_to;
+        $oldAssignedIds = $this->assigneeIds($task);
         $oldDescription = trim((string) $task->description);
         $descriptionInput = array_key_exists('description', $data) ? (string) $data['description'] : $task->description;
         $description = $this->htmlSanitizer->sanitizeTaskHtml($descriptionInput);
@@ -299,19 +406,20 @@ class TaskController
             $endDate,
             $oldStatus,
             $oldPriority,
-            $oldAssigned,
+            $oldAssignedIds,
             $oldDescription,
-            $assignedUserId
+            $assignedUserIds
         ) {
             $task->update([
                 'name'             => $title,
                 'description'      => $description,
-                'assigned_to'      => $assignedUserId,
                 'start_date'       => $startDate,
                 'end_date'         => $endDate,
                 'status'           => $this->validateStatus($data['status'] ?? $task->status),
                 'priority'         => $this->validatePriority($data['priority'] ?? $task->priority),
             ]);
+
+            $task->assignees()->sync($assignedUserIds);
 
             // Changes logging
             $changes = [];
@@ -321,10 +429,9 @@ class TaskController
             if ($oldPriority !== $task->priority) {
                 $changes[] = "Priorität von '$oldPriority' auf '{$task->priority}' geändert";
             }
-            if ($oldAssigned !== $task->assigned_to) {
-                $assignedUser = $task->assigned_to ? User::find($task->assigned_to) : null;
-                $newUserName = $assignedUser ? $assignedUser->first_name : 'Niemanden';
-                $changes[] = "Zugewiesen an: $newUserName";
+            $newAssignedIds = $this->assigneeIds($task->fresh());
+            if ($oldAssignedIds !== $newAssignedIds) {
+                $changes[] = $this->describeAssigneeChange($oldAssignedIds, $newAssignedIds);
             }
             if ($oldDescription !== $description) {
                 $changes[] = 'Beschreibung aktualisiert';

@@ -15,7 +15,6 @@ class Task extends Model
         'project_id',
         'name',
         'description',
-        'assigned_to',
         'start_date',
         'end_date',
         'status',
@@ -37,9 +36,14 @@ class Task extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    public function assignee()
+    /**
+     * Zugewiesene Personen. Eine Aufgabe kann mehreren gehören - bis
+     * 20260830120000 hielt `tasks.assigned_to` genau eine, und wer zu zweit an
+     * etwas arbeitete, legte die Aufgabe doppelt an.
+     */
+    public function assignees()
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsToMany(User::class, 'task_assignees', 'task_id', 'user_id');
     }
 
     public function createdBy()

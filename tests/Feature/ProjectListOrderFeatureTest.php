@@ -114,6 +114,45 @@ class ProjectListOrderFeatureTest extends TestCase
         ];
     }
 
+    public function testEveryProjectListUsesTheSharedOrder(): void
+    {
+        // Die Reihenfolge liegt am Model, damit auch Abfragen mit eigenen
+        // Bedingungen sie bekommen. Wer sie abschreibt, faellt hier auf.
+        $this->assertSame(
+            $this->expectedOrder(),
+            $this->ownIdsIn(Project::query()->chronological()->get())
+        );
+    }
+
+    public function testNoControllerSortsProjectsAlphabeticallyAnymore(): void
+    {
+        // Acht Stellen sortierten ihre Projektliste frueher selbst nach Namen -
+        // dieselbe Person sah die Projekte je nach Seite in anderer Ordnung.
+        $sources = array_merge(
+            glob(dirname(__DIR__, 2) . '/src/Controllers/*.php') ?: [],
+            glob(dirname(__DIR__, 2) . '/src/Policies/*.php') ?: [],
+            glob(dirname(__DIR__, 2) . '/src/Queries/*.php') ?: []
+        );
+
+        foreach ($sources as $path) {
+            $content = (string) file_get_contents($path);
+
+            foreach (
+                [
+                    "Project::orderBy('name'",
+                    "Project::query()->orderBy('name'",
+                    "orderBy('projects.name'",
+                ] as $forbidden
+            ) {
+                $this->assertStringNotContainsString(
+                    $forbidden,
+                    $content,
+                    basename($path) . ' sortiert Projekte selbst statt ueber chronological()'
+                );
+            }
+        }
+    }
+
     public function testAllProjectsAreOrderedByStartDate(): void
     {
         $this->assertSame(

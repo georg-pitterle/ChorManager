@@ -11,7 +11,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Exceptions\InvalidAudienceSourcesException;
-use App\Models\AppSetting;
 use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventAudienceSource;
@@ -23,13 +22,13 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
 use App\Services\CalendarSubscriptionService;
+use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
 use App\Services\EventRecurrenceService;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
 use App\Util\SafeRedirect;
-use App\Util\Timezone;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Psr\Log\LoggerInterface;
 
@@ -39,7 +38,7 @@ class EventController
      * Schlüssel, unter dem die frisch erzeugte Abo-Adresse genau einen
      * Seitenaufruf lang in der Sitzung liegt.
      */
-    private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_url';
+    private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_token';
 
     /**
      * Zugelassene Takte einer Terminserie. Ein unbekannter Takt darf nicht bis in
@@ -303,7 +302,9 @@ class EventController
         $rotated = $subscriptionService->hasTokenForUser($userId);
         $token = $subscriptionService->rotateTokenForUser($userId);
 
-        $_SESSION[self::SUBSCRIPTION_FLASH_KEY] = $this->subscriptionUrl($request, $token);
+        // Der Token statt der fertigen Adresse: Aus ihm entstehen beide Links,
+        // und ob der zweite gebraucht wird, entscheidet erst die Anzeige.
+        $_SESSION[self::SUBSCRIPTION_FLASH_KEY] = $token;
 
         // Bewusst ohne Token im Kontext: Die Adresse ist das Geheimnis selbst und
         // hat in keinem Log etwas verloren.
@@ -329,7 +330,11 @@ class EventController
      * Erzeugen wahr - ein zeigbares Altbestand-Abo würde sonst bei jedem Aufruf der
      * Seite erneut das Fenster öffnen.
      *
-     * @return array{exists: bool, url: string|null, autoshow: bool}|null
+     * `task_url` steht nur da, wenn die Person im Profil ein eigenes Aufgaben-Abo
+     * gewählt hat. Bei `combined` liefert schon `url` die Aufgaben mit, ein
+     * zweiter Link würde dann dieselben Einträge ein zweites Mal einspielen.
+     *
+     * @return array{exists: bool, url: string|null, task_url: string|null, autoshow: bool}|null
      */
     private function calendarSubscriptionState(Request $request, int $userId): ?array
     {
@@ -337,26 +342,57 @@ class EventController
             return null;
         }
 
-        $freshUrl = $_SESSION[self::SUBSCRIPTION_FLASH_KEY] ?? null;
+        $freshToken = $_SESSION[self::SUBSCRIPTION_FLASH_KEY] ?? null;
         unset($_SESSION[self::SUBSCRIPTION_FLASH_KEY]);
 
-        if (is_string($freshUrl) && $freshUrl !== '') {
-            return ['exists' => true, 'url' => $freshUrl, 'autoshow' => true];
+        if (is_string($freshToken) && $freshToken !== '') {
+            return $this->subscriptionStateForToken($request, $userId, $freshToken, true);
         }
 
         $subscriptionService = new CalendarSubscriptionService();
         $legacyToken = $subscriptionService->findLegacyTokenForUser($userId);
 
         if ($legacyToken !== null) {
-            return ['exists' => true, 'url' => $this->subscriptionUrl($request, $legacyToken), 'autoshow' => false];
+            return $this->subscriptionStateForToken($request, $userId, $legacyToken, false);
         }
 
-        return ['exists' => $subscriptionService->hasTokenForUser($userId), 'url' => null, 'autoshow' => false];
+        return [
+            'exists' => $subscriptionService->hasTokenForUser($userId),
+            'url' => null,
+            'task_url' => null,
+            'autoshow' => false,
+        ];
+    }
+
+    /**
+     * @return array{exists: bool, url: string|null, task_url: string|null, autoshow: bool}
+     */
+    private function subscriptionStateForToken(
+        Request $request,
+        int $userId,
+        string $token,
+        bool $autoshow
+    ): array {
+        $wantsOwnTaskFeed = User::where('id', $userId)
+            ->where('calendar_task_feed', User::CALENDAR_TASK_FEED_SEPARATE)
+            ->exists();
+
+        return [
+            'exists' => true,
+            'url' => $this->subscriptionUrl($request, $token),
+            'task_url' => $wantsOwnTaskFeed ? $this->taskSubscriptionUrl($request, $token) : null,
+            'autoshow' => $autoshow,
+        ];
     }
 
     private function subscriptionUrl(Request $request, string $token): string
     {
         return AppUrlResolver::resolveBaseUrl($request) . '/events/export/' . $token . '.ics';
+    }
+
+    private function taskSubscriptionUrl(Request $request, string $token): string
+    {
+        return AppUrlResolver::resolveBaseUrl($request) . '/tasks/export/' . $token . '.ics';
     }
 
     /**
@@ -377,8 +413,7 @@ class EventController
 
     public function exportCalendar(Request $request, Response $response, array $args): Response
     {
-        $subscriptionService = new CalendarSubscriptionService();
-        $subscription = $subscriptionService->findByToken((string) $args['token']);
+        $subscription = (new CalendarSubscriptionService())->findByToken((string) $args['token']);
         if (!$subscription) {
             return $response->withStatus(404);
         }
@@ -388,86 +423,14 @@ class EventController
             return $response->withStatus(404);
         }
 
-        $events = (new EventAudienceService())
-            ->visibleEventsQuery((int) $user->id)
-            ->where('ends_at', '>=', Carbon::now())
-            ->orderBy('starts_at')
-            ->get();
-
-        $timezone = Timezone::resolveAppTimezone();
-        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
-        $settings = AppSetting::query()
-            ->whereIn('setting_key', ['app_name'])
-            ->pluck('setting_value', 'setting_key')
-            ->toArray();
-        $lines = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0',
-            'PRODID:-//' . ($settings['app_name'] ?? 'Chor Manager') . '//Calendar Subscription//DE',
-            'CALSCALE:GREGORIAN',
-            'METHOD:PUBLISH',
-            'X-WR-CALNAME:' . ($settings['app_name'] ?? 'Chor Manager') . ' Termine',
-            'X-WR-TIMEZONE:' . $timezone,
-        ];
-
-        foreach ($events as $event) {
-            $lines = array_merge($lines, $this->buildIcsEventLines($event, $baseUrl, $timezone));
-        }
-
-        $lines[] = 'END:VCALENDAR';
-        $content = implode("\r\n", $lines) . "\r\n";
+        $content = (new CalendarFeedService($this->nameFormatter))
+            ->buildEventCalendar($user, AppUrlResolver::resolveBaseUrl($request));
 
         $response->getBody()->write($content);
 
         return $response
             ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
             ->withHeader('Content-Disposition', 'inline; filename="chor-manager.ics"');
-    }
-
-    private function buildIcsEventLines(Event $event, string $baseUrl, string $timezone): array
-    {
-        $lines = [
-            'BEGIN:VEVENT',
-            'UID:event-' . $event->id . '@chor-manager',
-            'DTSTAMP:' . Carbon::now('UTC')->format('Ymd\THis\Z'),
-            'DTSTART;TZID=' . $timezone . ':' . $event->starts_at->format('Ymd\THis'),
-            'DTEND;TZID=' . $timezone . ':' . $event->ends_at->format('Ymd\THis'),
-            'SUMMARY:' . $this->escapeIcsText($event->title),
-            'DESCRIPTION:' . $this->escapeIcsText($this->buildIcsDescription($event, $baseUrl)),
-            'URL:' . $this->escapeIcsText($baseUrl . '/events/' . $event->id),
-        ];
-
-        if (!empty($event->location)) {
-            $lines[] = 'LOCATION:' . $this->escapeIcsText($event->location);
-        }
-
-        $lines[] = 'END:VEVENT';
-
-        return $lines;
-    }
-
-    private function buildIcsDescription(Event $event, string $baseUrl): string
-    {
-        $description = 'Termin: ' . $event->title;
-        $audienceLabel = $this->buildAudienceLabel($event);
-        if ($audienceLabel !== '') {
-            $description .= '\nZielgruppe: ' . $audienceLabel;
-        }
-        if (!empty($event->location)) {
-            $description .= '\nOrt: ' . $event->location;
-        }
-        $description .= '\nDetails: ' . $baseUrl . '/events/' . $event->id;
-
-        return $description;
-    }
-
-    private function escapeIcsText(string $text): string
-    {
-        return str_replace(
-            ["\r\n", ',', ';'],
-            ['\n', '\\,', '\\;'],
-            $text
-        );
     }
 
     /**
@@ -494,28 +457,6 @@ class EventController
         }
 
         return [];
-    }
-
-    private function buildAudienceLabel(Event $event): string
-    {
-        $sources = $event->audienceSources()->get();
-        if ($sources->isEmpty()) {
-            return 'Alle Mitglieder';
-        }
-
-        $labels = [];
-        foreach ($sources as $source) {
-            $refId = (int) $source->reference_id;
-            $labels[] = match ((string) $source->source_type) {
-                'project_members' => 'Projekt: ' . (optional(Project::find($refId))->name ?? '—'),
-                'role' => 'Rolle: ' . (optional(Role::find($refId))->name ?? '—'),
-                'voice_group' => 'Stimmgruppe: ' . (optional(VoiceGroup::find($refId))->name ?? '—'),
-                'user' => 'Person: ' . $this->nameFormatter->formatPerson(User::find($refId)),
-                default => '',
-            };
-        }
-
-        return implode(', ', array_filter($labels));
     }
 
     public function addNote(Request $request, Response $response, array $args): Response

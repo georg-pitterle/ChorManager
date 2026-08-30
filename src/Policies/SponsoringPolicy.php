@@ -204,7 +204,7 @@ class SponsoringPolicy
      */
     public function selectableProjects(): \Illuminate\Support\Collection
     {
-        $query = Project::orderBy('name');
+        $query = Project::query()->chronological();
 
         if (!$this->canManageSponsoring) {
             $today = date('Y-m-d');

@@ -58,6 +58,18 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link"
+                    id="tab-calendar"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-calendar"
+                    type="button"
+                    role="tab"
+                    aria-controls="pane-calendar"
+                    aria-selected="false">
+                <i class="bi bi-calendar-week me-1"></i>Kalender
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
                     id="tab-password"
                     data-bs-toggle="tab"
                     data-bs-target="#pane-password"
@@ -204,6 +216,74 @@
                     {% else %}
                         <p class="text-muted mb-0">Du nimmst derzeit an keinem Projekt teil.</p>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Kalender -->
+        <div class="tab-pane fade"
+             id="pane-calendar"
+             role="tabpanel"
+             aria-labelledby="tab-calendar"
+             tabindex="0">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="text-muted">
+                        Der abonnierte Kalender zeigt deine Termine. Hier legst du fest, ob deine
+                        Aufgaben mitkommen. Aufgenommen werden Aufgaben, die dir zugewiesen sind,
+                        ein Enddatum haben und noch nicht abgeschlossen sind.
+                    </p>
+
+                    <form action="/profile/calendar" method="post">
+                        <div class="mb-4">
+                            <label for="calendar_task_feed" class="form-label">Aufgaben im Kalender</label>
+                            <select class="form-select" id="calendar_task_feed" name="calendar_task_feed">
+                                <option value="combined"
+                                        {{ user.calendar_task_feed == "combined" ? "selected" : "" }}>
+                                    Zusammen mit den Terminen in einem Abo
+                                </option>
+                                <option value="separate"
+                                        {{ user.calendar_task_feed == "separate" ? "selected" : "" }}>
+                                    In einem eigenen Abo
+                                </option>
+                                <option value="none"
+                                        {{ user.calendar_task_feed == "none" ? "selected" : "" }}>
+                                    Gar nicht
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                Bei einem eigenen Abo findest du den zweiten Link im Abo-Fenster
+                                auf der Terminseite. Beide Links nutzen denselben Zugang: Wer ihn
+                                erneuert, zieht damit auch das Aufgaben-Abo zurück.
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="calendar_task_format" class="form-label">Darstellung</label>
+                            <select class="form-select" id="calendar_task_format" name="calendar_task_format">
+                                <option value="event"
+                                        {{ user.calendar_task_format == "event" ? "selected" : "" }}>
+                                    Als ganztägiger Termin am Enddatum
+                                </option>
+                                <option value="todo"
+                                        {{ user.calendar_task_format == "todo" ? "selected" : "" }}>
+                                    Als Aufgabe mit Fälligkeit
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Apple Kalender und Google Kalender zeigen Aufgaben aus abonnierten
+                                Kalendern nicht an. Wer einen dieser beiden nutzt, bleibt besser
+                                beim ganztägigen Termin.
+                            </div>
+                        </div>
+
+                        <div class="d-grid justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Speichern
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
