@@ -127,6 +127,7 @@ class DevSeedService
                 'song_category_assignments' => 0,
                 'project_song_assignments' => 0,
                 'tasks' => 0,
+                'task_assignees' => 0,
                 'task_activities' => 0,
                 'task_comments' => 0,
                 'event_notes' => 0,
@@ -258,6 +259,7 @@ class DevSeedService
             'activities',
             'attachments',
             'comments',
+            'task_assignees',
             'tasks',
             'project_song_assignments',
             'song_category_assignments',
@@ -3037,9 +3039,15 @@ class DevSeedService
 
             foreach ($taskTemplates as $templateIndex => $template) {
                 $creator = $activeUsers[($projectIndex + $templateIndex) % $userCount];
-                $assigned = (($templateIndex + $projectIndex) % 4 === 0)
-                    ? null
-                    : $activeUsers[($projectIndex + $templateIndex + 3) % $userCount];
+
+                // Keine bis drei Zugewiesene, damit im Dev sowohl unbesetzte als
+                // auch gemeinsam betreute Aufgaben vorkommen.
+                $assigneeCount = ($projectIndex + $templateIndex) % 4;
+                $assigneeIds = [];
+                for ($offset = 0; $offset < $assigneeCount; $offset++) {
+                    $assigneeIds[] = $activeUsers[($projectIndex + $templateIndex + 3 + $offset) % $userCount]->id;
+                }
+                $assigneeIds = array_values(array_unique($assigneeIds));
 
                 $startDate = $baseDate->modify('+' . ($templateIndex * 5) . ' days')->format('Y-m-d');
                 $endDate = $baseDate->modify('+' . (($templateIndex * 5) + 14) . ' days')->format('Y-m-d');
@@ -3051,7 +3059,6 @@ class DevSeedService
                     ],
                     [
                         'description' => $template['description'],
-                        'assigned_to' => $assigned?->id,
                         'start_date' => $startDate,
                         'end_date' => $endDate,
                         'status' => $statuses[($projectIndex + $templateIndex) % count($statuses)],
@@ -3065,6 +3072,9 @@ class DevSeedService
                 if ($task->wasRecentlyCreated) {
                     $this->report['counts']['tasks']++;
                 }
+
+                $syncResult = $task->assignees()->sync($assigneeIds);
+                $this->report['counts']['task_assignees'] += count($syncResult['attached']);
 
                 $tasks[] = $task;
             }

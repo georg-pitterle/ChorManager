@@ -110,7 +110,7 @@ class User extends Model
 
     public function tasks()
     {
-        return $this->hasMany(Task::class, 'assigned_to', 'id');
+        return $this->belongsToMany(Task::class, 'task_assignees', 'user_id', 'task_id');
     }
 
     public function comments()

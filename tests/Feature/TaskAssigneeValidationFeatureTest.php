@@ -68,7 +68,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $response = $this->controller()->create(
             $this->makeRequest('POST', '/projects/' . $this->project->id . '/tasks', [
                 'title' => 'Fremde Zuweisung',
-                'assigned_user_id' => (string) $this->outsider->id,
+                'assigned_user_ids' => [(string) $this->outsider->id],
             ]),
             $this->makeResponse(),
             ['project_id' => (string) $this->project->id]
@@ -76,7 +76,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame(
-            'Die gewählte Person gehört nicht zu diesem Projekt.',
+            'Mindestens eine gewählte Person gehört nicht zu diesem Projekt.',
             $_SESSION['error'] ?? null
         );
         $this->assertNull(Task::where('name', 'Fremde Zuweisung')->first());
@@ -89,14 +89,14 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $this->controller()->create(
             $this->makeRequest('POST', '/projects/' . $this->project->id . '/tasks', [
                 'title' => 'Unbekannte Zuweisung',
-                'assigned_user_id' => (string) $unknownId,
+                'assigned_user_ids' => [(string) $unknownId],
             ]),
             $this->makeResponse(),
             ['project_id' => (string) $this->project->id]
         );
 
         $this->assertSame(
-            'Die gewählte Person gehört nicht zu diesem Projekt.',
+            'Mindestens eine gewählte Person gehört nicht zu diesem Projekt.',
             $_SESSION['error'] ?? null
         );
         $this->assertNull(Task::where('name', 'Unbekannte Zuweisung')->first());
@@ -109,7 +109,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $this->controller()->create(
             $this->makeRequest('POST', '/projects/' . $this->project->id . '/tasks', [
                 'title' => 'Gültige Zuweisung',
-                'assigned_user_id' => (string) $this->member->id,
+                'assigned_user_ids' => [(string) $this->member->id],
             ]),
             $this->makeResponse(),
             ['project_id' => (string) $this->project->id]
@@ -118,7 +118,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $task = Task::where('name', 'Gültige Zuweisung')->first();
 
         $this->assertNotNull($task);
-        $this->assertSame((int) $this->member->id, (int) $task->assigned_to);
+        $this->assertSame([(int) $this->member->id], $this->assigneeIds($task));
         $this->assertNull($_SESSION['error'] ?? null);
     }
 
@@ -129,7 +129,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $this->controller()->create(
             $this->makeRequest('POST', '/projects/' . $this->project->id . '/tasks', [
                 'title' => 'Ohne Zuweisung',
-                'assigned_user_id' => '',
+                'assigned_user_ids' => [],
             ]),
             $this->makeResponse(),
             ['project_id' => (string) $this->project->id]
@@ -138,7 +138,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $task = Task::where('name', 'Ohne Zuweisung')->first();
 
         $this->assertNotNull($task);
-        $this->assertNull($task->assigned_to);
+        $this->assertSame([], $this->assigneeIds($task));
         $this->assertNull($_SESSION['error'] ?? null);
     }
 
@@ -149,13 +149,13 @@ class TaskAssigneeValidationFeatureTest extends TestCase
             'name' => 'Bestehende Aufgabe',
             'status' => 'Offen',
             'created_by' => $this->member->id,
-            'assigned_to' => $this->member->id,
         ]);
+        $task->assignees()->sync([$this->member->id]);
 
         $response = $this->controller()->update(
             $this->makeRequest('POST', '/tasks/' . $task->id . '/update', [
                 'title' => 'Bestehende Aufgabe',
-                'assigned_user_id' => (string) $this->outsider->id,
+                'assigned_user_ids' => [(string) $this->outsider->id],
             ]),
             $this->makeResponse(),
             ['id' => (string) $task->id]
@@ -163,12 +163,22 @@ class TaskAssigneeValidationFeatureTest extends TestCase
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame(
-            'Die gewählte Person gehört nicht zu diesem Projekt.',
+            'Mindestens eine gewählte Person gehört nicht zu diesem Projekt.',
             $_SESSION['error'] ?? null
         );
 
-        $task->refresh();
-        $this->assertSame((int) $this->member->id, (int) $task->assigned_to);
+        $this->assertSame([(int) $this->member->id], $this->assigneeIds($task));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function assigneeIds(Task $task): array
+    {
+        $ids = array_map('intval', $task->assignees()->pluck('users.id')->all());
+        sort($ids);
+
+        return $ids;
     }
 
     private function controller(): TaskController

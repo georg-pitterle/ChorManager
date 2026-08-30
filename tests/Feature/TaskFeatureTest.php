@@ -16,6 +16,7 @@ use App\Middleware\RoleMiddleware;
 use App\Policies\TaskPolicy;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use Psr\Http\Message\ResponseInterface;
@@ -357,7 +358,7 @@ class TaskFeatureTest extends TestCase
         $task = new Task();
 
         $this->assertTrue(method_exists($task, 'project'));
-        $this->assertTrue(method_exists($task, 'assignee'));
+        $this->assertTrue(method_exists($task, 'assignees'));
         $this->assertTrue(method_exists($task, 'createdBy'));
         $this->assertTrue(method_exists($task, 'comments'));
         $this->assertTrue(method_exists($task, 'attachments'));
@@ -445,8 +446,30 @@ class TaskFeatureTest extends TestCase
 
         // Check task indexes for query optimization
         $this->assertStringContainsString("KEY project_idx (project_id)", $migrationContent);
-        $this->assertStringContainsString("KEY assigned_to_idx (assigned_to)", $migrationContent);
         $this->assertStringContainsString("KEY status_idx (status)", $migrationContent);
+    }
+
+    /**
+     * Seit 20260830120000 haengt die Zuweisung nicht mehr an tasks.assigned_to.
+     * Geprueft wird deshalb am laufenden Schema, dass beide Leserichtungen
+     * indiziert sind: die Zugewiesenen einer Aufgabe ueber den
+     * Primaerschluessel, die Aufgaben einer Person ueber den Fremdschluessel.
+     */
+    public function testTaskAssigneesTableIsIndexedInBothDirections(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $indexes = Capsule::connection()->select('SHOW INDEX FROM task_assignees');
+
+        $firstColumns = [];
+        foreach ($indexes as $index) {
+            if ((int) $index->Seq_in_index === 1) {
+                $firstColumns[] = $index->Column_name;
+            }
+        }
+
+        $this->assertContains('task_id', $firstColumns);
+        $this->assertContains('user_id', $firstColumns);
     }
 
     /**
