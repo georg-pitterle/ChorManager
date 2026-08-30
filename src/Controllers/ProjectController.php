@@ -206,10 +206,9 @@ class ProjectController
 
     public function listForMembers(Request $request, Response $response): Response
     {
-        $accessibleIds = $this->policy->getAccessibleProjectIds();
-        $projects = $this->projectQuery->getAllProjects()->filter(
-            fn($project) => in_array($project->id, $accessibleIds, true)
-        );
+        // Die Einschränkung läuft in der Abfrage, nicht als filter() über alle
+        // Projekte: die Datenbank liefert gleich nur die zugänglichen zurück.
+        $projects = $this->projectQuery->getProjectsByIds($this->policy->getAccessibleProjectIds());
 
         return $this->view->render($response, 'projects/member_projects.twig', [
             'projects' => $projects,

@@ -37,7 +37,6 @@ class AccessibleProjectsFeatureTest extends TestCase
         // die Zusicherungen filtern deshalb auf genau diese beiden.
         $suffix = bin2hex(random_bytes(4));
 
-        // "Adventkonzert" vor "Zwischenkonzert" - die Abfrage sortiert nach Namen.
         $this->ownProjectId = (int) Project::create(['name' => 'Adventkonzert ' . $suffix])->id;
         $this->foreignProjectId = (int) Project::create(['name' => 'Zwischenkonzert ' . $suffix])->id;
 
@@ -75,16 +74,22 @@ class AccessibleProjectsFeatureTest extends TestCase
      * Reduziert das Ergebnis auf die beiden hier angelegten Projekte, damit
      * Bestandsdaten der Testdatenbank die Zusicherungen nicht verfälschen.
      *
+     * Sortiert wird numerisch: hier geht es um die Sichtbarkeit, nicht um die
+     * Reihenfolge - die prüft ProjectListOrderFeatureTest.
+     *
      * @return list<int>
      */
     private function knownProjectIdsIn(Collection $projects): array
     {
         $known = [$this->ownProjectId, $this->foreignProjectId];
 
-        return array_values(array_filter(
+        $ids = array_values(array_filter(
             array_map(static fn ($project): int => (int) $project->id, $projects->all()),
             static fn (int $id): bool => in_array($id, $known, true)
         ));
+        sort($ids);
+
+        return $ids;
     }
 
     public function testMemberSeesOnlyOwnProjects(): void
@@ -102,10 +107,13 @@ class AccessibleProjectsFeatureTest extends TestCase
     {
         $projects = $this->query()->getAccessibleProjects($this->userId, true);
 
+        $ids = [$this->ownProjectId, $this->foreignProjectId];
+        sort($ids);
+
         $this->assertSame(
-            [$this->ownProjectId, $this->foreignProjectId],
+            $ids,
             $this->knownProjectIdsIn($projects),
-            'Mit übergreifendem Recht stehen alle Projekte zur Auswahl, nach Namen sortiert.'
+            'Mit übergreifendem Recht stehen auch fremde Projekte zur Auswahl.'
         );
     }
 

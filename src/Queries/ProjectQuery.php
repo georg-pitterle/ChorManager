@@ -6,7 +6,6 @@ namespace App\Queries;
 
 use App\Models\Project;
 use App\Models\User;
-use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
@@ -37,7 +36,30 @@ class ProjectQuery
 
     public function getAllProjects(): Collection
     {
-        return Project::orderBy('start_date', 'desc')->get();
+        return self::orderedByStart(Project::query())->get();
+    }
+
+    /**
+     * Gemeinsame Reihenfolge aller Projektlisten: das zuletzt gestartete Projekt
+     * oben, damit das laufende dort steht, wo gesucht wird. Projekte ohne
+     * Startdatum landen von selbst am Ende - NULL ist der kleinste Wert und bei
+     * absteigender Sortierung damit der letzte. Der Name entscheidet bei gleichem
+     * Datum, sonst wechselte die Reihenfolge zwischen zwei Aufrufen.
+     *
+     * Vorher sortierte diese Liste nach Datum und getAccessibleProjects() nach
+     * Namen; dasselbe Mitglied sah die Projekte je nach Seite anders geordnet.
+     *
+     * Die Spalten sind qualifiziert, weil getAccessibleProjects() über
+     * project_users joint.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<Project> $query
+     * @return \Illuminate\Database\Eloquent\Builder<Project>
+     */
+    private static function orderedByStart($query)
+    {
+        return $query
+            ->orderBy('projects.start_date', 'desc')
+            ->orderBy('projects.name');
     }
 
     /**
@@ -51,7 +73,7 @@ class ProjectQuery
     public function getAccessibleProjects(int $userId, bool $seesAllProjects): Collection
     {
         if ($seesAllProjects) {
-            return Project::orderBy('name')->get();
+            return $this->getAllProjects();
         }
 
         if ($userId <= 0) {
@@ -61,13 +83,31 @@ class ProjectQuery
             return new Collection();
         }
 
-        return Project::query()
-            ->select('projects.*')
-            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
-            ->where('project_users.user_id', $userId)
-            ->distinct()
-            ->orderBy('projects.name')
-            ->get();
+        return self::orderedByStart(
+            Project::query()
+                ->select('projects.*')
+                ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+                ->where('project_users.user_id', $userId)
+                ->distinct()
+        )->get();
+    }
+
+    /**
+     * Die Projekte zu einer bereits ermittelten Id-Liste, in derselben Reihenfolge
+     * wie jede andere Projektliste. Ersetzt das Laden aller Projekte mit
+     * anschließendem filter() in PHP (ProjectController::listForMembers()).
+     *
+     * Eine leere Id-Liste heißt "keine Projekte" und kommt ohne Abfrage aus.
+     *
+     * @param array<int> $projectIds
+     */
+    public function getProjectsByIds(array $projectIds): Collection
+    {
+        if ($projectIds === []) {
+            return new Collection();
+        }
+
+        return self::orderedByStart(Project::whereIn('projects.id', $projectIds))->get();
     }
 
     /**
@@ -229,25 +269,12 @@ class ProjectQuery
     /**
      * Returns project members grouped by voice group and sub-voice for the evaluation view.
      *
-     * Jedes Mitglied erscheint genau einmal: unter seiner ersten Stimmgruppe. Ist ein
-     * Filter gesetzt, zählt die erste Stimmgruppe, die der Filter zulässt.
+     * Jedes Mitglied erscheint genau einmal: unter seiner ersten Stimmgruppe.
      *
-     * @param array<int>|null $filterVoiceGroupIds null = kein Filter, [] = keine Treffer
      * @return array<string, array<string, list<array<string, mixed>>>>
      */
-    public function getProjectMembersGroupedByVoice(int $projectId, ?array $filterVoiceGroupIds = null): array
+    public function getProjectMembersGroupedByVoice(int $projectId): array
     {
-        // Eine leere Stimmgruppen-Liste schränkt auf nichts ein und darf nicht als
-        // "kein Filter" durchgehen - sonst wäre der Filter im Zweifel wirkungslos.
-        // Dieselbe Semantik wie in getUsersNotInProjectForVoiceGroups().
-        if ($filterVoiceGroupIds === []) {
-            return [];
-        }
-
-        $allowedVoiceGroupIds = $filterVoiceGroupIds === null
-            ? null
-            : array_map('intval', $filterVoiceGroupIds);
-
         // Nur die Namen der Teilstimmen werden gebraucht; die Stimmgruppe hinter einer
         // Teilstimme mitzuladen wäre eine zusätzliche Query ohne Verwendung.
         $query = User::select(User::LIST_COLUMNS)
@@ -256,12 +283,6 @@ class ProjectQuery
             })
             ->where('is_active', 1)
             ->with(['voiceGroups', 'subVoices']);
-
-        if ($allowedVoiceGroupIds !== null) {
-            $query->whereHas('voiceGroups', function ($q) use ($allowedVoiceGroupIds) {
-                $q->whereIn('voice_group_id', $allowedVoiceGroupIds);
-            });
-        }
 
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $query->orderBy($column);
@@ -276,7 +297,8 @@ class ProjectQuery
             $vgName = self::NO_VOICE_GROUP_KEY;
             $svName = self::NO_SUB_VOICE_KEY;
 
-            $voiceGroup = $this->resolveVoiceGroup($user, $allowedVoiceGroupIds);
+            // Die Relation sortiert nach voice_groups.id, "erste" ist damit eindeutig.
+            $voiceGroup = $user->voiceGroups->first();
             if ($voiceGroup) {
                 $vgName = $voiceGroup->name;
                 // sub_voice_id is stored in the pivot table for user_voice_groups
@@ -324,27 +346,5 @@ class ProjectQuery
         unset($subVoices);
 
         return $grouped;
-    }
-
-    /**
-     * Die Stimmgruppe, unter der ein Mitglied in der Besetzung erscheint.
-     *
-     * Ohne Filter ist das die erste Stimmgruppe des Mitglieds. Mit Filter muss es die
-     * erste zugelassene sein: gefiltert wird über whereHas, also über *irgendeine*
-     * passende Stimmgruppe - ein Mitglied, das nur über seine zweite Stimmgruppe in
-     * den Filter fällt, landete sonst unter einer Überschrift, die der Filter gar
-     * nicht enthält.
-     *
-     * @param array<int>|null $allowedVoiceGroupIds
-     */
-    private function resolveVoiceGroup(User $user, ?array $allowedVoiceGroupIds): ?VoiceGroup
-    {
-        if ($allowedVoiceGroupIds === null) {
-            return $user->voiceGroups->first();
-        }
-
-        return $user->voiceGroups->first(static function (VoiceGroup $voiceGroup) use ($allowedVoiceGroupIds): bool {
-            return in_array((int) $voiceGroup->id, $allowedVoiceGroupIds, true);
-        });
     }
 }

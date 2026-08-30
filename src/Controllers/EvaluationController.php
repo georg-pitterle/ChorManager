@@ -199,7 +199,7 @@ class EvaluationController
                 // Die Besetzung eines Projekts ist fuer alle Mitglieder des Projekts einsehbar;
                 // ein Stimmgruppen-Filter haette hier frueher nur am Hierarchie-Level gehangen.
                 $groupedMembers = $this->projectQuery
-                    ->getProjectMembersGroupedByVoice($projectId, null);
+                    ->getProjectMembersGroupedByVoice($projectId);
 
                 if ($userId > 0) {
                     $user = User::find($userId);

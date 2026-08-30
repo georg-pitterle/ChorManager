@@ -106,16 +106,6 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
         return $this->userIds[$key];
     }
 
-    private function sopranId(): int
-    {
-        return (int) VoiceGroup::where('name', 'Sopran')->firstOrFail()->id;
-    }
-
-    private function altId(): int
-    {
-        return (int) VoiceGroup::where('name', 'Alt')->firstOrFail()->id;
-    }
-
     /**
      * @return list<int>
      */
@@ -173,50 +163,6 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
         $frieda = $this->id('friedaDoppelt');
         $occurrences = count(array_filter($this->idsIn($grouped), static fn($id): bool => $id === $frieda));
         $this->assertSame(1, $occurrences, 'Frieda darf in der Besetzung nicht doppelt gezählt werden.');
-    }
-
-    public function testFilterGroupsAMemberUnderTheMatchingVoiceGroup(): void
-    {
-        $grouped = (new ProjectQuery(new NameFormatterService()))
-            ->getProjectMembersGroupedByVoice($this->projectId, [$this->altId()]);
-
-        $this->assertSame(['Alt'], array_keys($grouped), 'Der Filter lässt nur Alt übrig.');
-        $this->assertSame(
-            [$this->id('claraAlt'), $this->id('friedaDoppelt')],
-            $this->idsIn($grouped),
-            'Frieda fällt nur über ihre zweite Stimmgruppe in den Filter und gehört deshalb unter Alt.'
-        );
-        $this->assertSame('Alt', $grouped['Alt'][ProjectQuery::NO_SUB_VOICE_KEY][0]['voice_group_name']);
-    }
-
-    public function testFilterKeepsMembersWhoseFirstVoiceGroupMatches(): void
-    {
-        $grouped = (new ProjectQuery(new NameFormatterService()))
-            ->getProjectMembersGroupedByVoice($this->projectId, [$this->sopranId()]);
-
-        $this->assertSame(['Sopran'], array_keys($grouped));
-        // Reihenfolge folgt den Teilstimmen-Buckets: "Sopran 0", dann "Sopran 1", dann "Sopran 2".
-        $this->assertSame(
-            [
-                $this->id('gustiSopran0'),
-                $this->id('bertaSopran1'),
-                $this->id('friedaDoppelt'),
-                $this->id('annaSopran2'),
-            ],
-            $this->idsIn($grouped)
-        );
-    }
-
-    public function testEmptyFilterYieldsNoMembers(): void
-    {
-        $grouped = (new ProjectQuery(new NameFormatterService()))
-            ->getProjectMembersGroupedByVoice($this->projectId, []);
-
-        $this->assertSame(
-            [],
-            $grouped,
-            'Eine leere Stimmgruppen-Liste schränkt auf nichts ein und darf nicht als "kein Filter" gelten.'
-        );
     }
 
     public function testMembersWithoutVoiceGroupOrSubVoiceUseThePlaceholderBuckets(): void

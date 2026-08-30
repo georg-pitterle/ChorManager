@@ -45,7 +45,6 @@ class ProjectFeatureTest extends TestCase
 
     public function testListForMembersRendersMemberProjectsTemplate(): void
     {
-        $projectOne = (object) ['id' => 1, 'name' => 'Alpha'];
         $projectTwo = (object) ['id' => 2, 'name' => 'Beta'];
 
         $twig = $this->createMock(Twig::class);
@@ -67,10 +66,13 @@ class ProjectFeatureTest extends TestCase
                 fn(\Psr\Http\Message\ResponseInterface $response) => $response->withStatus(200)
             );
 
+        // Die Einschränkung läuft in der Abfrage: der Controller reicht die
+        // zugänglichen Kennungen durch und bekommt genau diese Projekte zurück.
         $projectQuery = $this->createMock(\App\Queries\ProjectQuery::class);
         $projectQuery->expects($this->once())
-            ->method('getAllProjects')
-            ->willReturn(new Collection([$projectOne, $projectTwo]));
+            ->method('getProjectsByIds')
+            ->with([2])
+            ->willReturn(new Collection([$projectTwo]));
 
         $projectPersistence = $this->createStub(\App\Persistence\ProjectPersistence::class);
 
