@@ -137,7 +137,7 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
             ->getProjectMembersGroupedByVoice($this->projectId);
 
         $this->assertSame(
-            ['Sopran', 'Alt', '_ohne_stimmgruppe'],
+            ['Sopran', 'Alt', ProjectQuery::NO_VOICE_GROUP_KEY],
             array_keys($grouped),
             'Stimmgruppen folgen der kanonischen Reihenfolge, "ohne Stimmgruppe" steht zuletzt.'
         );
@@ -186,7 +186,7 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
             $this->idsIn($grouped),
             'Frieda fällt nur über ihre zweite Stimmgruppe in den Filter und gehört deshalb unter Alt.'
         );
-        $this->assertSame('Alt', $grouped['Alt']['_ohne_teilstimme'][0]['voice_group_name']);
+        $this->assertSame('Alt', $grouped['Alt'][ProjectQuery::NO_SUB_VOICE_KEY][0]['voice_group_name']);
     }
 
     public function testFilterKeepsMembersWhoseFirstVoiceGroupMatches(): void
@@ -224,10 +224,10 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
         $grouped = (new ProjectQuery(new NameFormatterService()))
             ->getProjectMembersGroupedByVoice($this->projectId);
 
-        $this->assertSame([$this->id('claraAlt')], array_column($grouped['Alt']['_ohne_teilstimme'], 'id'));
-        $this->assertNull($grouped['Alt']['_ohne_teilstimme'][0]['sub_voice_name']);
+        $this->assertSame([$this->id('claraAlt')], array_column($grouped['Alt'][ProjectQuery::NO_SUB_VOICE_KEY], 'id'));
+        $this->assertNull($grouped['Alt'][ProjectQuery::NO_SUB_VOICE_KEY][0]['sub_voice_name']);
 
-        $ungrouped = $grouped['_ohne_stimmgruppe']['_ohne_teilstimme'];
+        $ungrouped = $grouped[ProjectQuery::NO_VOICE_GROUP_KEY][ProjectQuery::NO_SUB_VOICE_KEY];
         $this->assertSame([$this->id('doraOhne')], array_column($ungrouped, 'id'));
         $this->assertNull($ungrouped[0]['voice_group_name']);
         $this->assertNull($ungrouped[0]['sub_voice_name']);

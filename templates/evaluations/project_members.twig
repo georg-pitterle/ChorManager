@@ -53,7 +53,7 @@
                     <div class="card-header">
                         <h5 class="mb-0">
                             <i class="bi bi-music-note-beamed"></i>
-                            {% if voice_group == '_ohne_stimmgruppe' %}
+                            {% if voice_group == "_no_voice_group" %}
                                 Ohne Stimmgruppe
                             {% else %}
                                 {{ voice_group }}
@@ -65,7 +65,7 @@
                             <div class="border-bottom {% if not loop.last %}border-bottom{% endif %}">
                                 <div class="px-3 py-2 bg-light">
                                     <strong>
-                                        {% if sub_voice == '_ohne_teilstimme' %}
+                                        {% if sub_voice == "_no_sub_voice" %}
                                             –
                                         {% else %}
                                             {{ sub_voice }}

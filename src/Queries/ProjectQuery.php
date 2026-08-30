@@ -14,6 +14,15 @@ use Illuminate\Support\Collection as SupportCollection;
 
 class ProjectQuery
 {
+    /**
+     * Sammelschlüssel der Besetzungs-Gruppierung für Mitglieder ohne Stimmgruppe
+     * bzw. ohne Teilstimme. Der führende Unterstrich hält sie von echten
+     * Stimmgruppennamen getrennt; die deutschen Überschriften dazu setzt das
+     * Template, der Schlüssel selbst ist ein Bezeichner und bleibt englisch.
+     */
+    public const NO_VOICE_GROUP_KEY = '_no_voice_group';
+    public const NO_SUB_VOICE_KEY = '_no_sub_voice';
+
     private NameFormatterService $nameFormatter;
 
     public function __construct(NameFormatterService $nameFormatter)
@@ -46,7 +55,10 @@ class ProjectQuery
         }
 
         if ($userId <= 0) {
-            return Project::query()->whereRaw('1 = 0')->get();
+            // Leer ohne Datenbankzugriff - dieselbe Abkürzung wie in
+            // getUsersNotInProjectForVoiceGroups(). Eine Abfrage, deren Ergebnis
+            // schon feststeht, kostet nur eine Runde zum Server.
+            return new Collection();
         }
 
         return Project::query()
@@ -100,9 +112,10 @@ class ProjectQuery
                 $query->where('project_id', $projectId);
             })
             ->with([
+                // sub_voice_id kommt über die Relation selbst mit (User::voiceGroups()
+                // deklariert withPivot); hier reicht die Spaltenauswahl.
                 'voiceGroups' => function ($query) {
-                    $query->select('voice_groups.id', 'voice_groups.name')
-                        ->withPivot('sub_voice_id');
+                    $query->select('voice_groups.id', 'voice_groups.name');
                 },
                 'subVoices'
             ]);
@@ -259,9 +272,9 @@ class ProjectQuery
         $grouped = [];
         foreach ($users as $user) {
             // Find the active voice group (and subvoice if any) for this user.
-            // If none, default to _ohne_stimmgruppe / _ohne_teilstimme
-            $vgName = '_ohne_stimmgruppe';
-            $svName = '_ohne_teilstimme';
+            // If none, fall back to the collecting keys above.
+            $vgName = self::NO_VOICE_GROUP_KEY;
+            $svName = self::NO_SUB_VOICE_KEY;
 
             $voiceGroup = $this->resolveVoiceGroup($user, $allowedVoiceGroupIds);
             if ($voiceGroup) {
@@ -289,21 +302,21 @@ class ProjectQuery
                 'id' => $user->id,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'voice_group_name' => $vgName !== '_ohne_stimmgruppe' ? $vgName : null,
-                'sub_voice_name' => $svName !== '_ohne_teilstimme' ? $svName : null,
+                'voice_group_name' => $vgName !== self::NO_VOICE_GROUP_KEY ? $vgName : null,
+                'sub_voice_name' => $svName !== self::NO_SUB_VOICE_KEY ? $svName : null,
             ];
         }
 
         // Sort voice groups into canonical SATB order, "ohne Stimmgruppe" last
-        $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, ['_ohne_stimmgruppe']);
+        $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, [self::NO_VOICE_GROUP_KEY]);
 
-        // Sort sub-voices within each voice group by name (except _ohne_teilstimme)
+        // Sort sub-voices within each voice group by name, collecting key last
         foreach ($grouped as &$subVoices) {
             ksort($subVoices);
-            if (isset($subVoices['_ohne_teilstimme'])) {
-                $ungroupedSv = $subVoices['_ohne_teilstimme'];
-                unset($subVoices['_ohne_teilstimme']);
-                $subVoices['_ohne_teilstimme'] = $ungroupedSv;
+            if (isset($subVoices[self::NO_SUB_VOICE_KEY])) {
+                $ungroupedSv = $subVoices[self::NO_SUB_VOICE_KEY];
+                unset($subVoices[self::NO_SUB_VOICE_KEY]);
+                $subVoices[self::NO_SUB_VOICE_KEY] = $ungroupedSv;
             }
         }
         // Die Referenz zeigt nach der Schleife noch auf das letzte Element und würde
