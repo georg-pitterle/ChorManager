@@ -133,6 +133,7 @@ return function (App $app) {
             $group->post('/profile', [ProfileController::class, 'updateProfile']);
             $group->post('/profile/password', [ProfileController::class, 'updatePassword']);
             $group->post('/profile/calendar', [ProfileController::class, 'updateCalendarSettings']);
+            $group->post('/profile/notifications', [ProfileController::class, 'updateNotificationSettings']);
             $group->post('/profile/mailbox', [ProfileController::class, 'updateMailbox']);
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
             $group->post('/profile/mailbox/delete', [ProfileController::class, 'deleteMailbox']);

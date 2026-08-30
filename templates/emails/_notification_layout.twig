@@ -1,0 +1,22 @@
+{#
+    Gemeinsamer Rahmen aller Benachrichtigungen.
+
+    Er ergänzt den Systemmail-Rahmen um genau einen Satz: wo sich diese Art
+    Mail abschalten lässt. Der gehört in jede Benachrichtigung und steht
+    deshalb hier statt neunmal einzeln - sonst fehlt er über kurz oder lang in
+    der einen Vorlage, bei der es jemanden stört.
+
+    Erwartet zusätzlich zum Rahmen:
+      notification_label - der Anlass im Klartext, aus der Registry
+      profile_url        - Link auf den Profil-Reiter "Benachrichtigungen"
+#}
+{% extends "emails/_layout.twig" %}
+
+{% block footer_note %}
+    Automatisch versendet von {{ brand_name }}. Antworten auf diese Adresse werden nicht gelesen.
+    <br>
+    Diese Mail kam, weil „{{ notification_label }}“ in deinem Profil eingeschaltet ist.
+    {% if profile_url %}
+        <a href="{{ profile_url }}" style="color:#667085">Hier lässt sie sich abschalten.</a>
+    {% endif %}
+{% endblock %}

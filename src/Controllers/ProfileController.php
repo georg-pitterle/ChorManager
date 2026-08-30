@@ -14,9 +14,11 @@ use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\MailCredentialCryptoService;
+use App\Services\NotificationService;
 use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
 use App\Util\BlockedHostException;
+use App\Util\NotificationType;
 use App\Util\OutboundConnectionGuard;
 use Psr\Log\LoggerInterface;
 
@@ -31,13 +33,21 @@ class ProfileController
     private MailCredentialCryptoService $crypto;
     private RememberLoginService $rememberLoginService;
 
+    /**
+     * Optional und am Ende, wie in den uebrigen Controllern: Bestehende Tests
+     * bauen diesen Controller mit festen Positionsargumenten. Im Betrieb reicht
+     * ihn die ausdrueckliche Registrierung in `Dependencies.php` durch.
+     */
+    private ?NotificationService $notificationService;
+
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
         PasswordPolicyService $passwordPolicyService,
         LoggerInterface $logger,
         MailCredentialCryptoService $crypto,
-        ?RememberLoginService $rememberLoginService = null
+        ?RememberLoginService $rememberLoginService = null,
+        ?NotificationService $notificationService = null
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
@@ -45,6 +55,7 @@ class ProfileController
         $this->logger = $logger;
         $this->crypto = $crypto;
         $this->rememberLoginService = $rememberLoginService ?? new RememberLoginService();
+        $this->notificationService = $notificationService;
     }
 
     public function index(Request $request, Response $response): Response
@@ -76,8 +87,21 @@ class ProfileController
         $formOld = $_SESSION['mailbox_form_old'] ?? null;
         unset($_SESSION['mailbox_form_old']);
 
+        // Angezeigt werden nur die Anlaesse, deren Modul laeuft und die die
+        // Verwaltung nicht abgeschaltet hat - ein Haekchen fuer etwas, das ohnehin
+        // nie kommt, waere ein Versprechen, das die Anwendung nicht haelt.
+        $notificationGroups = [];
+        $notificationSettings = [];
+        if ($this->notificationService !== null) {
+            $notificationGroups = $this->notificationService->availableGrouped();
+            $notificationSettings = $this->notificationService->settingsFor($userId);
+        }
+
         return $this->view->render($response, 'profile/index.twig', [
             'user' => $user,
+            'notification_groups' => $notificationGroups,
+            'notification_group_labels' => NotificationType::GROUPS,
+            'notification_settings' => $notificationSettings,
             'success' => $success,
             'error' => $error,
             'voice_groups' => $voiceGroups,
@@ -229,6 +253,49 @@ class ProfileController
                 'Calendar settings update failed.',
                 [
                     'event' => 'profile.calendar.update.failed',
+                    'user_id' => $userId,
+                    'exception' => $e,
+                ]
+            );
+            $_SESSION['error'] = 'Fehler beim Speichern.';
+        }
+
+        return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
+    /**
+     * Uebernimmt die Haekchen aus dem Reiter "Benachrichtigungen".
+     *
+     * Ausgewertet werden nur die Anlaesse, die das Formular ueberhaupt anbieten
+     * durfte - sonst schaltete ein zusammengebauter Aufruf etwas ab, das die
+     * Person gar nicht zu sehen bekam. Ein fehlender Schluessel heisst "Haekchen
+     * raus": Nicht angehakte Kaestchen sendet ein Browser nicht mit.
+     */
+    public function updateNotificationSettings(Request $request, Response $response): Response
+    {
+        $userId = (int)$_SESSION['user_id'];
+
+        if ($this->notificationService === null) {
+            $_SESSION['error'] = 'Benachrichtigungen sind in dieser Installation nicht verfuegbar.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        $data = (array)$request->getParsedBody();
+        $submitted = (array)($data['notifications'] ?? []);
+
+        $decisions = [];
+        foreach ($this->notificationService->availableTypes() as $type) {
+            $decisions[$type] = !empty($submitted[$type]);
+        }
+
+        try {
+            $this->notificationService->storeSettings($userId, $decisions);
+            $_SESSION['success'] = 'Deine Benachrichtigungen wurden gespeichert.';
+        } catch (\Exception $e) {
+            $this->logger->error(
+                'Notification settings update failed.',
+                [
+                    'event' => 'profile.notifications.update.failed',
                     'user_id' => $userId,
                     'exception' => $e,
                 ]

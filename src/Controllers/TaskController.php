@@ -14,7 +14,9 @@ use App\Services\CalendarFeedService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Services\NotificationService;
 use App\Util\AppUrlResolver;
+use App\Util\NotificationType;
 use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -32,19 +34,33 @@ class TaskController
     private TaskPolicy $policy;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
+    private ?NotificationService $notificationService;
 
+    /**
+     * `$notificationService` steht am Ende und ist optional, weil zahlreiche
+     * Tests diesen Controller mit festen Positionsargumenten bauen - ein
+     * Parameter in der Mitte hätte sie stumm auf die falschen Werte gesetzt.
+     *
+     * Optional heißt hier aber nicht "darf fehlen": PHP-DI füllt optionale
+     * Parameter nicht aus dem Container, deshalb reicht ihn die ausdrückliche
+     * Registrierung in `Dependencies.php` durch. Ohne sie verschickte der
+     * Betrieb still keine Benachrichtigungen - dagegen steht
+     * `NotificationWiringFeatureTest`.
+     */
     public function __construct(
         Twig $view,
         HtmlSanitizer $htmlSanitizer,
         TaskPolicy $policy,
         NameFormatterService $nameFormatter,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        ?NotificationService $notificationService = null
     ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
         $this->policy = $policy;
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -162,6 +178,122 @@ class TaskController
     }
 
     /**
+     * Meldet den neu Zugewiesenen, dass sie eine Aufgabe bekommen haben.
+     *
+     * @param list<int> $addedUserIds
+     */
+    private function notifyAssigned(Request $request, Task $task, array $addedUserIds): void
+    {
+        if ($this->notificationService === null || $addedUserIds === []) {
+            return;
+        }
+
+        $task->loadMissing(['assignees', 'project']);
+        $actorId = (int) ($_SESSION['user_id'] ?? 0);
+
+        // Wer sonst noch an der Aufgabe sitzt - das beantwortet die erste
+        // Rückfrage, die eine solche Mail auslöst, gleich mit.
+        $coAssignees = $task->assignees
+            ->reject(fn ($assignee): bool => in_array((int) $assignee->id, $addedUserIds, true))
+            ->map(fn ($assignee): string => $this->nameFormatter->formatPerson($assignee))
+            ->values()
+            ->all();
+
+        $this->notificationService->notify(
+            NotificationType::TASK_ASSIGNED,
+            $task->assignees->filter(
+                fn ($assignee): bool => in_array((int) $assignee->id, $addedUserIds, true)
+            ),
+            'Neue Aufgabe: ' . $task->name,
+            'emails/notification_task_assigned.twig',
+            [
+                'task' => $task,
+                'actor_name' => $this->actorName($actorId),
+                'co_assignees' => $coAssignees,
+                'link' => $this->taskUrl($request, $task),
+                'profile_url' => $this->profileUrl($request),
+            ],
+            $actorId ?: null
+        );
+    }
+
+    /**
+     * Meldet den Beteiligten einer Aufgabe einen neuen Kommentar.
+     *
+     * Empfänger sind die Zugewiesenen und die Person, die die Aufgabe angelegt
+     * hat - Letztere, weil sie den Stand wissen will, auch wenn sie die Arbeit
+     * abgegeben hat.
+     */
+    private function notifyComment(Request $request, Task $task, string $comment): void
+    {
+        if ($this->notificationService === null) {
+            return;
+        }
+
+        $task->loadMissing(['assignees', 'project', 'createdBy']);
+        $actorId = (int) ($_SESSION['user_id'] ?? 0);
+
+        $recipients = $task->assignees->all();
+        if ($task->createdBy !== null) {
+            $recipients[] = $task->createdBy;
+        }
+
+        $this->notificationService->notify(
+            NotificationType::TASK_COMMENT,
+            $recipients,
+            'Neuer Kommentar: ' . $task->name,
+            'emails/notification_task_comment.twig',
+            [
+                'task' => $task,
+                'actor_name' => $this->actorName($actorId),
+                'comment_text' => $comment,
+                'link' => $this->taskUrl($request, $task),
+                'profile_url' => $this->profileUrl($request),
+            ],
+            $actorId ?: null
+        );
+    }
+
+    private function actorName(int $actorId): ?string
+    {
+        if ($actorId <= 0) {
+            return null;
+        }
+
+        $actor = User::find($actorId);
+
+        return $actor === null ? null : $this->nameFormatter->formatPerson($actor);
+    }
+
+    private function taskUrl(Request $request, Task $task): string
+    {
+        return AppUrlResolver::resolveBaseUrl($request) . '/tasks/' . $task->id;
+    }
+
+    private function profileUrl(Request $request): string
+    {
+        return AppUrlResolver::resolveBaseUrl($request) . '/profile';
+    }
+
+    /**
+     * Zugang und Abgang einer Zuweisungsänderung.
+     *
+     * Verlaufseintrag und Benachrichtigung müssen sich über dieselbe Menge
+     * einig sein - sonst nennt der Verlauf jemanden, der nie eine Mail bekam.
+     *
+     * @param list<int> $oldIds
+     * @param list<int> $newIds
+     * @return array{added: list<int>, removed: list<int>}
+     */
+    private function assigneeDiff(array $oldIds, array $newIds): array
+    {
+        return [
+            'added' => array_values(array_diff($newIds, $oldIds)),
+            'removed' => array_values(array_diff($oldIds, $newIds)),
+        ];
+    }
+
+    /**
      * Beschreibt die Änderung an der Zuweisung als Zugang und Abgang. Die
      * frühere Fassung nannte nur den neuen Namen; bei mehreren Zugewiesenen
      * bliebe damit offen, wer dazugekommen und wer gegangen ist.
@@ -171,8 +303,7 @@ class TaskController
      */
     private function describeAssigneeChange(array $oldIds, array $newIds): string
     {
-        $added = array_values(array_diff($newIds, $oldIds));
-        $removed = array_values(array_diff($oldIds, $newIds));
+        ['added' => $added, 'removed' => $removed] = $this->assigneeDiff($oldIds, $newIds);
 
         $names = User::whereIn('id', array_merge($added, $removed))
             ->get()
@@ -316,7 +447,10 @@ class TaskController
             return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
         }
 
-        Capsule::connection()->transaction(function () use (
+        // Die Benachrichtigung geht erst nach dem Festschreiben raus: Innerhalb
+        // der Transaktion stünde die Mail schon in der Warteschlange, während
+        // die Aufgabe bei einem Rücksetzer nie entsteht.
+        $task = Capsule::connection()->transaction(function () use (
             $project,
             $data,
             $title,
@@ -345,7 +479,11 @@ class TaskController
                 'action'      => 'created',
                 'description' => 'Aufgabe erstellt.',
             ]);
+
+            return $task;
         });
+
+        $this->notifyAssigned($request, $task, $assignedUserIds);
 
         $_SESSION['success'] = 'Aufgabe erfolgreich erstellt.';
         return $response->withHeader('Location', "/projects/{$projectId}/tasks")->withStatus(302);
@@ -397,7 +535,7 @@ class TaskController
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
-        Capsule::connection()->transaction(function () use (
+        $addedAssignedIds = Capsule::connection()->transaction(function () use (
             $task,
             $data,
             $title,
@@ -433,6 +571,7 @@ class TaskController
             if ($oldAssignedIds !== $newAssignedIds) {
                 $changes[] = $this->describeAssigneeChange($oldAssignedIds, $newAssignedIds);
             }
+            $addedAssignedIds = $this->assigneeDiff($oldAssignedIds, $newAssignedIds)['added'];
             if ($oldDescription !== $description) {
                 $changes[] = 'Beschreibung aktualisiert';
             }
@@ -446,7 +585,11 @@ class TaskController
                     'description' => implode(', ', $changes),
                 ]);
             }
+
+            return $addedAssignedIds;
         });
+
+        $this->notifyAssigned($request, $task->fresh(), $addedAssignedIds);
 
         $_SESSION['success'] = 'Aufgabe erfolgreich aktualisiert.';
         return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
@@ -502,6 +645,8 @@ class TaskController
                     'description' => 'Neuer Kommentar hinzugefügt.',
                 ]);
             });
+
+            $this->notifyComment($request, $task, $content);
 
             $_SESSION['success'] = 'Kommentar hinzugefügt.';
         }

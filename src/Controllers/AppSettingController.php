@@ -8,6 +8,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\AppSetting;
+use App\Services\NotificationService;
+use App\Util\NotificationType;
 use App\Util\UploadValidator;
 use App\Services\NameFormatterService;
 use Psr\Log\LoggerInterface;
@@ -37,12 +39,58 @@ class AppSettingController
     ];
 
     private Twig $view;
+    /**
+     * Vorlaufzeiten der termingesteuerten Erinnerungen, mit ihrer Vorgabe in
+     * Tagen. 0 schaltet die jeweilige Erinnerung ab - wie bei
+     * `registration_reminder_days_before`.
+     */
+    private const NOTIFICATION_DAY_SETTINGS = [
+        'notification_task_due_days_before' => 3,
+        'notification_sponsoring_follow_up_days_before' => 1,
+    ];
+
     private LoggerInterface $logger;
 
-    public function __construct(Twig $view, LoggerInterface $logger)
-    {
+    /**
+     * Optional und am Ende wie in den uebrigen Controllern - bestehende Tests
+     * bauen diesen Controller mit festen Positionsargumenten.
+     */
+    private ?NotificationService $notificationService;
+
+    public function __construct(
+        Twig $view,
+        LoggerInterface $logger,
+        ?NotificationService $notificationService = null
+    ) {
         $this->view = $view;
         $this->logger = $logger;
+        $this->notificationService = $notificationService;
+    }
+
+    /**
+     * Der aktuelle Zustand je Anlass, aufgeloest zum Ankreuzen.
+     *
+     * Fehlt der Eintrag, gilt die Vorgabe des Anlasses - so muss die Verwaltung
+     * nicht erst jeden einzeln bestaetigen, damit er funktioniert.
+     *
+     * @param array<string, list<array{type: string, label: string, description: string}>> $groups
+     * @param array<string, mixed> $storedSettings
+     * @return array<string, bool>
+     */
+    private function notificationValues(array $groups, array $storedSettings): array
+    {
+        $values = [];
+
+        foreach ($groups as $types) {
+            foreach ($types as $type) {
+                $stored = $storedSettings[NotificationType::settingKey($type['type'])] ?? null;
+                $values[$type['type']] = ($stored === null || $stored === '')
+                    ? NotificationType::defaultEnabled($type['type'])
+                    : ((string) $stored === '1');
+            }
+        }
+
+        return $values;
     }
 
     public function index(Request $request, Response $response): Response
@@ -53,8 +101,18 @@ class AppSettingController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        // Hier werden alle Anlaesse angeboten, die das jeweilige Modul zulaesst -
+        // auch die abgeschalteten, sonst liesse sich ein einmal abgeschalteter
+        // nie wieder einschalten.
+        $notificationGroups = $this->notificationService === null
+            ? []
+            : $this->notificationService->moduleAvailableGrouped();
+
         return $this->view->render($response, 'settings/index.twig', [
             'settings_values' => $settings,
+            'notification_groups' => $notificationGroups,
+            'notification_group_labels' => NotificationType::GROUPS,
+            'notification_values' => $this->notificationValues($notificationGroups, $settings),
             'log_levels' => self::LOG_LEVELS,
             'success' => $success,
             'error' => $error,
@@ -133,6 +191,41 @@ class AppSettingController
                     'mime_type' => 'text/plain',
                 ]
             );
+
+            // Nicht angehakte Kaestchen sendet der Browser nicht mit - deshalb
+            // wird ueber die angebotenen Anlaesse iteriert, nicht ueber die
+            // Eingabe. Sonst bliebe ein abgewaehlter Anlass auf seinem alten
+            // Wert stehen.
+            if ($this->notificationService !== null) {
+                $submitted = (array) ($data['notifications'] ?? []);
+
+                foreach ($this->notificationService->moduleAvailableGrouped() as $types) {
+                    foreach ($types as $type) {
+                        AppSetting::updateOrCreate(
+                            ['setting_key' => NotificationType::settingKey($type['type'])],
+                            [
+                                'setting_value' => empty($submitted[$type['type']]) ? '0' : '1',
+                                'binary_content' => '',
+                                'mime_type' => 'text/plain',
+                            ]
+                        );
+                    }
+                }
+
+                foreach (self::NOTIFICATION_DAY_SETTINGS as $key => $fallback) {
+                    $raw = $data[$key] ?? null;
+                    $days = $raw === null || $raw === '' ? $fallback : max(0, min(30, (int) $raw));
+
+                    AppSetting::updateOrCreate(
+                        ['setting_key' => $key],
+                        [
+                            'setting_value' => (string) $days,
+                            'binary_content' => '',
+                            'mime_type' => 'text/plain',
+                        ]
+                    );
+                }
+            }
 
             AppSetting::updateOrCreate(
                 ['setting_key' => 'name_display_format'],

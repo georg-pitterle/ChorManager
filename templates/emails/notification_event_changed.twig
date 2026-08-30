@@ -1,0 +1,44 @@
+{% extends "emails/_notification_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
+
+{% block mail_title %}Termin geändert: {{ event.title }}{% endblock %}
+
+{% block preheader %}{{ event.title }} findet jetzt anders statt.{% endblock %}
+
+{% block eyebrow %}Änderung{% endblock %}
+
+{% block heading %}Ein Termin hat sich geändert{% endblock %}
+
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
+        bei diesem Termin haben sich Zeit oder Ort geändert:
+    </p>
+
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {{ ui.detail_row("Termin", event.title, true) }}
+                    {# Vorher und Nachher stehen nebeneinander - nur so sieht man, was sich bewegt hat. #}
+                    {% for change in changes %}
+                        {{ ui.detail_row(change.label ~ " bisher", change.before, false) }}
+                        {{ ui.detail_row(change.label ~ " neu", change.after, false) }}
+                    {% endfor %}
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{ ui.action_button(link, "Termin ansehen", brand_color, 200) }}
+
+    {{ ui.fallback_url(link) }}
+{% endblock %}

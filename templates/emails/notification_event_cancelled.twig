@@ -1,0 +1,61 @@
+{#
+    Hier steht bewusst kein Knopf: Das Ziel gibt es nicht mehr, der Termin ist
+    gelöscht. Ein Link ins Leere wäre schlimmer als keiner.
+#}
+{% extends "emails/_notification_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
+
+{% set _is_series = events|length > 1 %}
+
+{% block mail_title %}Abgesagt: {{ events|first.title }}{% endblock %}
+
+{% block preheader %}
+    {% if _is_series %}
+        {{ events|length }} Termine entfallen.
+    {% else %}
+        {{ events|first.title }} am {{ events|first.starts_at|date("d.m.Y") }} entfällt.
+    {% endif %}
+{% endblock %}
+
+{% block eyebrow %}Absage{% endblock %}
+
+{% block heading %}{{ _is_series ? "Termine entfallen" : "Ein Termin entfällt" }}{% endblock %}
+
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
+        {% if _is_series %}
+            diese {{ events|length }} Termine wurden abgesagt:
+        {% else %}
+            dieser Termin wurde abgesagt:
+        {% endif %}
+    </p>
+
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {{ ui.detail_row("Termin", events|first.title, true) }}
+                    {% for event in events|slice(0, 12) %}
+                        {{ ui.detail_row(event.starts_at|date("d.m.Y"), event.starts_at|date("H:i") ~ " Uhr", false) }}
+                    {% endfor %}
+                    {% if events|length > 12 %}
+                        {{ ui.detail_row("Weitere", (events|length - 12) ~ " Termine", false) }}
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <p class="cm-text" style="margin:0 0 8px 0; color:#1f2937">
+        Trag ihn dir aus dem Kalender aus, falls du ihn dort notiert hast.
+    </p>
+{% endblock %}

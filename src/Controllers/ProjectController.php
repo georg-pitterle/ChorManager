@@ -10,8 +10,12 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use App\Models\Project;
+use App\Models\User;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
+use App\Services\NotificationService;
+use App\Util\AppUrlResolver;
+use App\Util\NotificationType;
 use App\Persistence\ProjectPersistence;
 
 class ProjectController
@@ -22,18 +26,28 @@ class ProjectController
     private ProjectMemberPolicy $policy;
     private LoggerInterface $logger;
 
+    /**
+     * Steht am Ende und optional, weil viele Tests diesen Controller mit festen
+     * Positionsargumenten bauen. Im Betrieb reicht ihn die ausdrückliche
+     * Registrierung in `Dependencies.php` durch - PHP-DI füllt optionale
+     * Parameter nicht selbst; dagegen steht `NotificationWiringFeatureTest`.
+     */
+    private ?NotificationService $notificationService;
+
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
         ProjectPersistence $projectPersistence,
         ProjectMemberPolicy $policy,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?NotificationService $notificationService = null
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->projectPersistence = $projectPersistence;
         $this->policy = $policy;
         $this->logger = $logger ?? new NullLogger();
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -248,10 +262,49 @@ class ProjectController
         }
 
         $reactivated = $this->projectPersistence->addProjectMember($projectId, $userId);
+
+        $this->notifyMemberAdded($request, $projectId, $userId);
+
         $_SESSION['success'] = $reactivated
             ? 'Mitglied dem Projekt hinzugefügt und wieder aktiviert.'
             : 'Mitglied dem Projekt hinzugefügt.';
         return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
+    }
+
+    /**
+     * Meldet der hinzugefügten Person, dass sie jetzt zum Projekt gehört.
+     *
+     * Empfänger ist nur sie selbst: Die übrigen Mitglieder eines Projekts über
+     * jeden Zugang zu informieren, wäre bei einer Aufnahme von dreißig Leuten
+     * eine Lawine ohne Nutzen.
+     */
+    private function notifyMemberAdded(Request $request, int $projectId, int $userId): void
+    {
+        if ($this->notificationService === null) {
+            return;
+        }
+
+        $project = Project::find($projectId);
+        $user = User::find($userId);
+
+        if ($project === null || $user === null) {
+            return;
+        }
+
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+
+        $this->notificationService->notify(
+            NotificationType::PROJECT_MEMBER_ADDED,
+            [$user],
+            'Du bist jetzt bei „' . $project->name . '“ dabei',
+            'emails/notification_project_member_added.twig',
+            [
+                'project' => $project,
+                'link' => $baseUrl . '/projects/' . $project->id . '/members',
+                'profile_url' => $baseUrl . '/profile',
+            ],
+            (int) ($_SESSION['user_id'] ?? 0) ?: null
+        );
     }
 
     public function removeMember(Request $request, Response $response, array $args): Response
