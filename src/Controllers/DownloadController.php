@@ -53,7 +53,7 @@ class DownloadController
                 }
             ])
             ->distinct()
-            ->orderBy('projects.name', 'asc')
+            ->chronological()
             ->get();
 
         return $this->view->render($response, 'songs/downloads.twig', [

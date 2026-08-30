@@ -141,7 +141,7 @@ class NewsletterController
      */
     private function selectableProjects()
     {
-        return Project::query()->orderBy('name')->get();
+        return Project::query()->chronological()->get();
     }
 
     /**

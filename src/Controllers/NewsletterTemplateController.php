@@ -178,7 +178,7 @@ class NewsletterTemplateController
         // Newsletter-Einstellungen samt Empfängerquellen an, sonst müsste eine neue
         // Vorlage erst gespeichert und danach ein zweites Mal geöffnet werden.
         return $this->view->render($response, 'newsletters/templates_index.twig', [
-            'projects' => Project::query()->orderBy('name')->get(),
+            'projects' => Project::query()->chronological()->get(),
             'templates' => NewsletterTemplate::query()->orderBy('name')->get(),
             'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
             'roles' => Role::query()->orderBy('name')->get(),
@@ -252,7 +252,7 @@ class NewsletterTemplateController
 
         return $this->view->render($response, 'newsletters/templates_edit.twig', [
             'template' => $template,
-            'projects' => Project::query()->orderBy('name')->get(),
+            'projects' => Project::query()->chronological()->get(),
             'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
             'roles' => Role::query()->orderBy('name')->get(),
             'users' => $this->activeUsersInNameOrder(),

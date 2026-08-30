@@ -93,7 +93,7 @@ class UserController
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
         $subVoices = SubVoice::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::query()->chronological()->get();
 
         foreach ($users as $user) {
             $user->project_ids = $user->projects->pluck('id')->toArray();
@@ -554,7 +554,7 @@ class UserController
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
         $subVoices = SubVoice::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::query()->chronological()->get();
 
         if (!$canManageUsers) {
             $roles = $roles->filter(fn($r) => $r->hierarchy_level < $userLevel);
