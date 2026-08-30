@@ -12,6 +12,7 @@ use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Middleware\MailQueueProcessingMiddleware;
+use App\Middleware\NotificationReminderMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Middleware\RequestContextMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
@@ -88,6 +89,7 @@ return function (App $app): void {
     $settings = $container instanceof ContainerInterface ? $container->get('settings') : [];
     if ($settings['modules']['registration'] ?? false) {
         $app->add(RegistrationReminderMiddleware::class);
+        $app->add(NotificationReminderMiddleware::class);
     }
 
     $app->add(MailBadgeRefreshMiddleware::class);

@@ -49,6 +49,8 @@ use App\Models\SheetArchiveLineItem;
 use App\Models\SubVoice;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserNotificationSetting;
+use App\Util\NotificationType;
 use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use DateTimeImmutable;
@@ -151,6 +153,7 @@ class DevSeedService
                 'remember_logins' => 0,
                 'settings' => 0,
                 'app_settings' => 0,
+                'user_notification_settings' => 0,
                 'sponsor_packages' => 0,
                 'sponsors' => 0,
                 'sponsorships' => 0,
@@ -184,6 +187,7 @@ class DevSeedService
             $this->buildCredentialsByRoleReport($users['credentials_candidates']);
 
             $this->seedCalendarSubscriptionTokens($users['active']);
+            $this->seedNotificationSettings($users['active']);
 
             $projects = $this->seedProjects($years);
             $projectMembers = $this->seedProjectMembers($projects, $users['active'], $users['archived']);
@@ -271,6 +275,8 @@ class DevSeedService
             'remember_logins',
             'password_resets',
             'calendar_subscription_tokens',
+            'notification_dispatch_log',
+            'user_notification_settings',
             'sponsoring_contacts',
             'sponsorships',
             'sponsors',
@@ -1824,6 +1830,41 @@ class DevSeedService
         }
     }
 
+    /**
+     * Abbestellte Anlaesse fuer einen Teil der Mitglieder.
+     *
+     * Gespeichert wird nur die Abweichung (siehe Migration 20260830140000),
+     * deshalb entstehen hier nur Zeilen fuer abgeschaltete Anlaesse. Ein Drittel
+     * der Aktiven bekommt eine, damit im Dev beide Zustaende vorkommen und sich
+     * die Filterung des Versands ueberhaupt beobachten laesst.
+     *
+     * @param array<int, User> $activeUsers
+     */
+    private function seedNotificationSettings(array $activeUsers): void
+    {
+        $types = NotificationType::all();
+        if ($types === []) {
+            return;
+        }
+
+        foreach (array_values($activeUsers) as $index => $user) {
+            if ($index % 3 !== 0) {
+                continue;
+            }
+
+            $type = $types[$index % count($types)];
+
+            $setting = UserNotificationSetting::updateOrCreate(
+                ['user_id' => $user->id, 'notification_type' => $type],
+                ['enabled' => false]
+            );
+
+            if ($setting->wasRecentlyCreated) {
+                $this->report['counts']['user_notification_settings']++;
+            }
+        }
+    }
+
     private function seedAppSettings(): void
     {
         $settings = [
@@ -1836,7 +1877,17 @@ class DevSeedService
             'name_display_format' => 'first_last',
             'log_level' => 'INFO',
             'log_db_writes' => '0',
+            'notification_task_due_days_before' => '3',
+            'notification_sponsoring_follow_up_days_before' => '1',
         ];
+
+        // Alle Anlaesse ausdruecklich eingeschaltet: Im Dev soll sichtbar sein,
+        // dass es diese Schalter gibt - ohne Eintrag sieht die Verwaltungsseite
+        // zwar gleich aus, aber in app_settings stuende nichts.
+        foreach (NotificationType::all() as $notificationType) {
+            $settings[NotificationType::settingKey($notificationType)] =
+                NotificationType::defaultEnabled($notificationType) ? '1' : '0';
+        }
 
         foreach ($settings as $key => $value) {
             $model = AppSetting::updateOrCreate(

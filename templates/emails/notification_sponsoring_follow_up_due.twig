@@ -1,0 +1,72 @@
+{% extends "emails/_notification_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
+
+{% block mail_title %}Wiedervorlage: {{ contact.sponsor.name }}{% endblock %}
+
+{% block preheader %}{{ contact.sponsor.name }} steht zur Wiedervorlage an.{% endblock %}
+
+{% block eyebrow %}Wiedervorlage{% endblock %}
+
+{% block heading %}Eine Wiedervorlage wird fällig{% endblock %}
+
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
+        du hast dir diesen Kontakt zur Wiedervorlage gelegt:
+    </p>
+
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px 6px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {{ ui.detail_row("Sponsor", contact.sponsor.name, true) }}
+                    {{ ui.detail_row("Letzter Kontakt", contact.contact_date|date("d.m.Y"), false) }}
+                    {% if contact.summary is not empty %}
+                        {# Ohne twig/string-extra gibt es kein truncate - slice reicht fuer die Vorschau. #}
+                        {% set _summary = contact.summary|length > 200 ? contact.summary|slice(0, 200) ~ "…" : contact.summary %}
+                        {{ ui.detail_row("Damals notiert", _summary, false) }}
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:0 20px 18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td width="3"
+                            bgcolor="{{ brand_color }}"
+                            style="width:3px;
+                                   background-color:{{ brand_color }};
+                                   font-size:0;
+                                   line-height:0">&nbsp;</td>
+                        <td style="padding:2px 0 2px 14px">
+                            <div class="cm-row-label"
+                                 style="font-family:{{ font_stack }};
+                                        font-size:13px;
+                                        line-height:1.5;
+                                        color:#667085">Wiedervorlage am</div>
+                            <div class="cm-row-value"
+                                 style="font-family:{{ font_stack }};
+                                        font-size:18px;
+                                        line-height:1.4;
+                                        font-weight:700;
+                                        color:#1f2937">{{ contact.follow_up_date|date("d.m.Y") }}</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{ ui.action_button(link, "Sponsor ansehen", brand_color, 200) }}
+
+    {{ ui.fallback_url(link) }}
+{% endblock %}

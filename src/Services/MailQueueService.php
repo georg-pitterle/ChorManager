@@ -153,6 +153,36 @@ class MailQueueService
     }
 
     /**
+     * Enqueue a notification mail.
+     *
+     * Alle Anlaesse teilen sich den Mail-Typ `notification`; welcher es war,
+     * steht in der Nutzlast. Neun ENUM-Werte haetten bedeutet, dass jeder
+     * weitere Anlass die Spalte umbaut (siehe Migration 20260830142000).
+     *
+     * @param array{entity_type: string, entity_id: int}|null $entity
+     * @throws Exception
+     */
+    public function enqueueNotificationMail(
+        string $recipientEmail,
+        string $subject,
+        string $bodyHtml,
+        string $notificationType,
+        int $userId,
+        ?array $entity = null
+    ): MailQueue {
+        return $this->enqueueGenericMail(
+            mailType: 'notification',
+            recipientEmail: $recipientEmail,
+            subject: $subject,
+            bodyHtml: $bodyHtml,
+            payload: array_merge([
+                'notification_type' => $notificationType,
+                'user_id' => $userId,
+            ], $entity ?? [])
+        );
+    }
+
+    /**
      * Generic enqueue logic.
      *
      * @param string $mailType

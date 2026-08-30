@@ -25,9 +25,11 @@ use App\Services\CalendarSubscriptionService;
 use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
 use App\Services\EventRecurrenceService;
+use App\Services\NotificationService;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
+use App\Util\NotificationType;
 use App\Util\SafeRedirect;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Psr\Log\LoggerInterface;
@@ -68,11 +70,233 @@ class EventController
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
 
-    public function __construct(Twig $view, NameFormatterService $nameFormatter, LoggerInterface $logger)
-    {
+    private ?NotificationService $notificationService;
+
+    /**
+     * `$notificationService` steht am Ende und ist optional: Zahlreiche Tests
+     * bauen diesen Controller mit festen Positionsargumenten, ein Parameter in
+     * der Mitte hätte sie stumm verschoben. Im Betrieb reicht ihn die
+     * ausdrückliche Registrierung in `Dependencies.php` durch - PHP-DI füllt
+     * optionale Parameter nicht selbst, dagegen steht
+     * `NotificationWiringFeatureTest`.
+     */
+    public function __construct(
+        Twig $view,
+        NameFormatterService $nameFormatter,
+        LoggerInterface $logger,
+        ?NotificationService $notificationService = null
+    ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
+        $this->notificationService = $notificationService;
+    }
+
+    /**
+     * Ob dieser Vorgang die Zielgruppe benachrichtigen soll.
+     *
+     * Vorbelegt ist das Häkchen im Formular; fehlt das Feld ganz - etwa weil
+     * ein älteres Formular oder ein Skript sendet -, wird benachrichtigt. Die
+     * stille Variante wäre die falsche Vorgabe: Ein neuer Termin, von dem
+     * niemand erfährt, ist schlimmer als eine Mail zu viel.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function shouldNotifyMembers(array $data): bool
+    {
+        if (!array_key_exists('notify_members_present', $data)) {
+            return true;
+        }
+
+        return !empty($data['notify_members']);
+    }
+
+    /**
+     * Was sich an Zeit und Ort geändert hat, als Vorher/Nachher-Paare.
+     *
+     * Nur diese drei Angaben melden sich: Wegen einer verschobenen Uhrzeit oder
+     * eines anderen Saals muss jemand anders planen, wegen einer korrigierten
+     * Beschreibung nicht. Eine Mail für jede Kleinigkeit gewöhnt die Leute ab,
+     * hinzusehen - und dann geht die verschobene Probe mit unter.
+     *
+     * @return list<array{label: string, before: string, after: string}>
+     */
+    private function describeScheduleChanges(
+        Event $event,
+        string $newStartsAt,
+        string $newEndsAt,
+        ?string $newLocation
+    ): array {
+        $changes = [];
+
+        $formatMoment = static fn (?string $value): string => $value === null || $value === ''
+            ? '-'
+            : Carbon::parse($value)->format('d.m.Y H:i') . ' Uhr';
+
+        $oldStartsAt = $event->starts_at ? $event->starts_at->format('Y-m-d H:i:s') : null;
+        $oldEndsAt = $event->ends_at ? $event->ends_at->format('Y-m-d H:i:s') : null;
+
+        if ($oldStartsAt !== $newStartsAt) {
+            $changes[] = [
+                'label' => 'Beginn',
+                'before' => $formatMoment($oldStartsAt),
+                'after' => $formatMoment($newStartsAt),
+            ];
+        }
+
+        if ($oldEndsAt !== $newEndsAt) {
+            $changes[] = [
+                'label' => 'Ende',
+                'before' => $formatMoment($oldEndsAt),
+                'after' => $formatMoment($newEndsAt),
+            ];
+        }
+
+        $oldLocation = trim((string) $event->location);
+        $location = trim((string) $newLocation);
+        if ($oldLocation !== $location) {
+            $changes[] = [
+                'label' => 'Ort',
+                'before' => $oldLocation === '' ? 'ohne Ortsangabe' : $oldLocation,
+                'after' => $location === '' ? 'ohne Ortsangabe' : $location,
+            ];
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Die Zielgruppe mehrerer Termine als Mitglieder, ohne Dopplungen.
+     *
+     * Eigener Schritt, weil die Absage sie **vor** dem Löschen braucht: Danach
+     * gibt es die Zielgruppen-Zeilen nicht mehr.
+     *
+     * @param list<Event> $events
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function audienceUsersFor(array $events): \Illuminate\Support\Collection
+    {
+        if ($events === []) {
+            return new \Illuminate\Support\Collection();
+        }
+
+        $idsByEvent = (new EventAudienceService())->eligibleUserIdsForEvents($events);
+
+        $userIds = [];
+        foreach ($idsByEvent as $ids) {
+            foreach ($ids as $id) {
+                $userIds[(int) $id] = true;
+            }
+        }
+
+        if ($userIds === []) {
+            return new \Illuminate\Support\Collection();
+        }
+
+        return User::whereIn('id', array_keys($userIds))->get();
+    }
+
+    private function actorName(int $actorId): ?string
+    {
+        if ($actorId <= 0) {
+            return null;
+        }
+
+        $actor = User::find($actorId);
+
+        return $actor === null ? null : $this->nameFormatter->formatPerson($actor);
+    }
+
+    /**
+     * Versand an eine bereits aufgelöste Empfängerliste - für die Absage, deren
+     * Zielgruppe zum Zeitpunkt des Versands nicht mehr ermittelbar ist.
+     *
+     * @param \Illuminate\Support\Collection<int, User> $recipients
+     * @param list<Event> $events
+     * @param array<string, mixed> $extraContext
+     */
+    private function notifyResolvedAudience(
+        Request $request,
+        string $type,
+        \Illuminate\Support\Collection $recipients,
+        array $events,
+        string $subject,
+        string $template,
+        array $extraContext = []
+    ): void {
+        if ($this->notificationService === null || $recipients->isEmpty() || $events === []) {
+            return;
+        }
+
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+
+        $this->notificationService->notify(
+            $type,
+            $recipients,
+            $subject,
+            $template,
+            array_merge([
+                'events' => $events,
+                'event' => $events[0],
+                'link' => $baseUrl . '/events',
+                'profile_url' => $baseUrl . '/profile',
+            ], $extraContext),
+            (int) ($_SESSION['user_id'] ?? 0) ?: null
+        );
+    }
+
+    /**
+     * Meldet der Zielgruppe einen oder mehrere Termine.
+     *
+     * Die Termine kommen als Liste, auch wenn es nur einer ist: Eine Serie
+     * ergibt so **eine** Mail statt vierzig - wer ein Halbjahr Montagsproben
+     * anlegt, füllt sonst jedem das Postfach.
+     *
+     * @param list<\App\Models\Event> $events
+     * @param array<string, mixed> $extraContext
+     */
+    private function notifyAudience(
+        Request $request,
+        string $type,
+        array $events,
+        string $subject,
+        string $template,
+        array $extraContext = []
+    ): void {
+        if ($this->notificationService === null || $events === []) {
+            return;
+        }
+
+        $audienceService = new EventAudienceService();
+        $recipientIds = $audienceService->eligibleUserIdsForEvents($events);
+
+        $userIds = [];
+        foreach ($recipientIds as $ids) {
+            foreach ($ids as $id) {
+                $userIds[(int) $id] = true;
+            }
+        }
+
+        if ($userIds === []) {
+            return;
+        }
+
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $first = $events[0];
+
+        $this->notificationService->notify(
+            $type,
+            User::whereIn('id', array_keys($userIds))->get(),
+            $subject,
+            $template,
+            array_merge([
+                'events' => $events,
+                'event' => $first,
+                'link' => $baseUrl . '/events/' . $first->id,
+                'profile_url' => $baseUrl . '/profile',
+            ], $extraContext),
+            (int) ($_SESSION['user_id'] ?? 0) ?: null
+        );
     }
 
     public function index(Request $request, Response $response): Response
@@ -483,13 +707,31 @@ class EventController
             return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
         }
 
+        $isPrivate = !empty($data['is_private']);
+
         Comment::create([
             'entity_type' => 'event',
             'entity_id' => $event->id,
             'user_id' => (int) ($_SESSION['user_id'] ?? 0),
             'comment' => $content,
-            'is_private' => !empty($data['is_private']),
+            'is_private' => $isPrivate,
         ]);
+
+        // Eine private Bemerkung sieht nur, wer sie geschrieben hat - sie per
+        // Mail an die ganze Zielgruppe zu tragen, kehrte ihren Zweck um.
+        if (!$isPrivate) {
+            $this->notifyAudience(
+                $request,
+                NotificationType::EVENT_NOTE,
+                [$event],
+                'Bemerkung zu: ' . $event->title,
+                'emails/notification_event_note.twig',
+                [
+                    'note_text' => $content,
+                    'actor_name' => $this->actorName((int) ($_SESSION['user_id'] ?? 0)),
+                ]
+            );
+        }
 
         $_SESSION['success'] = 'Bemerkung hinzugefügt.';
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
@@ -723,6 +965,18 @@ class EventController
                     'attendance_required' => $attendanceRequired,
                 ]);
                 $audienceService->setSources($event, $sources);
+
+                if ($this->shouldNotifyMembers($data)) {
+                    $this->notifyAudience(
+                        $request,
+                        NotificationType::EVENT_CREATED,
+                        [$event->fresh()],
+                        'Neuer Termin: ' . $title,
+                        'emails/notification_event_created.twig',
+                        ['series_title' => $title]
+                    );
+                }
+
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
             } else {
                 // Series - $frequency, $interval und $weekdays (1 = Mo bis 7 = So)
@@ -759,6 +1013,7 @@ class EventController
                 }
 
                 $count = 0;
+                $createdEvents = [];
                 foreach ($occurrences as $occurrence) {
                     $day = $occurrence->format('Y-m-d');
                     $occurrenceStart = Carbon::parse($day . ' ' . $startTime . ':00');
@@ -778,7 +1033,19 @@ class EventController
                         'attendance_required' => $attendanceRequired,
                     ]);
                     $audienceService->setSources($seriesEvent, $sources);
+                    $createdEvents[] = $seriesEvent->fresh();
                     $count++;
+                }
+
+                if ($this->shouldNotifyMembers($data)) {
+                    $this->notifyAudience(
+                        $request,
+                        NotificationType::EVENT_CREATED,
+                        $createdEvents,
+                        'Neue Termine: ' . $title,
+                        'emails/notification_event_created.twig',
+                        ['series_title' => $title]
+                    );
                 }
 
                 $_SESSION['success'] = "Serie erfolgreich angelegt ($count Termine).";
@@ -1065,8 +1332,24 @@ class EventController
                 $updateData['starts_at'] = $startsAt;
                 $updateData['ends_at'] = $endsAt;
                 $updateData['registration_deadline'] = $registrationDeadline;
+
+                // Der Vergleich braucht die alten Werte, also vor dem Speichern.
+                $changes = $this->describeScheduleChanges($event, $startsAt, $endsAt, $updateData['location'] ?? null);
+
                 $event->update($updateData);
                 $audienceService->setSources($event, $sources);
+
+                if ($changes !== [] && $this->shouldNotifyMembers($data)) {
+                    $this->notifyAudience(
+                        $request,
+                        NotificationType::EVENT_CHANGED,
+                        [$event->fresh()],
+                        'Termin geändert: ' . $event->title,
+                        'emails/notification_event_changed.twig',
+                        ['changes' => $changes]
+                    );
+                }
+
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
             }
         } catch (Exception $e) {
@@ -1083,7 +1366,24 @@ class EventController
         $id = $args['id'];
         $event = Event::find($id);
         if ($event && $this->canAccessEvent($event)) {
+            // Empfänger und Eckdaten stehen fest, bevor gelöscht wird: Die
+            // Zielgruppen-Zeilen hängen am Termin und gehen mit ihm (CASCADE) -
+            // danach wüsste niemand mehr, wer die Absage bekommen müsste.
+            $cancelled = $event->replicate();
+            $cancelled->id = $event->id;
+            $recipients = $this->audienceUsersFor([$event]);
+
             $event->delete();
+
+            $this->notifyResolvedAudience(
+                $request,
+                NotificationType::EVENT_CANCELLED,
+                $recipients,
+                [$cancelled],
+                'Abgesagt: ' . $cancelled->title,
+                'emails/notification_event_cancelled.twig'
+            );
+
             $_SESSION['success'] = 'Termin gelöscht.';
         } elseif ($event) {
             return $this->denyEventAccess(
@@ -1136,7 +1436,28 @@ class EventController
             $deletedFrom = Carbon::parse($event->starts_at)->format('d.m.Y');
             $deletedCount = $eventsToDelete->count();
 
+            // Wie beim Einzeltermin: erst auflösen, dann löschen.
+            $cancelled = $eventsToDelete
+                ->map(static function (Event $seriesEvent): Event {
+                    $copy = $seriesEvent->replicate();
+                    $copy->id = $seriesEvent->id;
+
+                    return $copy;
+                })
+                ->values()
+                ->all();
+            $recipients = $this->audienceUsersFor($eventsToDelete->all());
+
             Event::whereIn('id', $eventsToDelete->pluck('id')->all())->delete();
+
+            $this->notifyResolvedAudience(
+                $request,
+                NotificationType::EVENT_CANCELLED,
+                $recipients,
+                $cancelled,
+                'Abgesagt: ' . $event->title,
+                'emails/notification_event_cancelled.twig'
+            );
 
             $_SESSION['success'] = sprintf(
                 'Termine der Serie ab dem %s gelöscht (%d Termine, inklusive Anwesenheiten und Anmeldungen).',

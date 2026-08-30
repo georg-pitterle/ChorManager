@@ -93,6 +93,26 @@
                                    value="{{ form.location|default(event.location) }}">
                         </div>
 
+{% set _notify_default_checked = form.notify_members is not defined %}
+                        {# Das versteckte Feld sagt dem Server, dass dieses Formular
+                           die Frage ueberhaupt gestellt hat. Ohne es waere ein fehlendes
+                           Haekchen nicht von einem alten Formular zu unterscheiden, das
+                           die Frage gar nicht kennt - und dann entschiede der Zufall,
+                           ob benachrichtigt wird. #}
+                        <input type="hidden" name="notify_members_present" value="1">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="notify-members-edit"
+                                   name="notify_members"
+                                   value="1"
+                                   {% if _notify_default_checked or form.notify_members %}checked{% endif %}>
+                            <label class="form-check-label" for="notify-members-edit">Mitglieder benachrichtigen</label>
+                            <div class="form-text">
+                                Schickt der Zielgruppe eine Mail. Bei einer reinen Korrektur besser abwählen.
+                            </div>
+                        </div>
+
                         <div class="form-check mb-3">
                             <input class="form-check-input"
                                    type="checkbox"

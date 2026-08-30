@@ -1,0 +1,69 @@
+{% extends "emails/_notification_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
+
+{% block mail_title %}Bald fällig: {{ task.name }}{% endblock %}
+
+{% block preheader %}{{ task.name }} ist am {{ task.end_date|date("d.m.Y") }} fällig.{% endblock %}
+
+{% block eyebrow %}Erinnerung{% endblock %}
+
+{% block heading %}Eine Aufgabe wird bald fällig{% endblock %}
+
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">diese Aufgabe steht noch offen:</p>
+
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px 6px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {{ ui.detail_row("Aufgabe", task.name, true) }}
+                    {% if task.project %}
+                        {{ ui.detail_row("Projekt", task.project.name, false) }}
+                    {% endif %}
+                    {{ ui.detail_row("Status", task.status, false) }}
+                </table>
+            </td>
+        </tr>
+        {# Das Fälligkeitsdatum ist der handlungsrelevante Wert und bekommt die Akzentlinie. #}
+        <tr>
+            <td style="padding:0 20px 18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td width="3"
+                            bgcolor="{{ brand_color }}"
+                            style="width:3px;
+                                   background-color:{{ brand_color }};
+                                   font-size:0;
+                                   line-height:0">&nbsp;</td>
+                        <td style="padding:2px 0 2px 14px">
+                            <div class="cm-row-label"
+                                 style="font-family:{{ font_stack }};
+                                        font-size:13px;
+                                        line-height:1.5;
+                                        color:#667085">Fällig am</div>
+                            <div class="cm-row-value"
+                                 style="font-family:{{ font_stack }};
+                                        font-size:18px;
+                                        line-height:1.4;
+                                        font-weight:700;
+                                        color:#1f2937">{{ task.end_date|date("d.m.Y") }}</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{ ui.action_button(link, "Aufgabe ansehen", brand_color, 200) }}
+
+    {{ ui.fallback_url(link) }}
+{% endblock %}

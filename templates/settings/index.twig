@@ -172,6 +172,66 @@
                             {% endif %}
                         {% endif %}
 
+                        {% if notification_groups|default({})|length > 0 %}
+                            <hr class="my-4">
+                            <div id="settings-notifications">
+                                    <h2 class="h5 mb-3">Benachrichtigungen</h2>
+                                    <p class="text-muted small">
+                                        Was hier abgeschaltet ist, verschickt der Chor-Manager für niemanden -
+                                        unabhängig davon, was die Einzelnen in ihrem Profil eingestellt haben.
+                                        Die Erläuterungen sind aus Sicht der Empfängerin formuliert.
+                                    </p>
+
+                                {% for group, types in notification_groups %}
+                                    <h3 class="h6 text-uppercase text-muted mt-4 mb-3">
+                                        {{ notification_group_labels[group]|default(group) }}
+                                    </h3>
+                                    {% for type in types %}
+                                        {% set _on = notification_values[type.type]|default(false) %}
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   id="setting-notification-{{ type.type }}"
+                                                   name="notifications[{{ type.type }}]"
+                                                   value="1"
+                                                   {{ _on ? "checked" : "" }}>
+                                            <label class="form-check-label" for="setting-notification-{{ type.type }}">
+                                                {{ type.label }}
+                                            </label>
+                                            <div class="form-text">{{ type.description }}</div>
+                                        </div>
+                                    {% endfor %}
+                                {% endfor %}
+
+                                <div class="mb-4 mt-4">
+                                    <label class="form-label fw-bold" for="notification_task_due_days_before">
+                                        Aufgaben-Erinnerung: Tage vor Fälligkeit (0 = aus)
+                                    </label>
+                                    <input type="number"
+                                           min="0"
+                                           max="30"
+                                           class="form-control"
+                                           id="notification_task_due_days_before"
+                                           name="notification_task_due_days_before"
+                                           value="{{ settings_values.notification_task_due_days_before|default(3) }}">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold" for="notification_sponsoring_follow_up_days_before">
+                                        Wiedervorlage-Erinnerung: Tage vorher (0 = aus)
+                                    </label>
+                                    {% set _follow_up_days = settings_values.notification_sponsoring_follow_up_days_before %}
+                                    <input type="number"
+                                           min="0"
+                                           max="30"
+                                           class="form-control"
+                                           id="notification_sponsoring_follow_up_days_before"
+                                           name="notification_sponsoring_follow_up_days_before"
+                                           value="{{ _follow_up_days|default(1) }}">
+                                </div>
+                            </div>
+                        {% endif %}
+
                         <hr class="my-4">
 
                         <h2 class="h5 mb-3">Darstellung</h2>

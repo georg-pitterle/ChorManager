@@ -11,7 +11,13 @@ use App\Models\AppSetting;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
+use App\Controllers\AppSettingController;
+use App\Controllers\EventController;
+use App\Controllers\ProfileController;
+use App\Controllers\ProjectController;
+use App\Controllers\TaskController;
 use App\Queries\ProjectQuery;
+use App\Services\HtmlSanitizer;
 use App\Queries\UserQuery;
 use App\Queries\NewsletterTemplateQuery;
 use App\Persistence\UserPersistence;
@@ -54,7 +60,11 @@ use App\Services\RememberLoginService;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
 use App\Commands\RotateMailCredentialKeyCommand;
+use App\Commands\SendNotificationRemindersCommand;
 use App\Commands\SendRegistrationRemindersCommand;
+use App\Services\NotificationReminderService;
+use App\Services\PasswordPolicyService;
+use App\Services\NotificationService;
 use App\Services\RegistrationReminderService;
 use App\Services\BackupService;
 use App\Services\DumpRunnerInterface;
@@ -66,6 +76,7 @@ use App\Services\MailCredentialCryptoService;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
+use App\Middleware\NotificationReminderMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
@@ -178,6 +189,73 @@ return function (ContainerBuilder $containerBuilder) {
             return new SessionInvalidationService($c->get(LoggerInterface::class));
         },
         RegistrationReminderService::class => \DI\autowire(),
+        // Nicht `autowire()`: Der Dienst braucht die Modul-Flags aus den
+        // Einstellungen, und die sind kein Klassentyp, den der Container
+        // auflösen könnte. Ohne sie liefe jeder modulgebundene Anlass ins Leere.
+        // Diese drei Controller nehmen den Benachrichtigungsdienst als letzten,
+        // optionalen Parameter - er musste ans Ende, weil zahlreiche Tests sie
+        // mit festen Positionsargumenten bauen. PHP-DI fuellt optionale
+        // Parameter nicht aus dem Container, deshalb werden sie hier von Hand
+        // zusammengesetzt statt autoverdrahtet. Ohne diese drei Eintraege
+        // verschickte der Betrieb still keine Benachrichtigung;
+        // `NotificationWiringFeatureTest` prueft genau das.
+        TaskController::class => function (ContainerInterface $c): TaskController {
+            return new TaskController(
+                $c->get(Twig::class),
+                $c->get(HtmlSanitizer::class),
+                $c->get(TaskPolicy::class),
+                $c->get(NameFormatterService::class),
+                $c->get(LoggerInterface::class),
+                $c->get(NotificationService::class)
+            );
+        },
+        AppSettingController::class => function (ContainerInterface $c): AppSettingController {
+            return new AppSettingController(
+                $c->get(Twig::class),
+                $c->get(LoggerInterface::class),
+                $c->get(NotificationService::class)
+            );
+        },
+        ProfileController::class => function (ContainerInterface $c): ProfileController {
+            return new ProfileController(
+                $c->get(Twig::class),
+                $c->get(UserQuery::class),
+                $c->get(PasswordPolicyService::class),
+                $c->get(LoggerInterface::class),
+                $c->get(MailCredentialCryptoService::class),
+                $c->get(RememberLoginService::class),
+                $c->get(NotificationService::class)
+            );
+        },
+        EventController::class => function (ContainerInterface $c): EventController {
+            return new EventController(
+                $c->get(Twig::class),
+                $c->get(NameFormatterService::class),
+                $c->get(LoggerInterface::class),
+                $c->get(NotificationService::class)
+            );
+        },
+        ProjectController::class => function (ContainerInterface $c): ProjectController {
+            return new ProjectController(
+                $c->get(Twig::class),
+                $c->get(ProjectQuery::class),
+                $c->get(ProjectPersistence::class),
+                $c->get(ProjectMemberPolicy::class),
+                $c->get(LoggerInterface::class),
+                $c->get(NotificationService::class)
+            );
+        },
+        NotificationService::class => function (ContainerInterface $c): NotificationService {
+            $settings = $c->get('settings');
+            $modules = is_array($settings['modules'] ?? null) ? $settings['modules'] : [];
+
+            return new NotificationService(
+                $c->get(MailQueueService::class),
+                $c->get(Twig::class),
+                $c->get(LoggerInterface::class),
+                $modules
+            );
+        },
         SendRegistrationRemindersCommand::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
@@ -348,6 +426,18 @@ return function (ContainerBuilder $containerBuilder) {
             // restored, which dropped the navbar for that request.
             return new RegistrationReminderMiddleware(
                 static fn (): RegistrationReminderService => $c->get(RegistrationReminderService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
+        NotificationReminderService::class => \DI\autowire(),
+        SendNotificationRemindersCommand::class => \DI\autowire(),
+        NotificationReminderMiddleware::class => function (ContainerInterface $c) {
+            // Dieselbe Fabrik-Konstruktion wie bei der Anmelde-Erinnerung: Der
+            // Dienst haengt ueber NotificationService an Twig, und diese globale
+            // Middleware laeuft vor der AuthMiddleware. Twig hier zu bauen fror
+            // den noch unangemeldeten Sitzungszustand ein.
+            return new NotificationReminderMiddleware(
+                static fn (): NotificationReminderService => $c->get(NotificationReminderService::class),
                 $c->get(LoggerInterface::class)
             );
         },

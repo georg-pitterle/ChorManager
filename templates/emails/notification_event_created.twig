@@ -1,0 +1,76 @@
+{#
+    Ein Termin oder eine ganze Serie.
+
+    `events` trägt immer eine Liste - beim Einzeltermin mit genau einem
+    Eintrag. Eine Serie erzeugt so eine Mail statt vierzig; wer montags probt,
+    bekäme sonst für ein Halbjahr auf einen Schlag das Postfach voll.
+#}
+{% extends "emails/_notification_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
+
+{% set _is_series = events|length > 1 %}
+
+{% block mail_title %}{% if _is_series %}Neue Termine: {{ series_title }}{% else %}Neuer Termin: {{ events|first.title }}{% endif %}{% endblock %}
+
+{% block preheader %}
+    {% if _is_series %}
+        {{ events|length }} neue Termine stehen im Kalender.
+    {% else %}
+        {{ events|first.title }} am {{ events|first.starts_at|date("d.m.Y") }}.
+    {% endif %}
+{% endblock %}
+
+{% block eyebrow %}{{ _is_series ? "Neue Serie" : "Neuer Termin" }}{% endblock %}
+
+{% block heading %}{{ _is_series ? "Neue Termine für dich" : "Ein neuer Termin für dich" }}{% endblock %}
+
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
+        {% if _is_series %}
+            es wurden {{ events|length }} Termine angelegt, die dich betreffen:
+        {% else %}
+            dieser Termin wurde angelegt und betrifft dich:
+        {% endif %}
+    </p>
+
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {% if _is_series %}
+                        {{ ui.detail_row("Serie", series_title, true) }}
+                        {% for event in events|slice(0, 12) %}
+                            {{ ui.detail_row(event.starts_at|date("d.m.Y"), event.starts_at|date("H:i") ~ " Uhr", false) }}
+                        {% endfor %}
+                        {% if events|length > 12 %}
+                            {{ ui.detail_row("Weitere", (events|length - 12) ~ " Termine im Kalender", false) }}
+                        {% endif %}
+                        {% if events|first.location is not empty %}
+                            {{ ui.detail_row("Ort", events|first.location, false) }}
+                        {% endif %}
+                    {% else %}
+                        {{ ui.detail_row("Termin", events|first.title, true) }}
+                        {{ ui.detail_row("Beginn", events|first.starts_at|date("d.m.Y H:i") ~ " Uhr", false) }}
+                        {{ ui.detail_row("Ende", events|first.ends_at|date("d.m.Y H:i") ~ " Uhr", false) }}
+                        {% if events|first.location is not empty %}
+                            {{ ui.detail_row("Ort", events|first.location, false) }}
+                        {% endif %}
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{ ui.action_button(link, _is_series ? "Termine ansehen" : "Termin ansehen", brand_color, 200) }}
+
+    {{ ui.fallback_url(link) }}
+{% endblock %}
