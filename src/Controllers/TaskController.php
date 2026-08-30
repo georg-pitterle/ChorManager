@@ -10,8 +10,11 @@ use App\Models\Activity;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\User;
+use App\Services\CalendarFeedService;
+use App\Services\CalendarSubscriptionService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Util\AppUrlResolver;
 use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -42,6 +45,34 @@ class TaskController
         $this->policy = $policy;
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
+    }
+
+    /**
+     * Der eigene Aufgaben-Feed. Öffentlich erreichbar wie der Termin-Feed und
+     * über denselben Token abgesichert: Ein zweites Geheimnis mit eigener
+     * Erneuerung hätte bedeutet, dass ein zurückgezogenes Abo nur eine Hälfte
+     * trifft.
+     */
+    public function exportCalendar(Request $request, Response $response, array $args): Response
+    {
+        $subscription = (new CalendarSubscriptionService())->findByToken((string) $args['token']);
+        if (!$subscription) {
+            return $response->withStatus(404);
+        }
+
+        $user = User::find((int) $subscription->user_id);
+        if (!$user) {
+            return $response->withStatus(404);
+        }
+
+        $content = (new CalendarFeedService($this->nameFormatter))
+            ->buildTaskCalendar($user, AppUrlResolver::resolveBaseUrl($request));
+
+        $response->getBody()->write($content);
+
+        return $response
+            ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
+            ->withHeader('Content-Disposition', 'inline; filename="chor-manager-aufgaben.ics"');
     }
 
     /**

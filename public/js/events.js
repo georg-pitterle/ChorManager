@@ -74,9 +74,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    var copyButton = document.getElementById('copyCalendarSubscriptionUrl');
-    var urlInput = document.getElementById('calendarSubscriptionUrlInput');
-    if (copyButton && urlInput) {
+    // Seit die Aufgaben ein eigenes Abo bekommen koennen, stehen bis zu zwei
+    // Adressen im Fenster - der Kopierknopf wird deshalb je Feld verdrahtet
+    // statt einmal fest.
+    function wireCopyButton(buttonId, inputId) {
+        var copyButton = document.getElementById(buttonId);
+        var urlInput = document.getElementById(inputId);
+        if (!copyButton || !urlInput) {
+            return;
+        }
+
         var originalHtml = copyButton.innerHTML;
 
         function showCopiedState() {
@@ -122,6 +129,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    wireCopyButton('copyCalendarSubscriptionUrl', 'calendarSubscriptionUrlInput');
+    wireCopyButton('copyCalendarTaskSubscriptionUrl', 'calendarTaskSubscriptionUrlInput');
 
     // Eine frisch erzeugte Abo-Adresse ist die einzige Gelegenheit, sie zu sehen -
     // gespeichert ist nur ihre Prüfsumme. Das Fenster geht deshalb von selbst auf,

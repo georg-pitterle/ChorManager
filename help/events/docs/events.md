@@ -63,6 +63,18 @@ Jedes Mitglied kann Bemerkungen hinzufügen und dabei wählen, ob sie **öffentl
 
 Kopiere den Link in deine Kalender-App (z. B. als "URL-Kalender abonnieren"). Der Kalender zeigt automatisch nur die für dich relevanten, zukünftigen Termine und aktualisiert sich von selbst, sobald sich Termine ändern.
 
+### Aufgaben mit im Kalender
+
+Ist das Aufgaben-Modul aktiv, können deine Aufgaben im selben Abo mitkommen. Unter **Profil → Kalender** entscheidest du:
+
+- **Zusammen mit den Terminen in einem Abo** (Voreinstellung) – ein Link genügt, Termine und Aufgaben stehen darin nebeneinander.
+- **In einem eigenen Abo** – der Termin-Link bleibt frei von Aufgaben; im Abo-Fenster erscheint zusätzlich ein zweiter Link nur für die Aufgaben.
+- **Gar nicht** – Aufgaben bleiben aus beiden Links draußen.
+
+Dazu wählst du die Darstellung: als **ganztägiger Termin** am Fälligkeitstag oder als **Aufgabe mit Fälligkeit**. Apple Kalender und Google Kalender zeigen echte Aufgaben aus abonnierten Kalendern nicht an – wer einen davon nutzt, bleibt besser beim ganztägigen Termin.
+
+Aufgenommen werden nur Aufgaben, die dir zugewiesen sind, ein Fälligkeitsdatum tragen und noch nicht abgeschlossen sind. Beide Links nutzen denselben Zugang: Erzeugst du eine neue Adresse, gilt die alte für Termine **und** Aufgaben nicht mehr.
+
 ## 7. Termin-Typen verwalten
 
 Unter **Verwaltung → Termin-Typen** legst du die Kategorien fest, mit denen Termine eingefärbt und gefiltert werden (z. B. Probe, Auftritt, Sitzung).
@@ -83,3 +95,4 @@ Unter **Verwaltung → Termin-Typen** legst du die Kategorien fest, mit denen Te
 - **Wochentage gelten nur bei wöchentlicher Wiederholung** – bei täglich, monatlich und jährlich haben sie keine Wirkung. Eine monatliche Serie hängt am Tag im Monat des ersten Termins; gibt es diesen Tag in einem Monat nicht (etwa den 31. im Februar), rückt der Termin auf den Monatsletzten und kehrt im nächsten Monat auf den ursprünglichen Tag zurück.
 - **Keine Zielgruppe gewählt** bedeutet nicht "niemand", sondern **alle aktiven Mitglieder** – schränke die Zielgruppe bewusst ein, wenn ein Termin nur für einen Teil des Chors gilt.
 - **Anmeldeschluss ohne Angabe** fällt automatisch auf den Terminbeginn zurück.
+- **Aufgaben als "Aufgabe mit Fälligkeit" bleiben in manchen Kalendern unsichtbar** – Apple und Google verwerfen Aufgaben aus abonnierten Kalendern stillschweigend. Fehlen sie, stelle im Profil auf den ganztägigen Termin um.

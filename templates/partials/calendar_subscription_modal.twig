@@ -5,11 +5,14 @@
       exists   - ob für das Mitglied ein Abo aktiv ist
       url      - die Abo-Adresse, aber nur wenn sie zeigbar ist: direkt nach dem
                  Erzeugen oder bei einem Altbestand aus der Zeit vor dem Hashen.
+      task_url - die zweite Adresse für die Aufgaben, nur bei der Profileinstellung
+                 "eigenes Abo" gesetzt.
       autoshow - ob sich das Fenster beim Laden der Seite von selbst öffnen soll;
                  nur beim frischen Erzeugen wahr, nie beim Altbestand.
     Und `redirect_to` - Pfad, auf den nach dem Erzeugen zurückgesprungen wird.
 #}
 {% set _subscription_url = calendar_subscription.url|default(null) %}
+{% set _task_url = calendar_subscription.task_url|default(null) %}
 {% set _subscription_exists = calendar_subscription.exists|default(false) %}
 {% set _subscription_autoshow = calendar_subscription.autoshow|default(false) %}
 <div class="modal fade"
@@ -44,6 +47,25 @@
                         Jeder, der diese Adresse hat, sieht deine Termine - auch ohne Anmeldung. Gib sie
                         nicht weiter.
                     </p>
+                    {% if _task_url %}
+                        <hr>
+                        <p class="mb-3">
+                            Deine Aufgaben liegen laut Profil in einem eigenen Abo. Füge dafür diesen
+                            zweiten Link hinzu.
+                        </p>
+                        <div class="input-group">
+                            <input id="calendarTaskSubscriptionUrlInput"
+                                   type="text"
+                                   class="form-control"
+                                   value="{{ _task_url }}"
+                                   readonly>
+                            <button id="copyCalendarTaskSubscriptionUrl"
+                                    type="button"
+                                    class="btn btn-outline-secondary">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    {% endif %}
                 {% elseif _subscription_exists %}
                     <p class="mb-2">Für dich ist ein Kalender-Abo aktiv.</p>
                     <p class="form-text mb-0">
