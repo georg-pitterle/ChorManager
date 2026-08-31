@@ -89,8 +89,15 @@ return function (App $app): void {
     $settings = $container instanceof ContainerInterface ? $container->get('settings') : [];
     if ($settings['modules']['registration'] ?? false) {
         $app->add(RegistrationReminderMiddleware::class);
-        $app->add(NotificationReminderMiddleware::class);
     }
+
+    // Bewusst außerhalb des Registrierungs-Moduls: Die Benachrichtigungs-Erinnerungen
+    // betreffen fällige Aufgaben und Sponsoring-Wiedervorlagen, nicht die Anmeldung zu
+    // Terminen. Am Modul "registration" hängend blieben sie in der Voreinstellung
+    // (FEATURE_REGISTRATION=false) unregistriert und die Mails kamen ohne eigenen
+    // Cron-Lauf nie an. Welche Anlässe tatsächlich versendet werden, entscheidet
+    // weiterhin NotificationService::isAvailable() je Anlass anhand seines Moduls.
+    $app->add(NotificationReminderMiddleware::class);
 
     $app->add(MailBadgeRefreshMiddleware::class);
     $app->add(SecurityHeadersMiddleware::class);
