@@ -38,19 +38,32 @@ und an der Löschlogik. Ebenfalls nicht enthalten sind Anhänge außerhalb der T
 
 ## Vorschaubare Typen
 
-Eine einzige Quelle entscheidet: `App\Util\AttachmentPreview::isPreviewable(string $mime): bool`.
-Genutzt vom Controller *und* — als registrierte Twig-Funktion `attachment_previewable()` — von
-den Templates. Zwei getrennte Listen wären genau die Doppelung, die dieser Umbau beseitigt.
+Eine einzige Quelle entscheidet: `App\Util\AttachmentPreview`. Genutzt vom Controller *und* —
+als registrierte Twig-Funktion `attachment_previewable()` — von den Templates. Zwei getrennte
+Listen im Code wären genau die Doppelung, die dieser Umbau beseitigt.
 
-Vorschaubar:
+Die Klasse kennt zwei Fragen, weil sie nicht dieselbe sind:
 
-| MIME | Darstellung im Modal |
-|---|---|
-| `application/pdf` | `<iframe>` |
-| `image/jpeg`, `image/png`, `image/webp`, `image/gif` | `<img>` |
-| `text/plain` | `<pre>`, Inhalt per `fetch` geladen |
-| `audio/mpeg` | `<audio controls>` |
-| `audio/midi`, `audio/x-midi`, `application/x-midi` | `<midi-player>` (lokal ausgeliefert, siehe `songs/downloads.twig`) |
+- `isInlineServable(string $mime): bool` — was die Route `/attachments/{id}/preview` überhaupt
+  mit `Content-Disposition: inline` ausliefert.
+- `isModalPreviewable(string $mime): bool` — was einen Vorschau-Button bekommt, also im
+  gemeinsamen Modal auch wirklich darstellbar ist. Immer eine Teilmenge von `isInlineServable()`.
+
+| MIME | inline ausgeliefert | Modal-Vorschau |
+|---|---|---|
+| `application/pdf` | ja | `<iframe>` |
+| `image/jpeg`, `image/png`, `image/webp`, `image/gif` | ja | `<img>` |
+| `text/plain` | ja | `<pre>`, Inhalt per `fetch` geladen |
+| `audio/mpeg` | ja | `<audio controls>` |
+| `audio/midi`, `audio/x-midi`, `application/x-midi` | ja | **nein** |
+
+MIDI bleibt außen vor, weil die Wiedergabe `Tone.js`, `magenta-music` und `html-midi-player`
+braucht und diese drei nur im `scripts`-Block von `templates/songs/downloads.twig` geladen
+werden. Ein global eingebundenes Modal hätte sie auf keiner anderen Seite. Sie überall zu laden,
+wäre drei zusätzliche Bibliotheken auf jeder Seite für einen Dateityp, den heute niemand
+hochladen kann (siehe unten). Der eingebettete Player auf der Downloads-Seite bleibt und zieht
+seine Quelle künftig von `/attachments/{id}/preview` — dafür muss MIDI inline ausgeliefert
+werden, aber nicht modalfähig sein.
 
 Nicht vorschaubar sind die übrigen erlaubten Upload-Typen: `application/msword`,
 `application/vnd.openxmlformats-officedocument.wordprocessingml.document`,
@@ -58,8 +71,17 @@ Nicht vorschaubar sind die übrigen erlaubten Upload-Typen: `application/msword`
 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
 Dort erscheint **kein** Vorschau-Button, nur der Download-Button.
 
-Der Vergleich läuft über `UploadValidator::normalizeMimeType()`, damit `text/plain; charset=utf-8`
-und Groß-/Kleinschreibung nicht durchrutschen.
+`audio/mpeg` und die MIDI-Typen stehen nicht in den erlaubten Upload-Typen des
+`UploadValidator` — über die Oberfläche kommt heute keine solche Datei herein. Die Zeilen
+stammen aus Altbestand, den die Downloads-Seite aber aktiv abspielt. Die Auslieferung behält
+sie deshalb; der Upload-Weg bleibt unverändert.
+
+### Normalisierung
+
+`UploadValidator::normalizeMimeType()` macht nur `trim` und `strtolower` — es schneidet keine
+Parameter ab. Ein in der Datenbank gespeichertes `text/plain; charset=utf-8` fiele damit durch
+jeden Vergleich. `AttachmentPreview` normalisiert deshalb selbst: alles ab dem ersten `;`
+abschneiden, dann trimmen und kleinschreiben.
 
 ## Architektur
 
@@ -89,6 +111,13 @@ sie anschließend zu verwerfen.
 Der Registry-Eintrag für einen unbekannten `entity_type` fehlt bewusst: unbekannt heißt
 abgelehnt, nicht durchgelassen.
 
+Zusätzlich prüft die Registry das Modul. Die alten Routen lagen innerhalb von
+`if ($settings['modules']['finance'] ?? false)` bzw. `['sponsoring']` in `src/Routes.php` und
+verschwanden mit dem abgeschalteten Modul. Die zentrale Route liegt außerhalb dieser Blöcke —
+ohne eigene Prüfung wären Belege und Verträge bei abgeschaltetem Modul weiterhin abrufbar.
+`finance` verlangt `modules.finance`, `sponsor` und `sponsorship` verlangen `modules.sponsoring`,
+`task` verlangt `modules.tasks`. Für `song` gibt es kein Modul.
+
 ### AttachmentController
 
 Neu: `src/Controllers/AttachmentController.php`, zwei Routen hinter `AuthMiddleware`, ohne
@@ -96,10 +125,10 @@ Neu: `src/Controllers/AttachmentController.php`, zwei Routen hinter `AuthMiddlew
 nur im Controller fallen.
 
 - `GET /attachments/{id:[0-9]+}/preview`
-  `Content-Disposition: inline`. Nicht vorschaubarer Typ → **415**. Unterstützt `Range` für
-  Audio-Dateien, damit das Springen im MIDI- und MP3-Player erhalten bleibt.
+  `Content-Disposition: inline`. Typ nicht in `isInlineServable()` → **415**. Unterstützt
+  `Range`, damit das Springen im MIDI- und MP3-Player erhalten bleibt.
 - `GET /attachments/{id:[0-9]+}/download`
-  `Content-Disposition: attachment`, alle erlaubten Typen.
+  `Content-Disposition: attachment`, alle Typen.
 
 Beide antworten bei fehlendem Recht mit **404**, nicht 403: ein 403 verrät, dass es den Anhang
 gibt. Dieselbe Antwort gilt für eine nicht existierende ID.
@@ -147,10 +176,14 @@ behält `'none'`.
 ### Bausteine
 
 - `templates/partials/attachment_actions.twig` — rendert für **einen** Anhang das Buttonpaar.
-  Parameter: `attachment`, optional `size` (`sm` als Vorgabe) und `show_label`. Der
-  Vorschau-Button wird weggelassen, wenn `attachment_previewable(attachment.mime_type)` falsch
-  ist. Er trägt `data-attachment-id`, `data-attachment-name`, `data-attachment-mime` und
-  `data-attachment-size`.
+  Parameter sind einfache Werte, kein Objekt: `attachment_id`, `attachment_name`,
+  `attachment_mime`, `attachment_size`, optional `show_label` (Vorgabe `false`). Ein Objekt ginge
+  nicht, weil die Aufrufstellen unterschiedliche Formen liefern — Eloquent-Modelle mit
+  `original_name`/`file_size` an fünf Stellen, ein Array mit `name`/`size_bytes` in
+  `SponsoringAttachmentController::baseRow()`. Der Vorschau-Button wird weggelassen, wenn
+  `attachment_previewable(attachment_mime)` falsch ist; die Twig-Funktion bildet auf
+  `AttachmentPreview::isModalPreviewable()` ab. Der Button trägt `data-attachment-id`,
+  `data-attachment-name`, `data-attachment-mime` und `data-attachment-size`.
 - `templates/partials/attachment_preview_modal.twig` — die Modal-Hülle, **einmal** in
   `templates/layout.twig` eingebunden. Damit steht sie in jedem Bereich zur Verfügung, ohne dass
   sechs Templates sie einzeln einbinden.
@@ -182,8 +215,9 @@ Modal-Körper einen kurzen deutschen Hinweis und den Download-Button, statt leer
 
 Unit:
 
-- `AttachmentPreviewTest` — vorschaubare und nicht vorschaubare Typen, Normalisierung von
-  `text/plain; charset=utf-8` und Großschreibung.
+- `AttachmentPreviewTest` — `isInlineServable()` und `isModalPreviewable()` je für vorschaubare
+  und nicht vorschaubare Typen, MIDI nur in der ersten Liste, Normalisierung von
+  `text/plain; charset=utf-8` und `TEXT/PLAIN`.
 - Der bestehende Range-Parser-Test zieht auf den neuen Ort um.
 
 Feature `tests/Feature/AttachmentAccessFeatureTest.php`, je `entity_type` (finance, task,
@@ -195,6 +229,8 @@ sponsor, sponsorship, song):
 - Nicht vorschaubarer Typ (`.docx`) auf `/preview` → 415
 - Nicht existierende ID → 404
 - Song zusätzlich: Person mit `can_manage_song_library` ohne Projektmitgliedschaft → 200
+- Abgeschaltetes Modul: berechtigte Person, `modules.finance` aus → 404 auf beiden Routen,
+  dasselbe für `modules.sponsoring` und `modules.tasks`
 
 Feature `tests/Feature/AttachmentPreviewCspFeatureTest.php`:
 
