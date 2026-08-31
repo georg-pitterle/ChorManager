@@ -8,6 +8,7 @@ use App\Logging\DatabaseWriteLogger;
 use App\Logging\LogLevelResolver;
 use App\Logging\RequestContext;
 use App\Models\AppSetting;
+use App\Views\HtmlTwig;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
@@ -465,7 +466,9 @@ return function (ContainerBuilder $containerBuilder) {
             $settings = $allSettings['view'];
             $appTimezone = $allSettings['timezone'] ?? 'Europe/Vienna';
             // Explicitly enable autoescape for security (HTML context)
-            $twig = Twig::create(
+            // HtmlTwig statt Twig: gerenderte Seiten weisen sich damit selbst als
+            // text/html aus, woran die HtmlFormCsrfInjectorMiddleware sie erkennt.
+            $twig = HtmlTwig::createForPath(
                 $settings['template_path'],
                 [
                     'cache' => $settings['cache_path'],

@@ -216,22 +216,19 @@ class TaskFeatureTest extends TestCase
         $this->assertStringNotContainsString('project.id in userProjectIds', $templateContent);
     }
 
-    public function testRoleMiddlewareTaskCheckHasNoMasterDataBypass(): void
+    /**
+     * Die Aufgabenverwaltung hat kein Ersatzrecht: Weder Mitglieder- noch
+     * Stammdatenverwaltung öffnen sie. Die Verhaltenstests darunter prüfen
+     * dasselbe am laufenden Gate; hier steht die Tabelle selbst zur Prüfung,
+     * damit ein versehentlich ergänztes Recht sofort auffällt.
+     */
+    public function testRoleMiddlewareTaskGateAcceptsOnlyTheTaskPermission(): void
     {
-        $middlewareContent = file_get_contents(dirname(__DIR__) . '/../src/Middleware/RoleMiddleware.php');
+        $gates = (new ReflectionClass(RoleMiddleware::class))->getConstant('GATES');
 
-        $this->assertStringContainsString(
-            'if ($this->requiresTaskManagement && !$canManageTasks) {',
-            $middlewareContent
-        );
-        $this->assertStringNotContainsString(
-            'if ($this->requiresTaskManagement && !$canManageTasks && !$canManageUsers) {',
-            $middlewareContent
-        );
-        $this->assertStringNotContainsString(
-            'if ($this->requiresTaskManagement && !$canManageTasks && !$canManageUsers && !$canManageMasterData) {',
-            $middlewareContent
-        );
+        $this->assertIsArray($gates);
+        $this->assertArrayHasKey('requiresTaskManagement', $gates);
+        $this->assertSame(['can_manage_tasks'], $gates['requiresTaskManagement']['permissions']);
     }
 
     public function testTaskMiddlewareDeniesAccessWithoutTaskPermission(): void
@@ -243,7 +240,7 @@ class TaskFeatureTest extends TestCase
             'can_manage_master_data' => true,
         ];
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, true);
+        $middleware = new RoleMiddleware(requiresTaskManagement: true);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
@@ -266,7 +263,7 @@ class TaskFeatureTest extends TestCase
             'can_manage_master_data' => false,
         ];
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, true);
+        $middleware = new RoleMiddleware(requiresTaskManagement: true);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
@@ -289,7 +286,7 @@ class TaskFeatureTest extends TestCase
             'can_manage_master_data' => false,
         ];
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, true);
+        $middleware = new RoleMiddleware(requiresTaskManagement: true);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface

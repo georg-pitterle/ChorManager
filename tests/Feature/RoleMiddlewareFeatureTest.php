@@ -35,7 +35,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, false, true);
+        $middleware = new RoleMiddleware(requiresFinanceRead: true);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
             new class implements RequestHandlerInterface {
@@ -55,7 +55,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, false, true);
+        $middleware = new RoleMiddleware(requiresFinanceRead: true);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
             new class implements RequestHandlerInterface {
@@ -75,7 +75,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(false, 0, false, false, true, false, false, false, false, false, false, false, false);
+        $middleware = new RoleMiddleware(requiresFinanceManagement: true);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('POST', '/finances/save'),
             new class implements RequestHandlerInterface {
@@ -117,7 +117,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_mail_queue'] = true;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true, false);
+        $middleware = new RoleMiddleware(requiresMailQueueManagement: true);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/admin/mail-queue'),
             new class implements RequestHandlerInterface {
@@ -136,7 +136,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_mail_queue'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(false, 0, false, false, false, false, false, false, false, false, false, true, false);
+        $middleware = new RoleMiddleware(requiresMailQueueManagement: true);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/admin/mail-queue'),
             new class implements RequestHandlerInterface {

@@ -15,101 +15,231 @@ use Slim\Psr7\Response as SlimResponse;
 class RoleMiddleware implements MiddlewareInterface
 {
     /**
-     * Fallback fuer Instanzen, die - wie an allen Routen in Routes.php - per
-     * `new RoleMiddleware(...)` statt ueber den DI-Container gebaut werden.
-     * Der DI-Container kann hier nicht helfen: Routes.php uebergibt an jeder
+     * Ersatzwert für Instanzen, die - wie an allen Routen in Routes.php - per
+     * `new RoleMiddleware(...)` statt über den DI-Container gebaut werden.
+     * Der DI-Container kann hier nicht helfen: Routes.php übergibt an jeder
      * der 21 Stellen bereits fertig gebaute Objekte an `->add(...)`, keine
-     * Klassennamen, die der Container aufloesen wuerde. Routes.php setzt
+     * Klassennamen, die der Container auflösen würde. Routes.php setzt
      * diesen Wert einmalig auf den echten Container-Logger, bevor die Routen
      * registriert werden (siehe dortiger `setDefaultLogger`-Aufruf); ohne
      * diesen Aufruf (z. B. in Tests mit einem Minimal-Container) bleibt es
      * beim NullLogger. Dieser Zustand ist statisch und damit prozessweit
-     * geteilt - `setDefaultLogger(null)` setzt ihn gezielt zurueck, damit ein
-     * in einem Test gesetzter Logger nicht in spaetere, unabhaengige Tests
+     * geteilt - `setDefaultLogger(null)` setzt ihn gezielt zurück, damit ein
+     * in einem Test gesetzter Logger nicht in spätere, unabhängige Tests
      * im selben PHPUnit-Prozess durchsickert.
      */
     private static ?LoggerInterface $defaultLogger = null;
 
-    private bool $requiresUserManagement;
+    /**
+     * Alle Rechte-Gates - je Gate die Sitzungsrechte, von denen **eines**
+     * genügt, die Meldung bei Abweisung und der Rechte-Schlüssel, der ins
+     * Protokoll geht.
+     *
+     * Die Reihenfolge dieser Tabelle ist zugleich die Prüfreihenfolge. Sie
+     * spielt nur eine Rolle, wenn eine Route mehrere Gates gleichzeitig setzt;
+     * dann entscheidet sie, welche Meldung die abgewiesene Person sieht.
+     *
+     * Wo mehrere Rechte gelistet sind, ist das Absicht, und den Umfang setzt
+     * anschließend eine andere Stelle durch:
+     * - Anwesenheit: eigene Stimmgruppe oder alle Mitglieder - AttendanceScopeService.
+     *   `can_manage_own_voice_group` deckt Mitgliederpflege und Vertretungs-Anmeldungen
+     *   der eigenen Stimmgruppe ab, nicht die Anwesenheitsliste selbst.
+     * - Budgetansicht: eine verdichtete Sicht auf die Finanzdaten, deshalb dürfen
+     *   Finanz-Lesende sie auch ohne Budgetrecht ansehen.
+     * - Sponsoring-Bereich: Lesen und eigene Vereinbarungen - SponsoringPolicy.
+     * - Projektmitglieder: alle Stimmgruppen oder nur die eigene - ProjectMemberPolicy.
+     *
+     * Termin- und Aufgabenverwaltung stehen bewusst ohne Admin-Ersatzrecht da: Sie
+     * sollen vergeben werden können, ohne gleichzeitig Mitglieder-, Rollen- und
+     * Projektverwaltung mitzuliefern.
+     *
+     * @var array<string, array{permissions: list<string>, logged_permission: string, message: string}>
+     */
+    private const GATES = [
+        'requiresTaskManagement' => [
+            'permissions' => ['can_manage_tasks'],
+            'logged_permission' => 'can_manage_tasks',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.',
+        ],
+        'requiresEventManagement' => [
+            'permissions' => ['can_manage_events'],
+            'logged_permission' => 'can_manage_events',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Terminverwaltung.',
+        ],
+        'requiresAttendanceManagement' => [
+            'permissions' => ['can_manage_attendance', 'can_manage_attendance_all'],
+            'logged_permission' => 'can_manage_attendance',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.',
+        ],
+        'requiresRoleManagement' => [
+            'permissions' => ['can_manage_roles'],
+            'logged_permission' => 'can_manage_roles',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Rollenverwaltung.',
+        ],
+        'requiresSongLibraryManagement' => [
+            'permissions' => ['can_manage_song_library'],
+            'logged_permission' => 'can_manage_song_library',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Repertoire-Verwaltung.',
+        ],
+        'requiresNewsletterManagement' => [
+            'permissions' => ['can_manage_newsletters'],
+            'logged_permission' => 'can_manage_newsletters',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Newsletter-Verwaltung.',
+        ],
+        'requiresMailQueueManagement' => [
+            'permissions' => ['can_manage_mail_queue'],
+            'logged_permission' => 'can_manage_mail_queue',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Mailversand-Verwaltung.',
+        ],
+        'requiresSheetArchiveManagement' => [
+            'permissions' => ['can_manage_sheet_archive'],
+            'logged_permission' => 'can_manage_sheet_archive',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Notenarchiv-Verwaltung.',
+        ],
+        'requiresBudgetManagement' => [
+            'permissions' => ['can_manage_budget'],
+            'logged_permission' => 'can_manage_budget',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.',
+        ],
+        'requiresBackupManagement' => [
+            'permissions' => ['can_manage_backups'],
+            'logged_permission' => 'can_manage_backups',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Backup-Verwaltung.',
+        ],
+        'requiresBudgetRead' => [
+            'permissions' => ['can_read_finances', 'can_manage_finances', 'can_manage_budget'],
+            'logged_permission' => 'can_read_finances',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.',
+        ],
+        'requiresSponsoringAccess' => [
+            'permissions' => ['can_manage_sponsoring', 'can_create_own_sponsorships'],
+            'logged_permission' => 'can_create_own_sponsorships',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für den Sponsoring-Bereich.',
+        ],
+        'requiresSponsoringManagement' => [
+            'permissions' => ['can_manage_sponsoring'],
+            'logged_permission' => 'can_manage_sponsoring',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Sponsoring-Verwaltung.',
+        ],
+        'requiresMasterDataManagement' => [
+            'permissions' => ['can_manage_master_data'],
+            'logged_permission' => 'can_manage_master_data',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Stammdatenverwaltung.',
+        ],
+        'requiresFinanceRead' => [
+            'permissions' => ['can_read_finances', 'can_manage_finances'],
+            'logged_permission' => 'can_read_finances',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Finanzansicht.',
+        ],
+        'requiresFinanceManagement' => [
+            'permissions' => ['can_manage_finances'],
+            'logged_permission' => 'can_manage_finances',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Finanzverwaltung.',
+        ],
+        'requiresProjectMemberManagement' => [
+            'permissions' => ['can_manage_project_members', 'can_assign_own_voice_group_to_project'],
+            'logged_permission' => 'can_manage_project_members',
+            'message' => 'Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.',
+        ],
+        'allowVoiceGroupReps' => [
+            'permissions' => ['can_manage_users', 'can_manage_own_voice_group'],
+            'logged_permission' => 'can_manage_own_voice_group',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
+        ],
+        'requiresUserManagement' => [
+            'permissions' => ['can_manage_users'],
+            'logged_permission' => 'can_manage_users',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
+        ],
+    ];
+
+    /**
+     * Die Gates dieser Instanz, in der Reihenfolge von self::GATES.
+     *
+     * @var list<string>
+     */
+    private array $activeGates;
+
     private int $minHierarchyLevel;
-    private bool $allowVoiceGroupReps;
-    private bool $requiresProjectMemberManagement;
-    private bool $requiresFinanceManagement;
-    private bool $requiresMasterDataManagement;
-    private bool $requiresSponsoringManagement;
-    private bool $requiresSponsoringAccess;
-    private bool $requiresSongLibraryManagement;
-    private bool $requiresNewsletterManagement;
-    private bool $requiresMailQueueManagement;
-    private bool $requiresTaskManagement;
-    private bool $requiresAttendanceManagement;
-    private bool $requiresEventManagement;
-    private bool $requiresFinanceRead;
-    private bool $requiresSheetArchiveManagement;
-    private bool $requiresBudgetManagement;
-    private bool $requiresBudgetRead;
-    private bool $requiresBackupManagement;
-    private bool $requiresRoleManagement;
     private LoggerInterface $logger;
 
+    /**
+     * Jeder Schalter trägt den Namen seines Gates in self::GATES; alle
+     * Aufrufstellen in Routes.php übergeben ihn benannt.
+     *
+     * Früher stand hier für jedes Gate ein eigener Wahrheitswert, dessen
+     * Bedeutung allein an der Position hing: Ein Einschub in der Mitte verschob
+     * still die Bedeutung aller folgenden, weshalb neue Schalter ans Ende
+     * gehängt werden mussten - zuletzt sogar hinter den Logger. Ein neues Gate
+     * braucht jetzt einen Eintrag in self::GATES und einen gleichnamigen
+     * Parameter; RoleMiddlewareGateTableFeatureTest weist jede Hälfte ohne die
+     * andere zurück.
+     */
     public function __construct(
-        bool $requiresUserManagement = false,
-        int $minHierarchyLevel = 0,
-        bool $allowVoiceGroupReps = false,
-        bool $requiresProjectMemberManagement = false,
-        bool $requiresFinanceManagement = false,
-        bool $requiresMasterDataManagement = false,
-        bool $requiresSponsoringManagement = false,
-        bool $requiresSongLibraryManagement = false,
         bool $requiresTaskManagement = false,
+        bool $requiresEventManagement = false,
         bool $requiresAttendanceManagement = false,
+        bool $requiresRoleManagement = false,
+        bool $requiresSongLibraryManagement = false,
         bool $requiresNewsletterManagement = false,
         bool $requiresMailQueueManagement = false,
-        bool $requiresFinanceRead = false,
         bool $requiresSheetArchiveManagement = false,
         bool $requiresBudgetManagement = false,
-        bool $requiresBudgetRead = false,
         bool $requiresBackupManagement = false,
-        bool $requiresEventManagement = false,
-        bool $requiresRoleManagement = false,
-        ?LoggerInterface $logger = null,
-        // Neue Schalter gehören ans Ende: mehrere Aufrufer übergeben die
-        // Flags positionsweise, ein Einschub in der Mitte verschöbe still
-        // deren Bedeutung.
-        bool $requiresSponsoringAccess = false
+        bool $requiresBudgetRead = false,
+        bool $requiresSponsoringAccess = false,
+        bool $requiresSponsoringManagement = false,
+        bool $requiresMasterDataManagement = false,
+        bool $requiresFinanceRead = false,
+        bool $requiresFinanceManagement = false,
+        bool $requiresProjectMemberManagement = false,
+        bool $allowVoiceGroupReps = false,
+        bool $requiresUserManagement = false,
+        int $minHierarchyLevel = 0,
+        ?LoggerInterface $logger = null
     ) {
-        $this->requiresUserManagement = $requiresUserManagement;
+        $requestedGates = [
+            'requiresTaskManagement' => $requiresTaskManagement,
+            'requiresEventManagement' => $requiresEventManagement,
+            'requiresAttendanceManagement' => $requiresAttendanceManagement,
+            'requiresRoleManagement' => $requiresRoleManagement,
+            'requiresSongLibraryManagement' => $requiresSongLibraryManagement,
+            'requiresNewsletterManagement' => $requiresNewsletterManagement,
+            'requiresMailQueueManagement' => $requiresMailQueueManagement,
+            'requiresSheetArchiveManagement' => $requiresSheetArchiveManagement,
+            'requiresBudgetManagement' => $requiresBudgetManagement,
+            'requiresBackupManagement' => $requiresBackupManagement,
+            'requiresBudgetRead' => $requiresBudgetRead,
+            'requiresSponsoringAccess' => $requiresSponsoringAccess,
+            'requiresSponsoringManagement' => $requiresSponsoringManagement,
+            'requiresMasterDataManagement' => $requiresMasterDataManagement,
+            'requiresFinanceRead' => $requiresFinanceRead,
+            'requiresFinanceManagement' => $requiresFinanceManagement,
+            'requiresProjectMemberManagement' => $requiresProjectMemberManagement,
+            'allowVoiceGroupReps' => $allowVoiceGroupReps,
+            'requiresUserManagement' => $requiresUserManagement,
+        ];
+
+        // Über self::GATES laufen, nicht über $requestedGates: So bestimmt die
+        // Tabelle die Prüfreihenfolge, nicht die Schreibweise dieser Zuordnung.
+        $this->activeGates = array_values(array_filter(
+            array_keys(self::GATES),
+            static fn (string $gate): bool => $requestedGates[$gate] ?? false
+        ));
+
         $this->minHierarchyLevel = $minHierarchyLevel;
-        $this->allowVoiceGroupReps = $allowVoiceGroupReps;
-        $this->requiresProjectMemberManagement = $requiresProjectMemberManagement;
-        $this->requiresFinanceManagement = $requiresFinanceManagement;
-        $this->requiresMasterDataManagement = $requiresMasterDataManagement;
-        $this->requiresSponsoringManagement = $requiresSponsoringManagement;
-        $this->requiresSponsoringAccess = $requiresSponsoringAccess;
-        $this->requiresSongLibraryManagement = $requiresSongLibraryManagement;
-        $this->requiresTaskManagement = $requiresTaskManagement;
-        $this->requiresAttendanceManagement = $requiresAttendanceManagement;
-        $this->requiresNewsletterManagement = $requiresNewsletterManagement;
-        $this->requiresMailQueueManagement = $requiresMailQueueManagement;
-        $this->requiresFinanceRead = $requiresFinanceRead;
-        $this->requiresSheetArchiveManagement = $requiresSheetArchiveManagement;
-        $this->requiresBudgetManagement = $requiresBudgetManagement;
-        $this->requiresBudgetRead = $requiresBudgetRead;
-        $this->requiresBackupManagement = $requiresBackupManagement;
-        $this->requiresEventManagement = $requiresEventManagement;
-        $this->requiresRoleManagement = $requiresRoleManagement;
         $this->logger = $logger ?? self::$defaultLogger ?? new NullLogger();
     }
 
     /**
      * Setzt den Logger, den alle danach per `new RoleMiddleware(...)` gebauten
      * Instanzen verwenden, sofern ihnen nicht explizit ein eigener Logger
-     * uebergeben wird. Wird einmal aus Routes.php mit dem Container-Logger
+     * übergeben wird. Wird einmal aus Routes.php mit dem Container-Logger
      * aufgerufen, bevor die Routen registriert werden.
      *
-     * `null` setzt den Zustand explizit zurueck (kein Fallback auf den zuletzt
-     * gesetzten Logger) - wichtig fuer Tests, die einen eigenen Logger setzen
-     * und ihn danach wieder entfernen muessen, statt ihn fuer den Rest des
+     * `null` setzt den Zustand explizit zurück (kein Ersatzwert aus dem zuletzt
+     * gesetzten Logger) - wichtig für Tests, die einen eigenen Logger setzen
+     * und ihn danach wieder entfernen müssen, statt ihn für den Rest des
      * PHPUnit-Prozesses stehen zu lassen.
      */
     public static function setDefaultLogger(?LoggerInterface $logger): void
@@ -124,206 +254,18 @@ class RoleMiddleware implements MiddlewareInterface
             return $response->withHeader('Location', '/login')->withStatus(302);
         }
 
-        $canManageUsers = $_SESSION['can_manage_users'] ?? false;
-        $canManageRoles = $_SESSION['can_manage_roles'] ?? false;
-        $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
-        $canReadFinances = $_SESSION['can_read_finances'] ?? false;
-        $canManageFinances = $_SESSION['can_manage_finances'] ?? false;
-        $canManageMasterData = $_SESSION['can_manage_master_data'] ?? false;
-        $canManageSponsoring = $_SESSION['can_manage_sponsoring'] ?? false;
-        $canCreateOwnSponsorships = $_SESSION['can_create_own_sponsorships'] ?? false;
-        $canManageSongLibrary = $_SESSION['can_manage_song_library'] ?? false;
-        $canManageNewsletters = $_SESSION['can_manage_newsletters'] ?? false;
-        $canManageMailQueue = $_SESSION['can_manage_mail_queue'] ?? false;
-        $canManageSheetArchive = $_SESSION['can_manage_sheet_archive'] ?? false;
-        $canManageBudget = $_SESSION['can_manage_budget'] ?? false;
-        $canManageTasks = $_SESSION['can_manage_tasks'] ?? false;
-        $canManageAttendance = $_SESSION['can_manage_attendance'] ?? false;
-        $canManageAttendanceAll = $_SESSION['can_manage_attendance_all'] ?? false;
-        $canManageEvents = $_SESSION['can_manage_events'] ?? false;
-        $canManageBackups = $_SESSION['can_manage_backups'] ?? false;
-        $canManageOwnVoiceGroup = $_SESSION['can_manage_own_voice_group'] ?? false;
-        $canAssignOwnVoiceGroupToProject = $_SESSION['can_assign_own_voice_group_to_project'] ?? false;
+        // Jedes Gate wird eigenständig geprüft: früher hat allowVoiceGroupReps die
+        // Prüfung auf can_manage_users komplett übersprungen, sodass eine Kombination
+        // der Schalter stillschweigend Rechte verschenkt hätte.
+        foreach ($this->activeGates as $gate) {
+            $definition = self::GATES[$gate];
+
+            if (!$this->hasAnyPermission($definition['permissions'])) {
+                return $this->deny($request, $definition['message'], $definition['logged_permission']);
+            }
+        }
+
         $userLevel = (int) ($_SESSION['role_level'] ?? 0);
-
-        if ($this->requiresTaskManagement && !$canManageTasks) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Aufgabenverwaltung.',
-                'can_manage_tasks'
-            );
-        }
-
-        // Terminverwaltung ist bewusst ohne Admin-Fallback: sie soll vergeben werden koennen,
-        // ohne gleichzeitig Mitglieder-, Rollen- und Projektverwaltung mitzuliefern.
-        if ($this->requiresEventManagement && !$canManageEvents) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Terminverwaltung.',
-                'can_manage_events'
-            );
-        }
-
-        // Die Anwesenheitsliste verlangt eines der beiden Anwesenheitsrechte; den Umfang
-        // (eigene Stimmgruppe oder alle Mitglieder) setzt der AttendanceScopeService durch.
-        // can_manage_own_voice_group deckt die Mitgliederpflege und Vertretungs-Anmeldungen
-        // der eigenen Stimmgruppe ab, nicht die Anwesenheitsliste selbst.
-        if ($this->requiresAttendanceManagement && !$canManageAttendance && !$canManageAttendanceAll) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.',
-                'can_manage_attendance'
-            );
-        }
-
-        if ($this->requiresRoleManagement && !$canManageRoles) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Rollenverwaltung.',
-                'can_manage_roles'
-            );
-        }
-
-        if ($this->requiresSongLibraryManagement && !$canManageSongLibrary) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Repertoire-Verwaltung.',
-                'can_manage_song_library'
-            );
-        }
-
-        if ($this->requiresNewsletterManagement && !$canManageNewsletters) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Newsletter-Verwaltung.',
-                'can_manage_newsletters'
-            );
-        }
-
-        if ($this->requiresMailQueueManagement && !$canManageMailQueue) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Mailversand-Verwaltung.',
-                'can_manage_mail_queue'
-            );
-        }
-
-        if ($this->requiresSheetArchiveManagement && !$canManageSheetArchive) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Notenarchiv-Verwaltung.',
-                'can_manage_sheet_archive'
-            );
-        }
-
-        if ($this->requiresBudgetManagement && !$canManageBudget) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetverwaltung.',
-                'can_manage_budget'
-            );
-        }
-
-        if ($this->requiresBackupManagement && !$canManageBackups) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Backup-Verwaltung.',
-                'can_manage_backups'
-            );
-        }
-
-        // Budget is an aggregated view of finance data, so finance readers may view it
-        // read-only even without budget management rights.
-        if (
-            $this->requiresBudgetRead
-            && !$canReadFinances && !$canManageFinances && !$canManageBudget
-        ) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Budgetansicht.',
-                'can_read_finances'
-            );
-        }
-
-        // Lesen und eigene Vereinbarungen: hier reicht eines der beiden Rechte,
-        // den Umfang setzt anschließend die SponsoringPolicy im Controller
-        // durch - dasselbe Muster wie bei den Projektmitglieder-Routen.
-        if (
-            $this->requiresSponsoringAccess
-            && !$canManageSponsoring && !$canCreateOwnSponsorships
-        ) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung für den Sponsoring-Bereich.',
-                'can_create_own_sponsorships'
-            );
-        }
-
-        if ($this->requiresSponsoringManagement && !$canManageSponsoring) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Sponsoring-Verwaltung.',
-                'can_manage_sponsoring'
-            );
-        }
-
-        if ($this->requiresMasterDataManagement && !$canManageMasterData) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Stammdatenverwaltung.',
-                'can_manage_master_data'
-            );
-        }
-
-        if ($this->requiresFinanceRead && !$canReadFinances && !$canManageFinances) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Finanzansicht.',
-                'can_read_finances'
-            );
-        }
-
-        if ($this->requiresFinanceManagement && !$canManageFinances) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung zur Finanzverwaltung.',
-                'can_manage_finances'
-            );
-        }
-
-        // Das voice-group-beschraenkte Recht teilt sich die Projektmitglieder-Routen mit dem
-        // breiten Recht; den Umfang (alle Stimmgruppen oder nur die eigene) setzt anschliessend
-        // die ProjectMemberPolicy im Controller durch.
-        if (
-            $this->requiresProjectMemberManagement
-            && !$canManageProjectMembers && !$canAssignOwnVoiceGroupToProject
-        ) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Keine Berechtigung zur Projektmitgliederverwaltung.',
-                'can_manage_project_members'
-            );
-        }
-
-        // Jedes Gate wird eigenstaendig geprueft: frueher hat allowVoiceGroupReps die beiden
-        // folgenden Pruefungen komplett uebersprungen, sodass eine Kombination der Flags
-        // stillschweigend Rechte verschenkt haette.
-        if ($this->allowVoiceGroupReps && !$canManageUsers && !$canManageOwnVoiceGroup) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
-                'can_manage_own_voice_group'
-            );
-        }
-
-        if ($this->requiresUserManagement && !$canManageUsers) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
-                'can_manage_users'
-            );
-        }
-
         if ($this->minHierarchyLevel > 0 && $userLevel < $this->minHierarchyLevel) {
             return $this->deny(
                 $request,
@@ -336,9 +278,27 @@ class RoleMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Einziger Ausgang fuer alle Rechte-Abweisungen dieser Middleware: baut die
+     * Ein einziges der genannten Rechte genügt. Ein fehlender Eintrag zählt
+     * wie ein abgeschaltetes Recht - genau wie die früheren Einzelabfragen mit
+     * `$_SESSION[...] ?? false`.
+     *
+     * @param list<string> $permissions
+     */
+    private function hasAnyPermission(array $permissions): bool
+    {
+        foreach ($permissions as $permission) {
+            if (!empty($_SESSION[$permission])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Einziger Ausgang für alle Rechte-Abweisungen dieser Middleware: baut die
      * 403-Antwort und protokolliert authz.denied genau einmal pro Abweisung.
-     * Benutzerkennung und IP kommen ueber den Request-Kontext und werden hier
+     * Benutzerkennung und IP kommen über den Request-Kontext und werden hier
      * nicht wiederholt.
      */
     private function deny(Request $request, string $message, string $permission): Response
@@ -350,9 +310,9 @@ class RoleMiddleware implements MiddlewareInterface
             'permission' => $permission,
         ]);
 
-        // Die Oberflaeche ruft rechtegeschuetzte Routen per fetch auf und wertet JSON aus.
-        // Als text/plain blieb der eigentliche Grund unsichtbar: newsletters.js pruefte den
-        // Inhaltstyp und fiel auf ein pauschales "Speichern fehlgeschlagen." zurueck.
+        // Die Oberfläche ruft rechtegeschützte Routen per fetch auf und wertet JSON aus.
+        // Als text/plain blieb der eigentliche Grund unsichtbar: newsletters.js prüfte den
+        // Inhaltstyp und fiel auf ein pauschales "Speichern fehlgeschlagen." zurück.
         // `error` liest newsletters.js, `message` liest users.js - beide tragen denselben
         // Text, damit kein Aufrufer angepasst werden muss.
         if ($this->expectsJson($request)) {
@@ -377,8 +337,8 @@ class RoleMiddleware implements MiddlewareInterface
 
     /**
      * Gleiche Erkennung wie in den Controllern (siehe `expectsJson` dort): die
-     * Oberflaeche schickt je nach Aufrufstelle nur `X-Requested-With` (etwa
-     * newsletters.js) oder zusaetzlich `Accept` (etwa users.js).
+     * Oberfläche schickt je nach Aufrufstelle nur `X-Requested-With` (etwa
+     * newsletters.js) oder zusätzlich `Accept` (etwa users.js).
      */
     private function expectsJson(Request $request): bool
     {

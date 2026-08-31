@@ -6,6 +6,7 @@ namespace App\Middleware;
 
 use App\Models\AppSetting;
 use App\Services\MailDeliveryService;
+use App\Util\MailQueueTriggerMode;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -32,8 +33,7 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
     private function processQueueIfDue(): void
     {
         try {
-            $triggerMode = $this->getSetting('mailqueue_trigger_mode', 'hybrid');
-            if (!in_array($triggerMode, ['hybrid', 'opportunistic'], true)) {
+            if (!MailQueueTriggerMode::allowsOpportunisticWork()) {
                 return;
             }
 

@@ -243,9 +243,16 @@ class MailQueueFeatureTest extends TestCase
         $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/MailQueueProcessingMiddleware.php');
         $pipeline = file_get_contents(dirname(__DIR__) . '/../src/Middleware.php');
 
+        $triggerMode = file_get_contents(dirname(__DIR__) . '/../src/Util/MailQueueTriggerMode.php');
+
         $this->assertIsString($middleware);
         $this->assertIsString($pipeline);
-        $this->assertStringContainsString('mailqueue_trigger_mode', $middleware);
+        $this->assertIsString($triggerMode);
+        // Die Betriebsart liest seit der Vereinheitlichung MailQueueTriggerMode; dort
+        // steht auch der Einstellungsschlüssel. Die drei Middlewares, die daran
+        // hängen, fragen nur noch diese eine Stelle.
+        $this->assertStringContainsString('MailQueueTriggerMode::allowsOpportunisticWork()', $middleware);
+        $this->assertStringContainsString('mailqueue_trigger_mode', $triggerMode);
         $this->assertStringContainsString('mailqueue_opportunistic_rate_limit', $middleware);
         $this->assertStringContainsString('mailqueue_batch_size', $middleware);
         $this->assertStringContainsString('mailqueue_last_opportunistic_run_at', $middleware);

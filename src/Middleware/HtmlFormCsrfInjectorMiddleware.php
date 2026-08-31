@@ -107,18 +107,19 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
     /**
      * Entscheidet, ob der Rumpf überhaupt eingelesen und umgeschrieben werden darf.
      *
-     * Eine fehlende Typangabe bedeutet hier "Seite": `Slim\Views\Twig::render()`
-     * schreibt nur in den Rumpf und setzt keinen `Content-Type`, deshalb kommt die
-     * überwiegende Mehrheit der gerenderten Seiten ohne Kopfzeile an. Diesen Fall zu
-     * überspringen würde jedem Formular der Anwendung den Token nehmen. Ausgeschlossen
-     * werden stattdessen die Antworten, die erkennbar keine Seite sind: ein gesetzter
-     * Nicht-HTML-Typ und jede Auslieferung mit `Content-Disposition` - dort ist der
-     * Rumpf eine Datei, die sonst nur zum Verwerfen vollständig in den Speicher ginge.
+     * Verlangt wird eine ausgewiesene HTML-Antwort. Gerenderte Seiten erfüllen das:
+     * `App\Views\HtmlTwig` setzt den `Content-Type`, den `Slim\Views\Twig::render()`
+     * selbst offen lässt. Früher galt hier eine fehlende Typangabe als "Seite" - dann
+     * musste jede untypisierte Antwort vollständig in den Speicher, nur um darin nach
+     * Formularen zu suchen, auch große Ausgaben, die gar keine Seite sind.
+     *
+     * Ausgenommen bleibt jede Auslieferung mit `Content-Disposition`: Dort ist der
+     * Rumpf eine Datei zum Herunterladen, auch wenn sie HTML enthält.
      */
     private function isRewritableHtml(Response $response): bool
     {
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
-        if ($contentType !== '' && !str_contains($contentType, 'text/html')) {
+        if (!str_contains($contentType, 'text/html')) {
             return false;
         }
 

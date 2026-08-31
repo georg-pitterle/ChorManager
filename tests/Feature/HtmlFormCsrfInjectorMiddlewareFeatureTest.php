@@ -39,7 +39,7 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $this->assertStringContainsString((string) $_SESSION[Csrf::SESSION_KEY], $body);
     }
 
-    public function testInjectsIntoResponsesWithoutContentTypeBecauseTwigSetsNone(): void
+    public function testSkipsResponsesWithoutContentTypeInsteadOfBufferingThem(): void
     {
         $_SESSION = [];
 
@@ -48,8 +48,11 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
-                // Genau so kommt eine gerenderte Seite an: Slim\Views\Twig::render()
-                // schreibt nur in den Rumpf und setzt keinen Content-Type.
+                // Fehlt die Typangabe, ist die Antwort keine gerenderte Seite: Seiten
+                // kommen über App\Views\HtmlTwig und weisen sich selbst als text/html
+                // aus. Alles ohne Typangabe komplett in den Speicher zu holen, nur um
+                // darin nach Formularen zu suchen, wäre reine Verschwendung - auch bei
+                // großen Ausgaben, die gar keine Seite sind.
                 $response = new Response();
                 $response->getBody()->write('<form action="/profile" method="post"><button>Save</button></form>');
                 return $response;
@@ -58,7 +61,7 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
 
         $response = $middleware->process($request, $handler);
 
-        $this->assertStringContainsString('name="_csrf"', (string) $response->getBody());
+        $this->assertStringNotContainsString('name="_csrf"', (string) $response->getBody());
     }
 
     public function testSkipsDownloadsAnnouncedByContentDisposition(): void

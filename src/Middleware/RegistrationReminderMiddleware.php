@@ -7,6 +7,7 @@ namespace App\Middleware;
 use App\Models\AppSetting;
 use App\Services\RegistrationReminderService;
 use App\Util\AppUrlResolver;
+use App\Util\MailQueueTriggerMode;
 use Carbon\Carbon;
 use Closure;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -45,11 +46,7 @@ class RegistrationReminderMiddleware implements MiddlewareInterface
     private function processIfDue(Request $request): void
     {
         try {
-            $triggerMode = (string) (AppSetting::query()
-                ->where('setting_key', 'mailqueue_trigger_mode')
-                ->value('setting_value') ?? 'hybrid');
-
-            if (!in_array($triggerMode, ['hybrid', 'opportunistic'], true)) {
+            if (!MailQueueTriggerMode::allowsOpportunisticWork()) {
                 return;
             }
 
