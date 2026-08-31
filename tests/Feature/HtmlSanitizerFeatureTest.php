@@ -73,4 +73,48 @@ class HtmlSanitizerFeatureTest extends TestCase
 
         $this->assertStringNotContainsString('javascript:', strtolower($output));
     }
+
+    /**
+     * Beim Einfügen aus Word bringt der Editor <span>-Auszeichnungen mit. Sie
+     * sind nicht erlaubt und wurden bisher escaped statt entfernt - der
+     * Aufgaben-Detail rendert die Beschreibung roh und zeigte deshalb den
+     * Tag-Text an Stelle des Inhalts.
+     */
+    public function testSanitizeTaskHtmlDropsDisallowedTagsInsteadOfEscapingThem(): void
+    {
+        $sanitizer = new HtmlSanitizer();
+        $input = '<p><span style="font-size: 12.0pt; line-height: 107%;">- App</span></p>';
+
+        $output = $sanitizer->sanitizeTaskHtml($input);
+
+        $this->assertStringNotContainsString('&lt;span', $output);
+        $this->assertStringNotContainsString('<span', $output);
+        $this->assertStringContainsString('- App', $output);
+    }
+
+    public function testSanitizeNewsletterHtmlDropsDisallowedTagsInsteadOfEscapingThem(): void
+    {
+        $sanitizer = new HtmlSanitizer();
+        $input = '<p><font size="3">Grußwort</font></p>';
+
+        $output = $sanitizer->sanitizeNewsletterHtml($input);
+
+        $this->assertStringNotContainsString('&lt;font', $output);
+        $this->assertStringNotContainsString('<font', $output);
+        $this->assertStringContainsString('Grußwort', $output);
+    }
+
+    /**
+     * Ein entfernter Script-Block darf seinen Inhalt nicht als sichtbaren Text
+     * zurücklassen.
+     */
+    public function testSanitizeTaskHtmlRemovesScriptContentCompletely(): void
+    {
+        $sanitizer = new HtmlSanitizer();
+
+        $output = $sanitizer->sanitizeTaskHtml('<p>Safe</p><script>alert(1)</script>');
+
+        $this->assertStringNotContainsString('alert(1)', $output);
+        $this->assertStringContainsString('<p>Safe</p>', $output);
+    }
 }

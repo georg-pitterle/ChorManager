@@ -144,7 +144,12 @@ class HtmlSanitizer
 
         $config = HTMLPurifier_Config::createDefault();
         $config->set('Core.Encoding', 'UTF-8');
-        $config->set('Core.EscapeInvalidTags', true);
+        // Nicht erlaubte Tags werden entfernt, nicht escaped: Escapen ließ die
+        // Auszeichnung als sichtbaren Tag-Text stehen (z. B. <span> aus einem
+        // Word-Einfügen), weil Aufgaben- und Newsletter-Inhalte roh gerendert
+        // werden. Der Inhalt der Tags bleibt erhalten, Script- und Style-Blöcke
+        // entfernt HTMLPurifier samt Inhalt.
+        $config->set('Core.EscapeInvalidTags', false);
         $config->set('Cache.SerializerPath', $cacheDir);
         $config->set('Attr.EnableID', false);
         $config->set('HTML.TargetBlank', true);
