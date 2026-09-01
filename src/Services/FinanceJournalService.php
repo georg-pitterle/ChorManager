@@ -9,6 +9,7 @@ use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\FinanceRevision;
 use App\Models\Setting;
+use App\Models\User;
 use Carbon\Carbon;
 
 /**
@@ -369,9 +370,16 @@ class FinanceJournalService
      */
     private function write(?int $financeId, ?int $userId, string $action, array $changes): void
     {
+        // Der Name wird beim Schreiben festgehalten, nicht beim Anzeigen
+        // nachgeschlagen: Nach dem Löschen des Mitglieds gäbe es sonst nichts
+        // mehr nachzuschlagen, und der Eintrag verlöre seine handelnde Person.
+        $actor = $userId === null ? null : User::find($userId);
+
         FinanceRevision::create([
             'finance_id' => $financeId,
             'user_id' => $userId,
+            'user_first_name' => $actor?->first_name,
+            'user_last_name' => $actor?->last_name,
             'action' => $action,
             'change_set' => $changes === [] ? null : json_encode($changes, JSON_UNESCAPED_UNICODE),
             'created_at' => Carbon::now()->format('Y-m-d H:i:s'),

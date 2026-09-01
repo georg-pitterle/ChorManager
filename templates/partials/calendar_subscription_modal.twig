@@ -3,12 +3,13 @@
 
     Erwartet `calendar_subscription` mit:
       exists   - ob für das Mitglied ein Abo aktiv ist
-      url      - die Abo-Adresse, aber nur wenn sie zeigbar ist: direkt nach dem
-                 Erzeugen oder bei einem Altbestand aus der Zeit vor dem Hashen.
+      url      - die Abo-Adresse, aber nur direkt nach dem Erzeugen. Gespeichert
+                 ist seit 20260901122000 ausnahmslos nur ihre Prüfsumme, sie lässt
+                 sich danach also nicht mehr hervorholen.
       task_url - die zweite Adresse für die Aufgaben, nur bei der Profileinstellung
                  "eigenes Abo" gesetzt.
       autoshow - ob sich das Fenster beim Laden der Seite von selbst öffnen soll;
-                 nur beim frischen Erzeugen wahr, nie beim Altbestand.
+                 nur beim frischen Erzeugen wahr.
     Und `redirect_to` - Pfad, auf den nach dem Erzeugen zurückgesprungen wird.
 #}
 {% set _subscription_url = calendar_subscription.url|default(null) %}

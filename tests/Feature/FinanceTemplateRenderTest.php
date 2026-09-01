@@ -10,6 +10,7 @@ use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceRevision;
 use App\Models\Setting;
+use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\BankStatementImportService;
@@ -224,6 +225,40 @@ final class FinanceTemplateRenderTest extends TestCase
         $this->assertStringContainsString('100,00 €', $html);
         $this->assertStringContainsString('150,00 €', $html);
         $this->assertStringNotContainsString('amount', $html);
+    }
+
+    /**
+     * Der Name der handelnden Person muss wirklich im HTML stehen.
+     *
+     * Ohne diese Prüfung bliebe die Falle aus dem Klassenkommentar unbemerkt:
+     * Griffe das Template den Schnappschuss über eine parameterlose Methode ab,
+     * hielte Eloquent sie für eine Relation. Und fiele die Auflösung still aus,
+     * stünde in der Spalte einfach "System" - die übrigen Journal-Prüfungen
+     * blieben trotzdem grün.
+     */
+    public function testJournalShowsTheActorName(): void
+    {
+        $user = User::create([
+            'email' => 'journal-render-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'first_name' => 'Notburga',
+            'last_name' => 'Schöpfer',
+            'is_active' => 1,
+        ]);
+
+        $booking = $this->booking(5011, '2025-10-01', 'expense', '25.00');
+        (new FinanceJournalService())->recordCreate($booking, (int) $user->id);
+
+        // Das Mitglied verlässt den Chor: Genau dafür steht der Name in der Zeile.
+        $user->delete();
+
+        $request = $this->makeRequest('GET', '/finances/journal');
+        $response = $this->financeController('/finances/journal')->journal($request, $this->makeResponse());
+        $html = (string) $response->getBody();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('Notburga', $html);
+        $this->assertStringContainsString('Schöpfer', $html);
     }
 
     public function testJournalOmitsThePreviousValueWhenThereIsNone(): void

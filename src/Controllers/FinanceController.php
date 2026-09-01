@@ -732,7 +732,9 @@ class FinanceController
      */
     public function journal(Request $request, Response $response): Response
     {
-        $revisions = FinanceRevision::with(['finance', 'user'])
+        // Ohne `user`: Der angezeigte Name steht seit 20260901121000 in der Zeile
+        // selbst, das Mitglied nachzuladen beantwortet keine Frage mehr.
+        $revisions = FinanceRevision::with(['finance'])
             ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc')
             ->limit(500)

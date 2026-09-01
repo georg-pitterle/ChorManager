@@ -78,8 +78,9 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Benutzer">
-                                            {% if revision.user %}
-                                                {{ revision.user|person_name }}
+                                            {% set actor = revision.actor %}
+                                            {% if actor %}
+                                                {{ actor|person_name }}
                                             {% else %}
                                                 <span class="text-muted">System</span>
                                             {% endif %}

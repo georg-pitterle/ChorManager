@@ -1028,33 +1028,36 @@ class DevSeedService
             return;
         }
 
-        // Die Altbestands-Adresse ist die einzige, die der Bericht ausgeben kann -
-        // alle anderen liegen nur als Pruefsumme vor. Ihr Besitzer bekommt
-        // deshalb das getrennte Aufgaben-Abo, damit beide Links im Dev etwas
-        // liefern; auf "gemeinsam" umstellen ist im Profil ein Klick.
+        // Gespeichert wird nur der Hash. Den Klartext kennt hier aber der Seed
+        // selbst, weil er ihn erzeugt - der Bericht kann die Adresse deshalb
+        // ausgeben, ohne dass sie in der Datenbank steht.
+        //
+        // Ihr Besitzer bekommt das getrennte Aufgaben-Abo, damit beide Links im
+        // Dev etwas liefern; auf "gemeinsam" umstellen ist im Profil ein Klick.
         $users[0]->calendar_task_feed = User::CALENDAR_TASK_FEED_SEPARATE;
         $users[0]->save();
 
-        $legacyToken = bin2hex(random_bytes(32));
+        $token = bin2hex(random_bytes(32));
         CalendarSubscriptionToken::create([
             'user_id' => (int) $users[0]->id,
-            'token' => $legacyToken,
-            'token_hash' => null,
+            'token_hash' => CalendarSubscriptionService::hashToken($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
         $this->report['counts']['calendar_subscription_tokens']++;
-        $this->report['calendar_subscription']['legacy_url'] = '/events/export/' . $legacyToken . '.ics';
-        // Derselbe Token bedient beide Feeds - der Aufgaben-Link gehoert deshalb
-        // mit in den Bericht, sonst muesste man ihn zum Ausprobieren abtippen.
-        $this->report['calendar_subscription']['legacy_task_url'] = '/tasks/export/' . $legacyToken . '.ics';
+        $this->report['calendar_subscription']['url'] = '/events/export/' . $token . '.ics';
+        // Derselbe Token bedient beide Feeds - der Aufgaben-Link gehört deshalb
+        // mit in den Bericht, sonst müsste man ihn zum Ausprobieren abtippen.
+        $this->report['calendar_subscription']['task_url'] = '/tasks/export/' . $token . '.ics';
 
         if (!isset($users[1])) {
             return;
         }
 
+        // Ein zweites Abo, dessen Klartext auch der Seed nicht mehr ausgibt: So
+        // ist im Dev der Normalfall vertreten, in dem die Oberfläche das Abo nur
+        // als vorhanden meldet und das Neuerzeugen anbietet.
         CalendarSubscriptionToken::create([
             'user_id' => (int) $users[1]->id,
-            'token' => null,
             'token_hash' => CalendarSubscriptionService::hashToken(bin2hex(random_bytes(32))),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
