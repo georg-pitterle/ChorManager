@@ -639,8 +639,12 @@ class EventController
             return $response->withStatus(404);
         }
 
+        // Archivierte Mitglieder verlieren jeden Zugang - die Anmeldung über
+        // UserQuery::findByEmail() ebenso wie die Angemeldet-bleiben-Kennung.
+        // Der Abo-Token darf da nicht die Ausnahme sein: Er kommt ohne Anmeldung
+        // aus und lieferte sonst auf unbestimmte Zeit den ganzen Chorkalender.
         $user = User::find((int) $subscription->user_id);
-        if (!$user) {
+        if (!$user || !(bool) $user->is_active) {
             return $response->withStatus(404);
         }
 

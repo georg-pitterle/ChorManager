@@ -192,9 +192,15 @@ class DownloadController
         $start = $rawStart === '' ? 0 : (int) $rawStart;
         $end = $rawEnd === '' ? $fileSize - 1 : (int) $rawEnd;
 
-        if ($start < 0 || $end < $start || $start >= $fileSize || $end >= $fileSize) {
+        if ($start < 0 || $end < $start || $start >= $fileSize) {
             return null;
         }
+
+        // RFC 7233, Abschnitt 2.1: Ein Ende jenseits der Datei ist kein Fehler,
+        // es meint den Rest der Datei. Audio-Player fordern feste Blöcke an
+        // ("bytes=0-1048575"); als 416 beantwortet, begann die Wiedergabe einer
+        // kürzeren Datei gar nicht erst.
+        $end = min($end, $fileSize - 1);
 
         return [$start, $end];
     }
