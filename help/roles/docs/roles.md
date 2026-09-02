@@ -61,19 +61,15 @@ Dieses Recht ist die auf die eigene Stimmgruppe beschränkte Variante der Projek
 
 Mit diesem Recht darf die Rolle Termine anlegen, bearbeiten und löschen, öffentliche Bemerkungen zu Terminen moderieren und die verfügbaren Termin-Typen pflegen. Das macht diese Rolle zur zentralen Ansprechperson für die Terminplanung des Chors.
 
-### Anwesenheit/Anmeldung verwalten (eigene Stimmgruppe)
-
-Dieses Recht erlaubt der Rolle, Anwesenheiten und Anmeldungen für die eigene Stimmgruppe zu erfassen und nachträglich zu aktualisieren. Es ist unabhängig von der Terminverwaltung nutzbar, sodass z. B. eine Stimmgruppenleitung nur Anwesenheiten der eigenen Gruppe pflegen kann, ohne Termine selbst anlegen zu dürfen oder Zugriff auf andere Stimmgruppen zu erhalten.
-
-Sichtbar sind dabei nur Termine, zu deren Zielgruppe man selbst gehört oder in denen mindestens ein Mitglied der eigenen Stimmgruppe eingeladen ist – Termine ganz anderer Gruppen tauchen weder in der Anwesenheits- noch in der Anmeldeliste auf.
-
 ### Anwesenheit/Anmeldung verwalten (alle Mitglieder)
 
-Dieses Recht erweitert das vorige: Die Rolle sieht und pflegt Anwesenheiten und Anmeldungen für alle Mitglieder und für jeden Termin, nicht nur für die eigene Stimmgruppe. Es eignet sich für Personen mit Überblick über den gesamten Chor, z. B. für die Terminkoordination.
+Dieses Recht erweitert **„Eigene Stimmgruppe verwalten"**: Die Rolle sieht und pflegt Anwesenheiten und Anmeldungen für alle Mitglieder und für jeden Termin, nicht nur für die eigene Stimmgruppe. Es eignet sich für Personen mit Überblick über den gesamten Chor, z. B. für die Terminkoordination.
 
 ### Eigene Stimmgruppe verwalten
 
-Ist dieses Recht aktiv, darf die Rolle die Mitglieder der eigenen Stimmgruppe pflegen (anlegen, bearbeiten, archivieren und wieder herstellen) und für sie Anmeldungen als Vertretung eintragen – unabhängig vom Hierarchie-Level der Rolle. Damit können auch Rollen mit niedrigem Level Verantwortung für ihre eigene Gruppe übernehmen, ohne Zugriff auf andere Stimmgruppen zu erhalten. Für die Anwesenheitsliste selbst braucht es zusätzlich eines der beiden Anwesenheitsrechte.
+Ist dieses Recht aktiv, darf die Rolle die Mitglieder der eigenen Stimmgruppe pflegen (anlegen, bearbeiten, archivieren und wieder herstellen), für sie Anmeldungen als Vertretung eintragen und ihre Anwesenheitsliste führen – unabhängig vom Hierarchie-Level der Rolle. Damit können auch Rollen mit niedrigem Level Verantwortung für ihre eigene Gruppe übernehmen, ohne Zugriff auf andere Stimmgruppen zu erhalten.
+
+Sichtbar sind dabei nur Termine, zu deren Zielgruppe man selbst gehört oder in denen mindestens ein Mitglied der eigenen Stimmgruppe eingeladen ist – Termine ganz anderer Gruppen tauchen weder in der Anwesenheits- noch in der Anmeldeliste auf.
 
 Zwei Dinge bleiben bewusst ausgenommen: Die **E-Mail-Adresse** eines fremden Kontos lässt sich damit nicht ändern (das Feld wird nur lesend angezeigt), und die **Einladungs-E-Mail** lässt sich nicht auslösen. Beides zusammen ergäbe einen Weg, ein fremdes Konto zu übernehmen: Adresse umbiegen, Einladung darauf schicken, Passwort neu setzen. Wer das braucht, benötigt **„Mitglieder verwalten"** bzw. **„Mitglieder editieren erlauben"**. Dieselbe Grenze gilt schon für **„Projektmitglieder verwalten"**.
 

@@ -11,6 +11,7 @@ class UploadValidator
     // Size constants in bytes
     public const MAX_IMAGE_SIZE = 2 * 1024 * 1024;           // 2 MB
     public const MAX_NON_IMAGE_SIZE = 10 * 1024 * 1024;      // 10 MB
+    public const MAX_AUDIO_SIZE = 30 * 1024 * 1024;          // 30 MB
 
     // Image MIME types allowed
     private static array $imageMimeTypes = [
@@ -18,6 +19,20 @@ class UploadValidator
         'image/png',
         'image/webp',
         'image/gif',
+    ];
+
+    /**
+     * Übungsaufnahmen am Lied. Eigene Grenze, weil die zehn MB für sonstige
+     * Dateien für eine Probeaufnahme nicht reichen - eine Stunde Chorprobe als
+     * MP3 liegt darüber. Was hier steht, gibt zugleich vor, was
+     * DownloadController streamen darf; beides auseinanderlaufen zu lassen,
+     * hatte den Abspieler auf der Download-Seite unerreichbar gemacht.
+     */
+    private static array $audioMimeTypes = [
+        'audio/mpeg',
+        'audio/midi',
+        'audio/x-midi',
+        'application/x-midi',
     ];
 
     // Non-image (document) MIME types allowed
@@ -93,12 +108,13 @@ class UploadValidator
             ];
         }
 
-        $isImage = self::isImageMimeType($mimeType);
-        $limit = $isImage ? self::MAX_IMAGE_SIZE : self::MAX_NON_IMAGE_SIZE;
-        $limitMB = $isImage ? 2 : 10;
+        [$limit, $limitMB, $type] = match (true) {
+            self::isImageMimeType($mimeType) => [self::MAX_IMAGE_SIZE, 2, 'Bilddatei'],
+            self::isAudioMimeType($mimeType) => [self::MAX_AUDIO_SIZE, 30, 'Audiodatei'],
+            default => [self::MAX_NON_IMAGE_SIZE, 10, 'Datei'],
+        };
 
         if ($sizeBytes > $limit) {
-            $type = $isImage ? 'Bilddatei' : 'Datei';
             return [
                 'valid' => false,
                 'error' => sprintf(
@@ -120,6 +136,14 @@ class UploadValidator
     public static function isImageMimeType(string $mimeType): bool
     {
         return in_array(self::normalizeMimeType($mimeType), self::$imageMimeTypes, true);
+    }
+
+    /**
+     * Check if a MIME type is a playable rehearsal recording.
+     */
+    public static function isAudioMimeType(string $mimeType): bool
+    {
+        return in_array(self::normalizeMimeType($mimeType), self::$audioMimeTypes, true);
     }
 
     public static function isAllowedMimeType(string $mimeType): bool
@@ -185,10 +209,18 @@ class UploadValidator
     }
 
     /**
+     * Get list of allowed audio MIME types.
+     */
+    public static function getAudioMimeTypes(): array
+    {
+        return self::$audioMimeTypes;
+    }
+
+    /**
      * Get all allowed MIME types in one array.
      */
     public static function getAllowedMimeTypes(): array
     {
-        return array_merge(self::$imageMimeTypes, self::$nonImageMimeTypes);
+        return array_merge(self::$imageMimeTypes, self::$nonImageMimeTypes, self::$audioMimeTypes);
     }
 }

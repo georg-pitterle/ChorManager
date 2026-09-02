@@ -26,7 +26,7 @@
             </div>
 
             <div class="dashboard-action-grid">
-                {% if session.can_manage_attendance or session.can_manage_attendance_all %}
+                {% if session.can_manage_own_voice_group or session.can_manage_attendance_all %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
                             <p class="dashboard-panel__eyebrow">Organisation</p>

@@ -5,7 +5,7 @@
 // je nach FEATURE_*-Env 404 und würden den Test umgebungsabhängig machen.
 export const PROTECTED_ROUTES = [
     { path: '/users', requires: ['can_manage_users', 'can_manage_own_voice_group'] },
-    { path: '/attendance', requires: ['can_manage_attendance', 'can_manage_attendance_all'] },
+    { path: '/attendance', requires: ['can_manage_own_voice_group', 'can_manage_attendance_all'] },
     { path: '/event-types', requires: ['can_manage_events'] },
     { path: '/roles', requires: ['can_manage_roles'] },
     { path: '/settings', requires: ['can_manage_master_data'] },

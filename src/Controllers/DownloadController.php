@@ -10,20 +10,28 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Util\DownloadFileName;
+use App\Util\UploadValidator;
 
 class DownloadController
 {
     private Twig $view;
-    private array $streamableMimeTypes = [
-        'audio/mpeg',
-        'audio/midi',
-        'audio/x-midi',
-        'application/x-midi',
-    ];
 
     public function __construct(Twig $view)
     {
         $this->view = $view;
+    }
+
+    /**
+     * Was der Abspieler auf der Download-Seite abspielen darf, ist genau das,
+     * was der Upload durchlässt. Eine zweite Liste an dieser Stelle war der
+     * Grund, warum der Abspieler ins Leere lief: Sie führte MP3 und MIDI, der
+     * UploadValidator kannte kein einziges Audioformat.
+     *
+     * @return list<string>
+     */
+    public static function streamableMimeTypes(): array
+    {
+        return UploadValidator::getAudioMimeTypes();
     }
 
     public function index(Request $request, Response $response): Response
@@ -97,7 +105,7 @@ class DownloadController
         }
 
         $mimeType = strtolower(trim((string) $attachment->mime_type));
-        if (!in_array($mimeType, $this->streamableMimeTypes, true)) {
+        if (!in_array($mimeType, self::streamableMimeTypes(), true)) {
             $response->getBody()->write('Dateityp nicht fuer Streaming freigegeben.');
             return $response->withStatus(415);
         }

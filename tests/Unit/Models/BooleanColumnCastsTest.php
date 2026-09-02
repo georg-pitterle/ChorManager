@@ -44,7 +44,7 @@ final class BooleanColumnCastsTest extends TestCase
 
     public function testAlleRechteSindErfasst(): void
     {
-        self::assertCount(21, self::rolePermissionProvider(), 'Ein neues Recht braucht auch einen Cast.');
+        self::assertCount(20, self::rolePermissionProvider(), 'Ein neues Recht braucht auch einen Cast.');
     }
 
     public function testHierarchieEbeneKommtAlsGanzzahl(): void

@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 setCheckedIfPresent('edit_can_manage_roles', this.getAttribute('data-roles') === '1');
                 setCheckedIfPresent('edit_can_edit_users', this.getAttribute('data-edit') === '1');
                 setCheckedIfPresent('edit_can_manage_events', this.getAttribute('data-events') === '1');
-                setCheckedIfPresent('edit_can_manage_attendance', this.getAttribute('data-attendance') === '1');
                 setCheckedIfPresent('edit_can_manage_attendance_all', this.getAttribute('data-attendance-all') === '1');
                 setCheckedIfPresent('edit_can_manage_project_members', this.getAttribute('data-project-members') === '1');
                 setCheckedIfPresent('edit_can_read_finances', this.getAttribute('data-finance-read') === '1');

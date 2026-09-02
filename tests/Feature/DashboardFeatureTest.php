@@ -211,7 +211,7 @@ class DashboardFeatureTest extends TestCase
         $this->assertIsString($template);
 
         $this->assertStringContainsString(
-            '{% if session.can_manage_attendance or session.can_manage_attendance_all %}',
+            '{% if session.can_manage_own_voice_group or session.can_manage_attendance_all %}',
             $template
         );
         $this->assertStringContainsString(
@@ -246,7 +246,7 @@ class DashboardFeatureTest extends TestCase
 
         $this->assertIsString($controller);
         $this->assertStringNotContainsString("'can_manage_users' =>", $controller);
-        $this->assertStringNotContainsString("'can_manage_attendance' =>", $controller);
+        $this->assertStringNotContainsString("'can_manage_own_voice_group' =>", $controller);
         $this->assertStringNotContainsString("'role_level' =>", $controller);
         $this->assertStringNotContainsString("'voice_group_ids' =>", $controller);
     }

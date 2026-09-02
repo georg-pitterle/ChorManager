@@ -123,30 +123,34 @@ class NavigationBuilderFeatureTest extends TestCase
 
         $this->assertContains('/users', $urls);
         $this->assertContains('/evaluations', $urls);
-        // '/attendance' is gated on can_manage_attendance/can_manage_users only (RoleMiddleware),
-        // so a voice-rep-only context must not see it.
-        $this->assertNotContains('/attendance', $urls);
+        // Seit dem Wegfall von can_manage_attendance (Migration 20260902120000) oeffnet
+        // can_manage_own_voice_group die Anwesenheitsliste selbst - der Link gehoert dazu.
+        $this->assertContains('/attendance', $urls);
     }
 
     /**
-     * Pins the nav<->route invariant for '/attendance': the nav predicate must match the
-     * RoleMiddleware gate (can_manage_attendance || can_manage_users) exactly and must not
-     * be widened to admit can_manage_own_voice_group. The seeded Kassier role (hierarchy_level 60)
-     * has can_manage_own_voice_group = 1 but can_manage_attendance = 0; if this predicate were
-     * widened again, Kassier would see the "Anwesenheit" link and get a 403 on click.
+     * Haelt die Invariante zwischen Navigation und Route fuer '/attendance' fest: Die
+     * Bedingung im Menue muss genau dem Gate requiresAttendanceManagement in
+     * RoleMiddleware entsprechen - can_manage_own_voice_group oder
+     * can_manage_attendance_all. Laufen die beiden auseinander, sieht jemand den
+     * Eintrag "Anwesenheit" und bekommt beim Klick einen 403.
      */
-    public function testAttendanceLinkMatchesRouteGateNotVoiceGroupFlag(): void
+    public function testAttendanceLinkMatchesTheRouteGate(): void
     {
         $voiceGroupOnly = $this->urls($this->build([
             'can_manage_own_voice_group' => true,
-            'can_manage_attendance' => false,
         ]));
-        $this->assertNotContains('/attendance', $voiceGroupOnly);
+        $this->assertContains('/attendance', $voiceGroupOnly);
 
-        $attendanceManager = $this->urls($this->build([
-            'can_manage_attendance' => true,
+        $allManager = $this->urls($this->build([
+            'can_manage_attendance_all' => true,
         ]));
-        $this->assertContains('/attendance', $attendanceManager);
+        $this->assertContains('/attendance', $allManager);
+
+        $neither = $this->urls($this->build([
+            'can_manage_events' => true,
+        ]));
+        $this->assertNotContains('/attendance', $neither);
     }
 
     public function testBackupOnlyRoleSeesVerwaltungWithBackupItem(): void

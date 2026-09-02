@@ -763,7 +763,7 @@ class EventFeatureTest extends TestCase
             'attendance_required' => true,
         ]);
 
-        $_SESSION['can_manage_attendance'] = true;
+        $_SESSION['can_manage_own_voice_group'] = true;
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
 

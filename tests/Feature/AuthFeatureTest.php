@@ -60,7 +60,7 @@ class AuthFeatureTest extends TestCase
                 'hierarchy_level' => 60,
                 'can_manage_users' => 0,
                 'can_edit_users' => 1,
-                'can_manage_attendance' => 1,
+                'can_manage_own_voice_group' => 1,
                 'can_manage_project_members' => 0,
                 'can_read_finances' => 1,
                 'can_manage_finances' => 1,
@@ -75,7 +75,6 @@ class AuthFeatureTest extends TestCase
                 'hierarchy_level' => 85,
                 'can_manage_users' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 0,
                 'can_manage_project_members' => 0,
                 'can_read_finances' => 0,
                 'can_manage_finances' => 0,
@@ -106,7 +105,7 @@ class AuthFeatureTest extends TestCase
         $this->assertFalse($_SESSION['can_manage_roles']);
         $this->assertFalse($_SESSION['can_manage_project_members']);
         $this->assertTrue($_SESSION['can_edit_users']);
-        $this->assertTrue($_SESSION['can_manage_attendance']);
+        $this->assertTrue($_SESSION['can_manage_own_voice_group']);
         $this->assertTrue($_SESSION['can_manage_finances']);
         $this->assertTrue($_SESSION['can_manage_master_data']);
         $this->assertTrue($_SESSION['can_manage_sponsoring']);
@@ -139,7 +138,6 @@ class AuthFeatureTest extends TestCase
                 'hierarchy_level' => 10,
                 'can_manage_users' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 0,
                 'can_manage_project_members' => 0,
                 'can_read_finances' => 1,
                 'can_manage_finances' => 0,

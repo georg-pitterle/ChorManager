@@ -199,7 +199,7 @@
                                                         <i class="bi bi-chat-left-text"></i>
                                                         Bemerkungen ({{ public_notes_count }}/{{ private_notes_count }})
                                                     </a>
-                                                    {% set _can_attendance = session.can_manage_attendance or session.can_manage_attendance_all %}
+                                                    {% set _can_attendance = session.can_manage_own_voice_group or session.can_manage_attendance_all %}
                                                     {% if _can_attendance and event.attendance_required %}
                                                         <a href="/attendance/{{ event.id }}"
                                                            class="btn btn-sm btn-outline-primary">
