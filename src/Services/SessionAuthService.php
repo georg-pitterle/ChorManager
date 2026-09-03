@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Logging\RequestContext;
+use App\Models\Role;
 use App\Models\User;
 
 class SessionAuthService
@@ -27,128 +28,75 @@ class SessionAuthService
         // hier mitgezogen, damit alle Folge-Logzeilen die user_id tragen.
         $this->requestContext->setUserId((int) $user->id);
 
-        $canManageUsers = false;
-        $canManageRoles = false;
-        $canEditUsers = false;
-        $canManageAttendanceAll = false;
-        $canManageEvents = false;
-        $canManageProjectMembers = false;
-        $canReadFinances = false;
-        $canManageFinances = false;
-        $canManageMasterData = false;
-        $canManageSponsoring = false;
-        $canCreateOwnSponsorships = false;
-        $canManageSongLibrary = false;
-        $canManageNewsletters = false;
-        $canManageMailQueue = false;
-        $canManageSheetArchive = false;
-        $canManageBudget = false;
-        $canManageTasks = false;
-        $canManageBackups = false;
-        $canManageOwnVoiceGroup = false;
-        $canAssignOwnVoiceGroupToProject = false;
-        $maxRoleLevel = 0;
+        $granted = $this->grantedPermissions($user);
 
-        // Das Hierarchie-Level vergibt bewusst keine Rechte. Es entscheidet ausschliesslich
-        // darueber, wessen Zuordnungen ein Mitglied noch aendern darf (siehe UserController
-        // und RoleController) - jedes Recht muss einzeln an der Rolle gesetzt sein.
-        foreach ($user->roles as $role) {
-            if ($role->can_manage_users) {
-                $canManageUsers = true;
-            }
-            if (($role->can_manage_roles ?? false)) {
-                $canManageRoles = true;
-            }
-            if ($role->can_edit_users) {
-                $canEditUsers = true;
-            }
-            if (($role->can_manage_attendance_all ?? false)) {
-                $canManageAttendanceAll = true;
-            }
-            if (($role->can_manage_events ?? false)) {
-                $canManageEvents = true;
-            }
-            if ($role->can_manage_project_members) {
-                $canManageProjectMembers = true;
-            }
-            if ($role->can_read_finances) {
-                $canReadFinances = true;
-            }
-            if ($role->can_manage_finances) {
-                $canReadFinances = true;
-                $canManageFinances = true;
-            }
-            if ($role->can_manage_master_data) {
-                $canManageMasterData = true;
-            }
-            if ($role->can_manage_sponsoring) {
-                $canManageSponsoring = true;
-                // Das Vollrecht schliesst das kleinere Recht ein, wie
-                // can_manage_finances das Lesen der Finanzen einschliesst.
-                $canCreateOwnSponsorships = true;
-            }
-            if (($role->can_create_own_sponsorships ?? false)) {
-                $canCreateOwnSponsorships = true;
-            }
-            if ($role->can_manage_song_library) {
-                $canManageSongLibrary = true;
-            }
-            if ($role->can_manage_newsletters) {
-                $canManageNewsletters = true;
-            }
-            if ($role->can_manage_mail_queue) {
-                $canManageMailQueue = true;
-            }
-            if (($role->can_manage_sheet_archive ?? false)) {
-                $canManageSheetArchive = true;
-            }
-            if (($role->can_manage_budget ?? false)) {
-                $canManageBudget = true;
-            }
-            if ($role->can_manage_tasks) {
-                $canManageTasks = true;
-            }
-            if (($role->can_manage_backups ?? false)) {
-                $canManageBackups = true;
-            }
-            if (($role->can_manage_own_voice_group ?? false)) {
-                $canManageOwnVoiceGroup = true;
-            }
-            if (($role->can_assign_own_voice_group_to_project ?? false)) {
-                $canAssignOwnVoiceGroupToProject = true;
-            }
-
-            if ($role->hierarchy_level > $maxRoleLevel) {
-                $maxRoleLevel = (int) $role->hierarchy_level;
-            }
+        // Jeder Schlüssel wird gesetzt, auch der ohne Recht: Bei einem
+        // Rechte-Wechsel innerhalb derselben Sitzung bliebe sonst der alte Wert
+        // stehen, und das Recht wirkte weiter.
+        foreach (Role::PERMISSIONS as $permission) {
+            $_SESSION[$permission] = isset($granted[$permission]);
         }
 
-        $_SESSION['can_manage_users'] = $canManageUsers;
-        $_SESSION['can_manage_roles'] = $canManageRoles;
-        $_SESSION['can_edit_users'] = $canEditUsers;
-        $_SESSION['can_manage_attendance_all'] = $canManageAttendanceAll;
-        $_SESSION['can_manage_events'] = $canManageEvents;
-        $_SESSION['can_manage_project_members'] = $canManageProjectMembers;
-        $_SESSION['can_read_finances'] = $canReadFinances;
-        $_SESSION['can_manage_finances'] = $canManageFinances;
-        $_SESSION['can_manage_master_data'] = $canManageMasterData;
-        $_SESSION['can_manage_sponsoring'] = $canManageSponsoring;
-        $_SESSION['can_create_own_sponsorships'] = $canCreateOwnSponsorships;
-        $_SESSION['can_manage_song_library'] = $canManageSongLibrary;
-        $_SESSION['can_manage_newsletters'] = $canManageNewsletters;
-        $_SESSION['can_manage_mail_queue'] = $canManageMailQueue;
-        $_SESSION['can_manage_sheet_archive'] = $canManageSheetArchive;
-        $_SESSION['can_manage_budget'] = $canManageBudget;
-        $_SESSION['can_manage_tasks'] = $canManageTasks;
-        $_SESSION['can_manage_backups'] = $canManageBackups;
-        $_SESSION['can_manage_own_voice_group'] = $canManageOwnVoiceGroup;
-        $_SESSION['can_assign_own_voice_group_to_project'] = $canAssignOwnVoiceGroupToProject;
-        $_SESSION['role_level'] = $maxRoleLevel;
+        $_SESSION['role_level'] = $this->highestHierarchyLevel($user);
         $_SESSION['voice_group_ids'] = $user->voiceGroups->pluck('id')->toArray();
 
         if (!isset($_SESSION['auth_epoch'])) {
             $_SESSION['auth_epoch'] = time();
         }
+    }
+
+    /**
+     * Die Rechte aller Rollen des Mitglieds, zusammengelegt.
+     *
+     * Mehrere Rollen ergänzen einander: Ein Recht gilt, sobald irgendeine Rolle
+     * es trägt. Ein Vollrecht zieht sein kleineres Recht mit, siehe
+     * `Role::IMPLIED_PERMISSIONS`.
+     *
+     * @return array<string, true>
+     */
+    private function grantedPermissions(User $user): array
+    {
+        $granted = [];
+
+        foreach ($user->roles as $role) {
+            foreach (Role::PERMISSIONS as $permission) {
+                // Das `?? false` deckt eine Rolle ab, deren Spalte noch fehlt -
+                // etwa zwischen zwei Migrationen.
+                if (!($role->{$permission} ?? false)) {
+                    continue;
+                }
+
+                $granted[$permission] = true;
+
+                foreach (Role::IMPLIED_PERMISSIONS[$permission] ?? [] as $implied) {
+                    $granted[$implied] = true;
+                }
+            }
+        }
+
+        return $granted;
+    }
+
+    /**
+     * Das höchste Hierarchie-Level aller Rollen.
+     *
+     * Das Level vergibt bewusst kein Recht. Es entscheidet ausschließlich
+     * darüber, wessen Zuordnungen ein Mitglied noch ändern darf (siehe
+     * UserController und RoleController) - jedes Recht muss einzeln an der Rolle
+     * gesetzt sein.
+     */
+    private function highestHierarchyLevel(User $user): int
+    {
+        $highest = 0;
+
+        foreach ($user->roles as $role) {
+            $level = (int) $role->hierarchy_level;
+            if ($level > $highest) {
+                $highest = $level;
+            }
+        }
+
+        return $highest;
     }
 
     public function clearSession(): void

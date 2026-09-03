@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Logging\RequestContext;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\Role;
+use App\Models\User;
+use App\Services\NameFormatterService;
+use App\Services\SessionAuthService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -74,11 +78,42 @@ final class BudgetFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Das Budget-Recht kommt beim Anmelden in der Sitzung an.
+     *
+     * Vorher suchte diese Prüfung die Zeichenkette "can_manage_budget" im
+     * Quelltext des Dienstes. Seit die Rechte über eine Liste laufen, steht der
+     * Name dort nicht mehr wörtlich - am Verhalten ändert das nichts, und genau
+     * das gehört geprüft.
+     */
     public function testSessionAuthServiceSetsCanManageBudgetKey(): void
     {
-        $content = file_get_contents(dirname(__DIR__, 2) . '/src/Services/SessionAuthService.php');
-        $this->assertIsString($content);
-        $this->assertStringContainsString('can_manage_budget', $content);
+        Bootstrap::setupTestDatabase();
+        $_SESSION = [];
+
+        $role = Role::create([
+            'name' => 'Budget-Rolle ' . bin2hex(random_bytes(4)),
+            'hierarchy_level' => 10,
+            'can_manage_budget' => 1,
+        ]);
+
+        $user = User::create([
+            'first_name' => 'Berta',
+            'last_name' => 'Budget',
+            'email' => 'budget.' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+        $user->roles()->attach($role->id);
+        $user->load('roles', 'voiceGroups');
+
+        (new SessionAuthService(new NameFormatterService(), new RequestContext()))
+            ->setAuthenticatedUser($user);
+
+        $this->assertTrue($_SESSION['can_manage_budget']);
+
+        $user->delete();
+        $role->delete();
     }
 
     public function testRoleMiddlewareHasRequiresBudgetManagementParameter(): void

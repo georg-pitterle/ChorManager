@@ -484,20 +484,45 @@ class TaskFeatureTest extends TestCase
     }
 
     /**
-     * Test Session auth service sets task permissions
+     * Das Aufgaben-Recht kommt beim Anmelden in der Sitzung an.
+     *
+     * Geprüft wird der tatsächliche Aufruf, nicht mehr der Quelltext des
+     * Dienstes: Die frühere Fassung suchte nach den Zeichenketten
+     * "$canManageTasks = false" und "if ($role->can_manage_tasks)". Damit stand
+     * die innere Schreibweise unter Test statt das Ergebnis - der Umbau auf eine
+     * Rechte-Liste brachte den Test zu Fall, obwohl sich am Verhalten nichts
+     * geändert hatte, und ein echter Fehler wäre umgekehrt nie aufgefallen.
      */
     public function testSessionAuthServiceSetsCoreTaskPermissions(): void
     {
-        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/SessionAuthService.php');
+        Bootstrap::setupTestDatabase();
+        $_SESSION = [];
 
-        // Check that can_manage_tasks is initialized 
-        $this->assertStringContainsString('$canManageTasks = false', $serviceContent);
-        // Check that can_manage_tasks is set in role loop
-        $this->assertStringContainsString('$canManageTasks = true', $serviceContent);
-        // Check that can_manage_tasks is set in session
-        $this->assertStringContainsString("'can_manage_tasks'", $serviceContent);
-        // Check role permission check
-        $this->assertStringContainsString('if ($role->can_manage_tasks)', $serviceContent);
+        $role = Role::create([
+            'name' => 'Aufgaben-Rolle ' . bin2hex(random_bytes(4)),
+            'hierarchy_level' => 10,
+            'can_manage_tasks' => 1,
+        ]);
+
+        $user = User::create([
+            'first_name' => 'Aufgaben',
+            'last_name' => 'Verwalterin',
+            'email' => 'tasks.' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'is_active' => 1,
+        ]);
+        $user->roles()->attach($role->id);
+        $user->load('roles', 'voiceGroups');
+
+        (new \App\Services\SessionAuthService(
+            new NameFormatterService(),
+            new \App\Logging\RequestContext()
+        ))->setAuthenticatedUser($user);
+
+        $this->assertTrue($_SESSION['can_manage_tasks']);
+
+        $user->delete();
+        $role->delete();
     }
 
     /**
