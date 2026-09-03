@@ -42,8 +42,11 @@ class RoleMiddleware implements MiddlewareInterface
      * Wo mehrere Rechte gelistet sind, ist das Absicht, und den Umfang setzt
      * anschließend eine andere Stelle durch:
      * - Anwesenheit: eigene Stimmgruppe oder alle Mitglieder - AttendanceScopeService.
-     *   `can_manage_own_voice_group` deckt Mitgliederpflege und Vertretungs-Anmeldungen
-     *   der eigenen Stimmgruppe ab, nicht die Anwesenheitsliste selbst.
+     *   `can_manage_own_voice_group` deckt Mitgliederpflege, Vertretungs-Anmeldungen
+     *   und die Anwesenheitsliste der eigenen Stimmgruppe ab. Bis 20260902 stand hier
+     *   zusätzlich `can_manage_attendance`; das Recht hatte aber denselben Umfang -
+     *   AttendanceScopeService schränkte ohne `_all` ohnehin auf die eigenen
+     *   Stimmgruppen ein - und ist ersatzlos entfallen.
      * - Budgetansicht: eine verdichtete Sicht auf die Finanzdaten, deshalb dürfen
      *   Finanz-Lesende sie auch ohne Budgetrecht ansehen.
      * - Sponsoring-Bereich: Lesen und eigene Vereinbarungen - SponsoringPolicy.
@@ -67,8 +70,8 @@ class RoleMiddleware implements MiddlewareInterface
             'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Terminverwaltung.',
         ],
         'requiresAttendanceManagement' => [
-            'permissions' => ['can_manage_attendance', 'can_manage_attendance_all'],
-            'logged_permission' => 'can_manage_attendance',
+            'permissions' => ['can_manage_own_voice_group', 'can_manage_attendance_all'],
+            'logged_permission' => 'can_manage_own_voice_group',
             'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Anwesenheitsverwaltung.',
         ],
         'requiresRoleManagement' => [

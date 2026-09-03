@@ -382,4 +382,49 @@ class PasswordResetFeatureTest extends TestCase
 
         $user->delete();
     }
+
+    /**
+     * sendResetLink() verschickt für ein archiviertes Mitglied keinen Link.
+     * Wer archiviert wird, während sein Link noch gilt, darf ihn deshalb auch
+     * nicht mehr einlösen dürfen - sonst setzt ein ausgeschiedenes Mitglied
+     * noch das Passwort eines Kontos, das niemand mehr benutzen soll.
+     */
+    public function testProcessResetRefusesAnArchivedAccount(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $email = 'reset.archived.' . bin2hex(random_bytes(4)) . '@example.test';
+        $oldHash = password_hash('Old-Password-1', PASSWORD_DEFAULT);
+        $user = User::create([
+            'first_name' => 'Archivierte',
+            'last_name' => 'Sängerin',
+            'email' => $email,
+            'password' => $oldHash,
+            'is_active' => 0,
+        ]);
+
+        $token = bin2hex(random_bytes(32));
+        PasswordReset::create([
+            'email' => $email,
+            'token' => password_hash($token, PASSWORD_DEFAULT),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $controller = $this->makeController($this->createStub(Twig::class));
+
+        $response = $controller->processReset(
+            $this->makeRequest('POST', '/reset-password', [
+                'token' => $token,
+                'email' => $email,
+                'password' => 'Correct-Horse-2',
+                'password_confirm' => 'Correct-Horse-2',
+            ]),
+            $this->makeResponse()
+        );
+
+        $this->assertRedirect($response, '/forgot-password');
+        $this->assertSame($oldHash, User::find($user->id)->password);
+
+        $user->delete();
+    }
 }

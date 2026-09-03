@@ -59,6 +59,22 @@ class DownloadFeatureTest extends TestCase
         $this->assertSame([0, 99], $largeSuffixRange);
     }
 
+    /**
+     * RFC 7233, Abschnitt 2.1: Reicht das Ende über die Datei hinaus, gilt der
+     * Rest der Datei als angefordert. Abgewiesen wird nur, was gar nicht mehr
+     * in ihr liegt - das prüft testParseRangeHeaderRejectsInvalidRanges().
+     *
+     * Wichtig für die Wiedergabe im Browser: Audio-Player fordern feste Blöcke
+     * an ("bytes=0-1048575"), die bei einer kürzeren Datei über deren Ende
+     * hinausgehen. Als 416 beantwortet, begann die Wiedergabe gar nicht erst.
+     */
+    public function testParseRangeHeaderClampsAnEndBeyondTheFile(): void
+    {
+        $this->assertSame([0, 99], DownloadController::parseRangeHeader('bytes=0-1048575', 100));
+        $this->assertSame([50, 99], DownloadController::parseRangeHeader('bytes=50-500', 100));
+        $this->assertSame([99, 99], DownloadController::parseRangeHeader('bytes=99-100', 100));
+    }
+
     public function testParseRangeHeaderRejectsInvalidRanges(): void
     {
         $this->assertNull(DownloadController::parseRangeHeader('bytes=20-10', 100));

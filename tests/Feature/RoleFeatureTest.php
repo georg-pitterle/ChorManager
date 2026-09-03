@@ -40,7 +40,7 @@ class RoleFeatureTest extends TestCase
 
         $this->assertSame(1, $flags['can_manage_users']);
         $this->assertSame(0, $flags['can_edit_users']);
-        $this->assertSame(0, $flags['can_manage_attendance']);
+        $this->assertArrayNotHasKey('can_manage_attendance', $flags);
         $this->assertSame(0, $flags['can_manage_attendance_all']);
         $this->assertSame(0, $flags['can_manage_project_members']);
         $this->assertSame(1, $flags['can_manage_finances']);
@@ -52,14 +52,20 @@ class RoleFeatureTest extends TestCase
         $this->assertSame(0, $flags['can_manage_tasks']);
     }
 
-    public function testBuildPermissionFlagsMapsAttendanceAllIndependentlyOfAttendance(): void
+    /**
+     * can_manage_attendance ist mit Migration 20260902120000 entfallen; sein Umfang
+     * war deckungsgleich mit can_manage_own_voice_group. Die Anwesenheitsliste haengt
+     * seitdem an diesen beiden Rechten - der eigenen Stimmgruppe und allen.
+     */
+    public function testBuildPermissionFlagsMapsTheTwoRemainingAttendanceRights(): void
     {
         $flags = RoleController::buildPermissionFlags([
             'can_manage_attendance_all' => '1',
         ]);
 
-        $this->assertSame(0, $flags['can_manage_attendance']);
+        $this->assertArrayNotHasKey('can_manage_attendance', $flags);
         $this->assertSame(1, $flags['can_manage_attendance_all']);
+        $this->assertSame(0, $flags['can_manage_own_voice_group']);
     }
 
     public function testBuildPermissionFlagsAddsFinanceReadFlagAndWriteImpliesRead(): void

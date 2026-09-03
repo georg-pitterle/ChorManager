@@ -16,6 +16,22 @@ class AppSettingFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /**
+     * Die Datenbank steht für jeden Test dieser Klasse bereit, nicht nur für die
+     * beiden, die selbst etwas schreiben: tearDown() räumt unten über AppSetting
+     * auf und braucht die Verbindung deshalb immer.
+     *
+     * Vorher holten sich nur die schreibenden Tests die Verbindung selbst. Die
+     * übrigen liefen ausschließlich durch, weil vor ihnen zufällig ein anderer
+     * Test sie aufgebaut hatte - für sich allein aufgerufen, etwa über --filter,
+     * endeten sie in "Call to a member function connection() on null".
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Bootstrap::setupTestDatabase();
+    }
+
     protected function tearDown(): void
     {
         AppSetting::query()->whereIn('setting_key', [
@@ -36,7 +52,6 @@ class AppSettingFeatureTest extends TestCase
 
     public function testSaveLogsSettingsUpdatedWithKeysButNeverValues(): void
     {
-        Bootstrap::setupTestDatabase();
         [$logger, $handler] = $this->logger();
         $controller = new AppSettingController($this->createStub(Twig::class), $logger);
 
@@ -67,7 +82,6 @@ class AppSettingFeatureTest extends TestCase
 
     public function testSaveLogsUploadRejectedForOversizedLogoWithoutFilename(): void
     {
-        Bootstrap::setupTestDatabase();
         [$logger, $handler] = $this->logger();
         $controller = new AppSettingController($this->createStub(Twig::class), $logger);
 

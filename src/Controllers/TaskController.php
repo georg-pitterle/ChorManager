@@ -76,8 +76,10 @@ class TaskController
             return $response->withStatus(404);
         }
 
+        // Wie im Termin-Feed: Mit dem Archivieren endet auch das Abo. Sonst
+        // liest ein ausgeschiedenes Mitglied die Aufgabenliste ohne Anmeldung weiter.
         $user = User::find((int) $subscription->user_id);
-        if (!$user) {
+        if (!$user || !(bool) $user->is_active) {
             return $response->withStatus(404);
         }
 
@@ -761,7 +763,10 @@ class TaskController
         $attachmentId = (int) $args['attachment_id'];
         $task = Task::findOrFail($taskId);
 
-        if (!$this->policy->canManageTasks()) {
+        // Wie in allen übrigen Aufgaben-Aktionen über hasTaskAccess(): dasselbe
+        // Recht, aber mit dem authz.denied-Eintrag im Protokoll. Der direkte
+        // Aufruf der Policy war die einzige Abweisung dieser Datei ohne Spur.
+        if (!$this->hasTaskAccess($task->project)) {
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }

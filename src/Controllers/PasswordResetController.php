@@ -67,6 +67,25 @@ class PasswordResetController
         ]);
     }
 
+    /**
+     * Archivierte Konten setzen kein Passwort mehr - weder über einen Reset-Link
+     * noch über eine Einladung. sendResetLink() verschickt für sie ohnehin nichts;
+     * eingelöst werden könnte sonst nur ein Link, der vor dem Archivieren
+     * hinausging. Die Meldung bleibt dieselbe wie bei einem ungültigen Link,
+     * damit von außen nicht erkennbar ist, ob ein Konto existiert.
+     */
+    private function isArchived(User $user): bool
+    {
+        return !(bool) $user->is_active;
+    }
+
+    private function denyArchivedAccount(Response $response): Response
+    {
+        $_SESSION['error'] = 'Dieser Link ist ungültig oder abgelaufen.';
+
+        return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+    }
+
     public function showForgotForm(Request $request, Response $response): Response
     {
         if (isset($_SESSION['user_id'])) {
@@ -215,6 +234,10 @@ class PasswordResetController
             }
 
             $user = User::where('email', $email)->first();
+            if ($user && $this->isArchived($user)) {
+                return $this->denyArchivedAccount($response);
+            }
+
             if ($user) {
                 $user->password = password_hash($password, PASSWORD_DEFAULT);
                 $user->save();
@@ -233,6 +256,10 @@ class PasswordResetController
 
         // Try invitation_tokens table (invite flow)
         $user = User::where('email', $email)->first();
+        if ($user && $this->isArchived($user)) {
+            return $this->denyArchivedAccount($response);
+        }
+
         if ($user) {
             $inviteRecord = InvitationToken::where('user_id', $user->id)->first();
             if ($inviteRecord && password_verify($token, $inviteRecord->token_hash)) {

@@ -101,6 +101,10 @@ Auch das Verschieben des Buchungsabschlusses steht dort, als Eintrag
 sichtbar, die das Kassabuch lesen dürfen, und damit die erste Anlaufstelle der
 Rechnungsprüfer.
 
+Der Name der handelnden Person wird im Eintrag selbst festgehalten. Er bleibt
+deshalb auch dann lesbar, wenn das Mitglied den Chor verlassen hat und gelöscht
+wurde. Nur Einträge, die ohne Person entstanden sind, stehen als **System**.
+
 ![Änderungsjournal mit Anlage, Änderung und Storno](images/finance/15-journal.png)
 
 ### Geschäftsjahr abschließen

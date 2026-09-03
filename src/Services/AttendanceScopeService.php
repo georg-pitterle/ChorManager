@@ -23,16 +23,20 @@ class AttendanceScopeService
     private ?array $audienceSetsCache = null;
 
     /**
-     * Alle drei Rechte duerfen fuer andere eintragen, sie unterscheiden sich nur im Umfang.
-     * Das Hierarchie-Level spielt bewusst keine Rolle mehr.
+     * Beide Rechte dürfen für andere eintragen, sie unterscheiden sich nur im Umfang:
+     * die eigene Stimmgruppe oder alle Mitglieder. Das Hierarchie-Level spielt bewusst
+     * keine Rolle mehr.
+     *
+     * Bis 20260902 stand hier ein drittes Recht, can_manage_attendance. Es hatte keinen
+     * eigenen Umfang - getManageableUserIds() unten schränkt ohne _all auf dieselben
+     * eigenen Stimmgruppen ein - und ist ersatzlos entfallen.
      */
     public function canManageOthers(): bool
     {
         $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
-        $canManageAttendance = (bool) ($_SESSION['can_manage_attendance'] ?? false);
         $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
 
-        return $canManageOwnVoiceGroup || $canManageAttendance || $canManageAttendanceAll;
+        return $canManageOwnVoiceGroup || $canManageAttendanceAll;
     }
 
     /**

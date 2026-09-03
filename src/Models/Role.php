@@ -8,6 +8,54 @@ use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
 {
+    /**
+     * Jedes einzeln setzbare Recht einer Rolle.
+     *
+     * Die Liste stand vorher nur als Aufzählung in `$fillable`, in `$casts` und
+     * ausgeschrieben im SessionAuthService. Wer ein Recht ergänzte, musste alle
+     * Stellen treffen. Hier ist sie einmal benannt und ansprechbar;
+     * `RolePermissionListTest` hält sie mit `$fillable` und `$casts` gleich.
+     *
+     * Das Hierarchie-Level gehört bewusst nicht dazu: Es vergibt kein Recht,
+     * sondern entscheidet allein, wessen Zuordnungen jemand ändern darf.
+     *
+     * @var list<string>
+     */
+    public const PERMISSIONS = [
+        'can_manage_users',
+        'can_manage_roles',
+        'can_edit_users',
+        'can_manage_attendance_all',
+        'can_manage_events',
+        'can_manage_project_members',
+        'can_read_finances',
+        'can_manage_finances',
+        'can_manage_master_data',
+        'can_manage_sponsoring',
+        'can_create_own_sponsorships',
+        'can_manage_song_library',
+        'can_manage_newsletters',
+        'can_manage_mail_queue',
+        'can_manage_sheet_archive',
+        'can_manage_budget',
+        'can_manage_tasks',
+        'can_manage_backups',
+        'can_manage_own_voice_group',
+        'can_assign_own_voice_group_to_project',
+    ];
+
+    /**
+     * Vollrechte, die ein kleineres Recht einschließen. Wer die Finanzen
+     * verwalten darf, darf sie auch lesen; wer das Sponsoring verwaltet, darf
+     * auch eigene Patenschaften anlegen. Die Umkehrung gilt nicht.
+     *
+     * @var array<string, list<string>>
+     */
+    public const IMPLIED_PERMISSIONS = [
+        'can_manage_finances' => ['can_read_finances'],
+        'can_manage_sponsoring' => ['can_create_own_sponsorships'],
+    ];
+
     protected $table = 'roles';
     public $timestamps = false;
 
@@ -17,7 +65,6 @@ class Role extends Model
         'can_manage_users',
         'can_manage_roles',
         'can_edit_users',
-        'can_manage_attendance',
         'can_manage_attendance_all',
         'can_manage_events',
         'can_manage_project_members',
@@ -50,7 +97,6 @@ class Role extends Model
         'can_manage_users' => 'boolean',
         'can_manage_roles' => 'boolean',
         'can_edit_users' => 'boolean',
-        'can_manage_attendance' => 'boolean',
         'can_manage_attendance_all' => 'boolean',
         'can_manage_events' => 'boolean',
         'can_manage_project_members' => 'boolean',

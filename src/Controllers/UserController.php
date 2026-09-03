@@ -887,6 +887,17 @@ class UserController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
+        // Ein archiviertes Konto kann sich nicht anmelden, und der Einladungslink
+        // ist für es seit dem Archiv-Riegel in PasswordResetController nicht mehr
+        // einlösbar. Die Mail ginge an jemanden hinaus, der nicht mehr im Chor ist.
+        if (!(bool) $targetUser->is_active) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'message' => 'Dieses Mitglied ist archiviert. Bitte zuerst wiederherstellen, dann einladen.',
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+        }
+
         // Die Einladung setzt das Passwort des Zielkontos neu. Zusammen mit einer
         // aenderbaren Adresse waere das ein Uebernahmepfad; deshalb bleibt sie der
         // Mitgliederverwaltung vorbehalten, so wie die Adresse selbst an

@@ -12,8 +12,9 @@ use App\Models\CalendarSubscriptionToken;
  * Der Token ist ein Bearer-Token: Wer ihn hat, sieht ohne Anmeldung die
  * Terminliste des Mitglieds. Gespeichert wird deshalb nur sein SHA-256-Hash
  * (Migration 20260825120300); der Klartext verlässt diese Klasse genau einmal,
- * beim Erzeugen. Bereits verteilte Abos aus der Zeit davor liegen noch im Klartext
- * vor und werden weiterhin akzeptiert und angezeigt, bis sie erneuert werden.
+ * beim Erzeugen. Seit 20260901122000 gilt das ausnahmslos - die Altbestände sind
+ * in ihren Hash überführt, die Klartext-Spalte ist weg. Eine einmal angezeigte
+ * Adresse lässt sich deshalb nicht wieder hervorholen, nur neu erzeugen.
  */
 class CalendarSubscriptionService
 {
@@ -49,7 +50,6 @@ class CalendarSubscriptionService
 
         CalendarSubscriptionToken::create([
             'user_id' => $userId,
-            'token' => null,
             'token_hash' => self::hashToken($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -62,40 +62,12 @@ class CalendarSubscriptionService
         return CalendarSubscriptionToken::where('user_id', $userId)->exists();
     }
 
-    /**
-     * Klartext eines Altbestands-Abos, sofern vorhanden.
-     *
-     * Nur Zeilen von vor Migration 20260825120300 tragen ihn noch. Für alles
-     * danach ist die Adresse nicht mehr rekonstruierbar und die Oberfläche bietet
-     * stattdessen das Neuerzeugen an.
-     */
-    public function findLegacyTokenForUser(int $userId): ?string
-    {
-        $subscription = CalendarSubscriptionToken::where('user_id', $userId)
-            ->whereNotNull('token')
-            ->first();
-
-        if ($subscription === null) {
-            return null;
-        }
-
-        $token = (string) $subscription->token;
-
-        return preg_match(self::TOKEN_PATTERN, $token) === 1 ? $token : null;
-    }
-
     public function findByToken(string $token): ?CalendarSubscriptionToken
     {
         if (preg_match(self::TOKEN_PATTERN, $token) !== 1) {
             return null;
         }
 
-        $subscription = CalendarSubscriptionToken::where('token_hash', self::hashToken($token))->first();
-        if ($subscription !== null) {
-            return $subscription;
-        }
-
-        // Altbestand: vor 20260825120300 verteilte Abos liegen im Klartext vor.
-        return CalendarSubscriptionToken::where('token', $token)->first();
+        return CalendarSubscriptionToken::where('token_hash', self::hashToken($token))->first();
     }
 }

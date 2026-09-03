@@ -122,6 +122,7 @@ class DevSeedService
                 'project_users_archived' => 0,
                 'songs' => 0,
                 'song_attachments' => 0,
+                'song_audio_attachments' => 0,
                 'song_link_resources' => 0,
                 'sheet_archives' => 0,
                 'sheet_archive_line_items' => 0,
@@ -196,6 +197,7 @@ class DevSeedService
             $this->seedSongCategoryAssignments($songs, $categories);
             $this->seedProjectSongAssignments($songs, $projects);
             $this->seedSongAttachments($songs, 48);
+            $this->seedSongAudioAttachments($songs, 12);
             $this->seedSongLinkResources($songs, 24);
             $this->seedSheetArchives($songs);
             $tasks = $this->seedTasks($projects, $users['active']);
@@ -331,7 +333,6 @@ class DevSeedService
                 'can_manage_users' => 1,
                 'can_manage_roles' => 1,
                 'can_edit_users' => 1,
-                'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 1,
                 'can_manage_events' => 1,
                 'can_manage_project_members' => 1,
@@ -356,7 +357,6 @@ class DevSeedService
                 'can_manage_users' => 1,
                 'can_manage_roles' => 1,
                 'can_edit_users' => 1,
-                'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 1,
                 'can_manage_events' => 1,
                 'can_manage_project_members' => 1,
@@ -379,7 +379,6 @@ class DevSeedService
                 'can_manage_users' => 0,
                 'can_manage_roles' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 0,
                 'can_manage_attendance_all' => 0,
                 'can_manage_events' => 0,
                 'can_manage_project_members' => 0,
@@ -402,7 +401,6 @@ class DevSeedService
                 'can_manage_users' => 1,
                 'can_manage_roles' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 1,
                 'can_manage_events' => 1,
                 'can_manage_project_members' => 1,
@@ -425,7 +423,6 @@ class DevSeedService
                 'can_manage_users' => 0,
                 'can_manage_roles' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 0,
                 'can_manage_events' => 0,
                 'can_manage_project_members' => 0,
@@ -448,7 +445,6 @@ class DevSeedService
                 'can_manage_users' => 0,
                 'can_manage_roles' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 1,
                 'can_manage_attendance_all' => 0,
                 'can_manage_events' => 0,
                 'can_manage_project_members' => 0,
@@ -471,7 +467,6 @@ class DevSeedService
                 'can_manage_users' => 0,
                 'can_manage_roles' => 0,
                 'can_edit_users' => 0,
-                'can_manage_attendance' => 0,
                 'can_manage_attendance_all' => 0,
                 'can_manage_events' => 0,
                 'can_manage_project_members' => 0,
@@ -1028,33 +1023,36 @@ class DevSeedService
             return;
         }
 
-        // Die Altbestands-Adresse ist die einzige, die der Bericht ausgeben kann -
-        // alle anderen liegen nur als Pruefsumme vor. Ihr Besitzer bekommt
-        // deshalb das getrennte Aufgaben-Abo, damit beide Links im Dev etwas
-        // liefern; auf "gemeinsam" umstellen ist im Profil ein Klick.
+        // Gespeichert wird nur der Hash. Den Klartext kennt hier aber der Seed
+        // selbst, weil er ihn erzeugt - der Bericht kann die Adresse deshalb
+        // ausgeben, ohne dass sie in der Datenbank steht.
+        //
+        // Ihr Besitzer bekommt das getrennte Aufgaben-Abo, damit beide Links im
+        // Dev etwas liefern; auf "gemeinsam" umstellen ist im Profil ein Klick.
         $users[0]->calendar_task_feed = User::CALENDAR_TASK_FEED_SEPARATE;
         $users[0]->save();
 
-        $legacyToken = bin2hex(random_bytes(32));
+        $token = bin2hex(random_bytes(32));
         CalendarSubscriptionToken::create([
             'user_id' => (int) $users[0]->id,
-            'token' => $legacyToken,
-            'token_hash' => null,
+            'token_hash' => CalendarSubscriptionService::hashToken($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
         $this->report['counts']['calendar_subscription_tokens']++;
-        $this->report['calendar_subscription']['legacy_url'] = '/events/export/' . $legacyToken . '.ics';
-        // Derselbe Token bedient beide Feeds - der Aufgaben-Link gehoert deshalb
-        // mit in den Bericht, sonst muesste man ihn zum Ausprobieren abtippen.
-        $this->report['calendar_subscription']['legacy_task_url'] = '/tasks/export/' . $legacyToken . '.ics';
+        $this->report['calendar_subscription']['url'] = '/events/export/' . $token . '.ics';
+        // Derselbe Token bedient beide Feeds - der Aufgaben-Link gehört deshalb
+        // mit in den Bericht, sonst müsste man ihn zum Ausprobieren abtippen.
+        $this->report['calendar_subscription']['task_url'] = '/tasks/export/' . $token . '.ics';
 
         if (!isset($users[1])) {
             return;
         }
 
+        // Ein zweites Abo, dessen Klartext auch der Seed nicht mehr ausgibt: So
+        // ist im Dev der Normalfall vertreten, in dem die Oberfläche das Abo nur
+        // als vorhanden meldet und das Neuerzeugen anbietet.
         CalendarSubscriptionToken::create([
             'user_id' => (int) $users[1]->id,
-            'token' => null,
             'token_hash' => CalendarSubscriptionService::hashToken(bin2hex(random_bytes(32))),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -2928,6 +2926,68 @@ class DevSeedService
 
             $attempt++;
         }
+    }
+
+    /**
+     * Übungsaufnahmen am Lied. Ohne sie bleibt der Abspieler auf der
+     * Download-Seite in Dev unsichtbar - er erscheint nur zu einem Anhang mit
+     * Audio-Typ, und die übrigen Seed-Anhänge sind PDF-Notenblätter.
+     *
+     * Der Inhalt ist eine echte, abspielbare MPEG-1-Layer-III-Datei (siehe
+     * silentMp3()), kein Platzhaltertext: Der Abspieler und die
+     * Bereichsanforderungen von streamAttachment() lassen sich sonst nicht
+     * wirklich ausprobieren.
+     */
+    private function seedSongAudioAttachments(array $songs, int $targetCount): void
+    {
+        if (count($songs) === 0 || $targetCount <= 0) {
+            return;
+        }
+
+        $content = $this->silentMp3(120);
+        $created = 0;
+
+        foreach ($songs as $song) {
+            if ($created >= $targetCount) {
+                break;
+            }
+
+            $originalName = sprintf('probeaufnahme-%d.mp3', $song->id);
+
+            $attachment = Attachment::firstOrCreate(
+                [
+                    'entity_type' => 'song',
+                    'entity_id' => $song->id,
+                    'original_name' => $originalName,
+                ],
+                [
+                    'filename' => sprintf('seed-song-audio-%d.mp3', $song->id),
+                    'mime_type' => 'audio/mpeg',
+                    'file_size' => strlen($content),
+                    'file_content' => $content,
+                ]
+            );
+
+            if ($attachment->wasRecentlyCreated) {
+                $created++;
+                $this->report['counts']['song_audio_attachments']++;
+            }
+        }
+    }
+
+    /**
+     * Baut eine stille MP3-Datei aus $frameCount gleichen MPEG-1-Layer-III-Rahmen.
+     *
+     * Kopf `FF FB 90 64`: MPEG-1, Layer III, ohne Fehlerschutz, 128 kbit/s,
+     * 44,1 kHz, Stereo. Daraus ergibt sich die feste Rahmenlänge
+     * 144 * 128000 / 44100 = 417 Byte; die restlichen 413 Byte bleiben null,
+     * was als Stille abgespielt wird. Rund 26 ms je Rahmen.
+     */
+    private function silentMp3(int $frameCount): string
+    {
+        $frame = "\xFF\xFB\x90\x64" . str_repeat("\x00", 413);
+
+        return str_repeat($frame, max(1, $frameCount));
     }
 
     private function seedSongLinkResources(array $songs, int $targetCount): void

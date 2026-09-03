@@ -13,20 +13,18 @@ class CalendarSubscriptionToken extends Model
 
     protected $fillable = [
         'user_id',
-        'token',
         'token_hash',
         'created_at',
     ];
 
     /**
-     * Der Klartext-Token darf nie in Logs, Fehlerausgaben oder JSON-Antworten
-     * landen; er ist die Abo-Adresse selbst. Neue Zeilen tragen ihn ohnehin nicht
-     * mehr, für Altbestände sperrt das hier die versehentliche Ausgabe.
+     * Der Hash ist zwar nicht die Abo-Adresse selbst, taugt aber zum Abgleich
+     * gegen eine geratene - er hat in Logs, Fehlerausgaben und JSON-Antworten
+     * nichts verloren. Der Klartext steht seit 20260901122000 nirgends mehr.
      *
      * @var list<string>
      */
     protected $hidden = [
-        'token',
         'token_hash',
     ];
 

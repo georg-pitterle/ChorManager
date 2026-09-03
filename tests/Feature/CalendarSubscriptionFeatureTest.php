@@ -12,11 +12,12 @@ use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
 /**
- * Kalender-Abos nach der Umstellung auf gehashte Token (Migration 20260825120300).
+ * Kalender-Abos nach der Umstellung auf gehashte Token (Migrationen 20260825120300
+ * und 20260901122000).
  *
- * Zwei Dinge müssen gleichzeitig gelten: Neue Abos dürfen aus der Datenbank
- * heraus nicht mehr nutzbar sein, und bereits verteilte Abos aus der Klartext-Zeit
- * müssen weiterlaufen, bis das Mitglied sie erneuert.
+ * Ein Auszug der Tabelle darf keine benutzbare Abo-Adresse mehr hergeben: Der
+ * Klartext existiert nirgends, auch nicht für die vor der Umstellung verteilten
+ * Abos - die sind in ihren Hash überführt worden und laufen darüber weiter.
  */
 final class CalendarSubscriptionFeatureTest extends TestCase
 {
@@ -84,31 +85,41 @@ final class CalendarSubscriptionFeatureTest extends TestCase
         );
     }
 
-    public function testLegacyPlaintextSubscriptionKeepsWorking(): void
+    /**
+     * Seit 20260901122000 gibt es die Klartext-Spalte nicht mehr. Ein Auszug der
+     * Tabelle darf deshalb keine benutzbare Abo-Adresse mehr hergeben.
+     */
+    public function testSubscriptionIsStoredOnlyAsHash(): void
     {
-        $legacyToken = bin2hex(random_bytes(32));
-        CalendarSubscriptionToken::create([
-            'user_id' => (int) $this->user->id,
-            'token' => $legacyToken,
-            'token_hash' => null,
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        $token = $this->service->rotateTokenForUser((int) $this->user->id);
 
-        $found = $this->service->findByToken($legacyToken);
+        $this->assertFalse(
+            Capsule::schema()->hasColumn('calendar_subscription_tokens', 'token'),
+            'Die Klartext-Spalte darf nicht wieder auftauchen.'
+        );
 
-        $this->assertNotNull($found, 'Vor der Umstellung verteilte Abos dürfen nicht brechen.');
-        $this->assertSame((int) $this->user->id, (int) $found->user_id);
-        $this->assertSame($legacyToken, $this->service->findLegacyTokenForUser((int) $this->user->id));
+        $stored = CalendarSubscriptionToken::where('user_id', $this->user->id)->firstOrFail();
+
+        $this->assertSame(CalendarSubscriptionService::hashToken($token), $stored->token_hash);
+        $this->assertStringNotContainsString(
+            $token,
+            json_encode($stored->getAttributes(), JSON_THROW_ON_ERROR),
+            'In keiner Spalte darf der Klartext stehen.'
+        );
     }
 
+    /**
+     * Der Abo-Zustand meldet nur noch "vorhanden" - die Adresse selbst ist nach
+     * dem Anzeigen nicht mehr rekonstruierbar.
+     */
     public function testHashedSubscriptionHasNoDisplayableAddress(): void
     {
         $this->service->rotateTokenForUser((int) $this->user->id);
 
         $this->assertTrue($this->service->hasTokenForUser((int) $this->user->id));
-        $this->assertNull(
-            $this->service->findLegacyTokenForUser((int) $this->user->id),
-            'Nach dem Hashen darf die Oberfläche keine Adresse mehr rekonstruieren können.'
+        $this->assertFalse(
+            method_exists($this->service, 'findLegacyTokenForUser'),
+            'Der Klartext-Rückfallweg ist entfallen und darf nicht zurückkehren.'
         );
     }
 

@@ -283,4 +283,46 @@ final class BankStatementImportServiceTest extends TestCase
             );
         }
     }
+
+    /**
+     * Beanstandete Zeilen stehen ganz oben in der Vorschau, gleich welcher Art
+     * die Beanstandung ist. Wer den Auszug durchsieht, hat damit alles, was eine
+     * Entscheidung braucht, an einer Stelle beisammen - statt es zwischen
+     * hundert einwandfreien Buchungen zu suchen.
+     */
+    public function testEveryFlawedRowComesFirst(): void
+    {
+        $result = $this->service->parse($this->csv(
+            '10.07.2026;10.07.2026;100,00;EUR;Spender;AT01;BTV;Chorkuma;AT91;BTV;Text;Erste Spende',
+            // Unlesbarer Betrag, aber gültiges Datum - stand vorher mitten in der Liste.
+            '11.07.2026;11.07.2026;keine Zahl;EUR;Spender;AT01;BTV;Chorkuma;AT91;BTV;Text;Kaputter Betrag',
+            '12.07.2026;12.07.2026;50,00;EUR;Spender;AT01;BTV;Chorkuma;AT91;BTV;Text;Zweite Spende',
+            // Unlesbares Buchungsdatum.
+            'kein Datum;13.07.2026;25,00;EUR;Spender;AT01;BTV;Chorkuma;AT91;BTV;Text;Kaputtes Datum',
+            // Fremdwährung.
+            '09.07.2026;09.07.2026;80,00;CHF;Spender;AT01;BTV;Chorkuma;AT91;BTV;Text;Franken',
+        ));
+
+        $rows = $result['rows'];
+        $this->assertCount(5, $rows);
+
+        $flawed = array_slice($rows, 0, 3);
+        $clean = array_slice($rows, 3);
+
+        foreach ($flawed as $row) {
+            $this->assertNotNull($row['error'], 'Zeile "' . $row['description'] . '" gehört nach oben.');
+        }
+
+        foreach ($clean as $row) {
+            $this->assertNull($row['error'], 'Zeile "' . $row['description'] . '" gehört nach unten.');
+        }
+
+        // Innerhalb der einwandfreien Zeilen bleibt es chronologisch: Der Import
+        // vergibt die laufenden Nummern in der Reihenfolge der Buchungen.
+        $this->assertSame(['2026-07-10', '2026-07-12'], array_column($clean, 'invoice_date'));
+
+        // Die Position in der Liste und das Feld `index` müssen übereinstimmen,
+        // sonst greift die Auswahl im Formular auf die falsche Zeile zu.
+        $this->assertSame([0, 1, 2, 3, 4], array_column($rows, 'index'));
+    }
 }

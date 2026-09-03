@@ -126,7 +126,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
 
         $managerSession = [
             'user_id' => (int) $this->createUser('manager')->id,
-            'can_manage_attendance' => true,
+            'can_manage_own_voice_group' => true,
             'can_manage_attendance_all' => false,
             'voice_group_ids' => [(int) $voiceGroup->id],
         ];
@@ -174,26 +174,57 @@ final class AttendanceEventScopeFeatureTest extends TestCase
         $this->assertSame(0, EventRegistration::where('event_id', $event->id)->count());
     }
 
-    public function testOwnVoiceGroupAttendanceRightAllowsProxyEntries(): void
+    public function testOwnVoiceGroupRightAloneAllowsProxyEntries(): void
     {
-        $_SESSION['can_manage_attendance'] = true;
         $_SESSION['can_manage_attendance_all'] = false;
-        $_SESSION['can_manage_own_voice_group'] = false;
+        $_SESSION['can_manage_own_voice_group'] = true;
 
         $this->assertTrue((new AttendanceScopeService())->canManageOthers());
     }
 
+    public function testWithoutEitherAttendanceRightNobodyManagesOthers(): void
+    {
+        $_SESSION['can_manage_attendance_all'] = false;
+        $_SESSION['can_manage_own_voice_group'] = false;
+
+        $this->assertFalse((new AttendanceScopeService())->canManageOthers());
+    }
+
     /**
-     * Die Anwesenheitsliste bleibt an den beiden Anwesenheitsrechten haengen -
-     * can_manage_own_voice_group deckt Mitgliederpflege und Vertretungs-Anmeldungen ab.
+     * Seit dem Wegfall von can_manage_attendance (Migration 20260902120000) öffnet
+     * das Recht für die eigene Stimmgruppe die Anwesenheitsliste selbst. Vorher
+     * brauchte es dafür ein zweites Recht, das denselben Umfang hatte: Ohne
+     * can_manage_attendance_all schränkte AttendanceScopeService ohnehin auf
+     * dieselben eigenen Stimmgruppen ein.
      */
-    public function testOwnVoiceGroupRightAloneDoesNotOpenAttendanceList(): void
+    public function testOwnVoiceGroupRightOpensTheAttendanceList(): void
     {
         $_SESSION = [
             'user_id' => 7,
-            'can_manage_attendance' => false,
             'can_manage_attendance_all' => false,
             'can_manage_own_voice_group' => true,
+        ];
+
+        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $status = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        )->getStatusCode();
+
+        $this->assertSame(200, $status);
+    }
+
+    public function testWithoutAnyAttendanceRightTheListStaysClosed(): void
+    {
+        $_SESSION = [
+            'user_id' => 7,
+            'can_manage_attendance_all' => false,
+            'can_manage_own_voice_group' => false,
         ];
 
         $middleware = new RoleMiddleware(requiresAttendanceManagement: true);

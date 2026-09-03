@@ -143,7 +143,7 @@ final class NavigationBuilder
                         'prefixes' => ['/attendance'],
                         'navKeys' => ['attendance'],
                         'visible' => static fn(NavigationContext $c): bool =>
-                            $c->can('can_manage_attendance') || $c->can('can_manage_attendance_all'),
+                            $c->can('can_manage_own_voice_group') || $c->can('can_manage_attendance_all'),
                     ],
                     [
                         'label' => 'Anmeldungen',

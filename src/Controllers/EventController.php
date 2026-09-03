@@ -570,15 +570,13 @@ class EventController
         unset($_SESSION[self::SUBSCRIPTION_FLASH_KEY]);
 
         if (is_string($freshToken) && $freshToken !== '') {
-            return $this->subscriptionStateForToken($request, $userId, $freshToken, true);
+            return $this->subscriptionStateForToken($request, $userId, $freshToken);
         }
 
+        // Ohne frisch erzeugten Token gibt es keine Adresse zu zeigen: Gespeichert
+        // ist nur der Hash. Die Oberfläche meldet das Abo als vorhanden und bietet
+        // das Neuerzeugen an.
         $subscriptionService = new CalendarSubscriptionService();
-        $legacyToken = $subscriptionService->findLegacyTokenForUser($userId);
-
-        if ($legacyToken !== null) {
-            return $this->subscriptionStateForToken($request, $userId, $legacyToken, false);
-        }
 
         return [
             'exists' => $subscriptionService->hasTokenForUser($userId),
@@ -589,14 +587,13 @@ class EventController
     }
 
     /**
+     * Der Zustand mit sichtbarer Adresse. Den gibt es nur noch direkt nach dem
+     * Erzeugen - deshalb öffnet sich das Fenster hier immer von selbst.
+     *
      * @return array{exists: bool, url: string|null, task_url: string|null, autoshow: bool}
      */
-    private function subscriptionStateForToken(
-        Request $request,
-        int $userId,
-        string $token,
-        bool $autoshow
-    ): array {
+    private function subscriptionStateForToken(Request $request, int $userId, string $token): array
+    {
         $wantsOwnTaskFeed = User::where('id', $userId)
             ->where('calendar_task_feed', User::CALENDAR_TASK_FEED_SEPARATE)
             ->exists();
@@ -605,7 +602,7 @@ class EventController
             'exists' => true,
             'url' => $this->subscriptionUrl($request, $token),
             'task_url' => $wantsOwnTaskFeed ? $this->taskSubscriptionUrl($request, $token) : null,
-            'autoshow' => $autoshow,
+            'autoshow' => true,
         ];
     }
 
@@ -642,8 +639,12 @@ class EventController
             return $response->withStatus(404);
         }
 
+        // Archivierte Mitglieder verlieren jeden Zugang - die Anmeldung über
+        // UserQuery::findByEmail() ebenso wie die Angemeldet-bleiben-Kennung.
+        // Der Abo-Token darf da nicht die Ausnahme sein: Er kommt ohne Anmeldung
+        // aus und lieferte sonst auf unbestimmte Zeit den ganzen Chorkalender.
         $user = User::find((int) $subscription->user_id);
-        if (!$user) {
+        if (!$user || !(bool) $user->is_active) {
             return $response->withStatus(404);
         }
 

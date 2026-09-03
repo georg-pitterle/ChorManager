@@ -27,7 +27,7 @@ Die Empfänger stellst du nicht als feste Adressliste zusammen, sondern über **
 | Quelle | Wer wird angeschrieben |
 |--------|------------------------|
 | **Projektmitglieder** | alle Mitglieder der ausgewählten Projekte (mehrere Projekte möglich) |
-| **Veranstaltungsteilnehmer** | alle Personen, die bei der gewählten Veranstaltung als anwesend erfasst sind |
+| **Veranstaltungsteilnehmer** | alle Personen, die bei der gewählten Veranstaltung als **anwesend erfasst** sind – also der Nachbericht, nicht die Anmeldung |
 | **Rollen** | alle Personen, denen die gewählte Rolle zugewiesen ist |
 | **Einzelne Mitglieder** | gezielt ausgewählte einzelne Personen |
 
@@ -35,6 +35,7 @@ Wählst du beim Anlegen ein Projekt aus, ist es zugleich als Quelle **Projektmit
 
 Wichtig dabei:
 
+- **Veranstaltungsteilnehmer blicken zurück**: Die Quelle liest die erfasste **Anwesenheit**, und die trägt jemand erst *nach* der Veranstaltung ein. Wählst du einen Termin aus, der noch bevorsteht, bleibt die Empfängerzahl deshalb bei 0 – die Anmeldungen (Ja/Nein/Vielleicht) sieht diese Quelle nicht an. Für ein Rundschreiben *vor* einem Auftritt nimmst du **Projektmitglieder**, **Rollen** oder **Einzelne Mitglieder**; für den Nachbericht an alle, die tatsächlich da waren, ist **Veranstaltungsteilnehmer** die richtige Wahl.
 - **Doppelte werden zusammengeführt**: Wer über mehrere Quellen erfasst ist, bekommt den Newsletter trotzdem nur einmal.
 - **Nur aktive Mitglieder** werden angeschrieben; deaktivierte Konten bleiben außen vor.
 - **Ohne Empfänger kein Versand**: Die Schaltfläche „Versenden" ist gesperrt, solange die Empfängerzahl 0 ist. Das gilt auch, wenn zwar eine Quelle gewählt ist, sich daraus aber keine aktive Person ergibt.
@@ -81,7 +82,7 @@ Ein Entwurf kann immer nur von einer Person zugleich bearbeitet werden. Sobald d
 
 ## Häufige Stolperfallen
 
-- **Versand abgelehnt („Newsletter hat keine Empfänger.")**: Es ist keine Quelle gewählt, oder die gewählten Quellen ergeben keine aktive Person – etwa eine Veranstaltung ohne erfasste Anwesenheit oder eine Rolle ohne aktive Mitglieder.
+- **Versand abgelehnt („Newsletter hat keine Empfänger.")**: Es ist keine Quelle gewählt, oder die gewählten Quellen ergeben keine aktive Person – etwa eine Rolle ohne aktive Mitglieder oder – der häufigste Fall – eine Veranstaltung ohne erfasste Anwesenheit, weil sie noch bevorsteht.
 - **Titel und Inhalt sind Pflicht**: Ein leerer Editor wird nicht gespeichert. Ein Newsletter, der nur aus einem Bild oder einer Tabelle besteht, ist dagegen erlaubt.
 - **Versand ist endgültig**: Ein versendeter Newsletter lässt sich nicht mehr bearbeiten, zurückholen oder löschen.
 

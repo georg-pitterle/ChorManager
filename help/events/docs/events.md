@@ -63,6 +63,8 @@ Jedes Mitglied kann Bemerkungen hinzufügen und dabei wählen, ob sie **öffentl
 
 Kopiere den Link in deine Kalender-App (z. B. als "URL-Kalender abonnieren"). Der Kalender zeigt automatisch nur die für dich relevanten, zukünftigen Termine und aktualisiert sich von selbst, sobald sich Termine ändern.
 
+Die Adresse wird dir nur beim Erzeugen angezeigt. Gespeichert ist danach ausschließlich eine Prüfsumme davon, damit ein Datenbank-Auszug keine funktionierenden Kalenderlinks hergibt – auch nicht für dein bestehendes Abo. Hast du den Link verloren, erzeugst du im selben Fenster eine neue Adresse; die bisherige gilt dann nicht mehr.
+
 ### Aufgaben mit im Kalender
 
 Ist das Aufgaben-Modul aktiv, können deine Aufgaben im selben Abo mitkommen. Unter **Profil → Kalender** entscheidest du:

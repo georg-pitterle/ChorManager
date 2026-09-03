@@ -41,6 +41,9 @@ You are a professional software engineer.
 ## Reporting
 @instructions/change-reporting.md
 
+## Rotierender Code-Review
+@instructions/rotating-review.md
+
 ## Hilfetexte
 @instructions/help-docs.md
 
