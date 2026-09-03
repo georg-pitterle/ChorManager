@@ -40,12 +40,101 @@ final class DevSeedAttachmentFixturesTest extends TestCase
 
     public function testPngCarriesTheSignature(): void
     {
-        $fixture = DevSeedAttachmentFixtures::png();
+        $fixture = DevSeedAttachmentFixtures::png('Notenblatt');
 
         $this->assertSame('image/png', $fixture['mime_type']);
         $this->assertSame('png', $fixture['extension']);
         $this->assertSame("\x89PNG\r\n\x1a\n", substr($fixture['content'], 0, 8));
-        $this->assertGreaterThan(20, strlen($fixture['content']));
+    }
+
+    /**
+     * Vorher war das Seed-Bild ein 1x1-Pixel: technisch ein PNG, in der Vorschau
+     * aber nichts zu sehen. Die Bilder liegen jetzt als Dateien unter
+     * assets/seed/ und werden nicht bei jedem Seed-Lauf neu erzeugt.
+     */
+    public function testPngIsAnImageOneCanActuallySee(): void
+    {
+        $fixture = DevSeedAttachmentFixtures::png('Notenblatt');
+
+        $size = getimagesizefromstring($fixture['content']);
+
+        $this->assertIsArray($size);
+        $this->assertGreaterThanOrEqual(320, $size[0], 'Breite');
+        $this->assertGreaterThanOrEqual(200, $size[1], 'Höhe');
+        $this->assertSame('image/png', $size['mime']);
+    }
+
+    /**
+     * Ein einfarbiges Rechteck wäre technisch ein Bild und in der Vorschau
+     * trotzdem nichtssagend. Geprüft wird deshalb, dass wirklich etwas
+     * gezeichnet ist: über ein Raster gezählte Farben.
+     */
+    public function testPngShowsMoreThanOneColour(): void
+    {
+        foreach (DevSeedAttachmentFixtures::seedImageNames() as $name) {
+            $image = imagecreatefromstring(
+                (string) file_get_contents(DevSeedAttachmentFixtures::seedImagePath($name))
+            );
+
+            $this->assertNotFalse($image, $name);
+
+            $colours = [];
+            for ($x = 0; $x < imagesx($image); $x += 16) {
+                for ($y = 0; $y < imagesy($image); $y += 16) {
+                    $colours[imagecolorat($image, $x, $y)] = true;
+                }
+            }
+        
+            $this->assertGreaterThanOrEqual(
+                4,
+                count($colours),
+                $name . ': das Bild wirkt einfarbig, da ist nichts zu sehen'
+            );
+        }
+    }
+
+    /**
+     * Die Zuordnung ist fest: derselbe Name liefert immer dasselbe Bild, damit
+     * ein zweiter Seed-Lauf keine Unterschiede erzeugt. Verschiedene Namen
+     * sollen sich aber unterscheiden, sonst sieht in Dev alles gleich aus.
+     */
+    public function testPngIsStableForTheSameNameAndVariesBetweenNames(): void
+    {
+        $first = DevSeedAttachmentFixtures::png('Notenblatt');
+
+        $this->assertSame($first['content'], DevSeedAttachmentFixtures::png('Notenblatt')['content']);
+
+        // Beschriftungen aus dem echten Seed, nicht die Motivnamen: welches Bild
+        // ein Anhang bekommt, entscheidet erst die Zuordnung in png().
+        $captions = [
+            'Notenblatt Song 1 (Version 1)',
+            'Anhang zu Aufgabe 4',
+            'Beleg zu Laufnummer 12',
+            'Logo Musikhaus Weber',
+            'Mediadaten Kulturstiftung am Fluss',
+            'Anhang zu Aufgabe 9',
+        ];
+
+        $contents = [];
+        foreach ($captions as $caption) {
+            $contents[] = DevSeedAttachmentFixtures::png($caption)['content'];
+        }
+
+        $this->assertGreaterThan(
+            1,
+            count(array_unique($contents)),
+            'Alle Anhänge bekommen dasselbe Motiv'
+        );
+    }
+
+    public function testEverySeedImageIsPresentOnDisk(): void
+    {
+        foreach (DevSeedAttachmentFixtures::seedImageNames() as $name) {
+            $this->assertFileExists(
+                DevSeedAttachmentFixtures::seedImagePath($name),
+                $name . ': Bild fehlt - bin/generate_seed_images.php ausführen'
+            );
+        }
     }
 
     public function testTextCarriesItsBody(): void
@@ -74,7 +163,7 @@ final class DevSeedAttachmentFixturesTest extends TestCase
     {
         $previewable = [
             DevSeedAttachmentFixtures::pdf('x'),
-            DevSeedAttachmentFixtures::png(),
+            DevSeedAttachmentFixtures::png('x'),
             DevSeedAttachmentFixtures::text('x'),
         ];
 

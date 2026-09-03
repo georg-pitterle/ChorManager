@@ -2747,7 +2747,7 @@ class DevSeedService
             [
                 'sponsor' => 'Musikhaus Weber',
                 'base_name' => 'logo-musikhaus-weber',
-                'fixture' => DevSeedAttachmentFixtures::png(),
+                'fixture' => DevSeedAttachmentFixtures::png('Logo Musikhaus Weber'),
             ],
             [
                 'sponsor' => 'Kulturstiftung am Fluss',

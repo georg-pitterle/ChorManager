@@ -53,15 +53,63 @@ final class DevSeedAttachmentFixtures
      *
      * @return array{mime_type: string, extension: string, content: string}
      */
-    public static function png(): array
+    /**
+     * Die Motive, die unter assets/seed/ liegen.
+     *
+     * @return list<string>
+     */
+    public static function seedImageNames(): array
     {
-        $base64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8'
-            . 'z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+        return ['notenblatt', 'sponsorenlogo', 'auftrittsfoto'];
+    }
+
+    /**
+     * Der Ablageort eines Motivs. Getrennt vom Namen, damit der Generator und
+     * die Tests nicht je einen eigenen Pfad zusammensetzen.
+     */
+    public static function seedImagePath(string $name): string
+    {
+        return dirname(__DIR__, 2) . '/assets/seed/' . $name . '.png';
+    }
+
+    /**
+     * Ein echtes Bild aus assets/seed/.
+     *
+     * Vorher stand hier ein 1x1-Pixel als base64: technisch ein gültiges PNG,
+     * in der Vorschau aber eine leere Fläche - der Grund, warum sich die
+     * Bildvorschau in Dev nicht ansehen ließ.
+     *
+     * Gezeichnet werden die Motive von bin/generate_seed_images.php, und zwar
+     * einmalig. Der Seed liest sie nur: ein Seed-Lauf soll keine Bildbibliothek
+     * voraussetzen, und die Testdaten sollen sich zwischen zwei Läufen nicht
+     * unbemerkt ändern.
+     *
+     * Welches Motiv es wird, entscheidet der Name - fest, damit ein zweiter
+     * Lauf dasselbe Bild an dieselbe Stelle legt.
+     *
+     * @return array{mime_type: string, extension: string, content: string}
+     */
+    public static function png(string $caption): array
+    {
+        $names = self::seedImageNames();
+        $name = $names[crc32($caption) % count($names)];
+        $path = self::seedImagePath($name);
+
+        $content = is_readable($path) ? file_get_contents($path) : false;
+
+        if ($content === false || $content === '') {
+            // Absichtlich ein Abbruch statt eines Ersatzbildes: ein stiller
+            // Rückfall auf einen Platzhalter war genau der Zustand, der hier
+            // behoben wurde.
+            throw new \RuntimeException(
+                'Seed-Bild fehlt: ' . $path . ' - bitte bin/generate_seed_images.php ausführen.'
+            );
+        }
 
         return [
             'mime_type' => 'image/png',
             'extension' => 'png',
-            'content'   => (string) base64_decode($base64, true),
+            'content'   => $content,
         ];
     }
 
@@ -101,7 +149,7 @@ final class DevSeedAttachmentFixtures
     {
         return match ($slot % 4) {
             1 => self::pdf($caption),
-            2 => self::png(),
+            2 => self::png($caption),
             3 => self::text($caption . ' - Testinhalt als reiner Text.'),
             default => self::wordDocument($caption),
         };
