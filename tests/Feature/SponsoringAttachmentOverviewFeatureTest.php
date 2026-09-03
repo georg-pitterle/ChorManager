@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsoringAttachmentController;
 use App\Models\Attachment;
 use App\Models\Sponsor;
@@ -78,39 +77,12 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
             }
 
             $this->assertSame('Sponsor', $rows[$logoName]['context_label']);
-            $this->assertSame(
-                '/sponsoring/sponsors/' . $sponsor->id . '/attachments/' . $logo->id,
-                $rows[$logoName]['download_url']
-            );
+            $this->assertArrayNotHasKey('download_url', $rows[$logoName]);
             $this->assertSame('Vereinbarung', $rows[$contractName]['context_label']);
-            $this->assertSame(
-                '/sponsoring/sponsorships/' . $sponsorship->id . '/attachments/' . $contract->id,
-                $rows[$contractName]['download_url']
-            );
+            $this->assertArrayNotHasKey('download_url', $rows[$contractName]);
         } finally {
             Attachment::whereIn('id', [$logo->id, $contract->id])->delete();
             $sponsorship->delete();
-            $sponsor->delete();
-        }
-    }
-
-    public function testSponsorAttachmentDownloadRefusesAnAttachmentOfAnotherSponsor(): void
-    {
-        $sponsor = Sponsor::create(['name' => 'IDOR-Test A ' . bin2hex(random_bytes(4))]);
-        $otherSponsor = Sponsor::create(['name' => 'IDOR-Test B ' . bin2hex(random_bytes(4))]);
-        $attachment = $this->makeAttachment('sponsor', (int) $sponsor->id, 'geheim.txt');
-
-        try {
-            $response = $this->sponsorController()->downloadAttachment(
-                $this->makeRequest('GET', '/sponsoring/sponsors/' . $otherSponsor->id . '/attachments/' . $attachment->id),
-                $this->makeResponse(),
-                ['id' => (string) $otherSponsor->id, 'attachment_id' => (string) $attachment->id]
-            );
-
-            $this->assertSame(403, $response->getStatusCode());
-        } finally {
-            $attachment->delete();
-            $otherSponsor->delete();
             $sponsor->delete();
         }
     }
@@ -128,14 +100,5 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
             'file_size'     => strlen($content),
             'file_content'  => $content,
         ]);
-    }
-
-    private function sponsorController(): SponsorController
-    {
-        return new SponsorController(
-            $this->createStub(Twig::class),
-            new SponsoringPolicy(),
-            $this->attachmentService()
-        );
     }
 }

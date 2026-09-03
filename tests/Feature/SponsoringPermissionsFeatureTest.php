@@ -459,62 +459,6 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $this->assertNull(Attachment::find($agreementAttachment->id));
     }
 
-    public function testContributorCannotDownloadAForeignAgreementsContract(): void
-    {
-        $this->loginAsContributor();
-        $sponsor = $this->makeSponsor();
-        $own = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
-        $foreign = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
-
-        $ownFile = $this->makeAttachment('sponsorship', (int) $own->id);
-        $foreignFile = $this->makeAttachment('sponsorship', (int) $foreign->id);
-
-        try {
-            $controller = $this->sponsorshipController();
-
-            $allowed = $controller->downloadAttachment(
-                $this->makeRequest('GET', '/x'),
-                $this->makeResponse(),
-                ['id' => (string) $own->id, 'attachment_id' => (string) $ownFile->id]
-            );
-            $this->assertSame(200, $allowed->getStatusCode());
-
-            // Der Vertrag einer fremden Vereinbarung geht niemanden an, der sie
-            // nicht angelegt hat - die Route liegt in der Zugangs-Gruppe und
-            // war vorher fuer jeden Beitragenden offen.
-            $denied = $controller->downloadAttachment(
-                $this->makeRequest('GET', '/x'),
-                $this->makeResponse(),
-                ['id' => (string) $foreign->id, 'attachment_id' => (string) $foreignFile->id]
-            );
-            $this->assertSame(403, $denied->getStatusCode());
-        } finally {
-            Attachment::whereIn('id', [$ownFile->id, $foreignFile->id])->delete();
-            $this->cleanUp($sponsor);
-        }
-    }
-
-    public function testContributorCannotDownloadAForeignSponsorsAttachment(): void
-    {
-        $this->loginAsContributor();
-        $foreignSponsor = $this->makeSponsor();
-        $foreignSponsor->update(['created_by_user_id' => $this->otherUser->id]);
-        $file = $this->makeAttachment('sponsor', (int) $foreignSponsor->id);
-
-        try {
-            $response = $this->sponsorController()->downloadAttachment(
-                $this->makeRequest('GET', '/x'),
-                $this->makeResponse(),
-                ['id' => (string) $foreignSponsor->id, 'attachment_id' => (string) $file->id]
-            );
-
-            $this->assertSame(403, $response->getStatusCode());
-        } finally {
-            $file->delete();
-            $this->cleanUp($foreignSponsor);
-        }
-    }
-
     public function testAttachmentOverviewShowsAContributorOnlyTheirOwnFiles(): void
     {
         $this->loginAsContributor();

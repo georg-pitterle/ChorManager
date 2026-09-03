@@ -18,7 +18,8 @@ class FinanceFeatureTest extends TestCase
         $this->assertTrue(method_exists(FinanceController::class, 'journal'));
         $this->assertTrue(method_exists(FinanceController::class, 'report'));
         $this->assertTrue(method_exists(FinanceController::class, 'updateSettings'));
-        $this->assertTrue(method_exists(FinanceController::class, 'viewAttachment'));
+        // Ausliefern kann nur noch AttachmentController - siehe DownloadFeatureTest.
+        $this->assertFalse(method_exists(FinanceController::class, 'viewAttachment'));
         $this->assertTrue(method_exists(FinanceController::class, 'deleteAttachment'));
         $this->assertTrue(method_exists(FinanceController::class, 'reportPdf'));
 
@@ -68,16 +69,11 @@ class FinanceFeatureTest extends TestCase
         $this->assertStringNotContainsString('public function delete(', $controllerContent);
     }
 
-    public function testFinanceAttachmentViewOnlyUsesInlineDispositionForSafeMimeTypes(): void
+    public function testFinanceAttachmentUploadStillTracksFileSize(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('private static function isInlineViewableMimeType', $controllerContent);
-        $this->assertStringContainsString("'application/pdf'", $controllerContent);
-        $this->assertStringContainsString("'text/plain'", $controllerContent);
-        $this->assertStringContainsString("'attachment'", $controllerContent);
-        $this->assertStringContainsString("'inline'", $controllerContent);
         $this->assertStringContainsString("'file_size' => " . '$' . "size", $controllerContent);
     }
 

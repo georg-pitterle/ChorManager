@@ -121,8 +121,6 @@ class SponsoringAttachmentController
             'sponsor_url'   => '/sponsoring/sponsors/' . $sponsorship->sponsor->id,
             'reference'     => $package,
             'project_name'  => $sponsorship->project ? (string) $sponsorship->project->name : '–',
-            'download_url'  => '/sponsoring/sponsorships/' . $sponsorship->id
-                . '/attachments/' . $attachment->id,
         ];
     }
 
@@ -145,8 +143,6 @@ class SponsoringAttachmentController
             'sponsor_url'   => '/sponsoring/sponsors/' . $sponsor->id,
             'reference'     => 'Stammdaten',
             'project_name'  => '–',
-            'download_url'  => '/sponsoring/sponsors/' . $sponsor->id
-                . '/attachments/' . $attachment->id,
         ];
     }
 

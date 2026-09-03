@@ -211,29 +211,6 @@ class SponsorshipController
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
     }
 
-    public function downloadAttachment(Request $request, Response $response, array $args): Response
-    {
-        $sponsorshipId = (int) $args['id'];
-        $attachmentId  = (int) $args['attachment_id'];
-
-        // Verträge fremder Vereinbarungen gehen niemanden an, der sie nicht
-        // angelegt hat. Die Prüfung steht vor dem Laden des Anhangs: sonst
-        // liest der Server den kompletten Datei-Inhalt und verwirft ihn danach.
-        $sponsorship = Sponsorship::find($sponsorshipId);
-        if ($sponsorship === null || !$this->policy->canSeeSponsorshipDetails($sponsorship)) {
-            return $this->deny($response);
-        }
-
-        // Die Zugehörigkeit steckt zusätzlich in der Abfrage: ein Anhang, der
-        // zu einer anderen Vereinbarung gehört, wird gar nicht erst gelesen.
-        $attachment = $this->attachments->findWithContent(self::ENTITY_TYPE, $sponsorshipId, $attachmentId);
-        if ($attachment === null) {
-            return $this->deny($response);
-        }
-
-        return $this->attachments->buildDownloadResponse($response, $attachment);
-    }
-
     public function deleteAttachment(Request $request, Response $response, array $args): Response
     {
         $sponsorshipId = (int) $args['id'];

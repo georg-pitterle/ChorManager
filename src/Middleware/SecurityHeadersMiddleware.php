@@ -54,15 +54,31 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Einzige Ausnahme vom vollständigen Framing-Verbot: die Route, die das fertige Mail-HTML
-     * eines gespeicherten Newsletters ausliefert. Sie dient als Quelle des eingebetteten Rahmens
-     * auf templates/newsletters/preview.twig und muss dafür in ein Frame der eigenen Anwendung
-     * eingebettet werden dürfen. Jede andere Route bleibt uneingebettet - das ist der wirksamste
-     * Schutz gegen Clickjacking.
+     * Die beiden einzigen Ausnahmen vom vollständigen Framing-Verbot:
+     *
+     *  - die Route, die das fertige Mail-HTML eines gespeicherten Newsletters ausliefert. Sie
+     *    dient als Quelle des eingebetteten Rahmens auf templates/newsletters/preview.twig.
+     *  - die Anhang-Vorschau. Ein PDF lässt sich nur in einem Rahmen anzeigen; `object-src
+     *    'none'` schließt `<embed>` und `<object>` aus, und ein neuer Tab wäre die Rückkehr
+     *    zu genau der uneinheitlichen Bedienung, die das gemeinsame Modal ablöst.
+     *
+     * Vertretbar ist die zweite Ausnahme, weil die Route ausschließlich Dateiinhalte
+     * ausliefert, kein HTML-Typ auf der Inline-Liste in App\Util\AttachmentPreview steht und
+     * `X-Content-Type-Options: nosniff` gesetzt bleibt. Die Download-Route daneben behält
+     * `'none'` - sie muss nie eingebettet werden.
+     *
+     * Jede andere Route bleibt uneingebettet - das ist der wirksamste Schutz gegen
+     * Clickjacking.
      */
     private function allowsSelfFraming(Request $request): bool
     {
-        return (bool) preg_match('#^/newsletters/\d+/preview-frame$#', $request->getUri()->getPath());
+        $path = $request->getUri()->getPath();
+
+        if (preg_match('#^/newsletters/\d+/preview-frame$#', $path)) {
+            return true;
+        }
+
+        return (bool) preg_match('#^/attachments/\d+/preview$#', $path);
     }
 
     private function buildCsp(bool $allowsSelfFraming): string

@@ -6,6 +6,7 @@ use Slim\App;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use App\Controllers\AttachmentController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\UserController;
@@ -184,13 +185,14 @@ return function (App $app) {
                 $group->get('/evaluations/registrations', [EvaluationController::class, 'registrations']);
             }
 
+            // Anhänge zentral: Vorschau und Download für jeden entity_type.
+            // Ohne RoleMiddleware, weil das nötige Recht am Anhang hängt und
+            // nicht am Pfad - AttachmentAccessRegistry entscheidet.
+            $group->get('/attachments/{id:[0-9]+}/preview', [AttachmentController::class, 'preview']);
+            $group->get('/attachments/{id:[0-9]+}/download', [AttachmentController::class, 'download']);
+
             // Download section for project members
             $group->get('/downloads', [DownloadController::class, 'index']);
-            $group->get(
-                '/downloads/attachments/{attachment_id:[0-9]+}/download',
-                [DownloadController::class, 'downloadAttachment']
-            );
-            $group->get('/downloads/attachments/{attachment_id:[0-9]+}/stream', [DownloadController::class, 'streamAttachment']);
 
             // Help pages (Markdown guides under help/) - accessible for all logged-in users,
             // independent of tenant modules/roles.
@@ -293,10 +295,6 @@ return function (App $app) {
                         $financeReadGroup->get('/finances', [FinanceController::class, 'index']);
                         $financeReadGroup->get('/finances/report', [FinanceController::class, 'report']);
                         $financeReadGroup->get('/finances/report/pdf', [FinanceController::class, 'reportPdf']);
-                        $financeReadGroup->get(
-                            '/finances/attachments/{id:[0-9]+}',
-                            [FinanceController::class, 'viewAttachment']
-                        );
                         $financeReadGroup->get('/finances/accounts', [FinanceAccountController::class, 'index']);
                         $financeReadGroup->get('/finances/journal', [FinanceController::class, 'journal']);
                         // Rohdaten fuer Rechnungspruefer: bewusst nur Leserecht noetig.
@@ -378,10 +376,6 @@ return function (App $app) {
                         $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);
                         $taskGroup->post('/{id:[0-9]+}/comments', [TaskController::class, 'addComment']);
                         $taskGroup->post('/{id:[0-9]+}/attachments', [TaskController::class, 'uploadAttachment']);
-                        $taskGroup->get(
-                            '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/download',
-                            [TaskController::class, 'downloadAttachment']
-                        );
                         $taskGroup->post(
                             '/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                             [TaskController::class, 'deleteAttachment']
@@ -413,10 +407,6 @@ return function (App $app) {
                             '/sponsors/{id:[0-9]+}/attachments',
                             [SponsorController::class, 'uploadAttachment']
                         );
-                        $sponsoringGroup->get(
-                            '/sponsors/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}',
-                            [SponsorController::class, 'downloadAttachment']
-                        );
                         $sponsoringGroup->post(
                             '/sponsors/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                             [SponsorController::class, 'deleteAttachment']
@@ -431,10 +421,6 @@ return function (App $app) {
                         $sponsoringGroup->post(
                             '/sponsorships/{id:[0-9]+}/delete',
                             [SponsorshipController::class, 'delete']
-                        );
-                        $sponsoringGroup->get(
-                            '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}',
-                            [SponsorshipController::class, 'downloadAttachment']
                         );
                         $sponsoringGroup->post(
                             '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',

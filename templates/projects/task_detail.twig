@@ -141,7 +141,6 @@
                     {{ include("partials/attachments.twig", {
                     attachments: task.attachments,
                     upload_url: "/tasks/" ~ task.id ~ "/attachments",
-                    download_url: "/tasks/" ~ task.id ~ "/attachments",
                     delete_url: "/tasks/" ~ task.id ~ "/attachments",
                     }) }}
                 </div>

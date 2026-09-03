@@ -90,7 +90,7 @@
                                                             <tr>
                                                                 <th data-sort-key="file_name" data-sort-type="text">Datei</th>
                                                                 <th data-sort-key="mime_type" data-sort-type="text">Typ</th>
-                                                                <th>Groesse</th>
+                                                                <th>Größe</th>
                                                                 <th>Wiedergabe</th>
                                                                 <th class="text-end">Aktionen</th>
                                                             </tr>
@@ -106,38 +106,36 @@
                                                                     <td data-label="Typ">
                                                                         <small>{{ attachment.mime_type }}</small>
                                                                     </td>
-                                                                    <td data-label="Groesse">{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
+                                                                    <td data-label="Größe">{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
                                                                     <td data-label="Wiedergabe">
                                                                         {% if is_mp3 %}
                                                                             <audio controls preload="none" class="w-100">
-                                                                                <source src="/downloads/attachments/{{ attachment.id }}/stream"
+                                                                                <source src="/attachments/{{ attachment.id }}/preview"
                                                                                         type="audio/mpeg">
-                                                                                Dein Browser unterstuetzt kein Audio-Playback.
+                                                                                Dein Browser unterstützt kein Audio-Playback.
                                                                             </audio>
                                                                         {% elseif is_midi %}
                                                                             <div class="midi-player-block" data-midi-id="{{ attachment.id }}">
-                                                                                <midi-player src="/downloads/attachments/{{ attachment.id }}/stream" visualizer="#none" class="w-100"></midi-player>
-                                                                                <small class="text-muted d-none midi-fallback">MIDI-Playback im Browser nicht verfuegbar. Bitte Datei herunterladen.</small>
+                                                                                <midi-player src="/attachments/{{ attachment.id }}/preview" visualizer="#none" class="w-100"></midi-player>
+                                                                                <small class="text-muted d-none midi-fallback">MIDI-Playback im Browser nicht verfügbar. Bitte Datei herunterladen.</small>
                                                                             </div>
                                                                         {% else %}
                                                                             <span class="text-muted">Nicht direkt abspielbar</span>
                                                                         {% endif %}
                                                                     </td>
                                                                     <td data-label="Aktionen" class="text-end">
-                                                                        <div class="btn-group"
-                                                                             role="group"
-                                                                             aria-label="Aktionen für Anhang {{ attachment.filename }}">
-                                                                            <a class="btn btn-sm btn-outline-primary"
-                                                                               href="/downloads/attachments/{{ attachment.id }}/download">
-                                                                                <i class="bi bi-download"></i>
-                                                                                <span class="d-none d-sm-inline">Download</span>
-                                                                            </a>
-                                                                        </div>
+                                                                        {{ include("partials/attachment_actions.twig", {
+                                                                            attachment_id: attachment.id,
+                                                                            attachment_name: attachment.original_name,
+                                                                            attachment_mime: attachment.mime_type,
+                                                                            attachment_size: attachment.file_size,
+                                                                            show_label: true,
+                                                                        }, false) }}
                                                                     </td>
                                                                 </tr>
                                                             {% else %}
                                                                 <tr>
-                                                                    <td colspan="5" class="text-muted">Keine Anhaenge zu diesem Lied vorhanden.</td>
+                                                                    <td colspan="5" class="text-muted">Keine Anhänge zu diesem Lied vorhanden.</td>
                                                                 </tr>
                                                             {% endfor %}
                                                         </tbody>

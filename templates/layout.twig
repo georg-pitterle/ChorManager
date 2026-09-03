@@ -74,6 +74,7 @@
                 {% endblock content %}
             </div>
         </main>
+        {{ include("partials/attachment_preview_modal.twig", [], false) }}
         <!-- Bootstrap JS Bundle -->
         <script src="/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
         <script src="{{ asset_path('/js/table-preferences.js') }}"></script>
@@ -82,6 +83,7 @@
         <script src="{{ asset_path('/js/table-plugins/users-group-plugin.js') }}"></script>
         <script src="{{ asset_path('/js/common.js') }}"></script>
         <script src="{{ asset_path('/js/upload-helper.js') }}"></script>
+        <script src="{{ asset_path('/js/attachment-preview.js') }}"></script>
         {% if session.user_id %}
             <script src="{{ asset_path('/js/mail-badge.js') }}"></script>
         {% endif %}

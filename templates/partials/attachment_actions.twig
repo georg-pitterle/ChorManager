@@ -1,0 +1,46 @@
+{# Buttonpaar für einen Anhang: Vorschau (sofern darstellbar) und Download.
+
+   Die Parameter sind einfache Werte statt eines Objekts, weil die Aufrufstellen
+   unterschiedliche Formen liefern: fünf reichen ein Eloquent-Modell mit
+   original_name/file_size herein, die Sponsoring-Übersicht ein Array mit
+   name/size_bytes aus SponsoringAttachmentController::baseRow().
+
+   Parameter:
+     attachment_id    Zahl
+     attachment_name  Anzeigename
+     attachment_mime  MIME-Typ
+     attachment_size  Größe in Bytes
+     show_label       Beschriftung neben dem Symbol zeigen (Vorgabe: false) #}
+{% set _show_label = show_label|default(false) %}
+{% set _previewable = attachment_previewable(attachment_mime) %}
+<div class="btn-group btn-group-sm attachment-actions"
+     role="group"
+     aria-label="Aktionen für Anhang {{ attachment_name }}">
+    {% if _previewable %}
+        <button type="button"
+                class="btn btn-outline-secondary"
+                data-attachment-preview
+                data-attachment-id="{{ attachment_id }}"
+                data-attachment-name="{{ attachment_name }}"
+                data-attachment-mime="{{ attachment_mime }}"
+                data-attachment-size="{{ attachment_size }}"
+                title="Vorschau">
+            <i class="bi bi-eye" aria-hidden="true"></i>
+            {% if _show_label %}
+                <span class="d-none d-sm-inline">Vorschau</span>
+            {% else %}
+                <span class="visually-hidden">Vorschau</span>
+            {% endif %}
+        </button>
+    {% endif %}
+    <a class="btn btn-outline-primary"
+       href="/attachments/{{ attachment_id }}/download"
+       title="Herunterladen">
+        <i class="bi bi-download" aria-hidden="true"></i>
+        {% if _show_label %}
+            <span class="d-none d-sm-inline">Download</span>
+        {% else %}
+            <span class="visually-hidden">Herunterladen</span>
+        {% endif %}
+    </a>
+</div>

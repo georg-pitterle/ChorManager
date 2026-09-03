@@ -25,7 +25,6 @@ use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use App\Util\DownloadFileName;
 
 class TaskController
 {
@@ -755,34 +754,6 @@ class TaskController
 
         $_SESSION['success'] = 'Anhang gelöscht.';
         return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
-    }
-
-    public function downloadAttachment(Request $request, Response $response, array $args): Response
-    {
-        $taskId = (int) $args['id'];
-        $attachmentId = (int) $args['attachment_id'];
-        $task = Task::findOrFail($taskId);
-
-        // Wie in allen übrigen Aufgaben-Aktionen über hasTaskAccess(): dasselbe
-        // Recht, aber mit dem authz.denied-Eintrag im Protokoll. Der direkte
-        // Aufruf der Policy war die einzige Abweisung dieser Datei ohne Spur.
-        if (!$this->hasTaskAccess($task->project)) {
-            $_SESSION['error'] = 'Zugriff verweigert.';
-            return $response->withHeader('Location', '/dashboard')->withStatus(302);
-        }
-
-        $attachment = Attachment::where('entity_type', 'task')
-            ->where('entity_id', $taskId)
-            ->findOrFail($attachmentId);
-
-        $safeName = DownloadFileName::sanitize((string) $attachment->original_name);
-        $response->getBody()->write($attachment->file_content);
-        return $response
-            ->withHeader('Content-Type', $attachment->mime_type)
-            ->withHeader(
-                'Content-Disposition',
-                'attachment; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
-            );
     }
 
     public function updateStatus(Request $request, Response $response, array $args): Response

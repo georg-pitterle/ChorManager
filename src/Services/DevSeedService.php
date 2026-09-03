@@ -1554,14 +1554,22 @@ class DevSeedService
             $runningNumber++;
 
             if ($attachmentsLeft > 0 && mt_rand(1, 100) <= 30) {
+                // Die Belege wechseln reihum durch die vier Typen, damit im
+                // Kassabuch sowohl Anhänge mit als auch ohne Vorschau stehen.
+                $fixture = DevSeedAttachmentFixtures::forSlot(
+                    $attachmentsLeft,
+                    'Beleg zu Laufnummer ' . $finance->running_number
+                );
+                $belegName = sprintf('beleg-%05d.%s', $finance->running_number, $fixture['extension']);
+
                 Attachment::create([
                     'entity_type' => 'finance',
                     'entity_id' => $finance->id,
-                    'filename' => sprintf('beleg-%05d.txt', $finance->running_number),
-                    'original_name' => sprintf('beleg-%05d.txt', $finance->running_number),
-                    'mime_type' => 'text/plain',
-                    'file_size' => strlen('Automatisch generierter Testbeleg für Laufnummer ' . $finance->running_number),
-                    'file_content' => 'Automatisch generierter Testbeleg für Laufnummer ' . $finance->running_number,
+                    'filename' => $belegName,
+                    'original_name' => $belegName,
+                    'mime_type' => $fixture['mime_type'],
+                    'file_size' => strlen($fixture['content']),
+                    'file_content' => $fixture['content'],
                 ]);
                 $this->report['counts']['finance_attachments']++;
                 $attachmentsLeft--;
@@ -1574,14 +1582,22 @@ class DevSeedService
                 break;
             }
 
+            // Der Auffüllblock bleibt bewusst beim Word-Dokument: so hat das
+            // Kassabuch garantiert Belege ohne Vorschau, unabhängig davon, wie
+            // die Zufallsauswahl oben ausgegangen ist.
+            $fixture = DevSeedAttachmentFixtures::wordDocument(
+                'Zusatzbeleg zu Laufnummer ' . $finance->running_number
+            );
+            $zusatzName = sprintf('beleg-zusatz-%05d.%s', $finance->running_number, $fixture['extension']);
+
             Attachment::create([
                 'entity_type' => 'finance',
                 'entity_id' => $finance->id,
-                'filename' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
-                'original_name' => sprintf('beleg-zusatz-%05d.txt', $finance->running_number),
-                'mime_type' => 'text/plain',
-                'file_size' => strlen('Zusatzbeleg für Testdaten.'),
-                'file_content' => 'Zusatzbeleg für Testdaten.',
+                'filename' => $zusatzName,
+                'original_name' => $zusatzName,
+                'mime_type' => $fixture['mime_type'],
+                'file_size' => strlen($fixture['content']),
+                'file_content' => $fixture['content'],
             ]);
             $this->report['counts']['finance_attachments']++;
             $attachmentsLeft--;
@@ -1834,7 +1850,7 @@ class DevSeedService
      * Gespeichert wird nur die Abweichung (siehe Migration 20260830140000),
      * deshalb entstehen hier nur Zeilen fuer abgeschaltete Anlaesse. Ein Drittel
      * der Aktiven bekommt eine, damit im Dev beide Zustaende vorkommen und sich
-     * die Filterung des Versands ueberhaupt beobachten laesst.
+     * die Filterung des Versands überhaupt beobachten laesst.
      *
      * @param array<int, User> $activeUsers
      */
@@ -2653,36 +2669,37 @@ class DevSeedService
     {
         $this->seedSponsorLogoAttachments($sponsors);
 
+        // Die Verträge tragen jetzt echte Dateiinhalte statt Text mit
+        // PDF-Etikett - sonst bliebe der Rahmen im Vorschau-Modal leer. Das
+        // Angebot ist bewusst ein Word-Dokument: an ihm sieht man in Dev, dass
+        // ein nicht darstellbarer Anhang keinen Vorschau-Knopf bekommt.
         $definitions = [
             [
                 'sponsorship_key' => 'Musikhaus Weber-0',
-                'original_name' => 'vertrag-musikhaus-weber.pdf',
-                'mime_type' => 'application/pdf',
-                'file_content' => 'PDF Testinhalt: Sponsoringvertrag Musikhaus Weber',
+                'base_name' => 'vertrag-musikhaus-weber',
+                'fixture' => DevSeedAttachmentFixtures::pdf('Sponsoringvertrag Musikhaus Weber'),
             ],
             [
                 'sponsorship_key' => 'Kulturstiftung am Fluss-0',
-                'original_name' => 'foerderantrag-kulturstiftung.pdf',
-                'mime_type' => 'application/pdf',
-                'file_content' => 'PDF Testinhalt: Förderantrag Kulturstiftung am Fluss',
+                'base_name' => 'förderantrag-kulturstiftung',
+                'fixture' => DevSeedAttachmentFixtures::pdf('Förderantrag Kulturstiftung am Fluss'),
             ],
             [
                 'sponsorship_key' => 'Barbara Singer-0',
-                'original_name' => 'dankesschreiben-barbara-singer.txt',
-                'mime_type' => 'text/plain',
-                'file_content' => 'Vielen Dank für Ihre Unterstützung des Chorprojekts.',
+                'base_name' => 'dankesschreiben-barbara-singer',
+                'fixture' => DevSeedAttachmentFixtures::text(
+                    'Vielen Dank für Ihre Unterstützung des Chorprojekts.'
+                ),
             ],
             [
                 'sponsorship_key' => 'Eventagentur Taktvoll-0',
-                'original_name' => 'branding-briefing-taktvoll.pdf',
-                'mime_type' => 'application/pdf',
-                'file_content' => 'PDF Testinhalt: Branding-Briefing Eventagentur Taktvoll',
+                'base_name' => 'branding-briefing-taktvoll',
+                'fixture' => DevSeedAttachmentFixtures::pdf('Branding-Briefing Eventagentur Taktvoll'),
             ],
             [
                 'sponsorship_key' => 'Eventagentur Taktvoll-1',
-                'original_name' => 'angebot-sommergala.pdf',
-                'mime_type' => 'application/pdf',
-                'file_content' => 'PDF Testinhalt: Angebot Sommergala Sponsoring',
+                'base_name' => 'angebot-sommergala',
+                'fixture' => DevSeedAttachmentFixtures::wordDocument('Angebot Sommergala Sponsoring'),
             ],
         ];
 
@@ -2692,18 +2709,21 @@ class DevSeedService
                 continue;
             }
 
-            $storedFilename = bin2hex(random_bytes(8)) . '_' . $definition['original_name'];
-            $attachment = Attachment::firstOrCreate(
+            $fixture = $definition['fixture'];
+            $originalName = $definition['base_name'] . '.' . $fixture['extension'];
+            $storedFilename = bin2hex(random_bytes(8)) . '_' . $originalName;
+
+            $attachment = Attachment::updateOrCreate(
                 [
                     'entity_type' => 'sponsorship',
                     'entity_id' => $sponsorship->id,
-                    'original_name' => $definition['original_name'],
+                    'original_name' => $originalName,
                 ],
                 [
                     'filename' => $storedFilename,
-                    'mime_type' => $definition['mime_type'],
-                    'file_size' => strlen($definition['file_content']),
-                    'file_content' => $definition['file_content'],
+                    'mime_type' => $fixture['mime_type'],
+                    'file_size' => strlen($fixture['content']),
+                    'file_content' => $fixture['content'],
                 ]
             );
 
@@ -2720,24 +2740,24 @@ class DevSeedService
      */
     private function seedSponsorLogoAttachments(array $sponsors): void
     {
+        // Logos sind jetzt echte Bilddateien - vorher trugen sie Text mit der
+        // Endung .txt und hießen trotzdem "Logo". Die Mediadaten bleiben ein
+        // PDF, das Sponsorenporträt ist bewusst ein Word-Dokument ohne Vorschau.
         $definitions = [
             [
                 'sponsor' => 'Musikhaus Weber',
-                'original_name' => 'logo-musikhaus-weber.txt',
-                'mime_type' => 'text/plain',
-                'file_content' => 'Platzhalter für das Logo von Musikhaus Weber.',
+                'base_name' => 'logo-musikhaus-weber',
+                'fixture' => DevSeedAttachmentFixtures::png(),
             ],
             [
                 'sponsor' => 'Kulturstiftung am Fluss',
-                'original_name' => 'mediadaten-kulturstiftung.txt',
-                'mime_type' => 'text/plain',
-                'file_content' => 'Platzhalter für die Mediadaten der Kulturstiftung am Fluss.',
+                'base_name' => 'mediadaten-kulturstiftung',
+                'fixture' => DevSeedAttachmentFixtures::pdf('Mediadaten Kulturstiftung am Fluss'),
             ],
             [
                 'sponsor' => 'Eventagentur Taktvoll',
-                'original_name' => 'logo-taktvoll.txt',
-                'mime_type' => 'text/plain',
-                'file_content' => 'Platzhalter für das Logo der Eventagentur Taktvoll.',
+                'base_name' => 'sponsorenportraet-taktvoll',
+                'fixture' => DevSeedAttachmentFixtures::wordDocument('Sponsorenporträt Eventagentur Taktvoll'),
             ],
         ];
 
@@ -2747,17 +2767,20 @@ class DevSeedService
                 continue;
             }
 
-            $attachment = Attachment::firstOrCreate(
+            $fixture = $definition['fixture'];
+            $originalName = $definition['base_name'] . '.' . $fixture['extension'];
+
+            $attachment = Attachment::updateOrCreate(
                 [
                     'entity_type' => 'sponsor',
                     'entity_id' => $sponsor->id,
-                    'original_name' => $definition['original_name'],
+                    'original_name' => $originalName,
                 ],
                 [
-                    'filename' => bin2hex(random_bytes(8)) . '_' . $definition['original_name'],
-                    'mime_type' => $definition['mime_type'],
-                    'file_size' => strlen($definition['file_content']),
-                    'file_content' => $definition['file_content'],
+                    'filename' => bin2hex(random_bytes(8)) . '_' . $originalName,
+                    'mime_type' => $fixture['mime_type'],
+                    'file_size' => strlen($fixture['content']),
+                    'file_content' => $fixture['content'],
                 ]
             );
 
@@ -2902,20 +2925,37 @@ class DevSeedService
         while ($created < $targetCount && $attempt < $maxAttempts) {
             $song = $songs[$attempt % count($songs)];
             $slot = (int) floor($attempt / count($songs)) + 1;
-            $originalName = sprintf('notenblatt-%d-%02d.pdf', $song->id, $slot);
-            $content = 'PDF Testinhalt: Notenblatt für Song ' . $song->id . ' (Version ' . $slot . ').';
 
-            $attachment = Attachment::firstOrCreate(
+            // Vier Typen reihum: PDF, Bild und Text sind im Vorschau-Modal
+            // darstellbar, das Word-Dokument bewusst nicht. So ist in Dev
+            // sofort beides zu sehen - mit Vorschau-Knopf und ohne.
+            // Die Rotation läuft über $attempt, nicht über $slot: $slot steigt
+            // erst, wenn jedes Lied einen Anhang hat, und erreicht bei vielen
+            // Liedern nie den vierten Zweig - dann fänden sich in den Testdaten
+            // ausschließlich darstellbare Anhänge.
+            //
+            // Die vier Anhang-Stellen legen mit updateOrCreate an, nicht mit
+            // firstOrCreate. Der Schlüssel ist der Dateiname, und der bleibt
+            // gleich: eine bestehende Zeile aus einem früheren Lauf behielte
+            // sonst für immer ihren alten Inhalt - also genau die Textdatei mit
+            // PDF-Etikett, deretwegen die Vorschau in Dev leer blieb.
+            $fixture = DevSeedAttachmentFixtures::forSlot(
+                $attempt + 1,
+                'Notenblatt Song ' . $song->id . ' (Version ' . $slot . ')'
+            );
+            $originalName = sprintf('notenblatt-%d-%02d.%s', $song->id, $slot, $fixture['extension']);
+
+            $attachment = Attachment::updateOrCreate(
                 [
                     'entity_type' => 'song',
                     'entity_id' => $song->id,
                     'original_name' => $originalName,
                 ],
                 [
-                    'filename' => sprintf('seed-song-%d-%02d.pdf', $song->id, $slot),
-                    'mime_type' => 'application/pdf',
-                    'file_size' => strlen($content),
-                    'file_content' => $content,
+                    'filename' => sprintf('seed-song-%d-%02d.%s', $song->id, $slot, $fixture['extension']),
+                    'mime_type' => $fixture['mime_type'],
+                    'file_size' => strlen($fixture['content']),
+                    'file_content' => $fixture['content'],
                 ]
             );
 
@@ -3303,20 +3343,23 @@ class DevSeedService
         while ($created < $targetCount && $attempt < $maxAttempts) {
             $task = $tasks[$attempt % count($tasks)];
             $slot = (int) floor($attempt / count($tasks)) + 1;
-            $originalName = sprintf('task-anhang-%d-%02d.txt', $task->id, $slot);
-            $content = 'Automatisch generierter Task-Anhang für Aufgabe ' . $task->id . '.';
 
-            $attachment = Attachment::firstOrCreate(
+            // Rotation über $attempt, siehe seedSongAttachments(): über $slot
+            // bekäme das Aufgabenmodul nie einen nicht darstellbaren Anhang.
+            $fixture = DevSeedAttachmentFixtures::forSlot($attempt + 1, 'Anhang zu Aufgabe ' . $task->id);
+            $originalName = sprintf('task-anhang-%d-%02d.%s', $task->id, $slot, $fixture['extension']);
+
+            $attachment = Attachment::updateOrCreate(
                 [
                     'entity_type' => 'task',
                     'entity_id' => $task->id,
                     'original_name' => $originalName,
                 ],
                 [
-                    'filename' => sprintf('seed-task-%d-%02d.txt', $task->id, $slot),
-                    'mime_type' => 'text/plain',
-                    'file_size' => strlen($content),
-                    'file_content' => $content,
+                    'filename' => sprintf('seed-task-%d-%02d.%s', $task->id, $slot, $fixture['extension']),
+                    'mime_type' => $fixture['mime_type'],
+                    'file_size' => strlen($fixture['content']),
+                    'file_content' => $fixture['content'],
                 ]
             );
 

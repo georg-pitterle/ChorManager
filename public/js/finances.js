@@ -1,3 +1,21 @@
+/**
+ * Maskiert einen Wert für die Einbettung in HTML.
+ *
+ * Die Anhangsliste des Bearbeiten-Dialogs entsteht über innerHTML, und der
+ * Dateiname stammt von der hochladenden Person. Vorher wurde er dort roh
+ * eingesetzt - ein Name wie `"><img src=x onerror=...>` hätte im Dialog
+ * ausgeführt. Der Apostroph ist mit drin, weil derselbe Helfer auch Werte für
+ * Attribute liefert.
+ */
+function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function handleGroupSelect(sel) {
     const txt = document.getElementById('group_name');
     if (sel.value === '__new__') {
@@ -148,16 +166,43 @@ function editFinance(item) {
         item.attachments.forEach(att => {
             const div = document.createElement('div');
             div.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+            // Dasselbe Knopfpaar wie der Baustein partials/attachment_actions.twig,
+            // hier von Hand, weil diese Liste erst im Browser entsteht. Ob eine
+            // Vorschau angeboten wird, hat der Server in `previewable` entschieden -
+            // das Skript trifft die Entscheidung bewusst nicht selbst.
+            const previewButton = att.previewable
+                ? `<button type="button"
+                           class="btn btn-outline-secondary"
+                           data-attachment-preview
+                           data-attachment-id="${att.id}"
+                           data-attachment-name="${escapeHtml(att.name)}"
+                           data-attachment-mime="${escapeHtml(att.mime)}"
+                           data-attachment-size="${att.size}"
+                           title="Vorschau">
+                       <i class="bi bi-eye" aria-hidden="true"></i>
+                       <span class="visually-hidden">Vorschau</span>
+                   </button>`
+                : '';
+
             div.innerHTML = `
-                <div class="text-truncate" style="max-width: 80%;">
+                <div class="text-truncate finance-attachment-name">
                     <i class="bi bi-file-earmark-text me-1"></i>
-                    <a href="/finances/attachments/${att.id}" target="_blank" class="text-decoration-none small">${att.filename}</a>
+                    <span class="small">${escapeHtml(att.name)}</span>
                 </div>
-                <form action="/finances/attachments/${att.id}/delete" method="POST" class="m-0" data-confirm="Anhang wirklich löschen?">
-                    <button type="submit" class="btn btn-sm btn-link text-danger p-0">
-                        <i class="bi bi-x-circle"></i>
-                    </button>
-                </form>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="btn-group btn-group-sm attachment-actions" role="group">
+                        ${previewButton}
+                        <a class="btn btn-outline-primary" href="/attachments/${att.id}/download" title="Herunterladen">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                            <span class="visually-hidden">Herunterladen</span>
+                        </a>
+                    </div>
+                    <form action="/finances/attachments/${att.id}/delete" method="POST" class="m-0" data-confirm="Anhang wirklich löschen?">
+                        <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </form>
+                </div>
             `;
             attList.appendChild(div);
         });

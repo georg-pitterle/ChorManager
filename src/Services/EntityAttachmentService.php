@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Attachment;
-use App\Util\DownloadFileName;
 use App\Util\UploadValidator;
-use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Log\LoggerInterface;
 
@@ -186,20 +184,6 @@ class EntityAttachmentService
         return Attachment::where('entity_type', $entityType)
             ->where('entity_id', $entityId)
             ->find($attachmentId);
-    }
-
-    public function buildDownloadResponse(Response $response, Attachment $attachment): Response
-    {
-        $name = DownloadFileName::sanitize((string) $attachment->original_name);
-
-        $response->getBody()->write((string) $attachment->file_content);
-
-        return $response
-            ->withHeader('Content-Type', (string) $attachment->mime_type)
-            ->withHeader(
-                'Content-Disposition',
-                'attachment; filename="' . $name . '"; filename*=UTF-8\'\'' . rawurlencode($name)
-            );
     }
 
     /**

@@ -72,4 +72,4 @@ Das Dashboard zeigt dir:
 
 ## Anhänge an einem Ort
 
-Über **Anhänge** im Kopf jeder Sponsoring-Seite erreichst du eine Liste aller Dateien: Verträge und Angebote, die an einer Vereinbarung hängen, sowie Logos und Mediadaten, die beim Sponsor selbst liegen. Von dort lädst du jede Datei direkt herunter. Hochgeladen wird weiterhin dort, wo die Datei hingehört – bei der Vereinbarung oder in den Stammdaten des Sponsors.
+Über **Anhänge** im Kopf jeder Sponsoring-Seite erreichst du eine Liste aller Dateien: Verträge und Angebote, die an einer Vereinbarung hängen, sowie Logos und Mediadaten, die beim Sponsor selbst liegen. Von dort siehst du jede Datei in der Vorschau an oder lädst sie herunter. Hochgeladen wird weiterhin dort, wo die Datei hingehört – bei der Vereinbarung oder in den Stammdaten des Sponsors.

@@ -246,26 +246,6 @@ class SponsorController
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
     }
 
-    public function downloadAttachment(Request $request, Response $response, array $args): Response
-    {
-        $sponsorId    = (int) $args['id'];
-        $attachmentId = (int) $args['attachment_id'];
-
-        $sponsor = Sponsor::find($sponsorId);
-        if ($sponsor === null || !$this->policy->canSeeSponsorDetails($sponsor)) {
-            return $this->deny($response);
-        }
-
-        // Die Zugehörigkeit steckt zusätzlich in der Abfrage: ein Anhang eines
-        // anderen Sponsors wird gar nicht erst gelesen.
-        $attachment = $this->attachments->findWithContent(self::ENTITY_TYPE, $sponsorId, $attachmentId);
-        if ($attachment === null) {
-            return $this->deny($response);
-        }
-
-        return $this->attachments->buildDownloadResponse($response, $attachment);
-    }
-
     public function deleteAttachment(Request $request, Response $response, array $args): Response
     {
         $sponsorId    = (int) $args['id'];

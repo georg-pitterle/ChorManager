@@ -1564,7 +1564,7 @@ a:hover {
    sichtbare Bereich des Dialogs nur rund 220 bis 650 px hoch, der Inhalt des
    Vorlagen-Formulars dagegen rund 1400 px - "Speichern" als letztes Element lag
    damit weit unterhalb des Sichtfensters. Sticky haelt die Leiste immer erreichbar,
-   ohne die Knoepfe aus dem Formular herausloesen zu muessen (im Dialog wird nur der
+   ohne die Knöpfe aus dem Formular herausloesen zu muessen (im Dialog wird nur der
    Inhalt nachgeladen, eine modal-footer-Leiste steht dort nicht zur Verfuegung). */
 .form-action-bar {
     position: sticky;
@@ -1578,11 +1578,11 @@ a:hover {
 
 /* Formular als Flex-Huelle in einem Dialog.
 
-   Bootstrap verteilt Kopf, Koerper und Fussleiste ueber .modal-content
+   Bootstrap verteilt Kopf, Koerper und Fussleiste über .modal-content
    (display: flex, flex-direction: column) und laesst nur den Koerper scrollen.
    Umschliesst ein <form> die drei, ist das Formular das einzige Flex-Kind: Die
    Hoehenbeschraenkung endet dort, der Koerper waechst auf volle Inhaltshoehe und
-   schiebt die Fussleiste mitsamt den Knoepfen aus dem Bild - trotz
+   schiebt die Fussleiste mitsamt den Knöpfen aus dem Bild - trotz
    modal-dialog-scrollable scrollt dann nichts. Gemessen im Erstellen-Dialog fuer
    Newsletter-Vorlagen: Koerper 1261 px in einem 711 px hohen Dialog, Fussleiste bei
    y=1333 in einem 727 px hohen Fenster.
@@ -1597,4 +1597,81 @@ a:hover {
     min-height: 0;
     max-height: 100%;
     overflow: hidden;
+}
+
+/* Anhang-Vorschau: das gemeinsame Modal für alle Bereiche. Feste Höhe für
+   PDF-Rahmen, weil ein iframe ohne Höhenangabe auf 150px zusammenfällt. */
+.attachment-preview-body {
+    min-height: 12rem;
+}
+
+.attachment-preview-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.attachment-preview-frame {
+    width: 100%;
+    height: 70vh;
+    min-height: 20rem;
+    border: 0;
+}
+
+.attachment-preview-text {
+    max-height: 60vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (max-width: 575.98px) {
+    .attachment-preview-frame {
+        height: 60vh;
+    }
+}
+
+/* Dateiname in der Anhangsliste des Finanz-Bearbeiten-Dialogs. Die Breite muss
+   begrenzt sein, sonst greift text-truncate nicht und ein langer Name drückt
+   die Knöpfe aus der Zeile. Ersetzt ein früheres Inline-style im Skript. */
+.finance-attachment-name {
+    max-width: 60%;
+}
+
+/* Anhang-Buttonpaar in Listenzeilen.
+
+   Das Knopfpaar ist breiter als der einzelne Download-Knopf, den es ablöst.
+   Damit eine Zeile nicht über ihre Spalte hinausläuft, muss der Dateiname
+   schrumpfen dürfen und das Knopfpaar seine Breite behalten.
+
+   `flex-grow-1` allein reicht dafür nicht: es setzt nur flex-grow, die
+   Flex-Basis bleibt `auto` und damit die volle Textbreite. Ein langer Dateiname
+   drückt die Knöpfe dann aus der Zeile, statt selbst gekürzt zu werden.
+   `flex: 1 1 0` bemisst den Namen aus dem freien Platz - er kürzt zuverlässig. */
+.attachment-actions {
+    flex: 0 0 auto;
+}
+
+.attachment-name {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* Der eigentliche Grund, warum die Zeile ihre Karte sprengte:
+   .dashboard-panel__body ist ein Grid, und ein Grid-Element hat von Haus aus
+   min-width: auto. Die Liste durfte damit nicht schmaler werden als ihr
+   längster Eintrag und schob sich über den Kartenrand hinaus - die Zeile
+   darin verteilte korrekt, nur eben auf 603 statt 316 Pixel. Gemessen mit
+   Playwright: ohne diese Regel ul = 603px in einer 316px breiten Karte. */
+.dashboard-panel__body > .list-group {
+    min-width: 0;
+}
+
+/* Zweite Sponsor-Liste: die Anhänge stehen dort nebeneinander in einer Zelle,
+   der Rahmen ist also inhaltsbreit. `flex: 1 1 0` wie in .attachment-name
+   schrumpfte den Namen hier auf null - es gibt keinen freien Platz zu
+   verteilen. Stattdessen eine Obergrenze, an der text-truncate greifen kann. */
+.attachment-inline-name {
+    max-width: 16rem;
 }

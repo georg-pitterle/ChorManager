@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\AppSettingController;
+use App\Controllers\AttachmentController;
 use App\Controllers\AuthController;
 use App\Controllers\FinanceController;
 use App\Controllers\PasswordResetController;
@@ -19,6 +20,7 @@ use App\Logging\DatabaseWriteLogger;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Persistence\UserPersistence;
+use App\Services\AttachmentAccessRegistry;
 use App\Services\BackupService;
 use App\Services\Mailer;
 use App\Services\MailCredentialCryptoService;
@@ -344,5 +346,48 @@ final class DependenciesContainerWiringTest extends TestCase
 
         $this->assertInstanceOf(DatabaseWriteLogger::class, $writeLogger);
         $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($writeLogger));
+    }
+
+    /**
+     * Die zentrale Anhang-Route resolvt ihre beiden Konstruktor-Parameter
+     * (AttachmentAccessRegistry, AttachmentResponseFactory) korrekt aus dem
+     * Container. Der bisherige Rauchtest der Route (HTTP 302, kein 500) hatte
+     * das nicht bewiesen: das 302 stammt aus AuthMiddleware, die vor der
+     * eigentlichen Auflösung des Routen-Callables aus dem Container läuft -
+     * ein kaputter Eintrag hier hätte dieselbe Antwort ergeben.
+     */
+    public function testAttachmentControllerResolvesFromContainer(): void
+    {
+        $container = $this->buildContainer();
+
+        $controller = $container->get(AttachmentController::class);
+
+        $this->assertInstanceOf(AttachmentController::class, $controller);
+    }
+
+    /**
+     * Die Registry braucht ihr drittes Konstruktor-Argument (das
+     * Modul-Array aus den Settings) über eine eigene Fabrik statt reinem
+     * Autowiring - derselbe Grund wie oben gilt auch hier.
+     */
+    public function testAttachmentAccessRegistryResolvesFromContainer(): void
+    {
+        $container = $this->buildContainer();
+
+        $registry = $container->get(AttachmentAccessRegistry::class);
+
+        $this->assertInstanceOf(AttachmentAccessRegistry::class, $registry);
+
+        // instanceof allein traegt hier nicht: ein Tippfehler in der Fabrik
+        // (settings['module'] statt settings['modules']) haette der Registry ein
+        // leeres Array gereicht. Sie haette dann in der laufenden Anwendung
+        // stillschweigend JEDEN Finanz-, Aufgaben- und Sponsoring-Anhang
+        // gesperrt, und keine Zeile der Suite waere rot geworden - die uebrigen
+        // Registry-Tests bauen sie mit einem eigenen Modul-Array.
+        $modules = $this->propertyOf($registry, 'modules');
+        $this->assertIsArray($modules);
+        foreach (['finance', 'sponsoring', 'tasks'] as $module) {
+            $this->assertArrayHasKey($module, $modules, $module . ' fehlt im Modul-Array der Registry');
+        }
     }
 }

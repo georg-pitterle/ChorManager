@@ -50,8 +50,9 @@ class TaskFeatureTest extends TestCase
         $this->assertTrue(method_exists(TaskController::class, 'delete'));
         $this->assertTrue(method_exists(TaskController::class, 'addComment'));
         $this->assertTrue(method_exists(TaskController::class, 'uploadAttachment'));
-        $this->assertTrue(method_exists(TaskController::class, 'downloadAttachment'));
         $this->assertTrue(method_exists(TaskController::class, 'deleteAttachment'));
+        // Ausliefern kann nur noch AttachmentController - siehe DownloadFeatureTest.
+        $this->assertFalse(method_exists(TaskController::class, 'downloadAttachment'));
     }
 
     /**

@@ -12,14 +12,19 @@
                         <div class="d-flex align-items-center">
                             <i class="bi bi-file-earmark-text text-muted fs-4 me-3"></i>
                             <div>
-                                <a href="{{ download_url }}/{{ attachment.id }}/download"
-                                   class="text-decoration-none fw-medium text-dark">{{ attachment.original_name }}</a>
+                                <span class="fw-medium text-dark">{{ attachment.original_name }}</span>
                                 <div class="text-muted small">
-                                    {{ attachment.file_size ? (attachment.file_size / 1024)|round(1) ~ ' KB' : '?' }} • {{ attachment.created_at|date('d.m.Y') }}
+                                    {{ attachment.file_size ? (attachment.file_size / 1024)|round(1) ~ " KB" : "?" }} • {{ attachment.created_at|date("d.m.Y") }}
                                 </div>
                             </div>
                         </div>
-                        <div>
+                        <div class="d-flex align-items-center gap-2">
+                            {{ include("partials/attachment_actions.twig", {
+                                attachment_id: attachment.id,
+                                attachment_name: attachment.original_name,
+                                attachment_mime: attachment.mime_type,
+                                attachment_size: attachment.file_size,
+                            }, false) }}
                             <form action="{{ delete_url }}/{{ attachment.id }}/delete"
                                   method="post"
                                   class="d-inline"

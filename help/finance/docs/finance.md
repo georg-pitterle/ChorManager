@@ -47,6 +47,13 @@ Rechnung offen ist. Optional ordnest du den Eintrag einer **Gruppe** zu (oder
 legst über "+ Neue Gruppe eingeben…" eine neue an) und lädst **Anhänge** (Belege
 als Bild oder PDF) hoch.
 
+Bereits hochgeladene Belege erreichst du in der Kassabuch-Liste über das
+Büroklammer-Symbol der Zeile. Dort steht je Datei ein Augen-Symbol für die
+**Vorschau** – sie öffnet die Datei in einem Fenster, ohne dass du sie
+herunterladen musst – und ein Pfeil-Symbol für den **Download**. Bei Dateien,
+die sich im Browser nicht anzeigen lassen (etwa Word- oder Excel-Dokumente),
+entfällt die Vorschau und es bleibt der Download.
+
 ![Formular für einen neuen Kassabuch-Eintrag](images/finance/02-new-entry-modal.png)
 
 ### Konten (Zahlungskreise)

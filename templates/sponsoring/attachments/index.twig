@@ -90,9 +90,9 @@
                                     data-sort-size="{{ attachment.size_bytes }}"
                                     data-sort-created_at="{{ attachment.created_at_sort }}">
                                     <td data-label="Datei">
-                                        <a href="{{ attachment.download_url }}" class="fw-semibold text-decoration-none">
+                                        <span class="fw-semibold">
                                             <i class="bi bi-file-earmark-arrow-down me-1"></i>{{ attachment.name }}
-                                        </a>
+                                        </span>
                                         <div class="text-muted small">{{ attachment.mime_type }}</div>
                                     </td>
                                     <td data-label="Herkunft">
@@ -106,11 +106,12 @@
                                     <td data-label="Größe" class="text-nowrap small">{{ attachment.size_display }}</td>
                                     <td data-label="Hochgeladen" class="text-nowrap small">{{ attachment.created_at_display }}</td>
                                     <td data-label="Aktionen" class="text-end text-nowrap">
-                                        <a href="{{ attachment.download_url }}"
-                                           class="btn btn-sm btn-outline-primary"
-                                           title="Herunterladen">
-                                            <i class="bi bi-download"></i>
-                                        </a>
+                                        {{ include("partials/attachment_actions.twig", {
+                                            attachment_id: attachment.id,
+                                            attachment_name: attachment.name,
+                                            attachment_mime: attachment.mime_type,
+                                            attachment_size: attachment.size_bytes,
+                                        }, false) }}
                                     </td>
                                 </tr>
                             {% else %}

@@ -81,9 +81,12 @@ use App\Middleware\NotificationReminderMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Util\AttachmentPreview;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\SponsoringPolicy;
+use App\Services\AttachmentAccessRegistry;
+use App\Services\AttachmentResponseFactory;
 use App\Services\EntityAttachmentService;
 use App\Policies\TaskPolicy;
 use App\Policies\UserEditPolicy;
@@ -447,6 +450,18 @@ return function (ContainerBuilder $containerBuilder) {
         EntityAttachmentService::class => \DI\autowire(),
         TaskPolicy::class => \DI\autowire(),
         UserEditPolicy::class => \DI\autowire(),
+        AttachmentResponseFactory::class => \DI\autowire(),
+        // Die Registry braucht das Modul-Array aus den Settings; PHP-DI kann
+        // einen einfachen Array-Parameter nicht selbst auflösen.
+        AttachmentAccessRegistry::class => function (ContainerInterface $c): AttachmentAccessRegistry {
+            $modules = $c->get('settings')['modules'] ?? [];
+
+            return new AttachmentAccessRegistry(
+                $c->get(SponsoringPolicy::class),
+                $c->get(TaskPolicy::class),
+                is_array($modules) ? $modules : []
+            );
+        },
 
         NameFormatterService::class => function (ContainerInterface $c): NameFormatterService {
             // Falls die Tabelle noch nicht existiert (frische Installation),
@@ -551,6 +566,14 @@ return function (ContainerBuilder $containerBuilder) {
 
                     return (new NavigationBuilder())->build($context);
                 }
+            ));
+
+            // Ob ein Anhang einen Vorschau-Button bekommt, entscheidet dieselbe
+            // Klasse wie im Controller. Zwei Listen - eine in PHP, eine in Twig -
+            // wären genau die Doppelung, die dieser Umbau beseitigt.
+            $environment->addFunction(new TwigFunction(
+                'attachment_previewable',
+                static fn (?string $mimeType): bool => AttachmentPreview::isModalPreviewable((string) $mimeType)
             ));
 
             $nameFormatter = $c->get(NameFormatterService::class);

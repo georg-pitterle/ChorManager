@@ -45,19 +45,15 @@ class SecurityHardeningFeatureTest extends TestCase
 
     /**
      * Die Bereinigung lag früher als wortgleiche Kopie in jedem ausliefernden
-     * Controller; geprüft wurden aber nur zwei davon. Jetzt gibt es eine Stelle -
-     * der Test deckt damit alle fünf Aufrufer ab statt zweier.
+     * Controller. Anhänge laufen inzwischen ausschließlich über
+     * AttachmentController/AttachmentResponseFactory - Finanzen und
+     * App-Einstellungen bauen daneben weiterhin eigene, von Anhängen
+     * unabhängige Downloads (PDF-/CSV-Export bzw. ICS-Kalenderexport) und
+     * sanitisieren ihren Dateinamen dafür selbst.
      */
     public function testFileNameSanitizationForContentDispositionExists(): void
     {
-        foreach (
-            [
-                'FinanceController',
-                'AppSettingController',
-                'DownloadController',
-                'TaskController',
-            ] as $controller
-        ) {
+        foreach (['FinanceController', 'AppSettingController'] as $controller) {
             $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/' . $controller . '.php');
 
             $this->assertIsString($content);
@@ -69,20 +65,49 @@ class SecurityHardeningFeatureTest extends TestCase
             );
         }
 
-        // Sponsoren und Vereinbarungen liefern ihre Anhänge über den
-        // gemeinsamen Dienst aus; die Bereinigung steht dort einmal statt in
-        // jedem Controller erneut.
-        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/EntityAttachmentService.php');
-        $this->assertIsString($serviceContent);
-        $this->assertStringContainsString('DownloadFileName::sanitize(', $serviceContent);
-        $this->assertStringContainsString('filename*=', $serviceContent);
+        // Der einzige verbliebene Auslieferer für Anhänge: die Bereinigung
+        // steht hier einmal statt verstreut in fünf Controllern.
+        $factoryContent = file_get_contents(dirname(__DIR__) . '/../src/Services/AttachmentResponseFactory.php');
+        $this->assertIsString($factoryContent);
+        $this->assertStringContainsString('DownloadFileName::sanitize(', $factoryContent);
+        $this->assertStringContainsString('filename*=', $factoryContent);
 
-        foreach (['SponsorController', 'SponsorshipController'] as $controller) {
+        // DownloadController, TaskController, SponsorController und
+        // SponsorshipController hatten früher je eine eigene Kopie des
+        // Download-Headers - alle vier bauen inzwischen keinen mehr selbst.
+        //
+        // Beide Verbote stehen nebeneinander, und das ist Absicht: `DownloadFileName`
+        // allein fängt nur die *bereinigte* Kopie. Ein wieder eingebauter, von Hand
+        // zusammengesetzter Header wie
+        //     'attachment; filename="' . $attachment->original_name . '"'
+        // enthält den Namen der Bereinigungsklasse gerade nicht - also genau die
+        // gefährlichere der beiden Rückfälle. Das Verbot von `Content-Disposition`
+        // fängt sie.
+        foreach (
+            ['DownloadController', 'TaskController', 'SponsorController', 'SponsorshipController'] as $controller
+        ) {
             $content = (string) file_get_contents(dirname(__DIR__) . '/../src/Controllers/' . $controller . '.php');
             $this->assertStringNotContainsString(
-                'Content-Disposition',
+                'DownloadFileName',
                 $content,
-                $controller . ' darf den Download-Header nicht selbst bauen'
+                $controller . ' darf keinen Dateinamen für einen Anhang mehr selbst bereinigen'
+            );
+            // Ein `Content-Disposition` mit festem Wert ist harmlos - der
+            // Kalenderfeed in TaskController hat einen. Gefährlich ist der
+            // Header, der einen Wert einsetzt: sobald ein `$` im Wert steht,
+            // stammt der Dateiname aus den Daten und gehört bereinigt.
+            preg_match_all("/'Content-Disposition',\s*(.+)/", $content, $matches);
+            foreach ($matches[1] as $headerValue) {
+                $this->assertStringNotContainsString(
+                    '$',
+                    $headerValue,
+                    $controller . ' darf keinen Auslieferungs-Header aus Daten zusammensetzen'
+                );
+            }
+            $this->assertStringNotContainsString(
+                'function normalizeFileName',
+                $content,
+                $controller . ' darf keine eigene Kopie der Bereinigung mehr halten'
             );
         }
 

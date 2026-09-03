@@ -52,7 +52,7 @@ Wechsle zum Reiter **Kontakthistorie**, um alle bisherigen Kontakte mit dem Spon
 
 ## 6. Anhänge zentral finden
 
-Über **Anhänge** im Kopf der Seite kommst du zu einer Liste aller Dateien aus dem Sponsoring – Verträge und Angebote aus den Vereinbarungen sowie Logos und Unterlagen aus den Stammdaten. Dort suchst, sortierst und lädst du sie herunter, ohne dich vorher durch die einzelnen Sponsoren klicken zu müssen.
+Über **Anhänge** im Kopf der Seite kommst du zu einer Liste aller Dateien aus dem Sponsoring – Verträge und Angebote aus den Vereinbarungen sowie Logos und Unterlagen aus den Stammdaten. Dort suchst und sortierst du sie, ohne dich vorher durch die einzelnen Sponsoren klicken zu müssen. Je Zeile stehen zwei Knöpfe: die **Vorschau** öffnet die Datei in einem Fenster, der **Download** lädt sie herunter. Bei Dateien, die sich im Browser nicht anzeigen lassen – etwa Word- oder Excel-Dokumente – entfällt die Vorschau. Dieselben zwei Knöpfe findest du auch bei den Anhängen auf der Detailseite eines Sponsors.
 
 ![Zentrale Anhangsammlung](images/sponsoring/10-attachments.png)
 

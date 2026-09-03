@@ -204,14 +204,15 @@
                                 {% for attachment in song.attachments %}
                                     <li class="list-group-item px-0 d-flex align-items-center gap-2 song-attachment-item">
                                         <i class="bi bi-file-earmark text-muted"></i>
-                                        <span class="flex-grow-1 text-truncate"
+                                        <span class="attachment-name text-truncate"
                                               title="{{ attachment.original_name }}">{{ attachment.original_name }}</span>
                                         <span class="text-muted small text-nowrap">{{ (attachment.file_size / 1024)|round(1) }}KB</span>
-                                        <a href="/downloads/attachments/{{ attachment.id }}/download"
-                                           class="btn btn-outline-secondary btn-sm"
-                                           title="Herunterladen">
-                                            <i class="bi bi-download"></i>
-                                        </a>
+                                        {{ include("partials/attachment_actions.twig", {
+                                            attachment_id: attachment.id,
+                                            attachment_name: attachment.original_name,
+                                            attachment_mime: attachment.mime_type,
+                                            attachment_size: attachment.file_size,
+                                        }, false) }}
                                         <form method="post"
                                               action="/song-library/songs/{{ song.id }}/attachments/{{ attachment.id }}/delete"
                                               data-confirm="Anhang '{{ attachment.original_name }}' wirklich löschen?">

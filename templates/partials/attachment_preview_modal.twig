@@ -1,0 +1,31 @@
+{# Eine Modal-Hülle für alle Bereiche, global aus layout.twig eingebunden.
+   Der Körper wird von public/js/attachment-preview.js gefüllt und beim
+   Schließen geleert - sonst liefe ein Audio-Anhang weiter und das nächste
+   Öffnen zeigte kurz die vorige Datei. #}
+<div class="modal fade"
+     id="attachmentPreviewModal"
+     tabindex="-1"
+     aria-labelledby="attachmentPreviewTitle"
+     aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="me-auto text-truncate">
+                    <h5 class="modal-title text-truncate" id="attachmentPreviewTitle">Anhang</h5>
+                    <div class="text-muted small" id="attachmentPreviewMeta"></div>
+                </div>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body attachment-preview-body" id="attachmentPreviewBody"></div>
+            <div class="modal-footer">
+                <a class="btn btn-primary" id="attachmentPreviewDownload" href="#">
+                    <i class="bi bi-download" aria-hidden="true"></i> Herunterladen
+                </a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>

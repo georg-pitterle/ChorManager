@@ -967,24 +967,6 @@ class FinanceController
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }
 
-    public function viewAttachment(Request $request, Response $response, array $args): Response
-    {
-        try {
-            $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
-            $response->getBody()->write($attachment->file_content);
-            $safeName = DownloadFileName::sanitize((string) $attachment->filename);
-            $disposition = self::isInlineViewableMimeType((string) $attachment->mime_type) ? 'inline' : 'attachment';
-            return $response
-                ->withHeader('Content-Type', $attachment->mime_type)
-                ->withHeader(
-                    'Content-Disposition',
-                    $disposition . '; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
-                );
-        } catch (\Exception $e) {
-            return $response->withStatus(404);
-        }
-    }
-
     public function deleteAttachment(Request $request, Response $response, array $args): Response
     {
         try {
@@ -1016,17 +998,5 @@ class FinanceController
             $_SESSION['error'] = 'Fehler beim Löschen des Anhangs.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
-    }
-
-    private static function isInlineViewableMimeType(string $mimeType): bool
-    {
-        return in_array(UploadValidator::normalizeMimeType($mimeType), [
-            'application/pdf',
-            'image/gif',
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'text/plain',
-        ], true);
     }
 }

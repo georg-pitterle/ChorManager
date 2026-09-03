@@ -86,7 +86,8 @@ class SponsoringFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'create'));
         $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'update'));
         $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'delete'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'downloadAttachment'));
+        // Ausliefern kann nur noch AttachmentController - siehe DownloadFeatureTest.
+        $this->assertFalse(method_exists(\App\Controllers\SponsorshipController::class, 'downloadAttachment'));
         $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'deleteAttachment'));
         $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'create'));
         $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'update'));

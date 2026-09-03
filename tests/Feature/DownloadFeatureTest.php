@@ -16,21 +16,23 @@ class DownloadFeatureTest extends TestCase
         $this->assertTrue(class_exists(DownloadController::class));
         $this->assertTrue(class_exists(Attachment::class));
         $this->assertTrue(method_exists(DownloadController::class, 'index'));
-        $this->assertTrue(method_exists(DownloadController::class, 'downloadAttachment'));
-        $this->assertTrue(method_exists(DownloadController::class, 'streamAttachment'));
         $this->assertTrue(method_exists(Attachment::class, 'song'));
+
+        // Ausliefern kann nur noch AttachmentController. Bleiben diese Methoden
+        // stehen, gibt es wieder zwei Wege an dieselbe Datei - mit zwei
+        // Rechteprüfungen, die auseinanderlaufen können.
+        $this->assertFalse(method_exists(DownloadController::class, 'downloadAttachment'));
+        $this->assertFalse(method_exists(DownloadController::class, 'streamAttachment'));
 
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/downloads'", $routesContent);
-        $this->assertStringContainsString("'/downloads/attachments/{attachment_id:[0-9]+}/download'", $routesContent);
-        $this->assertStringContainsString("'/downloads/attachments/{attachment_id:[0-9]+}/stream'", $routesContent);
+        $this->assertStringNotContainsString('/downloads/attachments/', $routesContent);
 
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DownloadController.php');
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString("->join('project_users', 'project_users.project_id', '=', 'projects.id')", $controllerContent);
         $this->assertStringContainsString("->where('project_users.user_id', \$userId)", $controllerContent);
-        $this->assertStringContainsString("->join('project_users', 'project_users.project_id', '=', 'project_song_assignments.project_id')", $controllerContent);
 
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/songs/downloads.twig'));
     }
@@ -42,46 +44,6 @@ class DownloadFeatureTest extends TestCase
 
         $fallback = DownloadFileName::sanitize("\n\r\"\\/");
         $this->assertSame('_____', $fallback);
-    }
-
-    public function testParseRangeHeaderAcceptsValidRange(): void
-    {
-        $range = DownloadController::parseRangeHeader('bytes=10-20', 100);
-        $this->assertSame([10, 20], $range);
-
-        $openEndedRange = DownloadController::parseRangeHeader('bytes=25-', 100);
-        $this->assertSame([25, 99], $openEndedRange);
-
-        $suffixRange = DownloadController::parseRangeHeader('bytes=-10', 100);
-        $this->assertSame([90, 99], $suffixRange);
-
-        $largeSuffixRange = DownloadController::parseRangeHeader('bytes=-200', 100);
-        $this->assertSame([0, 99], $largeSuffixRange);
-    }
-
-    /**
-     * RFC 7233, Abschnitt 2.1: Reicht das Ende über die Datei hinaus, gilt der
-     * Rest der Datei als angefordert. Abgewiesen wird nur, was gar nicht mehr
-     * in ihr liegt - das prüft testParseRangeHeaderRejectsInvalidRanges().
-     *
-     * Wichtig für die Wiedergabe im Browser: Audio-Player fordern feste Blöcke
-     * an ("bytes=0-1048575"), die bei einer kürzeren Datei über deren Ende
-     * hinausgehen. Als 416 beantwortet, begann die Wiedergabe gar nicht erst.
-     */
-    public function testParseRangeHeaderClampsAnEndBeyondTheFile(): void
-    {
-        $this->assertSame([0, 99], DownloadController::parseRangeHeader('bytes=0-1048575', 100));
-        $this->assertSame([50, 99], DownloadController::parseRangeHeader('bytes=50-500', 100));
-        $this->assertSame([99, 99], DownloadController::parseRangeHeader('bytes=99-100', 100));
-    }
-
-    public function testParseRangeHeaderRejectsInvalidRanges(): void
-    {
-        $this->assertNull(DownloadController::parseRangeHeader('bytes=20-10', 100));
-        $this->assertNull(DownloadController::parseRangeHeader('bytes=100-101', 100));
-        $this->assertNull(DownloadController::parseRangeHeader('bytes=-0', 100));
-        $this->assertNull(DownloadController::parseRangeHeader('invalid', 100));
-        $this->assertNull(DownloadController::parseRangeHeader('bytes=0-0', 0));
     }
 
     public function testDownloadTemplateRendersSeparateSongLinksSection(): void

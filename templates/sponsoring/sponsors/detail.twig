@@ -237,11 +237,14 @@
                             {% if sponsor.attachments|length > 0 %}
                                 <ul class="list-unstyled mb-3">
                                     {% for att in sponsor.attachments %}
-                                        <li class="mb-1">
-                                            <a href="/sponsoring/sponsors/{{ sponsor.id }}/attachments/{{ att.id }}"
-                                               class="small">
-                                                <i class="bi bi-file-earmark-arrow-down"></i> {{ att.original_name }}
-                                            </a>
+                                        <li class="mb-1 d-flex align-items-center gap-2">
+                                            <span class="attachment-name text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
+                                            {{ include("partials/attachment_actions.twig", {
+                                                attachment_id: att.id,
+                                                attachment_name: att.original_name,
+                                                attachment_mime: att.mime_type,
+                                                attachment_size: att.file_size,
+                                            }, false) }}
                                             {% if can_edit_sponsor %}
                                                 <form method="post"
                                                       action="/sponsoring/sponsors/{{ sponsor.id }}/attachments/{{ att.id }}/delete"
@@ -390,11 +393,14 @@
                                                 <td colspan="8" class="ps-4 py-1">
                                                     <small class="text-muted me-2"><i class="bi bi-paperclip"></i> Anhänge:</small>
                                                     {% for att in sp.attachments %}
-                                                        <span class="me-2">
-                                                            <a href="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}"
-                                                               class="small">
-                                                                <i class="bi bi-file-earmark-arrow-down"></i> {{ att.original_name }}
-                                                            </a>
+                                                        <div class="me-2 d-inline-flex align-items-center gap-2">
+                                                            <span class="attachment-inline-name text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
+                                                            {{ include("partials/attachment_actions.twig", {
+                                                                attachment_id: att.id,
+                                                                attachment_name: att.original_name,
+                                                                attachment_mime: att.mime_type,
+                                                                attachment_size: att.file_size,
+                                                            }, false) }}
                                                             {% if can_edit_sp %}
                                                                 <form method="post"
                                                                       action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
@@ -408,7 +414,7 @@
                                                                     </button>
                                                                 </form>
                                                             {% endif %}
-                                                        </span>
+                                                        </div>
                                                     {% endfor %}
                                                 </td>
                                             </tr>
