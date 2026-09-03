@@ -7,7 +7,9 @@
       "Write(**/.claude/rotating-review-state.json)",
       "Edit(**/.claude/rotating-review-state.json)",
       "Write(.claude/rotating-review-state.json)",
-      "Edit(.claude/rotating-review-state.json)"
+      "Edit(.claude/rotating-review-state.json)",
+      "Bash(php bin/rotating_review_state.php:*)",
+      "Bash(ddev php bin/rotating_review_state.php:*)"
     ]
   },
   "hooks": {
