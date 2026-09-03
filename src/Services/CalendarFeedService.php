@@ -114,9 +114,12 @@ class CalendarFeedService
      */
     private function visibleEvents(int $userId): Collection
     {
+        // Bewusst ohne Schranke nach hinten: Ein Kalenderprogramm lebt von der
+        // Rückschau, und wer im Abo zurückblättert, will die Proben des letzten
+        // Halbjahres sehen. Vorher endete der Feed am heutigen Tag, davor stand
+        // im Kalender nichts.
         return $this->audienceService
             ->visibleEventsQuery($userId)
-            ->where('ends_at', '>=', Carbon::now())
             // Die Zielgruppe steht in der Beschreibung jedes Termins. Ohne das
             // Vorabladen stellt sie je Termin eine eigene Abfrage.
             ->with('audienceSources')

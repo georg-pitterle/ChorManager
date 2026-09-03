@@ -189,11 +189,24 @@ class BankStatementImportService
             $rows[] = $row;
         }
 
-        // Chronologisch sortieren, damit die laufenden Nummern beim Import in der
-        // Reihenfolge der Buchungen vergeben werden. Fehlerzeilen hängen hinten an.
+        // Beanstandete Zeilen zuerst, gleich welcher Art die Beanstandung ist:
+        // Wer den Auszug durchsieht, hat damit alles, was eine Entscheidung
+        // braucht, an einer Stelle beisammen. Vorher rutschte nur eine Zeile mit
+        // unlesbarem Buchungsdatum nach hinten, eine mit unlesbarem Betrag stand
+        // dagegen mitten zwischen hundert einwandfreien Buchungen.
+        //
+        // Innerhalb beider Gruppen bleibt es chronologisch, damit der Import die
+        // laufenden Nummern in der Reihenfolge der Buchungen vergibt.
         usort($rows, static function (array $a, array $b): int {
-            return [$a['invoice_date'] ?? '9999-12-31', $a['description']]
-                <=> [$b['invoice_date'] ?? '9999-12-31', $b['description']];
+            return [
+                $a['error'] === null ? 1 : 0,
+                $a['invoice_date'] ?? '9999-12-31',
+                $a['description'],
+            ] <=> [
+                $b['error'] === null ? 1 : 0,
+                $b['invoice_date'] ?? '9999-12-31',
+                $b['description'],
+            ];
         });
 
         foreach ($rows as $index => $row) {
