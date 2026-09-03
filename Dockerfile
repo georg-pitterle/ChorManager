@@ -1,11 +1,32 @@
+# Frontend-Abhängigkeiten einmal bauen, nicht je Architektur.
+#
+# Das Abbild entsteht für linux/amd64 und linux/arm64. Ohne diese Stufe liefe
+# `npm ci` im arm64-Zweig unter QEMU-Emulation - dort ist alles um ein
+# Vielfaches langsamer, und die Downloads brachen mit ECONNRESET ab, weil npms
+# voreingestellte Zeitgrenzen für emulierte Läufe zu knapp sind.
+#
+# `--platform=$BUILDPLATFORM` heftet diese Stufe an die Maschine, die den Build
+# ausführt. Sie läuft damit genau einmal und nativ. Das ist zulässig, weil alle
+# Produktionspakete reine JS- und CSS-Dateien sind (Bootstrap, TinyMCE,
+# FullCalendar, Icons) - ihr Ergebnis ist auf beiden Architekturen dasselbe.
+# Käme je ein Paket mit kompilierten Bestandteilen dazu, müsste es an dieser
+# Stelle wieder architekturabhängig gebaut werden.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS assets
+
+WORKDIR /assets
+
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
 FROM php:8.5-fpm-alpine
 
 # Install system dependencies
+# Node fehlt hier bewusst: die Frontend-Pakete werden in der assets-Stufe
+# installiert und fertig herüberkopiert. Zur Laufzeit ruft nichts node auf -
+# bin/copy-assets.php ist PHP -, also gehört die Werkzeugkette nicht ins Abbild.
 RUN apk add --no-cache \
     git \
     curl \
-    nodejs \
-    npm \
     mysql-client \
     libzip \
     libpng \
@@ -52,9 +73,9 @@ COPY composer.json composer.lock* ./
 COPY patches/ ./patches/
 COPY patches.lock.json ./
 
-# Copy npm manifest files and install frontend dependencies
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --no-audit --no-fund
+# Die Frontend-Abhängigkeiten kommen fertig aus der assets-Stufe. Sie werden
+# gleich von bin/copy-assets.php nach public/vendor/ ausgelesen.
+COPY --from=assets /assets/node_modules ./node_modules
 
 # Install PHP dependencies. --no-scripts: composer.json's post-install-cmd
 # runs bin/copy-assets.php, which needs the app source tree (COPY . . below)
