@@ -39,8 +39,23 @@ class CalendarFeedService
         'Niedrig' => 9,
     ];
 
+    /**
+     * RFC 5545 begrenzt eine Inhaltszeile auf 75 Oktette (ohne den Umbruch).
+     * Was darüber hinausgeht, wird gefaltet.
+     */
+    private const MAX_LINE_OCTETS = 75;
+
     private NameFormatterService $nameFormatter;
     private EventAudienceService $audienceService;
+
+    /**
+     * Namen der Zielgruppen-Bezüge, einmal je Feed nachgeschlagen. Eine Serie
+     * teilt sich ihre Zielgruppe; ohne den Zwischenspeicher fragt jeder Termin
+     * dieselben Projekte, Rollen und Stimmgruppen erneut ab.
+     *
+     * @var array<string, string>
+     */
+    private array $audienceNameCache = [];
 
     public function __construct(
         NameFormatterService $nameFormatter,
@@ -102,6 +117,9 @@ class CalendarFeedService
         return $this->audienceService
             ->visibleEventsQuery($userId)
             ->where('ends_at', '>=', Carbon::now())
+            // Die Zielgruppe steht in der Beschreibung jedes Termins. Ohne das
+            // Vorabladen stellt sie je Termin eine eigene Abfrage.
+            ->with('audienceSources')
             ->orderBy('starts_at')
             ->get();
     }
@@ -148,7 +166,47 @@ class CalendarFeedService
 
         $all = array_merge($header, $lines, ['END:VCALENDAR']);
 
-        return implode("\r\n", $all) . "\r\n";
+        return implode("\r\n", array_map([$this, 'foldLine'], $all)) . "\r\n";
+    }
+
+    /**
+     * Faltet eine zu lange Inhaltszeile nach RFC 5545 §3.1: Umbruch, dann ein
+     * Leerzeichen als Fortsetzungszeichen. Ohne die Faltung lehnen strenge
+     * Kalenderprogramme die Datei ab, sobald eine Beschreibung länger wird.
+     *
+     * Gefaltet wird zwischen zwei Zeichen, nie innerhalb eines UTF-8-Zeichens -
+     * eine auf halber Strecke zerschnittene Mehrbyte-Folge macht die Datei
+     * unlesbar. Gezählt werden deshalb Oktette, umgebrochen wird an Zeichen.
+     */
+    private function foldLine(string $line): string
+    {
+        if (strlen($line) <= self::MAX_LINE_OCTETS) {
+            return $line;
+        }
+
+        $characters = preg_split('//u', $line, -1, PREG_SPLIT_NO_EMPTY);
+        if ($characters === false) {
+            // Kein gültiges UTF-8: dann bleibt nur die byteweise Aufteilung.
+            $characters = str_split($line);
+        }
+
+        $folded = '';
+        $current = '';
+        // Die erste Zeile hat 75 Oktette, jede Fortsetzung trägt das führende
+        // Leerzeichen mit und hat deshalb nur 74 für den Inhalt.
+        $limit = self::MAX_LINE_OCTETS;
+
+        foreach ($characters as $character) {
+            if (strlen($current) + strlen($character) > $limit) {
+                $folded .= $current . "\r\n ";
+                $current = '';
+                $limit = self::MAX_LINE_OCTETS - 1;
+            }
+
+            $current .= $character;
+        }
+
+        return $folded . $current;
     }
 
     /**
@@ -219,17 +277,23 @@ class CalendarFeedService
         ];
     }
 
+    /**
+     * Der Text trägt echte Zeilenumbrüche; in die Fluchtform `\n` bringt sie
+     * escapeIcsText(), gemeinsam mit allem anderen, was ausgezeichnet werden
+     * muss. Stünde die Fluchtform schon hier, käme sie dort ein zweites Mal an
+     * die Reihe und der Backslash würde verdoppelt.
+     */
     private function buildEventDescription(Event $event, string $baseUrl): string
     {
         $description = 'Termin: ' . $event->title;
         $audienceLabel = $this->buildAudienceLabel($event);
         if ($audienceLabel !== '') {
-            $description .= '\nZielgruppe: ' . $audienceLabel;
+            $description .= "\nZielgruppe: " . $audienceLabel;
         }
         if (!empty($event->location)) {
-            $description .= '\nOrt: ' . $event->location;
+            $description .= "\nOrt: " . $event->location;
         }
-        $description .= '\nDetails: ' . $baseUrl . '/events/' . $event->id;
+        $description .= "\nDetails: " . $baseUrl . '/events/' . $event->id;
 
         return $description;
     }
@@ -238,20 +302,23 @@ class CalendarFeedService
     {
         $description = 'Aufgabe: ' . $task->name;
         if ($task->project) {
-            $description .= '\nProjekt: ' . $task->project->name;
+            $description .= "\nProjekt: " . $task->project->name;
         }
-        $description .= '\nStatus: ' . $task->status;
+        $description .= "\nStatus: " . $task->status;
         if (!empty($task->priority)) {
-            $description .= '\nPriorität: ' . $task->priority;
+            $description .= "\nPriorität: " . $task->priority;
         }
-        $description .= '\nDetails: ' . $baseUrl . '/tasks/' . $task->id;
+        $description .= "\nDetails: " . $baseUrl . '/tasks/' . $task->id;
 
         return $description;
     }
 
     private function buildAudienceLabel(Event $event): string
     {
-        $sources = $event->audienceSources()->get();
+        $sources = $event->relationLoaded('audienceSources')
+            ? $event->audienceSources
+            : $event->audienceSources()->get();
+
         if ($sources->isEmpty()) {
             return 'Alle Mitglieder';
         }
@@ -260,10 +327,10 @@ class CalendarFeedService
         foreach ($sources as $source) {
             $refId = (int) $source->reference_id;
             $labels[] = match ((string) $source->source_type) {
-                'project_members' => 'Projekt: ' . (optional(Project::find($refId))->name ?? '—'),
-                'role' => 'Rolle: ' . (optional(Role::find($refId))->name ?? '—'),
-                'voice_group' => 'Stimmgruppe: ' . (optional(VoiceGroup::find($refId))->name ?? '—'),
-                'user' => 'Person: ' . $this->nameFormatter->formatPerson(User::find($refId)),
+                'project_members' => 'Projekt: ' . $this->audienceName('project', $refId),
+                'role' => 'Rolle: ' . $this->audienceName('role', $refId),
+                'voice_group' => 'Stimmgruppe: ' . $this->audienceName('voice_group', $refId),
+                'user' => 'Person: ' . $this->audienceName('user', $refId),
                 default => '',
             };
         }
@@ -271,12 +338,43 @@ class CalendarFeedService
         return implode(', ', array_filter($labels));
     }
 
+    /**
+     * Name eines Zielgruppen-Bezugs, je Feed nur einmal nachgeschlagen.
+     */
+    private function audienceName(string $type, int $referenceId): string
+    {
+        $cacheKey = $type . ':' . $referenceId;
+        if (array_key_exists($cacheKey, $this->audienceNameCache)) {
+            return $this->audienceNameCache[$cacheKey];
+        }
+
+        $name = match ($type) {
+            'project' => (string) (Project::find($referenceId)?->name ?? '—'),
+            'role' => (string) (Role::find($referenceId)?->name ?? '—'),
+            'voice_group' => (string) (VoiceGroup::find($referenceId)?->name ?? '—'),
+            'user' => $this->nameFormatter->formatPerson(User::find($referenceId)),
+            default => '—',
+        };
+
+        return $this->audienceNameCache[$cacheKey] = $name;
+    }
+
+    /**
+     * Auszeichnung eines TEXT-Werts nach RFC 5545 §3.3.11.
+     *
+     * Der Backslash ist selbst das Fluchtzeichen und wird deshalb zuerst
+     * verdoppelt - danach lässt sich kein weiteres Fluchtzeichen mehr
+     * versehentlich mitverdoppeln. Jede Form des Zeilenumbruchs wird zu `\n`:
+     * Ein roher Umbruch beendete die Inhaltszeile mitten im Wert, und alles
+     * dahinter läse das Kalenderprogramm als eigene, unbekannte Eigenschaft.
+     */
     private function escapeIcsText(string $text): string
     {
-        return str_replace(
-            ["\r\n", ',', ';'],
-            ['\n', '\\,', '\;'],
-            $text
-        );
+        $escaped = str_replace('\\', '\\\\', $text);
+        $escaped = str_replace([';', ','], ['\;', '\,'], $escaped);
+
+        // Die Reihenfolge zählt: Der Wagenrücklauf mit Zeilenvorschub ergibt
+        // einen Umbruch, nicht zwei.
+        return str_replace(["\r\n", "\r", "\n"], '\n', $escaped);
     }
 }

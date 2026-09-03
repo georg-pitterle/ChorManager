@@ -174,6 +174,9 @@ class NewsletterRecipientService
             ]);
         }
 
+        // Eine vorab geladene Beziehung trägt sonst weiter die gelöschten Zeilen.
+        $newsletter->unsetRelation('recipients');
+
         $newsletter->recipient_count = count($uniqueUserIds);
         $newsletter->save();
     }
@@ -274,6 +277,11 @@ class NewsletterRecipientService
                 'reference_id' => $referenceId,
             ]);
         }
+
+        // Ohne dieses Verwerfen liest resolveRecipients() die vorab geladene und
+        // eben gelöschte Quellenliste weiter - der Newsletter ginge an die
+        // vorherige Zielgruppe statt an die gerade gespeicherte.
+        $newsletter->unsetRelation('recipientSources');
 
         $resolved = $this->resolveRecipients($newsletter)
             ->pluck('id')

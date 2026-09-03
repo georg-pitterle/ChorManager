@@ -34,6 +34,21 @@ use Psr\Log\LoggerInterface;
 class EntityAttachmentService
 {
     /**
+     * `attachments.filename` und `attachments.original_name` sind je
+     * `varchar(255)`; MySQL zählt dort Zeichen, nicht Bytes.
+     */
+    private const NAME_MAX_LENGTH = 255;
+
+    /** 32 Hex-Zeichen Zufall plus der trennende Unterstrich. */
+    private const STORED_NAME_PREFIX_LENGTH = 33;
+
+    /**
+     * Alles darüber ist kein Dateisuffix mehr, sondern Teil des Namens - und
+     * würde beim Kürzen den ganzen Platz belegen.
+     */
+    private const MAX_EXTENSION_LENGTH = 20;
+
+    /**
      * Alles außer `file_content`. Als Eager-Load- und Abfragefilter zu nutzen,
      * damit Übersichten den Datei-Inhalt nicht anfassen.
      *
@@ -109,11 +124,16 @@ class EntityAttachmentService
                 continue;
             }
 
+            $clientFilename = (string) $file->getClientFilename();
+
             Attachment::create([
                 'entity_type'   => $entityType,
                 'entity_id'     => $entityId,
-                'filename'      => bin2hex(random_bytes(16)) . '_' . $file->getClientFilename(),
-                'original_name' => $file->getClientFilename(),
+                'filename'      => bin2hex(random_bytes(16)) . '_' . self::shortenName(
+                    $clientFilename,
+                    self::NAME_MAX_LENGTH - self::STORED_NAME_PREFIX_LENGTH
+                ),
+                'original_name' => self::shortenName($clientFilename, self::NAME_MAX_LENGTH),
                 'mime_type'     => UploadValidator::normalizeMimeType($mimeType),
                 'file_size'     => $size,
                 'file_content'  => $contents,
@@ -123,6 +143,37 @@ class EntityAttachmentService
         }
 
         return ['stored' => $stored, 'error' => $error];
+    }
+
+    /**
+     * Kürzt einen Dateinamen auf die Spaltenbreite und behält dabei das Suffix.
+     *
+     * Der Name kommt vom Hochladenden und ist beliebig lang; ungekürzt lehnt
+     * MySQL den Datensatz ab und der Upload endet in einer Fehlerseite statt in
+     * einem gespeicherten Anhang. Das Suffix bleibt stehen, weil sich sonst
+     * weder der Dateityp ablesen noch die Datei nach dem Herunterladen öffnen
+     * lässt.
+     */
+    private static function shortenName(string $name, int $maxLength): string
+    {
+        if (mb_strlen($name) <= $maxLength) {
+            return $name;
+        }
+
+        $suffix = '';
+        $dotPosition = mb_strrpos($name, '.');
+        if ($dotPosition !== false && $dotPosition > 0) {
+            $candidate = mb_substr($name, $dotPosition);
+            // Ein "Suffix" von halber Namenslänge ist keines, sondern ein Punkt
+            // mitten im Namen. Es abzuschneiden wäre schlimmer als es zu verlieren.
+            if (mb_strlen($candidate) <= self::MAX_EXTENSION_LENGTH + 1) {
+                $suffix = $candidate;
+            }
+        }
+
+        $baseLength = max(1, $maxLength - mb_strlen($suffix));
+
+        return mb_substr($name, 0, $baseLength) . $suffix;
     }
 
     /**

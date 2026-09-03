@@ -74,6 +74,12 @@ class EventAudienceService
                 ]);
             }
         });
+
+        // Eine vorab geladene Beziehung (`with('audienceSources')`) trägt noch
+        // die eben gelöschten Zeilen. Jede Auswertung, die den geladenen Stand
+        // bevorzugt - canAccessEvent(), audienceSignature() -, arbeitete danach
+        // mit der alten Zielgruppe.
+        $event->unsetRelation('audienceSources');
     }
 
     /**
