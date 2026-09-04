@@ -78,6 +78,35 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
+     * Der Primärschlüssel eines Modells muss eine Spalte der Tabelle sein.
+     *
+     * Eloquent kennt keine zusammengesetzten Schlüssel: Bleibt bei einer Tabelle
+     * mit `id => false` die Vorgabe `id` stehen, laufen alle Schreibzugriffe über
+     * die Modellinstanz - `save()` auf einer geladenen Zeile, `delete()`,
+     * `refresh()` - in "Unknown column 'id' in 'WHERE'". Auffallen kann das erst
+     * im Betrieb, weil Anlegen und Lesen unberührt bleiben. Genau so blieb es in
+     * `UserNotificationSetting` unbemerkt.
+     *
+     * @param class-string<Model> $class
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
+    public function testPrimaryKeyIstEineEchteSpalte(string $class): void
+    {
+        $model = new $class();
+        $keyName = $model->getKeyName();
+        $columns = $this->columnsOf($model->getTable());
+
+        self::assertNotSame([], $columns, sprintf('Tabelle "%s" fehlt in der Datenbank.', $model->getTable()));
+
+        self::assertContains($keyName, $columns, sprintf(
+            '%s::$primaryKey nennt "%s" - diese Spalte gibt es in "%s" nicht.',
+            $class,
+            $keyName,
+            $model->getTable()
+        ));
+    }
+
+    /**
      * @param class-string<Model> $class
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]

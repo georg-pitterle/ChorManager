@@ -30,6 +30,22 @@ class UserMailAccount extends Model
         'mail_last_checked_at',
     ];
 
+    /**
+     * Das IMAP-Passwort liegt zwar verschlüsselt in der Spalte, ist aber der
+     * Zugang zum fremden Postfach: Wer den Wert zusammen mit dem Schlüssel aus
+     * der Umgebung hat, liest die Mails mit. In JSON-Antworten, Logzeilen und
+     * Fehlerausgaben, die ein Modell mitschreiben, hat er deshalb nichts
+     * verloren - gleiche Begründung wie bei User::$hidden.
+     *
+     * Auf `$account->imap_password_enc` wirkt sich das nicht aus: MailBadgeService
+     * und RotateMailCredentialKeyCommand lesen die Eigenschaft direkt.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'imap_password_enc',
+    ];
+
     protected $casts = [
         'imap_enabled' => 'boolean',
         'mail_badge_enabled' => 'boolean',

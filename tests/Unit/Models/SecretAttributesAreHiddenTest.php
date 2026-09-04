@@ -9,6 +9,7 @@ use App\Models\InvitationToken;
 use App\Models\PasswordReset;
 use App\Models\RememberLogin;
 use App\Models\User;
+use App\Models\UserMailAccount;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -50,6 +51,12 @@ final class SecretAttributesAreHiddenTest extends TestCase
             // Der Hash bleibt schützenswert: Er taugt zum Abgleich gegen eine
             // geratene Adresse und hat in Ausgaben nichts verloren.
             'Kalender-Abo' => [CalendarSubscriptionToken::class, 'token_hash', 'hash-wert'],
+            // Das IMAP-Passwort liegt verschlüsselt in der Spalte. Verschlüsselt
+            // heißt nicht harmlos: Wer den Wert mitsamt dem Schlüssel aus der
+            // Umgebung hat, hat das Postfach. MailBadgeService und
+            // RotateMailCredentialKeyCommand lesen die Eigenschaft direkt und
+            // bleiben davon unberührt.
+            'Postfach-Zugang' => [UserMailAccount::class, 'imap_password_enc', 'geheimer-wert'],
         ];
     }
 
