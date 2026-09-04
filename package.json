@@ -6,7 +6,8 @@
     "e2e:checks": "playwright test --config tests/e2e/playwright.config.mjs --project=checks",
     "e2e:mobile": "node tests/e2e/run-mobile.mjs",
     "e2e:ui": "playwright test --config tests/e2e/playwright.config.mjs --ui",
-    "e2e:headed": "playwright test --config tests/e2e/playwright.config.mjs --headed --workers=1"
+    "e2e:headed": "playwright test --config tests/e2e/playwright.config.mjs --headed --workers=1",
+    "test:js": "node --test \"tests/js/*.test.mjs\""
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",
@@ -17,6 +18,7 @@
     "bootstrap": "5.3.8",
     "bootstrap-icons": "1.13.1",
     "html-midi-player": "1.6.0",
+    "pdfjs-dist": "6.3.289",
     "sortablejs": "^1.15.7",
     "tinymce": "8.8.2",
     "tinymce-i18n": "26.8.2",

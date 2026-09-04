@@ -120,6 +120,30 @@ function copyAssets(): void
     if (!copy($source, $dest)) {
         throw new RuntimeException("Failed to copy $source to $dest");
     }
+
+    // pdf.js zeichnet die PDF-Vorschau im Anhang-Modal. Nur die minifizierten
+    // Module, nicht die Quellkarten daneben - die sind ein Vielfaches größer und im
+    // Betrieb nutzlos.
+    foreach (['pdf.min.mjs', 'pdf.worker.min.mjs'] as $file) {
+        $source = "node_modules/pdfjs-dist/build/{$file}";
+        $dest   = "public/vendor/pdfjs/{$file}";
+        @mkdir(dirname($dest), 0755, true);
+        if (!copy($source, $dest)) {
+            throw new RuntimeException("Failed to copy $source to $dest");
+        }
+    }
+
+    // Die drei Datenverzeichnisse gehören mit dazu, sonst greift pdf.js auf seine
+    // eingebauten Vorgaben zurück - und die zeigen auf ein CDN:
+    //
+    //  - standard_fonts: die 14 Standardschriften. PDFs betten sie oft nicht ein,
+    //    ohne sie bleibt der Text leer.
+    //  - wasm: JBIG2- und JPEG2000-Dekoder. Genau die Formate, in denen Scanner
+    //    ihre Belege ablegen.
+    //  - iccs: Farbprofil für Seiten mit eigenem Farbraum.
+    foreach (['standard_fonts', 'wasm', 'iccs'] as $dir) {
+        copyRecursive("node_modules/pdfjs-dist/{$dir}", "public/vendor/pdfjs/{$dir}");
+    }
 }
 
 if (!is_dir('node_modules')) {

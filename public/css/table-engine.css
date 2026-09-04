@@ -139,6 +139,20 @@
     justify-content: flex-end;
 }
 
+/* Ein Dropdown-Menü ist ein eigenes Fenster über der Karte, keine Kartenzelle.
+   Die Regel darüber ist ein Nachfahren-Selektor und traf deshalb auch das
+   Knopfpaar *innerhalb* des Menüs: `width: 100%` gewinnt dort gegen
+   `.attachment-actions { flex: 0 0 auto }`, weil `flex-basis: auto` auf `width`
+   zurückfällt. Das Knopfpaar füllte damit die ganze Zeile, und der Dateiname
+   daneben schrumpfte auf null - im Kassabuch am Telefon war die Anhangsliste
+   nur noch ein Knopfpaar ohne Namen.
+
+   Gemessen mit Playwright im Pixel-5-Viewport: Menü 369px, Knopfpaar 335px,
+   Name 0px. Mit dieser Regel Knopfpaar 63px und Name 110px. */
+[data-table-engine="true"][data-active-view="cards"] .table-responsive-cards .dropdown-menu .btn-group {
+    width: auto;
+}
+
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards audio,
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards midi-player {
     max-width: 100%;

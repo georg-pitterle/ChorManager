@@ -13,12 +13,15 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
 
 /**
- * Das PDF im Vorschau-Modal steckt in einem iframe auf die eigene
- * Vorschau-Route. Ohne Ausnahme vom Framing-Verbot bliebe der Rahmen leer.
+ * Die Vorschau zeichnet PDFs seit der Umstellung auf pdf.js selbst auf ein
+ * Canvas. Der iframe auf die eigene Vorschau-Route ist damit weg - und mit ihm
+ * der Grund, warum diese Route vom Framing-Verbot ausgenommen war.
  *
- * Die Ausnahme ist eng gefasst: nur diese eine Route, und ausdrücklich nicht
- * die Download-Route daneben. Ein zu weites Muster wäre ein Clickjacking-Loch
- * für alles, was unter /attachments liegt.
+ * Eine Lockerung ohne Nutzer ist ein offenes Scheunentor ohne Scheune: sie
+ * schützt nichts und lädt den nächsten Umbau ein, sich darauf zu stützen.
+ * Deshalb prüfen diese Tests, dass /attachments/{id}/preview wieder unter dem
+ * vollständigen Verbot steht und nur der Newsletter-Rahmen seine Ausnahme
+ * behält.
  */
 final class AttachmentPreviewCspFeatureTest extends TestCase
 {
@@ -35,13 +38,13 @@ final class AttachmentPreviewCspFeatureTest extends TestCase
         });
     }
 
-    public function testPreviewRouteAllowsSameOriginFraming(): void
+    public function testPreviewRouteIsNoLongerFrameable(): void
     {
         $response = $this->headersFor('/attachments/42/preview');
 
-        $this->assertSame('SAMEORIGIN', $response->getHeaderLine('X-Frame-Options'));
+        $this->assertSame('DENY', $response->getHeaderLine('X-Frame-Options'));
         $this->assertStringContainsString(
-            "frame-ancestors 'self'",
+            "frame-ancestors 'none'",
             $response->getHeaderLine('Content-Security-Policy')
         );
     }
@@ -76,5 +79,27 @@ final class AttachmentPreviewCspFeatureTest extends TestCase
         $response = $this->headersFor('/newsletters/7/preview-frame');
 
         $this->assertSame('SAMEORIGIN', $response->getHeaderLine('X-Frame-Options'));
+        $this->assertStringContainsString(
+            "frame-ancestors 'self'",
+            $response->getHeaderLine('Content-Security-Policy')
+        );
+    }
+
+    /**
+     * pdf.js entpackt JBIG2- und JPEG2000-Bilder über WebAssembly. Ohne
+     * 'wasm-unsafe-eval' verweigert der Browser das Übersetzen des Moduls, und
+     * genau die eingescannten Belege blieben leer, für die die Vorschau da ist.
+     *
+     * Die Lockerung erlaubt das Übersetzen von WebAssembly, nicht eval() für
+     * JavaScript. Woher die Bytes kommen dürfen, regelt weiterhin
+     * default-src/connect-src 'self' - also ausschließlich die eigene Herkunft.
+     */
+    public function testCspAllowsWebAssemblyButNotScriptEval(): void
+    {
+        $csp = $this->headersFor('/dashboard')->getHeaderLine('Content-Security-Policy');
+
+        $this->assertStringContainsString("script-src 'self' 'wasm-unsafe-eval'", $csp);
+        $this->assertStringNotContainsString("'unsafe-eval';", $csp);
+        $this->assertStringContainsString("connect-src 'self'", $csp);
     }
 }

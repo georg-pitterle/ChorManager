@@ -206,16 +206,36 @@ function previewTrigger(overrides = {}) {
     );
 }
 
-test('PDF landet in einem Rahmen', () => {
+test('PDF wird von pdf.js gezeichnet, nicht in einen Rahmen gehängt', () => {
     const harness = createHarness();
 
     harness.click(previewTrigger());
 
-    assert.ok(harness.childTags().includes('iframe'));
-    assert.equal(harness.bodyElement.children[0].src, '/attachments/7/preview');
+    // Der iframe ist der eigentliche Fehler, den diese Umstellung behebt: Chrome
+    // auf Android bringt keinen PDF-Betrachter für eingebettete Rahmen mit, der
+    // Rahmen blieb dort schlicht leer. Bleibt er hier zurück, ist die Umstellung
+    // nur halb passiert - und die CSP-Lockerung fürs Framing wäre wieder nötig.
+    assert.ok(!harness.childTags().includes('iframe'), 'Es darf kein iframe mehr entstehen');
+
+    const container = harness.bodyElement.children[0];
+    assert.equal(container.tagName, 'div');
+    assert.equal(container.className, 'attachment-preview-pdf');
+
     assert.equal(harness.downloadElement.getAttribute('href'), '/attachments/7/download');
     assert.equal(harness.titleElement.textContent, 'Programmheft.pdf');
     assert.equal(harness.shownModals.length, 1);
+});
+
+test('Solange pdf.js lädt, steht ein Hinweis im Fenster', () => {
+    const harness = createHarness();
+
+    harness.click(previewTrigger());
+
+    const texts = harness.bodyElement.children.map(child => child.textContent);
+    assert.ok(
+        texts.some(text => text.includes('wird geladen')),
+        'Ohne Zwischenstand wirkt das leere Fenster wie ein Fehler'
+    );
 });
 
 test('Bild landet in einem img-Element', () => {

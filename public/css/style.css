@@ -1599,8 +1599,7 @@ a:hover {
     overflow: hidden;
 }
 
-/* Anhang-Vorschau: das gemeinsame Modal für alle Bereiche. Feste Höhe für
-   PDF-Rahmen, weil ein iframe ohne Höhenangabe auf 150px zusammenfällt. */
+/* Anhang-Vorschau: das gemeinsame Modal für alle Bereiche. */
 .attachment-preview-body {
     min-height: 12rem;
 }
@@ -1612,11 +1611,25 @@ a:hover {
     margin: 0 auto;
 }
 
-.attachment-preview-frame {
+/* PDF-Vorschau: pdf.js zeichnet je Seite ein Canvas in diesen Behälter. Die Höhe
+   ergibt sich aus den Seiten selbst; gerollt wird im Modal-Körper, der dafür
+   .modal-dialog-scrollable trägt. Ein eigener Rollbereich hier ergäbe zwei
+   ineinandersteckende Rollbalken. */
+.attachment-preview-pdf {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Die Bitmap ist um den Geräte-Pixelwert größer als die Anzeigefläche
+   (public/js/attachment-preview.js). Erst diese Breitenangabe rechnet sie auf die
+   Anzeigebreite herunter - ohne sie ragte die Seite auf einem Telefon über den
+   Rand hinaus, statt schärfer zu werden. */
+.attachment-preview-pdf-page {
+    display: block;
     width: 100%;
-    height: 70vh;
-    min-height: 20rem;
-    border: 0;
+    height: auto;
+    border: 1px solid var(--theme-border);
 }
 
 .attachment-preview-text {
@@ -1624,12 +1637,6 @@ a:hover {
     overflow: auto;
     white-space: pre-wrap;
     word-break: break-word;
-}
-
-@media (max-width: 575.98px) {
-    .attachment-preview-frame {
-        height: 60vh;
-    }
 }
 
 /* Dateiname in der Anhangsliste des Finanz-Bearbeiten-Dialogs. Die Breite muss

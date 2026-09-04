@@ -54,31 +54,21 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Die beiden einzigen Ausnahmen vom vollständigen Framing-Verbot:
+     * Die einzige Ausnahme vom vollständigen Framing-Verbot: die Route, die das fertige
+     * Mail-HTML eines gespeicherten Newsletters ausliefert. Sie dient als Quelle des
+     * eingebetteten Rahmens auf templates/newsletters/preview.twig.
      *
-     *  - die Route, die das fertige Mail-HTML eines gespeicherten Newsletters ausliefert. Sie
-     *    dient als Quelle des eingebetteten Rahmens auf templates/newsletters/preview.twig.
-     *  - die Anhang-Vorschau. Ein PDF lässt sich nur in einem Rahmen anzeigen; `object-src
-     *    'none'` schließt `<embed>` und `<object>` aus, und ein neuer Tab wäre die Rückkehr
-     *    zu genau der uneinheitlichen Bedienung, die das gemeinsame Modal ablöst.
-     *
-     * Vertretbar ist die zweite Ausnahme, weil die Route ausschließlich Dateiinhalte
-     * ausliefert, kein HTML-Typ auf der Inline-Liste in App\Util\AttachmentPreview steht und
-     * `X-Content-Type-Options: nosniff` gesetzt bleibt. Die Download-Route daneben behält
-     * `'none'` - sie muss nie eingebettet werden.
+     * Die Anhang-Vorschau stand hier ebenfalls, solange ein PDF im Modal in einem iframe
+     * hing. Seit pdf.js die Seiten selbst auf ein Canvas zeichnet, wird dort nichts mehr
+     * eingebettet - und eine Lockerung, die niemand nutzt, gehört weg, statt auf den
+     * nächsten Umbau zu warten, der sich versehentlich darauf stützt.
      *
      * Jede andere Route bleibt uneingebettet - das ist der wirksamste Schutz gegen
      * Clickjacking.
      */
     private function allowsSelfFraming(Request $request): bool
     {
-        $path = $request->getUri()->getPath();
-
-        if (preg_match('#^/newsletters/\d+/preview-frame$#', $path)) {
-            return true;
-        }
-
-        return (bool) preg_match('#^/attachments/\d+/preview$#', $path);
+        return (bool) preg_match('#^/newsletters/\d+/preview-frame$#', $request->getUri()->getPath());
     }
 
     private function buildCsp(bool $allowsSelfFraming): string
@@ -89,7 +79,10 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             "object-src 'none'",
             $allowsSelfFraming ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
             "form-action 'self'",
-            "script-src 'self'",
+            // 'wasm-unsafe-eval' erlaubt pdf.js das Übersetzen seiner JBIG2-/JPEG2000-Module.
+            // Es erlaubt kein eval() für JavaScript, und woher die Bytes stammen dürfen, regeln
+            // weiterhin default-src/connect-src 'self' - also nur die eigene Herkunft.
+            "script-src 'self' 'wasm-unsafe-eval'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",
