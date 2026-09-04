@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\Role;
+use App\Models\SponsorPackage;
 use App\Models\User;
 use PHPUnit\Framework\TestCase;
 
@@ -45,6 +46,20 @@ final class BooleanColumnCastsTest extends TestCase
     public function testAlleRechteSindErfasst(): void
     {
         self::assertCount(20, self::rolePermissionProvider(), 'Ein neues Recht braucht auch einen Cast.');
+    }
+
+    /**
+     * Beträge kommen überall als `decimal:2` aus dem Modell. Beim Mindestbetrag
+     * des Sponsoring-Pakets fehlte der Cast, obwohl `Sponsorship::$amount` ihn
+     * hat - ein Vergleich der beiden Werte verglich damit Zeichenkette gegen
+     * Zahl.
+     */
+    public function testMindestbetragDesPaketsKommtMitZweiNachkommastellen(): void
+    {
+        $package = new SponsorPackage();
+        $package->setRawAttributes(['min_amount' => '1200.5']);
+
+        self::assertSame('1200.50', $package->min_amount);
     }
 
     public function testHierarchieEbeneKommtAlsGanzzahl(): void

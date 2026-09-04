@@ -19,6 +19,16 @@ class Song extends Model
         'created_by_user_id',
     ];
 
+    /**
+     * `$timestamps` steht auf false, deshalb kümmert sich Eloquent nicht von
+     * selbst um `created_at` - ohne Cast käme die Spalte als Zeichenkette.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
     public function attachments()
     {
         return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'song');

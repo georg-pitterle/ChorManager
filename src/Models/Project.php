@@ -84,9 +84,20 @@ class Project extends Model
         return $this->hasMany(Task::class, 'project_id', 'id');
     }
 
+    /**
+     * Notizen des Projekts. Private Notizen bleiben hier aussen vor - gleiche
+     * Grenze und gleiche Begründung wie bei Event::comments(): Die Relation kennt
+     * die angemeldete Person nicht und könnte eine fremde private Notiz nicht von
+     * der eigenen unterscheiden.
+     *
+     * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
+     * Comment::visibleTo() bewusst selbst.
+     */
     public function comments()
     {
-        return $this->hasMany(Comment::class, 'entity_id', 'id')->where('entity_type', 'project');
+        return $this->hasMany(Comment::class, 'entity_id', 'id')
+            ->where('entity_type', 'project')
+            ->where('is_private', false);
     }
 
     public function attachments()

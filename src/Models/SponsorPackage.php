@@ -18,6 +18,17 @@ class SponsorPackage extends Model
         'color',
     ];
 
+    /**
+     * Gleicher Cast wie bei Sponsorship::$amount - beide Beträge werden
+     * miteinander verglichen, und ohne den Cast stünde dort eine Zeichenkette
+     * gegen eine Zahl.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'min_amount' => 'decimal:2',
+    ];
+
     public function sponsorships()
     {
         return $this->hasMany(Sponsorship::class, 'package_id');

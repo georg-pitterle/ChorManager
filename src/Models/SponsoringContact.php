@@ -22,10 +22,17 @@ class SponsoringContact extends Model
         'follow_up_done',
     ];
 
+    /**
+     * `$timestamps` steht auf false, deshalb kümmert sich Eloquent nicht von
+     * selbst um `created_at` - ohne Cast käme die Spalte als Zeichenkette.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
         'contact_date'   => 'date',
         'follow_up_date' => 'date',
         'follow_up_done' => 'boolean',
+        'created_at'     => 'datetime',
     ];
 
     public function sponsor()

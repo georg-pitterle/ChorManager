@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,9 @@ final class ModelSchemaConsistencyTest extends TestCase
 {
     /** @var array<string, list<string>>|null */
     private static ?array $columnsByTable = null;
+
+    /** @var array<string, array<string, string>>|null */
+    private static ?array $typesByTable = null;
 
     protected function setUp(): void
     {
@@ -104,6 +108,35 @@ final class ModelSchemaConsistencyTest extends TestCase
             $keyName,
             $model->getTable()
         ));
+    }
+
+    /**
+     * Zeitspalten müssen als Carbon aus dem Modell kommen, nicht als Zeichenkette.
+     *
+     * Bei `$timestamps = true` erledigt Eloquent das für `created_at` und
+     * `updated_at` von selbst. Steht es auf `false` - und das tun die meisten
+     * Modelle hier - bleibt die Spalte roher Text, bis sie in `$casts` steht. Ein
+     * `->format()` oder ein Vergleich mit einem Datum läuft darauf auf, und in
+     * Twig fällt es nicht auf, weil der `date`-Filter beides frisst.
+     *
+     * @param class-string<Model> $class
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
+    public function testZeitspaltenKommenAlsDatum(string $class): void
+    {
+        $model = new $class();
+        $problems = [];
+
+        foreach ($this->dateColumnsOf($model->getTable()) as $column) {
+            $probe = new $class();
+            $probe->setRawAttributes([$column => '2026-01-02 03:04:05'], true);
+
+            if (!$probe->getAttribute($column) instanceof CarbonInterface) {
+                $problems[] = sprintf('%s.%s kommt als Zeichenkette - der Cast fehlt.', $class, $column);
+            }
+        }
+
+        self::assertSame([], $problems, implode("\n", $problems));
     }
 
     /**
@@ -221,23 +254,59 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
+     * Die Zeitspalten einer Tabelle - `date`, `datetime` und `timestamp`.
+     *
+     * @return list<string>
+     */
+    private function dateColumnsOf(string $table): array
+    {
+        $this->loadSchema();
+
+        $dateColumns = [];
+
+        foreach (self::$typesByTable[$table] ?? [] as $column => $type) {
+            if (in_array(strtolower($type), ['date', 'datetime', 'timestamp'], true)) {
+                $dateColumns[] = $column;
+            }
+        }
+
+        return $dateColumns;
+    }
+
+    /**
      * @return list<string>
      */
     private function columnsOf(string $table): array
     {
-        if (self::$columnsByTable === null) {
-            self::$columnsByTable = [];
-            $connection = Capsule::connection();
-
-            foreach ($connection->select('SHOW TABLES') as $row) {
-                $name = (string) current((array) $row);
-                self::$columnsByTable[$name] = array_map(
-                    static fn ($column): string => (string) ((array) $column)['Field'],
-                    $connection->select('SHOW COLUMNS FROM `' . $name . '`')
-                );
-            }
-        }
+        $this->loadSchema();
 
         return self::$columnsByTable[$table] ?? [];
+    }
+
+    private function loadSchema(): void
+    {
+        if (self::$columnsByTable !== null) {
+            return;
+        }
+
+        self::$columnsByTable = [];
+        self::$typesByTable = [];
+        $connection = Capsule::connection();
+
+        foreach ($connection->select('SHOW TABLES') as $row) {
+            $name = (string) current((array) $row);
+            $names = [];
+            $types = [];
+
+            foreach ($connection->select('SHOW COLUMNS FROM `' . $name . '`') as $column) {
+                $definition = (array) $column;
+                $field = (string) $definition['Field'];
+                $names[] = $field;
+                $types[$field] = (string) $definition['Type'];
+            }
+
+            self::$columnsByTable[$name] = $names;
+            self::$typesByTable[$name] = $types;
+        }
     }
 }

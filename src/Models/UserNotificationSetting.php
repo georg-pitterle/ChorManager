@@ -45,8 +45,15 @@ class UserNotificationSetting extends Model
         'enabled',
     ];
 
+    /**
+     * `$timestamps` steht auf false, deshalb kümmert sich Eloquent nicht von
+     * selbst um `created_at` - ohne Cast käme die Spalte als Zeichenkette.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
         'enabled' => 'boolean',
+        'created_at' => 'datetime',
     ];
 
     /**

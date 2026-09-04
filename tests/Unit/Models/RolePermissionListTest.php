@@ -6,11 +6,15 @@ namespace Tests\Unit\Models;
 
 use App\Models\Role;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
- * Hält `Role::PERMISSIONS` mit den Stellen gleich, die dieselben Spalten schon
- * aufzählen.
+ * Hält `Role::PERMISSIONS` mit dem zusammen, was das Modell tatsächlich
+ * herausgibt.
+ *
+ * `$fillable` und die Casts leiten sich seit dem Umbau aus der Liste ab, statt
+ * sie ein zweites und drittes Mal auszuschreiben. Geprüft wird deshalb bewusst
+ * das Ergebnis - `getFillable()` und `getCasts()` - und nicht mehr die rohen
+ * Eigenschaften: Nur so fällt auch auf, wenn die Ableitung selbst kaputtgeht.
  *
  * Ohne diese Klammer könnte ein neues Recht in `$fillable` stehen, aber nicht in
  * der Liste - und käme dann beim Anmelden nie in der Sitzung an. Der Fehler wäre
@@ -21,7 +25,7 @@ final class RolePermissionListTest extends TestCase
 {
     public function testEveryPermissionIsFillable(): void
     {
-        $fillable = $this->modelProperty('fillable');
+        $fillable = (new Role())->getFillable();
 
         foreach (Role::PERMISSIONS as $permission) {
             $this->assertContains($permission, $fillable, $permission . ' fehlt in $fillable.');
@@ -30,7 +34,7 @@ final class RolePermissionListTest extends TestCase
 
     public function testEveryFillablePermissionIsListed(): void
     {
-        foreach ($this->modelProperty('fillable') as $column) {
+        foreach ((new Role())->getFillable() as $column) {
             if (!str_starts_with((string) $column, 'can_')) {
                 continue;
             }
@@ -48,7 +52,7 @@ final class RolePermissionListTest extends TestCase
      */
     public function testEveryPermissionIsCastToBoolean(): void
     {
-        $casts = $this->modelProperty('casts');
+        $casts = (new Role())->getCasts();
 
         foreach (Role::PERMISSIONS as $permission) {
             $this->assertArrayHasKey($permission, $casts, $permission . ' fehlt in $casts.');
@@ -70,18 +74,5 @@ final class RolePermissionListTest extends TestCase
                 $this->assertNotSame($full, $smaller, 'Ein Recht darf sich nicht selbst einschließen.');
             }
         }
-    }
-
-    /**
-     * @return array<int|string, mixed>
-     */
-    private function modelProperty(string $name): array
-    {
-        $property = (new ReflectionClass(Role::class))->getProperty($name);
-
-        /** @var array<int|string, mixed> $value */
-        $value = $property->getValue(new Role());
-
-        return $value;
     }
 }

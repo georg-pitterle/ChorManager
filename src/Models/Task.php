@@ -51,9 +51,22 @@ class Task extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Notizen der Aufgabe. Private Notizen bleiben hier aussen vor - gleiche
+     * Grenze und gleiche Begründung wie bei Event::comments(): Die Relation kennt
+     * die angemeldete Person nicht und könnte eine fremde private Notiz nicht von
+     * der eigenen unterscheiden. Ohne die Grenze hinge es am Aufrufer, ob eine
+     * fremde private Notiz in der Ausgabe landet - und `withCount('comments')`
+     * in der Aufgabenliste hätte sie sogar mitgerechnet.
+     *
+     * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
+     * Comment::visibleTo() bewusst selbst.
+     */
     public function comments()
     {
-        return $this->hasMany(Comment::class, 'entity_id')->where('entity_type', 'task');
+        return $this->hasMany(Comment::class, 'entity_id')
+            ->where('entity_type', 'task')
+            ->where('is_private', false);
     }
 
     public function attachments()
