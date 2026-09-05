@@ -729,8 +729,8 @@
                                 </thead>
                                 <tbody>
                                     {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
-                                        {% set _contact_owned = contact.user_id is not null and contact.user_id == current_user_id %}
-                                        {% set can_edit_contact = can_manage_all or _contact_owned %}
+                                        {% set can_edit_contact = may_edit_contacts[contact.id] %}
+                                        {% set can_complete_follow_up = may_complete_follow_ups[contact.id] %}
                                         {% set sees_contact = visible_contacts[contact.id] %}
                                         <tr>
                                             <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
@@ -771,7 +771,7 @@
                                                         <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %} text-danger fw-semibold {% else %} text-warning {% endif %}">
                                                             <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
                                                         </span>
-                                                        {% if can_edit_contact %}
+                                                        {% if can_complete_follow_up %}
                                                             <form method="post"
                                                                   action="/sponsoring/contacts/{{ contact.id }}/done"
                                                                   class="d-inline ms-1">
@@ -817,8 +817,8 @@
                             </table>
                         </div>
 
-                        {% set editable_contacts = sponsor.contacts|filter(contact => can_manage_all or (contact.user_id is not null and contact.user_id == current_user_id)) %}
-                        {% for contact in editable_contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                        {% set contacts_with_edit_modal = sponsor.contacts|filter(contact => may_edit_contacts[contact.id]) %}
+                        {% for contact in contacts_with_edit_modal|sort((a, b) => b.contact_date <=> a.contact_date) %}
                             <div class="modal fade"
                                  id="editContactModal{{ contact.id }}"
                                  tabindex="-1"

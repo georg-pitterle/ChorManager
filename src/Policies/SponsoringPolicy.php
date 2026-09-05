@@ -107,14 +107,34 @@ class SponsoringPolicy
     }
 
     /**
-     * Eine Wiedervorlage hakt ab, wem sie gehört. Vorher durfte das jeder
-     * Beitragende mit der Begründung, sie werde oft von jemand anderem
-     * erledigt - das machte aus der Liste eine gemeinsame Aufgabenliste, in der
-     * jeder die Einträge aller anderen wegklicken konnte.
+     * Eine Wiedervorlage hakt ab, wem sie gehört - und wer bei der zugehörigen
+     * Vereinbarung als zuständig eingetragen ist.
+     *
+     * Der Urheber allein reichte nicht: ist er im Urlaub oder ausgetreten,
+     * blieb der Eintrag stehen, bis jemand mit dem Vollrecht ihn wegklickte.
+     * Die Zuständigkeit ist die schmalste Erweiterung, die das löst - sie steht
+     * an der Vereinbarung und benennt genau die Person, die den Faden ohnehin
+     * weiterführt. Für alle Beitragenden zu öffnen bleibt ausgeschlossen: das
+     * machte aus der Liste eine gemeinsame Aufgabenliste, in der jeder die
+     * Einträge aller anderen wegklicken konnte.
+     *
+     * Ein Kontakt ohne Vereinbarung hat keine zuständige Person und bleibt
+     * deshalb beim Urheber. Das Ändern der Zusammenfassung bleibt unberührt -
+     * dafür gilt weiterhin canEditContact().
      */
     public function canCompleteFollowUp(SponsoringContact $contact): bool
     {
-        return $this->canEditOwned($contact->user_id);
+        if ($this->canEditOwned($contact->user_id)) {
+            return true;
+        }
+
+        if (!$this->canContribute() || $this->userId <= 0) {
+            return false;
+        }
+
+        $assignedUserId = $contact->sponsorship?->assigned_user_id;
+
+        return $assignedUserId !== null && (int) $assignedUserId === $this->userId;
     }
 
     /**

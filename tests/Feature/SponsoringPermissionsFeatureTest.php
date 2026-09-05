@@ -616,6 +616,78 @@ class SponsoringPermissionsFeatureTest extends TestCase
     }
 
     /**
+     * Wer bei der Vereinbarung als zuständig eingetragen ist, hakt deren
+     * Wiedervorlagen ebenfalls ab - auch die, die jemand anderer protokolliert
+     * hat. Sonst bleibt der Eintrag stehen, sobald die protokollierende Person
+     * im Urlaub oder ausgetreten ist, und nur das Sponsoring-Team käme noch
+     * heran. Das Ändern des Kontakts bleibt davon unberührt: die
+     * Zusammenfassung gehört weiterhin dem, der sie geschrieben hat.
+     */
+    public function testTheAssignedPersonMayTickOffAFollowUpOnTheirAgreement(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+        $sponsorship->assigned_user_id = $this->contributor->id;
+        $sponsorship->save();
+
+        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Wiedervorlage');
+
+        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy());
+
+        try {
+            $allowed = $controller->markDone(
+                $this->makeRequest('POST', '/x', ['sponsor_id' => (string) $sponsor->id]),
+                $this->makeResponse(),
+                ['id' => (string) $theirs->id]
+            );
+            $this->assertSame(302, $allowed->getStatusCode());
+            $this->assertSame(1, (int) $theirs->fresh()->follow_up_done);
+
+            // Die Zusammenfassung bleibt trotzdem fremd.
+            $this->assertFalse((new SponsoringPolicy())->canEditContact($theirs->fresh()));
+
+            // Und die Detailseite reicht beides getrennt an das Template weiter:
+            // ohne das käme der Abhaken-Knopf nie an, weil das Template die
+            // Regel zuvor selbst aus Urheber und Vollrecht zusammensetzte.
+            $detail = $this->sponsorDetailData((int) $sponsor->id);
+            $this->assertTrue($detail['may_complete_follow_ups'][(int) $theirs->id]);
+            $this->assertFalse($detail['may_edit_contacts'][(int) $theirs->id]);
+        } finally {
+            SponsoringContact::whereIn('id', [$theirs->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    /**
+     * Ohne Vereinbarung gibt es keine zuständige Person - dann bleibt es beim
+     * Urheber. Sonst hätte die Lockerung eine Lücke für lose Kontakte.
+     */
+    public function testAFollowUpWithoutAnAgreementStaysWithItsAuthor(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+
+        $theirs = $this->makeContact($sponsor, null, (int) $this->otherUser->id, 'Loser Kontakt');
+
+        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy());
+
+        try {
+            $denied = $controller->markDone(
+                $this->makeRequest('POST', '/x', ['sponsor_id' => (string) $sponsor->id]),
+                $this->makeResponse(),
+                ['id' => (string) $theirs->id]
+            );
+            $this->assertSame(403, $denied->getStatusCode());
+            $this->assertSame(0, (int) $theirs->fresh()->follow_up_done);
+        } finally {
+            SponsoringContact::whereIn('id', [$theirs->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function attachmentOverviewRows(): array
@@ -657,13 +729,13 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
     private function makeContact(
         Sponsor $sponsor,
-        Sponsorship $sponsorship,
+        ?Sponsorship $sponsorship,
         int $userId,
         string $summary
     ): SponsoringContact {
         return SponsoringContact::create([
             'sponsor_id' => $sponsor->id,
-            'sponsorship_id' => $sponsorship->id,
+            'sponsorship_id' => $sponsorship?->id,
             'user_id' => $userId,
             'contact_date' => date('Y-m-d'),
             'type' => 'call',
@@ -698,6 +770,31 @@ class SponsoringPermissionsFeatureTest extends TestCase
     private function sponsorshipController(): SponsorshipController
     {
         return new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
+    }
+
+    /**
+     * Rendert die Sponsor-Detailseite und gibt zurück, was an das Template geht.
+     *
+     * @return array<string, mixed>
+     */
+    private function sponsorDetailData(int $sponsorId): array
+    {
+        $captured = [];
+        $twig = $this->createStub(Twig::class);
+        $twig->method('render')->willReturnCallback(
+            function ($response, string $template, array $data) use (&$captured): ResponseInterface {
+                $captured = $data;
+                return $response;
+            }
+        );
+
+        (new SponsorController($twig, new SponsoringPolicy(), $this->attachmentService()))->detail(
+            $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsorId),
+            $this->makeResponse(),
+            ['id' => (string) $sponsorId]
+        );
+
+        return $captured;
     }
 
     private function sponsorController(): SponsorController

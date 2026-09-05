@@ -115,6 +115,8 @@ class SponsorController
         $projects = $this->policy->selectableProjects();
         $packages = SponsorPackage::orderBy('min_amount')->get();
 
+        $contactPermissions = $this->buildContactPermissions($sponsor);
+
         $success = $_SESSION['success'] ?? null;
         $error   = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
@@ -131,6 +133,8 @@ class SponsorController
             // abfragt und die Regel an einer Stelle steht.
             'visible_details' => $this->buildDetailVisibility($sponsor),
             'visible_contacts' => $this->buildContactVisibility($sponsor),
+            'may_edit_contacts' => $contactPermissions['editable'],
+            'may_complete_follow_ups' => $contactPermissions['completable'],
             'sees_totals'    => $this->policy->canSeeFinancialTotals(),
             'accepted_total' => $this->policy->canSeeFinancialTotals()
                 ? $this->acceptedTotal($sponsor)
@@ -414,6 +418,45 @@ class SponsorController
         }
 
         return $visible;
+    }
+
+    /**
+     * Je Kontakt: darf die Zusammenfassung geändert und die Wiedervorlage
+     * abgehakt werden?
+     *
+     * Zwei getrennte Fragen, weil sie seit der Freigabe der Zuständigen
+     * auseinanderfallen: Ändern bleibt beim Urheber, Abhaken darf zusätzlich,
+     * wer bei der Vereinbarung als zuständig eingetragen ist. Das Template
+     * setzte die Regel vorher selbst aus Urheber und Vollrecht zusammen - der
+     * neue Weg wäre dort nie angekommen.
+     *
+     * @return array{editable: array<int, bool>, completable: array<int, bool>}
+     */
+    private function buildContactPermissions(Sponsor $sponsor): array
+    {
+        $editable = [];
+        $completable = [];
+
+        $collect = function ($contact) use (&$editable, &$completable): void {
+            $editable[(int) $contact->id] = $this->policy->canEditContact($contact);
+            $completable[(int) $contact->id] = $this->policy->canCompleteFollowUp($contact);
+        };
+
+        foreach ($sponsor->contacts as $contact) {
+            $collect($contact);
+        }
+
+        foreach ($sponsor->sponsorships as $sponsorship) {
+            foreach ($sponsorship->contacts as $contact) {
+                // Beziehung setzen statt nachladen: canCompleteFollowUp() fragt
+                // die zuständige Person der Vereinbarung ab, und die liegt hier
+                // bereits vor.
+                $contact->setRelation('sponsorship', $sponsorship);
+                $collect($contact);
+            }
+        }
+
+        return ['editable' => $editable, 'completable' => $completable];
     }
 
     /**
