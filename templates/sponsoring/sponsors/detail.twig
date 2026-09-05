@@ -637,8 +637,17 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label">Projekt</label>
+                                                    {% set retained_project = retained_projects[sp.id] ?? null %}
                                                     <select name="project_id" class="form-select" data-sponsorship-project>
                                                         <option value="">– Kein Projekt –</option>
+                                                        {# Das zugeordnete Projekt bleibt wählbar, auch wenn es abgeschlossen ist. #}
+                                                        {% if retained_project %}
+                                                            <option value="{{ retained_project.id }}"
+                                                                    data-start-date="{{ retained_project.start_date ? retained_project.start_date.format('Y-m-d') : '' }}"
+                                                                    data-end-date="{{ retained_project.end_date ? retained_project.end_date.format('Y-m-d') : '' }}"
+                                                                    selected>{{ retained_project.name }}
+                                                            </option>
+                                                        {% endif %}
                                                         {% for project in projects %}
                                                             <option value="{{ project.id }}"
                                                                     data-start-date="{{ project.start_date ? project.start_date.format('Y-m-d') : '' }}"

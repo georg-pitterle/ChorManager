@@ -433,6 +433,66 @@ class SponsoringPermissionsFeatureTest extends TestCase
         }
     }
 
+    /**
+     * Das Projekt einer eigenen Vereinbarung bleibt im Bearbeiten-Formular
+     * stehen, auch wenn es inzwischen abgeschlossen ist. Ohne diesen Zusatz
+     * fehlte im Auswahlfeld genau der Eintrag, der gerade galt: der Browser
+     * schickte "Kein Projekt", und ein Speichern aus einem anderen Grund - etwa
+     * ein korrigierter Betrag - löste die Vereinbarung stillschweigend vom
+     * Projekt.
+     */
+    public function testContributorKeepsTheFinishedProjectTheirOwnAgreementAlreadyHangsOn(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $past = Project::create([
+            'name' => 'Abgeschlossenes Projekt ' . bin2hex(random_bytes(4)),
+            'start_date' => date('Y-m-d', strtotime('-2 years')),
+            'end_date' => date('Y-m-d', strtotime('-1 year')),
+        ]);
+        $running = Project::create([
+            'name' => 'Laufendes Projekt ' . bin2hex(random_bytes(4)),
+            'start_date' => date('Y-m-d', strtotime('-1 month')),
+            'end_date' => date('Y-m-d', strtotime('+1 month')),
+        ]);
+
+        try {
+            $onPast = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+            $onPast->project_id = $past->id;
+            $onPast->save();
+
+            $onRunning = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+            $onRunning->project_id = $running->id;
+            $onRunning->save();
+
+            $withoutProject = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
+
+            $policy = new SponsoringPolicy();
+            $sponsorships = Sponsorship::with('project')->where('sponsor_id', $sponsor->id)->get();
+            $retained = $policy->retainedProjects($sponsorships, $policy->selectableProjects());
+
+            $this->assertArrayHasKey((int) $onPast->id, $retained);
+            $this->assertSame((int) $past->id, (int) $retained[(int) $onPast->id]->id);
+
+            // Ein laufendes Projekt steht ohnehin in der Auswahl, eine
+            // Vereinbarung ohne Projekt braucht keinen Zusatz.
+            $this->assertArrayNotHasKey((int) $onRunning->id, $retained);
+            $this->assertArrayNotHasKey((int) $withoutProject->id, $retained);
+
+            // Das Vollrecht sieht jedes Projekt schon in der regulären Auswahl.
+            $_SESSION['can_manage_sponsoring'] = true;
+            $managerPolicy = new SponsoringPolicy();
+            $this->assertSame(
+                [],
+                $managerPolicy->retainedProjects($sponsorships, $managerPolicy->selectableProjects())
+            );
+        } finally {
+            $this->cleanUp($sponsor);
+            $past->delete();
+            $running->delete();
+        }
+    }
+
     public function testDeletingASponsorAlsoRemovesItsAttachments(): void
     {
         $_SESSION['user_id'] = (int) $this->contributor->id;

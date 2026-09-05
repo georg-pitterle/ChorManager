@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Policy für das Sponsoring. Zwei Rechte führen hierher:
@@ -185,9 +186,11 @@ class SponsoringPolicy
             return true;
         }
 
-        return $this->selectableProjects()->contains(
-            static fn (Project $project): bool => (int) $project->id === $projectId
-        );
+        // Eine Existenzfrage, keine Liste: vorher lud die Prüfung jedes laufende
+        // Projekt als Modell, um eine einzige Kennung darin zu suchen.
+        return $this->restrictToRunning(Project::query())
+            ->whereKey($projectId)
+            ->exists();
     }
 
     /**
@@ -196,29 +199,79 @@ class SponsoringPolicy
      * Auswahl eines gesperrten Projekts verwarf beim Absenden das ganze
      * ausgefüllte Formular samt gewählter Anhänge.
      *
-     * Ein fehlendes Datum bedeutet "offen", nicht "nicht laufend": ein Projekt
-     * mit Beginn in der Vergangenheit und ohne gepflegtes Ende läuft. Vorher
-     * verlangte die Prüfung beide Daten und sperrte solche Projekte aus.
+     * Welche Projekte das sind, entscheidet restrictToRunning() - dieselbe
+     * Einschränkung, gegen die canUseProject() beim Absenden prüft.
      *
      * @return \Illuminate\Support\Collection<int, Project>
      */
     public function selectableProjects(): \Illuminate\Support\Collection
     {
-        $query = Project::query()->chronological();
+        return $this->restrictToRunning(Project::query()->chronological())->get();
+    }
 
-        if (!$this->canManageSponsoring) {
-            $today = date('Y-m-d');
+    /**
+     * Projekte, an denen die übergebenen Vereinbarungen bereits hängen, die aber
+     * nicht mehr in `selectableProjects()` stehen - in aller Regel ein inzwischen
+     * abgeschlossenes Projekt.
+     *
+     * Das Bearbeiten-Formular braucht sie als zusätzliche Auswahl. Ohne sie fehlt
+     * dort genau der Eintrag, der gerade gilt: der Browser schickt "Kein Projekt",
+     * und ein Speichern aus einem ganz anderen Grund - etwa ein korrigierter
+     * Betrag - löst die Vereinbarung stillschweigend vom Projekt. Das
+     * Anlegen-Formular bekommt sie bewusst nicht: dort wären sie eine Auswahl,
+     * die canUseProject() beim Absenden abweist.
+     *
+     * @param iterable<Sponsorship> $sponsorships
+     * @param \Illuminate\Support\Collection<int, Project> $selectable Ergebnis von selectableProjects()
+     * @return array<int, Project> Vereinbarungs-Id => weiterhin zugeordnetes Projekt
+     */
+    public function retainedProjects(iterable $sponsorships, \Illuminate\Support\Collection $selectable): array
+    {
+        $selectableIds = $selectable
+            ->map(static fn (Project $project): int => (int) $project->id)
+            ->all();
 
-            $query
-                ->where(function ($sub) use ($today): void {
-                    $sub->whereNull('start_date')->orWhere('start_date', '<=', $today);
-                })
-                ->where(function ($sub) use ($today): void {
-                    $sub->whereNull('end_date')->orWhere('end_date', '>=', $today);
-                });
+        $retained = [];
+
+        foreach ($sponsorships as $sponsorship) {
+            $project = $sponsorship->project;
+
+            if ($project === null || in_array((int) $project->id, $selectableIds, true)) {
+                continue;
+            }
+
+            $retained[(int) $sponsorship->id] = $project;
         }
 
-        return $query->get();
+        return $retained;
+    }
+
+    /**
+     * Beschränkt eine Projekt-Abfrage auf die heute laufenden, solange nicht das
+     * Vollrecht vorliegt.
+     *
+     * Ein fehlendes Datum bedeutet dabei "offen", nicht "nicht laufend": ein
+     * Projekt mit Beginn in der Vergangenheit und ohne gepflegtes Ende läuft.
+     * Vorher verlangte die Prüfung beide Daten und sperrte solche Projekte aus.
+     *
+     * @param Builder<Project> $query
+     * @return Builder<Project>
+     */
+    private function restrictToRunning(Builder $query): Builder
+    {
+        if ($this->canManageSponsoring) {
+            return $query;
+        }
+
+        $today = date('Y-m-d');
+
+        return $query
+            ->where(function ($sub) use ($today): void {
+                $sub->whereNull('start_date')->orWhere('start_date', '<=', $today);
+            })
+            ->where(function ($sub) use ($today): void {
+                $sub->whereNull('end_date')->orWhere('end_date', '>=', $today);
+            });
     }
 
     private function canEditOwned(mixed $ownerId): bool

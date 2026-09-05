@@ -155,7 +155,7 @@ class ProjectMemberPolicy
             return $this->accessibleProjectIdsCache;
         }
 
-        // Das stimmgruppen-beschraenkte Recht bleibt auf die eigenen Projekte begrenzt.
+        // Das stimmgruppen-beschränkte Recht bleibt auf die eigenen Projekte begrenzt.
         if ($this->canAssignOwnVoiceGroup && $this->userId > 0) {
             $user = User::find($this->userId);
             if ($user) {

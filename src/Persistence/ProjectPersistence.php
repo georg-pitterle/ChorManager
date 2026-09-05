@@ -12,10 +12,10 @@ class ProjectPersistence
     /**
      * Assigns a user to a project. Archived (inactive) users are reactivated by the assignment.
      *
-     * Die Reaktivierung ist ausdruecklich gewollt und nicht an ein Benutzerverwaltungsrecht
+     * Die Reaktivierung ist ausdrücklich gewollt und nicht an ein Benutzerverwaltungsrecht
      * gebunden: wer Projektmitglieder pflegen darf, holt ein archiviertes Mitglied damit auch
-     * ohne can_manage_users zurueck - beim breiten Recht systemweit, beim stimmgruppen-
-     * beschraenkten Recht innerhalb der eigenen Stimmgruppe.
+     * ohne can_manage_users zurück - beim breiten Recht systemweit, beim stimmgruppen-
+     * beschränkten Recht innerhalb der eigenen Stimmgruppe.
      *
      * @return bool True if the user was reactivated by this assignment.
      */
@@ -47,13 +47,36 @@ class ProjectPersistence
         }
     }
 
+    /**
+     * Setzt die Projektzuordnung eines Mitglieds auf genau die übergebenen Projekte.
+     *
+     * Unbekannte Ids werden verworfen, nicht durchgereicht: sie liefen sonst in den
+     * Fremdschlüssel von `project_users`, und im Zweig für die reine Projektzuordnung
+     * (UserController::update() ohne can_edit_users) fängt das niemand ab - die Eingabe
+     * endete in einem HTTP 500. Verworfen wird nur der unbekannte Wert, damit ein aus der
+     * Oberfläche stammender Rest weiterhin gespeichert wird.
+     *
+     * @param array<int|string> $projectIds
+     */
     public function setUserProjects(int $userId, array $projectIds): void
     {
         $user = User::find($userId);
-        if ($user) {
-            // Filter out 0/empty values
-            $validIds = array_filter($projectIds, fn($id) => (int)$id > 0);
-            $user->projects()->sync($validIds);
+        if (!$user) {
+            return;
         }
+
+        $requested = array_values(array_unique(array_filter(
+            array_map('intval', $projectIds),
+            static fn(int $id): bool => $id > 0
+        )));
+
+        $existingIds = $requested === []
+            ? []
+            : Project::whereIn('id', $requested)
+                ->pluck('id')
+                ->map(static fn($id): int => (int) $id)
+                ->all();
+
+        $user->projects()->sync($existingIds);
     }
 }

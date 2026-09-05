@@ -340,8 +340,8 @@ class ProjectController
      * Guards add/remove against the voice-group scope. A broad project member
      * manager passes for every user; a voice-group-scoped holder only for users
      * that share one of their own voice groups. Ein unbekanntes Mitglied hat
-     * keine Stimmgruppen und ist daher nur fuer das stimmgruppen-beschraenkte
-     * Recht ausgeschlossen - die Existenz prueft addMember() separat.
+     * keine Stimmgruppen und ist daher nur für das stimmgruppen-beschränkte
+     * Recht ausgeschlossen - die Existenz prüft addMember() separat.
      */
     private function userIsInManageableVoiceGroup(int $projectId, int $userId): bool
     {

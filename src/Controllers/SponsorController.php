@@ -101,6 +101,7 @@ class SponsorController
 
         $sponsor = Sponsor::with([
             'sponsorships.package',
+            'sponsorships.project',
             'sponsorships.assignedUser',
             'sponsorships.attachments' => $metadataOnly,
             'sponsorships.contacts.user',
@@ -136,6 +137,9 @@ class SponsorController
                 : null,
             'users'          => $users,
             'projects'       => $projects,
+            // Nur für die Bearbeiten-Formulare: das bereits zugeordnete Projekt
+            // bleibt wählbar, auch wenn es nicht mehr in $projects steht.
+            'retained_projects' => $this->policy->retainedProjects($sponsor->sponsorships, $projects),
             'packages'       => $packages,
             'status_options' => SponsorshipStatus::options(),
             'status_labels'  => SponsorshipStatus::labels(),
