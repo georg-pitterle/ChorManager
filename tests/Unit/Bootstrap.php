@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Util\Timezone;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -39,6 +40,10 @@ class Bootstrap
             'database' => $_ENV['DB_DATABASE'] ?? $_SERVER['DB_DATABASE'] ?? 'db',
             'username' => $_ENV['DB_USERNAME'] ?? $_SERVER['DB_USERNAME'] ?? 'db',
             'password' => $_ENV['DB_PASSWORD'] ?? $_SERVER['DB_PASSWORD'] ?? 'db',
+            // Dieselben Verbindungsoptionen wie in Settings::db: ohne sie steht die
+            // MySQL-Sitzung des Testlaufs auf der Systemzeitzone, während Anwendung und
+            // Seed in der App-Zeitzone schreiben.
+            'options' => Timezone::databaseConnectionOptions(),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
