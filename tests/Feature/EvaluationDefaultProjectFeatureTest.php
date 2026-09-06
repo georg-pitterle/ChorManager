@@ -50,15 +50,41 @@ class EvaluationDefaultProjectFeatureTest extends TestCase
         );
     }
 
-    public function testReturnsRunningProjectEndingFirstWhenSeveralRun(): void
+    /**
+     * Laufen mehrere Projekte parallel, gewinnt das zuletzt gestartete - dasselbe,
+     * das in der Projektliste darüber an erster Stelle steht. Vorher gewann das
+     * zuerst endende; Liste und Vorauswahl zeigten damit auf verschiedene Projekte.
+     */
+    public function testReturnsMostRecentlyStartedProjectWhenSeveralRun(): void
     {
-        $endsLater = $this->createProject('-2 months', '+6 months');
-        $endsSooner = $this->createProject('-1 month', '+1 month');
+        $startedEarlierEndsSooner = $this->createProject('-2 months', '+1 month');
+        $startedLaterEndsLater = $this->createProject('-1 month', '+6 months');
 
-        $accessible = [(int) $endsLater->id, (int) $endsSooner->id];
+        $accessible = [(int) $startedEarlierEndsSooner->id, (int) $startedLaterEndsLater->id];
 
         $this->assertSame(
-            (int) $endsSooner->id,
+            (int) $startedLaterEndsLater->id,
+            $this->projectQuery->findCurrentProjectId($accessible)
+        );
+    }
+
+    /**
+     * Die Vorauswahl ist genau der erste Eintrag der Projektliste, sofern der
+     * gerade läuft - dieselbe Reihenfolge, dieselbe Quelle.
+     */
+    public function testPreselectionMatchesTheTopOfTheProjectList(): void
+    {
+        $running = [
+            $this->createProject('-3 months', '+2 months'),
+            $this->createProject('-1 month', '+1 month'),
+            $this->createProject('-2 months', '+9 months'),
+        ];
+
+        $accessible = array_map(static fn(Project $project): int => (int) $project->id, $running);
+        $listed = $this->projectQuery->getProjectsByIds($accessible);
+
+        $this->assertSame(
+            (int) $listed->first()->id,
             $this->projectQuery->findCurrentProjectId($accessible)
         );
     }

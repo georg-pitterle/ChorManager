@@ -7,6 +7,7 @@ namespace App\Queries;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\NameFormatterService;
+use App\Util\SubVoiceOrder;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
@@ -97,9 +98,13 @@ class ProjectQuery
     }
 
     /**
-     * Returns the id of the project running today (start_date <= today <= end_date),
-     * restricted to the given accessible project ids. If several projects run in
-     * parallel, the one ending first wins. Returns 0 if none is running.
+     * Kennung des Projekts, das heute läuft (start_date <= heute <= end_date),
+     * eingegrenzt auf die übergebenen zugänglichen Projekte. Läuft keines: 0.
+     *
+     * Laufen mehrere Projekte parallel, gewinnt das zuletzt gestartete - also
+     * genau das, was in jeder Projektliste oben steht (Project::scopeChronological).
+     * Vorher gewann das zuerst endende; die Auswertungen wählten damit ein anderes
+     * Projekt vor, als die Liste darüber an erster Stelle zeigte.
      *
      * @param int[] $accessibleProjectIds
      */
@@ -111,13 +116,15 @@ class ProjectQuery
 
         $today = date('Y-m-d');
 
-        $project = Project::whereIn('id', $accessibleProjectIds)
+        $project = Project::whereIn('projects.id', $accessibleProjectIds)
             ->whereNotNull('start_date')
             ->whereNotNull('end_date')
             ->where('start_date', '<=', $today)
             ->where('end_date', '>=', $today)
-            ->orderBy('end_date', 'asc')
-            ->orderBy('id', 'asc')
+            ->chronological()
+            // Gleiches Startdatum und gleicher Name lassen die Reihenfolge sonst
+            // offen; die Vorauswahl wechselte dann zwischen zwei Aufrufen.
+            ->orderBy('projects.id')
             ->first();
 
         return $project ? (int) $project->id : 0;
@@ -262,6 +269,11 @@ class ProjectQuery
      *
      * Jedes Mitglied erscheint genau einmal: unter seiner ersten Stimmgruppe.
      *
+     * Archivierte Mitglieder stehen mit in der Besetzung, gekennzeichnet über
+     * `is_active` je Zeile. Sie herauszufiltern hiess, dass die Mitgliederpflege
+     * des Projekts jemanden zeigte, den die Besetzung derselben Zuordnung
+     * verschwieg - zwei Seiten, zwei Antworten auf dieselbe Frage.
+     *
      * @return array<string, array<string, list<array<string, mixed>>>>
      */
     public function getProjectMembersGroupedByVoice(int $projectId): array
@@ -272,7 +284,6 @@ class ProjectQuery
             ->whereHas('projects', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);
             })
-            ->where('is_active', 1)
             ->with(['voiceGroups', 'subVoices']);
 
         $users = $this->orderedByName($query)->get();
@@ -313,25 +324,18 @@ class ProjectQuery
                 'last_name' => $user->last_name,
                 'voice_group_name' => $vgName !== self::NO_VOICE_GROUP_KEY ? $vgName : null,
                 'sub_voice_name' => $svName !== self::NO_SUB_VOICE_KEY ? $svName : null,
+                // Die Vorlage kennzeichnet archivierte Mitglieder damit.
+                'is_active' => (bool) $user->is_active,
             ];
         }
 
         // Sort voice groups into canonical SATB order, "ohne Stimmgruppe" last
         $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, [self::NO_VOICE_GROUP_KEY]);
 
-        // Sort sub-voices within each voice group by name, collecting key last
-        foreach ($grouped as &$subVoices) {
-            ksort($subVoices);
-            if (isset($subVoices[self::NO_SUB_VOICE_KEY])) {
-                $ungroupedSv = $subVoices[self::NO_SUB_VOICE_KEY];
-                unset($subVoices[self::NO_SUB_VOICE_KEY]);
-                $subVoices[self::NO_SUB_VOICE_KEY] = $ungroupedSv;
-            }
-        }
-        // Die Referenz zeigt nach der Schleife noch auf das letzte Element und würde
-        // bei jeder späteren Verwendung von $subVoices dorthin schreiben.
-        unset($subVoices);
-
-        return $grouped;
+        // Teilstimmen in derselben Reihenfolge wie überall sonst, der Sammelschlüssel
+        // zuletzt. Vorher sortierte ksort() nach Bytefolge: Grossbuchstaben vor
+        // Kleinbuchstaben, Umlaute hinter dem Z - anders als jede Auflistung, die aus
+        // der Datenbank kommt.
+        return SubVoiceOrder::sortNestedSubVoiceLevel($grouped, [self::NO_SUB_VOICE_KEY]);
     }
 }

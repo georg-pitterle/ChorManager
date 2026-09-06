@@ -89,6 +89,29 @@ class UserQuery
     }
 
     /**
+     * Aktive Mitglieder, die mindestens einer der übergebenen Stimmgruppen angehören.
+     *
+     * Für das stimmgruppen-beschränkte Recht in der Mitgliederliste. Die
+     * Einschränkung läuft in der Abfrage und nicht als filter() über alle aktiven
+     * Mitglieder - dieselbe Richtung wie bei ProjectQuery::getProjectsByIds().
+     *
+     * Eine leere Stimmgruppenliste heißt "keine Mitglieder" und kommt ohne Abfrage
+     * aus; das ist die sichere Richtung und entspricht dem bisherigen Verhalten
+     * der Liste.
+     *
+     * @param array<int> $voiceGroupIds
+     */
+    public function getUsersForVoiceGroups(array $voiceGroupIds): Collection
+    {
+        $ids = array_values(array_map('intval', $voiceGroupIds));
+        if ($ids === []) {
+            return new Collection();
+        }
+
+        return $this->orderedListQuery(1, $ids);
+    }
+
+    /**
      * Mitgliederliste in der konfigurierten Namensreihenfolge. Geladen werden nur
      * die Listenspalten (User::LIST_COLUMNS) - das Ergebnis geht unverändert an
      * die View-Schicht, der Passwort-Hash bleibt deshalb in der Datenbank.
@@ -101,12 +124,20 @@ class UserQuery
      * statt vier), ohne dass sie jemand ausliest; die erste holte zudem sämtliche
      * Teilstimmen sämtlicher Stimmgruppen. Die Detailmasken laden weiterhin
      * vollständig, siehe findById().
+     *
+     * @param array<int>|null $voiceGroupIds null = keine Einschränkung auf Stimmgruppen
      */
-    private function orderedListQuery(int $isActive): Collection
+    private function orderedListQuery(int $isActive, ?array $voiceGroupIds = null): Collection
     {
         $query = User::select(User::LIST_COLUMNS)
             ->with(['roles', 'voiceGroups', 'projects'])
             ->where('is_active', $isActive);
+
+        if ($voiceGroupIds !== null) {
+            $query->whereHas('voiceGroups', function ($relation) use ($voiceGroupIds) {
+                $relation->whereIn('voice_group_id', $voiceGroupIds);
+            });
+        }
 
         foreach ($this->nameFormatter->orderColumns() as $column) {
             $query->orderBy($column);

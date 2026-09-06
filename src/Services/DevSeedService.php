@@ -602,7 +602,15 @@ class DevSeedService
 
         for ($i = 1; $i <= 140; $i++) {
             $isActive = $i <= $activeTarget;
-            $groupName = $isActive ? $voiceQueue[$i - 1] : null;
+            // Auch ausgetretene Mitglieder hatten eine Stimme. Ohne Zuordnung stünden
+            // die archivierten Projektmitglieder (seedArchivedProjectMembers()) in der
+            // Besetzung unter "Ohne Stimmgruppe" - die Kennzeichnung "Archiviert" wäre
+            // in Dev dann nur an der uninteressantesten Stelle zu sehen. Die
+            // Stimmverteilung selbst richtet sich weiter nach den Aktiven; die
+            // Archivierten laufen zyklisch hinterher.
+            $groupName = $isActive
+                ? $voiceQueue[$i - 1]
+                : $voiceQueue[($i - 1) % count($voiceQueue)];
             $personName = $this->buildMemberNameForVoice($i, $groupName, $usedFullNames);
             $firstName = $personName['first_name'];
             $lastName = $personName['last_name'];
@@ -643,7 +651,7 @@ class DevSeedService
                 $credentialsCandidates[$roleName] = $user;
             }
 
-            if ($isActive && is_string($groupName)) {
+            if (is_string($groupName)) {
                 $group = $voiceData['groups'][$groupName];
                 $subs = $voiceData['subs'][$groupName];
                 $sub = $subs[$i % 2];

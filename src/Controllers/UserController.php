@@ -63,7 +63,9 @@ class UserController
     {
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
-        $myVgs = $_SESSION['voice_group_ids'] ?? [];
+        // Gleicher Zugriff wie in UserEditPolicy::sessionVoiceGroupIds(): eine alte
+        // Sitzung ohne den Schlüssel darf nicht in die Abfrage durchschlagen.
+        $myVgs = (array) ($_SESSION['voice_group_ids'] ?? []);
         $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
 
         $params = $request->getQueryParams();
@@ -74,20 +76,15 @@ class UserController
         }
 
         if ($showArchived) {
+            // Das Archiv steht ohnehin nur dem übergreifenden Recht offen, siehe oben.
             $users = $this->userQuery->getArchivedUsers();
-        } else {
+        } elseif ($canManageUsers) {
             $users = $this->userQuery->getAllUsers();
-
-            if (!$canManageUsers) {
-                if (empty($myVgs)) {
-                    $users = collect();
-                } else {
-                    $users = $users->filter(function ($user) use ($myVgs) {
-                        $uVgIds = $user->voiceGroups->pluck('id')->toArray();
-                        return !empty(array_intersect($myVgs, $uVgIds));
-                    });
-                }
-            }
+        } else {
+            // Die Einschränkung läuft in der Abfrage, nicht als filter() über alle
+            // aktiven Mitglieder: die Datenbank liefert gleich nur die eigenen
+            // Stimmgruppen. Ohne eigene Stimmgruppe bleibt die Liste leer.
+            $users = $this->userQuery->getUsersForVoiceGroups($myVgs);
         }
 
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();

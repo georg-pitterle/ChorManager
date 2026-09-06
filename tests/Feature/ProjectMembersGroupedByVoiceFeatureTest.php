@@ -17,7 +17,7 @@ use Tests\Unit\Bootstrap;
 /**
  * Deckt die Gruppierung der Projektbesetzung nach Stimmgruppe und Teilstimme ab.
  * Die Methode wurde bisher nur gemockt - Reihenfolge, Teilstimmen-Auflösung und
- * der Ausschluss archivierter Mitglieder waren damit ungeprüft.
+ * die Kennzeichnung archivierter Mitglieder waren damit ungeprüft.
  */
 class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
 {
@@ -144,7 +144,12 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
             [$this->id('bertaSopran1'), $this->id('friedaDoppelt')],
             array_column($grouped['Sopran']['Sopran 1'], 'id')
         );
-        $this->assertSame([$this->id('annaSopran2')], array_column($grouped['Sopran']['Sopran 2'], 'id'));
+        // Emil ist archiviert und steht trotzdem bei seiner Teilstimme - gekennzeichnet,
+        // aber an derselben Stelle wie jedes andere Mitglied.
+        $this->assertSame(
+            [$this->id('annaSopran2'), $this->id('emilArchiviert')],
+            array_column($grouped['Sopran']['Sopran 2'], 'id')
+        );
         $this->assertSame('Sopran', $grouped['Sopran']['Sopran 1'][0]['voice_group_name']);
         $this->assertSame('Sopran 1', $grouped['Sopran']['Sopran 1'][0]['sub_voice_name']);
     }
@@ -179,19 +184,37 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
         $this->assertNull($ungrouped[0]['sub_voice_name']);
     }
 
-    public function testArchivedMembersAreExcluded(): void
+    public function testArchivedMembersAreListedAndFlagged(): void
     {
         $grouped = (new ProjectQuery(new NameFormatterService()))
             ->getProjectMembersGroupedByVoice($this->projectId);
 
         $ids = $this->idsIn($grouped);
 
-        $this->assertNotContains(
+        $this->assertContains(
             $this->id('emilArchiviert'),
             $ids,
-            'Archivierte Mitglieder gehören nicht in die Besetzung.'
+            'Wer dem Projekt zugeordnet ist, steht in der Besetzung - auch archiviert.'
         );
-        $this->assertCount(6, $ids);
+        $this->assertCount(7, $ids);
+
+        $emil = null;
+        foreach ($grouped['Sopran']['Sopran 2'] as $member) {
+            if ($member['id'] === $this->id('emilArchiviert')) {
+                $emil = $member;
+            }
+        }
+
+        $this->assertNotNull($emil, 'Emil gehört zu Sopran 2 wie jedes andere Mitglied auch.');
+        $this->assertFalse($emil['is_active'], 'Die Vorlage kennzeichnet archivierte Mitglieder über is_active.');
+    }
+
+    public function testActiveMembersAreFlaggedAsActive(): void
+    {
+        $grouped = (new ProjectQuery(new NameFormatterService()))
+            ->getProjectMembersGroupedByVoice($this->projectId);
+
+        $this->assertTrue($grouped['Sopran']['Sopran 1'][0]['is_active']);
     }
 
     public function testUnknownProjectYieldsAnEmptyGrouping(): void
