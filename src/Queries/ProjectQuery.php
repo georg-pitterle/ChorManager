@@ -34,26 +34,18 @@ class ProjectQuery
         return Project::find($id);
     }
 
-    public function getAllProjects(): Collection
-    {
-        return self::orderedByStart(Project::query())->get();
-    }
-
     /**
-     * Reihenfolge aller Projektlisten. Definiert ist sie am Model
-     * (Project::scopeChronological), damit auch Abfragen ausserhalb dieser
-     * Klasse - etwa die Projektauswahl im Sponsoring - dieselbe Reihenfolge
-     * bekommen, ohne sie abzuschreiben.
+     * Die Reihenfolge jeder Projektliste kommt aus Project::scopeChronological().
+     * Sie liegt am Model, damit auch Abfragen ausserhalb dieser Klasse - etwa die
+     * Projektauswahl im Sponsoring - dieselbe Reihenfolge bekommen, ohne sie
+     * abzuschreiben.
      *
      * Vorher sortierte diese Liste nach Datum und getAccessibleProjects() nach
      * Namen; dasselbe Mitglied sah die Projekte je nach Seite anders geordnet.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder<Project> $query
-     * @return \Illuminate\Database\Eloquent\Builder<Project>
      */
-    private static function orderedByStart($query)
+    public function getAllProjects(): Collection
     {
-        return $query->chronological();
+        return Project::query()->chronological()->get();
     }
 
     /**
@@ -77,13 +69,13 @@ class ProjectQuery
             return new Collection();
         }
 
-        return self::orderedByStart(
-            Project::query()
-                ->select('projects.*')
-                ->join('project_users', 'project_users.project_id', '=', 'projects.id')
-                ->where('project_users.user_id', $userId)
-                ->distinct()
-        )->get();
+        return Project::query()
+            ->select('projects.*')
+            ->join('project_users', 'project_users.project_id', '=', 'projects.id')
+            ->where('project_users.user_id', $userId)
+            ->distinct()
+            ->chronological()
+            ->get();
     }
 
     /**
@@ -101,7 +93,7 @@ class ProjectQuery
             return new Collection();
         }
 
-        return self::orderedByStart(Project::whereIn('projects.id', $projectIds))->get();
+        return Project::whereIn('projects.id', $projectIds)->chronological()->get();
     }
 
     /**
@@ -154,11 +146,7 @@ class ProjectQuery
                 'subVoices'
             ]);
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
-
-        return $query->get();
+        return $this->orderedByName($query)->get();
     }
 
     /**
@@ -172,11 +160,7 @@ class ProjectQuery
                 $query->where('project_id', $projectId);
             });
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
-
-        return $query->get();
+        return $this->orderedByName($query)->get();
     }
 
     /**
@@ -204,11 +188,7 @@ class ProjectQuery
                 $query->whereIn('voice_group_id', $voiceGroupIds);
             });
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
-
-        return $query->get();
+        return $this->orderedByName($query)->get();
     }
 
     /**
@@ -230,6 +210,23 @@ class ProjectQuery
         }
 
         return self::toIntList($user->voiceGroups()->pluck('voice_groups.id'));
+    }
+
+    /**
+     * Namensreihenfolge der Mitgliederlisten, wie sie global eingestellt ist
+     * (NameFormatterService::orderColumns()). Vier Abfragen dieser Klasse brauchen
+     * sie; die Schleife stand bis hierher viermal wortgleich da.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    private function orderedByName($query)
+    {
+        foreach ($this->nameFormatter->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query;
     }
 
     /**
@@ -278,11 +275,7 @@ class ProjectQuery
             ->where('is_active', 1)
             ->with(['voiceGroups', 'subVoices']);
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
-
-        $users = $query->get();
+        $users = $this->orderedByName($query)->get();
 
         $grouped = [];
         foreach ($users as $user) {

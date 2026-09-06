@@ -92,11 +92,20 @@ class UserQuery
      * Mitgliederliste in der konfigurierten Namensreihenfolge. Geladen werden nur
      * die Listenspalten (User::LIST_COLUMNS) - das Ergebnis geht unverändert an
      * die View-Schicht, der Passwort-Hash bleibt deshalb in der Datenbank.
+     *
+     * Geladen wird nur, was die Liste auch liest: Rollen (Rechteprüfung je Zeile),
+     * Stimmgruppen samt Pivot und Projekte. Den Namen einer Teilstimme löst die
+     * Liste über die separat geladene Gesamtliste `sub_voices` auf und braucht
+     * dafür nur `pivot.sub_voice_id` - `voiceGroups.subVoices` und
+     * `subVoices.voiceGroup` kosteten deshalb drei Abfragen je Seitenaufruf (sieben
+     * statt vier), ohne dass sie jemand ausliest; die erste holte zudem sämtliche
+     * Teilstimmen sämtlicher Stimmgruppen. Die Detailmasken laden weiterhin
+     * vollständig, siehe findById().
      */
     private function orderedListQuery(int $isActive): Collection
     {
         $query = User::select(User::LIST_COLUMNS)
-            ->with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])
+            ->with(['roles', 'voiceGroups', 'projects'])
             ->where('is_active', $isActive);
 
         foreach ($this->nameFormatter->orderColumns() as $column) {

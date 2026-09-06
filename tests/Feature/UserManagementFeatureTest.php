@@ -60,8 +60,11 @@ class UserManagementFeatureTest extends TestCase
         $this->assertStringNotContainsString("'is_archived' => \$isArchived,", $controller);
         $this->assertStringNotContainsString('private function isArchivedProject(Project $project): bool', $controller);
         // Die Liste lädt seit der exklusiven Spaltenauswahl über User::select(...);
-        // entscheidend bleibt, dass alle vier Relationen eager geladen werden.
-        $this->assertStringContainsString("->with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'projects'])", $query);
+        // entscheidend bleibt, dass die drei angezeigten Relationen eager geladen
+        // werden. Die Teilstimmen-Ketten sind bewusst nicht mehr dabei - die Liste
+        // löst den Namen über die Gesamtliste `sub_voices` auf, siehe
+        // UserListEagerLoadFeatureTest.
+        $this->assertStringContainsString("->with(['roles', 'voiceGroups', 'projects'])", $query);
         $this->assertStringContainsString('User::select(User::LIST_COLUMNS)', $query);
         $this->assertStringContainsString('user.project_participations', $twig);
         $this->assertStringContainsString('participation.name', $twig);
