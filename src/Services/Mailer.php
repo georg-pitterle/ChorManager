@@ -7,6 +7,7 @@ namespace App\Services;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use App\Util\EnvHelper;
+use App\Util\MailInlineImages;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -106,14 +107,7 @@ class Mailer
 
         try {
             $this->lastError = null;
-            $this->mail->clearAddresses();
-            $this->mail->addAddress($to);
-            $this->mail->isHTML(true);
-            $this->mail->Subject = $subject;
-            $this->mail->Body = $htmlBody;
-
-            // Generate plain text version from HTML
-            $this->mail->AltBody = strip_tags($htmlBody);
+            $this->composeMessage($to, $subject, $htmlBody);
 
             $result = $this->mail->send();
             if ($result) {
@@ -166,6 +160,51 @@ class Mailer
                 'provider_message_id' => null,
             ];
         }
+    }
+
+    /**
+     * Bestückt die wiederverwendete PHPMailer-Instanz mit Empfänger, Betreff und Inhalt.
+     *
+     * Bilder aus `data:`-URIs werden zu eingebetteten Anhängen: Gmail entfernt solche Quellen
+     * beim Umschreiben des HTML, das Logo im Mailkopf bliebe dort sonst unsichtbar.
+     */
+    private function composeMessage(string $to, string $subject, string $htmlBody): void
+    {
+        // Die Instanz lebt über mehrere Mails hinweg; ohne Zurücksetzen hängen die
+        // eingebetteten Bilder der Vormail an der nächsten.
+        $this->mail->clearAddresses();
+        $this->mail->clearAttachments();
+
+        $this->mail->addAddress($to);
+        $this->mail->isHTML(true);
+        $this->mail->Subject = $subject;
+
+        $inline = MailInlineImages::extract($htmlBody);
+        foreach ($inline['images'] as $image) {
+            $this->mail->addStringEmbeddedImage(
+                $image['data'],
+                $image['cid'],
+                $image['name'],
+                PHPMailer::ENCODING_BASE64,
+                $image['mime']
+            );
+        }
+
+        $this->mail->Body = $inline['html'];
+
+        // Generate plain text version from HTML
+        $this->mail->AltBody = strip_tags($inline['html']);
+    }
+
+    /**
+     * Baut die fertige MIME-Nachricht, ohne sie zu verschicken — für Diagnose und Tests.
+     */
+    public function buildMimeMessage(string $to, string $subject, string $htmlBody): string
+    {
+        $this->composeMessage($to, $subject, $htmlBody);
+        $this->mail->preSend();
+
+        return $this->mail->getSentMIMEMessage();
     }
 
     public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
