@@ -8,7 +8,7 @@ description: >
   "prüfe per Browser, dass ...", or wants to verify a user flow (Anlegen/Bearbeiten/Löschen,
   Rollen/Rechte, Sichtbarkeit) through the real UI rather than PHP-Feature-Tests. Also trigger
   when a needed UI building block (steps/) is missing and must be added for such a test.
-  Nicht für PHPUnit-Feature-Tests (tests/Feature) oder die alten tests/js-Läufe.
+  Nicht für PHPUnit-Feature-Tests (tests/Feature).
 ---
 
 # E2E-Szenario erstellen

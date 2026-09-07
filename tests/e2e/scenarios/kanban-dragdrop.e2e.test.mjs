@@ -10,8 +10,8 @@ import {
 
 // Ziehen und Ablegen auf dem Kanban-Board: Statuswechsel und Leere-Hinweis.
 //
-// Der Test lag vorher unter tests/js/ und war damit von keinem Läufer erfasst:
-// tests/js wird mit `node --test` gefahren, und dort brach er beim ersten
+// Der Test lag vorher in der inzwischen entfernten Node-Suite und war damit von
+// keinem Läufer erfasst: dort lief er unter `node --test` und brach beim ersten
 // `test.describe.configure()` ab ("Playwright Test did not expect ... to be called
 // here"); die Playwright-Konfiguration wiederum sieht nur tests/e2e. Er lief also
 // nirgends und bewachte nichts.

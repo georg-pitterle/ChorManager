@@ -4,7 +4,7 @@ Automatisches Erkundungs-Netz für ChorManager: Bootstrap-Szenarien, Rollen-Auto
 und ein aggressiver Crawler über alle Routen. Läuft gegen die lokale DDEV-Instanz.
 
 > Alle Befehle vom **Projekt-Root** ausführen (`d:\Proggen\ChorManager`).
-> `--config tests/e2e/playwright.config.mjs` ist immer nötig (isoliert von `tests/js`).
+> `--config tests/e2e/playwright.config.mjs` ist immer nötig.
 >
 > **Auf dem Host ausführen, NICHT im DDEV-Container** (`ddev exec` o. Ä.): Der Browser
 > (Chromium) liegt auf dem Host, die Tests rufen die Seite über `https://chormanager.ddev.site`

@@ -147,7 +147,7 @@ Verfügbare Variablen:
 
 Pro Benutzer konfigurierbarer IMAP-Webmail-Zugang via [Tachyon](https://github.com/kimusan/Tachyon), eingebettet unter `/webmail`. Nach Konfiguration im Benutzerprofil (`/profile`) öffnet ein Klick die Inbox ohne zweiten Login-Dialog — ChorManager stellt ein kurzlebiges, signiertes Token aus, das der Webmail-Container automatisch konsumiert. Ein Ungelesen-Badge in der Navigation zeigt die Anzahl ungelesener Nachrichten. Nachrichteninhalte werden niemals in der ChorManager-Datenbank gespeichert.
 
-Tachyon ist der gepflegte Fork des eingestellten SnappyMail; Migrationsentscheidungen stehen in `docs/superpowers/specs/2026-08-09-tachyon-migration-design.md`.
+Tachyon ist der gepflegte Fork des eingestellten SnappyMail.
 
 ### ENV-Variablen
 
@@ -166,7 +166,7 @@ Der Webmail-Container läuft als DDEV-Add-on-Service (`.ddev/docker-compose.webm
 
 ### Produktiv-Deployment
 
-Die DDEV-Konfiguration (`.ddev/docker-compose.webmail.yaml`, nginx add-on) ist **ausschließlich für lokale Entwicklung**. Für Staging und Produktion muss ein eigener Webmail-Service in die produktive `docker-compose.yml` eingetragen und über den zuständigen Reverse-Proxy auf `/webmail/` geroutet werden. 
+Die DDEV-Konfiguration (`.ddev/docker-compose.webmail.yaml`, nginx add-on) ist **ausschließlich für lokale Entwicklung**. Für Staging und Produktion muss ein eigener Webmail-Service in die produktive `dist/docker-compose.prod.yml` eingetragen und über den zuständigen Reverse-Proxy auf `/webmail/` geroutet werden. 
 
 ### Secret Rotation
 
@@ -206,11 +206,12 @@ Der Lauf ist idempotent — bereits migrierte Datensätze werden übersprungen. 
 
 ### Docker
 
-```bash
-docker-compose up --build
-```
+Der Produktiv-Stack liegt unter [dist/](dist/): `docker-compose.prod.yml` samt
+`.env.example`, `deploy.sh` und Portainer-/SWAG-Anleitung in
+[dist/README.md](dist/README.md).
 
-Danach ist die Anwendung unter http://localhost erreichbar.
+Für lokale Entwicklung wird kein eigener Compose-Stack gepflegt — dafür ist DDEV
+zuständig (`ddev start`, siehe oben).
 
 ### Installation ohne Docker
 
