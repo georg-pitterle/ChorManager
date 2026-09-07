@@ -600,6 +600,10 @@ return function (App $app) {
                             '/newsletters/{id:[0-9]+}/edit',
                             [NewsletterController::class, 'edit']
                         );
+                        $newsletterGroup->get(
+                            '/newsletters/{id:[0-9]+}/details',
+                            [NewsletterController::class, 'details']
+                        );
                         $newsletterGroup->post('/newsletters/{id:[0-9]+}', [NewsletterController::class, 'update']);
                         $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/send',

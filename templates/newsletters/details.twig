@@ -1,0 +1,138 @@
+{% extends is_modal|default(false) ? "layout_modal.twig" : "layout.twig" %}
+
+{% block title %}
+    Newsletter-Einstellungen ({{ newsletter.title }}) - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+            <h1 class="h2 mb-1">Newsletter-Einstellungen</h1>
+            <p class="text-muted mb-0">{{ newsletter.title }}</p>
+        </div>
+        <div class="page-actions">
+            {% set _status_filter = newsletter.status == "sent" ? "sent" : "draft" %}
+            <a href="/newsletters?project_id={{ newsletter.project_id }}&status={{ _status_filter }}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-x-circle"></i> Schließen
+            </a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="container-fluid px-0">
+        <div class="row g-3">
+            <div class="col-12 col-lg-7">
+                <div class="surface-card card border-0 h-100">
+                    <div class="card-header bg-light">
+                        <h2 class="h5 mb-0">Einstellungen</h2>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Betreff</dt>
+                            <dd class="col-sm-8">{{ newsletter.title }}</dd>
+
+                            <dt class="col-sm-4">Status</dt>
+                            <dd class="col-sm-8">
+                                {% if newsletter.status == "sent" %}
+                                    <span class="badge bg-success">Versendet</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Entwurf</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Projekt</dt>
+                            <dd class="col-sm-8">{{ project.name|default("Ohne Projekt") }}</dd>
+
+                            <dt class="col-sm-4">Erstellt von</dt>
+                            <dd class="col-sm-8">{{ newsletter.createdBy|person_name|default("-") }}</dd>
+
+                            <dt class="col-sm-4">Erstellt am</dt>
+                            <dd class="col-sm-8">{{ newsletter.created_at|date("d.m.Y H:i") }}</dd>
+
+                            <dt class="col-sm-4">Versendet am</dt>
+                            <dd class="col-sm-8">
+                                {% if newsletter.sent_at %}
+                                    {{ newsletter.sent_at|date("d.m.Y H:i") }}
+                                {% else %}
+                                    Noch nicht versendet
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Empfänger</dt>
+                            <dd class="col-sm-8 mb-0">{{ newsletter.recipient_count|default(0) }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-5">
+                <div class="surface-card card border-0 h-100">
+                    <div class="card-header bg-light">
+                        <h2 class="h5 mb-0">Empfängerquellen</h2>
+                    </div>
+                    <div class="card-body">
+                        {% for group in recipient_source_groups %}
+                            <div class="mb-3">
+                                <h3 class="h6 mb-2">{{ group.label }}</h3>
+                                <ul class="list-unstyled mb-0">
+                                    {% for name in group.names %}
+                                        <li><i class="bi bi-dot"></i> {{ name }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">Keine Empfängerquellen hinterlegt.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="surface-card card border-0">
+                    <div class="card-header bg-light">
+                        <h2 class="h5 mb-0">Als Vorlage speichern</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">
+                            Übernommen werden Inhalt, Betreff als Titelvorschlag, Projekt und
+                            Empfängerquellen dieses Newsletters.
+                        </p>
+                        <form method="post" action="/newsletters/{{ newsletter.id }}/save-as-template">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-5">
+                                    <label for="template_name" class="form-label">Vorlagen-Name</label>
+                                    <input type="text"
+                                           class="form-control"
+                                           id="template_name"
+                                           name="template_name"
+                                           maxlength="255"
+                                           value="{{ newsletter.title }}"
+                                           required>
+                                </div>
+                                <div class="col-12 col-md-7">
+                                    <label for="template_description" class="form-label">Beschreibung</label>
+                                    <input type="text"
+                                           class="form-control"
+                                           id="template_description"
+                                           name="template_description">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-3">
+                                <i class="bi bi-bookmark"></i> Als Vorlage speichern
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <a href="/newsletters/{{ newsletter.id }}/preview" class="btn btn-outline-info">
+                    <i class="bi bi-eye"></i> Vorschau öffnen
+                </a>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

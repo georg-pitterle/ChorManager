@@ -3771,9 +3771,16 @@ class DevSeedService
                 $createdUser = $activeUsers[$i % count($activeUsers)] ?? $activeUsers[0];
                 $sentDate = (new DateTimeImmutable())->modify('-' . ($sentCount - $i) * 7 . ' days');
 
+                // Der erste versendete Newsletter je Projekt trägt einen Platzhalter im
+                // Betreff: Nur so zeigt sich im Dev-Stand, dass Archiv-Liste und Vorschau
+                // denselben aufgelösten Betreff anzeigen wie die zugestellte Mail.
+                $sentTitle = $i === 0
+                    ? 'Probenplan für {{vorname}}: ' . $project->name
+                    : 'Newsletter ' . $project->name . ' #' . ($i + 1);
+
                 $newsletter = Newsletter::create([
                     'project_id' => $project->id,
-                    'title' => 'Newsletter ' . $project->name . ' #' . ($i + 1),
+                    'title' => $sentTitle,
                     'content_html' => '<h2>Newsletter {{projekt}}</h2>' .
                         '<p>{{anrede}},</p>' .
                         '<p>aktuelle Informationen zum Projekt, versendet am {{datum}}.</p>' .

@@ -242,7 +242,7 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
     /**
      * Der eingebettete Rahmen im Editor-Modal (#preview-modal-frame) muss dieselbe strenge
      * Sandbox tragen wie der Rahmen der eigenständigen Vorschauseite - siehe
-     * NewsletterPreviewFrameFeatureTest::testPreviewPageEmbedsSandboxedFrameAndKeepsDataHint().
+     * NewsletterPreviewFrameFeatureTest::testPreviewPageEmbedsSandboxedFrame().
      * Ohne sandbox="" könnte der über previewRender() geladene Mail-Inhalt im Editor Skripte
      * ausführen oder aus dem Rahmen heraus navigieren.
      */

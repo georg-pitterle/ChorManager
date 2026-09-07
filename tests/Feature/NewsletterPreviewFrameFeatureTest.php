@@ -199,10 +199,10 @@ final class NewsletterPreviewFrameFeatureTest extends TestCase
 
     /**
      * preview.twig muss den vollständigen Rahmen über einen eingebetteten, streng sandboxten
-     * Rahmen einbinden statt den Inhalt roh in die Seite zu schreiben - und weiterhin erkennen
-     * lassen, mit wessen Daten die Vorschau gefüllt ist.
+     * Rahmen einbinden statt den Inhalt roh in die Seite zu schreiben. Ein Hinweis auf die
+     * eigenen Daten gehört nicht dazu - siehe NewsletterPreviewChromeFeatureTest.
      */
-    public function testPreviewPageEmbedsSandboxedFrameAndKeepsDataHint(): void
+    public function testPreviewPageEmbedsSandboxedFrame(): void
     {
         $creator = $this->createUser('Anna');
         $recipient = $this->createUser('Georg');
@@ -222,7 +222,7 @@ final class NewsletterPreviewFrameFeatureTest extends TestCase
             $body
         );
         $this->assertStringContainsString('sandbox=""', $body);
-        $this->assertStringContainsString('eigenen Daten', $body);
+        $this->assertStringNotContainsString('eigenen Daten', $body);
         $this->assertStringNotContainsString('{{anrede}}', $body);
     }
 }

@@ -1,7 +1,7 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
 {% block title %}
-    Newsletter-Vorschau ({{ newsletter.title }}) - {{ app_settings.app_name|default('Chor-Manager') }}
+    Newsletter-Vorschau ({{ preview_title|default(newsletter.title) }}) - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
@@ -9,10 +9,17 @@
         <div>
             <p class="text-uppercase text-muted small mb-1">Bereiche</p>
             <h1 class="h2 mb-1">Newsletter-Vorschau</h1>
-            <p class="text-muted mb-0">{{ newsletter.title }}</p>
+            <p class="text-muted mb-0">{{ preview_title|default(newsletter.title) }}</p>
         </div>
         <div class="page-actions">
-            <a href="/newsletters?project_id={{ newsletter.project_id }}&status={{ newsletter.status == 'sent' ? 'sent' : 'draft' }}"
+            {# Ohne Verwaltungsrecht führt die Newsletter-Liste auf 403 - wer den Newsletter nur
+               empfangen hat, gehört zurück in sein Archiv. #}
+            {% set _status_filter = newsletter.status == "sent" ? "sent" : "draft" %}
+            {% set _close_url = "/newsletters?project_id=" ~ newsletter.project_id ~ "&status=" ~ _status_filter %}
+            {% if not can_manage_newsletters|default(false) %}
+                {% set _close_url = "/newsletters/archive" %}
+            {% endif %}
+            <a href="{{ _close_url }}"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-x-circle"></i> Schließen
             </a>
@@ -31,13 +38,13 @@
                             Von: {{ newsletter.createdBy|person_name }}
                             | Erstellt: {{ newsletter.created_at|date("d.m.Y H:i") }}
                         </small>
-                        {% if preview_recipient_name is defined and preview_recipient_name != "" %}
+                        {# Nur fremde Empfängerdaten sind erklärungsbedürftig: Dass die eigenen
+                           Daten eingesetzt sind, sieht man am Text selbst. #}
+                        {% set _shows_foreign_data = not preview_is_own_data|default(false) %}
+                        {% set _has_recipient_name = preview_recipient_name|default("") != "" %}
+                        {% if _shows_foreign_data and _has_recipient_name %}
                             <p class="text-muted small mb-0 mt-2">
-                                {% if preview_is_own_data|default(false) %}
-                                    Platzhalter sind mit deinen eigenen Daten gefüllt.
-                                {% else %}
-                                    Platzhalter sind mit den Daten von {{ preview_recipient_name }} gefüllt.
-                                {% endif %}
+                                Platzhalter sind mit den Daten von {{ preview_recipient_name }} gefüllt.
                             </p>
                         {% endif %}
                     </div>

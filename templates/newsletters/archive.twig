@@ -51,12 +51,14 @@
                                         {% set newsletter = entry.newsletter %}
                                         {% if newsletter %}
                                             {% set sender_name = newsletter.createdBy|person_name %}
-                                            <tr data-sort-title="{{ newsletter.title|lower }}"
+                                            {# Betreff wie in der Mail: mit den Daten der empfangenden Person. #}
+                                            {% set subject = archive_subjects[entry.id]|default(newsletter.title) %}
+                                            <tr data-sort-title="{{ subject|lower }}"
                                                 data-sort-project="{{ newsletter.project.name|default('')|lower }}"
                                                 data-sort-sender="{{ sender_name|lower }}"
                                                 data-sort-sent="{{ entry.sent_at|date('Y-m-d H:i:s') }}">
                                                 <td data-label="Titel">
-                                                    <strong>{{ newsletter.title }}</strong>
+                                                    <strong>{{ subject }}</strong>
                                                     {% if newsletter.event %}
                                                         <br>
                                                         <small class="text-muted">Event: {{ newsletter.event.title }}</small>
@@ -68,7 +70,7 @@
                                                 <td data-label="Aktionen" class="text-end">
                                                     <div class="btn-group"
                                                          role="group"
-                                                         aria-label="Aktionen für Newsletter {{ newsletter.title }}">
+                                                         aria-label="Aktionen für Newsletter {{ subject }}">
                                                         <button type="button"
                                                                 class="btn btn-sm btn-outline-secondary"
                                                                 data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"

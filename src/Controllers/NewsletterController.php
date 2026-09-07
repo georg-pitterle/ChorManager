@@ -400,8 +400,29 @@ class NewsletterController
             ->orderBy('sent_at', 'desc')
             ->get();
 
+        // Die Liste zeigt denselben Betreff, der in der Mail angekommen ist: Ein Titel mit
+        // Platzhaltern stünde sonst als "{{vorname}}: Probenplan" in der Übersicht, während
+        // die Mail selbst längst den Namen trägt.
+        $viewer = User::find((int) $userId);
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $subjects = [];
+        foreach ($archives as $archive) {
+            $newsletter = $archive->newsletter;
+            if ($newsletter === null) {
+                continue;
+            }
+
+            $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
+            $subjects[(int) $archive->id] = $this->placeholderService->renderSubject(
+                (string) $newsletter->title,
+                $context,
+                $viewer
+            );
+        }
+
         return $this->view->render($response, 'newsletters/archive.twig', [
             'archives' => $archives,
+            'archive_subjects' => $subjects,
             'active_nav' => 'newsletters_archive',
             'user_id' => $userId,
         ]);
@@ -718,8 +739,113 @@ class NewsletterController
                 ? ''
                 : $this->nameFormatter->formatPerson($previewRecipient),
             'preview_is_own_data' => $isOwnData,
+            'can_manage_newsletters' => $canManage,
             'is_modal' => $isModal,
         ]);
+    }
+
+    /**
+     * Schreibgeschützte Ansicht eines Newsletters: Ein versendeter lässt sich nicht mehr
+     * bearbeiten, seine Einstellungen müssen aber nachschlagbar bleiben - und aus einem
+     * gelungenen Versand soll sich eine Vorlage ziehen lassen.
+     */
+    public function details(Request $request, Response $response): Response
+    {
+        if (!$this->canManageNewsletters()) {
+            return $response->withStatus(403);
+        }
+
+        $id = (int) $request->getAttribute('id');
+        $newsletter = Newsletter::find($id);
+
+        if (!$newsletter) {
+            return $response->withStatus(404);
+        }
+
+        $queryParams = $request->getQueryParams();
+
+        return $this->view->render($response, 'newsletters/details.twig', [
+            'newsletter' => $newsletter,
+            'project' => $newsletter->project,
+            'recipient_source_groups' => $this->describeRecipientSources($newsletter),
+            'is_modal' => ((string) ($queryParams['modal'] ?? '0')) === '1',
+        ]);
+    }
+
+    /**
+     * Beschreibt die Empfängerquellen mit lesbaren Namen statt roher Kennungen. Eine
+     * inzwischen gelöschte Quelle wird ausgewiesen statt stillschweigend weggelassen, sonst
+     * sähe ein versendeter Newsletter im Rückblick nach weniger Empfängern aus, als er hatte.
+     *
+     * @return array<int, array{label: string, names: array<int, string>}>
+     */
+    private function describeRecipientSources(Newsletter $newsletter): array
+    {
+        $referenceIdsByType = [];
+        foreach ($this->recipientService->getSources($newsletter) as $source) {
+            $referenceIdsByType[$source['type']][] = (int) $source['reference_id'];
+        }
+
+        $labels = [
+            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS => 'Projektmitglieder',
+            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES => 'Veranstaltungsteilnehmer',
+            NewsletterRecipientSource::TYPE_ROLE => 'Rollen',
+            NewsletterRecipientSource::TYPE_USER => 'Einzelne Mitglieder',
+        ];
+
+        $groups = [];
+        foreach ($labels as $type => $label) {
+            $referenceIds = $referenceIdsByType[$type] ?? [];
+            if ($referenceIds === []) {
+                continue;
+            }
+
+            $groups[] = [
+                'label' => $label,
+                'names' => $this->recipientSourceNames($type, $referenceIds),
+            ];
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param array<int, int> $referenceIds
+     * @return array<int, string>
+     */
+    private function recipientSourceNames(string $type, array $referenceIds): array
+    {
+        $namesById = match ($type) {
+            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS => Project::query()
+                ->whereIn('id', $referenceIds)
+                ->pluck('name', 'id')
+                ->all(),
+            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES => Event::query()
+                ->whereIn('id', $referenceIds)
+                ->pluck('title', 'id')
+                ->all(),
+            NewsletterRecipientSource::TYPE_ROLE => Role::query()
+                ->whereIn('id', $referenceIds)
+                ->pluck('name', 'id')
+                ->all(),
+            NewsletterRecipientSource::TYPE_USER => User::query()
+                ->whereIn('id', $referenceIds)
+                ->get()
+                ->mapWithKeys(fn (User $user): array => [
+                    (int) $user->id => $this->nameFormatter->formatPerson($user),
+                ])
+                ->all(),
+            default => [],
+        };
+
+        $names = [];
+        foreach ($referenceIds as $referenceId) {
+            $names[] = (string) ($namesById[$referenceId] ?? 'Nicht mehr vorhanden (#' . $referenceId . ')');
+        }
+
+        sort($names);
+
+        return $names;
     }
 
     /**

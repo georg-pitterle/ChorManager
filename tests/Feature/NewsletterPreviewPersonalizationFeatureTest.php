@@ -121,7 +121,7 @@ final class NewsletterPreviewPersonalizationFeatureTest extends TestCase
         $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('eigenen Daten', $body);
+        $this->assertStringNotContainsString('eigenen Daten', $body);
         $this->assertStringContainsString('src="/newsletters/' . $newsletter->id . '/preview-frame"', $body);
 
         $frameRequest = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview-frame")

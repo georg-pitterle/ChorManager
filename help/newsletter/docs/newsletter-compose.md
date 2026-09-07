@@ -84,7 +84,7 @@ Ein Entwurf kann immer nur von einer Person zugleich bearbeitet werden. Sobald d
 
 - **Versand abgelehnt („Newsletter hat keine Empfänger.")**: Es ist keine Quelle gewählt, oder die gewählten Quellen ergeben keine aktive Person – etwa eine Rolle ohne aktive Mitglieder oder – der häufigste Fall – eine Veranstaltung ohne erfasste Anwesenheit, weil sie noch bevorsteht.
 - **Titel und Inhalt sind Pflicht**: Ein leerer Editor wird nicht gespeichert. Ein Newsletter, der nur aus einem Bild oder einer Tabelle besteht, ist dagegen erlaubt.
-- **Versand ist endgültig**: Ein versendeter Newsletter lässt sich nicht mehr bearbeiten, zurückholen oder löschen.
+- **Versand ist endgültig**: Ein versendeter Newsletter lässt sich nicht mehr bearbeiten, zurückholen oder löschen. Nachschlagen kannst du ihn trotzdem: Über den kleinen Pfeil neben **Vorschau** öffnest du **Einstellungen und Vorlage** und siehst dort Betreff, Projekt, Empfängerquellen, Empfängerzahl und Versandzeitpunkt – und legst den Newsletter bei Bedarf als Vorlage ab.
 
 ## Platzhalter
 
