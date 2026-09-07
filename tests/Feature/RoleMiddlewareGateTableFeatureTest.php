@@ -30,7 +30,59 @@ final class RoleMiddlewareGateTableFeatureTest extends TestCase
     /**
      * Konstruktorparameter, die kein Gate schalten.
      */
-    private const NON_GATE_PARAMETERS = ['minHierarchyLevel', 'logger'];
+    private const NON_GATE_PARAMETERS = ['logger'];
+
+    /**
+     * Die Middleware prüft ausschließlich Rechte, nie das Hierarchie-Level.
+     *
+     * `minHierarchyLevel` stand hier als Konstruktorparameter samt eigener
+     * Abweisung, wurde aber von keiner einzigen Route gesetzt. Das Level
+     * entscheidet allein darüber, wessen Zuordnungen jemand ändern darf, und das
+     * prüfen UserController und RoleController - nicht diese Middleware. Ein
+     * zweiter, halb angeschlossener Weg zur Abweisung ist genau die Art
+     * Nebenpfad, die bei der nächsten Rechte-Änderung übersehen wird.
+     */
+    public function testMiddlewareDoesNotGateOnHierarchyLevel(): void
+    {
+        $constructor = (new ReflectionClass(RoleMiddleware::class))->getConstructor();
+        $this->assertNotNull($constructor);
+
+        $parameterNames = array_map(
+            static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+            $constructor->getParameters()
+        );
+
+        $this->assertNotContains('minHierarchyLevel', $parameterNames);
+
+        $source = file_get_contents(dirname(__DIR__, 2) . '/src/Middleware/RoleMiddleware.php');
+        $this->assertIsString($source);
+        $this->assertStringNotContainsString('role_level', $source);
+    }
+
+    /**
+     * Ein Mitglied ohne Hierarchie-Level kommt durch, solange das Recht sitzt.
+     */
+    public function testPermissionAloneIsEnoughRegardlessOfHierarchyLevel(): void
+    {
+        $_SESSION = [
+            'user_id' => 42,
+            'role_level' => 0,
+            'can_manage_finances' => true,
+        ];
+
+        $middleware = new RoleMiddleware(requiresFinanceManagement: true);
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
+            new class implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(200);
+                }
+            }
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
 
     public function testEveryGateHasAMatchingConstructorSwitch(): void
     {

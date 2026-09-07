@@ -390,28 +390,105 @@ class AppSettingController
         return sprintf('#%02X%02X%02X', $red, $green, $blue);
     }
 
+    /**
+     * Das Vereinslogo - die einzige Auslieferung hinter der Anmeldung, die
+     * zwischengespeichert werden darf.
+     *
+     * Die SecurityHeadersMiddleware setzt `no-store` auf jede Antwort ohne
+     * eigenen `Cache-Control`-Kopf. Für Mitgliederdaten ist das richtig; das Logo
+     * hängt aber in der Navigationsleiste jeder Seite, zeigt nichts Persönliches
+     * und änderte sich trotzdem so selten, dass es bei jedem einzelnen Aufruf
+     * neu über die Leitung ging.
+     *
+     * `private` erlaubt nur den Zwischenspeicher des Browsers, nicht den eines
+     * gemeinsam genutzten Proxys. Die fünf Minuten sind die Obergrenze, um die
+     * ein neu hochgeladenes Logo sichtbar nachhinken kann; das `ETag` drückt sie
+     * in der Praxis auf null, sobald der Browser nachfragt.
+     */
     public function logo(Request $request, Response $response): Response
     {
         $logo = AppSetting::find('app_logo');
         if ($logo && $logo->binary_content) {
-            $response->getBody()->write($logo->binary_content);
             $safeName = DownloadFileName::sanitize((string) $logo->setting_value);
-            return $response
-                ->withHeader('Content-Type', $logo->mime_type)
-                ->withHeader(
-                    'Content-Disposition',
-                    'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
-                );
+
+            return $this->respondWithCacheableImage(
+                $request,
+                $response
+                    ->withHeader('Content-Type', $logo->mime_type)
+                    ->withHeader(
+                        'Content-Disposition',
+                        'inline; filename="' . $safeName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName)
+                    ),
+                (string) $logo->binary_content
+            );
         }
 
         // Return default logo if not found
         $defaultLogoPath = __DIR__ . '/../../public/icons/icon-512.png';
         if (file_exists($defaultLogoPath)) {
-            $response->getBody()->write(file_get_contents($defaultLogoPath));
-            return $response->withHeader('Content-Type', 'image/png');
+            return $this->respondWithCacheableImage(
+                $request,
+                $response->withHeader('Content-Type', 'image/png'),
+                (string) file_get_contents($defaultLogoPath)
+            );
         }
 
         return $response->withStatus(404);
+    }
+
+    /**
+     * Hängt Zwischenspeicher-Regel und `ETag` an und beantwortet einen passenden
+     * `If-None-Match` mit 304, statt die Bytes erneut zu schicken.
+     *
+     * Die 304 trägt dieselbe Zwischenspeicher-Regel wie die 200: Ohne sie griffe
+     * die Regel nur beim ersten Mal, und die Middleware setzte auf die Antwort
+     * ohne eigenen Kopf wieder `no-store`.
+     */
+    private function respondWithCacheableImage(Request $request, Response $response, string $content): Response
+    {
+        $etag = '"' . hash('sha256', $content) . '"';
+
+        $response = $response
+            ->withHeader('Cache-Control', 'private, max-age=300')
+            ->withHeader('ETag', $etag);
+
+        if ($this->matchesETag($request->getHeaderLine('If-None-Match'), $etag)) {
+            return $response->withStatus(304);
+        }
+
+        $response->getBody()->write($content);
+
+        return $response;
+    }
+
+    /**
+     * Ein `If-None-Match` darf mehrere Kennungen tragen, und ein Zwischenspeicher
+     * darf jede davon als schwach (`W/"..."`) zurückschicken. Für einen reinen
+     * Byte-Vergleich ist das gleichwertig.
+     */
+    private function matchesETag(string $headerLine, string $etag): bool
+    {
+        $headerLine = trim($headerLine);
+        if ($headerLine === '') {
+            return false;
+        }
+
+        if ($headerLine === '*') {
+            return true;
+        }
+
+        foreach (explode(',', $headerLine) as $candidate) {
+            $candidate = trim($candidate);
+            if (str_starts_with($candidate, 'W/')) {
+                $candidate = substr($candidate, 2);
+            }
+
+            if ($candidate === $etag) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function normalizeMailQueueTriggerMode(?string $value): string

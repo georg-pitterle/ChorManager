@@ -37,7 +37,7 @@ class ProjectQuery
 
     /**
      * Die Reihenfolge jeder Projektliste kommt aus Project::scopeChronological().
-     * Sie liegt am Model, damit auch Abfragen ausserhalb dieser Klasse - etwa die
+     * Sie liegt am Model, damit auch Abfragen außerhalb dieser Klasse - etwa die
      * Projektauswahl im Sponsoring - dieselbe Reihenfolge bekommen, ohne sie
      * abzuschreiben.
      *

@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use App\Models\AppSetting;
 use App\Services\RegistrationReminderService;
 use App\Util\AppUrlResolver;
-use App\Util\MailQueueTriggerMode;
-use Carbon\Carbon;
+use App\Util\OpportunisticRunGate;
 use Closure;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -18,6 +16,7 @@ use Psr\Log\LoggerInterface;
 
 class RegistrationReminderMiddleware implements MiddlewareInterface
 {
+    private const MARKER_KEY = 'registration_reminder_last_check_at';
     private const CHECK_INTERVAL_SECONDS = 3600;
 
     /**
@@ -46,29 +45,9 @@ class RegistrationReminderMiddleware implements MiddlewareInterface
     private function processIfDue(Request $request): void
     {
         try {
-            if (!MailQueueTriggerMode::allowsOpportunisticWork()) {
+            if (!OpportunisticRunGate::tryClaim(self::MARKER_KEY, self::CHECK_INTERVAL_SECONDS)) {
                 return;
             }
-
-            $lastRunRaw = AppSetting::query()
-                ->where('setting_key', 'registration_reminder_last_check_at')
-                ->value('setting_value');
-
-            if ($lastRunRaw !== null && $lastRunRaw !== '') {
-                $lastRun = Carbon::parse((string) $lastRunRaw);
-                if ($lastRun->addSeconds(self::CHECK_INTERVAL_SECONDS)->isFuture()) {
-                    return;
-                }
-            }
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'registration_reminder_last_check_at'],
-                [
-                    'setting_value' => Carbon::now()->format('Y-m-d H:i:s'),
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
 
             $reminderService = ($this->reminderServiceFactory)();
             $reminderService->processDue(AppUrlResolver::resolveBaseUrl($request));

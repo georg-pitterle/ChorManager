@@ -244,14 +244,18 @@ class MailQueueFeatureTest extends TestCase
         $pipeline = file_get_contents(dirname(__DIR__) . '/../src/Middleware.php');
 
         $triggerMode = file_get_contents(dirname(__DIR__) . '/../src/Util/MailQueueTriggerMode.php');
+        $runGate = file_get_contents(dirname(__DIR__) . '/../src/Util/OpportunisticRunGate.php');
 
         $this->assertIsString($middleware);
         $this->assertIsString($pipeline);
         $this->assertIsString($triggerMode);
-        // Die Betriebsart liest seit der Vereinheitlichung MailQueueTriggerMode; dort
-        // steht auch der Einstellungsschlüssel. Die drei Middlewares, die daran
-        // hängen, fragen nur noch diese eine Stelle.
-        $this->assertStringContainsString('MailQueueTriggerMode::allowsOpportunisticWork()', $middleware);
+        $this->assertIsString($runGate);
+        // Betriebsart und Wartezeit liegen im OpportunisticRunGate, den Einstellungs-
+        // schlüssel der Betriebsart kennt MailQueueTriggerMode. Die drei Middlewares,
+        // die daran hängen, fragen nur noch diese eine Stelle - hier die Kette vom
+        // Aufruf bis zum Schlüssel, damit sie beim nächsten Umbau nicht auseinanderfällt.
+        $this->assertStringContainsString('OpportunisticRunGate::tryClaim(', $middleware);
+        $this->assertStringContainsString('MailQueueTriggerMode::allowsOpportunisticWork()', $runGate);
         $this->assertStringContainsString('mailqueue_trigger_mode', $triggerMode);
         $this->assertStringContainsString('mailqueue_opportunistic_rate_limit', $middleware);
         $this->assertStringContainsString('mailqueue_batch_size', $middleware);

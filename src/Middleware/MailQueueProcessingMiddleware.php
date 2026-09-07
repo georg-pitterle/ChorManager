@@ -6,17 +6,18 @@ namespace App\Middleware;
 
 use App\Models\AppSetting;
 use App\Services\MailDeliveryService;
-use App\Util\MailQueueTriggerMode;
-use Carbon\Carbon;
+use App\Util\OpportunisticRunGate;
 use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Log\LoggerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Psr\Log\LoggerInterface;
 
 class MailQueueProcessingMiddleware implements MiddlewareInterface
 {
+    private const MARKER_KEY = 'mailqueue_last_opportunistic_run_at';
+
     public function __construct(
         private readonly MailDeliveryService $deliveryService,
         private readonly LoggerInterface $logger
@@ -33,30 +34,16 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
     private function processQueueIfDue(): void
     {
         try {
-            if (!MailQueueTriggerMode::allowsOpportunisticWork()) {
+            // Anders als bei den beiden Erinnerungen ist die Wartezeit hier nicht fest,
+            // sondern folgt der eingestellten Obergrenze an Läufen pro Minute.
+            $rateLimit = max(1, (int) $this->getSetting('mailqueue_opportunistic_rate_limit', '10'));
+            $minimumIntervalSeconds = max(1, (int) ceil(60 / $rateLimit));
+
+            if (!OpportunisticRunGate::tryClaim(self::MARKER_KEY, $minimumIntervalSeconds)) {
                 return;
             }
 
-            $rateLimit = max(1, (int) $this->getSetting('mailqueue_opportunistic_rate_limit', '10'));
             $batchSize = max(1, (int) $this->getSetting('mailqueue_batch_size', '50'));
-            $minimumIntervalSeconds = max(1, (int) ceil(60 / $rateLimit));
-
-            $lastRunRaw = $this->getSetting('mailqueue_last_opportunistic_run_at');
-            if ($lastRunRaw !== null && $lastRunRaw !== '') {
-                $lastRun = Carbon::parse($lastRunRaw);
-                if ($lastRun->addSeconds($minimumIntervalSeconds)->isFuture()) {
-                    return;
-                }
-            }
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'mailqueue_last_opportunistic_run_at'],
-                [
-                    'setting_value' => Carbon::now()->format('Y-m-d H:i:s'),
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
 
             $this->deliveryService->processDueEntries($batchSize);
         } catch (QueryException $exception) {

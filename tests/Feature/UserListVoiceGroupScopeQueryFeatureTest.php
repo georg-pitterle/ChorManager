@@ -96,7 +96,7 @@ class UserListVoiceGroupScopeQueryFeatureTest extends TestCase
 
         $this->assertContains($this->userIds['sopranAktiv'], $ids);
         $this->assertNotContains($this->userIds['altAktiv'], $ids, 'Fremde Stimmgruppen bleiben draußen.');
-        $this->assertNotContains($this->userIds['ohneStimmgruppe'], $ids, 'Ohne Stimmgruppe ist ausserhalb des Rechts.');
+        $this->assertNotContains($this->userIds['ohneStimmgruppe'], $ids, 'Ohne Stimmgruppe ist außerhalb des Rechts.');
     }
 
     public function testArchivedMembersStayOutOfTheActiveList(): void

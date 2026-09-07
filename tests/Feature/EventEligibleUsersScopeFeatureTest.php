@@ -158,7 +158,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
 
     /**
      * Die Spalte source_type ist nullable, und die Auswertung kennt nur vier
-     * Typen. Eine Quelle ausserhalb davon liess alle vier Listen leer, die
+     * Typen. Eine Quelle außerhalb davon liess alle vier Listen leer, die
      * Bedingungsgruppe blieb leer - und der eingeschraenkte Termin galt
      * stillschweigend wieder fuer alle aktiven Mitglieder.
      */

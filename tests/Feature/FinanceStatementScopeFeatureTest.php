@@ -81,7 +81,7 @@ final class FinanceStatementScopeFeatureTest extends TestCase
 
     public function testOnlyBookingsInsideTheReportedPeriodAreCounted(): void
     {
-        // Vor dem Stichtag, aber ausserhalb des Berichtszeitraums.
+        // Vor dem Stichtag, aber außerhalb des Berichtszeitraums.
         $this->booking('2024-05-10');
         // Vor dem Stichtag und innerhalb des Berichtszeitraums.
         $this->booking('2026-02-10');

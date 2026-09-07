@@ -36,12 +36,14 @@ class AuthMiddleware implements MiddlewareInterface
             session_start();
         }
 
-        // Exclude the login and setup routes
-        $path = $request->getUri()->getPath();
-        if ($path === '/login' || $path === '/setup' || $path === '/') {
-            return $handler->handle($request);
-        }
-
+        // Keine Pfad-Ausnahmen: Was diese Middleware umschließt, ist geschützt.
+        //
+        // Hier stand eine Liste, die `/login`, `/setup` und `/` durchwinkte. Diese
+        // Routen liegen aber außerhalb der geschützten Gruppe, an der die Middleware
+        // hängt (siehe Routes.php), der Block lief also nie. Harmlos war er nur
+        // solange: Würde die Middleware jemals global registriert, wäre `/` still
+        // ungeschützt - und das fiele niemandem auf, weil die Liste wie eine bewusste
+        // Entscheidung aussah statt wie ein Überbleibsel.
         if (!isset($_SESSION['user_id'])) {
             // Aufräumen nur auf dem Pfad, der Remember-Me überhaupt auswertet. Vorher lief
             // die Löschabfrage bei jedem einzelnen Aufruf einer geschützten Route, also auch
@@ -116,8 +118,13 @@ class AuthMiddleware implements MiddlewareInterface
             $target .= '?' . $query;
         }
 
+        // `/dashboard` ist ohnehin das Ziel nach der Anmeldung, und ein `redirect`
+        // auf das Anmeldeformular selbst schickte die Person nach erfolgreicher
+        // Anmeldung dorthin zurück. Beide Ziele tragen deshalb keinen Parameter.
+        $isOwnTarget = $target === '/dashboard' || $target === '/login';
+
         $location = '/login';
-        if (strtoupper($request->getMethod()) === 'GET' && $target !== '' && $target !== '/dashboard') {
+        if (strtoupper($request->getMethod()) === 'GET' && $target !== '' && !$isOwnTarget) {
             $location = '/login?redirect=' . rawurlencode($target);
         }
 

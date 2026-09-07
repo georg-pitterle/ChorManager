@@ -111,6 +111,7 @@ class CsrfMiddlewareFeatureTest extends TestCase
     public function testPathBelowAnIngestEndpointStaysCsrfProtected(): void
     {
         $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
         $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
 
         $handler = new class implements RequestHandlerInterface {
@@ -131,6 +132,7 @@ class CsrfMiddlewareFeatureTest extends TestCase
     public function testPostRequestWithInvalidTokenReturns403(): void
     {
         $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
         $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
 
         $request = $this->makeRequest('POST', '/profile', [
@@ -150,6 +152,153 @@ class CsrfMiddlewareFeatureTest extends TestCase
         $this->assertStringContainsString('CSRF', (string) $result->getBody());
     }
 
+    /**
+     * Der häufigste Weg zu einem ungültigen Token ist kein Angriff, sondern ein
+     * Formular, das offen lag, bis die Sitzung ablief. Die neue Sitzung trägt
+     * einen neuen Token, der alte im Formular passt nicht mehr - und weil die
+     * CsrfMiddleware vor der AuthMiddleware prüft, bekam die Person eine weiße
+     * Seite mit "Ungültiger CSRF-Token" statt der Anmeldung.
+     */
+    public function testExpiredSessionIsSentToTheLoginPageInsteadOf403(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        // Absolute Adresse wie bei einer echten Anfrage: Der Abgleich des
+        // Rückverweises braucht den Host der Anfrage als Vergleichswert.
+        $request = $this->makeRequest(
+            'POST',
+            'http://localhost/profile',
+            ['_csrf' => 'stale-token'],
+            [],
+            ['Referer' => 'http://localhost/profile']
+        );
+
+        $result = $middleware->process($request, $this->handlerThatMustNotRun());
+
+        $this->assertSame(302, $result->getStatusCode());
+        $this->assertSame('/login?redirect=%2Fprofile', $result->getHeaderLine('Location'));
+    }
+
+    /**
+     * Ohne verwertbaren Rückverweis bleibt es bei der nackten Anmeldeseite: Der
+     * Pfad der abgewiesenen POST-Anfrage taugt nicht als Ziel, weil zu ihm oft
+     * gar keine Seite gehört (`/profile/password` etwa).
+     */
+    public function testExpiredSessionWithoutUsableRefererGoesToPlainLogin(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $result = $middleware->process(
+            $this->makeRequest('POST', '/profile/password', ['_csrf' => 'stale-token']),
+            $this->handlerThatMustNotRun()
+        );
+
+        $this->assertSame(302, $result->getStatusCode());
+        $this->assertSame('/login', $result->getHeaderLine('Location'));
+    }
+
+    /**
+     * Ein Rückverweis fremder Herkunft ist kein Ziel, auf das weitergeleitet
+     * werden darf - sonst wäre die Anmeldeseite ein offener Weiterleiter.
+     */
+    public function testForeignRefererIsNotUsedAsRedirectTarget(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $result = $middleware->process(
+            $this->makeRequest(
+                'POST',
+                'http://localhost/profile',
+                ['_csrf' => 'stale-token'],
+                [],
+                ['Referer' => 'https://angreifer.example/profile']
+            ),
+            $this->handlerThatMustNotRun()
+        );
+
+        $this->assertSame('/login', $result->getHeaderLine('Location'));
+    }
+
+    /**
+     * Wer angemeldet ist, hat einen gültigen Token bekommen - ein falscher ist
+     * dann keine abgelaufene Sitzung mehr, sondern bleibt eine Abweisung.
+     */
+    public function testAuthenticatedRequestWithInvalidTokenStillGets403(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $result = $middleware->process(
+            $this->makeRequest('POST', '/profile', ['_csrf' => 'invalid-token']),
+            $this->handlerThatMustNotRun()
+        );
+
+        $this->assertSame(403, $result->getStatusCode());
+    }
+
+    /**
+     * Die Oberfläche wertet JSON aus und kann mit einer Weiterleitung nichts
+     * anfangen; sie braucht den Fehler als Fehler.
+     */
+    public function testJsonRequestWithExpiredSessionStillGets403(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $result = $middleware->process(
+            $this->makeRequest(
+                'POST',
+                '/profile',
+                ['_csrf' => 'stale-token'],
+                [],
+                ['Accept' => 'application/json']
+            ),
+            $this->handlerThatMustNotRun()
+        );
+
+        $this->assertSame(403, $result->getStatusCode());
+        $this->assertStringContainsString('application/json', $result->getHeaderLine('Content-Type'));
+    }
+
+    /**
+     * Nicht jede Stelle der Oberfläche schickt `Accept` mit - newsletters-edit.js
+     * etwa weist sich nur über `X-Requested-With` aus. Auch dieser Aufruf muss
+     * den Fehler als Fehler bekommen: Einer Weiterleitung folgt `fetch` selbst,
+     * bekommt die Anmeldeseite mit Status 200 und scheitert erst beim Auswerten.
+     */
+    public function testXmlHttpRequestWithoutAcceptHeaderStillGets403(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $result = $middleware->process(
+            $this->makeRequest(
+                'POST',
+                'http://localhost/newsletters/resolve-recipients-preview',
+                ['_csrf' => 'stale-token'],
+                [],
+                ['X-Requested-With' => 'XMLHttpRequest', 'Referer' => 'http://localhost/newsletters/1/edit']
+            ),
+            $this->handlerThatMustNotRun()
+        );
+
+        $this->assertSame(403, $result->getStatusCode());
+    }
+
+    private function handlerThatMustNotRun(): RequestHandlerInterface
+    {
+        return new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                throw new \RuntimeException('Eine abgewiesene Anfrage darf den Handler nie erreichen.');
+            }
+        };
+    }
+
     public function testPostRequestWithInvalidTokenLogsCsrfRejected(): void
     {
         $handlerLog = new TestHandler();
@@ -157,6 +306,7 @@ class CsrfMiddlewareFeatureTest extends TestCase
         $logger->pushHandler($handlerLog);
 
         $middleware = new CsrfMiddleware($logger);
+        $_SESSION['user_id'] = 7;
         $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
 
         $request = $this->makeRequest('POST', '/profile', [

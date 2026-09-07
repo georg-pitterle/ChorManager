@@ -163,7 +163,6 @@ class RoleMiddleware implements MiddlewareInterface
      */
     private array $activeGates;
 
-    private int $minHierarchyLevel;
     private LoggerInterface $logger;
 
     /**
@@ -177,6 +176,12 @@ class RoleMiddleware implements MiddlewareInterface
      * braucht jetzt einen Eintrag in self::GATES und einen gleichnamigen
      * Parameter; RoleMiddlewareGateTableFeatureTest weist jede Hälfte ohne die
      * andere zurück.
+     *
+     * Geprüft werden ausschließlich Rechte, nie das Hierarchie-Level. Ein
+     * Parameter `minHierarchyLevel` stand hier samt eigener Abweisung, wurde aber
+     * von keiner einzigen Route gesetzt. Das Level entscheidet allein darüber,
+     * wessen Zuordnungen jemand ändern darf - das prüft UserEditPolicy an der
+     * einzelnen Zuordnung, wo auch die zu vergleichenden Rollen bekannt sind.
      */
     public function __construct(
         bool $requiresTaskManagement = false,
@@ -198,7 +203,6 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresProjectMemberManagement = false,
         bool $allowVoiceGroupReps = false,
         bool $requiresUserManagement = false,
-        int $minHierarchyLevel = 0,
         ?LoggerInterface $logger = null
     ) {
         $requestedGates = [
@@ -230,7 +234,6 @@ class RoleMiddleware implements MiddlewareInterface
             static fn (string $gate): bool => $requestedGates[$gate] ?? false
         ));
 
-        $this->minHierarchyLevel = $minHierarchyLevel;
         $this->logger = $logger ?? self::$defaultLogger ?? new NullLogger();
     }
 
@@ -266,15 +269,6 @@ class RoleMiddleware implements MiddlewareInterface
             if (!$this->hasAnyPermission($definition['permissions'])) {
                 return $this->deny($request, $definition['message'], $definition['logged_permission']);
             }
-        }
-
-        $userLevel = (int) ($_SESSION['role_level'] ?? 0);
-        if ($this->minHierarchyLevel > 0 && $userLevel < $this->minHierarchyLevel) {
-            return $this->deny(
-                $request,
-                'Zugriff verweigert: Ihre Rolle reicht für diese Ansicht nicht aus.',
-                'hierarchy_level'
-            );
         }
 
         return $handler->handle($request);

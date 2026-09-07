@@ -1471,7 +1471,7 @@ class EventController
 
     private function canAccessEvent(Event $event): bool
     {
-        // Terminverwalter muessen auch Termine ausserhalb ihrer eigenen Zielgruppe sehen,
+        // Terminverwalter muessen auch Termine außerhalb ihrer eigenen Zielgruppe sehen,
         // sonst koennten sie genau die Termine nicht pflegen, fuer die sie zustaendig sind.
         if ($this->canManageEvents()) {
             return true;
