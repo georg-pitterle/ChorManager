@@ -39,11 +39,11 @@ return function (App $app): void {
     $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
     $defaultErrorHandler = $errorMiddleware->getDefaultErrorHandler();
 
-    // ModelNotFoundException zaehlt hier wie eine unbekannte Route.
+    // ModelNotFoundException zählt hier wie eine unbekannte Route.
     //
     // findOrFail() wirft sie, wenn ein Datensatz nicht (mehr) existiert - ein
     // veraltetes Lesezeichen auf /tasks/26 oder ein Link auf einen inzwischen
-    // geloeschten Eintrag reicht. Ohne eigene Behandlung landete das als
+    // gelöschten Eintrag reicht. Ohne eigene Behandlung landete das als
     // "Slim Application Error" mit vollem Stapelverlauf im Fehlerprotokoll und die
     // aufrufende Person sah eine 500-Seite, obwohl schlicht nichts zu finden war.
     $errorMiddleware->setErrorHandler(
@@ -80,8 +80,8 @@ return function (App $app): void {
         }
     );
 
-    // Zuletzt hinzugefuegt heisst zuerst ausgefuehrt: Der Request-Kontext steht
-    // damit allen nachfolgenden Middlewares und Controllern zur Verfuegung.
+    // Zuletzt hinzugefügt heißt zuerst ausgeführt: Der Request-Kontext steht
+    // damit allen nachfolgenden Middlewares und Controllern zur Verfügung.
     $app->add(HtmlFormCsrfInjectorMiddleware::class);
     $app->add(CsrfMiddleware::class);
     $app->add(MailQueueProcessingMiddleware::class);
