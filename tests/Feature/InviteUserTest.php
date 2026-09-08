@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\UserController;
+use App\Util\MailBranding;
 use PHPUnit\Framework\TestCase;
 
 class InviteUserTest extends TestCase
@@ -154,10 +155,11 @@ class InviteUserTest extends TestCase
         $this->assertStringContainsString('primary_color', $controller);
         $this->assertStringNotContainsString('buildTrustedAppUrl', $controller);
 
-        // Das Logo wird als Data-URI eingebettet - seit MailBranding fuer alle Mails an einer Stelle.
-        $branding = file_get_contents(dirname(__DIR__) . '/../src/Util/MailBranding.php');
-        $this->assertIsString($branding);
-        $this->assertStringContainsString('base64_encode', $branding);
-        $this->assertStringContainsString('data:image/png;base64,', $branding);
+        // Das Logo wird als Data-URI eingebettet - seit MailBranding für alle Mails an einer
+        // Stelle. Geprüft wird das Ergebnis, nicht der Quelltext: der MIME-Typ stammt seit der
+        // Maßberechnung aus der Einstellung und steht nicht mehr wörtlich in der Klasse.
+        $logoSrc = MailBranding::resolve()['logo_src'];
+        $this->assertStringStartsWith('data:image/', $logoSrc);
+        $this->assertMatchesRegularExpression('#^data:image/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$#', $logoSrc);
     }
 }

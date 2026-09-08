@@ -11,6 +11,7 @@ use App\Services\Pdf\FinanceReportPaginator;
 use App\Services\Pdf\FinanceReportRow;
 use App\Services\Pdf\PdfCanvas;
 use App\Services\Pdf\TextWrapper;
+use App\Util\ImageBox;
 
 final class FinanceReportPdfService
 {
@@ -20,8 +21,9 @@ final class FinanceReportPdfService
     private const CARRY_HEIGHT = 18.0;
     private const KENNZAHLEN_HEIGHT = 86.0;
     private const TITLE_HEIGHT = 44.0;
+    /** Rahmen, in den das Logo im Kopf passen muss, und der Abstand davon zum Titel. */
     private const LOGO_SIZE = 36.0;
-    private const LOGO_TEXT_OFFSET = 46.0;
+    private const LOGO_TEXT_GAP = 10.0;
 
     // Spaltenanteile (Summe der Nicht-Beschreibung-Spalten wird von der Breite abgezogen).
     private const COL_DATE = 60.0;
@@ -125,10 +127,10 @@ final class FinanceReportPdfService
 
         if ($page->isFirst) {
             $logoBytes = $this->logoBytes();
-            $textLeft = $left;
+            [$logoWidth, $logoHeight, $textOffset] = self::logoLayout($logoBytes);
+            $textLeft = $left + $textOffset;
             if ($logoBytes !== null) {
-                $this->canvas->image($logoBytes, $left, $y, self::LOGO_SIZE, self::LOGO_SIZE);
-                $textLeft = $left + self::LOGO_TEXT_OFFSET;
+                $this->canvas->image($logoBytes, $left, $y, $logoWidth, $logoHeight);
             }
             $chorName = $this->appName();
             $this->canvas->text($textLeft, $y, $chorName, 14.0, 'B');
@@ -322,6 +324,30 @@ final class FinanceReportPdfService
         }
 
         return $name !== null && $name !== '' ? (string) $name : 'Chor-Manager';
+    }
+
+    /**
+     * Maße des Logos im Kopf und der Abstand, ab dem der Titel gesetzt wird.
+     *
+     * Vorher standen hier feste 36x36 Punkte. Das mitgelieferte Logo ist quadratisch und sah
+     * damit richtig aus - jedes andere Seitenverhältnis wurde in dieses Quadrat gequetscht.
+     * Der Titelabstand folgt jetzt der tatsächlichen Breite, sonst klaffte neben einem
+     * schmalen Wappen eine Lücke und ein breiter Schriftzug liefe unter den Titel.
+     *
+     * Öffentlich und statisch, damit die Rechnung ohne Zeichenfläche und ohne Datenbank
+     * geprüft werden kann - die Klasse ist `final`, ein Test-Ableger scheidet aus.
+     *
+     * @return array{0: float, 1: float, 2: float} Breite, Höhe, Abstand zum Titel
+     */
+    public static function logoLayout(?string $logoBytes): array
+    {
+        if ($logoBytes === null || $logoBytes === '') {
+            return [0.0, 0.0, 0.0];
+        }
+
+        [$width, $height] = ImageBox::fit($logoBytes, self::LOGO_SIZE, self::LOGO_SIZE);
+
+        return [$width, $height, $width + self::LOGO_TEXT_GAP];
     }
 
     private function logoBytes(): ?string

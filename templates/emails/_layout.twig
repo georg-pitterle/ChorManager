@@ -7,7 +7,6 @@
 {% set brand_color = primary_color|default("#E8A817") %}
 {% set brand_name = app_name|default("Chor-Manager") %}
 {% set font_stack = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif" %}
-{% set mono_stack = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" %}
 <!DOCTYPE html>
 <html lang="de"
       xmlns:v="urn:schemas-microsoft-com:vml"
@@ -89,14 +88,20 @@
                                 style="background-color:#1d2836;
                                        background-image:linear-gradient(135deg,#243244 0%,#18212b 100%);
                                        padding:30px 40px 26px 40px">
+                                {# Beide Maße kommen ausgerechnet aus MailBranding::fitLogoBox().
+                                   Feste 56x56 quetschten jedes nicht quadratische Logo; auf
+                                   height:auto ist bei Outlook kein Verlass, dort zählen die
+                                   Attribute. #}
+                                {% set _logo_width = logo_width|default(56) %}
+                                {% set _logo_height = logo_height|default(56) %}
                                 {% if logo_src is defined and logo_src is not empty %}
                                     <img src="{{ logo_src }}"
                                          alt="{{ brand_name }}"
-                                         width="56"
-                                         height="56"
+                                         width="{{ _logo_width }}"
+                                         height="{{ _logo_height }}"
                                          style="display:block;
-                                                width:56px;
-                                                height:56px;
+                                                width:{{ _logo_width }}px;
+                                                height:{{ _logo_height }}px;
                                                 margin:0 0 16px 0;
                                                 border-radius:8px">
                                 {% endif %}

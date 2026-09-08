@@ -27,13 +27,24 @@ final class MailBranding
     private const EDGE_ALPHA = 0.30;
 
     /**
+     * Rahmen, in den das Logo im Mailkopf hineinpasst. Die Höhe entspricht den bisherigen
+     * 56 Pixeln, damit das quadratische Standardlogo unverändert bleibt. Die Breite deckelt
+     * ein Banner: die Mailkarte ist 600 Pixel breit, abzüglich zweimal 40 Pixel Innenabstand
+     * bleiben 520 — 200 lässt dem Kopfbereich Luft, statt ihn vom Logo füllen zu lassen.
+     */
+    private const LOGO_BOX_WIDTH = 200;
+    private const LOGO_BOX_HEIGHT = 56;
+
+    /**
      * @return array{
      *     app_name: string,
      *     primary_color: string,
      *     primary_strong: string,
      *     primary_tint: string,
      *     primary_edge: string,
-     *     logo_src: string
+     *     logo_src: string,
+     *     logo_width: int,
+     *     logo_height: int
      * }
      */
     public static function resolve(): array
@@ -57,14 +68,43 @@ final class MailBranding
             $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
         }
 
+        $logo = self::resolveLogoBinary();
+        [$logoWidth, $logoHeight] = self::fitLogoBox($logo['content']);
+
         return [
             'app_name' => $appName,
             'primary_color' => $primaryColor,
             'primary_strong' => self::readableOnWhite($primaryColor),
             'primary_tint' => self::overWhite($primaryColor, self::TINT_ALPHA),
             'primary_edge' => self::overWhite($primaryColor, self::EDGE_ALPHA),
-            'logo_src' => self::resolveLogo(),
+            'logo_src' => $logo['content'] === ''
+                ? ''
+                : 'data:' . $logo['mime'] . ';base64,' . base64_encode($logo['content']),
+            'logo_width' => $logoWidth,
+            'logo_height' => $logoHeight,
         ];
+    }
+
+    /**
+     * Skaliert das Logo in den Kopfbereich, ohne das Seitenverhältnis zu verändern.
+     *
+     * Vorher standen im Kopf feste 56x56 Pixel. Das mitgelieferte Logo ist quadratisch und
+     * sah damit richtig aus — ein Wappen im Hochformat oder ein Schriftzug im Querformat wurde
+     * in dieses Quadrat gequetscht. Da E-Mail-Programme sich auf `height:auto` nicht verlassen
+     * lassen (Outlook rechnet mit den Attributen, nicht mit dem Stil), werden beide Maße hier
+     * ausgerechnet und fest in die Vorlage geschrieben.
+     *
+     * Lässt sich das Bild nicht vermessen, bleibt es beim Quadrat: dann ist die Datei ohnehin
+     * kaputt und wird in keinem Programm angezeigt.
+     *
+     * @return array{0: int, 1: int} Breite und Höhe in Pixeln
+     */
+    public static function fitLogoBox(string $binaryContent): array
+    {
+        [$width, $height] = ImageBox::fit($binaryContent, self::LOGO_BOX_WIDTH, self::LOGO_BOX_HEIGHT);
+
+        // Ganze Pixel: gebrochene Werte im HTML-Attribut werten Mailprogramme unterschiedlich aus.
+        return [max(1, (int) round($width)), max(1, (int) round($height))];
     }
 
     /**
@@ -100,38 +140,47 @@ final class MailBranding
         );
     }
 
-    private static function resolveLogo(): string
+    /**
+     * Liefert das Logo als Rohdaten, nicht als fertige `data:`-URI: die Maße lassen sich nur
+     * am Bild selbst ablesen, und ein Umweg über Base64 und zurück wäre reine Arbeit.
+     *
+     * @return array{content: string, mime: string}
+     */
+    private static function resolveLogoBinary(): array
     {
         try {
             $logo = AppSetting::query()->find('app_logo');
             if ($logo instanceof AppSetting && $logo->binary_content !== '') {
                 $mimeType = trim((string) $logo->mime_type);
-                if ($mimeType === '') {
-                    $mimeType = 'image/png';
-                }
 
-                return 'data:' . $mimeType . ';base64,' . base64_encode($logo->binary_content);
+                return [
+                    'content' => (string) $logo->binary_content,
+                    'mime' => $mimeType === '' ? 'image/png' : $mimeType,
+                ];
             }
         } catch (\Throwable) {
-            return self::defaultLogoDataUri();
+            return self::defaultLogoBinary();
         }
 
-        return self::defaultLogoDataUri();
+        return self::defaultLogoBinary();
     }
 
-    private static function defaultLogoDataUri(): string
+    /**
+     * @return array{content: string, mime: string}
+     */
+    private static function defaultLogoBinary(): array
     {
         $defaultLogoPath = __DIR__ . '/../../public/icons/icon-512.png';
         if (!is_file($defaultLogoPath)) {
-            return '';
+            return ['content' => '', 'mime' => 'image/png'];
         }
 
         $binaryContent = @file_get_contents($defaultLogoPath);
         if ($binaryContent === false || $binaryContent === '') {
-            return '';
+            return ['content' => '', 'mime' => 'image/png'];
         }
 
-        return 'data:image/png;base64,' . base64_encode($binaryContent);
+        return ['content' => $binaryContent, 'mime' => 'image/png'];
     }
 
     /**

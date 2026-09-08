@@ -131,6 +131,81 @@ final class FinanceReportPdfServiceTest extends TestCase
         );
     }
 
+    private function pngBytes(int $width, int $height): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+        self::assertNotFalse($image, 'GD konnte kein Testbild anlegen.');
+
+        ob_start();
+        imagepng($image);
+
+        return (string) ob_get_clean();
+    }
+
+    /**
+     * Der Kopf zeichnete das Logo in feste 36x36 Punkte. Ein Schriftzug im Querformat wurde
+     * damit zusammengestaucht, ein Wappen im Hochformat in die Breite gezogen.
+     */
+    public function testWideLogoKeepsItsAspectRatioInTheHeader(): void
+    {
+        [$width, $height, $textOffset] = FinanceReportPdfService::logoLayout($this->pngBytes(360, 90));
+
+        $this->assertEqualsWithDelta(36.0, $width, 0.001);
+        $this->assertEqualsWithDelta(9.0, $height, 0.001);
+        $this->assertEqualsWithDelta(4.0, $width / $height, 0.001, 'Seitenverhältnis verzerrt.');
+        $this->assertEqualsWithDelta(46.0, $textOffset, 0.001, 'Der Abstand folgt der Logobreite.');
+    }
+
+    public function testTallLogoStaysInsideTheHeaderHeight(): void
+    {
+        [$width, $height, $textOffset] = FinanceReportPdfService::logoLayout($this->pngBytes(90, 360));
+
+        $this->assertEqualsWithDelta(9.0, $width, 0.001);
+        $this->assertEqualsWithDelta(36.0, $height, 0.001);
+        $this->assertEqualsWithDelta(19.0, $textOffset, 0.001, 'Schmales Logo rückt den Titel nach links.');
+    }
+
+    /**
+     * Das mitgelieferte Logo ist quadratisch. Der Kopf muss deshalb aussehen wie bisher,
+     * sonst verschiebt der Fix jeden bestehenden Bericht.
+     */
+    public function testSquareLogoKeepsTheKnownHeaderGeometry(): void
+    {
+        $this->assertSame([36.0, 36.0, 46.0], FinanceReportPdfService::logoLayout($this->pngBytes(512, 512)));
+    }
+
+    public function testWithoutLogoTheTitleStartsAtTheLeftEdge(): void
+    {
+        $this->assertSame([0.0, 0.0, 0.0], FinanceReportPdfService::logoLayout(null));
+    }
+
+    /**
+     * Nicht nur die Rechnung, auch der Weg in die Zeichenfläche muss stimmen: ein breites
+     * Logo darf nicht als Quadrat auf dem Blatt landen.
+     */
+    public function testHeaderDrawsTheLogoWithTheFittedSize(): void
+    {
+        $canvas = $this->fakeCanvas();
+        $service = new FinanceReportPdfService($canvas);
+
+        $service->render($this->reportData(1));
+
+        $this->assertCount(1, $canvas->images);
+        [, , $width, $height] = $canvas->images[0];
+        [$expectedWidth, $expectedHeight] = FinanceReportPdfService::logoLayout($this->defaultLogoBytes());
+
+        $this->assertEqualsWithDelta($expectedWidth, $width, 0.001);
+        $this->assertEqualsWithDelta($expectedHeight, $height, 0.001);
+    }
+
+    private function defaultLogoBytes(): string
+    {
+        $bytes = file_get_contents(dirname(__DIR__, 3) . '/public/icons/icon-512.png');
+        self::assertIsString($bytes);
+
+        return $bytes;
+    }
+
     public function testCreationDateOnlyOnFirstPage(): void
     {
         $canvas = $this->fakeCanvas();
