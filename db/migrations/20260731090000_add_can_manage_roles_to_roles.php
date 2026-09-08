@@ -7,7 +7,7 @@ use Phinx\Migration\AbstractMigration;
 /**
  * Rollenverwaltung wird ein eigenes Recht: can_manage_users darf Rollen nur noch
  * zuweisen, das Anlegen und Bearbeiten von Rollen (und damit das Vergeben von
- * Rechten) haengt ab jetzt an can_manage_roles.
+ * Rechten) hängt ab jetzt an can_manage_roles.
  */
 final class AddCanManageRolesToRoles extends AbstractMigration
 {

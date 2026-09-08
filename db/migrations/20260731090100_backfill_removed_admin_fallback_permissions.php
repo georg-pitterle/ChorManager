@@ -43,6 +43,6 @@ final class BackfillRemovedAdminFallbackPermissions extends AbstractMigration
     public function down(): void
     {
         // Die Rechte sind nach dem Backfill regulaer gepflegte Einzelrechte - ein
-        // pauschaler Entzug wuerde auch manuell vergebene Rechte loeschen.
+        // pauschaler Entzug würde auch manuell vergebene Rechte löschen.
     }
 }

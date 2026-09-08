@@ -6,13 +6,13 @@ use Phinx\Migration\AbstractMigration;
 
 /**
  * Ein Hierarchie-Level ab 80 hat bisher vier Rechte implizit mitgeliefert
- * (SessionAuthService). Das Level entscheidet ab jetzt nur noch darueber, wessen
- * Zuordnungen man aendern darf; die vier Rechte werden deshalb einmalig explizit
+ * (SessionAuthService). Das Level entscheidet ab jetzt nur noch darüber, wessen
+ * Zuordnungen man ändern darf; die vier Rechte werden deshalb einmalig explizit
  * festgeschrieben, damit Bestandsrollen nichts verlieren.
  *
- * Bewusst nicht weitergereicht werden die Rechte, die diese Rollen frueher nur
- * indirekt ueber den can_manage_users-Fallback erreicht haben (Finanzen, Stammdaten,
- * Module): sie waren nie sichtbar vergeben und sind ueber die Rollenmatrix jederzeit
+ * Bewusst nicht weitergereicht werden die Rechte, die diese Rollen früher nur
+ * indirekt über den can_manage_users-Fallback erreicht haben (Finanzen, Stammdaten,
+ * Module): sie waren nie sichtbar vergeben und sind über die Rollenmatrix jederzeit
  * nachziehbar.
  */
 final class BackfillLevelImpliedPermissions extends AbstractMigration
@@ -31,7 +31,7 @@ final class BackfillLevelImpliedPermissions extends AbstractMigration
 
     public function down(): void
     {
-        // Ohne den impliziten Level-Bonus liesse sich nicht mehr unterscheiden, welche
+        // Ohne den impliziten Level-Bonus ließe sich nicht mehr unterscheiden, welche
         // Rechte vorher schon explizit gesetzt waren - deshalb kein pauschaler Entzug.
     }
 }

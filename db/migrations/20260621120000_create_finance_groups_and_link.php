@@ -6,6 +6,22 @@ use Phinx\Migration\AbstractMigration;
 
 final class CreateFinanceGroupsAndLink extends AbstractMigration
 {
+    /**
+     * Findet Budget-Kategorien, deren Gruppenname nicht auf finance_groups
+     * umgeschrieben wurde. Ein leerer Name benennt keine Gruppe und verliert
+     * beim DROP COLUMN deshalb auch nichts.
+     *
+     * Steht als Konstante bereit, damit DestructiveMigrationGuardTest genau die
+     * Anweisung prüfen kann, die hier auch ausgeführt wird - gleiches Muster wie
+     * RepairFinanceAccountOpeningData::REPAIR_SQL.
+     */
+    public const ORPHANED_BUDGET_CATEGORIES_SQL = <<<'SQL'
+        SELECT COUNT(*) AS orphaned
+        FROM budget_categories
+        WHERE COALESCE(group_name, '') <> ''
+          AND finance_group_id IS NULL
+        SQL;
+
     public function up(): void
     {
         // Canonical finance group table (single source of truth for group identity).
@@ -47,6 +63,20 @@ final class CreateFinanceGroupsAndLink extends AbstractMigration
         $this->execute("UPDATE budget_categories b
             JOIN finance_groups g ON g.name = b.group_name COLLATE utf8mb4_general_ci
             SET b.finance_group_id = g.id;");
+
+        // Prüfung vor dem destruktiven Schritt: Was hier nicht verknüpft ist, ist
+        // nach dem DROP COLUMN ersatzlos weg - anders als bei finances, wo
+        // group_name als Spiegelfeld stehen bleibt. Greift die Prüfung erst nach
+        // dem DROP, sind die Namen schon fort.
+        $orphaned = (int) ($this->fetchRow(self::ORPHANED_BUDGET_CATEGORIES_SQL)['orphaned'] ?? 0);
+
+        if ($orphaned > 0) {
+            throw new RuntimeException(sprintf(
+                'Es gibt %d Budget-Kategorie(n) ohne Finanzgruppe. Diese zuerst zuordnen, '
+                    . 'sonst verlieren sie mit budget_categories.group_name ihre Gruppe.',
+                $orphaned
+            ));
+        }
 
         // Swap the uniqueness constraint to the FK and drop the legacy string column.
         $this->execute("ALTER TABLE budget_categories DROP INDEX uq_budget_category;");

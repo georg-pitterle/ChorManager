@@ -32,7 +32,7 @@ final class AddFinanceRevisionsAndReversal extends AbstractMigration
             ->addColumn('user_id', 'integer', ['null' => true, 'default' => null])
             ->addColumn('action', 'enum', ['values' => ['create', 'update', 'reverse']])
             // Nicht "changes" nennen: Eloquent belegt diesen Property-Namen intern
-            // fuer sein Dirty-Tracking, ein gleichnamiges Attribut waere im Model
+            // für sein Dirty-Tracking, ein gleichnamiges Attribut wäre im Model
             // nicht mehr erreichbar.
             ->addColumn('change_set', 'text', ['null' => true, 'default' => null])
             ->addColumn('created_at', 'timestamp', ['default' => 'CURRENT_TIMESTAMP'])

@@ -6,8 +6,8 @@ use Phinx\Migration\AbstractMigration;
 
 /**
  * Termin-CRUD hing bisher an can_manage_users, die Terminarten an can_manage_master_data.
- * Beide Gruppen behalten ihre bisherigen Faehigkeiten, indem sie das neue Einzelrecht
- * bekommen - ohne Backfill wuerde die Umstellung Bestandsrollen Rechte entziehen.
+ * Beide Gruppen behalten ihre bisherigen Fähigkeiten, indem sie das neue Einzelrecht
+ * bekommen - ohne Backfill würde die Umstellung Bestandsrollen Rechte entziehen.
  */
 final class BackfillCanManageEventsPermission extends AbstractMigration
 {

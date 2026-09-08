@@ -6,8 +6,42 @@ use Phinx\Migration\AbstractMigration;
 
 final class DropEventsProjectId extends AbstractMigration
 {
+    /**
+     * Findet Termine, deren Projekt die vorangehende Migration 20260722120000
+     * nicht nach event_audience_sources umgeschrieben hat - etwa weil zwischen
+     * beiden Läufen ein Termin direkt in der Datenbank angelegt wurde.
+     *
+     * Steht als Konstante bereit, damit DestructiveMigrationGuardTest genau die
+     * Anweisung prüfen kann, die hier auch ausgeführt wird - gleiches Muster wie
+     * RepairFinanceAccountOpeningData::REPAIR_SQL.
+     */
+    public const ORPHANED_EVENTS_SQL = <<<'SQL'
+        SELECT COUNT(*) AS orphaned
+        FROM events e
+        LEFT JOIN event_audience_sources s
+          ON s.event_id = e.id
+         AND s.source_type = 'project_members'
+         AND s.reference_id = e.project_id
+        WHERE e.project_id IS NOT NULL
+          AND s.event_id IS NULL
+        SQL;
+
     public function up(): void
     {
+        // Prüfung vor dem destruktiven Schritt: Nach dem DROP COLUMN ließe sich
+        // nicht mehr feststellen, welchem Projekt ein Termin gehörte - der Wert
+        // steht dann nirgendwo mehr. Gleiches Muster wie in
+        // 20260421120000_drop_songs_project_id.
+        $orphaned = (int) ($this->fetchRow(self::ORPHANED_EVENTS_SQL)['orphaned'] ?? 0);
+
+        if ($orphaned > 0) {
+            throw new \RuntimeException(sprintf(
+                'Cannot drop events.project_id: %d Termin(e) haben keine passende Zielgruppen-Zeile. '
+                    . 'Diese zuerst nachtragen, sonst verlieren sie ihr Projekt.',
+                $orphaned
+            ));
+        }
+
         $foreignKey = $this->fetchRow(
             "SELECT CONSTRAINT_NAME
              FROM information_schema.KEY_COLUMN_USAGE

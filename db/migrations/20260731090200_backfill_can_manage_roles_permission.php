@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Phinx\Migration\AbstractMigration;
 
 /**
- * Zugriff auf /roles hing bisher an can_manage_users, zusaetzlich bekam jede Rolle ab
+ * Zugriff auf /roles hing bisher an can_manage_users, zusätzlich bekam jede Rolle ab
  * Hierarchie-Level 80 can_manage_users implizit zugeschrieben. Beide Gruppen behalten
  * ihren bisherigen Zugang, indem sie das neue Einzelrecht explizit erhalten.
  */

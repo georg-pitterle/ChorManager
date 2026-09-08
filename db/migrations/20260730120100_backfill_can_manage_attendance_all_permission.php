@@ -5,10 +5,10 @@ declare(strict_types=1);
 use Phinx\Migration\AbstractMigration;
 
 /**
- * Anwesenheit/Anmeldung fuer alle Mitglieder hing bisher am can_manage_users-Fallback.
+ * Anwesenheit/Anmeldung für alle Mitglieder hing bisher am can_manage_users-Fallback.
  * Bestandsrollen mit can_manage_users behalten ihre bisherige volle Sicht, indem sie
- * das neue Einzelrecht bekommen - ohne Backfill wuerde die Umstellung ihnen die
- * Sicht auf Mitglieder ausserhalb der eigenen Stimmgruppe entziehen.
+ * das neue Einzelrecht bekommen - ohne Backfill würde die Umstellung ihnen die
+ * Sicht auf Mitglieder außerhalb der eigenen Stimmgruppe entziehen.
  */
 final class BackfillCanManageAttendanceAllPermission extends AbstractMigration
 {
