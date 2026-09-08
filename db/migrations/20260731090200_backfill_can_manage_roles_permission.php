@@ -22,6 +22,12 @@ final class BackfillCanManageRolesPermission extends AbstractMigration
 
     public function down(): void
     {
-        $this->execute("UPDATE roles SET can_manage_roles = 0");
+        // Kein pauschaler Entzug: can_manage_roles vergibt Rechte und ist damit
+        // das heikelste Einzelrecht überhaupt - aber auch das, dessen stiller
+        // Entzug am meisten anrichtet. Wer es inzwischen über die Rollenmatrix
+        // bekommen hat, ist von den hier gesetzten Rollen nicht mehr zu
+        // unterscheiden; ein UPDATE ohne WHERE könnte die letzte Rolle treffen,
+        // die überhaupt noch Rechte vergeben darf. Gleiche Haltung wie in
+        // 20260731090100 und 20260731090300.
     }
 }

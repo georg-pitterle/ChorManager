@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use AllowLockEntriesInFinanceJournal;
+use AllowNewslettersWithoutProject;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -12,22 +14,28 @@ use Tests\Unit\Bootstrap;
 
 require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance_groups_and_link.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260722130000_drop_events_project_id.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20260811190000_allow_newsletters_without_project.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_entries_in_finance_journal.php';
 
 /**
- * Beide Migrationen werfen eine Spalte weg, deren Inhalt vorher woandershin
- * umgeschrieben wurde. Bleibt eine Zeile bei der Umschreibung liegen, ist ihr
- * Wert nach dem `DROP COLUMN` ersatzlos fort - nachholen lässt sich das nicht,
- * weil Phinx den Lauf bereits in `phinxlog` verbucht hat.
+ * Vier Migrationen führen einen Schritt aus, der Daten unwiederbringlich
+ * beseitigt: zwei werfen im `up()` eine Spalte weg, deren Inhalt vorher
+ * woandershin umgeschrieben wurde, zwei müssten im `down()` Zeilen loswerden,
+ * die in die engere Spalte nicht mehr passen.
  *
- * Die Prüfung davor ist deshalb der eigentliche Schutz, und sie ist nur so viel
- * wert, wie sie wirklich findet. Der Test lässt sie gegen Wegwerf-Tabellen mit
- * genau einer liegengebliebenen und einer sauber umgeschriebenen Zeile laufen.
+ * In beiden Fällen ist der Wert danach fort, und nachholen lässt sich das nicht,
+ * weil Phinx den Lauf bereits in `phinxlog` verbucht hat. Die Zählung davor ist
+ * deshalb der eigentliche Schutz, und sie ist nur so viel wert, wie sie wirklich
+ * findet. Der Test lässt sie gegen Wegwerf-Tabellen laufen, in denen jeweils
+ * genau eine Zeile betroffen ist und eine unbedenkliche danebensteht.
  */
 final class DestructiveMigrationGuardTest extends TestCase
 {
     private const EVENTS_TABLE = 'test_guard_events';
     private const AUDIENCE_TABLE = 'test_guard_event_audience_sources';
     private const BUDGET_TABLE = 'test_guard_budget_categories';
+    private const NEWSLETTERS_TABLE = 'test_guard_newsletters';
+    private const REVISIONS_TABLE = 'test_guard_finance_revisions';
 
     protected function setUp(): void
     {
@@ -62,6 +70,25 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::BUDGET_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                project_id int(11) DEFAULT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::NEWSLETTERS_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            "CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                finance_id int(11) DEFAULT NULL,
+                action enum('create','update','reverse','lock') NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            self::REVISIONS_TABLE
         ));
     }
 
@@ -136,6 +163,59 @@ final class DestructiveMigrationGuardTest extends TestCase
         ));
     }
 
+    public function testNewsletterGuardFindsTheProjectlessNewsletter(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (project_id) VALUES (3), (NULL)',
+            self::NEWSLETTERS_TABLE
+        ));
+
+        $this->assertSame(1, $this->countFrom(
+            AllowNewslettersWithoutProject::PROJECTLESS_NEWSLETTERS_SQL,
+            ['newsletters' => self::NEWSLETTERS_TABLE]
+        ));
+    }
+
+    public function testNewsletterGuardStaysQuietWhenEveryNewsletterHasAProject(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (project_id) VALUES (3), (4)',
+            self::NEWSLETTERS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            AllowNewslettersWithoutProject::PROJECTLESS_NEWSLETTERS_SQL,
+            ['newsletters' => self::NEWSLETTERS_TABLE]
+        ));
+    }
+
+    public function testJournalGuardFindsBothTheLockEntryAndTheEntryWithoutBooking(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (finance_id, action) VALUES
+             (5, 'create'), (NULL, 'lock'), (NULL, 'update')",
+            self::REVISIONS_TABLE
+        ));
+
+        $this->assertSame(2, $this->countFrom(
+            AllowLockEntriesInFinanceJournal::UNFITTING_REVISIONS_SQL,
+            ['finance_revisions' => self::REVISIONS_TABLE]
+        ));
+    }
+
+    public function testJournalGuardStaysQuietWhenEveryEntryFitsTheNarrowerColumn(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (finance_id, action) VALUES (5, 'create'), (6, 'reverse')",
+            self::REVISIONS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            AllowLockEntriesInFinanceJournal::UNFITTING_REVISIONS_SQL,
+            ['finance_revisions' => self::REVISIONS_TABLE]
+        ));
+    }
+
     /**
      * Dieselbe Anweisung wie in der Migration, nur auf den Wegwerf-Tabellen.
      *
@@ -150,7 +230,15 @@ final class DestructiveMigrationGuardTest extends TestCase
 
     private function dropScratchTables(): void
     {
-        foreach ([self::AUDIENCE_TABLE, self::EVENTS_TABLE, self::BUDGET_TABLE] as $table) {
+        $tables = [
+            self::AUDIENCE_TABLE,
+            self::EVENTS_TABLE,
+            self::BUDGET_TABLE,
+            self::NEWSLETTERS_TABLE,
+            self::REVISIONS_TABLE,
+        ];
+
+        foreach ($tables as $table) {
             Capsule::connection()->statement('DROP TABLE IF EXISTS ' . $table);
         }
     }

@@ -23,6 +23,11 @@ final class BackfillCanManageAttendanceAllPermission extends AbstractMigration
 
     public function down(): void
     {
-        $this->execute("UPDATE roles SET can_manage_attendance_all = 0");
+        // Kein pauschaler Entzug: Seit dem Backfill ist can_manage_attendance_all
+        // ein regulär gepflegtes Einzelrecht. Wer es inzwischen über die
+        // Rollenmatrix bekommen hat, ist von den hier gesetzten Rollen nicht mehr
+        // zu unterscheiden - ein UPDATE ohne WHERE nähme beiden die volle Sicht
+        // auf die Anwesenheit. Gleiche Haltung wie in 20260731090100 und
+        // 20260731090300.
     }
 }
