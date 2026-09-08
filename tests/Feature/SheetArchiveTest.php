@@ -17,13 +17,29 @@ class SheetArchiveTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
+
         Bootstrap::setupTestDatabase();
+        // Die Transaktion beginnt vor dem ersten Schreibzugriff. Zeilen, die davor
+        // entstehen, nimmt der rollBack() in tearDown() nicht zurück.
+        Capsule::connection()->beginTransaction();
 
         // Create a test song
         $this->song = Song::create([
             'title' => 'Test Song',
             'composer' => 'Test Composer',
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        $connection = Capsule::connection();
+
+        if ($connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        parent::tearDown();
     }
 
     public function testArchiveCanBeCreatedForSong(): void
@@ -112,9 +128,9 @@ class SheetArchiveTest extends TestCase
     }
 
     /**
-     * Die Positionen werden fuer die Anzeige ohnehin mitgeladen. getTotalCount()
+     * Die Positionen werden für die Anzeige ohnehin mitgeladen. getTotalCount()
      * hat sie trotzdem erneut aus der Datenbank summiert - der Eager-Load war
-     * fuer die Summe wirkungslos und die Abfrage lief einmal pro Archiv.
+     * für die Summe wirkungslos und die Abfrage lief einmal pro Archiv.
      */
     public function testTotalCountUsesTheAlreadyLoadedLineItems(): void
     {

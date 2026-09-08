@@ -15,6 +15,7 @@ use App\Services\MailCredentialCryptoService;
 use App\Services\NameFormatterService;
 use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -38,11 +39,21 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
         parent::setUp();
 
         Bootstrap::setupTestDatabase();
+        // Die Testpersonen dieser Klasse blieben früher stehen: tearDown() leerte nur die
+        // Sitzung. Die Transaktion nimmt jede Zeile zurück, egal welcher Weg sie anlegt.
+        Capsule::connection()->beginTransaction();
+
         $_SESSION = [];
     }
 
     protected function tearDown(): void
     {
+        $connection = Capsule::connection();
+
+        if ($connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         $_SESSION = [];
 
         parent::tearDown();

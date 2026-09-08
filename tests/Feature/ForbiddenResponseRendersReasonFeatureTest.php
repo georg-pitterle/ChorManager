@@ -37,6 +37,9 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
     private Project $project;
     private User $outsider;
 
+    /** @var list<int> Stimmgruppen aus createScopedEvent(), die tearDown() wegräumt. */
+    private array $createdVoiceGroupIds = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -61,6 +64,15 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
     protected function tearDown(): void
     {
         Event::where('title', 'like', 'Verbotener Termin%')->delete();
+        // Die Hilfsgruppen aus createScopedEvent() blieben bisher stehen. Gelöscht wird
+        // nur, was diese Klasse selbst angelegt hat - ein Muster wie 'Fremdgruppe %'
+        // würde auch fremde Zeilen treffen und den Bestand hinter dem Rücken anderer
+        // Tests verändern. Sie fallen nach den Terminen: deren event_audience_sources
+        // zeigen ohne Fremdschlüssel auf sie und wären sonst verwaist.
+        if ($this->createdVoiceGroupIds !== []) {
+            VoiceGroup::whereIn('id', $this->createdVoiceGroupIds)->delete();
+            $this->createdVoiceGroupIds = [];
+        }
         $this->project->delete();
         $this->outsider->delete();
         $_SESSION = [];
@@ -172,6 +184,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
         ], $attributes));
 
         $group = VoiceGroup::create(['name' => 'Fremdgruppe ' . bin2hex(random_bytes(4))]);
+        $this->createdVoiceGroupIds[] = (int) $group->id;
         EventAudienceSource::create([
             'event_id' => $event->id,
             'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,

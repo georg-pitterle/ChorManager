@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\BackupLimitReachedException;
 use App\Services\BackupService;
 use App\Services\SessionInvalidationService;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
@@ -23,6 +24,9 @@ final class BackupServiceTest extends TestCase
     {
         parent::setUp();
         Bootstrap::setupTestDatabase();
+        // Der Dump läuft hier über FakeDumpRunner, also ohne zweite Verbindung: eine
+        // Transaktion ist unbedenklich und nimmt die angelegte Person wieder zurück.
+        Capsule::connection()->beginTransaction();
 
         $this->backupDir = sys_get_temp_dir() . '/chormanager_backup_test_' . bin2hex(random_bytes(4));
         $this->dumpRunner = new FakeDumpRunner();
@@ -30,6 +34,12 @@ final class BackupServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        $connection = Capsule::connection();
+
+        if ($connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
         foreach (glob($this->backupDir . '/*') ?: [] as $file) {
             unlink($file);
         }

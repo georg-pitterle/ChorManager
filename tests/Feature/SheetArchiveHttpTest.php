@@ -58,6 +58,10 @@ class SheetArchiveHttpTest extends TestCase
         // Reset session
         $_SESSION = [];
 
+        // Die Transaktion beginnt vor dem ersten Schreibzugriff. Stand sie weiter unten,
+        // entstand der Song davor und überlebte den rollBack() in tearDown().
+        self::$capsule?->connection()->beginTransaction();
+
         // Create test song
         $this->song = Song::create([
             'title' => 'Test Song',
@@ -67,8 +71,6 @@ class SheetArchiveHttpTest extends TestCase
         // Create mock container with services
         $container = $this->createMockContainer();
         $this->controller = new SheetArchiveController($container);
-
-        self::$capsule?->connection()->beginTransaction();
     }
 
     protected function tearDown(): void

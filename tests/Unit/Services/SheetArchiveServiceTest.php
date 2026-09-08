@@ -9,6 +9,7 @@ use App\Models\SheetArchiveLineItem;
 use App\Models\Song;
 use App\Models\Project;
 use App\Services\SheetArchiveService;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -20,7 +21,13 @@ class SheetArchiveServiceTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
+
         Bootstrap::setupTestDatabase();
+        // Die Transaktion beginnt vor dem ersten Schreibzugriff. Zeilen, die davor
+        // entstehen, nimmt der rollBack() in tearDown() nicht zurück.
+        Capsule::connection()->beginTransaction();
+
         $this->service = new SheetArchiveService();
 
         // Create a test song (no project_id - songs are repertoire-agnostic in the new schema)
@@ -29,6 +36,17 @@ class SheetArchiveServiceTest extends TestCase
             'composer' => 'Test Composer',
         ]);
         $this->testSongId = $song->id;
+    }
+
+    protected function tearDown(): void
+    {
+        $connection = Capsule::connection();
+
+        if ($connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+
+        parent::tearDown();
     }
 
     public function testSaveArchiveDataCreatesNewArchive(): void
