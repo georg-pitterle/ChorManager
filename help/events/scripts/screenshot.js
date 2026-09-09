@@ -136,6 +136,46 @@ async function main() {
         await page.locator('.dashboard-shell').waitFor({ state: 'visible' });
         await shot(page, '07-event-types');
 
+        // 7a. Neuen Termin-Typ anlegen. Bei offenem Modal kein fullPage: das
+        // Scroll-Stitching zeichnet Navbar und Backdrop sonst mehrfach ins Bild.
+        await clickAndWaitForEvent(
+            page,
+            page.locator('[data-bs-target="#createTypeModal"]'),
+            '#createTypeModal',
+            'shown.bs.modal'
+        );
+        await shot(page, '11-event-type-new-modal', { fullPage: false });
+        await clickAndWaitForEvent(
+            page,
+            page.locator('#createTypeModal [data-bs-dismiss="modal"]').first(),
+            '#createTypeModal',
+            'hidden.bs.modal'
+        );
+
+        // 7b. Bestehenden Termin-Typ bearbeiten
+        const editTypeTrigger = page.locator('[data-bs-target^="#editTypeModal"]').first();
+        const editTypeTarget = await editTypeTrigger.getAttribute('data-bs-target');
+        await clickAndWaitForEvent(page, editTypeTrigger, editTypeTarget, 'shown.bs.modal');
+        await shot(page, '12-event-type-edit-modal', { fullPage: false });
+        await clickAndWaitForEvent(
+            page,
+            page.locator(`${editTypeTarget} [data-bs-dismiss="modal"]`).first(),
+            editTypeTarget,
+            'hidden.bs.modal'
+        );
+
+        // 7c. Loeschabfrage mit dem Hinweis auf die betroffenen Termine
+        const deleteTypeTrigger = page.locator('[data-bs-target^="#deleteTypeModal"]').first();
+        const deleteTypeTarget = await deleteTypeTrigger.getAttribute('data-bs-target');
+        await clickAndWaitForEvent(page, deleteTypeTrigger, deleteTypeTarget, 'shown.bs.modal');
+        await shot(page, '13-event-type-delete-modal', { fullPage: false });
+        await clickAndWaitForEvent(
+            page,
+            page.locator(`${deleteTypeTarget} [data-bs-dismiss="modal"]`).first(),
+            deleteTypeTarget,
+            'hidden.bs.modal'
+        );
+
         // 8. Anwesenheitsliste
         await page.goto(`${BASE_URL}/events?view=list&show_old_events=1`, { waitUntil: 'networkidle' });
         const attendanceLink = page.locator('#eventsTable tbody tr a', { hasText: 'Anwesenheit' }).first();

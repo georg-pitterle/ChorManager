@@ -77,18 +77,19 @@ Dazu wählst du die Darstellung: als **ganztägiger Termin** am Fälligkeitstag 
 
 Aufgenommen werden nur Aufgaben, die dir zugewiesen sind, ein Fälligkeitsdatum tragen und noch nicht abgeschlossen sind. Beide Links nutzen denselben Zugang: Erzeugst du eine neue Adresse, gilt die alte für Termine **und** Aufgaben nicht mehr.
 
-## 7. Termin-Typen verwalten
+## 7. Termin-Typen
 
-Unter **Verwaltung → Termin-Typen** legst du die Kategorien fest, mit denen Termine eingefärbt und gefiltert werden (z. B. Probe, Auftritt, Sitzung).
+Jeder Termin trägt einen Typ – Probe, Auftritt, Sitzung –, und dieser Typ bestimmt die Farbe in Liste und Kalender sowie den Filter darüber. Gepflegt werden die Typen unter **Verwaltung → Termin-Typen**; der Menüpunkt braucht dasselbe Recht wie das Anlegen von Terminen.
 
 ![Übersicht der Termin-Typen mit Farbcodierung](images/events/07-event-types.png)
 
-Über **Termin-Typ hinzufügen** legst du einen neuen Typ mit Name und Farbe an. Beim Löschen eines Typs verlieren bestehende Termine mit diesem Typ lediglich die Zuordnung – sie bleiben erhalten.
+Anlegen, Umbenennen, Umfärben und was beim Löschen mit den bestehenden Terminen passiert, steht in der eigenen Anleitung [Termin-Typen](events-event-types).
 
 ## Anleitungen
 
 - [Anwesenheit erfassen](events-attendance) – Anwesenheitslisten je Termin führen und auswerten.
 - [Anmeldungen (Zu-/Absagen)](events-registrations) – Wie Mitglieder sich zu Terminen an- und abmelden und wie Vertretungen funktionieren.
+- [Termin-Typen](events-event-types) – Kategorien und Farben der Termine anlegen, ändern und löschen.
 
 ## Häufige Stolperfallen
 
