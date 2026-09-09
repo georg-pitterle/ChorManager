@@ -28,6 +28,7 @@ use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Queries\NewsletterTemplateQuery;
+use App\Util\PasswordHasher;
 use DOMDocument;
 use DOMXPath;
 use PHPUnit\Framework\TestCase;
@@ -73,7 +74,7 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
 
         return User::create([
             'email' => "decoupling_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => $active ? 1 : 0,

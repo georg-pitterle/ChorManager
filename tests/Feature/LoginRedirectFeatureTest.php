@@ -14,6 +14,7 @@ use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use App\Util\SafeRedirect;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -46,7 +47,7 @@ class LoginRedirectFeatureTest extends TestCase
             'first_name' => 'Redirect',
             'last_name' => 'Tester',
             'email' => 'redirect.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash($this->userPassword, PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash($this->userPassword),
             'is_active' => 1,
         ]);
         $this->user->roles()->attach($this->role->id);

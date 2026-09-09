@@ -8,6 +8,7 @@ use App\Commands\RotateMailCredentialKeyCommand;
 use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Command\Command;
@@ -45,7 +46,7 @@ final class RotateMailCredentialKeyCommandFeatureTest extends TestCase
             'first_name' => 'Rotation',
             'last_name' => 'Tester',
             'email' => 'rotation.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
     }

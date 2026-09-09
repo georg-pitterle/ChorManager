@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use DI\ContainerBuilder;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -88,7 +89,7 @@ final class MailBadgeAlwaysVisibleFeatureTest extends TestCase
             'first_name' => 'Badge',
             'last_name' => 'Visible',
             'email' => 'badge.visible.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 

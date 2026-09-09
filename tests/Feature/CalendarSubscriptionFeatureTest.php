@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\CalendarSubscriptionToken;
 use App\Models\User;
 use App\Services\CalendarSubscriptionService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -33,7 +34,7 @@ final class CalendarSubscriptionFeatureTest extends TestCase
         $this->service = new CalendarSubscriptionService();
         $this->user = User::create([
             'email' => 'kalender-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Kalender',
             'last_name' => 'Abonnentin',
             'is_active' => 1,

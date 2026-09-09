@@ -13,6 +13,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\MailQueueService;
 use App\Services\RegistrationReminderService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
@@ -68,7 +69,7 @@ class RegistrationReminderServiceFeatureTest extends TestCase
             'first_name' => $firstName,
             'last_name' => $lastName,
             'email' => "reminder_{$suffix}@example.test",
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
     }

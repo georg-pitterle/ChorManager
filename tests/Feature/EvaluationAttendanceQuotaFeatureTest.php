@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -82,7 +83,7 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             'first_name' => 'Quote',
             'last_name' => 'Testperson ' . $suffix,
             'email' => 'quota-' . $suffix . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
         Capsule::table('project_users')->insert([

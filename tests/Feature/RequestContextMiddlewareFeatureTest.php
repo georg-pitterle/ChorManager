@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\NameFormatterService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -171,7 +172,7 @@ final class RequestContextMiddlewareFeatureTest extends TestCase
             'first_name' => 'Context',
             'last_name' => 'Tester',
             'email' => 'context.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\AttachmentAccessRegistry;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -62,7 +63,7 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $this->sponsorOwnerId = (int) User::create([
             'email' => 'registry_owner_' . $suffix . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Sina',
             'last_name' => 'Sponsorbesitz',
             'is_active' => 1,
@@ -70,7 +71,7 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $this->requestingUserId = (int) User::create([
             'email' => 'registry_requester_' . $suffix . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Rudi',
             'last_name' => 'Anfragend',
             'is_active' => 1,
@@ -78,7 +79,7 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $this->memberUserId = (int) User::create([
             'email' => 'registry_member_' . $suffix . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Mira',
             'last_name' => 'Mitglied',
             'is_active' => 1,

@@ -22,6 +22,7 @@ use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
+use App\Util\PasswordHasher;
 use DOMDocument;
 use DOMXPath;
 use PHPUnit\Framework\TestCase;
@@ -69,7 +70,7 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
 
         return User::create([
             'email' => "placeholder_ui_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => 1,

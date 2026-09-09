@@ -13,6 +13,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -99,7 +100,7 @@ final class UserEmailValidationFeatureTest extends TestCase
             'first_name' => 'Valid',
             'last_name' => 'User',
             'email' => $oldEmail,
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($this->role->id);

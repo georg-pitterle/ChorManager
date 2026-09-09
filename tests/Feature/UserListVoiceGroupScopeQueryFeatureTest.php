@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Queries\UserQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -47,7 +48,7 @@ class UserListVoiceGroupScopeQueryFeatureTest extends TestCase
         foreach ($people as $key => [$firstName, $lastName, $isActive, $voiceGroupId]) {
             $user = User::create([
                 'email' => strtolower($key) . '_' . bin2hex(random_bytes(4)) . '@example.test',
-                'password' => password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT),
+                'password' => PasswordHasher::hash(bin2hex(random_bytes(8))),
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'is_active' => $isActive,

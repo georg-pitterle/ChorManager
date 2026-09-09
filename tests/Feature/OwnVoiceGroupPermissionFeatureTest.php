@@ -8,6 +8,7 @@ use App\Logging\RequestContext;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -89,7 +90,7 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
             'first_name' => 'Vera',
             'last_name' => 'Tretung',
             'email' => 'vera.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);
@@ -115,7 +116,7 @@ class OwnVoiceGroupPermissionFeatureTest extends TestCase
             'first_name' => 'Mit',
             'last_name' => 'Glied',
             'email' => 'mit.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);

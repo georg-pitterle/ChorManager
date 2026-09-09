@@ -15,6 +15,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\AttendanceScopeService;
 use App\Services\MailQueueService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
@@ -76,7 +77,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
     {
         return (int) Capsule::table('users')->insertGetId([
             'email' => 'target' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Target',
             'last_name' => 'User',
             'is_active' => 1,

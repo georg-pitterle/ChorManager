@@ -11,6 +11,7 @@ use App\Queries\UserQuery;
 use App\Services\MailCredentialCryptoService;
 use App\Services\NameFormatterService;
 use App\Services\PasswordPolicyService;
+use App\Util\PasswordHasher;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -44,7 +45,7 @@ class ProfileFeatureTest extends TestCase
             'first_name' => 'Project',
             'last_name' => 'Member',
             'email' => 'project.member.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('Old-Password-1'),
             'is_active' => 1,
         ]);
 
@@ -110,7 +111,7 @@ class ProfileFeatureTest extends TestCase
             'first_name' => 'Password',
             'last_name' => 'Changer',
             'email' => 'password.changer.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('Old-Password-1'),
             'is_active' => 1,
         ]);
 
@@ -164,7 +165,7 @@ class ProfileFeatureTest extends TestCase
             'first_name' => 'Mailbox',
             'last_name' => 'Owner',
             'email' => 'mailbox.owner.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('Old-Password-1'),
             'is_active' => 1,
         ]);
 
@@ -232,7 +233,7 @@ class ProfileFeatureTest extends TestCase
             'first_name' => 'Profile',
             'last_name' => 'Owner',
             'email' => $originalEmail,
-            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('Old-Password-1'),
             'is_active' => 1,
         ]);
 

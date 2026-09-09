@@ -16,6 +16,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Queries\ProjectQuery;
 use App\Services\AttendanceScopeService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Psr\Log\NullLogger;
@@ -184,14 +185,14 @@ class AttendanceRequiredFeatureTest extends TestCase
             'first_name' => 'ImScope',
             'last_name' => 'Anwesenheitsberechtigt',
             'email' => 'attendance-scope-in@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
         $outScope = User::create([
             'first_name' => 'AusserhalbScope',
             'last_name' => 'Anwesenheitsfremd',
             'email' => 'attendance-scope-out@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
 
@@ -320,7 +321,7 @@ class AttendanceRequiredFeatureTest extends TestCase
             'first_name' => 'Anwesenheits',
             'last_name' => 'Testmitglied-Task9',
             'email' => 'attendance-required-task9@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
 

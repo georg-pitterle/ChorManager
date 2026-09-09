@@ -13,6 +13,7 @@ use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -44,7 +45,7 @@ final class AuthLoggingTest extends TestCase
             'first_name' => 'Admin',
             'last_name' => 'Example',
             'email' => 'admin@example.org',
-            'password' => password_hash('correct-password', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('correct-password'),
             'is_active' => 1,
         ]);
         $this->user->roles()->attach($this->role->id);
@@ -134,7 +135,7 @@ final class AuthLoggingTest extends TestCase
             'first_name' => 'Inactive',
             'last_name' => 'Member',
             'email' => $inactiveEmail,
-            'password' => password_hash('correct-password', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('correct-password'),
             'is_active' => 0,
         ]);
 

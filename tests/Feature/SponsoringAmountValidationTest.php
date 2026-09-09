@@ -34,6 +34,13 @@ final class SponsoringAmountValidationTest extends TestCase
         Bootstrap::setupTestDatabase();
         Capsule::connection()->beginTransaction();
 
+        // Erst leeren, dann das Recht setzen: SponsoringPolicy liest die Sitzung im
+        // Konstruktor. Eine user_id, die eine frühere Testklasse im selben Prozess
+        // zurückgelassen hatte, wurde sonst als Urheber an die neue Vereinbarung
+        // geschrieben - und der Fremdschlüssel auf users wies sie ab, sobald es die
+        // Person in dieser Datenbank nicht gab. Im sequenziellen Lauf fiel das nie auf,
+        // weil dort immer eine passende Kennung in der Sitzung stand.
+        $_SESSION = [];
         $_SESSION['can_manage_sponsoring'] = true;
         $this->sponsorships = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
         $this->packages = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy());

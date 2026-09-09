@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\RoleController;
 use App\Models\Role;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -71,7 +72,7 @@ final class RoleDeletionFeatureTest extends TestCase
             'first_name' => 'Zuweisung',
             'last_name' => 'Testperson',
             'email' => 'zuweisung' . bin2hex(random_bytes(3)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => $active,
         ]);
 

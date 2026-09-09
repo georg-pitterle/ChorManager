@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventAudienceSource;
 use App\Models\User;
 use App\Services\EventAudienceService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -63,7 +64,7 @@ class EventScopeVisibilityFeatureTest extends TestCase
             'first_name' => 'Sicht',
             'last_name' => 'Testperson',
             'email' => 'sicht-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
     }

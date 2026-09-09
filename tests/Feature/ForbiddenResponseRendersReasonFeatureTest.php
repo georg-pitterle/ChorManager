@@ -15,6 +15,7 @@ use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
@@ -54,7 +55,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
             'first_name' => 'Aussen',
             'last_name' => 'Stehend',
             'email' => 'forbidden.' . bin2hex(random_bytes(5)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
 

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\BackupLimitReachedException;
 use App\Services\BackupService;
 use App\Services\SessionInvalidationService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -20,9 +21,17 @@ final class BackupServiceTest extends TestCase
     private string $backupDir;
     private FakeDumpRunner $dumpRunner;
 
+    /**
+     * Kennung und Reihenfolge eines Backups haben Sekundenauflösung. Statt zwischen
+     * zwei Backups eine echte Sekunde verstreichen zu lassen - sechsmal im Lauf, knapp
+     * sieben Sekunden - stellt der Test die Uhr des Dienstes selbst weiter.
+     */
+    private int $clockSeconds = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->clockSeconds = 1_700_000_000;
         Bootstrap::setupTestDatabase();
         // Der Dump läuft hier über FakeDumpRunner, also ohne zweite Verbindung: eine
         // Transaktion ist unbedenklich und nimmt die angelegte Person wieder zurück.
@@ -61,8 +70,18 @@ final class BackupServiceTest extends TestCase
             true,
             'chormanager_test',
             'test-version',
-            $mailKeyId
+            $mailKeyId,
+            new SessionInvalidationService(),
+            fn(): int => $this->clockSeconds
         );
+    }
+
+    /**
+     * Eine Sekunde weiter - genug, damit das nächste Backup eine eigene Kennung bekommt.
+     */
+    private function advanceClock(): void
+    {
+        $this->clockSeconds++;
     }
 
     public function testCreateManualBackupWritesDataAndMetadataFiles(): void
@@ -93,9 +112,9 @@ final class BackupServiceTest extends TestCase
         $service = $this->makeService(maxAuto: 2);
 
         $first = $service->create(BackupService::TYPE_AUTO, null);
-        usleep(1100000);
+        $this->advanceClock();
         $second = $service->create(BackupService::TYPE_AUTO, null);
-        usleep(1100000);
+        $this->advanceClock();
         $third = $service->create(BackupService::TYPE_AUTO, null);
 
         $remainingIds = array_column($service->list(), 'id');
@@ -116,11 +135,11 @@ final class BackupServiceTest extends TestCase
         $wideLimit = $this->makeService(maxAuto: 5);
 
         $wideLimit->create(BackupService::TYPE_AUTO, null);
-        usleep(1100000);
+        $this->advanceClock();
         $wideLimit->create(BackupService::TYPE_AUTO, null);
-        usleep(1100000);
+        $this->advanceClock();
         $third = $wideLimit->create(BackupService::TYPE_AUTO, null);
-        usleep(1100000);
+        $this->advanceClock();
 
         $narrowLimit = $this->makeService(maxAuto: 2);
         $fourth = $narrowLimit->create(BackupService::TYPE_AUTO, null);
@@ -137,7 +156,7 @@ final class BackupServiceTest extends TestCase
         $service = $this->makeService();
 
         $first = $service->create(BackupService::TYPE_MANUAL, 1);
-        usleep(1100000);
+        $this->advanceClock();
         $second = $service->create(BackupService::TYPE_MANUAL, 1);
 
         $entries = $service->list();
@@ -179,7 +198,7 @@ final class BackupServiceTest extends TestCase
         // sonst mit einer Integritätsverletzung fehl.
         $user = User::create([
             'email' => 'backup_' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Bea',
             'last_name' => 'Sicherung',
             'is_active' => 1,
@@ -188,7 +207,7 @@ final class BackupServiceTest extends TestCase
         RememberLogin::create([
             'user_id' => (int) $user->id,
             'selector' => bin2hex(random_bytes(9)),
-            'token_hash' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'token_hash' => PasswordHasher::hash('irrelevant'),
             'expires_at' => date('Y-m-d H:i:s', time() + 86400),
             'created_at' => date('Y-m-d H:i:s'),
         ]);

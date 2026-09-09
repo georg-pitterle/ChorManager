@@ -20,6 +20,7 @@ use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\TcLibPdfCanvas;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -98,6 +99,7 @@ final class FinanceTemplateRenderTest extends TestCase
         $environment->addGlobal('csrf_token', 'test-token');
         $environment->addGlobal('settings', ['modules' => ['finance' => true, 'budget' => true]]);
         $this->registerMailBadgeStub($environment);
+        $this->registerAttachmentPreviewStub($environment);
         $environment->addFunction(new TwigFunction('asset_path', static fn(string $path): string => $path));
         $environment->addFunction(new TwigFunction(
             'navigation',
@@ -240,7 +242,7 @@ final class FinanceTemplateRenderTest extends TestCase
     {
         $user = User::create([
             'email' => 'journal-render-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Notburga',
             'last_name' => 'Schöpfer',
             'is_active' => 1,

@@ -11,6 +11,7 @@ use App\Models\EventRegistration;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\AttendanceScopeService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -36,7 +37,7 @@ class RegistrationSaveFeatureTest extends TestCase
         // mit ModelNotFoundException stehen.
         $this->user = User::create([
             'email' => 'registration_save_' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Rita',
             'last_name' => 'Anmeldung',
             'is_active' => 1,

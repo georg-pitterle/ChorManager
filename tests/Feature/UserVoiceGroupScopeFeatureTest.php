@@ -15,6 +15,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -60,7 +61,7 @@ class UserVoiceGroupScopeFeatureTest extends TestCase
             'first_name' => 'Ziel',
             'last_name' => 'Person',
             'email' => 'vg.target.' . $suffix . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
 

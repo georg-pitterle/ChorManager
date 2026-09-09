@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Project;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -49,7 +50,7 @@ class ProjectAssignmentUnknownProjectFeatureTest extends TestCase
             'first_name' => 'Zuordnung',
             'last_name' => 'Testperson',
             'email' => 'projektzuordnung-' . $suffix . '@example.test',
-            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
 

@@ -12,6 +12,7 @@ use App\Persistence\ProjectPersistence;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -91,7 +92,7 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
     {
         return User::create([
             'email' => 'projectquery_' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => $firstName,
             'last_name' => $lastName,
             'is_active' => 1,

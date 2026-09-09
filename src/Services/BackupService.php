@@ -23,11 +23,23 @@ class BackupService
         private readonly string $dbDatabase,
         private readonly string $appVersion,
         private readonly ?string $mailKeyId = null,
-        private readonly SessionInvalidationService $sessionInvalidation = new SessionInvalidationService()
+        private readonly SessionInvalidationService $sessionInvalidation = new SessionInvalidationService(),
+        /**
+         * Quelle der Zeitstempel, die Kennung und Reihenfolge eines Backups bestimmen.
+         * Beides hat Sekundenauflösung; im Test musste deshalb zwischen zwei Backups
+         * eine ganze Sekunde vergehen, damit sie sich unterscheiden. Sechs solche
+         * Wartezeiten kosteten den Testlauf knapp sieben Sekunden.
+         */
+        private readonly ?\Closure $clock = null
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
         }
+    }
+
+    private function now(): int
+    {
+        return $this->clock === null ? time() : (int) ($this->clock)();
     }
 
     /**
@@ -94,7 +106,10 @@ class BackupService
             }
         }
 
-        $base = sprintf('backup_%s_%s_%s', $type, gmdate('Ymd\THis\Z'), bin2hex(random_bytes(4)));
+        // Kennung und Zeitstempel stammen aus demselben Augenblick, sonst kann ein
+        // Backup über einen Sekundenwechsel hinweg zwei verschiedene Zeiten tragen.
+        $now = $this->now();
+        $base = sprintf('backup_%s_%s_%s', $type, gmdate('Ymd\THis\Z', $now), bin2hex(random_bytes(4)));
         $dataPath = $this->backupDir . '/' . $base . ($this->gzip ? '.sql.gz' : '.sql');
         $metaPath = $this->backupDir . '/' . $base . '.json';
 
@@ -117,7 +132,7 @@ class BackupService
         $metadata = [
             'id' => $base,
             'type' => $type,
-            'created_at' => gmdate('c'),
+            'created_at' => gmdate('c', $now),
             'created_by' => $userId,
             'size' => filesize($dataPath),
             'sha256' => hash_file('sha256', $dataPath),

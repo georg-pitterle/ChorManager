@@ -16,6 +16,7 @@ use App\Services\EventAudienceService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Policies\TaskPolicy;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -269,7 +270,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
     {
         return User::create([
             'email' => 'feed.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => $firstName,
             'last_name' => $lastName,
             'is_active' => 1,

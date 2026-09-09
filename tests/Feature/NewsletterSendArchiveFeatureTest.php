@@ -19,6 +19,7 @@ use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
+use App\Util\PasswordHasher;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -106,7 +107,7 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
 
         return User::create([
             'email' => "recipient_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'User',
             'is_active' => $active ? 1 : 0,

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -53,7 +54,7 @@ class EventRegistrationModelFeatureTest extends TestCase
         // frisch aufgesetzten Datenbank läuft.
         $user = User::create([
             'email' => 'registration_model_' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Rudi',
             'last_name' => 'Rückmeldung',
             'is_active' => 1,

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Queries\UserQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -47,7 +48,7 @@ class UserListEagerLoadFeatureTest extends TestCase
 
         $user = User::create([
             'email' => 'liste_' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash(bin2hex(random_bytes(8))),
             'first_name' => 'Doris',
             'last_name' => 'Diskant',
             'is_active' => 1,

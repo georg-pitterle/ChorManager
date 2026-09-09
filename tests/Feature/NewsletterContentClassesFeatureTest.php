@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Newsletter\ContentClasses;
 use App\Services\HtmlSanitizer;
 use App\Services\NewsletterMailRenderer;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -42,7 +43,7 @@ final class NewsletterContentClassesFeatureTest extends TestCase
         $suffix = bin2hex(random_bytes(6));
         $creator = User::create([
             'email' => "classes_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Anna',
             'last_name' => 'Berger',
             'is_active' => 1,

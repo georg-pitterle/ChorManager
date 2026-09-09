@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -182,7 +183,7 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
             'first_name' => 'Archiviert',
             'last_name' => 'Person',
             'email' => 'audience.archived.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 0,
         ]);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Util\PasswordHasher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -338,7 +339,7 @@ class ProfileController
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
-        $user->password = password_hash($newPassword, PASSWORD_DEFAULT);
+        $user->password = PasswordHasher::hash($newPassword);
         $user->save();
 
         // Von außen ist nicht erkennbar, ob der Wechsel freiwillig oder ein Ernstfall

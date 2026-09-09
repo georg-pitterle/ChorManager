@@ -14,6 +14,7 @@ use App\Services\NameFormatterService;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\SheetArchiveService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 use Throwable;
@@ -153,7 +154,7 @@ final class ServiceLayerReviewFixesFeatureTest extends TestCase
 
         return User::create([
             'email' => "service_review_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => 1,

@@ -12,6 +12,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -56,7 +57,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
                 'first_name' => 'Anwesenheit',
                 'last_name' => 'Mitglied ' . $name . ' ' . $suffix,
                 'email' => 'attendance-robust-' . $index . '-' . $suffix . '@example.test',
-                'password' => password_hash('test123', PASSWORD_DEFAULT),
+                'password' => PasswordHasher::hash('test123'),
                 'is_active' => true,
             ]);
         }

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\RememberLogin;
 use App\Models\User;
 use App\Services\RememberLoginService;
+use App\Util\PasswordHasher;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -69,7 +70,7 @@ class RememberLoginServiceFeatureTest extends TestCase
             'first_name' => 'Remember',
             'last_name' => 'Tester',
             'email' => 'remember.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 

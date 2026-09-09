@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\MailQueueAdminService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -48,7 +49,7 @@ class DashboardFeatureTest extends TestCase
 
         return User::create([
             'email' => "dashboard_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => 1,

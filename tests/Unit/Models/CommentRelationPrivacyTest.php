@@ -8,6 +8,7 @@ use App\Models\Comment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -43,7 +44,7 @@ final class CommentRelationPrivacyTest extends TestCase
             'last_name' => 'Hangöbl',
             // naming:ascii - E-Mail-Adressen bleiben technisch ASCII.
             'email' => 'rosa.hangoebl.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 

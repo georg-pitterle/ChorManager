@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Util\PasswordHasher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -228,7 +229,7 @@ class UserController
             $user->email = $email;
             // users.password is NOT NULL in the current schema; generate an internal one-time placeholder hash
             $temporaryPassword = bin2hex(random_bytes(32));
-            $user->password = password_hash($temporaryPassword, PASSWORD_DEFAULT);
+            $user->password = PasswordHasher::hash($temporaryPassword);
             $user->is_active = 1;
 
             $this->userPersistence->save($user);
@@ -930,7 +931,7 @@ class UserController
             InvitationToken::create([
                 'user_id'    => $targetUser->id,
                 'selector'   => bin2hex(random_bytes(9)),
-                'token_hash' => password_hash($token, PASSWORD_DEFAULT),
+                'token_hash' => PasswordHasher::hash($token),
                 'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);

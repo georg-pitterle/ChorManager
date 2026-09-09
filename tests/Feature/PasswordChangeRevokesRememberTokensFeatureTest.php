@@ -15,6 +15,7 @@ use App\Services\MailCredentialCryptoService;
 use App\Services\NameFormatterService;
 use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -70,7 +71,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
         $token = bin2hex(random_bytes(32));
         PasswordReset::create([
             'email' => $user->email,
-            'token' => password_hash($token, PASSWORD_DEFAULT),
+            'token' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -100,7 +101,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
         InvitationToken::create([
             'user_id' => $user->id,
             'selector' => bin2hex(random_bytes(9)),
-            'token_hash' => password_hash($token, PASSWORD_DEFAULT),
+            'token_hash' => PasswordHasher::hash($token),
             'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -200,7 +201,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
             'first_name' => 'Remember',
             'last_name' => 'Tester',
             'email' => $prefix . '.' . bin2hex(random_bytes(5)) . '@example.test',
-            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('Old-Password-1'),
             'is_active' => 1,
         ]);
     }

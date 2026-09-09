@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\RememberLogin;
 use App\Util\ClientIpResolver;
+use App\Util\PasswordHasher;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -33,7 +34,7 @@ class RememberLoginService
         RememberLogin::create([
             'user_id' => $userId,
             'selector' => $selector,
-            'token_hash' => password_hash($validator, PASSWORD_DEFAULT),
+            'token_hash' => PasswordHasher::hash($validator),
             'expires_at' => date('Y-m-d H:i:s', $expiresAt),
             'created_at' => date('Y-m-d H:i:s'),
             'last_used_at' => null,

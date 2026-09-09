@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -236,7 +237,7 @@ final class SessionAuthServicePermissionMappingTest extends TestCase
             'first_name' => 'Alexa',
             'last_name' => 'Meier',
             'email' => 'rechte.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
     }

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\NameFormatterService;
+use App\Util\AttachmentPreview;
 use Slim\Views\Twig;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
@@ -40,6 +41,7 @@ trait TwigViewStubs
         $environment->addGlobal('current_path', $currentPath);
         $environment->addGlobal('app_settings', []);
         $this->registerMailBadgeStub($environment);
+        $this->registerAttachmentPreviewStub($environment);
 
         $environment->addFunction(new TwigFunction(
             'asset_path',
@@ -55,6 +57,23 @@ trait TwigViewStubs
         ));
 
         return $twig;
+    }
+
+    /**
+     * Die Funktion, mit der Listen entscheiden, ob ein Anhang einen Vorschau-Knopf
+     * bekommt. Produktiv steht sie in Dependencies.php; hier nimmt sie dieselbe Klasse,
+     * damit keine zweite Liste entsteht.
+     *
+     * Ohne sie bricht schon das Übersetzen der Vorlage ab - templates/finances/index.twig
+     * ruft sie auf. Aufgefallen ist das erst im parallelen Lauf: bis dahin hatte ein
+     * anderer Test die Vorlage im selben Prozess bereits übersetzt.
+     */
+    protected function registerAttachmentPreviewStub(Environment $environment): void
+    {
+        $environment->addFunction(new TwigFunction(
+            'attachment_previewable',
+            static fn (?string $mimeType): bool => AttachmentPreview::isModalPreviewable((string) $mimeType)
+        ));
     }
 
     /**

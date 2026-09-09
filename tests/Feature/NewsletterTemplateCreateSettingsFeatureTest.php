@@ -18,6 +18,7 @@ use App\Queries\NewsletterTemplateQuery;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -182,7 +183,7 @@ final class NewsletterTemplateCreateSettingsFeatureTest extends TestCase
 
         return User::create([
             'email' => "template_create_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Vorlagen',
             'last_name' => 'Person',
             'is_active' => 1,

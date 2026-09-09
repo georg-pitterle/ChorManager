@@ -10,6 +10,7 @@ use App\Models\EventRegistration;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\PendingRegistrationSummaryService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -69,7 +70,7 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'first_name' => 'Pending',
             'last_name' => 'Anmelder',
             'email' => 'pending-reg@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
         self::$capsule?->table('user_voice_groups')->insert([

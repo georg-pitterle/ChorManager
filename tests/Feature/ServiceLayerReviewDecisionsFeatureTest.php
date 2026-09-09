@@ -18,6 +18,7 @@ use App\Services\NewsletterLockingService;
 use App\Services\RateLimiterService;
 use App\Services\SheetArchiveService;
 use App\Util\AppUrlResolver;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
@@ -31,9 +32,25 @@ use Tests\Unit\Bootstrap;
  */
 final class ServiceLayerReviewDecisionsFeatureTest extends TestCase
 {
+    /**
+     * Die Basisadresse liest EnvHelper aus $_ENV, $_SERVER und getenv() - in dieser
+     * Reihenfolge. Ein blosses unset() auf $_ENV lässt deshalb DDEV_PRIMARY_URL aus der
+     * Container-Umgebung durch, und die Prüfungen zur Basisadresse fanden dort eine
+     * Adresse vor, wo keine stehen sollte. Grün blieben sie bisher nur, weil
+     * AppUrlResolverFeatureTest die Werte vorher aus dem Prozess entfernt hatte - eine
+     * Abhängigkeit von der Reihenfolge, die im parallelen Lauf sofort auffiel.
+     */
+    private const ENVIRONMENT_KEYS = [
+        'APP_ENV',
+        'APP_URL',
+        'DDEV_PRIMARY_URL',
+        'DDEV_PRIMARY_URL_WITHOUT_PORT',
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->clearEnvironment();
         Bootstrap::setupTestDatabase();
         Bootstrap::getCapsule()?->connection()->beginTransaction();
     }
@@ -45,10 +62,23 @@ final class ServiceLayerReviewDecisionsFeatureTest extends TestCase
             $connection->rollBack();
         }
 
-        unset($_ENV['APP_ENV'], $_ENV['APP_URL'], $_ENV['DDEV_PRIMARY_URL'], $_ENV['DDEV_PRIMARY_URL_WITHOUT_PORT']);
-        unset($_SERVER['APP_ENV'], $_SERVER['APP_URL']);
+        $this->clearEnvironment();
 
         parent::tearDown();
+    }
+
+    private function clearEnvironment(): void
+    {
+        foreach (self::ENVIRONMENT_KEYS as $name) {
+            unset($_ENV[$name], $_SERVER[$name]);
+            putenv($name);
+        }
+
+        // APP_ENV bleibt nicht leer zurück: daran hängt unter anderem der abgesenkte
+        // bcrypt-Aufwand in App\Util\PasswordHasher, und ein Testlauf ohne diese
+        // Kennzeichnung hasht ab hier wieder mit vollem Aufwand.
+        $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'test';
+        putenv('APP_ENV=test');
     }
 
     // ---------------------------------------------------------------- Punkt 1
@@ -344,7 +374,7 @@ final class ServiceLayerReviewDecisionsFeatureTest extends TestCase
 
         return User::create([
             'email' => "review_decisions_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => 1,

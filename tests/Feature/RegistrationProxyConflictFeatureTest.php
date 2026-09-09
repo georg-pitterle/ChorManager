@@ -10,6 +10,7 @@ use App\Models\EventRegistration;
 use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -68,7 +69,7 @@ final class RegistrationProxyConflictFeatureTest extends TestCase
 
         return User::create([
             'email' => "proxy_conflict_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => 1,

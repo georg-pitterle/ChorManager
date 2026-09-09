@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeViewService;
 use App\Services\MailCredentialCryptoService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -58,7 +59,7 @@ final class MailBadgeEndpointFeatureTest extends TestCase
             'first_name' => 'Badge',
             'last_name' => 'Endpoint',
             'email' => 'badge.endpoint.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 

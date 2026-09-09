@@ -16,6 +16,7 @@ use App\Middleware\RoleMiddleware;
 use App\Policies\TaskPolicy;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -122,7 +123,7 @@ class TaskFeatureTest extends TestCase
             'first_name' => 'Nur',
             'last_name' => 'Mitglied',
             'email' => 'task.member.' . bin2hex(random_bytes(5)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $project->users()->attach($member->id);
@@ -509,7 +510,7 @@ class TaskFeatureTest extends TestCase
             'first_name' => 'Aufgaben',
             'last_name' => 'Verwalterin',
             'email' => 'tasks.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);
@@ -642,7 +643,7 @@ class TaskFeatureTest extends TestCase
             'first_name' => 'Task',
             'last_name' => 'Uploader',
             'email' => 'task.uploader.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $project->users()->attach($user->id);

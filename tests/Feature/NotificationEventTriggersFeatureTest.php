@@ -15,6 +15,7 @@ use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
 use App\Services\NotificationService;
 use App\Util\NotificationType;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -321,7 +322,7 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             'first_name' => $firstName,
             'last_name' => $lastName,
             'email' => 'event.notify.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
     }

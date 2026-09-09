@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -229,7 +230,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
             'first_name' => 'Scope',
             'last_name' => 'Testperson',
             'email' => 'scope-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
     }

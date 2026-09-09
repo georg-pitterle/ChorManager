@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\User;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -71,7 +72,7 @@ class EventSeriesRecurrenceValidationFeatureTest extends TestCase
 
         $this->sessionUser = User::create([
             'email' => 'series_' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Sara',
             'last_name' => 'Serienstein',
             'is_active' => 1,

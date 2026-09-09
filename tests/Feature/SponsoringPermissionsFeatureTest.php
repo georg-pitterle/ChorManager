@@ -20,6 +20,7 @@ use App\Controllers\SponsoringDashboardController;
 use App\Models\Attachment;
 use App\Services\NameFormatterService;
 use App\Policies\SponsoringPolicy;
+use App\Util\PasswordHasher;
 use App\Util\SponsorshipStatus;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -822,7 +823,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             'first_name' => 'Sponsoring',
             'last_name' => 'Testperson',
             'email' => 'sponsoring-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('x', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
     }

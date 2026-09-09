@@ -15,6 +15,7 @@ use App\Models\VoiceGroup;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Queries\ProjectQuery;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -526,7 +527,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'first_name' => 'Reg',
             'last_name' => $lastName,
             'email' => $emailSuffix . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => $isActive,
         ]);
     }

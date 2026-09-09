@@ -14,6 +14,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\CalendarSubscriptionService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -72,7 +73,7 @@ class EventFeatureTest extends TestCase
         // mit 403, weil die Zielgruppenprüfung ohne Sitzungsnutzer nicht greifen kann.
         $this->sessionUser = User::create([
             'email' => 'events_' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Eva',
             'last_name' => 'Terminlein',
             'is_active' => 1,
@@ -266,7 +267,7 @@ class EventFeatureTest extends TestCase
             'first_name' => 'Event',
             'last_name' => 'Viewer',
             'email' => 'event.viewer@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 
@@ -1036,7 +1037,7 @@ class EventFeatureTest extends TestCase
             'first_name' => 'Event',
             'last_name' => 'User ' . $suffix,
             'email' => 'event-' . $suffix . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
     }

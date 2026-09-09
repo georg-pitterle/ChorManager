@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -62,7 +63,7 @@ class ProjectMembersGroupedByVoiceFeatureTest extends TestCase
         foreach ($members as $key => [$firstName, $lastName, $isActive, $voiceGroupId, $subVoiceId]) {
             $user = User::create([
                 'email' => strtolower($key) . '_' . bin2hex(random_bytes(4)) . '@example.test',
-                'password' => password_hash('secret', PASSWORD_BCRYPT),
+                'password' => PasswordHasher::hash('secret'),
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'is_active' => $isActive,

@@ -21,6 +21,7 @@
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
+        "brianium/paratest": "^7.24",
         "friendsoftwig/twigcs": "^6.6",
         "phpunit/phpunit": "^13.0",
         "squizlabs/php_codesniffer": "^4.0",
@@ -73,6 +74,10 @@
         "test": [
             "@eol:check",
             "php vendor/bin/phpunit"
+        ],
+        "test:parallel": [
+            "@eol:check",
+            "php vendor/bin/paratest --processes=4"
         ],
         "copy-assets": "@php bin/copy-assets.php",
         "post-install-cmd": "@copy-assets",

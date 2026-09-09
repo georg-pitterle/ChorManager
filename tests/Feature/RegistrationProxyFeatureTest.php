@@ -10,6 +10,7 @@ use App\Models\EventRegistration;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\AttendanceScopeService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -54,7 +55,7 @@ class RegistrationProxyFeatureTest extends TestCase
 
         return User::create([
             'email' => "proxy_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Test',
             'last_name' => 'Person',
             'is_active' => $active ? 1 : 0,

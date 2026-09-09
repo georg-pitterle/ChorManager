@@ -13,6 +13,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\QueryException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -330,7 +331,7 @@ final class UserChangeLoggingTest extends TestCase
             'first_name' => 'Log',
             'last_name' => 'Test',
             'email' => $email,
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
     }

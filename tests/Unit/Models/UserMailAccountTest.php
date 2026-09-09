@@ -6,6 +6,7 @@ namespace Tests\Unit\Models;
 
 use App\Models\User;
 use App\Models\UserMailAccount;
+use App\Util\PasswordHasher;
 use Illuminate\Database\QueryException;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -24,7 +25,7 @@ final class UserMailAccountTest extends TestCase
             'first_name' => 'Mail',
             'last_name' => 'Tester',
             'email' => 'mail.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
     }

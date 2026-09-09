@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\NameFormatterService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -101,7 +102,7 @@ final class BudgetFeatureTest extends TestCase
             'first_name' => 'Berta',
             'last_name' => 'Budget',
             'email' => 'budget.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);

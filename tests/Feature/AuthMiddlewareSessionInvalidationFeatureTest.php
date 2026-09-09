@@ -13,6 +13,7 @@ use App\Models\VoiceGroup;
 use App\Queries\UserQuery;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -71,7 +72,7 @@ final class AuthMiddlewareSessionInvalidationFeatureTest extends TestCase
             'first_name' => 'Invalidation',
             'last_name' => 'Tester',
             'email' => 'invalidation.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $this->user->roles()->attach($this->role->id);

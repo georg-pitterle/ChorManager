@@ -18,6 +18,7 @@ use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
+use App\Util\PasswordHasher;
 use App\Util\SponsorshipStatus;
 use DI\Container;
 use DI\ContainerBuilder;
@@ -395,7 +396,7 @@ final class AttachmentActionsUsageFeatureTest extends TestCase
             'first_name' => 'Downloads',
             'last_name' => 'Test',
             'email' => 'downloads.test.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $project = Project::create(['name' => 'Downloads-Test-Projekt ' . bin2hex(random_bytes(4))]);

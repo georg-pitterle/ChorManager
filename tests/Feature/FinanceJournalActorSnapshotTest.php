@@ -9,6 +9,7 @@ use App\Models\FinanceAccount;
 use App\Models\FinanceRevision;
 use App\Models\User;
 use App\Services\FinanceJournalService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -105,7 +106,7 @@ final class FinanceJournalActorSnapshotTest extends TestCase
     {
         return User::create([
             'email' => 'journal-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => $firstName,
             'last_name' => $lastName,
             'is_active' => 1,

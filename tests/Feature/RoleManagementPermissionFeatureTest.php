@@ -13,6 +13,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\NameFormatterService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -101,7 +102,7 @@ final class RoleManagementPermissionFeatureTest extends TestCase
             'first_name' => 'Rollen',
             'last_name' => 'Pfleger',
             'email' => 'rollen.pfleger.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);

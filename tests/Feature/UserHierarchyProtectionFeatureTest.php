@@ -12,6 +12,7 @@ use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
+use App\Util\PasswordHasher;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -252,7 +253,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $_SESSION['voice_group_ids'] = [];
 
         $target = $this->makeTarget([80]);
-        $existingHash = password_hash('original-secret', PASSWORD_DEFAULT);
+        $existingHash = PasswordHasher::hash('original-secret');
         $target->password = $existingHash;
 
         $userQuery = $this->createStub(UserQuery::class);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Util\PasswordHasher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -137,7 +138,7 @@ class PasswordResetController
 
         PasswordReset::create([
             'email' => $email,
-            'token' => password_hash($token, PASSWORD_DEFAULT),
+            'token' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s')
         ]);
 
@@ -239,7 +240,7 @@ class PasswordResetController
             }
 
             if ($user) {
-                $user->password = password_hash($password, PASSWORD_DEFAULT);
+                $user->password = PasswordHasher::hash($password);
                 $user->save();
                 PasswordReset::where('email', $email)->delete();
                 $this->revokeRememberTokens((int) $user->id, 'password_reset');
@@ -269,7 +270,7 @@ class PasswordResetController
                     return $response->withHeader('Location', '/forgot-password')->withStatus(302);
                 }
 
-                $user->password = password_hash($password, PASSWORD_DEFAULT);
+                $user->password = PasswordHasher::hash($password);
                 $user->save();
                 InvitationToken::where('user_id', $user->id)->delete();
                 $this->revokeRememberTokens((int) $user->id, 'invitation_consumed');

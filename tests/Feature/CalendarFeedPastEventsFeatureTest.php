@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -40,7 +41,7 @@ final class CalendarFeedPastEventsFeatureTest extends TestCase
         $this->service = new CalendarFeedService(new NameFormatterService());
         $this->user = User::create([
             'email' => 'kalender.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Rita',
             'last_name' => 'Rückblick',
             'is_active' => 1,

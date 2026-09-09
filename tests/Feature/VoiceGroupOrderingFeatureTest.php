@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Util\PasswordHasher;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -103,7 +104,7 @@ class VoiceGroupOrderingFeatureTest extends TestCase
 
         $userId = (int) Capsule::table('users')->insertGetId([
             'email' => 'reihenfolge' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'A',
             'last_name' => 'B',
         ]);

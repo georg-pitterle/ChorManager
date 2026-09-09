@@ -8,6 +8,7 @@ use App\Logging\RequestContext;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -32,7 +33,7 @@ final class SessionAuthServiceBackupPermissionTest extends TestCase
             'first_name' => 'Backup',
             'last_name' => 'Tester',
             'email' => 'backup.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);
@@ -58,7 +59,7 @@ final class SessionAuthServiceBackupPermissionTest extends TestCase
             'first_name' => 'Epoch',
             'last_name' => 'Tester',
             'email' => 'epoch.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);
@@ -66,12 +67,16 @@ final class SessionAuthServiceBackupPermissionTest extends TestCase
 
         $service = new SessionAuthService(new \App\Services\NameFormatterService(), new RequestContext());
         $service->setAuthenticatedUser($user);
-        $firstEpoch = $_SESSION['auth_epoch'];
 
-        sleep(1);
+        // Statt eine Sekunde verstreichen zu lassen, damit sich ein neu gesetzter
+        // Zeitstempel vom ersten unterscheiden würde, bekommt die Sitzung einen
+        // erkennbar alten Wert untergeschoben. Setzt der zweite Aufruf ihn neu, fällt
+        // das damit sofort auf - und der Test wartet nicht.
+        $_SESSION['auth_epoch'] = 1;
+
         $service->setAuthenticatedUser($user);
 
-        $this->assertSame($firstEpoch, $_SESSION['auth_epoch']);
+        $this->assertSame(1, $_SESSION['auth_epoch']);
 
         $user->delete();
         $role->delete();

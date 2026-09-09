@@ -15,6 +15,7 @@ use App\Newsletter\RenderContext;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterPlaceholderService;
 use App\Util\MailBranding;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -52,7 +53,7 @@ final class NewsletterPlaceholderFeatureTest extends TestCase
 
         return User::create([
             'email' => "placeholder_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => $firstName,
             'last_name' => $lastName,
             'is_active' => 1,

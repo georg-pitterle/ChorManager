@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -60,7 +61,7 @@ class SubVoiceOrderingFeatureTest extends TestCase
 
             $user = User::create([
                 'email' => 'sortier' . $index . '_' . bin2hex(random_bytes(4)) . '@example.test',
-                'password' => password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT),
+                'password' => PasswordHasher::hash(bin2hex(random_bytes(8))),
                 'first_name' => 'Tobias',
                 'last_name' => 'Tenor ' . $index,
                 'is_active' => 1,
@@ -80,7 +81,7 @@ class SubVoiceOrderingFeatureTest extends TestCase
         // Ein Mitglied ohne Teilstimme: sein Sammelschlüssel muss zuletzt stehen.
         $withoutSubVoice = User::create([
             'email' => 'ohneteil_' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash(bin2hex(random_bytes(8))),
             'first_name' => 'Otto',
             'last_name' => 'Ohne',
             'is_active' => 1,

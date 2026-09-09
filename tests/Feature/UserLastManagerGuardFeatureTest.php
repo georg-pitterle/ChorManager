@@ -13,6 +13,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -55,7 +56,7 @@ final class UserLastManagerGuardFeatureTest extends TestCase
             'first_name' => 'Letzte',
             'last_name' => 'Verwaltung',
             'email' => 'last.manager.' . $suffix . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $this->lastManager->roles()->attach($this->managerRole->id);
@@ -136,7 +137,7 @@ final class UserLastManagerGuardFeatureTest extends TestCase
             'first_name' => 'Zweite',
             'last_name' => 'Verwaltung',
             'email' => 'second.manager.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $second->roles()->attach($this->managerRole->id);

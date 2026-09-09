@@ -10,6 +10,7 @@ use App\Models\UserMailAccount;
 use App\Queries\UserQuery;
 use App\Services\MailCredentialCryptoService;
 use App\Services\PasswordPolicyService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\QueryException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -47,7 +48,7 @@ final class ProfileMailboxFeatureTest extends TestCase
             'first_name' => 'Mailbox',
             'last_name' => 'Tester',
             'email' => 'mailbox.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 

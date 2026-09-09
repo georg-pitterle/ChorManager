@@ -20,6 +20,7 @@ use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
+use App\Util\PasswordHasher;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -62,7 +63,7 @@ trait NewsletterControllerTestScaffold
 
         return User::create([
             'email' => "preview_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => $firstName,
             'last_name' => 'Test',
             'is_active' => 1,

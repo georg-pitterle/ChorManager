@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Project;
 use App\Policies\ProjectMemberPolicy;
 use App\Policies\TaskPolicy;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -40,7 +41,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
 
         $this->adminUserId = (int) Capsule::table('users')->insertGetId([
             'email' => 'admin' . $suffix . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Alex',
             'last_name' => 'Admin',
             'is_active' => 1,

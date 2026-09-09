@@ -11,6 +11,7 @@ use App\Models\NewsletterRecipientSource;
 use App\Models\User;
 use App\Services\EventAudienceService;
 use App\Services\NewsletterRecipientService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -118,7 +119,7 @@ final class SourceReplacementRefreshesRelationFeatureTest extends TestCase
     {
         return User::create([
             'email' => 'source.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => $firstName,
             'last_name' => $lastName,
             'is_active' => 1,

@@ -19,6 +19,7 @@ use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -63,7 +64,7 @@ final class NewsletterLockingFeatureTest extends TestCase
 
         return User::create([
             'email' => "lock_{$suffix}@example.test",
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Sperr',
             'last_name' => 'Test',
             'is_active' => 1,

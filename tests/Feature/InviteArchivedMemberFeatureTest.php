@@ -13,6 +13,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -88,7 +89,7 @@ final class InviteArchivedMemberFeatureTest extends TestCase
             'first_name' => 'Eingeladene',
             'last_name' => 'Sängerin',
             'email' => 'einladung-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => $isActive,
         ]);
     }

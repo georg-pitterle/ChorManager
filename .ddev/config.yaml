@@ -33,6 +33,8 @@ hooks:
     - exec: "bash .ddev/commands/web/ensure-playwright"
       service: web
       user: root
+    - exec: "bash /mnt/ddev_config/grant-test-databases.sh"
+      service: db
 
 # Key features of DDEV's config.yaml:
 

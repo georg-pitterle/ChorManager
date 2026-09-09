@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Collection;
 use PHPUnit\Framework\TestCase;
@@ -52,7 +53,7 @@ class ProjectListOrderFeatureTest extends TestCase
 
         $user = User::create([
             'email' => 'listorder_' . $suffix . '@example.test',
-            'password' => password_hash('secret', PASSWORD_BCRYPT),
+            'password' => PasswordHasher::hash('secret'),
             'first_name' => 'Hanna',
             'last_name' => 'Hauser',
             'is_active' => 1,

@@ -11,6 +11,7 @@ use App\Policies\TaskPolicy;
 use App\Services\CalendarSubscriptionService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -42,7 +43,7 @@ final class CalendarFeedInactiveUserFeatureTest extends TestCase
 
         $this->user = User::create([
             'email' => 'archiviert-' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Archivierte',
             'last_name' => 'Sängerin',
             'is_active' => 1,

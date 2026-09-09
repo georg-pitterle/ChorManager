@@ -42,7 +42,7 @@ final class TestDatabaseGuard
 
         throw new RuntimeException(sprintf(
             'Die Testsuite soll gegen die Datenbank "%s" laufen. Das ist keine Testdatenbank.'
-            . ' Erlaubt sind %s oder ein Name, der auf "_test" endet.'
+            . ' Erlaubt sind %s oder ein Name, der auf "_test" endet - mit angehängter Worker-Kennung auch "_test_2".'
             . ' Die Tests legen Daten an und leeren Tabellen - auf einem echten Bestand'
             . ' zerstört das Daten. Bitte DB_DATABASE in .env prüfen.'
             . ' Ist der Name wirklich gewollt, %s=1 setzen.',
@@ -54,10 +54,17 @@ final class TestDatabaseGuard
 
     public static function looksLikeTestDatabase(string $name): bool
     {
-        return in_array($name, self::ALLOWED_NAMES, true) || str_ends_with($name, '_test');
+        if (in_array($name, self::ALLOWED_NAMES, true) || str_ends_with($name, TestDatabaseName::SUFFIX)) {
+            return true;
+        }
+
+        // Parallel laufende Testprozesse hängen ihre Kennung an den Testnamen an
+        // ("db_test_2"), damit sie sich nicht denselben Bestand teilen. Siehe
+        // TestDatabaseName::forRun().
+        return preg_match('/_test_[A-Za-z0-9_]+$/', $name) === 1;
     }
 
-    private static function isOverridden(?string $override): bool
+    public static function isOverridden(?string $override): bool
     {
         return in_array($override, ['1', 'true', 'yes'], true);
     }

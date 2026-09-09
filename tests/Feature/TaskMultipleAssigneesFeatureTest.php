@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Policies\TaskPolicy;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
@@ -260,7 +261,7 @@ class TaskMultipleAssigneesFeatureTest extends TestCase
             'first_name' => $firstName,
             'last_name' => $lastName,
             'email' => 'task.multi.' . bin2hex(random_bytes(5)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
     }

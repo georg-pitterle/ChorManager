@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
 use App\Services\WebmailSsoTokenService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
@@ -20,12 +21,22 @@ final class WebmailControllerFeatureTest extends TestCase
 
     private const SSO_ENV_KEY = 'WEBMAIL_SSO_SECRET';
 
+    /**
+     * Der Schlüssel, ohne den MailCredentialCryptoService seinen Dienst verweigert.
+     * Er kam bisher aus der .env - die Klasse setzte also voraus, dass keine andere
+     * Testklasse ihn im selben Prozess entfernt. Genau das geschah, und im parallelen
+     * Lauf fiel es je nach Aufteilung der Klassen auf die Prozesse auf.
+     */
+    private const CRYPTO_ENV_KEY = 'MAIL_CREDENTIAL_KEY';
+
     private WebmailController $controller;
     private MailCredentialCryptoService $crypto;
     private WebmailSsoTokenService $ssoTokenService;
     private User $user;
     private ?string $originalSsoEnvValue = null;
     private bool $hadSsoEnvValue = false;
+    private ?string $originalCryptoEnvValue = null;
+    private bool $hadCryptoEnvValue = false;
 
     protected function setUp(): void
     {
@@ -35,10 +46,20 @@ final class WebmailControllerFeatureTest extends TestCase
         $this->hadSsoEnvValue = array_key_exists(self::SSO_ENV_KEY, $_ENV);
         $this->originalSsoEnvValue = $_ENV[self::SSO_ENV_KEY] ?? null;
 
+        $this->hadCryptoEnvValue = array_key_exists(self::CRYPTO_ENV_KEY, $_ENV);
+        $this->originalCryptoEnvValue = $_ENV[self::CRYPTO_ENV_KEY] ?? null;
+
         $ssoKey = base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
         $_ENV[self::SSO_ENV_KEY] = $ssoKey;
         $_SERVER[self::SSO_ENV_KEY] = $ssoKey;
         putenv(self::SSO_ENV_KEY . '=' . $ssoKey);
+
+        // Eigener Schlüssel statt des Werts aus der .env: damit hängt die Klasse an
+        // nichts, was ein Vorgänger im selben Prozess hinterlassen haben muss.
+        $cryptoKey = base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
+        $_ENV[self::CRYPTO_ENV_KEY] = $cryptoKey;
+        $_SERVER[self::CRYPTO_ENV_KEY] = $cryptoKey;
+        putenv(self::CRYPTO_ENV_KEY . '=' . $cryptoKey);
 
         $this->crypto = new MailCredentialCryptoService();
         $this->ssoTokenService = new WebmailSsoTokenService();
@@ -53,7 +74,7 @@ final class WebmailControllerFeatureTest extends TestCase
             'first_name' => 'Webmail',
             'last_name' => 'Tester',
             'email' => 'webmail.tester.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 
@@ -73,6 +94,15 @@ final class WebmailControllerFeatureTest extends TestCase
         } else {
             unset($_ENV[self::SSO_ENV_KEY], $_SERVER[self::SSO_ENV_KEY]);
             putenv(self::SSO_ENV_KEY);
+        }
+
+        if ($this->hadCryptoEnvValue && $this->originalCryptoEnvValue !== null) {
+            $_ENV[self::CRYPTO_ENV_KEY] = $this->originalCryptoEnvValue;
+            $_SERVER[self::CRYPTO_ENV_KEY] = $this->originalCryptoEnvValue;
+            putenv(self::CRYPTO_ENV_KEY . '=' . $this->originalCryptoEnvValue);
+        } else {
+            unset($_ENV[self::CRYPTO_ENV_KEY], $_SERVER[self::CRYPTO_ENV_KEY]);
+            putenv(self::CRYPTO_ENV_KEY);
         }
 
         parent::tearDown();

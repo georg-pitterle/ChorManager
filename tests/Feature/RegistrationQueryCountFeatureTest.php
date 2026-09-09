@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Queries\ProjectQuery;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -47,7 +48,7 @@ class RegistrationQueryCountFeatureTest extends TestCase
             'first_name' => 'Zaehl',
             'last_name' => 'Person',
             'email' => 'querycount.' . bin2hex(random_bytes(5)) . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
 

@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Collection;
 use PHPUnit\Framework\TestCase;
@@ -42,7 +43,7 @@ class ProjectActionVisibilityFeatureTest extends TestCase
 
         $this->managerUserId = (int) Capsule::table('users')->insertGetId([
             'email' => 'manager' . $suffix . '@example.test',
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'first_name' => 'Manager',
             'last_name' => 'Person',
             'is_active' => 1,

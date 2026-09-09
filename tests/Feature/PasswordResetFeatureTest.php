@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\MailQueueService;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
+use App\Util\PasswordHasher;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -278,14 +279,14 @@ class PasswordResetFeatureTest extends TestCase
             'first_name' => 'Reset',
             'last_name' => 'Completer',
             'email' => $email,
-            'password' => password_hash('Old-Password-1', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('Old-Password-1'),
             'is_active' => 1,
         ]);
 
         $token = bin2hex(random_bytes(32));
         PasswordReset::create([
             'email' => $email,
-            'token' => password_hash($token, PASSWORD_DEFAULT),
+            'token' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -332,7 +333,7 @@ class PasswordResetFeatureTest extends TestCase
             'first_name' => 'Invite',
             'last_name' => 'Consumer',
             'email' => $email,
-            'password' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash(bin2hex(random_bytes(16))),
             'is_active' => 1,
         ]);
 
@@ -340,7 +341,7 @@ class PasswordResetFeatureTest extends TestCase
         InvitationToken::create([
             'user_id' => $user->id,
             'selector' => bin2hex(random_bytes(9)),
-            'token_hash' => password_hash($token, PASSWORD_DEFAULT),
+            'token_hash' => PasswordHasher::hash($token),
             'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -394,7 +395,7 @@ class PasswordResetFeatureTest extends TestCase
         Bootstrap::setupTestDatabase();
 
         $email = 'reset.archived.' . bin2hex(random_bytes(4)) . '@example.test';
-        $oldHash = password_hash('Old-Password-1', PASSWORD_DEFAULT);
+        $oldHash = PasswordHasher::hash('Old-Password-1');
         $user = User::create([
             'first_name' => 'Archivierte',
             'last_name' => 'Sängerin',
@@ -406,7 +407,7 @@ class PasswordResetFeatureTest extends TestCase
         $token = bin2hex(random_bytes(32));
         PasswordReset::create([
             'email' => $email,
-            'token' => password_hash($token, PASSWORD_DEFAULT),
+            'token' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\AttendanceScopeService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -202,7 +203,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
             'first_name' => 'Regina',
             'last_name' => 'Testmitglied-Task10-' . uniqid(),
             'email' => 'registration-hint-' . uniqid() . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => true,
         ]);
 

@@ -14,6 +14,7 @@ use App\Services\NameFormatterService;
 use App\Services\NotificationService;
 use App\Services\PasswordPolicyService;
 use App\Util\NotificationType;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
@@ -32,6 +33,10 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
 
     private User $user;
 
+    private bool $hadCredentialKey = false;
+
+    private ?string $originalCredentialKey = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -41,9 +46,16 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
             'first_name' => 'Nora',
             'last_name' => 'Nachricht',
             'email' => 'profil.notify.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
+
+        // Den vorhandenen Schlüssel merken statt ihn hinterher wegzuwerfen: Klassen, die
+        // danach im selben Prozess laufen und den echten Schlüssel brauchen - etwa
+        // WebmailControllerFeatureTest - fanden sonst keinen mehr vor. Im sequenziellen
+        // Lauf blieb das verborgen, im parallelen fiel es je nach Aufteilung auf.
+        $this->hadCredentialKey = array_key_exists('MAIL_CREDENTIAL_KEY', $_ENV);
+        $this->originalCredentialKey = $_ENV['MAIL_CREDENTIAL_KEY'] ?? null;
 
         $key = base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
         $_ENV['MAIL_CREDENTIAL_KEY'] = $key;
@@ -57,8 +69,15 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
     {
         UserNotificationSetting::where('user_id', $this->user->id)->delete();
         $this->user->delete();
-        unset($_ENV['MAIL_CREDENTIAL_KEY'], $_SERVER['MAIL_CREDENTIAL_KEY']);
-        putenv('MAIL_CREDENTIAL_KEY');
+        if ($this->hadCredentialKey && $this->originalCredentialKey !== null) {
+            $_ENV['MAIL_CREDENTIAL_KEY'] = $this->originalCredentialKey;
+            $_SERVER['MAIL_CREDENTIAL_KEY'] = $this->originalCredentialKey;
+            putenv('MAIL_CREDENTIAL_KEY=' . $this->originalCredentialKey);
+        } else {
+            unset($_ENV['MAIL_CREDENTIAL_KEY'], $_SERVER['MAIL_CREDENTIAL_KEY']);
+            putenv('MAIL_CREDENTIAL_KEY');
+        }
+
         $_SESSION = [];
 
         parent::tearDown();

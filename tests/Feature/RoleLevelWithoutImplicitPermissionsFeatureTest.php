@@ -11,6 +11,7 @@ use App\Models\VoiceGroup;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
 use App\Services\SessionAuthService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -45,7 +46,7 @@ final class RoleLevelWithoutImplicitPermissionsFeatureTest extends TestCase
             'first_name' => 'Rolle',
             'last_name' => $lastName,
             'email' => 'rolelevel.' . bin2hex(random_bytes(6)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
     }
@@ -61,7 +62,7 @@ final class RoleLevelWithoutImplicitPermissionsFeatureTest extends TestCase
             'first_name' => 'Ehren',
             'last_name' => 'Amt',
             'email' => 'ehren.amt.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
         $user->roles()->attach($role->id);

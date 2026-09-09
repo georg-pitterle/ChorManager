@@ -14,6 +14,7 @@ use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Util\PasswordHasher;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -53,7 +54,7 @@ final class UserVoiceGroupManagerBoundaryFeatureTest extends TestCase
             'first_name' => 'Ziel',
             'last_name' => 'Person',
             'email' => $this->originalEmail,
-            'password' => password_hash('irrelevant', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
         $this->target->voiceGroups()->attach($this->ownGroup->id);

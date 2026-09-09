@@ -10,6 +10,7 @@ use App\Queries\UserQuery;
 use App\Services\MailCredentialCryptoService;
 use App\Services\NameFormatterService;
 use App\Services\PasswordPolicyService;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
@@ -46,7 +47,7 @@ final class ProfileCalendarSettingsFeatureTest extends TestCase
             'first_name' => 'Kalender',
             'last_name' => 'Einstellung',
             'email' => 'kalender.profil.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
 

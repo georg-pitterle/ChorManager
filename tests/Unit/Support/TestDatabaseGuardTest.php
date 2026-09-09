@@ -21,6 +21,9 @@ final class TestDatabaseGuardTest extends TestCase
             'schlicht test' => ['test'],
             'testing' => ['testing'],
             'Suffix _test' => ['chormanager_test'],
+            // Parallele Testprozesse hängen ihre Kennung an, siehe TestDatabaseName.
+            'Worker-Datenbank' => ['db_test_2'],
+            'Worker-Datenbank eines eigenen Bestandsnamens' => ['chormanager_test_11'],
         ];
     }
 
@@ -67,5 +70,18 @@ final class TestDatabaseGuardTest extends TestCase
         $this->expectException(RuntimeException::class);
 
         TestDatabaseGuard::assertTestDatabase('chormanager', '0');
+    }
+
+    /**
+     * Der Bootstrap fragt dasselbe noch einmal: liegt eine bewusste Übersteuerung vor,
+     * bleibt der Name aus der Umgebung stehen, statt zu einem Testnamen abgeleitet zu
+     * werden. Ohne diese Auskunft müsste er die Werteliste ein zweites Mal führen.
+     */
+    public function testTheOverrideIsReadableFromOutside(): void
+    {
+        $this->assertTrue(TestDatabaseGuard::isOverridden('1'));
+        $this->assertTrue(TestDatabaseGuard::isOverridden('true'));
+        $this->assertFalse(TestDatabaseGuard::isOverridden('0'));
+        $this->assertFalse(TestDatabaseGuard::isOverridden(null));
     }
 }

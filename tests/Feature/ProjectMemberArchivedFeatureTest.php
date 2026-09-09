@@ -11,6 +11,7 @@ use App\Models\VoiceGroup;
 use App\Persistence\ProjectPersistence;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
+use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -47,7 +48,7 @@ class ProjectMemberArchivedFeatureTest extends TestCase
         foreach ($people as $key => [$firstName, $lastName, $isActive, $inProject]) {
             $user = User::create([
                 'email' => strtolower($key) . '_' . bin2hex(random_bytes(4)) . '@example.test',
-                'password' => password_hash('secret', PASSWORD_BCRYPT),
+                'password' => PasswordHasher::hash('secret'),
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'is_active' => $isActive,

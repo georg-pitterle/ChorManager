@@ -6,6 +6,7 @@ namespace Tests\Unit\Models;
 
 use App\Models\User;
 use App\Models\UserNotificationSetting;
+use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -33,7 +34,7 @@ final class UserNotificationSettingTest extends TestCase
             'last_name' => 'Wiesinger',
             // naming:ascii - E-Mail-Adressen bleiben technisch ASCII.
             'email' => 'nora.wiesinger.' . bin2hex(random_bytes(4)) . '@example.test',
-            'password' => password_hash('test123', PASSWORD_DEFAULT),
+            'password' => PasswordHasher::hash('test123'),
             'is_active' => 1,
         ]);
     }

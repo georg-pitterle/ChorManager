@@ -53,6 +53,7 @@ use App\Models\UserNotificationSetting;
 use App\Util\NotificationType;
 use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
+use App\Util\PasswordHasher;
 use DateTimeImmutable;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use RuntimeException;
@@ -621,14 +622,14 @@ class DevSeedService
                 [
                     'first_name' => $firstName,
                     'last_name' => $lastName,
-                    'password' => password_hash(self::DEFAULT_SEED_PASSWORD, PASSWORD_DEFAULT),
+                    'password' => PasswordHasher::hash(self::DEFAULT_SEED_PASSWORD),
                     'is_active' => $isActive ? 1 : 0,
                 ]
             );
 
             $user->first_name = $firstName;
             $user->last_name = $lastName;
-            $user->password = password_hash(self::DEFAULT_SEED_PASSWORD, PASSWORD_DEFAULT);
+            $user->password = PasswordHasher::hash(self::DEFAULT_SEED_PASSWORD);
             $user->is_active = $isActive ? 1 : 0;
             // Alle drei Kalender-Varianten streuen, damit im Dev jede davon
             // vorkommt und nicht nur die Voreinstellung.
@@ -1827,7 +1828,7 @@ class DevSeedService
                 ['email' => $user->email],
                 [
                     'email' => $user->email,
-                    'token' => password_hash($tokenValue, PASSWORD_DEFAULT),
+                    'token' => PasswordHasher::hash($tokenValue),
                     'created_at' => $createdAt->format('Y-m-d H:i:s'),
                 ]
             );
@@ -1841,7 +1842,7 @@ class DevSeedService
             RememberLogin::create([
                 'user_id' => $user->id,
                 'selector' => bin2hex(random_bytes(9)),
-                'token_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+                'token_hash' => PasswordHasher::hash(bin2hex(random_bytes(32))),
                 'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
                 'created_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
                 'last_used_at' => null,
@@ -3920,7 +3921,7 @@ class DevSeedService
         $fallbackMember = User::updateOrCreate(
             ['email' => 'placeholder_fallback@example.test'],
             [
-                'password' => password_hash('test1234', PASSWORD_BCRYPT),
+                'password' => PasswordHasher::hash('test1234'),
                 'first_name' => '',
                 'last_name' => 'Ohnevorname',
                 'is_active' => 1,
