@@ -54,6 +54,12 @@ final class AttachmentActionsUsageFeatureTest extends TestCase
 
     protected function tearDown(): void
     {
+        // Dieser Test läuft ohne umschließende Transaktion und räumt jeden
+        // Datensatz selbst weg (siehe die try/finally-Blöcke). Das Konto aus
+        // fixtureAccountId() ist der einzige, den er nicht selbst anlegt -
+        // ohne diesen Aufruf bliebe es als einzige Zeile zurück.
+        $this->deleteFixtureAccounts();
+
         $_SESSION = [];
         parent::tearDown();
     }

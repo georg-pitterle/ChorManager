@@ -37,10 +37,20 @@ final class ModelNotFoundRendersNotFoundPageTest extends TestCase
     private ?string $originalEnv = null;
     private bool $hadEnv = false;
 
+    /** @var array<string, string|null> */
+    private array $appSettingsBefore = [];
+
     protected function setUp(): void
     {
         parent::setUp();
         Bootstrap::setupTestDatabase();
+
+        // Hier läuft der echte Mittelbau aus src/Middleware.php, und der schreibt
+        // bei jeder Anfrage seine Laufmarken nach app_settings
+        // (MailQueueProcessingMiddleware, NotificationReminderMiddleware). Diese
+        // Zeilen gehören nicht dem Test, überleben ihn aber - deshalb der Stand
+        // vorher, den tearDown() wieder herstellt.
+        $this->appSettingsBefore = $this->currentAppSettings();
 
         $this->hadEnv = array_key_exists(self::ENV_KEY, $_ENV);
         $this->originalEnv = $_ENV[self::ENV_KEY] ?? null;
@@ -52,6 +62,8 @@ final class ModelNotFoundRendersNotFoundPageTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->restoreAppSettings();
+
         if ($this->hadEnv) {
             $this->putEnvValue((string) $this->originalEnv);
         } else {
@@ -60,6 +72,36 @@ final class ModelNotFoundRendersNotFoundPageTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function currentAppSettings(): array
+    {
+        return Capsule::table('app_settings')
+            ->pluck('setting_value', 'setting_key')
+            ->all();
+    }
+
+    /**
+     * Bewusst über die Schlüssel statt über eine feste Liste: käme im Mittelbau
+     * eine weitere Laufmarke dazu, bliebe sie sonst unbemerkt liegen.
+     */
+    private function restoreAppSettings(): void
+    {
+        foreach ($this->currentAppSettings() as $key => $value) {
+            if (!array_key_exists($key, $this->appSettingsBefore)) {
+                Capsule::table('app_settings')->where('setting_key', $key)->delete();
+                continue;
+            }
+
+            if ($this->appSettingsBefore[$key] !== $value) {
+                Capsule::table('app_settings')
+                    ->where('setting_key', $key)
+                    ->update(['setting_value' => $this->appSettingsBefore[$key]]);
+            }
+        }
     }
 
     private function putEnvValue(string $value): void
