@@ -47,7 +47,7 @@ der Ablauf:
 |---|---|
 | PHP in `src/` | `ddev composer phpcs` (bei Verstößen `phpcbf`, dann erneut) |
 | Templates | `ddev composer twigcs` und `ddev composer twig:eol` |
-| beliebiger Code | während der Arbeit `ddev php vendor/bin/phpunit --filter "<Muster>"`, einmal am Schluss `ddev composer test` (enthält `eol:check`) |
+| beliebiger Code | während der Arbeit `ddev php vendor/bin/phpunit --filter "<Muster>"`, einmal am Schluss `ddev composer test:parallel` (enthält `eol:check`) |
 | Schema | `ddev exec ./vendor/bin/phinx migrate` |
 | neue persistierte Entität | `ddev php bin/dev_seed.php`, danach die neuen Zähler im Bericht prüfen |
 
