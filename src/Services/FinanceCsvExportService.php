@@ -79,8 +79,28 @@ class FinanceCsvExportService
             $finance->reversalOf?->running_number === null
                 ? ''
                 : (string) $finance->reversalOf->running_number,
-            (string) $finance->attachments->count(),
+            (string) self::attachmentCount($finance),
         ];
+    }
+
+    /**
+     * Zahl der Belege einer Buchung.
+     *
+     * Bevorzugt `withCount('attachments')`: `attachments.file_content` ist ein
+     * BLOB, und die Beziehung zu laden holte für eine reine Zahl jeden Beleg des
+     * Geschäftsjahres im Volltext. Ist nicht mitgezählt worden, wird gezählt -
+     * einmal je Buchung, aber ohne den Inhalt anzufassen.
+     */
+    private static function attachmentCount(Finance $finance): int
+    {
+        $counted = $finance->getAttribute('attachments_count');
+        if ($counted !== null) {
+            return (int) $counted;
+        }
+
+        return $finance->relationLoaded('attachments')
+            ? $finance->attachments->count()
+            : $finance->attachments()->count();
     }
 
     /**

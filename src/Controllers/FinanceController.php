@@ -14,6 +14,7 @@ use App\Models\FinanceRevision;
 use App\Models\Attachment;
 use App\Models\Setting;
 use App\Services\BankStatementImportService;
+use App\Services\EntityAttachmentService;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
@@ -149,13 +150,22 @@ class FinanceController
         // Reihenfolge der Erfassung, deshalb rutschte eine nacherfasste alte Buchung
         // an den Anfang der Liste. Innerhalb eines Tages entscheidet weiterhin die
         // Laufnummer, damit die Reihenfolge eindeutig bleibt.
-        $finances = Finance::with(['attachments', 'financeAccount', 'reversedBy'])
+        // Anhänge ohne file_content: Die Liste zeigt Name, Typ und Größe, nie den
+        // Inhalt. Mit dem BLOB zog ein Geschäftsjahr voller Rechnungs-PDFs
+        // zweistellige Megabytes durch den Speicher, nur um Dateinamen zu rendern.
+        $attachmentMetadata = static fn($query) => $query->select(EntityAttachmentService::METADATA_COLUMNS);
+
+        $finances = Finance::with([
+            'attachments' => $attachmentMetadata,
+            'financeAccount',
+            'reversedBy',
+        ])
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('payment_date', 'desc')
             ->orderBy('running_number', 'desc')
             ->get();
 
-        $openItems = Finance::with(['attachments', 'financeAccount'])
+        $openItems = Finance::with(['attachments' => $attachmentMetadata, 'financeAccount'])
             ->whereNull('payment_date')
             ->orderBy('invoice_date', 'asc')
             ->get();
@@ -815,7 +825,10 @@ class FinanceController
         $selectedYear = (int) ($request->getQueryParams()['year'] ?? $this->defaultStartYear($day, $month));
         [$startDate, $endDate] = $this->datesForYear($selectedYear, $day, $month);
 
-        $finances = Finance::with(['attachments', 'financeAccount', 'reversalOf'])
+        // Die Anhang-Spalte des Exports trägt eine Zahl, keinen Namen: withCount()
+        // zählt in der Datenbank, statt jeden Beleg samt BLOB zu laden.
+        $finances = Finance::with(['financeAccount', 'reversalOf'])
+            ->withCount('attachments')
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('payment_date', 'asc')
             ->orderBy('running_number', 'asc')
@@ -847,7 +860,9 @@ class FinanceController
         $availableYears = $this->buildAvailableYears($day, $month);
         [$startDate, $endDate] = $this->datesForYear($selectedYear, $day, $month);
 
-        $finances = Finance::with(['attachments', 'financeAccount'])
+        // Ohne Anhänge: Weder der Bericht noch das PDF nennen einen Beleg, das
+        // Vorabladen holte allein den BLOB jedes Belegs des Geschäftsjahres.
+        $finances = Finance::with(['financeAccount'])
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('payment_date', 'asc')
             ->get();
