@@ -20,4 +20,18 @@ class AppSetting extends Model
         'binary_content',
         'mime_type'
     ];
+
+    /**
+     * Das Logo liegt als BLOB in der Spalte. Gleiche Begründung wie bei
+     * `Attachment::$hidden`: In einer Logzeile oder einer Fehlerausgabe, die ein
+     * Modell mitschreibt, sprengt der Inhalt jede Zeile im Container-Log.
+     *
+     * Auf `$setting->binary_content` wirkt sich das nicht aus - AppSettingController
+     * und MailBranding lesen die Eigenschaft direkt.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'binary_content',
+    ];
 }

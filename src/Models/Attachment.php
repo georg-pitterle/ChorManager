@@ -23,6 +23,27 @@ class Attachment extends Model
         'created_at'
     ];
 
+    /**
+     * Zweite Absicherung neben den Spaltenlisten der Aufrufer
+     * (`EntityAttachmentService::LIST_COLUMNS` und die eigenen `select()` in
+     * FinanceController, SponsorController und FinanceCsvExportService): Wird ein
+     * Anhang doch einmal mit allen Spalten geladen und danach serialisiert, bleibt
+     * der Dateiinhalt aus der Ausgabe.
+     *
+     * Zwei Gründe. Anhänge sind rechtegeprüfte Inhalte - was über die
+     * Serialisierung in eine JSON-Antwort gerät, umgeht die Prüfung im
+     * AttachmentController. Und ein BLOB in einer Logzeile sprengt jede Zeile im
+     * Container-Log.
+     *
+     * Auf `$attachment->file_content` wirkt sich das nicht aus - die Auslieferung
+     * in AttachmentResponseFactory liest die Eigenschaft direkt.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'file_content',
+    ];
+
     protected $casts = [
         'created_at' => 'datetime',
     ];
