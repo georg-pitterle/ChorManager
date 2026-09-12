@@ -291,10 +291,29 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
         echo "export DB_USERNAME=${DB_USER}"
         echo "export DB_PASSWORD=${DB_PASS}"
         echo "export DB_PORT=${DB_PORT}"
+        # Der Container läuft als root; ohne das Flag bricht jeder Composer-Aufruf
+        # in der Sitzung mit "Do not run Composer as root/super user" ab.
+        # Begründung samt Plugin-Folgen steht im Composer-Abschnitt weiter unten.
+        echo "export COMPOSER_ALLOW_SUPERUSER=1"
     } >> "$CLAUDE_ENV_FILE"
 fi
 
 # ---------------------------------------------------------------- Composer ----
+# Der Container läuft als root. Ohne dieses Flag schaltet Composer alle Plugins
+# ab ("Composer plugins have been disabled for safety in this non-interactive
+# session") - und cweagans/composer-patches ist genau so ein Plugin. Es steht in
+# `allow-plugins` und liest patches/patches.json.
+#
+# Die Liste dort ist im Moment leer, das Flag ändert also heute nichts am
+# Ergebnis. Es geht um den Tag, an dem der erste Patch dazukommt: Ohne das Flag
+# würde er im Container stillschweigend nicht angewendet, und der Unterschied zur
+# lokalen DDEV-Umgebung wäre von Hand kaum zu finden.
+#
+# Gilt für den Rest des Skripts; in die Sitzungsumgebung geht dieselbe Variable
+# weiter oben über CLAUDE_ENV_FILE, damit `composer test`, `composer phpcs` und
+# `composer test:parallel` im Container ohne Präfix laufen.
+export COMPOSER_ALLOW_SUPERUSER=1
+
 # `composer install` läuft bei jedem Start, nicht nur wenn vendor/ ganz fehlt.
 #
 # Die alte Prüfung auf vendor/autoload.php konnte nur "gar keine Abhängigkeiten"

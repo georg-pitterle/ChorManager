@@ -17,6 +17,41 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 $dotenvPath = dirname(__DIR__);
 if (file_exists($dotenvPath . '/.env')) {
     Dotenv\Dotenv::createImmutable($dotenvPath)->safeLoad();
+
+    // Die drei Quellen einer Umgebungsvariablen auf denselben Stand bringen.
+    //
+    // paratest reicht die Umgebung als echte Prozessumgebung an seine Worker
+    // weiter. Steht in variables_order kein "E" - die Vorgabe "GPCS" hat keins -,
+    // landet sie dort in $_SERVER und getenv(), aber nicht in $_ENV. Dotenv trägt
+    // sie auch nicht nach: createImmutable() überschreibt nichts, was es schon
+    // gesetzt sieht. Im Worker fehlte damit ausgerechnet $_ENV.
+    //
+    // Rund ein Dutzend Testklassen merken sich den Ausgangszustand über
+    // `array_key_exists($key, $_ENV)`, setzen für ihren Test einen eigenen Wert
+    // und legen im tearDown() zurück, was sie vorgefunden haben. Im Worker war
+    // das "nicht vorhanden" - also entfernten sie den Wert aus allen drei
+    // Quellen, auch wenn er über $_SERVER sehr wohl dastand. Jeder spätere Test
+    // im selben Prozess, der ihn brauchte, fiel dann um; bei MAIL_CREDENTIAL_KEY
+    // mit "is not configured correctly".
+    //
+    // Sequenziell blieb das unsichtbar, weil dort $_ENV gefüllt ist. Parallel
+    // hing es daran, welche Datei in welchem Prozess landet - derselbe Befehl war
+    // mal grün und mal rot, mit wechselnden Klassen.
+    foreach (array_keys(Dotenv\Dotenv::createArrayBacked($dotenvPath)->safeLoad()) as $envKey) {
+        if (array_key_exists($envKey, $_ENV)) {
+            continue;
+        }
+
+        $effective = $_SERVER[$envKey] ?? null;
+        if ($effective === null) {
+            $fromProcess = getenv($envKey);
+            $effective = $fromProcess === false ? null : $fromProcess;
+        }
+
+        if ($effective !== null) {
+            $_ENV[$envKey] = $effective;
+        }
+    }
 }
 date_default_timezone_set(App\Util\Timezone::resolveAppTimezone());
 
