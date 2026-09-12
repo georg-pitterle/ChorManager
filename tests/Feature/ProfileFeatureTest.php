@@ -22,6 +22,53 @@ use Tests\Unit\Bootstrap;
 
 class ProfileFeatureTest extends TestCase
 {
+    private const CRYPTO_ENV_KEY = 'MAIL_CREDENTIAL_KEY';
+
+    private ?string $originalCryptoEnvValue = null;
+
+    private bool $hadCryptoEnvValue = false;
+
+    /**
+     * Der Schlüssel kommt aus dem eigenen setUp(), nicht aus der Umgebung.
+     *
+     * Die Tests hier bauen `new MailCredentialCryptoService()`, und der wirft
+     * ohne gültigen `MAIL_CREDENTIAL_KEY`. Bisher trug ihn die .env, die
+     * tests/bootstrap.php einliest - bis eine andere Testklasse im selben Prozess
+     * ihn in ihrem tearDown() entfernte. Sequenziell ging das gut, weil die
+     * Reihenfolge aus phpunit.xml die richtige Klasse zuerst laufen ließ; im
+     * parallelen Lauf verteilt paratest die Dateien anders, und diese Klasse fiel
+     * mit "MAIL_CREDENTIAL_KEY is not configured correctly".
+     *
+     * Gleiches Muster wie in ProfileExternalWebmailUrlTest: setzen, und im
+     * tearDown() genau den Zustand zurücklegen, der vorher da war.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->hadCryptoEnvValue = array_key_exists(self::CRYPTO_ENV_KEY, $_ENV);
+        $this->originalCryptoEnvValue = $_ENV[self::CRYPTO_ENV_KEY] ?? null;
+
+        $cryptoKey = base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
+        $_ENV[self::CRYPTO_ENV_KEY] = $cryptoKey;
+        $_SERVER[self::CRYPTO_ENV_KEY] = $cryptoKey;
+        putenv(self::CRYPTO_ENV_KEY . '=' . $cryptoKey);
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->hadCryptoEnvValue) {
+            $_ENV[self::CRYPTO_ENV_KEY] = $this->originalCryptoEnvValue;
+            $_SERVER[self::CRYPTO_ENV_KEY] = $this->originalCryptoEnvValue;
+            putenv(self::CRYPTO_ENV_KEY . '=' . $this->originalCryptoEnvValue);
+        } else {
+            unset($_ENV[self::CRYPTO_ENV_KEY], $_SERVER[self::CRYPTO_ENV_KEY]);
+            putenv(self::CRYPTO_ENV_KEY);
+        }
+
+        parent::tearDown();
+    }
+
     public function testProfileStructureExists(): void
     {
         $this->assertTrue(class_exists(\App\Controllers\ProfileController::class));

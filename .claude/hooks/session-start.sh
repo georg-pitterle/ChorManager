@@ -94,12 +94,22 @@ if [ "$(mariadb -N -B -e 'SELECT COUNT(*) FROM mysql.time_zone_name;' 2>/dev/nul
 fi
 
 log "Datenbank und Benutzer sicherstellen"
+# Die Suite läuft nicht gegen die Entwicklungsdatenbank: tests/bootstrap.php
+# leitet den Namen ab (`db` wird zu `db_test`) und legt sie bei Bedarf selbst an,
+# paratest hängt je Prozess ein Token an (`db_test_1` und so weiter). Beides
+# braucht Rechte auf Datenbanken, die es beim Sitzungsstart noch gar nicht gibt -
+# deshalb ein Muster statt einzelner Namen.
+#
+# Das `_` ist als `\_` maskiert, weil es in GRANT sonst als Platzhalter für ein
+# beliebiges Zeichen gilt: `db_test%` würde auch `dbXtest` treffen.
 mariadb <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
 CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\_test%\`.* TO '${DB_USER}'@'localhost';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\_test%\`.* TO '${DB_USER}'@'%';
 FLUSH PRIVILEGES;
 SQL
 
@@ -229,29 +239,50 @@ fi
 if [ ! -f .env ]; then
     log ".env aus .env.example erzeugen"
     sed -e "s|^DB_HOST=.*|DB_HOST=${DB_HOST}|" .env.example > .env
-
-    # MailCredentialCryptoService wirft ohne gültigen Schlüssel. Wegwerfwerte für
-    # den Container - .env ist per .gitignore ausgeschlossen.
-    php -r '
-        $file = ".env";
-        $contents = file_get_contents($file);
-        $contents = preg_replace(
-            "/^MAIL_CREDENTIAL_KEY=.*$/m",
-            "MAIL_CREDENTIAL_KEY=" . base64_encode(random_bytes(32)),
-            $contents,
-            1
-        );
-        $contents = preg_replace(
-            "/^WEBMAIL_SSO_SECRET=.*$/m",
-            "WEBMAIL_SSO_SECRET=" . base64_encode(random_bytes(32)),
-            $contents,
-            1
-        );
-        file_put_contents($file, $contents);
-    '
 else
-    log ".env vorhanden, bleibt unverändert"
+    log ".env vorhanden, gesetzte Werte bleiben"
 fi
+
+# Nach einem Pull kann .env.example Schlüssel mitbringen, die es beim Anlegen der
+# .env noch nicht gab. Fehlt so einer, läuft die Anwendung in einen Fehler, der
+# nach allem Möglichen aussieht, nur nicht nach einer unvollständigen .env.
+#
+# Ergänzt werden ausschließlich fehlende Schlüssel; ein bereits gesetzter Wert
+# wird nie überschrieben. Danach bekommen die beiden Geheimnisse einen
+# Wegwerfwert, falls sie leer sind - MailCredentialCryptoService wirft sonst.
+# .env ist per .gitignore ausgeschlossen.
+php -r '
+    $target = ".env";
+    $contents = file_get_contents($target);
+
+    $keysIn = static function (string $text): array {
+        $keys = [];
+        foreach (preg_split("/\R/", $text) as $line) {
+            if (preg_match("/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/", $line, $match) === 1) {
+                $keys[$match[1]] = $line;
+            }
+        }
+        return $keys;
+    };
+
+    $present = $keysIn($contents);
+    $missing = array_diff_key($keysIn(file_get_contents(".env.example")), $present);
+
+    if ($missing !== []) {
+        $contents = rtrim($contents, "\n") . "\n" . implode("\n", $missing) . "\n";
+        echo "[session-start] .env um fehlende Schlüssel ergänzt: ", implode(", ", array_keys($missing)), "\n";
+    }
+
+    foreach (["MAIL_CREDENTIAL_KEY", "WEBMAIL_SSO_SECRET"] as $secret) {
+        $pattern = "/^" . $secret . "=[ \t]*$/m";
+        if (preg_match($pattern, $contents) === 1) {
+            $contents = preg_replace($pattern, $secret . "=" . base64_encode(random_bytes(32)), $contents, 1);
+            echo "[session-start] ", $secret, " mit einem Wegwerfwert belegt\n";
+        }
+    }
+
+    file_put_contents($target, $contents);
+'
 
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     {
@@ -264,11 +295,62 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
 fi
 
 # ---------------------------------------------------------------- Composer ----
-if [ ! -f vendor/autoload.php ]; then
+# `composer install` läuft bei jedem Start, nicht nur wenn vendor/ ganz fehlt.
+#
+# Die alte Prüfung auf vendor/autoload.php konnte nur "gar keine Abhängigkeiten"
+# erkennen, nicht "vendor/ ist gegenüber composer.lock veraltet". Das Image
+# bringt ein vorgebackenes vendor/ mit; kommt im Repo eine Abhängigkeit dazu,
+# fehlt sie in jeder Sitzung, ohne dass es auffällt. Genau so fehlte paratest,
+# nachdem es mit e7a3e43 dazukam - die volle Suite lief seitdem nur sequenziell
+# und damit ohne den strengeren parallelen Lauf.
+#
+# Der Aufruf ist billig, wenn nichts zu tun ist: Composer vergleicht zuerst
+# lokal gegen vendor/composer/installed.json und geht nur ins Netz, wenn
+# tatsächlich ein Paket fehlt.
+if [ -f vendor/autoload.php ]; then
+    log "Composer-Abhängigkeiten abgleichen"
+    # Ein fehlgeschlagener Abgleich darf die Sitzung nicht kippen - das
+    # vorhandene vendor/ trägt in aller Regel weiter. Ohne vendor/ ist derselbe
+    # Fehler dagegen das Ende, siehe unten.
+    if ! composer install --no-interaction --no-progress \
+        "${composer_platform_args[@]+"${composer_platform_args[@]}"}"; then
+        log "WARNUNG: Abgleich fehlgeschlagen, Sitzung läuft mit dem vorhandenen vendor/ weiter."
+    fi
+else
     log "Composer-Abhängigkeiten installieren"
     composer install --no-interaction --no-progress "${composer_platform_args[@]+"${composer_platform_args[@]}"}"
-else
-    log "vendor/ vorhanden"
+fi
+
+# -------------------------------------------------------- Frontend-Assets ----
+# Die Oberfläche lädt Bootstrap, FullCalendar, TinyMCE und PDF.js ausschließlich
+# aus public/vendor - instructions/template-hygiene.md verbietet CDNs. Dorthin
+# kommen sie über bin/copy-assets.php aus node_modules; public/vendor ist nicht
+# eingecheckt. Ohne diesen Schritt startet die Anwendung zwar, zeigt aber eine
+# Seite ohne Stile und ohne Kalender.
+#
+# `composer install` ruft copy-assets.php als Post-Install-Skript bereits auf -
+# es steigt ohne node_modules nur aus. Deshalb hier: erst npm, dann die Assets.
+#
+# --omit=dev lässt @playwright/test weg: Das ist die einzige devDependency, die
+# e2e-Suite braucht ohnehin eigene Browser und wird bewusst von Hand gestartet.
+if [ -f package-lock.json ]; then
+    if [ ! -d node_modules ]; then
+        log "npm-Pakete installieren"
+    else
+        log "npm-Pakete abgleichen"
+    fi
+
+    # Wie bei Composer: Ein Fehler hier darf die Sitzung nicht kippen. PHPUnit,
+    # phpcs und phinx laufen auch ohne Frontend-Assets.
+    if npm ci --omit=dev --no-audit --no-fund >"$LOG_DIR/npm-session-start.log" 2>&1; then
+        if php bin/copy-assets.php >>"$LOG_DIR/npm-session-start.log" 2>&1; then
+            log "Frontend-Assets liegen in public/vendor"
+        else
+            log "WARNUNG: Assets ließen sich nicht kopieren, siehe $LOG_DIR/npm-session-start.log"
+        fi
+    else
+        log "WARNUNG: npm ci fehlgeschlagen, Oberfläche bleibt ohne Assets (siehe $LOG_DIR/npm-session-start.log)"
+    fi
 fi
 
 # -------------------------------------------------------------- Migrationen ----
@@ -277,4 +359,4 @@ DB_HOST="$DB_HOST" DB_DATABASE="$DB_NAME" DB_USERNAME="$DB_USER" \
     DB_PASSWORD="$DB_PASS" DB_PORT="$DB_PORT" \
     ./vendor/bin/phinx migrate
 
-log "Bereit: phpunit, phpcs, twigcs und phinx können laufen."
+log "Bereit: phpunit, paratest, phpcs, twigcs und phinx können laufen; Oberfläche hat ihre Assets."
