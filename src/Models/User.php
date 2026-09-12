@@ -83,16 +83,6 @@ class User extends Model
         'is_active' => 'boolean',
     ];
 
-    public function getPasswordAttribute()
-    {
-        return $this->attributes['password'] ?? null;
-    }
-
-    public function setPasswordAttribute($value)
-    {
-        $this->attributes['password'] = $value;
-    }
-
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id');

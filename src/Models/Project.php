@@ -92,12 +92,18 @@ class Project extends Model
      *
      * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
      * Comment::visibleTo() bewusst selbst.
+     *
+     * Reihenfolge wie bei Event::comments() - die drei teilen sich mit
+     * partials/comments.twig dieselbe Darstellung und dürfen nicht
+     * unterschiedlich herum stehen.
      */
     public function comments()
     {
         return $this->hasMany(Comment::class, 'entity_id', 'id')
             ->where('entity_type', 'project')
-            ->where('is_private', false);
+            ->where('is_private', false)
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
     }
 
     public function attachments()

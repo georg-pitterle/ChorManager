@@ -85,13 +85,19 @@ class Event extends Model
      * jeweiligen Aufrufer, ob eine fremde private Notiz in der Ausgabe landet.
      * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
      * Comment::visibleTo() bewusst selbst.
+     *
+     * Die neueste zuerst, `id` bricht den Gleichstand: `comments.created_at`
+     * steht auf Sekunden genau, und zwei Notizen in derselben Sekunde sind keine
+     * Ausnahme. Ohne den zweiten Schlüssel wechselt ihre Reihenfolge zwischen
+     * zwei Aufrufen.
      */
     public function comments()
     {
         return $this->hasMany(Comment::class, 'entity_id', 'id')
             ->where('entity_type', 'event')
             ->where('is_private', false)
-            ->orderBy('created_at', 'desc');
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
     }
 
     /**

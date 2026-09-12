@@ -11,7 +11,6 @@ class NewsletterRecipient extends Model
 {
     protected $table = 'newsletter_recipients';
     public $timestamps = false;
-    public $incrementing = true;
 
     protected $fillable = [
         'newsletter_id',
