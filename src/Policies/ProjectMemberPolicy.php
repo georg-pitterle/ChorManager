@@ -18,7 +18,8 @@ use App\Models\User;
  *  - can_assign_own_voice_group_to_project: manage only members that share
  *    one of the actor's own voice groups, and only in projects the actor
  *    participates in. The candidate list and every add/remove is filtered to
- *    that voice-group scope.
+ *    that voice-group scope. Without a voice group of their own the right
+ *    reaches nobody and therefore opens nothing - see holdsVoiceGroupScope().
  *
  * Zwei bewusste Entscheidungen, damit sie nicht bei jeder Durchsicht neu
  * aufgeworfen werden:
@@ -66,11 +67,30 @@ class ProjectMemberPolicy
      */
     public function canViewMembers(int $projectId): bool
     {
-        if (!$this->canManageProjectMembers && !$this->canAssignOwnVoiceGroup) {
+        if (!$this->canManageProjectMembers && !$this->holdsVoiceGroupScope()) {
             return false;
         }
 
         return in_array($projectId, $this->getAccessibleProjectIds(), true);
+    }
+
+    /**
+     * Trägt die Sitzung das stimmgruppen-beschränkte Recht so, dass es auf
+     * jemanden zutrifft?
+     *
+     * Ohne eigene Stimmgruppe trifft es auf niemanden: die Kandidatenliste
+     * bleibt leer (ProjectQuery::getUsersNotInProjectForVoiceGroups() gibt für
+     * eine leere Stimmgruppenliste nichts zurück) und canManageMember() weist
+     * jedes Ziel ab, weil die Schnittmenge leer bleibt. Die Besetzungsseite
+     * ginge trotzdem auf - eine Sackgasse, und genau das reine Lese-Recht auf
+     * die Besetzung, das es laut Klassenkommentar nicht geben soll.
+     *
+     * Soll jemand die Besetzung wirklich nur lesen, ist das breite Recht der
+     * Weg, nicht dieser Nebeneffekt einer fehlenden Stimmgruppe.
+     */
+    private function holdsVoiceGroupScope(): bool
+    {
+        return $this->canAssignOwnVoiceGroup && $this->ownVoiceGroupIds !== [];
     }
 
     /**
@@ -156,7 +176,7 @@ class ProjectMemberPolicy
         }
 
         // Das stimmgruppen-beschränkte Recht bleibt auf die eigenen Projekte begrenzt.
-        if ($this->canAssignOwnVoiceGroup && $this->userId > 0) {
+        if ($this->holdsVoiceGroupScope() && $this->userId > 0) {
             $user = User::find($this->userId);
             if ($user) {
                 $this->accessibleProjectIdsCache = array_map(

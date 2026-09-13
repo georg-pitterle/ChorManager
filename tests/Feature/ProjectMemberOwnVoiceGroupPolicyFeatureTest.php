@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Project;
+use App\Models\User;
 use App\Policies\ProjectMemberPolicy;
+use App\Util\PasswordHasher;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\Bootstrap;
 
 /**
  * Covers the voice-group-scoped project assignment right
@@ -98,6 +103,83 @@ class ProjectMemberOwnVoiceGroupPolicyFeatureTest extends TestCase
         $this->assertTrue($policy->canViewAllCandidates());
         $this->assertTrue($policy->canManageMember(42, [3]));
         $this->assertTrue($policy->canManageMember(42, []));
+    }
+
+    public function testScopedHolderWithoutOwnVoiceGroupReachesNothing(): void
+    {
+        // Ohne eigene Stimmgruppe trifft das beschränkte Recht auf niemanden:
+        // die Kandidatenliste bleibt leer und jedes Zuordnen scheitert. Die
+        // Besetzungsseite trotzdem zu öffnen wäre genau das reine Lese-Recht,
+        // das es laut Klassenkommentar nicht geben soll - eine Sackgasse.
+        $_SESSION['user_id'] = 5;
+        $_SESSION['can_manage_project_members'] = false;
+        $_SESSION['can_assign_own_voice_group_to_project'] = true;
+        $_SESSION['voice_group_ids'] = [];
+
+        $policy = $this->policyWithAccessibleProjects([42]);
+
+        $this->assertFalse($policy->canViewMembers(42));
+        $this->assertFalse($policy->canAddMember(42));
+        $this->assertFalse($policy->canRemoveMember(42));
+        $this->assertFalse($policy->canManageMember(42, [7]));
+    }
+
+    public function testBroadManagerStaysUnaffectedByAnEmptyOwnVoiceGroup(): void
+    {
+        // Das breite Recht hängt nicht an einer eigenen Stimmgruppe - sonst
+        // käme eine Chorleitung ohne Stimmgruppe an kein Projekt mehr heran.
+        $_SESSION['user_id'] = 5;
+        $_SESSION['can_manage_project_members'] = true;
+        $_SESSION['can_assign_own_voice_group_to_project'] = false;
+        $_SESSION['voice_group_ids'] = [];
+
+        $policy = $this->policyWithAccessibleProjects([42]);
+
+        $this->assertTrue($policy->canViewMembers(42));
+        $this->assertTrue($policy->canManageMember(42, []));
+    }
+
+    public function testScopedHolderWithoutOwnVoiceGroupGetsNoAccessibleProjects(): void
+    {
+        // Gegen die echte Datenbank: die Projektliste des beschränkten Rechts
+        // bleibt leer, solange keine eigene Stimmgruppe hinterlegt ist. Sonst
+        // stünden unter /projects/members Projekte, in denen sich anschließend
+        // niemand zuordnen lässt.
+        Bootstrap::setupTestDatabase();
+        $connection = Bootstrap::getCapsule()?->connection();
+        $connection?->beginTransaction();
+
+        try {
+            $suffix = bin2hex(random_bytes(4));
+            $project = Project::create(['name' => 'Stimmgruppenprojekt ' . $suffix]);
+            $user = User::create([
+                'email' => 'scoped_' . $suffix . '@example.test',
+                'password' => PasswordHasher::hash('secret'),
+                'first_name' => 'Sabine',
+                'last_name' => 'Steiner',
+                'is_active' => 1,
+            ]);
+
+            Capsule::table('project_users')->insert([
+                'user_id' => (int) $user->id,
+                'project_id' => (int) $project->id,
+            ]);
+
+            $_SESSION['user_id'] = (int) $user->id;
+            $_SESSION['can_manage_project_members'] = false;
+            $_SESSION['can_assign_own_voice_group_to_project'] = true;
+            $_SESSION['voice_group_ids'] = [];
+
+            $this->assertSame([], (new ProjectMemberPolicy())->getAccessibleProjectIds());
+
+            // Mit eigener Stimmgruppe steht das eigene Projekt wie bisher drin.
+            $_SESSION['voice_group_ids'] = [1];
+            $this->assertSame([(int) $project->id], (new ProjectMemberPolicy())->getAccessibleProjectIds());
+        } finally {
+            if ($connection !== null && $connection->transactionLevel() > 0) {
+                $connection->rollBack();
+            }
+        }
     }
 
     public function testNoRelevantRightDeniesEverything(): void

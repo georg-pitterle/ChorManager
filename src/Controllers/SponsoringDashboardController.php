@@ -50,9 +50,11 @@ class SponsoringDashboardController
 
         $in7Days = $today->copy()->addDays(7)->format('Y-m-d');
 
-        // Wer nicht das Vollrecht hat, sieht hier die eigene Arbeitsliste. Die
-        // Einschränkung steht an einer Stelle, damit die beiden Tabellen nicht
-        // auseinanderlaufen.
+        // Wer nicht das Vollrecht hat, sieht hier die eigene Arbeitsliste. Welche
+        // Zeilen das sind, entscheidet die Policy - und zwar je Tabelle getrennt:
+        // die Wiedervorlagen umfassen auch fremde Einträge auf einer Vereinbarung,
+        // für die man zuständig ist (die darf man abhaken), die Historie darunter
+        // nicht (dort steht die fremde Zusammenfassung).
         $ownUserId = $this->policy->ownContactUserIdFilter();
         $restrictToOwn = static function ($query) use ($ownUserId): void {
             if ($ownUserId !== null) {
@@ -60,10 +62,11 @@ class SponsoringDashboardController
             }
         };
 
-        $upcomingFollowUps = SponsoringContact::where('follow_up_done', 0)
+        $followUpQuery = SponsoringContact::where('follow_up_done', 0)
             ->whereNotNull('follow_up_date')
-            ->where('follow_up_date', '<=', $in7Days)
-            ->where($restrictToOwn)
+            ->where('follow_up_date', '<=', $in7Days);
+
+        $upcomingFollowUps = $this->policy->restrictFollowUpsToOwnWorkload($followUpQuery)
             ->with(['sponsor', 'user', 'sponsorship.package'])
             ->orderBy('follow_up_date')
             ->get()

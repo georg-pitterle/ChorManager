@@ -128,6 +128,9 @@ class ProjectActionVisibilityFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->managerUserId;
         $_SESSION['can_manage_project_members'] = false;
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
+        // Das beschränkte Recht trifft nur zu, solange eine eigene Stimmgruppe
+        // dahintersteht - die Anmeldung legt sie in dieselbe Sitzung.
+        $_SESSION['voice_group_ids'] = [1];
 
         $data = $this->renderData();
 
@@ -199,9 +202,10 @@ class ProjectActionVisibilityFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->managerUserId;
         // Die Auswertung selbst ist projektuebergreifend sichtbar ...
         $_SESSION['can_manage_attendance_all'] = true;
-        // ... die Mitgliederpflege dagegen nur fuer die eigenen Projekte.
+        // ... die Mitgliederpflege dagegen nur für die eigenen Projekte.
         $_SESSION['can_manage_project_members'] = false;
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
+        $_SESSION['voice_group_ids'] = [1];
 
         $this->assertTrue($this->evaluationRenderData($this->ownProjectId)['can_manage_members'] ?? null);
         $this->assertFalse($this->evaluationRenderData($this->foreignProjectId)['can_manage_members'] ?? null);

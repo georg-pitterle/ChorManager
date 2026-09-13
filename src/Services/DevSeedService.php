@@ -2522,6 +2522,22 @@ class DevSeedService
                 'follow_up_done' => 0,
             ],
             [
+                // Urheber und zuständige Person fallen im Seed ohnehin
+                // auseinander; dieser Eintrag stellt den Fall beim ersten
+                // Sponsor der Liste hin, wo man ihn in Dev auch sucht: die
+                // Wiedervorlage steht auf der Übersicht der zuständigen
+                // Person, sie darf sie abhaken, und die Zusammenfassung
+                // bleibt trotzdem fremd.
+                'sponsor' => 'Musikhaus Weber',
+                'sponsorship_key' => 'Musikhaus Weber-0',
+                'user_offset' => 1,
+                'contact_date' => '-5 days',
+                'type' => 'call',
+                'summary' => 'Rückruf zur Logoplatzierung, Entscheidung liegt bei der zuständigen Person.',
+                'follow_up_date' => '+5 days',
+                'follow_up_done' => 0,
+            ],
+            [
                 'sponsor' => 'Kulturstiftung am Fluss',
                 'sponsorship_key' => 'Kulturstiftung am Fluss-0',
                 'user_offset' => 1,

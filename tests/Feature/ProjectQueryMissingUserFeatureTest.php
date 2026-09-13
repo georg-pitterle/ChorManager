@@ -144,6 +144,9 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
     {
         $_SESSION['user_id'] = $this->memberId;
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
+        // Das beschränkte Recht trifft nur zu, solange eine eigene Stimmgruppe
+        // dahintersteht - die Anmeldung legt sie in dieselbe Sitzung.
+        $_SESSION['voice_group_ids'] = [$this->alto];
 
         $data = $this->renderIndex();
 
@@ -158,6 +161,9 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
     {
         $_SESSION['user_id'] = $this->deletedUserId;
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
+        // Mit Stimmgruppe, sonst endet die Policy schon vor dem User::find() und
+        // der Wächter gegen das gelöschte Konto liefe ins Leere.
+        $_SESSION['voice_group_ids'] = [$this->alto];
 
         $data = $this->renderIndex();
 
@@ -171,6 +177,7 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
     public function testIndexRendersWithoutAUserIdInTheSession(): void
     {
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
+        $_SESSION['voice_group_ids'] = [$this->alto];
 
         $data = $this->renderIndex();
 

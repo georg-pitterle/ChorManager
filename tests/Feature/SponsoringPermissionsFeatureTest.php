@@ -600,6 +600,55 @@ class SponsoringPermissionsFeatureTest extends TestCase
         }
     }
 
+    /**
+     * Die Wiedervorlagen-Liste der Übersicht zeigt genau das, was diese Person
+     * abhaken darf - also auch die Einträge fremder Urheber auf einer
+     * Vereinbarung, für die sie zuständig ist.
+     *
+     * Vorher filterte die Liste allein nach Urheber. Genau der Fall, für den
+     * canCompleteFollowUp() um die Zuständigkeit erweitert wurde - Urheber im
+     * Urlaub oder ausgetreten - kam damit an der Stelle nicht an, an der man
+     * ihn sucht; er stand nur noch auf der Sponsor-Detailseite.
+     *
+     * Die Kontakthistorie darunter bleibt eng: dort steht die Zusammenfassung,
+     * und die gehört weiterhin dem, der sie geschrieben hat.
+     */
+    public function testDashboardAlsoListsFollowUpsOfAgreementsOneIsAssignedTo(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+
+        $assignedToMe = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+        $assignedToMe->assigned_user_id = $this->contributor->id;
+        $assignedToMe->save();
+
+        $foreign = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+
+        $onMyAgreement = $this->makeContact($sponsor, $assignedToMe, (int) $this->otherUser->id, 'Fremd auf meiner');
+        $elsewhere = $this->makeContact($sponsor, $foreign, (int) $this->otherUser->id, 'Fremd auf fremder');
+
+        try {
+            $data = $this->dashboardData();
+            $urls = array_column($data['upcoming_follow_ups'], 'mark_done_url');
+
+            $this->assertCount(1, $urls);
+            $this->assertStringContainsString('/contacts/' . $onMyAgreement->id . '/done', $urls[0]);
+
+            // Was in der Liste steht, lässt sich auch abhaken - dieselbe Regel.
+            $policy = new SponsoringPolicy();
+            $this->assertTrue($policy->canCompleteFollowUp($onMyAgreement->fresh()));
+            $this->assertFalse($policy->canCompleteFollowUp($elsewhere->fresh()));
+
+            // Die Zusammenfassung bleibt fremd und damit aus der Historie heraus.
+            $summaries = array_column($data['recent_contacts'], 'summary');
+            $this->assertNotContains('Fremd auf meiner', $summaries);
+            $this->assertNotContains('Fremd auf fremder', $summaries);
+        } finally {
+            SponsoringContact::whereIn('id', [$onMyAgreement->id, $elsewhere->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
     public function testOnlyTheOwnerMayTickOffAFollowUp(): void
     {
         $this->loginAsContributor();

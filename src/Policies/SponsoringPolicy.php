@@ -175,9 +175,14 @@ class SponsoringPolicy
     }
 
     /**
-     * Beschränkung der Kontakt-Listen auf dem Dashboard: Beitragende sehen dort
+     * Beschränkung der Kontakthistorie auf dem Dashboard: Beitragende sehen dort
      * ihre eigene Arbeitsliste, nicht die aller anderen. Gibt null zurück, wenn
      * nicht eingeschränkt werden muss.
+     *
+     * Gilt nur für die Historie, nicht für die Wiedervorlagen - dort steht die
+     * Zusammenfassung des Kontakts, und die bleibt beim Urheber
+     * (canSeeContactDetails()). Die Wiedervorlagen gehen über
+     * restrictFollowUpsToOwnWorkload().
      */
     public function ownContactUserIdFilter(): ?int
     {
@@ -186,6 +191,49 @@ class SponsoringPolicy
         }
 
         return $this->userId;
+    }
+
+    /**
+     * Beschränkung der Wiedervorlagen-Liste auf dem Dashboard: genau die
+     * Einträge, die diese Person auch abhaken darf.
+     *
+     * Das ist absichtlich weiter als ownContactUserIdFilter(). Die Liste folgt
+     * canCompleteFollowUp(), also Urheberschaft ODER Zuständigkeit an der
+     * zugehörigen Vereinbarung. Nach Urheber allein gefiltert fiel genau der
+     * Fall heraus, für den die Zuständigkeit überhaupt aufgenommen wurde: ist
+     * der Urheber im Urlaub oder ausgetreten, stand sein Eintrag auf der
+     * Übersicht der zuständigen Person nicht - sie hätte ihn nur auf der
+     * Sponsor-Detailseite gefunden, wenn sie dort nachgesehen hätte.
+     *
+     * Die Zusammenfassung des fremden Kontakts kommt dabei nicht mit: die
+     * Wiedervorlagen-Zeile führt sie nicht, anders als die Kontakthistorie.
+     *
+     * @param Builder<SponsoringContact> $query
+     * @return Builder<SponsoringContact>
+     */
+    public function restrictFollowUpsToOwnWorkload(Builder $query): Builder
+    {
+        if ($this->canManageSponsoring) {
+            return $query;
+        }
+
+        $userId = $this->userId;
+        // Dieselbe Bedingung wie in canCompleteFollowUp(): ohne Beitragsrecht
+        // oder ohne Anmeldung zählt die Zuständigkeit nicht. Bleibt dann
+        // `user_id = 0`, und das trifft auf keine Zeile zu.
+        $includeAssigned = $this->canContribute() && $userId > 0;
+
+        return $query->where(function ($sub) use ($userId, $includeAssigned): void {
+            $sub->where('user_id', $userId);
+
+            if (!$includeAssigned) {
+                return;
+            }
+
+            $sub->orWhereHas('sponsorship', static function ($agreement) use ($userId): void {
+                $agreement->where('assigned_user_id', $userId);
+            });
+        });
     }
 
     /**

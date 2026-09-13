@@ -31,9 +31,12 @@ die du nicht selbst angelegt hast, verborgen:
 Sichtbar bleiben Firma, Projekt, Paket, Status, Zuständige und Zeitraum – also
 alles, was die Frage „wo kann ich noch fragen" beantwortet.
 
-Das **Dashboard** ist in diesem Fall deine persönliche Arbeitsliste: Wiedervorlagen
-und letzte Kontakte zeigen nur, was du selbst protokolliert hast, und abhaken
-kannst du nur deine eigenen Wiedervorlagen. Die Geld-Kacheln erscheinen nicht.
+Das **Dashboard** ist in diesem Fall deine persönliche Arbeitsliste. Die letzten
+Kontakte zeigen nur, was du selbst protokolliert hast. Die Wiedervorlagen reichen
+etwas weiter: dort stehen zusätzlich die Einträge zu Vereinbarungen, bei denen du
+als zuständig eingetragen bist – die darfst du auch abhaken, selbst wenn sie
+jemand anderer protokolliert hat. Die Zusammenfassung eines fremden Kontakts
+bleibt dabei verborgen. Die Geld-Kacheln erscheinen nicht.
 
 Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, während das Sponsoring-Team koordiniert und prüft. Vor jeder Anfrage lohnt ein Blick in die Sponsorenliste: dort steht, wo schon jemand angefragt hat.
 
@@ -62,7 +65,7 @@ Klicke oben in der Navigation auf **Bereiche → Sponsoring**. Du landest auf de
 Das Dashboard zeigt dir:
 
 - **Kennzahlen**: Anzahl der Zusagen, zugesagter Gesamtbetrag, Pipeline-Volumen (Vereinbarungen mit Status "Angefragt" oder "Erinnert") und Anzahl fälliger Wiedervorlagen. Gezählt werden Vereinbarungen, nicht Sponsoren: die Kachel misst eingegangene Verpflichtungen, während der Zustand in der Sponsorenliste den Stand der Akquise zeigt.
-- **Wiedervorlagen**: Kontakte mit einem fälligen Erinnerungstermin in den nächsten 7 Tagen. Überfällige Einträge sind gelb markiert. Mit **Erledigt** markierst du eine Wiedervorlage als abgeschlossen.
+- **Wiedervorlagen**: Kontakte mit einem fälligen Erinnerungstermin in den nächsten 7 Tagen. Überfällige Einträge sind gelb markiert. Mit **Erledigt** markierst du eine Wiedervorlage als abgeschlossen. Ohne das Recht "Sponsoring verwalten" siehst du hier deine eigenen Wiedervorlagen und die der Vereinbarungen, für die du zuständig bist.
 - **Letzte Kontakte**: die neueste Kommunikationshistorie mit allen Sponsoren.
 
 ## Anleitungen
