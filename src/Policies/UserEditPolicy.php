@@ -19,6 +19,9 @@ use App\Models\User;
  *    Ein reiner Projektmitglieder-Verwalter ändert nur die Projektzuordnung.
  *  - canEditProjects(): darf die Projektzuordnung geschrieben werden? Genau das
  *    ist die Schreibstufe des Projektmitglieder-Verwalters.
+ *  - canArchive(): darf das Mitglied stillgelegt oder zurückgeholt werden? Als
+ *    einzige Stufe ohne die Frage, ob das Ziel aktiv ist - sonst bliebe ein
+ *    archiviertes Mitglied für immer archiviert.
  *  - canEditEmail(): die Adresse selbst hängt allein an can_edit_users. Eine
  *    fremde Adresse umbiegen und anschließend eine Einladung darauf auslösen
  *    ergibt einen vollständigen Übernahmepfad auf das Zielkonto; für den
@@ -91,6 +94,24 @@ class UserEditPolicy
     }
 
     /**
+     * True when the session may archive the member - or bring an archived one back.
+     *
+     * Die einzige Stufe, die den archivierten Zustand des Ziels nicht prüft:
+     * Archivieren und Wiederherstellen sind dieselbe Befugnis in zwei Richtungen,
+     * und wäre nur das Archivieren erlaubt, könnte eine Stimmvertretung ein
+     * Mitglied stilllegen, aber nicht mehr zurückholen. Hierarchie und Rechte
+     * gelten wie beim Bearbeiten - canEditProfile() ist genau diese Stufe plus
+     * "Ziel ist aktiv".
+     *
+     * @param array<string, mixed> $session
+     */
+    public function canArchive(array $session, User $target): bool
+    {
+        return !$this->targetOutranksActor($session, $target)
+            && $this->holdsProfileRight($session, $target);
+    }
+
+    /**
      * Guards that apply to every path: archived members stay untouchable, and so
      * does anybody who outranks the acting session.
      *
@@ -102,7 +123,7 @@ class UserEditPolicy
             return false;
         }
 
-        return !$this->outranksActor($session, $target);
+        return !$this->targetOutranksActor($session, $target);
     }
 
     /**
@@ -145,9 +166,14 @@ class UserEditPolicy
      * Die Rollen sind an beiden Aufrufstellen (UserQuery::getAllUsers() und
      * ::findById()) bereits eager-geladen, ein zusätzlicher Query entsteht nicht.
      *
+     * Öffentlich, weil UserController dieselbe Regel auf Wegen braucht, die diese
+     * Policy sonst nicht berührt - Einladen und Deaktivieren. Sie dort ein zweites
+     * Mal aus der Sitzung zusammenzusetzen hieße: zwei Quellen für dieselbe
+     * Sicherheitsregel, die beim nächsten Eingriff auseinanderlaufen.
+     *
      * @param array<string, mixed> $session
      */
-    private function outranksActor(array $session, User $target): bool
+    public function targetOutranksActor(array $session, User $target): bool
     {
         $actorLevel = (int) ($session['role_level'] ?? 0);
         $targetLevel = 0;

@@ -113,18 +113,26 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
     /**
      * Cheap regression guard in addition to the behavioral tests above/below:
      * the magic-number comparisons must be gone from the three migrated files.
+     *
+     * Für die Mitgliederverwaltung steht das Recht inzwischen in
+     * UserEditPolicy - UserController fragt es über canEditProfile() und
+     * canArchive() ab, statt es selbst aus der Sitzung zu lesen. Geprüft wird
+     * deshalb dort, dass das Kennzeichen die Entscheidung trägt, und im
+     * Controller nur noch, dass die Rollenstufe nicht zurückkommt.
      */
     public function testCallSitesReferenceFlagNotMagicNumber(): void
     {
         $scope = file_get_contents(dirname(__DIR__) . '/../src/Services/AttendanceScopeService.php');
         $middleware = file_get_contents(dirname(__DIR__) . '/../src/Middleware/RoleMiddleware.php');
         $userCtrl = file_get_contents(dirname(__DIR__) . '/../src/Controllers/UserController.php');
+        $userEditPolicy = file_get_contents(dirname(__DIR__) . '/../src/Policies/UserEditPolicy.php');
 
         $this->assertStringContainsString('can_manage_own_voice_group', $scope);
         $this->assertStringNotContainsString('>= 40', $scope);
         $this->assertStringContainsString('can_manage_own_voice_group', $middleware);
         $this->assertStringNotContainsString('< 40', $middleware);
-        $this->assertStringContainsString('can_manage_own_voice_group', $userCtrl);
+        $this->assertStringContainsString('can_manage_own_voice_group', $userEditPolicy);
+        $this->assertStringContainsString('userEditPolicy->canArchive', $userCtrl);
         $this->assertStringNotContainsString('$userLevel >= 40', $userCtrl);
         $this->assertStringNotContainsString('$userLevel < 40', $userCtrl);
     }

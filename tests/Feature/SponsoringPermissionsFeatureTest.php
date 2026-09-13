@@ -260,6 +260,23 @@ class SponsoringPermissionsFeatureTest extends TestCase
         }
     }
 
+    public function testAnUnknownProjectIsRefusedForEveryRight(): void
+    {
+        // Eine Projekt-Id, die es nicht gibt, endet vor dem Schreiben - sonst
+        // läuft sie in den Fremdschlüssel von sponsorships und die Eingabe kommt
+        // als nichtssagendes "Fehler beim Anlegen" zurück. Dieselbe Regel wie in
+        // ProjectMemberPolicy::canViewMembers().
+        $unknownId = ((int) Project::query()->max('id')) + 10000;
+
+        $this->loginAsContributor();
+        $this->assertFalse((new SponsoringPolicy())->canUseProject($unknownId));
+
+        $_SESSION['can_manage_sponsoring'] = true;
+        $this->assertFalse((new SponsoringPolicy())->canUseProject($unknownId));
+        // Ohne Projektbezug bleibt die Vereinbarung weiterhin erlaubt.
+        $this->assertTrue((new SponsoringPolicy())->canUseProject(null));
+    }
+
     public function testAgreementInheritsTheProjectPeriodWhenNoDatesAreGiven(): void
     {
         $this->loginAsContributor();

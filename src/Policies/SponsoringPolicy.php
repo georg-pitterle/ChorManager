@@ -190,15 +190,18 @@ class SponsoringPolicy
 
     /**
      * Kein Projekt ist erlaubt (allgemeine Anfrage ohne Projektbezug); sonst
-     * muss das Projekt heute laufen, solange nicht das Vollrecht vorliegt.
+     * muss das Projekt existieren und - solange nicht das Vollrecht vorliegt -
+     * heute laufen.
+     *
+     * Die Existenz wird auch für das Vollrecht geprüft. Sonst nimmt
+     * SponsorshipController::create() eine erfundene Kennung an, der
+     * Fremdschlüssel auf projects weist sie ab, und der Versuch kommt als
+     * nichtssagendes "Fehler beim Anlegen" zurück statt als Hinweis auf das
+     * Projekt. Dieselbe Überlegung steht in ProjectMemberPolicy::canViewMembers().
      */
     public function canUseProject(?int $projectId): bool
     {
-        if ($this->canManageSponsoring) {
-            return true;
-        }
-
-        if (!$this->canCreateOwnSponsorships) {
+        if (!$this->canContribute()) {
             return false;
         }
 

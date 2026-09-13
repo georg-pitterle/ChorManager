@@ -598,28 +598,18 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
-        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
-        $myVgs = $_SESSION['voice_group_ids'] ?? [];
-
         $targetUser = $this->userQuery->findById($userId);
         if (!$targetUser) {
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        if ($this->outranksActor($targetUser)) {
+        // Dieselbe Befugnis wie beim Wiederherstellen und bei der Sammelaktion.
+        // Sie hier ein drittes Mal aus der Sitzung zusammenzusetzen war der Weg,
+        // auf dem die Liste einen Archivieren-Knopf anbieten konnte, den der
+        // Klick danach abwies.
+        if (!$this->canArchiveTargetUser($targetUser)) {
             $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.';
             return $response->withHeader('Location', '/users')->withStatus(302);
-        }
-
-        $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
-        $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
-
-        if (!$canEditGlobal) {
-            if (!$canManageOwnVoiceGroup || !$isInMyGroup) {
-                $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.';
-                return $response->withHeader('Location', '/users')->withStatus(302);
-            }
         }
 
         if ($this->isLastUserManager($targetUser)) {
@@ -738,29 +728,16 @@ class UserController
     }
 
     /**
-     * Highest role hierarchy level currently held by the target user.
-     */
-    private function targetHierarchyLevel(User $targetUser): int
-    {
-        $max = 0;
-        foreach ($targetUser->roles as $role) {
-            $level = (int) ($role->hierarchy_level ?? 0);
-            if ($level > $max) {
-                $max = $level;
-            }
-        }
-
-        return $max;
-    }
-
-    /**
      * True when the target user holds a role that outranks the acting user's own level.
+     *
+     * Die Regel steht in der Policy und wird hier nur durchgereicht. Vorher stand
+     * sie zweimal im Projekt - einmal dort, einmal hier samt eigener Ermittlung
+     * des höchsten Rollen-Levels. Zwei Quellen für dieselbe Sicherheitsregel
+     * laufen beim nächsten Eingriff auseinander.
      */
     private function outranksActor(User $targetUser): bool
     {
-        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
-
-        return $this->targetHierarchyLevel($targetUser) > $actorLevel;
+        return $this->userEditPolicy->targetOutranksActor($_SESSION, $targetUser);
     }
 
     /**
@@ -796,26 +773,16 @@ class UserController
 
     /**
      * Archivieren und Wiederherstellen sind dieselbe Befugnis in zwei Richtungen.
-     * Waere nur das Archivieren erlaubt, koennte ein Stimmgruppen-Verwalter ein
-     * Mitglied stilllegen, aber nicht mehr zurueckholen.
+     * Wäre nur das Archivieren erlaubt, könnte ein Stimmgruppen-Verwalter ein
+     * Mitglied stilllegen, aber nicht mehr zurückholen.
+     *
+     * Die Regel selbst steht in UserEditPolicy::canArchive() - dieselben zwei
+     * Rechte und dieselbe Rollenhierarchie wie beim Bearbeiten. Hier stand sie
+     * zuvor ein zweites Mal ausgeschrieben.
      */
     private function canArchiveTargetUser(User $targetUser): bool
     {
-        if ($this->outranksActor($targetUser)) {
-            return false;
-        }
-
-        $canEditGlobal = (bool) ($_SESSION['can_edit_users'] ?? false);
-        if ($canEditGlobal) {
-            return true;
-        }
-
-        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
-        $myVgs = $_SESSION['voice_group_ids'] ?? [];
-        $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
-        $isInMyGroup = !empty(array_intersect($myVgs, $targetVgIds));
-
-        return $canManageOwnVoiceGroup && $isInMyGroup;
+        return $this->userEditPolicy->canArchive($_SESSION, $targetUser);
     }
 
     /**

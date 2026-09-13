@@ -281,4 +281,53 @@ final class UserEditPolicyTest extends TestCase
 
         $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1])));
     }
+
+    /**
+     * Die Rollenhierarchie gehört der Policy. UserController hat sie zuvor ein
+     * zweites Mal selbst aus der Sitzung zusammengesetzt - zwei Quellen für
+     * dieselbe Sicherheitsregel, die beim nächsten Eingriff auseinanderlaufen.
+     */
+    public function testTargetOutranksActorFollowsTheHighestRoleOfTheTarget(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['role_level' => 50];
+
+        $this->assertTrue($policy->targetOutranksActor($session, $this->makeUser(7, [], 1, [10, 80])));
+        $this->assertFalse($policy->targetOutranksActor($session, $this->makeUser(7, [], 1, [10, 50])));
+        $this->assertFalse($policy->targetOutranksActor($session, $this->makeUser(7, [], 1, [])));
+        // Ohne role_level in der Sitzung zählt jede Rolle über 0 als höher gereiht.
+        $this->assertTrue($policy->targetOutranksActor([], $this->makeUser(7, [], 1, [1])));
+    }
+
+    /**
+     * Archivieren und Wiederherstellen sind dieselbe Befugnis in zwei Richtungen,
+     * deshalb darf der archivierte Zustand des Ziels sie nicht sperren - sonst
+     * ließe sich ein stillgelegtes Mitglied nie zurückholen. Die Hierarchie und
+     * die beiden Rechte gelten aber genau wie beim Bearbeiten.
+     */
+    public function testArchivePermissionIgnoresTheArchivedStateButNotTheHierarchy(): void
+    {
+        $policy = new UserEditPolicy();
+        $globalSession = ['can_edit_users' => true];
+
+        $this->assertTrue($policy->canArchive($globalSession, $this->makeUser(7, [1], 0)));
+        $this->assertFalse($policy->canEditProfile($globalSession, $this->makeUser(7, [1], 0)));
+
+        $outranked = ['can_edit_users' => true, 'role_level' => 10];
+        $this->assertFalse($policy->canArchive($outranked, $this->makeUser(7, [1], 0, [50])));
+    }
+
+    public function testArchivePermissionOfAVoiceGroupRepresentativeStaysInTheirGroup(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_own_voice_group' => true,
+            'voice_group_ids' => [2],
+        ];
+
+        $this->assertTrue($policy->canArchive($session, $this->makeUser(7, [2], 0)));
+        $this->assertFalse($policy->canArchive($session, $this->makeUser(8, [5], 0)));
+        $this->assertFalse($policy->canArchive([], $this->makeUser(9, [2], 0)));
+    }
 }
