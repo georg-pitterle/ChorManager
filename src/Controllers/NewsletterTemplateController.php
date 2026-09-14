@@ -161,9 +161,7 @@ class NewsletterTemplateController
     {
         $query = User::query()->where('is_active', 1);
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
+        $this->nameFormatter->applyNameOrder($query);
 
         return $query->get();
     }

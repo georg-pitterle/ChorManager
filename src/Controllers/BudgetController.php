@@ -292,8 +292,8 @@ class BudgetController
      * Returns null if the value is not a valid positive number.
      *
      * Die Trennzeichen liest derselbe AmountNormalizer wie im Kassabuch. Die
-     * fruehere eigene Kopie kannte reine Tausendergruppen wie "1.234.567" nicht
-     * und hat sie als ungueltig abgewiesen, waehrend die Kassa denselben Betrag
+     * frühere eigene Kopie kannte reine Tausendergruppen wie "1.234.567" nicht
+     * und hat sie als ungültig abgewiesen, während die Kassa denselben Betrag
      * angenommen hat.
      */
     private function normalizeAmount(string $raw): ?string

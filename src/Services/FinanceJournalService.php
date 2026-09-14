@@ -113,9 +113,9 @@ class FinanceJournalService
     }
 
     /**
-     * Zahldatum als Y-m-d-String. Der Vergleich mit dem Stichtag laeuft auf
+     * Zahldatum als Y-m-d-String. Der Vergleich mit dem Stichtag läuft auf
      * Zeichenketten-Ebene, und dort steht "2026-5-1" hinter "2026-06-30", weil
-     * die "5" groesser als die "0" ist. Ohne Normalisierung liesse die Sperre
+     * die "5" größer als die "0" ist. Ohne Normalisierung ließe die Sperre
      * eine Buchung mitten im abgeschlossenen Zeitraum durch. Ein unlesbarer
      * Wert ist kein Zeitraum und sperrt deshalb nichts.
      */
@@ -201,10 +201,10 @@ class FinanceJournalService
     }
 
     /**
-     * Protokolliert eine Verschiebung des Buchungsabschlusses. Der Eintrag haengt
-     * an keiner Buchung: er betrifft einen ganzen Zeitraum. Ein Ruecksetzen des
-     * Stichtags oeffnet einen bereits geprueften Zeitraum wieder - ohne Eintrag im
-     * Pruefjournal bliebe offen, wer das wann getan hat.
+     * Protokolliert eine Verschiebung des Buchungsabschlusses. Der Eintrag hängt
+     * an keiner Buchung: er betrifft einen ganzen Zeitraum. Ein Rücksetzen des
+     * Stichtags öffnet einen bereits geprüften Zeitraum wieder - ohne Eintrag im
+     * Prüfjournal bliebe offen, wer das wann getan hat.
      *
      * @return bool true, wenn ein Eintrag geschrieben wurde
      */

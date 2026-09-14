@@ -92,7 +92,7 @@ class RegistrationController
         }
 
         // Die Anmeldeliste zeigt Namen, Status und Notizen aller Betroffenen - sie ist nur
-        // fuer Mitglieder der Zielgruppe und fuer deren Verwalter bestimmt.
+        // für Mitglieder der Zielgruppe und für deren Verwalter bestimmt.
         if (!$this->scopeService->canAccessEvent($event)) {
             return $this->denyRegistrationAccess(
                 $response,
@@ -135,9 +135,9 @@ class RegistrationController
 
         $voiceGroups = VoiceGroupOrder::sortNameKeyedMap($voiceGroups, ['Ohne Stimmgruppe']);
 
-        // Fingerabdruck genau der Eintraege, die dieses Formular schreiben darf.
-        // Der eigene Eintrag bleibt aussen vor: er haengt am eigenen Formular
-        // weiter oben und wuerde den Vertretungs-Hash sonst grundlos entwerten.
+        // Fingerabdruck genau der Einträge, die dieses Formular schreiben darf.
+        // Der eigene Eintrag bleibt aussen vor: er hängt am eigenen Formular
+        // weiter oben und würde den Vertretungs-Hash sonst grundlos entwerten.
         $proxyUserIds = array_values(array_filter(
             $users->pluck('id')->map(static fn($id): int => (int) $id)->all(),
             static fn(int $id): bool => $id !== $userId && in_array($id, $manageableIds, true)
@@ -339,8 +339,8 @@ class RegistrationController
         $notes = (array) ($data['note'] ?? []);
         $loadedStateHash = (string) ($data['state_hash'] ?? '');
 
-        // Vertretungseintraege sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
-        // auf die Zielgruppe des Termins - sonst entstuenden Anmeldungen fuer Unbeteiligte.
+        // Vertretungseinträge sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
+        // auf die Zielgruppe des Termins - sonst entstünden Anmeldungen für Unbeteiligte.
         $eligibleUserIds = $event->eligibleUsersQuery()
             ->pluck('id')
             ->map(static fn($id): int => (int) $id)
@@ -361,9 +361,9 @@ class RegistrationController
         $actorId = (int) ($_SESSION['user_id'] ?? 0);
 
         // Optimistisches Sperren wie in der Anwesenheitsliste: Ein Vertretungseintrag
-        // ueberschreibt fremde Angaben - darunter die Selbstauskunft des Mitglieds.
-        // Hat sich der Stand seit dem Laden des Formulars geaendert, wird nichts
-        // geschrieben. Massgeblich ist nur der Stand der uebermittelten Mitglieder,
+        // überschreibt fremde Angaben - darunter die Selbstauskunft des Mitglieds.
+        // Hat sich der Stand seit dem Laden des Formulars geändert, wird nichts
+        // geschrieben. Maßgeblich ist nur der Stand der übermittelten Mitglieder,
         // damit zwei Verwalter mit getrennten Stimmgruppen sich nicht blockieren.
         if (
             $loadedStateHash !== ''
@@ -398,8 +398,8 @@ class RegistrationController
 
                 // "Offen" ist der Ausgangszustand und wird durch das Fehlen einer
                 // Zeile abgebildet - die Statusspalte kennt nur yes/no/maybe. Ohne
-                // diesen Weg liesse sich ein einmal gesetzter Eintrag nie mehr
-                // zuruecknehmen. Die Notiz gehoert zum Eintrag und faellt mit ihm weg.
+                // diesen Weg ließe sich ein einmal gesetzter Eintrag nie mehr
+                // zurücknehmen. Die Notiz gehört zum Eintrag und fällt mit ihm weg.
                 if ($status === self::PROXY_STATUS_OPEN) {
                     $userIdsToClear[] = $targetUserId;
                     continue;

@@ -8,16 +8,16 @@ use Illuminate\Database\QueryException;
 use Throwable;
 
 /**
- * Baut den Log-Kontext fuer eine gefangene Exception.
+ * Baut den Log-Kontext für eine gefangene Exception.
  *
- * Illuminate\Database\QueryException::formatMessage() haengt die SQL-Bindings
+ * Illuminate\Database\QueryException::formatMessage() hängt die SQL-Bindings
  * an getMessage() an. Ein Log-Aufruf mit 'exception' => $e protokolliert diese
  * Bindings damit ungefiltert - an den beiden Aufrufstellen, die diese Klasse
- * nutzen, stehen dort ein verschluesseltes IMAP-Zugangsdatum bzw. ein
- * bcrypt-Passwort-Hash. Fuer eine QueryException wird deshalb eine sanitisierte
+ * nutzen, stehen dort ein verschlüsseltes IMAP-Zugangsdatum bzw. ein
+ * bcrypt-Passwort-Hash. Für eine QueryException wird deshalb eine sanitisierte
  * Ersatzdarstellung gebaut (Exception-Klasse, SQL-Statement, Treiberfehler -
- * nie die Bindings). Fuer alles andere bleibt die bisherige Konvention
- * ('exception' => $e) unveraendert.
+ * nie die Bindings). Für alles andere bleibt die bisherige Konvention
+ * ('exception' => $e) unverändert.
  */
 final class ExceptionLogContext
 {
@@ -42,9 +42,9 @@ final class ExceptionLogContext
     /**
      * Sucht die QueryException auch in der Ursachenkette.
      *
-     * Monolog laeuft beim Normalisieren ueber getPrevious() und gibt jede
+     * Monolog läuft beim Normalisieren über getPrevious() und gibt jede
      * Nachricht aus. Eine in eine andere Exception verpackte QueryException
-     * wuerde ihre Bindings sonst ueber die Kette doch wieder ins Log tragen.
+     * würde ihre Bindings sonst über die Kette doch wieder ins Log tragen.
      */
     private static function findQueryException(Throwable $e): ?QueryException
     {

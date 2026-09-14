@@ -98,7 +98,7 @@ class CategoryController
         $category->songs()->detach();
         $category->delete();
 
-        return $this->redirectSuccess($response, 'Kategorie erfolgreich geloescht.');
+        return $this->redirectSuccess($response, 'Kategorie erfolgreich gelöscht.');
     }
 
     private function parseSortOrder(mixed $value): ?int

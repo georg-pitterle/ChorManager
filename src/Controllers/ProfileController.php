@@ -35,9 +35,9 @@ class ProfileController
     private RememberLoginService $rememberLoginService;
 
     /**
-     * Optional und am Ende, wie in den uebrigen Controllern: Bestehende Tests
+     * Optional und am Ende, wie in den übrigen Controllern: Bestehende Tests
      * bauen diesen Controller mit festen Positionsargumenten. Im Betrieb reicht
-     * ihn die ausdrueckliche Registrierung in `Dependencies.php` durch.
+     * ihn die ausdrückliche Registrierung in `Dependencies.php` durch.
      */
     private ?NotificationService $notificationService;
 
@@ -88,9 +88,9 @@ class ProfileController
         $formOld = $_SESSION['mailbox_form_old'] ?? null;
         unset($_SESSION['mailbox_form_old']);
 
-        // Angezeigt werden nur die Anlaesse, deren Modul laeuft und die die
-        // Verwaltung nicht abgeschaltet hat - ein Haekchen fuer etwas, das ohnehin
-        // nie kommt, waere ein Versprechen, das die Anwendung nicht haelt.
+        // Angezeigt werden nur die Anlässe, deren Modul läuft und die die
+        // Verwaltung nicht abgeschaltet hat - ein Häkchen für etwas, das ohnehin
+        // nie kommt, wäre ein Versprechen, das die Anwendung nicht hält.
         $notificationGroups = [];
         $notificationSettings = [];
         if ($this->notificationService !== null) {
@@ -265,19 +265,19 @@ class ProfileController
     }
 
     /**
-     * Uebernimmt die Haekchen aus dem Reiter "Benachrichtigungen".
+     * Übernimmt die Häkchen aus dem Reiter "Benachrichtigungen".
      *
-     * Ausgewertet werden nur die Anlaesse, die das Formular ueberhaupt anbieten
+     * Ausgewertet werden nur die Anlässe, die das Formular überhaupt anbieten
      * durfte - sonst schaltete ein zusammengebauter Aufruf etwas ab, das die
-     * Person gar nicht zu sehen bekam. Ein fehlender Schluessel heisst "Haekchen
-     * raus": Nicht angehakte Kaestchen sendet ein Browser nicht mit.
+     * Person gar nicht zu sehen bekam. Ein fehlender Schlüssel heißt "Häkchen
+     * raus": Nicht angehakte Kästchen sendet ein Browser nicht mit.
      */
     public function updateNotificationSettings(Request $request, Response $response): Response
     {
         $userId = (int)$_SESSION['user_id'];
 
         if ($this->notificationService === null) {
-            $_SESSION['error'] = 'Benachrichtigungen sind in dieser Installation nicht verfuegbar.';
+            $_SESSION['error'] = 'Benachrichtigungen sind in dieser Installation nicht verfügbar.';
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 

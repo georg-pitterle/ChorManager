@@ -9,11 +9,11 @@ use App\Models\SubVoice;
 /**
  * Zentrale Stelle für die projektweite Reihenfolge der Teilstimmen: sie folgt dem
  * Namen, sortiert von der Datenbank (`sub_voices.name`, Kollation
- * utf8mb4_general_ci - Gross/Klein spielt keine Rolle, Umlaute stehen bei ihrem
+ * utf8mb4_general_ci - Groß/Klein spielt keine Rolle, Umlaute stehen bei ihrem
  * Grundbuchstaben). Genauso liefert die Beziehung `User::subVoices()` ihre Werte.
  *
  * Gruppierungen, die in PHP entstehen, sortierten die Teilstimmen vorher per
- * ksort() nach Bytefolge. Das stellte Grossbuchstaben vor Kleinbuchstaben und
+ * ksort() nach Bytefolge. Das stellte Großbuchstaben vor Kleinbuchstaben und
  * Umlaute hinter das Z - dieselben Teilstimmen standen damit je nach Seite in
  * unterschiedlicher Reihenfolge.
  */

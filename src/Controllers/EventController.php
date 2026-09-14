@@ -432,9 +432,7 @@ class EventController
         $roles = Role::query()->orderBy('name')->get();
         $voiceGroups = VoiceGroup::query()->orderBy('id')->get();
         $audienceUsersQuery = User::query()->where('is_active', 1);
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $audienceUsersQuery->orderBy($column);
-        }
+        $this->nameFormatter->applyNameOrder($audienceUsersQuery);
         $audienceUsers = $audienceUsersQuery->get();
 
         $success = $_SESSION['success'] ?? null;
@@ -1083,9 +1081,7 @@ class EventController
         $roles = Role::query()->orderBy('name')->get();
         $voiceGroups = VoiceGroup::query()->orderBy('id')->get();
         $usersQuery = User::query()->where('is_active', 1);
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $usersQuery->orderBy($column);
-        }
+        $this->nameFormatter->applyNameOrder($usersQuery);
         $users = $usersQuery->get();
         $audienceSources = (new EventAudienceService())->getSources($event);
 
@@ -1471,8 +1467,8 @@ class EventController
 
     private function canAccessEvent(Event $event): bool
     {
-        // Terminverwalter muessen auch Termine außerhalb ihrer eigenen Zielgruppe sehen,
-        // sonst koennten sie genau die Termine nicht pflegen, fuer die sie zustaendig sind.
+        // Terminverwalter müssen auch Termine außerhalb ihrer eigenen Zielgruppe sehen,
+        // sonst könnten sie genau die Termine nicht pflegen, für die sie zuständig sind.
         if ($this->canManageEvents()) {
             return true;
         }

@@ -34,9 +34,9 @@ class Comment extends Model
     }
 
     /**
-     * Sichtbare Notizen: alle oeffentlichen und die eigenen privaten. Eine
-     * private Notiz gehoert nur der Person, die sie geschrieben hat - ohne
-     * angemeldete Person ist deshalb nur der oeffentliche Teil sichtbar.
+     * Sichtbare Notizen: alle öffentlichen und die eigenen privaten. Eine
+     * private Notiz gehört nur der Person, die sie geschrieben hat - ohne
+     * angemeldete Person ist deshalb nur der öffentliche Teil sichtbar.
      *
      * @param Builder<Comment> $query
      * @return Builder<Comment>

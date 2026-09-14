@@ -8,10 +8,10 @@ use Monolog\Handler\HandlerInterface;
 use Monolog\LogRecord;
 
 /**
- * Reicht Records nur durch, wenn der Resolver das aktuelle Level zulaesst.
+ * Reicht Records nur durch, wenn der Resolver das aktuelle Level zulässt.
  *
  * Der umschlossene Handler wird auf der niedrigsten Stufe gebaut; die
- * Entscheidung faellt hier bei jedem Record neu. Dadurch wirkt eine Aenderung der
+ * Entscheidung fällt hier bei jedem Record neu. Dadurch wirkt eine Änderung der
  * Einstellung sofort, ohne den Logger neu zu bauen.
  */
 final class RuntimeLevelHandler implements HandlerInterface

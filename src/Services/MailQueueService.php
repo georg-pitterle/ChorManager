@@ -157,8 +157,8 @@ class MailQueueService
     /**
      * Enqueue a notification mail.
      *
-     * Alle Anlaesse teilen sich den Mail-Typ `notification`; welcher es war,
-     * steht in der Nutzlast. Neun ENUM-Werte haetten bedeutet, dass jeder
+     * Alle Anlässe teilen sich den Mail-Typ `notification`; welcher es war,
+     * steht in der Nutzlast. Neun ENUM-Werte hätten bedeutet, dass jeder
      * weitere Anlass die Spalte umbaut (siehe Migration 20260830142000).
      *
      * @param array{entity_type: string, entity_id: int}|null $entity

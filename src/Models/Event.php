@@ -81,7 +81,7 @@ class Event extends Model
 
     /**
      * Notizen des Termins. Private Notizen bleiben hier aussen vor: die Relation
-     * kennt die angemeldete Person nicht, und ohne diese Grenze haengt es am
+     * kennt die angemeldete Person nicht, und ohne diese Grenze hängt es am
      * jeweiligen Aufrufer, ob eine fremde private Notiz in der Ausgabe landet.
      * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
      * Comment::visibleTo() bewusst selbst.
@@ -133,10 +133,10 @@ class Event extends Model
         $userIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_USER);
 
         // Quellen sind hinterlegt, aber keine davon ist auswertbar - etwa weil
-        // source_type leer ist oder einen hier unbekannten Typ traegt. Eine leere
-        // Bedingungsgruppe wuerde die Einschraenkung stillschweigend aufheben und
-        // den Termin fuer alle aktiven Mitglieder oeffnen. Eine Zielgruppe, die
-        // sich nicht aufloesen laesst, umfasst niemanden.
+        // source_type leer ist oder einen hier unbekannten Typ trägt. Eine leere
+        // Bedingungsgruppe würde die Einschränkung stillschweigend aufheben und
+        // den Termin für alle aktiven Mitglieder öffnen. Eine Zielgruppe, die
+        // sich nicht auflösen lässt, umfasst niemanden.
         if ($projectIds === [] && $roleIds === [] && $voiceGroupIds === [] && $userIds === []) {
             return $query->whereRaw('1 = 0');
         }

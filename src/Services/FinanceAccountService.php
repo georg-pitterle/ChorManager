@@ -84,9 +84,9 @@ class FinanceAccountService
 
         foreach ($this->allAccounts() as $account) {
             // Ein Konto, dessen Stichtag erst nach dem Berichtsende liegt, gab es
-            // in diesem Geschaeftsjahr noch nicht. Sein Anfangsbestand ist eine
-            // Aussage ueber einen spaeteren Tag; im laengst abgeschlossenen
-            // Vorjahr wuerde er Geld ausweisen, das damals nicht existierte.
+            // in diesem Geschäftsjahr noch nicht. Sein Anfangsbestand ist eine
+            // Aussage über einen späteren Tag; im längst abgeschlossenen
+            // Vorjahr würde er Geld ausweisen, das damals nicht existierte.
             $accountOpening = self::openingDate($account);
             $notYetOpen = $accountOpening !== '' && $accountOpening > $periodEnd;
 
@@ -120,10 +120,10 @@ class FinanceAccountService
      * Buchungen des Kontos, die vor dessen Stichtag liegen und deshalb in keiner
      * Bewegungssumme auftauchen.
      *
-     * Gezaehlt wird nur innerhalb des Berichtszeitraums: Erklaert werden soll die
+     * Gezählt wird nur innerhalb des Berichtszeitraums: Erklärt werden soll die
      * Differenz zwischen Bericht und Buchungsliste, und die Liste zeigt genau
-     * diesen Zeitraum. Eine Buchung aus einem laengst abgeschlossenen Vorjahr
-     * taucht dort gar nicht auf und waere als Hinweis nicht nachvollziehbar.
+     * diesen Zeitraum. Eine Buchung aus einem längst abgeschlossenen Vorjahr
+     * taucht dort gar nicht auf und wäre als Hinweis nicht nachvollziehbar.
      *
      * @return array{count: int, first: string|null}
      */

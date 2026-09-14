@@ -37,8 +37,8 @@ class SheetArchive extends Model
      * Caches result during request lifecycle to prevent N+1 queries.
      * Use formatArchiveResponse() to calculate once for API responses.
      *
-     * Sind die Positionen bereits geladen, wird ueber sie summiert. Die eigene
-     * Abfrage haette den Eager-Load sonst wirkungslos gemacht und waere einmal
+     * Sind die Positionen bereits geladen, wird über sie summiert. Die eigene
+     * Abfrage hätte den Eager-Load sonst wirkungslos gemacht und wäre einmal
      * pro Archiv gelaufen.
      */
     public function getTotalCount(): int

@@ -139,9 +139,7 @@ class UserQuery
             });
         }
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
+        $this->nameFormatter->applyNameOrder($query);
 
         return $query->get();
     }

@@ -27,7 +27,7 @@ final class ClientIpResolver
         }
 
         // Von rechts nach links: nur der rechteste Eintrag stammt sicher vom eigenen Proxy,
-        // alles links davon kann der Client frei setzen. Ohne diese Richtung liesse sich das
+        // alles links davon kann der Client frei setzen. Ohne diese Richtung ließe sich das
         // Login-Rate-Limit mit wechselnden X-Forwarded-For-Headern umgehen.
         $candidates = array_reverse(explode(',', $forwarded));
 
@@ -35,7 +35,7 @@ final class ClientIpResolver
             $candidate = trim($candidate);
 
             if ($candidate === '' || filter_var($candidate, FILTER_VALIDATE_IP) === false) {
-                // Eine kaputte Kette laesst sich nicht mehr vertrauenswuerdig auswerten.
+                // Eine kaputte Kette lässt sich nicht mehr vertrauenswürdig auswerten.
                 return $remote;
             }
 

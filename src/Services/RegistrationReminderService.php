@@ -54,8 +54,8 @@ class RegistrationReminderService
         foreach ($events as $event) {
             $claimedAt = Carbon::now();
 
-            // Bedingtes Update als Lock: laeuft ein zweiter Worker parallel, gewinnt genau einer
-            // das Event. Ohne diesen Claim bekaeme jeder Empfaenger die Erinnerung mehrfach.
+            // Bedingtes Update als Lock: läuft ein zweiter Worker parallel, gewinnt genau einer
+            // das Event. Ohne diesen Claim bekäme jeder Empfänger die Erinnerung mehrfach.
             $claimed = Event::query()
                 ->whereKey((int) $event->id)
                 ->whereNull('registration_reminder_sent_at')
@@ -102,9 +102,9 @@ class RegistrationReminderService
                 }
             }
 
-            // Ging keine einzige Mail raus, wird der Claim wieder freigegeben, damit ein spaeterer
-            // Lauf es erneut versucht. Bei Teilerfolg bleibt die Markierung stehen: sonst bekaemen
-            // die bereits erreichten Empfaenger die Erinnerung im naechsten Lauf ein zweites Mal.
+            // Ging keine einzige Mail raus, wird der Claim wieder freigegeben, damit ein späterer
+            // Lauf es erneut versucht. Bei Teilerfolg bleibt die Markierung stehen: sonst bekämen
+            // die bereits erreichten Empfänger die Erinnerung im nächsten Lauf ein zweites Mal.
             if ($sent === 0 && $failed > 0) {
                 Event::query()
                     ->whereKey((int) $event->id)

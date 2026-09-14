@@ -104,7 +104,7 @@ class ProjectSongAssignmentController
 
         return $this->redirectSuccess(
             $response,
-            'Zuordnung erfolgreich geloescht.',
+            'Zuordnung erfolgreich gelöscht.',
             $this->resolveReturnTo($data['return_to'] ?? null, $songId)
         );
     }

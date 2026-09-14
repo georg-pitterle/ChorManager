@@ -236,7 +236,7 @@ class SongLibraryController
             ->where('entity_id', $songId)
             ->delete();
         $song->delete();
-        $_SESSION['success'] = 'Lied erfolgreich geloescht.';
+        $_SESSION['success'] = 'Lied erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library')->withStatus(302);
     }
 
@@ -274,7 +274,7 @@ class SongLibraryController
 
         $uploadedFiles = $request->getUploadedFiles();
         if (!isset($uploadedFiles['attachments'])) {
-            $_SESSION['error'] = 'Keine Dateien uebergeben.';
+            $_SESSION['error'] = 'Keine Dateien übergeben.';
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
@@ -448,7 +448,7 @@ class SongLibraryController
         }
 
         $attachment->delete();
-        $_SESSION['success'] = 'Anhang erfolgreich geloescht.';
+        $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }
 }

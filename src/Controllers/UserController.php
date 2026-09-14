@@ -30,7 +30,7 @@ use Psr\Log\LoggerInterface;
 
 class UserController
 {
-    /** Sperrgrund, wenn sonst niemand mehr an die Mitgliederverwaltung kaeme. */
+    /** Sperrgrund, wenn sonst niemand mehr an die Mitgliederverwaltung käme. */
     private const LAST_MANAGER_MESSAGE = 'Das ist das letzte Mitglied mit Mitgliederverwaltung. '
         . 'Vergib das Recht zuerst an ein anderes Mitglied.';
 
@@ -325,10 +325,10 @@ class UserController
         $firstName = trim($data['first_name'] ?? '');
         $lastName = trim($data['last_name'] ?? '');
 
-        // Ohne can_edit_users bleibt die Adresse, wie sie ist. Ein uebermittelter
+        // Ohne can_edit_users bleibt die Adresse, wie sie ist. Ein übermittelter
         // Wert wird verworfen statt abgewiesen: das Formular zeigt das Feld dann
         // nur lesend an, ein trotzdem gesendeter Wert stammt nicht aus der
-        // Oberflaeche und darf die erlaubten Aenderungen nicht blockieren.
+        // Oberfläche und darf die erlaubten Änderungen nicht blockieren.
         $email = $canEditEmail ? trim($data['email'] ?? '') : (string) $targetUser->email;
 
         $roleIds = $data['roles'] ?? [];
@@ -339,10 +339,10 @@ class UserController
             fn(int $id): bool => $id > 0
         ));
 
-        // Wer nur can_manage_project_members haelt, aendert ausschliesslich die
-        // Projektzuordnung. Die uebrigen Formularfelder werden bewusst verworfen
+        // Wer nur can_manage_project_members hält, ändert ausschließlich die
+        // Projektzuordnung. Die übrigen Formularfelder werden bewusst verworfen
         // statt validiert: sie stehen dieser Rolle nicht zu, und eine E-Mail-Kollision
-        // im Zielkonto duerfte die erlaubte Projektzuordnung nicht blockieren.
+        // im Zielkonto dürfte die erlaubte Projektzuordnung nicht blockieren.
         if (!$canEditProfile) {
             $this->projectPersistence->setUserProjects($userId, $projectIds);
 
@@ -387,8 +387,8 @@ class UserController
         // regardless of whether the actor is a global user manager.
         $roleIds = $this->capRoleIdsToActorLevel($roleIds);
 
-        // Gleichrangige duerfen einander verwalten - sonst koennten zwei Vorstaende
-        // einander nie vertreten. Damit laesst sich aber auch dem letzten
+        // Gleichrangige dürfen einander verwalten - sonst könnten zwei Vorstände
+        // einander nie vertreten. Damit lässt sich aber auch dem letzten
         // verbleibenden Mitgliederverwalter sein Recht entziehen, und danach kommt
         // niemand mehr an die Mitgliederverwaltung heran.
         if ($this->wouldDropLastUserManager($targetUser, $roleIds)) {
@@ -544,9 +544,9 @@ class UserController
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
         $canEditUsers = (bool) ($_SESSION['can_edit_users'] ?? false);
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
-        // Deckt sich mit der Schreibpruefung in update(): ohne dieses Recht zeigt das
-        // Formular nur die Projektzuordnung, damit niemand Felder ausfuellt, die beim
-        // Speichern stillschweigend verworfen wuerden.
+        // Deckt sich mit der Schreibprüfung in update(): ohne dieses Recht zeigt das
+        // Formular nur die Projektzuordnung, damit niemand Felder ausfüllt, die beim
+        // Speichern stillschweigend verworfen würden.
         $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
 
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
@@ -580,7 +580,7 @@ class UserController
             'projects' => $projects,
             'can_edit_users' => $canEditUsers,
             'can_edit_profile' => $canEditProfile,
-            // Adresse und Einladung haengen an der Mitgliederverwaltung, nicht am
+            // Adresse und Einladung hängen an der Mitgliederverwaltung, nicht am
             // Bearbeiten-Recht: siehe UserEditPolicy::canEditEmail().
             'can_edit_email' => $this->userEditPolicy->canEditEmail($_SESSION, $targetUser),
             'can_invite' => (bool) $canManageUsers,
@@ -696,7 +696,7 @@ class UserController
         }
 
         // Dieselbe Befugnis wie beim Archivieren: wer stilllegen darf, muss das
-        // auch zuruecknehmen koennen.
+        // auch zurücknehmen können.
         if (!$this->canArchiveTargetUser($targetUser)) {
             $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied wiederherzustellen.';
             return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
@@ -786,8 +786,8 @@ class UserController
     }
 
     /**
-     * Ist dieses Mitglied das letzte aktive, das ueber eine Rolle die
-     * Mitgliederverwaltung haelt?
+     * Ist dieses Mitglied das letzte aktive, das über eine Rolle die
+     * Mitgliederverwaltung hält?
      */
     private function isLastUserManager(User $targetUser): bool
     {
@@ -799,7 +799,7 @@ class UserController
     }
 
     /**
-     * Wuerde dieser Rollensatz dem letzten Mitgliederverwalter sein Recht nehmen?
+     * Würde dieser Rollensatz dem letzten Mitgliederverwalter sein Recht nehmen?
      *
      * @param array<int|string> $newRoleIds
      */
@@ -864,9 +864,9 @@ class UserController
         }
 
         // Die Einladung setzt das Passwort des Zielkontos neu. Zusammen mit einer
-        // aenderbaren Adresse waere das ein Uebernahmepfad; deshalb bleibt sie der
+        // änderbaren Adresse wäre das ein Übernahmepfad; deshalb bleibt sie der
         // Mitgliederverwaltung vorbehalten, so wie die Adresse selbst an
-        // can_edit_users haengt (siehe UserEditPolicy::canEditEmail()).
+        // can_edit_users hängt (siehe UserEditPolicy::canEditEmail()).
         if (!$canManageUsers) {
             $response->getBody()->write(json_encode(['success' => false, 'message' => 'Keine Berechtigung.']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
@@ -963,7 +963,7 @@ class UserController
     }
 
     /**
-     * Die Aufloesung liegt in MailBranding, damit alle Systemmails dieselbe Quelle nutzen.
+     * Die Auflösung liegt in MailBranding, damit alle Systemmails dieselbe Quelle nutzen.
      *
      * @return array{
      *     app_name: string,

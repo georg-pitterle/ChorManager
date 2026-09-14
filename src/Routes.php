@@ -64,9 +64,9 @@ return function (App $app) {
         }
     }
 
-    // RoleMiddleware wird an jeder Route per `new RoleMiddleware(...)` gebaut, nicht ueber den
+    // RoleMiddleware wird an jeder Route per `new RoleMiddleware(...)` gebaut, nicht über den
     // Container - daher hier einmalig den echten Logger setzen, statt jede Instanziierung
-    // anzufassen (deren exakter Aufruftext von mehreren Tests woertlich geprueft wird).
+    // anzufassen (deren exakter Aufruftext von mehreren Tests wörtlich geprüft wird).
     if ($container instanceof ContainerInterface) {
         try {
             $resolvedLogger = $container->get(LoggerInterface::class);
@@ -75,7 +75,7 @@ return function (App $app) {
             }
         } catch (\Throwable) {
             // Kein Logger im Container (z. B. Minimal-Container in Tests): RoleMiddleware
-            // faellt intern auf den NullLogger zurueck.
+            // fällt intern auf den NullLogger zurück.
         }
     }
 
@@ -112,8 +112,8 @@ return function (App $app) {
     // Public calendar subscription feeds - beide über denselben Abo-Token
     $app->get('/events/export/{token:[a-f0-9]{64}}.ics', [EventController::class, 'exportCalendar']);
 
-    // Der Aufgaben-Feed steht und faellt mit dem Modul: Ist es aus, gibt es keine
-    // Aufgaben und der Feed haette nur einen leeren Kalender zu liefern.
+    // Der Aufgaben-Feed steht und fällt mit dem Modul: Ist es aus, gibt es keine
+    // Aufgaben und der Feed hätte nur einen leeren Kalender zu liefern.
     if ($settings['modules']['tasks'] ?? false) {
         $app->get('/tasks/export/{token:[a-f0-9]{64}}.ics', [TaskController::class, 'exportCalendar']);
     }
@@ -203,17 +203,17 @@ return function (App $app) {
             );
             $group->get('/help/{slug:[a-z0-9\-]+}', [HelpController::class, 'show']);
 
-            // Auswertungen sind bewusst fuer jedes angemeldete Mitglied offen: Der Chor
+            // Auswertungen sind bewusst für jedes angemeldete Mitglied offen: Der Chor
             // sieht seine Anwesenheit als gemeinsame Angelegenheit, und die Liste zeigt
-            // nur Projekte, zu denen der Nutzer ueber ProjectQuery::getAccessibleProjects()
+            // nur Projekte, zu denen der Nutzer über ProjectQuery::getAccessibleProjects()
             // ohnehin Zugang hat. Wer die namentlichen Fehlzeiten enger fassen will,
-            // haengt die Routen an RoleMiddleware(requiresAttendanceManagement: true) -
+            // hängt die Routen an RoleMiddleware(requiresAttendanceManagement: true) -
             // die Sichtbarkeit ist hier die Entscheidung, nicht ein Versehen.
             $group->get('/evaluations', [EvaluationController::class, 'index']);
             $group->get('/evaluations/project-members', [EvaluationController::class, 'projectMembers']);
 
-            // Terminverwaltung als eigenstaendiges Recht - inklusive der Terminarten, die
-            // fachlich zur Terminplanung und nicht zu den uebrigen Stammdaten gehoeren.
+            // Terminverwaltung als eigenständiges Recht - inklusive der Terminarten, die
+            // fachlich zur Terminplanung und nicht zu den übrigen Stammdaten gehören.
             $group->group(
                 '',
                 function (RouteCollectorProxy $eventGroup) {
@@ -232,7 +232,7 @@ return function (App $app) {
             )->add(new RoleMiddleware(requiresEventManagement: true));
 
             // Rollenverwaltung vergibt Rechte und ist deshalb ein eigenes Recht: can_manage_users
-            // darf Rollen nur noch zuweisen (begrenzt auf das eigene Hierarchie-Level), waehrend
+            // darf Rollen nur noch zuweisen (begrenzt auf das eigene Hierarchie-Level), während
             // das Anlegen und Bearbeiten von Rollen can_manage_roles verlangt.
             $group->group(
                 '/roles',
@@ -297,7 +297,7 @@ return function (App $app) {
                         $financeReadGroup->get('/finances/report/pdf', [FinanceController::class, 'reportPdf']);
                         $financeReadGroup->get('/finances/accounts', [FinanceAccountController::class, 'index']);
                         $financeReadGroup->get('/finances/journal', [FinanceController::class, 'journal']);
-                        // Rohdaten fuer Rechnungspruefer: bewusst nur Leserecht noetig.
+                        // Rohdaten für Rechnungsprüfer: bewusst nur Leserecht nötig.
                         $financeReadGroup->get('/finances/export', [FinanceController::class, 'exportCsv']);
                     }
                 )->add(new RoleMiddleware(requiresFinanceRead: true));
@@ -448,7 +448,7 @@ return function (App $app) {
                             [SponsoringAttachmentController::class, 'index']
                         );
 
-                        // Paketuebersicht
+                        // Paketübersicht
                         $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
                     }
                 )->add(new RoleMiddleware(requiresSponsoringAccess: true));

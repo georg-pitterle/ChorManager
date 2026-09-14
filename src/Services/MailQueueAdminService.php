@@ -19,7 +19,7 @@ class MailQueueAdminService
     /**
      * List queue entries with filters.
      *
-     * Seitenweise: Nach einem grossen Newsletter-Versand liegen entsprechend
+     * Seitenweise: Nach einem großen Newsletter-Versand liegen entsprechend
      * viele Zeilen in der Warteschlange, und die Verwaltungsseite lud sie
      * vorher alle auf einmal.
      *

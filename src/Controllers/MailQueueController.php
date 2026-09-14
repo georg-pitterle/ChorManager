@@ -37,7 +37,7 @@ class MailQueueController
         $perPage = MailQueueAdminService::normalizePerPage($params['per_page'] ?? null);
         $pageCount = $this->adminService->pageCount($filters + ['per_page' => $perPage]);
         // Eine Seitenzahl jenseits des Bestands zeigte eine leere Liste ohne
-        // erkennbaren Grund - etwa nach dem Zurueckblaettern mit engerem Filter.
+        // erkennbaren Grund - etwa nach dem Zurückblättern mit engerem Filter.
         $page = min(MailQueueAdminService::normalizePage($params['page'] ?? null), $pageCount);
 
         $pagedFilters = $filters + ['per_page' => $perPage, 'page' => $page];

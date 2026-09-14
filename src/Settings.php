@@ -22,9 +22,9 @@ return function (ContainerBuilder $containerBuilder) {
                 'database' => EnvHelper::read('DB_DATABASE', 'db'),
                 'username' => EnvHelper::read('DB_USERNAME', 'db'),
                 'password' => EnvHelper::read('DB_PASSWORD', 'db'),
-                // Kein 'timezone'-Eintrag: der Connector wuerde daraus ein
+                // Kein 'timezone'-Eintrag: der Connector würde daraus ein
                 // SET time_zone='<fixer Offset>' bauen und die benannte Zeitzone aus den
-                // Verbindungsoptionen wieder ueberschreiben.
+                // Verbindungsoptionen wieder überschreiben.
                 'options' => Timezone::databaseConnectionOptions(),
                 'charset' => 'utf8mb4',
                 'collation' => 'utf8mb4_unicode_ci',

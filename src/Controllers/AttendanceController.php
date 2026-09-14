@@ -44,7 +44,7 @@ class AttendanceController
             ? (int) $queryParams['event_id']
             : null;
 
-        // Nur Termine, zu denen der Nutzer selbst gehoert oder in denen er mindestens ein
+        // Nur Termine, zu denen der Nutzer selbst gehört oder in denen er mindestens ein
         // verwaltbares Mitglied betreut - "alle Mitglieder verwalten" sieht jeden Termin.
         $events = Event::where('attendance_required', true)
             ->with('audienceSources')
@@ -77,7 +77,7 @@ class AttendanceController
                 // Only members within the event's audience scope may appear.
                 $users = $event->eligibleUsersQuery();
 
-                // Ohne das Recht fuer alle Mitglieder bleibt nur der eigene Stimmgruppen-Scope.
+                // Ohne das Recht für alle Mitglieder bleibt nur der eigene Stimmgruppen-Scope.
                 if (!$canManageAttendanceAll) {
                     $manageableUserIds = $this->scopeService->getManageableUserIds();
                     if ($manageableUserIds === []) {

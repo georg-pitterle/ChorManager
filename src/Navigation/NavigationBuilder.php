@@ -267,8 +267,8 @@ final class NavigationBuilder
                         'prefixes' => ['/evaluations'],
                         'navKeys' => ['evaluations'],
                         'excl' => ['/evaluations/project-members', '/evaluations/registrations'],
-                        // Auswertungen sind bewusst fuer alle angemeldeten Mitglieder offen -
-                        // das Menue bildet genau das ab, was die Route zulaesst.
+                        // Auswertungen sind bewusst für alle angemeldeten Mitglieder offen -
+                        // das Menü bildet genau das ab, was die Route zulässt.
                         'visible' => $always,
                     ],
                     [

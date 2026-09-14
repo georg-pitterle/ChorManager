@@ -52,7 +52,7 @@ class AppSettingController
     private LoggerInterface $logger;
 
     /**
-     * Optional und am Ende wie in den uebrigen Controllern - bestehende Tests
+     * Optional und am Ende wie in den übrigen Controllern - bestehende Tests
      * bauen diesen Controller mit festen Positionsargumenten.
      */
     private ?NotificationService $notificationService;
@@ -68,7 +68,7 @@ class AppSettingController
     }
 
     /**
-     * Der aktuelle Zustand je Anlass, aufgeloest zum Ankreuzen.
+     * Der aktuelle Zustand je Anlass, aufgelöst zum Ankreuzen.
      *
      * Fehlt der Eintrag, gilt die Vorgabe des Anlasses - so muss die Verwaltung
      * nicht erst jeden einzeln bestaetigen, damit er funktioniert.
@@ -101,8 +101,8 @@ class AppSettingController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
-        // Hier werden alle Anlaesse angeboten, die das jeweilige Modul zulaesst -
-        // auch die abgeschalteten, sonst liesse sich ein einmal abgeschalteter
+        // Hier werden alle Anlässe angeboten, die das jeweilige Modul zulässt -
+        // auch die abgeschalteten, sonst ließe sich ein einmal abgeschalteter
         // nie wieder einschalten.
         $notificationGroups = $this->notificationService === null
             ? []
@@ -192,9 +192,9 @@ class AppSettingController
                 ]
             );
 
-            // Nicht angehakte Kaestchen sendet der Browser nicht mit - deshalb
-            // wird ueber die angebotenen Anlaesse iteriert, nicht ueber die
-            // Eingabe. Sonst bliebe ein abgewaehlter Anlass auf seinem alten
+            // Nicht angehakte Kästchen sendet der Browser nicht mit - deshalb
+            // wird über die angebotenen Anlässe iteriert, nicht über die
+            // Eingabe. Sonst bliebe ein abgewählter Anlass auf seinem alten
             // Wert stehen.
             if ($this->notificationService !== null) {
                 $submitted = (array) ($data['notifications'] ?? []);

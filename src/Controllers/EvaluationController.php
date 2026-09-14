@@ -125,9 +125,7 @@ class EvaluationController
                             });
                         }]);
 
-                    foreach ($this->nameFormatter->orderColumns() as $column) {
-                        $userQuery->orderBy($column);
-                    }
+                    $this->nameFormatter->applyNameOrder($userQuery);
 
                     $users = $userQuery->get();
 
@@ -142,10 +140,10 @@ class EvaluationController
                             ->whereIn('status', Attendance::RECORDED_STATUSES)
                             ->count();
 
-                        // Bezugsgroesse ist jeder stattgefundene Pflichttermin, nicht nur der
-                        // erfasste: Eine nicht gefuehrte Liste ist eine fehlende Angabe, keine
-                        // Abwesenheit - sie darf die Quote der uebrigen aber auch nicht
-                        // schoenrechnen. Wie viele Termine tatsaechlich erfasst wurden, steht
+                        // Bezugsgröße ist jeder stattgefundene Pflichttermin, nicht nur der
+                        // erfasste: Eine nicht geführte Liste ist eine fehlende Angabe, keine
+                        // Abwesenheit - sie darf die Quote der übrigen aber auch nicht
+                        // schönrechnen. Wie viele Termine tatsächlich erfasst wurden, steht
                         // daneben in der Spalte "Erfasst" und macht den Unterschied sichtbar.
                         $percentage = $totalEvents > 0 ? round(($present / $totalEvents) * 100, 1) : 0;
 
@@ -196,8 +194,8 @@ class EvaluationController
 
             $selectedProject = Project::find($projectId);
             if ($selectedProject) {
-                // Die Besetzung eines Projekts ist fuer alle Mitglieder des Projekts einsehbar;
-                // ein Stimmgruppen-Filter haette hier frueher nur am Hierarchie-Level gehangen.
+                // Die Besetzung eines Projekts ist für alle Mitglieder des Projekts einsehbar;
+                // ein Stimmgruppen-Filter hätte hier früher nur am Hierarchie-Level gehangen.
                 $groupedMembers = $this->projectQuery
                     ->getProjectMembersGroupedByVoice($projectId);
 
@@ -446,8 +444,8 @@ class EvaluationController
 
     /**
      * Vorauswahl ohne project_id-Parameter: zuerst das aktuell laufende Projekt,
-     * danach die zuletzt gewaehlte Auswahl des Nutzers. Beide Kandidaten muessen
-     * in den fuer den Nutzer zugaenglichen Projekten liegen.
+     * danach die zuletzt gewählte Auswahl des Nutzers. Beide Kandidaten müssen
+     * in den für den Nutzer zugänglichen Projekten liegen.
      *
      * @param int[] $accessibleProjectIds
      */
@@ -470,8 +468,8 @@ class EvaluationController
     }
 
     /**
-     * Auswertungen sind Anwesenheits-/Anmeldedaten: projektuebergreifend sieht sie, wer
-     * Anwesenheit fuer alle Mitglieder verwalten darf - nicht, wer Mitglieder verwaltet.
+     * Auswertungen sind Anwesenheits-/Anmeldedaten: projektübergreifend sieht sie, wer
+     * Anwesenheit für alle Mitglieder verwalten darf - nicht, wer Mitglieder verwaltet.
      */
     private function canSeeAllProjects(): bool
     {

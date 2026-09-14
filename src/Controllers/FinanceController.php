@@ -230,8 +230,8 @@ class FinanceController
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
-        // Pflichtfeld auch serverseitig: das `required` im Formular haelt nur die
-        // Oberflaeche auf, und eine Buchung ohne Text ist im Kassabuch spaeter
+        // Pflichtfeld auch serverseitig: das `required` im Formular hält nur die
+        // Oberfläche auf, und eine Buchung ohne Text ist im Kassabuch später
         // niemandem mehr zuzuordnen.
         $description = trim($data['description'] ?? '');
         if ($description === '') {

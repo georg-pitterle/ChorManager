@@ -245,11 +245,16 @@ final class NewsletterPlaceholderFeatureTest extends TestCase
 
     private function createVoiceGroupAssignment(User $user, string $groupName, ?string $subVoiceName): void
     {
-        $group = VoiceGroup::create(['name' => $groupName]);
+        // firstOrCreate statt create: Stimmgruppen- und Teilstimmennamen sind seit
+        // Migration 20260914120000 eindeutig, und der Grundbestand bringt "Bass"
+        // samt "Bass 2" bereits mit. Ein zweites Anlegen lief vorher stillschweigend
+        // durch und hinterließ eine Doublette, wie sie in echten Daten nie vorkommen
+        // sollte - der Test baute sich also einen Zustand, den er gar nicht meinte.
+        $group = VoiceGroup::firstOrCreate(['name' => $groupName]);
         $subVoiceId = null;
 
         if ($subVoiceName !== null) {
-            $subVoiceId = SubVoice::create([
+            $subVoiceId = SubVoice::firstOrCreate([
                 'name' => $subVoiceName,
                 'voice_group_id' => $group->id,
             ])->id;

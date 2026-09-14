@@ -74,9 +74,7 @@ class NewsletterController
     {
         $query = User::query()->where('is_active', 1);
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
+        $this->nameFormatter->applyNameOrder($query);
 
         return $query->get();
     }
@@ -98,9 +96,7 @@ class NewsletterController
 
         $query = User::query()->whereIn('id', $recipientIds);
 
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
+        $this->nameFormatter->applyNameOrder($query);
 
         return $query->get();
     }

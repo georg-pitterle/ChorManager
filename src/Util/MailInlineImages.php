@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Util;
 
 /**
- * Wandelt Bilder, die als `data:`-URI im Mail-HTML stehen, in eingebettete Anhaenge um und
+ * Wandelt Bilder, die als `data:`-URI im Mail-HTML stehen, in eingebettete Anhänge um und
  * ersetzt die Quelle durch einen `cid:`-Verweis.
  *
  * Gmail schreibt eingehendes HTML um und entfernt dabei `data:`-URIs aus `src`-Attributen —
@@ -14,7 +14,7 @@ namespace App\Util;
  */
 final class MailInlineImages
 {
-    /** Fester Domain-Teil der Content-ID; sie muss nur eindeutig, nicht aufloesbar sein. */
+    /** Fester Domain-Teil der Content-ID; sie muss nur eindeutig, nicht auflösbar sein. */
     private const CID_DOMAIN = 'chormanager.local';
 
     /**
@@ -35,7 +35,7 @@ final class MailInlineImages
             static function (array $match) use (&$images): string {
                 $binaryContent = base64_decode($match[3], true);
                 if ($binaryContent === false || $binaryContent === '') {
-                    // Kein verwertbares Bild: unveraendert stehen lassen statt Muell anzuhaengen.
+                    // Kein verwertbares Bild: unverändert stehen lassen statt Müll anzuhängen.
                     return $match[0];
                 }
 
@@ -55,7 +55,7 @@ final class MailInlineImages
         );
 
         if ($converted === null) {
-            // Backtracking-Limit oder aehnliches: lieber das Original ausliefern.
+            // Backtracking-Limit oder ähnliches: lieber das Original ausliefern.
             return ['html' => $html, 'images' => []];
         }
 

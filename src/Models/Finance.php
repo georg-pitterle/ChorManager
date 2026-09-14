@@ -65,12 +65,12 @@ class Finance extends Model
      * Storno-Status bewusst als Accessor statt als isReversal()-Methode und
      * statt eines direkten Relationszugriffs im Template:
      *
-     * - Eine parameterlose Methode haelt Eloquent beim Property-Zugriff fuer eine
+     * - Eine parameterlose Methode hält Eloquent beim Property-Zugriff für eine
      *   Relation und wirft "must return a relationship instance".
      * - Auf eine ungeladene Relation greift Twig per Methodenaufruf zu und
-     *   bekommt das Relation-Objekt zurueck, das immer truthy ist.
+     *   bekommt das Relation-Objekt zurück, das immer truthy ist.
      *
-     * Accessoren liefern dagegen zuverlaessig den Wahrheitswert.
+     * Accessoren liefern dagegen zuverlässig den Wahrheitswert.
      */
     public function getIsReversalAttribute(): bool
     {

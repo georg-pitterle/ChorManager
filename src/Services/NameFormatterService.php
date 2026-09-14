@@ -78,4 +78,28 @@ class NameFormatterService
             ? ['last_name', 'first_name']
             : ['first_name', 'last_name'];
     }
+
+    /**
+     * Hängt die konfigurierte Namensreihenfolge an eine Abfrage.
+     *
+     * Die Schleife dahinter stand neunmal wortgleich im Code - zweimal in
+     * src/Queries, siebenmal in src/Controllers. Eine davon zu ändern und die
+     * übrigen stehen zu lassen war jederzeit möglich, und genau das soll die
+     * eine Stelle hier künftig verhindern.
+     *
+     * Angenommen wird alles, was orderBy() versteht: Eloquent-Builder,
+     * Query-Builder und Relationen - TaskController sortiert $project->users().
+     * Zurück kommt dasselbe Objekt, damit sich der Aufruf in eine Kette fügt.
+     *
+     * @param object $query Abfrage oder Relation mit orderBy()
+     * @return object dasselbe Objekt
+     */
+    public function applyNameOrder(object $query): object
+    {
+        foreach ($this->orderColumns() as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query;
+    }
 }

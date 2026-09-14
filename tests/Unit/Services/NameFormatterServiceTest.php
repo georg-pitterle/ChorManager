@@ -68,4 +68,51 @@ final class NameFormatterServiceTest extends TestCase
             (new NameFormatterService('last_first'))->orderColumns()
         );
     }
+
+    /**
+     * applyNameOrder() hängt die Spalten in der eingestellten Reihenfolge an und
+     * gibt dieselbe Abfrage zurück, damit sich der Aufruf verketten lässt.
+     *
+     * Geprüft wird gegen einen Mitschnitt statt gegen einen echten Builder: die
+     * Methode soll nichts weiter tun, als orderBy() der Reihe nach aufzurufen, und
+     * genau das hält der Mitschnitt fest - ohne Datenbank.
+     */
+    public function testApplyNameOrderAddsColumnsInConfiguredOrder(): void
+    {
+        $recorder = new class {
+            /** @var list<string> */
+            public array $ordered = [];
+
+            public function orderBy(string $column): self
+            {
+                $this->ordered[] = $column;
+
+                return $this;
+            }
+        };
+
+        $returned = (new NameFormatterService('last_first'))->applyNameOrder($recorder);
+
+        $this->assertSame(['last_name', 'first_name'], $recorder->ordered);
+        $this->assertSame($recorder, $returned);
+    }
+
+    public function testApplyNameOrderFollowsTheFirstLastFormat(): void
+    {
+        $recorder = new class {
+            /** @var list<string> */
+            public array $ordered = [];
+
+            public function orderBy(string $column): self
+            {
+                $this->ordered[] = $column;
+
+                return $this;
+            }
+        };
+
+        (new NameFormatterService('first_last'))->applyNameOrder($recorder);
+
+        $this->assertSame(['first_name', 'last_name'], $recorder->ordered);
+    }
 }

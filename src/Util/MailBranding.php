@@ -8,21 +8,21 @@ use App\Controllers\AppSettingController;
 use App\Models\AppSetting;
 
 /**
- * Loest das Erscheinungsbild der Systemmails auf: Name, Markenfarbe, davon abgeleitete Toene
+ * Löst das Erscheinungsbild der Systemmails auf: Name, Markenfarbe, davon abgeleitete Töne
  * und das Logo. Alle Mail-Absender nutzen dieselbe Quelle, damit Einladung, Passwort-Reset und
  * Erinnerung nicht auseinanderlaufen.
  *
- * Die Markenfarbe ist pro Installation konfigurierbar. Abgeleitet werden daraus nur Toene, die
- * ihre Rolle unabhaengig vom konkreten Farbwert erfuellen muessen.
+ * Die Markenfarbe ist pro Installation konfigurierbar. Abgeleitet werden daraus nur Töne, die
+ * ihre Rolle unabhängig vom konkreten Farbwert erfüllen müssen.
  */
 final class MailBranding
 {
     public const DEFAULT_APP_NAME = 'Chor-Manager';
 
-    /** Mindestkontrast fuer Fliesstext nach WCAG 2.1 AA. */
+    /** Mindestkontrast für Fließtext nach WCAG 2.1 AA. */
     private const MIN_TEXT_CONTRAST = 4.5;
 
-    /** Deckkraft der Markenfarbe ueber Weiss fuer Flaeche und Rand der Hinweisbox. */
+    /** Deckkraft der Markenfarbe über Weiß für Fläche und Rand der Hinweisbox. */
     private const TINT_ALPHA = 0.08;
     private const EDGE_ALPHA = 0.30;
 
@@ -108,7 +108,7 @@ final class MailBranding
     }
 
     /**
-     * Dunkelt die Markenfarbe so weit ab, bis Text darin auf Weiss AA erfuellt. Eine feste
+     * Dunkelt die Markenfarbe so weit ab, bis Text darin auf Weiß AA erfüllt. Eine feste
      * Prozentmischung reicht nicht: helle Markenfarben wie Amber blieben sonst unter 3:1.
      */
     public static function readableOnWhite(string $hexColor): string
@@ -128,7 +128,7 @@ final class MailBranding
         return self::toHex($red, $green, $blue);
     }
 
-    /** Mischt die Markenfarbe mit der angegebenen Deckkraft ueber Weiss. */
+    /** Mischt die Markenfarbe mit der angegebenen Deckkraft über Weiß. */
     public static function overWhite(string $hexColor, float $alpha): string
     {
         [$red, $green, $blue] = self::toRgb($hexColor);

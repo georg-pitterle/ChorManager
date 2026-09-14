@@ -32,8 +32,8 @@ class SendNotificationRemindersCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Anders als bei der Anmelde-Erinnerung gibt es hier kein einzelnes
-        // Feature-Flag: Die Anlaesse haengen an verschiedenen Modulen, und ob
-        // einer davon laeuft, entscheidet der Dienst je Anlass.
+        // Feature-Flag: Die Anlässe hängen an verschiedenen Modulen, und ob
+        // einer davon läuft, entscheidet der Dienst je Anlass.
         $baseUrl = trim(EnvHelper::read('APP_URL', ''));
         if ($baseUrl === '') {
             $this->logger->error('Notification reminders skipped: APP_URL not configured.', [

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Logging;
 
 /**
- * Haelt die Kenndaten des laufenden Requests fuer das Logging.
+ * Hält die Kenndaten des laufenden Requests für das Logging.
  *
- * Eine Instanz pro Request, veraenderlich: Die Middleware fuellt sie zu Beginn,
+ * Eine Instanz pro Request, veränderlich: Die Middleware füllt sie zu Beginn,
  * die Benutzerkennung kommt erst nach der Authentifizierung dazu.
  */
 final class RequestContext

@@ -262,7 +262,7 @@ class NotificationService
      * die Verwaltung sie abgeschaltet hat.
      *
      * Genau das braucht die Verwaltungsseite: Sie muss auch die abgeschalteten
-     * zeigen, sonst liesse sich ein einmal abgeschalteter nie wieder einschalten.
+     * zeigen, sonst ließe sich ein einmal abgeschalteter nie wieder einschalten.
      *
      * @return array<string, list<array{type: string, label: string, description: string}>>
      */

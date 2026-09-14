@@ -13,6 +13,17 @@ use App\Services\ModalFormService;
 
 class VoiceGroupController
 {
+    /**
+     * Die Besetzungsansicht gruppiert nach dem Namen der Stimmgruppe; zwei
+     * gleichnamige Gruppen verschmelzen dort stillschweigend zu einer. Der
+     * eindeutige Index aus Migration 20260914120000 hält das in der Datenbank
+     * fest - hier steht die Meldung, die der Anwender stattdessen lesen soll,
+     * damit ihn kein durchgereichter SQL-Fehler trifft.
+     */
+    private const DUPLICATE_GROUP_MESSAGE = 'Es gibt bereits eine Stimmgruppe mit diesem Namen.';
+    private const DUPLICATE_SUB_VOICE_MESSAGE =
+        'Es gibt in dieser Stimmgruppe bereits eine Unterstimme mit diesem Namen.';
+
     private Twig $view;
 
     public function __construct(Twig $view)
@@ -87,6 +98,12 @@ class VoiceGroupController
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
+        if (VoiceGroup::where('name', $name)->exists()) {
+            $createService = new ModalFormService('voice_group_create');
+            $createService->setError(self::DUPLICATE_GROUP_MESSAGE, $formData);
+            return $response->withHeader('Location', '/voice-groups')->withStatus(302);
+        }
+
         try {
             VoiceGroup::create(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich angelegt.';
@@ -109,6 +126,12 @@ class VoiceGroupController
         if (!$name) {
             $editService = new ModalFormService('voice_group_edit_' . $id);
             $editService->setError('Der Name darf nicht leer sein.', $formData);
+            return $response->withHeader('Location', '/voice-groups')->withStatus(302);
+        }
+
+        if (VoiceGroup::where('name', $name)->whereKeyNot($id)->exists()) {
+            $editService = new ModalFormService('voice_group_edit_' . $id);
+            $editService->setError(self::DUPLICATE_GROUP_MESSAGE, $formData);
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
@@ -153,6 +176,12 @@ class VoiceGroupController
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 
+        if (SubVoice::where('voice_group_id', $groupId)->where('name', $name)->exists()) {
+            $createService = new ModalFormService('voice_sub_create_' . $groupId);
+            $createService->setError(self::DUPLICATE_SUB_VOICE_MESSAGE, $formData);
+            return $response->withHeader('Location', '/voice-groups')->withStatus(302);
+        }
+
         try {
             SubVoice::create([
                 'name' => $name,
@@ -178,6 +207,22 @@ class VoiceGroupController
         if (!$name) {
             $editService = new ModalFormService('voice_sub_edit_' . $subId);
             $editService->setError('Der Name darf nicht leer sein.', $formData);
+            return $response->withHeader('Location', '/voice-groups')->withStatus(302);
+        }
+
+        // Die Stimmgruppe kommt aus der bestehenden Teilstimme: eindeutig ist der
+        // Name nur innerhalb seiner Gruppe. Fehlt der Datensatz, fällt der Ablauf
+        // unverändert in das findOrFail() darunter.
+        $current = SubVoice::find($subId);
+        $collides = $current !== null
+            && SubVoice::where('voice_group_id', $current->voice_group_id)
+                ->where('name', $name)
+                ->whereKeyNot($subId)
+                ->exists();
+
+        if ($collides) {
+            $editService = new ModalFormService('voice_sub_edit_' . $subId);
+            $editService->setError(self::DUPLICATE_SUB_VOICE_MESSAGE, $formData);
             return $response->withHeader('Location', '/voice-groups')->withStatus(302);
         }
 

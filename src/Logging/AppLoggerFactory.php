@@ -29,7 +29,7 @@ final class AppLoggerFactory
         $logger = new Logger($channel);
 
         // Mit Resolver wird der Stream-Handler auf der niedrigsten Stufe gebaut und
-        // die Entscheidung an den Gate-Handler abgegeben, damit eine Aenderung der
+        // die Entscheidung an den Gate-Handler abgegeben, damit eine Änderung der
         // Einstellung ohne Neustart wirkt. Ohne Resolver bleibt das feste Level aus
         // der Konfiguration bestehen.
         $handler = new StreamHandler(

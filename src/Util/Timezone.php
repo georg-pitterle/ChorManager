@@ -31,13 +31,13 @@ class Timezone
     }
 
     /**
-     * Setzt die MySQL-Session auf die benannte Zeitzone. Ein fixer Offset waere der Offset des
-     * aktuellen Laufs und wuerde nach einem Wechsel zwischen Sommer- und Winterzeit auch auf
-     * historische TIMESTAMP-Werte angewendet - diese kaemen dann um eine Stunde verschoben zurueck.
+     * Setzt die MySQL-Session auf die benannte Zeitzone. Ein fixer Offset wäre der Offset des
+     * aktuellen Laufs und würde nach einem Wechsel zwischen Sommer- und Winterzeit auch auf
+     * historische TIMESTAMP-Werte angewendet - diese kämen dann um eine Stunde verschoben zurück.
      *
      * CONVERT_TZ liefert NULL, wenn die MySQL-Zeitzonentabellen nicht geladen sind; in dem Fall
-     * bleibt der Offset als Rueckfallebene. Die Pruefung laeuft in der Anweisung selbst, damit sie
-     * ohne Leserecht auf die mysql-Systemtabellen und ohne zusaetzliche Abfrage auskommt.
+     * bleibt der Offset als Rückfallebene. Die Prüfung läuft in der Anweisung selbst, damit sie
+     * ohne Leserecht auf die mysql-Systemtabellen und ohne zusätzliche Abfrage auskommt.
      *
      * Beide Werte stammen aus kontrollierten Quellen (Whitelist aus timezone_identifiers_list bzw.
      * DateTimeImmutable::format('P')) und sind damit nicht frei setzbar.
@@ -55,14 +55,14 @@ class Timezone
     }
 
     /**
-     * PDO-Optionen fuer die Datenbankverbindung. Die Zeitzone wird als Init-Command gesetzt, weil
-     * dieser bei jedem Verbindungsaufbau - auch nach einem Reconnect - erneut laeuft.
+     * PDO-Optionen für die Datenbankverbindung. Die Zeitzone wird als Init-Command gesetzt, weil
+     * dieser bei jedem Verbindungsaufbau - auch nach einem Reconnect - erneut läuft.
      *
      * @return array<int, string>
      */
     public static function databaseConnectionOptions(): array
     {
-        // PHP 8.4 hat die PDO::MYSQL_ATTR_*-Konstanten durch Pdo\Mysql abgeloest.
+        // PHP 8.4 hat die PDO::MYSQL_ATTR_*-Konstanten durch Pdo\Mysql abgelöst.
         if (class_exists('Pdo\\Mysql')) {
             return [\Pdo\Mysql::ATTR_INIT_COMMAND => self::databaseTimezoneInitCommand()];
         }

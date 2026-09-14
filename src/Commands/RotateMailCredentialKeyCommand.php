@@ -114,7 +114,7 @@ class RotateMailCredentialKeyCommand extends Command
     {
         $stored = (string) $account->imap_password_enc;
 
-        // Ein Konto ohne hinterlegtes Passwort hat nichts zu entschluesseln. Ohne diesen
+        // Ein Konto ohne hinterlegtes Passwort hat nichts zu entschlüsseln. Ohne diesen
         // Abbruch wirft decrypt('') und der Lauf endete dauerhaft mit Exit-Code 1.
         if ($stored === '') {
             return 'skipped';

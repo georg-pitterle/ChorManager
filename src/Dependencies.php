@@ -112,8 +112,8 @@ return function (ContainerBuilder $containerBuilder) {
             // Setup the Eloquent ORM
             $capsule->bootEloquent();
 
-            // Ein Event-Dispatcher ist Voraussetzung dafuer, dass die Connection
-            // ueberhaupt QueryExecuted-Events feuert - ohne ihn ist listen() in
+            // Ein Event-Dispatcher ist Voraussetzung dafür, dass die Connection
+            // überhaupt QueryExecuted-Events feuert - ohne ihn ist listen() in
             // DatabaseWriteLogger::register() ein stiller No-Op.
             //
             // Die Reihenfolge ist bewusst: bootEloquent() reicht einen bereits
@@ -173,7 +173,7 @@ return function (ContainerBuilder $containerBuilder) {
         NewsletterTemplateQuery::class => \DI\autowire(),
         NewsletterTemplatePersistence::class => \DI\autowire(),
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale
-        // Logger-Parameter wird von der Autowiring-Reflexion uebersprungen und blieb bislang
+        // Logger-Parameter wird von der Autowiring-Reflexion übersprungen und blieb bislang
         // stets der NullLogger - mail.send.skipped/.success/.failed kamen dadurch nie im Log an.
         Mailer::class => function (ContainerInterface $c): Mailer {
             return new Mailer($c->get(LoggerInterface::class));
@@ -198,11 +198,11 @@ return function (ContainerBuilder $containerBuilder) {
         // auflösen könnte. Ohne sie liefe jeder modulgebundene Anlass ins Leere.
         // Diese drei Controller nehmen den Benachrichtigungsdienst als letzten,
         // optionalen Parameter - er musste ans Ende, weil zahlreiche Tests sie
-        // mit festen Positionsargumenten bauen. PHP-DI fuellt optionale
+        // mit festen Positionsargumenten bauen. PHP-DI füllt optionale
         // Parameter nicht aus dem Container, deshalb werden sie hier von Hand
-        // zusammengesetzt statt autoverdrahtet. Ohne diese drei Eintraege
+        // zusammengesetzt statt autoverdrahtet. Ohne diese drei Einträge
         // verschickte der Betrieb still keine Benachrichtigung;
-        // `NotificationWiringFeatureTest` prueft genau das.
+        // `NotificationWiringFeatureTest` prüft genau das.
         TaskController::class => function (ContainerInterface $c): TaskController {
             return new TaskController(
                 $c->get(Twig::class),
@@ -308,20 +308,20 @@ return function (ContainerBuilder $containerBuilder) {
             return new CsrfMiddleware($c->get(LoggerInterface::class));
         },
         // Derselbe Grund wie bei CsrfMiddleware: Der Logger hat einen NullLogger-Default,
-        // den die Autowiring-Reflexion sonst stehen laesst - die Warnung ueber einen
-        // fehlgeschlagenen Token-Einbau kaeme dann nie im Log an.
+        // den die Autowiring-Reflexion sonst stehen lässt - die Warnung über einen
+        // fehlgeschlagenen Token-Einbau käme dann nie im Log an.
         HtmlFormCsrfInjectorMiddleware::class => function (ContainerInterface $c) {
             return new HtmlFormCsrfInjectorMiddleware($c->get(LoggerInterface::class));
         },
         // Der Logger ist optional mit NullLogger-Default (bestehende Tests bauen den
-        // Controller mit nur $view), daher hier explizit verdrahten - sonst ueberspringt
+        // Controller mit nur $view), daher hier explizit verdrahten - sonst überspringt
         // die Autowiring-Reflexion den Parameter und der echte Logger kommt nie an.
         SongLibraryController::class => function (ContainerInterface $c) {
             return new SongLibraryController($c->get(Twig::class), $c->get(LoggerInterface::class));
         },
-        // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter faellt in
-        // die Autowiring-Luecke und bliebe der NullLogger - die authz.denied-Eintraege der
-        // Auswertungen kaemen dann nie im Log an.
+        // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter fällt in
+        // die Autowiring-Lücke und bliebe der NullLogger - die authz.denied-Einträge der
+        // Auswertungen kämen dann nie im Log an.
         EvaluationController::class => function (ContainerInterface $c) {
             return new EvaluationController(
                 $c->get(Twig::class),
@@ -332,14 +332,14 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter wird von
-        // der Autowiring-Reflexion uebersprungen und blieb bislang stets der NullLogger - auch
+        // der Autowiring-Reflexion übersprungen und blieb bislang stets der NullLogger - auch
         // die bestehenden auth.password_reset.* Events (Task 5) kamen dadurch nie im Log an.
-        // Der Mailer wird hier bewusst explizit aufgeloest statt `null` durchzureichen: sonst
+        // Der Mailer wird hier bewusst explizit aufgelöst statt `null` durchzureichen: sonst
         // baut der Controller intern per `new Mailer()` seine eigene Instanz und deren
-        // Logger-Parameter faellt exakt in dieselbe Autowiring-Luecke, unabhaengig davon, dass
+        // Logger-Parameter fällt exakt in dieselbe Autowiring-Lücke, unabhängig davon, dass
         // Mailer::class selbst inzwischen eine echte Factory hat.
-        // RateLimiter/PasswordPolicyService/MailQueueService bleiben unveraendert bei ihren
-        // bisherigen Fallbacks (out of scope fuer dieses Logging-Ticket).
+        // RateLimiter/PasswordPolicyService/MailQueueService bleiben unverändert bei ihren
+        // bisherigen Fallbacks (out of scope für dieses Logging-Ticket).
         PasswordResetController::class => function (ContainerInterface $c) {
             return new PasswordResetController(
                 $c->get(Twig::class),
@@ -352,7 +352,7 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale
-        // Logger-Parameter wird von der Autowiring-Reflexion uebersprungen und blieb bislang
+        // Logger-Parameter wird von der Autowiring-Reflexion übersprungen und blieb bislang
         // stets der NullLogger - auth.remember_me.used/.rejected kamen dadurch nie im Log an.
         RememberLoginService::class => function (ContainerInterface $c) {
             return new RememberLoginService($c->get(LoggerInterface::class));
@@ -398,7 +398,7 @@ return function (ContainerBuilder $containerBuilder) {
             return new SheetArchiveService();
         },
         // Derselbe Fall wie bei Mailer: der optionale Logger-Parameter wird von der
-        // Autowiring-Reflexion uebersprungen und blieb bislang stets der NullLogger -
+        // Autowiring-Reflexion übersprungen und blieb bislang stets der NullLogger -
         // mail_credential.decrypt.failed kam dadurch nie im Log an.
         MailCredentialCryptoService::class => function (ContainerInterface $c): MailCredentialCryptoService {
             return new MailCredentialCryptoService($c->get(LoggerInterface::class));
@@ -437,8 +437,8 @@ return function (ContainerBuilder $containerBuilder) {
         SendNotificationRemindersCommand::class => \DI\autowire(),
         NotificationReminderMiddleware::class => function (ContainerInterface $c) {
             // Dieselbe Fabrik-Konstruktion wie bei der Anmelde-Erinnerung: Der
-            // Dienst haengt ueber NotificationService an Twig, und diese globale
-            // Middleware laeuft vor der AuthMiddleware. Twig hier zu bauen fror
+            // Dienst hängt über NotificationService an Twig, und diese globale
+            // Middleware läuft vor der AuthMiddleware. Twig hier zu bauen fror
             // den noch unangemeldeten Sitzungszustand ein.
             return new NotificationReminderMiddleware(
                 static fn (): NotificationReminderService => $c->get(NotificationReminderService::class),

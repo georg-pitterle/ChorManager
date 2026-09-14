@@ -22,12 +22,12 @@ class UserPersistence
     }
 
     /**
-     * Loescht einen Benutzer endgueltig.
+     * Löscht einen Benutzer endgültig.
      *
-     * Die Anwendung kennt derzeit keinen Aufrufer: Benutzer werden ueber
-     * deactivate() archiviert, nicht geloescht. Das Event liegt hier trotzdem
-     * an der Datenmutation, damit ein spaeter ergaenzter Loeschpfad
-     * (etwa eine DSGVO-Loeschung) ohne Zutun protokolliert wird.
+     * Die Anwendung kennt derzeit keinen Aufrufer: Benutzer werden über
+     * deactivate() archiviert, nicht gelöscht. Das Event liegt hier trotzdem
+     * an der Datenmutation, damit ein später ergänzter Löschpfad
+     * (etwa eine DSGVO-Löschung) ohne Zutun protokolliert wird.
      */
     public function delete(User $user): bool
     {

@@ -75,10 +75,10 @@ class AttendanceScopeService
     }
 
     /**
-     * Darf der aktuelle Nutzer Anwesenheit/Anmeldung dieses Termins ueberhaupt sehen?
+     * Darf der aktuelle Nutzer Anwesenheit/Anmeldung dieses Termins überhaupt sehen?
      *
-     * Sichtbar ist ein Termin, wenn man selbst zur Zielgruppe gehoert oder wenn
-     * mindestens ein verwaltbares Mitglied zur Zielgruppe gehoert. Wer alle Mitglieder
+     * Sichtbar ist ein Termin, wenn man selbst zur Zielgruppe gehört oder wenn
+     * mindestens ein verwaltbares Mitglied zur Zielgruppe gehört. Wer alle Mitglieder
      * verwalten darf, sieht jeden Termin.
      */
     public function canAccessEvent(Event $event): bool
@@ -91,7 +91,7 @@ class AttendanceScopeService
             ? $event->audienceSources
             : $event->audienceSources()->get();
 
-        // Ohne Zielgruppen-Quelle gilt der Termin fuer alle aktiven Mitglieder.
+        // Ohne Zielgruppen-Quelle gilt der Termin für alle aktiven Mitglieder.
         if ($sources->isEmpty()) {
             return true;
         }
@@ -117,8 +117,8 @@ class AttendanceScopeService
     }
 
     /**
-     * Zielgruppen-Merkmale, ueber die der aktuelle Nutzer Zugriff auf einen Termin bekommt:
-     * seine eigenen und - sofern er fuer andere eintragen darf - die der verwaltbaren Mitglieder.
+     * Zielgruppen-Merkmale, über die der aktuelle Nutzer Zugriff auf einen Termin bekommt:
+     * seine eigenen und - sofern er für andere eintragen darf - die der verwaltbaren Mitglieder.
      *
      * @return array<string, array<int>>
      */

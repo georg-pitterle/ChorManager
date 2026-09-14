@@ -136,7 +136,7 @@ class RoleController
             'users as active_users_count' => function ($query) {
                 $query->where('is_active', 1);
             },
-            // Fuer das Loeschen zaehlt jede Zuweisung, auch die eines archivierten Mitglieds.
+            // Für das Löschen zählt jede Zuweisung, auch die eines archivierten Mitglieds.
             'users as assigned_users_count',
         ])->orderBy('hierarchy_level', 'desc')->get();
 
@@ -325,14 +325,14 @@ class RoleController
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
 
-        // Wie beim Bearbeiten: eine hoeher eingestufte Rolle bleibt unantastbar.
+        // Wie beim Bearbeiten: eine höher eingestufte Rolle bleibt unantastbar.
         $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
         if ((int) $role->hierarchy_level > $actorLevel) {
             $_SESSION['error'] = 'Du kannst keine Rolle oberhalb deines eigenen Levels löschen.';
             return $response->withHeader('Location', '/roles')->withStatus(302);
         }
 
-        // Jede Zuweisung zaehlt, auch die eines archivierten Mitglieds: sonst stuende es
+        // Jede Zuweisung zählt, auch die eines archivierten Mitglieds: sonst stünde es
         // nach dem Wiederherstellen ohne Rolle da.
         $assignedUsers = $role->users()->count();
         if ($assignedUsers > 0) {

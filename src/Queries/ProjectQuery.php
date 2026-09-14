@@ -172,7 +172,7 @@ class ProjectQuery
                 'subVoices'
             ]);
 
-        return $this->orderedByName($query);
+        return $this->nameFormatter->applyNameOrder($query);
     }
 
     /**
@@ -186,7 +186,7 @@ class ProjectQuery
                 $query->where('project_id', $projectId);
             });
 
-        return $this->orderedByName($query)->get();
+        return $this->nameFormatter->applyNameOrder($query)->get();
     }
 
     /**
@@ -214,7 +214,7 @@ class ProjectQuery
                 $query->whereIn('voice_group_id', $voiceGroupIds);
             });
 
-        return $this->orderedByName($query)->get();
+        return $this->nameFormatter->applyNameOrder($query)->get();
     }
 
     /**
@@ -236,23 +236,6 @@ class ProjectQuery
         }
 
         return self::toIntList($user->voiceGroups()->pluck('voice_groups.id'));
-    }
-
-    /**
-     * Namensreihenfolge der Mitgliederlisten, wie sie global eingestellt ist
-     * (NameFormatterService::orderColumns()). Vier Abfragen dieser Klasse brauchen
-     * sie; die Schleife stand bis hierher viermal wortgleich da.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder<User> $query
-     * @return \Illuminate\Database\Eloquent\Builder<User>
-     */
-    private function orderedByName($query)
-    {
-        foreach ($this->nameFormatter->orderColumns() as $column) {
-            $query->orderBy($column);
-        }
-
-        return $query;
     }
 
     /**

@@ -249,7 +249,7 @@ class ProjectController
             return $response->withHeader('Location', '/projects/' . $projectId . '/members')->withStatus(302);
         }
 
-        // Ohne diese Pruefung liefe eine unbekannte ID in den Fremdschluessel der
+        // Ohne diese Prüfung liefe eine unbekannte ID in den Fremdschlüssel der
         // Zuordnungstabelle und quittierte die Eingabe mit einem HTTP 500.
         if (!$this->projectQuery->userExists($userId)) {
             $_SESSION['error'] = 'Das ausgewählte Mitglied existiert nicht.';

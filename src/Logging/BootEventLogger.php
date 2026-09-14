@@ -14,12 +14,12 @@ use Psr\Log\LogLevel;
  * Schreibt die Lebenszyklus-Ereignisse des Container-Starts in denselben
  * JSON-Stream wie die Anwendung.
  *
- * Der Container-Entrypoint laeuft, bevor die Datenbank erreichbar ist, und kann
- * deshalb weder den DI-Container noch den DB-gestuetzten LogLevelResolver
+ * Der Container-Entrypoint läuft, bevor die Datenbank erreichbar ist, und kann
+ * deshalb weder den DI-Container noch den DB-gestützten LogLevelResolver
  * benutzen. Diese Klasse baut den Logger direkt aus der Umgebung und bleibt
  * bewusst frei von Datenbankzugriffen.
  *
- * Die Ereignisse sind das Signal der Betriebs-Alarmierung: eine haeufende
+ * Die Ereignisse sind das Signal der Betriebs-Alarmierung: eine häufende
  * Folge von "app.boot.started" bedeutet Crash-Loop, "app.boot.migration_failed"
  * und "app.boot.db_wait_timeout" benennen die Ursache direkt.
  */
@@ -27,7 +27,7 @@ final class BootEventLogger
 {
     /**
      * Ereignis => [Log-Level, Meldung]. Die Reihenfolge entspricht dem Ablauf im
-     * Entrypoint und ist Teil der oeffentlichen Schnittstelle: die Alarmregeln in
+     * Entrypoint und ist Teil der öffentlichen Schnittstelle: die Alarmregeln in
      * dist/grafana/chormanager-alerts.yaml filtern auf genau diese Namen.
      *
      * @var array<string, array{0: string, 1: string}>
@@ -63,8 +63,8 @@ final class BootEventLogger
             'environment' => AppEnvironment::current(),
             'stream' => EnvHelper::read('APP_LOG_STREAM', 'php://stderr'),
             // Absichtlich fest auf DEBUG statt auf APP_LOG_LEVEL: die Boot-Events
-            // traegt die Alarmierung. Ein restriktiv gesetztes Log-Level wuerde
-            // sonst unbemerkt die Ueberwachung des Starts abschalten.
+            // trägt die Alarmierung. Ein restriktiv gesetztes Log-Level würde
+            // sonst unbemerkt die Überwachung des Starts abschalten.
             'level' => 'DEBUG',
         ]));
     }

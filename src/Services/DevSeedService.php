@@ -1625,11 +1625,11 @@ class DevSeedService
             return;
         }
 
-        // Nur Buchungen ohne Journaleintrag: sonst wuerde jeder Append-Lauf das
-        // Journal aller bereits vorhandenen Buchungen erneut aufblaehen.
-        // whereNotNull in der Unterabfrage ist zwingend: Journaleintraege zum
-        // Buchungsabschluss haengen an keiner Buchung, und "id NOT IN (..., NULL)"
-        // ist in SQL niemals wahr - ohne den Filter kaeme hier keine Zeile zurueck.
+        // Nur Buchungen ohne Journaleintrag: sonst würde jeder Append-Lauf das
+        // Journal aller bereits vorhandenen Buchungen erneut aufblähen.
+        // whereNotNull in der Unterabfrage ist zwingend: Journaleinträge zum
+        // Buchungsabschluss hängen an keiner Buchung, und "id NOT IN (..., NULL)"
+        // ist in SQL niemals wahr - ohne den Filter käme hier keine Zeile zurück.
         $bookings = Finance::whereNull('reversal_of_id')
             ->whereNotIn('id', FinanceRevision::whereNotNull('finance_id')->select('finance_id'))
             ->orderBy('id')
@@ -1854,12 +1854,12 @@ class DevSeedService
     }
 
     /**
-     * Abbestellte Anlaesse fuer einen Teil der Mitglieder.
+     * Abbestellte Anlässe für einen Teil der Mitglieder.
      *
      * Gespeichert wird nur die Abweichung (siehe Migration 20260830140000),
-     * deshalb entstehen hier nur Zeilen fuer abgeschaltete Anlaesse. Ein Drittel
-     * der Aktiven bekommt eine, damit im Dev beide Zustaende vorkommen und sich
-     * die Filterung des Versands überhaupt beobachten laesst.
+     * deshalb entstehen hier nur Zeilen für abgeschaltete Anlässe. Ein Drittel
+     * der Aktiven bekommt eine, damit im Dev beide Zustände vorkommen und sich
+     * die Filterung des Versands überhaupt beobachten lässt.
      *
      * @param array<int, User> $activeUsers
      */
@@ -1904,9 +1904,9 @@ class DevSeedService
             'notification_sponsoring_follow_up_days_before' => '1',
         ];
 
-        // Alle Anlaesse ausdruecklich eingeschaltet: Im Dev soll sichtbar sein,
+        // Alle Anlässe ausdrücklich eingeschaltet: Im Dev soll sichtbar sein,
         // dass es diese Schalter gibt - ohne Eintrag sieht die Verwaltungsseite
-        // zwar gleich aus, aber in app_settings stuende nichts.
+        // zwar gleich aus, aber in app_settings stünde nichts.
         foreach (NotificationType::all() as $notificationType) {
             $settings[NotificationType::settingKey($notificationType)] =
                 NotificationType::defaultEnabled($notificationType) ? '1' : '0';
@@ -2009,7 +2009,7 @@ class DevSeedService
         $entries[] = [
             'mail_type' => 'password_reset',
             'recipient_email' => $sampleUser->email,
-            'subject' => 'Queue: Passwort zuruecksetzen',
+            'subject' => 'Queue: Passwort zurücksetzen',
             'body_html' => '<p>Seeded failed password reset mail.</p>',
             'payload_json' => [
                 'user_id' => $sampleUser->id,
@@ -2183,7 +2183,7 @@ class DevSeedService
                 'type' => 'organization',
                 'name' => 'Kulturstiftung am Fluss',
                 'contact_person' => 'Dr. Eva Sonnleitner',
-                'email' => 'foerderungen@kulturstiftung-fluss.local',
+                'email' => 'förderungen@kulturstiftung-fluss.local', // naming:ascii
                 'phone' => '+43 662 401 121',
                 'address' => 'Uferstraße 8, 5020 Salzburg',
                 'website' => 'https://kulturstiftung-fluss.local',
@@ -2253,10 +2253,10 @@ class DevSeedService
                 'type' => 'organization',
                 'name' => 'Bäckerei Morgenstern',
                 'contact_person' => 'Lisa Morgenstern',
-                'email' => 'kontakt@baeckerei-morgenstern.local',
+                'email' => 'kontakt@baeckerei-morgenstern.local', // naming:ascii
                 'phone' => '+43 662 401 127',
                 'address' => 'Marktplatz 6, 5020 Salzburg',
-                'website' => 'https://baeckerei-morgenstern.local',
+                'website' => 'https://baeckerei-morgenstern.local', // naming:ascii
                 'notes' => 'Frühere Kooperation abgeschlossen, evtl. Wiederaufnahme.',
                 'requests_blocked' => true,
                 'requests_blocked_note' => 'Bittet ausdrücklich darum, nicht erneut angefragt zu werden.',
@@ -2781,7 +2781,7 @@ class DevSeedService
             ],
             [
                 'sponsor' => 'Eventagentur Taktvoll',
-                'base_name' => 'sponsorenportraet-taktvoll',
+                'base_name' => 'sponsorenportraet-taktvoll', // naming:ascii
                 'fixture' => DevSeedAttachmentFixtures::wordDocument('Sponsorenporträt Eventagentur Taktvoll'),
             ],
         ];
@@ -3233,7 +3233,7 @@ class DevSeedService
 
                 // Keine bis drei Zugewiesene, damit im Dev sowohl unbesetzte als
                 // auch gemeinsam betreute Aufgaben vorkommen. Die Reihe beginnt
-                // beim ersten aktiven Mitglied - ihm gehoert der Abo-Link aus dem
+                // beim ersten aktiven Mitglied - ihm gehört der Abo-Link aus dem
                 // Bericht, und ohne eigene Aufgaben bliebe der Aufgaben-Feed leer.
                 $assigneeCount = ($taskNumber + 1) % 4;
                 $assigneeIds = [];

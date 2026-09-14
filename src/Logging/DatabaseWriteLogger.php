@@ -14,7 +14,7 @@ use Psr\Log\LoggerInterface;
  * Einstellungen aktiv ist.
  *
  * Bindings werden bewusst verworfen: Sie enthalten Passwort-Hashes und
- * verschluesselte Zugangsdaten. Statements auf app_settings werden uebersprungen,
+ * verschlüsselte Zugangsdaten. Statements auf app_settings werden übersprungen,
  * weil der Resolver seine Werte von dort liest und die Protokollierung sich sonst
  * selbst aufruft.
  */

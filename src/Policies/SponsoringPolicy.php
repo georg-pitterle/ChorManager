@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\Builder;
  *    ist gerade, dass jedes Mitglied sieht, welche Firma bereits angefragt
  *    wurde - ohne diesen Überblick fragen zwei Personen dieselbe Firma an.
  *  - Beitragende dürfen Sponsoren anlegen, aber fremde Stammdaten nicht
- *    ändern. Ohne das Anlegen liesse sich keine neue Firma erfassen, und genau
+ *    ändern. Ohne das Anlegen ließe sich keine neue Firma erfassen, und genau
  *    dafür lief die Excel-Liste weiter.
  *  - Vereinbarungen von Beitragenden hängen an einem laufenden Projekt oder an
  *    keinem. Abgeschlossene Projekte nachträglich zu ergänzen ist Sache des

@@ -10,8 +10,8 @@ use Monolog\Level;
  * Liest das Log-Level und den SQL-Schalter aus den Anwendungseinstellungen.
  *
  * Der Lesezugriff steckt bewusst in einer Closure, die erst beim ersten Bedarf
- * aufgerufen wird: Der Logger wird dadurch nicht von der Datenbank abhaengig und
- * bleibt funktionsfaehig, wenn diese gerade nicht erreichbar ist.
+ * aufgerufen wird: Der Logger wird dadurch nicht von der Datenbank abhängig und
+ * bleibt funktionsfähig, wenn diese gerade nicht erreichbar ist.
  */
 final class LogLevelResolver
 {
@@ -53,7 +53,7 @@ final class LogLevelResolver
             try {
                 $this->cache = ($this->reader)();
             } catch (\Throwable) {
-                // Ohne Einstellungen greift der Rueckfallwert. Ein Fehler beim Lesen
+                // Ohne Einstellungen greift der Rückfallwert. Ein Fehler beim Lesen
                 // darf das Logging nie zum Erliegen bringen.
                 $this->cache = [];
             }

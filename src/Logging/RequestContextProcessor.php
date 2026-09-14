@@ -8,9 +8,9 @@ use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
 
 /**
- * Haengt die Kenndaten des Requests an jeden Record.
+ * Hängt die Kenndaten des Requests an jeden Record.
  *
- * Damit lassen sich alle Zeilen eines Aufrufs ueber die request_id zusammenfuehren,
+ * Damit lassen sich alle Zeilen eines Aufrufs über die request_id zusammenführen,
  * was bei Fehlermeldungen aus der Testphase mehr wert ist als jedes Einzelevent.
  */
 final class RequestContextProcessor implements ProcessorInterface
