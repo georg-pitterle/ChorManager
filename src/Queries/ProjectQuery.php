@@ -140,6 +140,23 @@ class ProjectQuery
      */
     public function getProjectMembers(int $projectId): Collection
     {
+        return $this->projectMembersQuery($projectId)->get();
+    }
+
+    /**
+     * Die Besetzung eines Projekts, wie sie beide Mitgliederansichten brauchen:
+     * Listenspalten, Stimmgruppe samt Teilstimme, Namensreihenfolge.
+     *
+     * Beide Aufrufer standen bis hierher mit derselben Abfrage nebeneinander und
+     * unterschieden sich nur darin, dass die Besetzungsansicht die Stimmgruppen
+     * ungefiltert lud - gelesen wurden auch dort nur Name und Pivot. Eine gemeinsame
+     * Quelle hält die beiden Seiten künftig zusammen; vorher konnte eine Änderung an
+     * der einen Ansicht die andere unbemerkt zurücklassen.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    private function projectMembersQuery(int $projectId)
+    {
         $query = User::select(User::LIST_COLUMNS)
             ->whereHas('projects', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);
@@ -150,10 +167,12 @@ class ProjectQuery
                 'voiceGroups' => function ($query) {
                     $query->select('voice_groups.id', 'voice_groups.name');
                 },
+                // Nur die Namen der Teilstimmen werden gebraucht; die Stimmgruppe hinter
+                // einer Teilstimme mitzuladen wäre eine zusätzliche Query ohne Verwendung.
                 'subVoices'
             ]);
 
-        return $this->orderedByName($query)->get();
+        return $this->orderedByName($query);
     }
 
     /**
@@ -178,7 +197,7 @@ class ProjectQuery
      *
      * Archivierte Mitglieder der eigenen Stimmgruppe stehen hier bewusst mit in der
      * Auswahl: die Zuordnung reaktiviert sie (siehe ProjectPersistence::addProjectMember()),
-     * und das ist auch fuer dieses eingeschraenkte Recht so gewollt.
+     * und das ist auch für dieses eingeschränkte Recht so gewollt.
      *
      * @param array<int> $voiceGroupIds
      */
@@ -270,7 +289,7 @@ class ProjectQuery
      * Jedes Mitglied erscheint genau einmal: unter seiner ersten Stimmgruppe.
      *
      * Archivierte Mitglieder stehen mit in der Besetzung, gekennzeichnet über
-     * `is_active` je Zeile. Sie herauszufiltern hiess, dass die Mitgliederpflege
+     * `is_active` je Zeile. Sie herauszufiltern hieß, dass die Mitgliederpflege
      * des Projekts jemanden zeigte, den die Besetzung derselben Zuordnung
      * verschwieg - zwei Seiten, zwei Antworten auf dieselbe Frage.
      *
@@ -278,20 +297,12 @@ class ProjectQuery
      */
     public function getProjectMembersGroupedByVoice(int $projectId): array
     {
-        // Nur die Namen der Teilstimmen werden gebraucht; die Stimmgruppe hinter einer
-        // Teilstimme mitzuladen wäre eine zusätzliche Query ohne Verwendung.
-        $query = User::select(User::LIST_COLUMNS)
-            ->whereHas('projects', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            })
-            ->with(['voiceGroups', 'subVoices']);
-
-        $users = $this->orderedByName($query)->get();
+        $users = $this->projectMembersQuery($projectId)->get();
 
         $grouped = [];
         foreach ($users as $user) {
-            // Find the active voice group (and subvoice if any) for this user.
-            // If none, fall back to the collecting keys above.
+            // Die erste Stimmgruppe entscheidet über die Einordnung; ohne Stimmgruppe
+            // bzw. ohne Teilstimme greifen die Sammelschlüssel von oben.
             $vgName = self::NO_VOICE_GROUP_KEY;
             $svName = self::NO_SUB_VOICE_KEY;
 
@@ -315,9 +326,8 @@ class ProjectQuery
             if (!isset($grouped[$vgName][$svName])) {
                 $grouped[$vgName][$svName] = [];
             }
-            // store raw array structure compatible with legacy twig templates
-            //(or just pass the user object if preferred)
-            // for minimal twig breakage, we can store array data
+            // Die Vorlage liest ein flaches Array, kein Modell - deshalb wird hier nur
+            // übernommen, was die Besetzungsansicht tatsächlich anzeigt.
             $grouped[$vgName][$svName][] = [
                 'id' => $user->id,
                 'first_name' => $user->first_name,
@@ -333,7 +343,7 @@ class ProjectQuery
         $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, [self::NO_VOICE_GROUP_KEY]);
 
         // Teilstimmen in derselben Reihenfolge wie überall sonst, der Sammelschlüssel
-        // zuletzt. Vorher sortierte ksort() nach Bytefolge: Grossbuchstaben vor
+        // zuletzt. Vorher sortierte ksort() nach Bytefolge: Großbuchstaben vor
         // Kleinbuchstaben, Umlaute hinter dem Z - anders als jede Auflistung, die aus
         // der Datenbank kommt.
         return SubVoiceOrder::sortNestedSubVoiceLevel($grouped, [self::NO_SUB_VOICE_KEY]);
