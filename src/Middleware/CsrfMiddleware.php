@@ -7,6 +7,7 @@ namespace App\Middleware;
 use App\Util\Csrf;
 use App\Util\RequestFormat;
 use App\Util\SafeRedirect;
+use App\Util\SessionExpiredSignal;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -107,6 +108,21 @@ class CsrfMiddleware implements MiddlewareInterface
         $response = new SlimResponse(403);
 
         if ($expectsJson) {
+            // Derselbe Anlass, derselbe Merker: Ohne Sitzung ist der fehlende
+            // Token kein Angriff, sondern eine abgelaufene Sitzung - und dieser
+            // Weg ist der häufigere, weil jeder `fetch`-POST die AuthMiddleware
+            // gar nicht erst erreicht. Ohne die Markierung hier bliebe deren
+            // 401-Antwort auf GET-Aufrufe beschränkt, und die Oberfläche zeigte
+            // bei Mitgliederverwaltung, Newsletter und Anmeldungen weiter einen
+            // Fehler, der die Ursache verdeckt.
+            //
+            // Bei angemeldeter Sitzung bleibt es beim schlichten 403: Das ist
+            // der Fall, für den die Prüfung da ist, und ein Neuladen würde ihn
+            // nur verdecken.
+            if (!isset($_SESSION['user_id'])) {
+                return SessionExpiredSignal::fill($response);
+            }
+
             $response->getBody()->write((string) json_encode([
                 'error' => 'Ungültiger CSRF-Token',
             ]));

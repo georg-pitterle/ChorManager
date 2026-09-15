@@ -8,6 +8,8 @@ use App\Models\AppSetting;
 use App\Queries\UserQuery;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
+use App\Util\RequestFormat;
+use App\Util\SessionExpiredSignal;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -110,8 +112,26 @@ class AuthMiddleware implements MiddlewareInterface
         return $handler->handle($request);
     }
 
+    /**
+     * Die Abweisung einer nicht (mehr) angemeldeten Anfrage.
+     *
+     * Für den Browser eine Weiterleitung mit Ziel, für einen `fetch`-Aufruf ein
+     * 401 mit JSON: Der folgt einer Weiterleitung selbst, bekommt die
+     * Anmeldeseite als HTML mit Status 200 und scheitert erst beim Auswerten -
+     * die Oberfläche meldete dann "Speichern fehlgeschlagen", was mit der
+     * abgelaufenen Sitzung nichts zu tun hat. Die CsrfMiddleware unterscheidet
+     * an derselben Stelle seit jeher so; hier fehlte es.
+     *
+     * Das Ziel trägt die 401-Antwort nicht: Zu einem Aufrufziel wie
+     * `/users/42/roles` gehört keine Seite. Wohin es geht, weiß die Oberfläche
+     * besser - sie kennt die Seite, auf der die Person gerade steht.
+     */
     private function redirectToLogin(Request $request): Response
     {
+        if (RequestFormat::expectsJson($request)) {
+            return SessionExpiredSignal::fill(new SlimResponse(401));
+        }
+
         $target = $request->getUri()->getPath();
         $query = $request->getUri()->getQuery();
         if ($query !== '') {
