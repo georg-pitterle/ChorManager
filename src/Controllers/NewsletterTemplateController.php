@@ -16,6 +16,7 @@ use App\Queries\NewsletterTemplateQuery;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
+use App\Util\RequestFormat;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -74,16 +75,6 @@ class NewsletterTemplateController
         return $response
             ->withHeader('Content-Type', 'application/json')
             ->withStatus($status);
-    }
-
-    private function expectsJson(Request $request): bool
-    {
-        $xRequestedWith = strtolower(trim($request->getHeaderLine('X-Requested-With')));
-        if ($xRequestedWith === 'xmlhttprequest') {
-            return true;
-        }
-
-        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
     }
 
     /**
@@ -196,7 +187,7 @@ class NewsletterTemplateController
         $data = (array) $request->getParsedBody();
         $validation = $this->validateTemplateInput($data);
         if (!$validation['ok']) {
-            if (!$this->expectsJson($request)) {
+            if (!RequestFormat::expectsJson($request)) {
                 $_SESSION['error'] = 'Ungültige Vorlagendaten';
                 return $response->withHeader('Location', '/newsletters/templates')->withStatus(302);
             }
@@ -208,7 +199,7 @@ class NewsletterTemplateController
 
         if ($projectId !== null && !Project::query()->where('id', $projectId)->exists()) {
             $message = 'Das gewählte Projekt existiert nicht.';
-            if (!$this->expectsJson($request)) {
+            if (!RequestFormat::expectsJson($request)) {
                 $_SESSION['error'] = $message;
                 return $response->withHeader('Location', '/newsletters/templates')->withStatus(302);
             }
@@ -223,7 +214,7 @@ class NewsletterTemplateController
             $this->recipientSourcesFromInput($data)
         );
 
-        if (!$this->expectsJson($request)) {
+        if (!RequestFormat::expectsJson($request)) {
             $_SESSION['success'] = 'Vorlage erstellt';
             return $response
                 ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
@@ -271,7 +262,7 @@ class NewsletterTemplateController
         $data = (array) $request->getParsedBody();
         $validation = $this->validateTemplateInput($data);
         if (!$validation['ok']) {
-            if (!$this->expectsJson($request)) {
+            if (!RequestFormat::expectsJson($request)) {
                 $_SESSION['error'] = 'Ungültige Vorlagendaten';
                 return $response
                     ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
@@ -288,7 +279,7 @@ class NewsletterTemplateController
 
             if ($projectId !== null && !Project::query()->where('id', $projectId)->exists()) {
                 $message = 'Das gewählte Projekt existiert nicht.';
-                if (!$this->expectsJson($request)) {
+                if (!RequestFormat::expectsJson($request)) {
                     $_SESSION['error'] = $message;
                     return $response
                         ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
@@ -308,7 +299,7 @@ class NewsletterTemplateController
         );
         $_SESSION['success'] = 'Vorlage gespeichert';
 
-        if (!$this->expectsJson($request)) {
+        if (!RequestFormat::expectsJson($request)) {
             return $response
                 ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
                 ->withStatus(302);
@@ -333,7 +324,7 @@ class NewsletterTemplateController
 
         $clone = $this->templatePersistence->cloneTemplate($template, $userId);
 
-        if (!$this->expectsJson($request)) {
+        if (!RequestFormat::expectsJson($request)) {
             $_SESSION['success'] = 'Vorlage geklont';
             return $response
                 ->withHeader('Location', '/newsletters/templates/' . $clone->id . '/edit')
@@ -386,7 +377,7 @@ class NewsletterTemplateController
         $templateContentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($newsletter->content_html);
 
         if ($templateName === '' || mb_strlen($templateName) > 255 || trim(strip_tags($templateContentHtml)) === '') {
-            if ($this->expectsJson($request)) {
+            if (RequestFormat::expectsJson($request)) {
                 return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten.'], 422);
             }
 
@@ -408,7 +399,7 @@ class NewsletterTemplateController
             $this->recipientService->getSources($newsletter)
         );
 
-        if (!$this->expectsJson($request)) {
+        if (!RequestFormat::expectsJson($request)) {
             $_SESSION['success'] = 'Vorlage gespeichert';
             return $response
                 ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')

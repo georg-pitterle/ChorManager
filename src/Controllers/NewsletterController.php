@@ -27,6 +27,7 @@ use App\Services\NameFormatterService;
 use App\Services\NewsletterPlaceholderService;
 use App\Util\AppUrlResolver;
 use App\Util\EnvHelper;
+use App\Util\RequestFormat;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
 
@@ -116,17 +117,6 @@ class NewsletterController
         return $response
             ->withHeader('Content-Type', 'application/json')
             ->withStatus($status);
-    }
-
-    private function expectsJson(Request $request): bool
-    {
-        $xRequestedWith = strtolower(trim($request->getHeaderLine('X-Requested-With')));
-        if ($xRequestedWith === 'xmlhttprequest') {
-            return true;
-        }
-
-        $accept = strtolower($request->getHeaderLine('Accept'));
-        return str_contains($accept, 'application/json');
     }
 
     /**
@@ -461,7 +451,7 @@ class NewsletterController
         $data = (array) $request->getParsedBody();
         $isModal = ((string) ($data['modal'] ?? '0')) === '1';
         $userId = $_SESSION['user_id'] ?? null;
-        $expectsJson = $this->expectsJson($request);
+        $expectsJson = RequestFormat::expectsJson($request);
 
         if (!$userId) {
             if ($expectsJson) {
@@ -986,7 +976,7 @@ class NewsletterController
     {
         $id = (int)$request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
-        $expectsJson = $this->expectsJson($request);
+        $expectsJson = RequestFormat::expectsJson($request);
 
         $newsletter = Newsletter::find($id);
         if (!$newsletter || !$newsletter->isDraft()) {

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
+use App\Util\RequestFormat;
 use App\Util\VoiceGroupOrder;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -168,7 +169,7 @@ class RegistrationController
 
     public function save(Request $request, Response $response, array $args): Response
     {
-        $expectsJson = $this->expectsJson($request);
+        $expectsJson = RequestFormat::expectsJson($request);
         $event = $this->findRegistrationEvent((int) $args['event_id']);
         if (!$event) {
             if ($expectsJson) {
@@ -287,15 +288,6 @@ class RegistrationController
         return $this->view->render($response->withStatus(403), 'errors/403.twig', [
             'error' => $message,
         ]);
-    }
-
-    private function expectsJson(Request $request): bool
-    {
-        if (strtolower(trim($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest') {
-            return true;
-        }
-
-        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
     }
 
     /**

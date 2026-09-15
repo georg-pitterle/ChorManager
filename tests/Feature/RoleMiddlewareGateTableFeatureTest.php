@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Middleware\RoleMiddleware;
+use App\Models\Role;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -120,6 +121,35 @@ final class RoleMiddlewareGateTableFeatureTest extends TestCase
                 $definition['permissions'],
                 "Gate {$name} protokolliert ein Recht, das es gar nicht prüft."
             );
+        }
+    }
+
+    /**
+     * Jedes genannte Recht muss es auch geben.
+     *
+     * Die Middleware liest die Rechte als Sitzungsschlüssel
+     * (`$_SESSION['can_manage_finances']`), und SessionAuthService setzt genau
+     * die Schlüssel aus `Role::PERMISSIONS`. Ein Tippfehler in der Tabelle - ein
+     * fehlendes `s`, ein umbenanntes Recht, dessen Gate stehen blieb - ergibt
+     * damit einen Schlüssel, den niemand je gesetzt bekommt: Die Route weist ab
+     * sofort *jeden* ab, auch Admins, und das Protokoll nennt als Grund ein
+     * Recht, das in der Rollenverwaltung gar nicht auftaucht. Ein Ausfall ohne
+     * Fehlermeldung, dem man von außen nicht ansieht, wo er herkommt.
+     */
+    public function testEveryGatePermissionExistsAsRolePermission(): void
+    {
+        $known = (new ReflectionClass(Role::class))->getConstant('PERMISSIONS');
+        $this->assertIsArray($known);
+
+        foreach ($this->gates() as $name => $definition) {
+            foreach ($definition['permissions'] as $permission) {
+                $this->assertContains(
+                    $permission,
+                    $known,
+                    "Gate {$name} prüft {$permission} - das Recht steht nicht in Role::PERMISSIONS "
+                    . 'und wird deshalb nie in der Sitzung gesetzt.'
+                );
+            }
         }
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Util\RequestFormat;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -312,7 +313,7 @@ class RoleMiddleware implements MiddlewareInterface
         // Inhaltstyp und fiel auf ein pauschales "Speichern fehlgeschlagen." zurück.
         // `error` liest newsletters.js, `message` liest users.js - beide tragen denselben
         // Text, damit kein Aufrufer angepasst werden muss.
-        if ($this->expectsJson($request)) {
+        if (RequestFormat::expectsJson($request)) {
             $response->getBody()->write((string) json_encode([
                 'error' => $message,
                 'message' => $message,
@@ -330,19 +331,5 @@ class RoleMiddleware implements MiddlewareInterface
         return $response
             ->withHeader('Content-Type', 'text/plain; charset=utf-8')
             ->withStatus(403);
-    }
-
-    /**
-     * Gleiche Erkennung wie in den Controllern (siehe `expectsJson` dort): die
-     * Oberfläche schickt je nach Aufrufstelle nur `X-Requested-With` (etwa
-     * newsletters.js) oder zusätzlich `Accept` (etwa users.js).
-     */
-    private function expectsJson(Request $request): bool
-    {
-        if (strtolower(trim($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest') {
-            return true;
-        }
-
-        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
     }
 }

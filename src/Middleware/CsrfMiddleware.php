@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Middleware;
 
 use App\Util\Csrf;
+use App\Util\RequestFormat;
 use App\Util\SafeRedirect;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -79,7 +80,11 @@ class CsrfMiddleware implements MiddlewareInterface
             'event' => 'security.csrf.rejected',
         ]);
 
-        $expectsJson = $this->expectsJson($request);
+        // Ein Aufruf per `fetch` kann mit einer Weiterleitung nichts anfangen - er
+        // folgt ihr, bekommt die Anmeldeseite als HTML mit Status 200 zurück und
+        // scheitert erst beim Auswerten, mit einer Meldung, die nichts mit der
+        // abgelaufenen Sitzung zu tun hat.
+        $expectsJson = RequestFormat::expectsJson($request);
 
         // Der häufigste Weg hierher ist kein Angriff, sondern ein Formular, das
         // offen lag, bis die Sitzung ablief: Die neue Sitzung trägt einen neuen
@@ -111,25 +116,6 @@ class CsrfMiddleware implements MiddlewareInterface
 
         $response->getBody()->write('Ungültiger CSRF-Token');
         return $response->withHeader('Content-Type', 'text/plain; charset=utf-8');
-    }
-
-    /**
-     * Gleiche Erkennung wie in RoleMiddleware und den Controllern: Die
-     * Oberfläche schickt je nach Aufrufstelle nur `X-Requested-With` (etwa
-     * newsletters-edit.js) oder zusätzlich `Accept` (etwa registrations.js).
-     *
-     * Beide Formen müssen zählen. Ein Aufruf per `fetch` kann mit einer
-     * Weiterleitung nichts anfangen - er folgt ihr, bekommt die Anmeldeseite als
-     * HTML mit Status 200 zurück und scheitert erst beim Auswerten, mit einer
-     * Meldung, die nichts mit der abgelaufenen Sitzung zu tun hat.
-     */
-    private function expectsJson(Request $request): bool
-    {
-        if (strtolower(trim($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest') {
-            return true;
-        }
-
-        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
     }
 
     /**
