@@ -44,6 +44,29 @@ final class SchemaConstraintFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Aus dem Review von db/migrations (Lauf 20): users.last_project_id war die
+     * letzte Spalte im Schema, die auf eine andere Tabelle zeigt, ohne es der
+     * Datenbank zu sagen. SET NULL statt CASCADE - ein gelöschtes Projekt nimmt
+     * die Erinnerung an die Auswahl mit, nicht das Mitglied.
+     */
+    public function testUsersLoseOnlyTheirSelectionWhenAProjectIsDeleted(): void
+    {
+        $foreignKey = $this->foreignKeyFor('users', 'last_project_id');
+
+        $this->assertNotNull(
+            $foreignKey,
+            'users.last_project_id braucht einen Fremdschlüssel auf projects.'
+        );
+        $this->assertSame('projects', $foreignKey['REFERENCED_TABLE_NAME']);
+        $this->assertSame('id', $foreignKey['REFERENCED_COLUMN_NAME']);
+        $this->assertSame(
+            'SET NULL',
+            $this->deleteRuleFor((string) $foreignKey['CONSTRAINT_NAME']),
+            'Ein gelöschtes Projekt darf das Mitglied nicht mitnehmen, nur seine Auswahl.'
+        );
+    }
+
     public function testEventAudienceSourcesRejectDuplicates(): void
     {
         $this->assertTrue(
