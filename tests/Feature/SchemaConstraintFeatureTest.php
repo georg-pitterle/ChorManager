@@ -72,6 +72,83 @@ final class SchemaConstraintFeatureTest extends TestCase
     }
 
     /**
+     * Ein Index deckt jede führende Teilmenge seiner Spalten mit ab. Steht
+     * daneben noch ein eigener Index auf genau diesen führenden Spalten,
+     * beantwortet er keine Abfrage mehr, die der längere nicht auch
+     * beantwortet - er kostet nur bei jedem Schreibvorgang Pflege und Platz.
+     *
+     * Dreimal ist das Paar schon entstanden, ohne dass es jemandem auffiel:
+     * 20260901120000 hat es für die drei Quellen-Tabellen aufgeräumt,
+     * 20260914120000 für sub_voices.voice_group_id, 20260916120000 für
+     * song_resources.song_id. Der Test zieht die Regel für das ganze Schema
+     * nach, damit die vierte Wiederholung auffällt, bevor sie eingespielt wird.
+     *
+     * Eindeutige Indizes bleiben aussen vor: sie tragen eine Zusicherung, die
+     * ein längerer Index gerade nicht mitliefert.
+     */
+    public function testNoIndexIsAProperPrefixOfAnother(): void
+    {
+        $redundant = [];
+
+        foreach ($this->tableNames() as $table) {
+            $indexes = $this->indexColumns($table, false);
+            $uniqueNames = array_keys($this->indexColumns($table, true));
+
+            foreach ($indexes as $name => $columns) {
+                if (in_array($name, $uniqueNames, true)) {
+                    continue;
+                }
+
+                foreach ($indexes as $otherName => $otherColumns) {
+                    if ($name === $otherName || count($otherColumns) <= count($columns)) {
+                        continue;
+                    }
+
+                    if (array_slice($otherColumns, 0, count($columns)) === $columns) {
+                        $redundant[] = sprintf(
+                            '%s.%s (%s) wird von %s (%s) mitgedeckt',
+                            $table,
+                            $name,
+                            implode(', ', $columns),
+                            $otherName,
+                            implode(', ', $otherColumns)
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $redundant,
+            "Überflüssige Indizes:\n" . implode("\n", $redundant)
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function tableNames(): array
+    {
+        $rows = Capsule::connection()->select(
+            'SELECT TABLE_NAME
+             FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_TYPE = ?
+             ORDER BY TABLE_NAME',
+            ['BASE TABLE']
+        );
+
+        $tables = [];
+        foreach ($rows as $row) {
+            $tables[] = (string) ((array) $row)['TABLE_NAME'];
+        }
+
+        return $tables;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function foreignKeyFor(string $table, string $column): ?array
