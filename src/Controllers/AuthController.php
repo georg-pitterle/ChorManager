@@ -115,7 +115,13 @@ class AuthController
 
         $user = $this->userQuery->findByEmail($email);
 
-        if ($user && password_verify($password, $user->password)) {
+        // Auch ohne Konto wird geprüft. Sonst kostet der unbekannte Weg nur die
+        // Abfrage, der bekannte zusätzlich einen bcrypt-Durchlauf - und die
+        // Antwortdauer verrät, welche Adressen es gibt. Siehe
+        // PasswordHasher::dummyHash().
+        $passwordMatches = password_verify($password, $user?->password ?? PasswordHasher::dummyHash());
+
+        if ($user && $passwordMatches) {
             session_regenerate_id(true);
             $this->sessionAuthService->setAuthenticatedUser($user);
             unset($_SESSION[self::ATTENDANCE_SELECTED_EVENT_SESSION_KEY]);

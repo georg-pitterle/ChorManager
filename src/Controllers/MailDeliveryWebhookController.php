@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Services\MailDeliveryIngestPayloadNormalizer;
 use App\Services\MailEventMapperService;
 use App\Services\ProviderWebhookVerifier;
+use App\Util\InputValidator;
+use App\Util\JsonResponse;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -15,20 +18,28 @@ final class MailDeliveryWebhookController
 {
     private ProviderWebhookVerifier $verifier;
     private MailEventMapperService $mapper;
+    private MailDeliveryIngestPayloadNormalizer $normalizer;
 
-    public function __construct(ProviderWebhookVerifier $verifier, MailEventMapperService $mapper)
-    {
+    public function __construct(
+        ProviderWebhookVerifier $verifier,
+        MailEventMapperService $mapper,
+        ?MailDeliveryIngestPayloadNormalizer $normalizer = null
+    ) {
         $this->verifier = $verifier;
         $this->mapper = $mapper;
+        $this->normalizer = $normalizer ?? new MailDeliveryIngestPayloadNormalizer();
     }
 
     public function ingest(Request $request, Response $response): Response
     {
-        $provider = (string) ($request->getQueryParams()['provider'] ?? 'smtp2go');
+        $provider = trim(InputValidator::asString($request->getQueryParams()['provider'] ?? null));
+        if ($provider === '') {
+            $provider = 'smtp2go';
+        }
         $rawBody = (string) $request->getBody();
 
         if (!$this->verifier->verify($provider, $request->getHeaders(), $rawBody)) {
-            return $this->json($response, [
+            return JsonResponse::write($response, [
                 'status' => 'error',
                 'message' => 'Invalid signature.',
             ], 401);
@@ -36,71 +47,31 @@ final class MailDeliveryWebhookController
 
         $decodedPayload = json_decode($rawBody, true);
         if (!is_array($decodedPayload)) {
-            return $this->json($response, [
+            return JsonResponse::write($response, [
                 'status' => 'error',
                 'message' => 'Invalid JSON payload.',
             ], 400);
         }
 
         try {
-            $this->mapper->mapEvent($this->normalizePayload($provider, 'webhook', $decodedPayload, $rawBody));
+            $this->mapper->mapEvent($this->normalizer->normalize(
+                $provider,
+                MailDeliveryIngestPayloadNormalizer::CHANNEL_WEBHOOK,
+                $decodedPayload,
+                $rawBody
+            ));
         } catch (InvalidArgumentException $exception) {
-            return $this->json($response, [
+            return JsonResponse::write($response, [
                 'status' => 'error',
                 'message' => $exception->getMessage(),
             ], 400);
         } catch (Throwable) {
-            return $this->json($response, [
+            return JsonResponse::write($response, [
                 'status' => 'error',
                 'message' => 'Webhook ingest failed.',
             ], 500);
         }
 
-        return $this->json($response, ['status' => 'ok'], 200);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function normalizePayload(string $provider, string $sourceChannel, array $payload, string $rawBody): array
-    {
-        $normalizedType = strtolower(trim((string) ($payload['event_type_normalized'] ?? $payload['event_type'] ?? 'unknown')));
-        $rawType = trim((string) ($payload['event_type_raw'] ?? $payload['event_type'] ?? $normalizedType));
-
-        $occurredAt = trim((string) ($payload['occurred_at'] ?? ''));
-        if ($occurredAt === '') {
-            $occurredAt = date('Y-m-d H:i:s');
-        }
-
-        $idempotencyKey = trim((string) ($payload['idempotency_key'] ?? ''));
-        if ($idempotencyKey === '') {
-            $idempotencyKey = hash('sha256', $provider . '|' . $sourceChannel . '|' . $rawBody);
-        }
-
-        $providerMessageId = trim((string) ($payload['provider_message_id'] ?? ''));
-
-        return [
-            'mail_queue_id' => (int) ($payload['mail_queue_id'] ?? 0),
-            'provider_name' => $provider,
-            'provider_message_id' => $providerMessageId !== '' ? $providerMessageId : null,
-            'source_channel' => $sourceChannel,
-            'event_type_normalized' => $normalizedType,
-            'event_type_raw' => $rawType,
-            'idempotency_key' => $idempotencyKey,
-            'occurred_at' => $occurredAt,
-            'received_at' => date('Y-m-d H:i:s'),
-            'raw_payload' => $rawBody,
-        ];
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function json(Response $response, array $payload, int $statusCode): Response
-    {
-        $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
-        $response->getBody()->write($encoded === false ? '{}' : $encoded);
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($statusCode);
+        return JsonResponse::write($response, ['status' => 'ok'], 200);
     }
 }

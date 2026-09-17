@@ -13,6 +13,7 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\ModalFormService;
 use App\Util\InputValidator;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class VoiceGroupController
@@ -37,9 +38,61 @@ class VoiceGroupController
         $this->logger = $logger ?? new NullLogger();
     }
 
+    /**
+     * Wie viele Mitglieder eine Löschung mitnimmt, je Stimmgruppe und je
+     * Unterstimme.
+     *
+     * `user_voice_groups.voice_group_id` hängt mit ON DELETE CASCADE an
+     * `voice_groups`, `sub_voices.voice_group_id` ebenso: Die Datenbank hält
+     * niemanden auf und meldet auch nichts. Die Bestätigung nannte deshalb zwar
+     * die Folge, aber nie ihren Umfang - bei einer leeren Gruppe stand derselbe
+     * Satz wie bei einer mit zwei Dutzend Personen.
+     *
+     * Gezählt wird in zwei Abfragen statt je Gruppe einer: Die Seite zeigt alle
+     * Gruppen mit allen Unterstimmen, und eine Zählung je Zeile wäre genau das
+     * N+1, das frühere Läufe an anderer Stelle schon abgeräumt haben.
+     *
+     * @param \Illuminate\Support\Collection<int, VoiceGroup> $voiceGroups
+     * @return array{0: array<int, int>, 1: array<int, int>}
+     */
+    private function membershipCounts($voiceGroups): array
+    {
+        $groupCounts = [];
+        $subVoiceCounts = [];
+
+        // Jede Gruppe und jede Unterstimme bekommt eine Zahl, auch die 0 - sonst
+        // müsste die Vorlage denselben Vorgabewert ein zweites Mal kennen.
+        foreach ($voiceGroups as $group) {
+            $groupCounts[(int) $group->id] = 0;
+            foreach ($group->subVoices as $subVoice) {
+                $subVoiceCounts[(int) $subVoice->id] = 0;
+            }
+        }
+
+        $rows = Capsule::table('user_voice_groups')
+            ->selectRaw('voice_group_id, COUNT(*) AS member_count')
+            ->groupBy('voice_group_id')
+            ->get();
+        foreach ($rows as $row) {
+            $groupCounts[(int) $row->voice_group_id] = (int) $row->member_count;
+        }
+
+        $subRows = Capsule::table('user_voice_groups')
+            ->selectRaw('sub_voice_id, COUNT(*) AS member_count')
+            ->whereNotNull('sub_voice_id')
+            ->groupBy('sub_voice_id')
+            ->get();
+        foreach ($subRows as $row) {
+            $subVoiceCounts[(int) $row->sub_voice_id] = (int) $row->member_count;
+        }
+
+        return [$groupCounts, $subVoiceCounts];
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $voiceGroups = VoiceGroup::with('subVoices')->orderBy('id')->get();
+        [$groupMemberCounts, $subVoiceMemberCounts] = $this->membershipCounts($voiceGroups);
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -78,6 +131,8 @@ class VoiceGroupController
 
         return $this->view->render($response, 'voice_groups/index.twig', [
             'voice_groups' => $voiceGroups,
+            'group_member_counts' => $groupMemberCounts,
+            'sub_voice_member_counts' => $subVoiceMemberCounts,
             'success' => $success,
             'error' => $error,
             'modal_form_create_group' => $createGroupState,

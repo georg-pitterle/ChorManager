@@ -25,6 +25,37 @@ final class PasswordHasher
      */
     public const TEST_COST = 4;
 
+    /**
+     * Ein Hash, gegen den geprüft wird, wenn es das Konto gar nicht gibt.
+     *
+     * Anlass: AuthController rief password_verify() nur auf, wenn findByEmail()
+     * jemanden gefunden hat. Eine unbekannte Adresse antwortete dadurch messbar
+     * schneller als eine bekannte mit falschem Passwort - im Testlauf mit dem
+     * kleinsten Aufwand 0,001 s gegen 0,005 s, im Betrieb mit dem Standardaufwand
+     * entsprechend deutlicher. Wer das misst, kann Adressen durchprobieren, ohne
+     * je ein Passwort zu erraten.
+     *
+     * Der Hash wird einmal je Prozess gebaut und danach wiederverwendet: Ihn bei
+     * jedem Aufruf neu zu erzeugen kostete Hashen *und* Prüfen und damit doppelt
+     * so viel wie der echte Weg - die Dauer verriete dann wieder den Unterschied,
+     * nur mit umgekehrtem Vorzeichen.
+     *
+     * Der Klartext dahinter ist bedeutungslos und niemandes Passwort; er wird
+     * bei jedem Prozessstart neu gewürfelt, damit kein fester Wert entsteht, der
+     * je zu einem echten Konto passen könnte.
+     *
+     * @var array<int|string, string>
+     */
+    private static array $dummyHashes = [];
+
+    public static function dummyHash(): string
+    {
+        $cost = self::costForCurrentEnvironment();
+        $key = $cost ?? 'default';
+
+        return self::$dummyHashes[$key] ??= self::hash(bin2hex(random_bytes(32)));
+    }
+
     public static function hash(string $plainPassword): string
     {
         $cost = self::costForCurrentEnvironment();

@@ -30,6 +30,7 @@ use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
+use App\Util\InputValidator;
 use App\Util\SafeRedirect;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Psr\Log\LoggerInterface;
@@ -937,6 +938,22 @@ class EventController
             if ($frequency !== EventRecurrenceService::FREQUENCY_WEEKLY) {
                 $weekdays = [];
             }
+
+            // Das Enddatum wurde bisher erst unten im try-Block geprüft und der
+            // Hinweis als Exception geworfen, damit ihn derselbe catch anzeigt wie
+            // einen Datenbankfehler. Das war der Grund, warum dort überhaupt ein
+            // Ausnahmetext auf den Bildschirm musste. Als das, was es ist - eine
+            // Eingabeprüfung - steht es hier bei den übrigen und der catch darf
+            // schweigen.
+            $seriesEnd = self::parseSeriesEndDate($data['series_end_date'] ?? null);
+            if ($seriesEnd === null) {
+                $createService = new ModalFormService('event_create');
+                $createService->setError(
+                    'Enddatum der Serie fehlt oder ist kein lesbares Datum.',
+                    $formData
+                );
+                return $response->withHeader('Location', '/events')->withStatus(302);
+            }
         }
 
         try {
@@ -978,13 +995,9 @@ class EventController
 
                 $_SESSION['success'] = 'Event erfolgreich angelegt.';
             } else {
-                // Series - $frequency, $interval und $weekdays (1 = Mo bis 7 = So)
-                // sind oben bereits geprüft.
-                $endDateStr = $data['series_end_date'] ?? null;
-
-                if (!$endDateStr) {
-                    throw new Exception('Enddatum für die Serie ist erforderlich.');
-                }
+                // Series - $frequency, $interval, $weekdays (1 = Mo bis 7 = So) und
+                // $seriesEnd sind oben bereits geprüft.
+                $endDateStr = $seriesEnd->format('Y-m-d');
 
                 $series = EventSeries::create([
                     'frequency' => $frequency,
@@ -998,7 +1011,7 @@ class EventController
                     $frequency,
                     $interval,
                     $weekdays,
-                    CarbonImmutable::parse($endDateStr)
+                    $seriesEnd
                 );
 
                 // Anmeldeschluss wie bei der Serienänderung als Vorlauf zum jeweiligen
@@ -1055,7 +1068,10 @@ class EventController
                 'exception' => $e,
             ]);
             $createService = new ModalFormService('event_create');
-            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
+            $createService->setError(
+                'Der Termin konnte nicht angelegt werden. Bitte erneut versuchen.',
+                $formData
+            );
         }
 
         return $response->withHeader('Location', '/events')->withStatus(302);
@@ -1360,7 +1376,10 @@ class EventController
                 'exception' => $e,
             ]);
             $editService = new ModalFormService('event_edit');
-            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
+            $editService->setError(
+                'Der Termin konnte nicht gespeichert werden. Bitte erneut versuchen.',
+                $formData
+            );
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -1665,5 +1684,25 @@ class EventController
         }
 
         return array_values(array_unique($weekdays));
+    }
+
+    /**
+     * Liest das Enddatum einer Serie oder liefert null, wenn nichts Lesbares
+     * ankam. Carbon nimmt fast alles entgegen und wirft beim Rest eine Ausnahme
+     * mit Zeitzonen-Innenleben im Text ("The timezone could not be found in the
+     * database") - die hatte im Formular nichts verloren.
+     */
+    private static function parseSeriesEndDate(mixed $value): ?CarbonImmutable
+    {
+        $candidate = trim(InputValidator::asString($value));
+        if ($candidate === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($candidate);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

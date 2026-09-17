@@ -142,8 +142,12 @@ class MasterDataDeleteFeedbackFeatureTest extends TestCase
         $record = $this->recordFor($handler, 'event_type.create.failed');
         $this->assertNotNull($record);
 
-        $shown = (string) ($_SESSION['event_type_create_error'] ?? $_SESSION['error'] ?? '');
+        // Der Text steht unter `{scope}_message`; `{scope}_error` traegt nur die
+        // Kennung des Modals und haette die Pruefung leerlaufen lassen.
+        $shown = (string) ($_SESSION['event_type_create_message'] ?? '');
+        $this->assertNotSame('', $shown);
         $this->assertStringNotContainsString('SQLSTATE', $shown);
+        $this->assertSame($shown, (string) ($_SESSION['error'] ?? ''));
     }
 
     public function testAFailedVoiceGroupWriteReachesTheLog(): void

@@ -134,7 +134,15 @@
                                                                         aria-label="Close"></button>
                                                             </div>
                                                             <div class="modal-body">
-                                                                Möchtest du die Unterstimme <strong>{{ sub_voice.name }}</strong> wirklich löschen? Dieser Vorgang entfernt die Zuweisung bei allen betroffenen Mitgliedern!
+                                                                {% set _sub_members = sub_voice_member_counts[sub_voice.id]|default(0) %}
+                                                                Möchtest du die Unterstimme <strong>{{ sub_voice.name }}</strong> wirklich löschen?
+                                                                {% if _sub_members > 0 %}
+                                                                    <strong>{{ _sub_members }}</strong>
+                                                                    {{ _sub_members == 1 ? "Mitglied verliert" : "Mitglieder verlieren" }}
+                                                                    damit die Zuweisung zu dieser Unterstimme.
+                                                                {% else %}
+                                                                    Ihr ist derzeit niemand zugewiesen.
+                                                                {% endif %}
                                                             </div>
                                                             <div class="modal-footer border-0">
                                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -211,7 +219,18 @@
                                                         aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
-                                                Möchtest du die Stimmgruppe <strong>{{ group.name }}</strong> (sowie alle zugehörigen Unterstimmen) wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden!
+                                                {% set _group_members = group_member_counts[group.id]|default(0) %}
+                                                Möchtest du die Stimmgruppe <strong>{{ group.name }}</strong> (sowie alle zugehörigen Unterstimmen) wirklich löschen?
+                                                {% if _group_members > 0 %}
+                                                    <span class="d-block mt-2 text-danger fw-semibold">
+                                                        <strong>{{ _group_members }}</strong>
+                                                        {{ _group_members == 1 ? "Mitglied verliert" : "Mitglieder verlieren" }}
+                                                        damit die Zuordnung zu dieser Stimmgruppe.
+                                                    </span>
+                                                {% else %}
+                                                    <span class="d-block mt-2">Ihr ist derzeit niemand zugeordnet.</span>
+                                                {% endif %}
+                                                Dieser Vorgang kann nicht rückgängig gemacht werden!
                                             </div>
                                             <div class="modal-footer border-0">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
