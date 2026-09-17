@@ -13,6 +13,7 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\ModalFormService;
 use App\Util\InputValidator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class VoiceGroupController
 {
@@ -169,6 +170,9 @@ class VoiceGroupController
             $group = VoiceGroup::findOrFail($id);
             $group->delete();
             $_SESSION['success'] = 'Stimmgruppe erfolgreich gelöscht.';
+        } catch (ModelNotFoundException $e) {
+            $_SESSION['error'] = 'Die Stimmgruppe wurde nicht gefunden. '
+                . 'Möglicherweise wurde sie bereits gelöscht.';
         } catch (\Exception $e) {
             $this->logger->error('Deleting a voice group failed.', [
                 'event' => 'voice_group.delete.failed',
@@ -176,7 +180,7 @@ class VoiceGroupController
                 'exception' => $e,
             ]);
             $_SESSION['error'] = 'Die Stimmgruppe konnte nicht gelöscht werden. '
-                . 'Möglicherweise ist ihr noch jemand zugeordnet.';
+                . 'Bitte die Seite neu laden und es erneut versuchen.';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -276,6 +280,9 @@ class VoiceGroupController
             $subVoice = SubVoice::findOrFail($subId);
             $subVoice->delete();
             $_SESSION['success'] = 'Unterstimme erfolgreich gelöscht.';
+        } catch (ModelNotFoundException $e) {
+            $_SESSION['error'] = 'Die Unterstimme wurde nicht gefunden. '
+                . 'Möglicherweise wurde sie bereits gelöscht.';
         } catch (\Exception $e) {
             $this->logger->error('Deleting a sub voice failed.', [
                 'event' => 'sub_voice.delete.failed',
@@ -283,7 +290,7 @@ class VoiceGroupController
                 'exception' => $e,
             ]);
             $_SESSION['error'] = 'Die Unterstimme konnte nicht gelöscht werden. '
-                . 'Möglicherweise ist ihr noch jemand zugeordnet.';
+                . 'Bitte die Seite neu laden und es erneut versuchen.';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);

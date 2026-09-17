@@ -11,6 +11,7 @@ use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use App\Models\EventType;
 use App\Services\ModalFormService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Util\InputValidator;
 
 class EventTypeController
@@ -153,6 +154,12 @@ class EventTypeController
             $eventType = EventType::findOrFail($id);
             $eventType->delete();
             $_SESSION['success'] = 'Event-Typ erfolgreich gelöscht.';
+        } catch (ModelNotFoundException $e) {
+            // Der häufigste Weg hierher: Die Seite lag offen, während jemand anderes
+            // dieselbe Terminart entfernt hat. Das ist kein Fehler, den der Betrieb
+            // sehen muss, und der Grund gehört in die Meldung statt in ein Rätsel.
+            $_SESSION['error'] = 'Die Terminart wurde nicht gefunden. '
+                . 'Möglicherweise wurde sie bereits gelöscht.';
         } catch (\Exception $e) {
             $this->logger->error('Deleting an event type failed.', [
                 'event' => 'event_type.delete.failed',
@@ -160,7 +167,7 @@ class EventTypeController
                 'exception' => $e,
             ]);
             $_SESSION['error'] = 'Die Terminart konnte nicht gelöscht werden. '
-                . 'Möglicherweise wird sie noch von Terminen verwendet.';
+                . 'Bitte die Seite neu laden und es erneut versuchen.';
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);
