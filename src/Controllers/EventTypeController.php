@@ -6,17 +6,41 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use App\Models\EventType;
 use App\Services\ModalFormService;
+use App\Util\InputValidator;
 
 class EventTypeController
 {
-    private Twig $view;
+    /**
+     * Die Farben, die das Formular zur Auswahl stellt - und damit die einzigen,
+     * für die Bootstrap eine `bg-*`-Klasse kennt. Ein abweichender Wert kommt
+     * nicht aus der Oberfläche; gespeichert ergäbe er `bg-neongruen` und das
+     * Abzeichen der Terminart bliebe für immer ungefärbt.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_COLORS = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark'];
 
-    public function __construct(Twig $view)
+    private const DEFAULT_COLOR = 'info';
+
+    private Twig $view;
+    private LoggerInterface $logger;
+
+    public function __construct(Twig $view, ?LoggerInterface $logger = null)
     {
         $this->view = $view;
+        $this->logger = $logger ?? new NullLogger();
+    }
+
+    private function normalizeColor(mixed $value): string
+    {
+        $color = InputValidator::asString($value);
+
+        return in_array($color, self::ALLOWED_COLORS, true) ? $color : self::DEFAULT_COLOR;
     }
 
     public function index(Request $request, Response $response): Response
@@ -51,8 +75,8 @@ class EventTypeController
     public function create(Request $request, Response $response): Response
     {
         $data = (array)$request->getParsedBody();
-        $name = trim($data['name'] ?? '');
-        $color = $data['color'] ?? 'info';
+        $name = trim(InputValidator::asString($data['name'] ?? null));
+        $color = $this->normalizeColor($data['color'] ?? null);
 
         $formData = [
             'name' => $name,
@@ -72,8 +96,12 @@ class EventTypeController
             ]);
             $_SESSION['success'] = 'Event-Typ erfolgreich angelegt.';
         } catch (\Exception $e) {
+            $this->logger->error('Creating an event type failed.', [
+                'event' => 'event_type.create.failed',
+                'exception' => $e,
+            ]);
             $createService = new ModalFormService('event_type_create');
-            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
+            $createService->setError('Fehler beim Anlegen der Terminart.', $formData);
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);
@@ -83,8 +111,8 @@ class EventTypeController
     {
         $id = (int)$args['id'];
         $data = (array)$request->getParsedBody();
-        $name = trim($data['name'] ?? '');
-        $color = $data['color'] ?? 'info';
+        $name = trim(InputValidator::asString($data['name'] ?? null));
+        $color = $this->normalizeColor($data['color'] ?? null);
 
         $formData = [
             'name' => $name,
@@ -105,8 +133,13 @@ class EventTypeController
             ]);
             $_SESSION['success'] = 'Event-Typ erfolgreich aktualisiert.';
         } catch (\Exception $e) {
+            $this->logger->error('Updating an event type failed.', [
+                'event' => 'event_type.update.failed',
+                'event_type_id' => $id,
+                'exception' => $e,
+            ]);
             $editService = new ModalFormService('event_type_edit_' . $id);
-            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
+            $editService->setError('Fehler beim Aktualisieren der Terminart.', $formData);
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);
@@ -121,7 +154,13 @@ class EventTypeController
             $eventType->delete();
             $_SESSION['success'] = 'Event-Typ erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+            $this->logger->error('Deleting an event type failed.', [
+                'event' => 'event_type.delete.failed',
+                'event_type_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Terminart konnte nicht gelöscht werden. '
+                . 'Möglicherweise wird sie noch von Terminen verwendet.';
         }
 
         return $response->withHeader('Location', '/event-types')->withStatus(302);

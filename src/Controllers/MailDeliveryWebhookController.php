@@ -74,7 +74,7 @@ final class MailDeliveryWebhookController
 
         $idempotencyKey = trim((string) ($payload['idempotency_key'] ?? ''));
         if ($idempotencyKey === '') {
-            $idempotencyKey = hash('sha256', $provider . '|webhook|' . $rawBody);
+            $idempotencyKey = hash('sha256', $provider . '|' . $sourceChannel . '|' . $rawBody);
         }
 
         $providerMessageId = trim((string) ($payload['provider_message_id'] ?? ''));

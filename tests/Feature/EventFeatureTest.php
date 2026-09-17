@@ -1015,6 +1015,11 @@ class EventFeatureTest extends TestCase
         $note->refresh();
         $this->assertSame('Von Bearbeiter aktualisiert', $note->comment);
 
+        // Die Meldung sprach hier von einer "privaten Bemerkung", obwohl genau
+        // dieser Weg nur für eine öffentliche offensteht: Eine private darf
+        // ausschließlich ihre Verfasserin ändern, nie eine Terminverwaltung.
+        $this->assertSame('Bemerkung aktualisiert.', $_SESSION['success'] ?? null);
+
         $deleteRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete');
         $deleteResult = $controller->deleteNote(
             $deleteRequest,
@@ -1024,6 +1029,7 @@ class EventFeatureTest extends TestCase
 
         $this->assertRedirect($deleteResult, '/events/' . $event->id);
         $this->assertNull(Comment::find($note->id));
+        $this->assertSame('Bemerkung gelöscht.', $_SESSION['success'] ?? null);
     }
 
     private function createTwig(): Twig

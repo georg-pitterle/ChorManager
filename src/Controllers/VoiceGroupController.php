@@ -6,10 +6,13 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\ModalFormService;
+use App\Util\InputValidator;
 
 class VoiceGroupController
 {
@@ -25,10 +28,12 @@ class VoiceGroupController
         'Es gibt in dieser Stimmgruppe bereits eine Unterstimme mit diesem Namen.';
 
     private Twig $view;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view)
+    public function __construct(Twig $view, ?LoggerInterface $logger = null)
     {
         $this->view = $view;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function index(Request $request, Response $response): Response
@@ -88,7 +93,7 @@ class VoiceGroupController
     public function createGroup(Request $request, Response $response): Response
     {
         $data = (array)$request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
 
         $formData = ['name' => $name];
 
@@ -108,8 +113,12 @@ class VoiceGroupController
             VoiceGroup::create(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich angelegt.';
         } catch (\Exception $e) {
+            $this->logger->error('Creating a voice group failed.', [
+                'event' => 'voice_group.create.failed',
+                'exception' => $e,
+            ]);
             $createService = new ModalFormService('voice_group_create');
-            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
+            $createService->setError('Fehler beim Anlegen der Stimmgruppe.', $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -119,7 +128,7 @@ class VoiceGroupController
     {
         $id = (int)$args['id'];
         $data = (array)$request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
 
         $formData = ['name' => $name];
 
@@ -140,8 +149,13 @@ class VoiceGroupController
             $group->update(['name' => $name]);
             $_SESSION['success'] = 'Stimmgruppe erfolgreich aktualisiert.';
         } catch (\Exception $e) {
+            $this->logger->error('Updating a voice group failed.', [
+                'event' => 'voice_group.update.failed',
+                'voice_group_id' => $id,
+                'exception' => $e,
+            ]);
             $editService = new ModalFormService('voice_group_edit_' . $id);
-            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
+            $editService->setError('Fehler beim Aktualisieren der Stimmgruppe.', $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -156,7 +170,13 @@ class VoiceGroupController
             $group->delete();
             $_SESSION['success'] = 'Stimmgruppe erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+            $this->logger->error('Deleting a voice group failed.', [
+                'event' => 'voice_group.delete.failed',
+                'voice_group_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Stimmgruppe konnte nicht gelöscht werden. '
+                . 'Möglicherweise ist ihr noch jemand zugeordnet.';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -166,7 +186,7 @@ class VoiceGroupController
     {
         $groupId = (int)$args['id'];
         $data = (array)$request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
 
         $formData = ['name' => $name];
 
@@ -189,8 +209,13 @@ class VoiceGroupController
             ]);
             $_SESSION['success'] = 'Unterstimme erfolgreich angelegt.';
         } catch (\Exception $e) {
+            $this->logger->error('Creating a sub voice failed.', [
+                'event' => 'sub_voice.create.failed',
+                'voice_group_id' => $groupId,
+                'exception' => $e,
+            ]);
             $createService = new ModalFormService('voice_sub_create_' . $groupId);
-            $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
+            $createService->setError('Fehler beim Anlegen der Unterstimme.', $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -200,7 +225,7 @@ class VoiceGroupController
     {
         $subId = (int)$args['sub_id'];
         $data = (array)$request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
 
         $formData = ['name' => $name];
 
@@ -231,8 +256,13 @@ class VoiceGroupController
             $subVoice->update(['name' => $name]);
             $_SESSION['success'] = 'Unterstimme erfolgreich aktualisiert.';
         } catch (\Exception $e) {
+            $this->logger->error('Updating a sub voice failed.', [
+                'event' => 'sub_voice.update.failed',
+                'sub_voice_id' => $subId,
+                'exception' => $e,
+            ]);
             $editService = new ModalFormService('voice_sub_edit_' . $subId);
-            $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
+            $editService->setError('Fehler beim Aktualisieren der Unterstimme.', $formData);
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);
@@ -247,7 +277,13 @@ class VoiceGroupController
             $subVoice->delete();
             $_SESSION['success'] = 'Unterstimme erfolgreich gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+            $this->logger->error('Deleting a sub voice failed.', [
+                'event' => 'sub_voice.delete.failed',
+                'sub_voice_id' => $subId,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Unterstimme konnte nicht gelöscht werden. '
+                . 'Möglicherweise ist ihr noch jemand zugeordnet.';
         }
 
         return $response->withHeader('Location', '/voice-groups')->withStatus(302);

@@ -68,7 +68,7 @@ class AuthController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['error']);
 
-        $redirect = SafeRedirect::sanitize((string) ($request->getQueryParams()['redirect'] ?? ''));
+        $redirect = SafeRedirect::sanitize(InputValidator::asString($request->getQueryParams()['redirect'] ?? null));
 
         return $this->view->render($response, 'auth/login.twig', [
             'error' => $error,
@@ -80,11 +80,11 @@ class AuthController
     {
         $data = (array) $request->getParsedBody();
         $email = InputValidator::validateEmail($data['email'] ?? null);
-        $password = $data['password'] ?? '';
+        $password = InputValidator::asString($data['password'] ?? null);
         $remember = isset($data['remember']) && $data['remember'] === '1';
 
         $failureLocation = '/login';
-        $redirect = SafeRedirect::sanitize((string) ($data['redirect'] ?? ''));
+        $redirect = SafeRedirect::sanitize(InputValidator::asString($data['redirect'] ?? null));
         if ($redirect !== null) {
             $failureLocation = '/login?redirect=' . rawurlencode($redirect);
         }
@@ -179,7 +179,7 @@ class AuthController
         $firstName = InputValidator::validateRequired($data['first_name'] ?? null, 255);
         $lastName = InputValidator::validateRequired($data['last_name'] ?? null, 255);
         $email = InputValidator::validateEmail($data['email'] ?? null);
-        $password = $data['password'] ?? '';
+        $password = InputValidator::asString($data['password'] ?? null);
 
         if ($firstName === null || $lastName === null || $email === null || $password === '') {
             $_SESSION['error'] = 'Alle Felder sind Pflichtfelder.';

@@ -44,6 +44,9 @@ use App\Services\MailEventMapperService;
 use App\Services\ProviderWebhookVerifier;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
+use App\Controllers\EventTypeController;
+use App\Controllers\MailQueueController;
+use App\Controllers\VoiceGroupController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
@@ -318,6 +321,23 @@ return function (ContainerBuilder $containerBuilder) {
         // die Autowiring-Reflexion den Parameter und der echte Logger kommt nie an.
         SongLibraryController::class => function (ContainerInterface $c) {
             return new SongLibraryController($c->get(Twig::class), $c->get(LoggerInterface::class));
+        },
+        // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter wird von
+        // der Autowiring-Reflexion übersprungen und bliebe der NullLogger - die
+        // event_type.*/voice_group.*/sub_voice.*-Einträge eines gescheiterten Schreibvorgangs
+        // kämen dann nie im Log an.
+        EventTypeController::class => function (ContainerInterface $c) {
+            return new EventTypeController($c->get(Twig::class), $c->get(LoggerInterface::class));
+        },
+        VoiceGroupController::class => function (ContainerInterface $c) {
+            return new VoiceGroupController($c->get(Twig::class), $c->get(LoggerInterface::class));
+        },
+        MailQueueController::class => function (ContainerInterface $c) {
+            return new MailQueueController(
+                $c->get(Twig::class),
+                $c->get(MailQueueAdminService::class),
+                $c->get(LoggerInterface::class)
+            );
         },
         // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter fällt in
         // die Autowiring-Lücke und bliebe der NullLogger - die authz.denied-Einträge der

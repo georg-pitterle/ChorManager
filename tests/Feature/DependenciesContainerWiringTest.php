@@ -7,7 +7,9 @@ namespace Tests\Feature;
 use App\Controllers\AppSettingController;
 use App\Controllers\AttachmentController;
 use App\Controllers\AuthController;
+use App\Controllers\EventTypeController;
 use App\Controllers\FinanceController;
+use App\Controllers\MailQueueController;
 use App\Controllers\PasswordResetController;
 use App\Controllers\ProfileController;
 use App\Controllers\RoleController;
@@ -16,6 +18,7 @@ use App\Controllers\SponsorshipController;
 use App\Services\EntityAttachmentService;
 use App\Controllers\TaskController;
 use App\Controllers\UserController;
+use App\Controllers\VoiceGroupController;
 use App\Logging\DatabaseWriteLogger;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
@@ -194,6 +197,42 @@ final class DependenciesContainerWiringTest extends TestCase
         $controller = $container->get(SongLibraryController::class);
 
         $this->assertInstanceOf(SongLibraryController::class, $controller);
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
+    }
+
+    /**
+     * Dieselbe Falle bei den beiden Stammdaten-Controllern: Beide bekamen im
+     * Review-Lauf über src/Controllers einen optionalen Logger, damit ein
+     * gescheitertes Anlegen, Ändern oder Löschen überhaupt eine Spur
+     * hinterlässt. Ohne eigene Factory hier bliebe genau diese Spur aus.
+     */
+    public function testEventTypeControllerResolvesWithRealLogger(): void
+    {
+        $container = $this->buildContainer();
+
+        $controller = $container->get(EventTypeController::class);
+
+        $this->assertInstanceOf(EventTypeController::class, $controller);
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
+    }
+
+    public function testVoiceGroupControllerResolvesWithRealLogger(): void
+    {
+        $container = $this->buildContainer();
+
+        $controller = $container->get(VoiceGroupController::class);
+
+        $this->assertInstanceOf(VoiceGroupController::class, $controller);
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
+    }
+
+    public function testMailQueueControllerResolvesWithRealLogger(): void
+    {
+        $container = $this->buildContainer();
+
+        $controller = $container->get(MailQueueController::class);
+
+        $this->assertInstanceOf(MailQueueController::class, $controller);
         $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
     }
 

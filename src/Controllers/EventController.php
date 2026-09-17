@@ -329,7 +329,7 @@ class EventController
 
         // Allowed sort columns
         $allowedSorts = ['starts_at', 'title', 'type', 'location'];
-        if (!in_array($sort, $allowedSorts)) {
+        if (!in_array($sort, $allowedSorts, true)) {
             $sort = 'starts_at';
         }
 
@@ -777,7 +777,7 @@ class EventController
 
         $note->update(['comment' => $content]);
 
-        $_SESSION['success'] = 'Private Bemerkung aktualisiert.';
+        $_SESSION['success'] = 'Bemerkung aktualisiert.';
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
 
@@ -815,7 +815,7 @@ class EventController
 
         $note->delete();
 
-        $_SESSION['success'] = 'Private Bemerkung gelöscht.';
+        $_SESSION['success'] = 'Bemerkung gelöscht.';
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
 
@@ -1050,6 +1050,10 @@ class EventController
                 $_SESSION['success'] = "Serie erfolgreich angelegt ($count Termine).";
             }
         } catch (Exception $e) {
+            $this->logger->error('Creating an event failed.', [
+                'event' => 'event.create.failed',
+                'exception' => $e,
+            ]);
             $createService = new ModalFormService('event_create');
             $createService->setError('Fehler beim Anlegen: ' . $e->getMessage(), $formData);
         }
@@ -1350,6 +1354,11 @@ class EventController
                 $_SESSION['success'] = 'Event erfolgreich aktualisiert.';
             }
         } catch (Exception $e) {
+            $this->logger->error('Updating an event failed.', [
+                'event' => 'event.update.failed',
+                'event_id' => (int) $id,
+                'exception' => $e,
+            ]);
             $editService = new ModalFormService('event_edit');
             $editService->setError('Fehler beim Aktualisieren: ' . $e->getMessage(), $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);

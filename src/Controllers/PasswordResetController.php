@@ -17,6 +17,7 @@ use App\Services\RateLimiterService;
 use App\Services\RememberLoginService;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
+use App\Util\InputValidator;
 use App\Util\MailBranding;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -106,7 +107,7 @@ class PasswordResetController
     public function sendResetLink(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $email = strtolower(trim($data['email'] ?? ''));
+        $email = strtolower(trim(InputValidator::asString($data['email'] ?? null)));
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'Bitte gib eine gültige E-Mail-Adresse ein.';
@@ -179,8 +180,8 @@ class PasswordResetController
     public function showResetForm(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
-        $token = $queryParams['token'] ?? '';
-        $email = $queryParams['email'] ?? '';
+        $token = InputValidator::asString($queryParams['token'] ?? null);
+        $email = InputValidator::asString($queryParams['email'] ?? null);
 
         if (!$token || !$email) {
             $_SESSION['error'] = 'Ungültiger oder fehlender Token.';
@@ -200,10 +201,10 @@ class PasswordResetController
     public function processReset(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $token = $data['token'] ?? '';
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
-        $passwordConfirm = $data['password_confirm'] ?? '';
+        $token = InputValidator::asString($data['token'] ?? null);
+        $email = InputValidator::asString($data['email'] ?? null);
+        $password = InputValidator::asString($data['password'] ?? null);
+        $passwordConfirm = InputValidator::asString($data['password_confirm'] ?? null);
 
         if (!$token || !$email || !$password) {
             $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus.';

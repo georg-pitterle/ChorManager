@@ -217,7 +217,11 @@ class MailQueueFeatureTest extends TestCase
         $this->assertIsString($controller);
         $this->assertStringContainsString('use Slim\\Views\\Twig;', $controller);
         $this->assertStringContainsString('private Twig $view;', $controller);
-        $this->assertStringContainsString('public function __construct(Twig $view, MailQueueAdminService $adminService)', $controller);
+        // Nur die beiden ersten Parameter sind hier die Aussage - der Controller hat
+        // seit dem Review-Lauf über src/Controllers zusätzlich einen Logger, und die
+        // Prüfung soll die Twig-Injektion festhalten, nicht die Parameterliste
+        // einfrieren.
+        $this->assertStringContainsString('public function __construct(Twig $view, MailQueueAdminService $adminService', $controller);
         $this->assertStringNotContainsString("get('view')", $controller);
         $this->assertStringNotContainsString('global $container', $controller);
     }
