@@ -4,23 +4,46 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Services\MailDeliveryIngestPayloadNormalizer;
+use App\Controllers\Concerns\MailDeliveryIngest;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Die Umformung der Provider-Rückmeldung stand wortgleich in beiden
  * Ingest-Controllern und war nur über eine echte HTTP-Anfrage erreichbar.
- * Als eigener Dienst lässt sie sich für sich prüfen - und dieser Test hält
+ * Im gemeinsamen Trait lässt sie sich für sich prüfen - und dieser Test hält
  * fest, was die Doppelung verdeckt hatte.
+ *
+ * Geprüft wird über eine namenlose Klasse, die das Trait einbindet und seine
+ * Umformung nach außen reicht. Das ist der Preis eines Traits gegenüber einem
+ * eigenen Dienst: Es gibt nichts zu instanziieren, also muss der Test sich ein
+ * Gefäß bauen - und die Kanal-Konstanten sind nur über eine einbindende Klasse
+ * erreichbar, `MailDeliveryIngest::CHANNEL_WEBHOOK` wirft "Cannot access trait
+ * constant ... directly".
  */
-class MailDeliveryIngestPayloadNormalizerTest extends TestCase
+class MailDeliveryIngestTraitTest extends TestCase
 {
-    private MailDeliveryIngestPayloadNormalizer $normalizer;
+    private object $normalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->normalizer = new MailDeliveryIngestPayloadNormalizer();
+
+        $this->normalizer = new class {
+            use MailDeliveryIngest;
+
+            /**
+             * @param array<array-key, mixed> $payload
+             * @return array<string, mixed>
+             */
+            public function normalize(
+                string $provider,
+                string $sourceChannel,
+                array $payload,
+                string $rawBody
+            ): array {
+                return $this->normalizePayload($provider, $sourceChannel, $payload, $rawBody);
+            }
+        };
     }
 
     public function testTheChannelDecidesTheIdempotencyKey(): void
@@ -29,13 +52,13 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
 
         $webhook = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_WEBHOOK,
+            $this->normalizer::CHANNEL_WEBHOOK,
             [],
             $rawBody
         );
         $dsn = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_DSN,
+            $this->normalizer::CHANNEL_DSN,
             [],
             $rawBody
         );
@@ -59,7 +82,7 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
     {
         $result = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_WEBHOOK,
+            $this->normalizer::CHANNEL_WEBHOOK,
             ['idempotency_key' => '  abc-123  '],
             '{}'
         );
@@ -71,7 +94,7 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
     {
         $onlyPlain = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_DSN,
+            $this->normalizer::CHANNEL_DSN,
             ['event_type' => 'Bounced'],
             '{}'
         );
@@ -80,7 +103,7 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
 
         $nothing = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_DSN,
+            $this->normalizer::CHANNEL_DSN,
             [],
             '{}'
         );
@@ -92,7 +115,7 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
     {
         $result = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_WEBHOOK,
+            $this->normalizer::CHANNEL_WEBHOOK,
             ['provider_message_id' => '   '],
             '{}'
         );
@@ -108,7 +131,7 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
     {
         $result = $this->normalizer->normalize(
             'smtp2go',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_WEBHOOK,
+            $this->normalizer::CHANNEL_WEBHOOK,
             [
                 'event_type' => ['bounced'],
                 'provider_message_id' => ['x'],
@@ -127,7 +150,7 @@ class MailDeliveryIngestPayloadNormalizerTest extends TestCase
     {
         $result = $this->normalizer->normalize(
             'mailgun',
-            MailDeliveryIngestPayloadNormalizer::CHANNEL_DSN,
+            $this->normalizer::CHANNEL_DSN,
             ['mail_queue_id' => '42'],
             '{"raw":true}'
         );

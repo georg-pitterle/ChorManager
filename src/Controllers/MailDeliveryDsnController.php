@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Services\MailDeliveryIngestPayloadNormalizer;
+use App\Controllers\Concerns\MailDeliveryIngest;
 use App\Services\MailEventMapperService;
 use App\Services\ProviderWebhookVerifier;
 use App\Util\InputValidator;
-use App\Util\JsonResponse;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -16,24 +15,21 @@ use Throwable;
 
 final class MailDeliveryDsnController
 {
+    use MailDeliveryIngest;
+
     private ProviderWebhookVerifier $verifier;
     private MailEventMapperService $mapper;
-    private MailDeliveryIngestPayloadNormalizer $normalizer;
 
-    public function __construct(
-        ProviderWebhookVerifier $verifier,
-        MailEventMapperService $mapper,
-        ?MailDeliveryIngestPayloadNormalizer $normalizer = null
-    ) {
+    public function __construct(ProviderWebhookVerifier $verifier, MailEventMapperService $mapper)
+    {
         $this->verifier = $verifier;
         $this->mapper = $mapper;
-        $this->normalizer = $normalizer ?? new MailDeliveryIngestPayloadNormalizer();
     }
 
     public function ingest(Request $request, Response $response): Response
     {
         if (!$this->verifier->verifyDsn($request->getHeaders())) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => 'Unauthorized DSN request.',
             ], 401);
@@ -42,7 +38,7 @@ final class MailDeliveryDsnController
         $parsedBody = $request->getParsedBody();
 
         if (!is_array($parsedBody)) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => 'Invalid DSN payload.',
             ], 400);
@@ -59,24 +55,24 @@ final class MailDeliveryDsnController
         }
 
         try {
-            $this->mapper->mapEvent($this->normalizer->normalize(
+            $this->mapper->mapEvent($this->normalizePayload(
                 $provider,
-                MailDeliveryIngestPayloadNormalizer::CHANNEL_DSN,
+                self::CHANNEL_DSN,
                 $parsedBody,
                 $rawBody
             ));
         } catch (InvalidArgumentException $exception) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => $exception->getMessage(),
             ], 400);
         } catch (Throwable) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => 'DSN ingest failed.',
             ], 500);
         }
 
-        return JsonResponse::write($response, ['status' => 'ok'], 200);
+        return $this->json($response, ['status' => 'ok'], 200);
     }
 }

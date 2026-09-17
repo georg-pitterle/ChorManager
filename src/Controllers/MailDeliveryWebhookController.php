@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Services\MailDeliveryIngestPayloadNormalizer;
+use App\Controllers\Concerns\MailDeliveryIngest;
 use App\Services\MailEventMapperService;
 use App\Services\ProviderWebhookVerifier;
 use App\Util\InputValidator;
-use App\Util\JsonResponse;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -16,18 +15,15 @@ use Throwable;
 
 final class MailDeliveryWebhookController
 {
+    use MailDeliveryIngest;
+
     private ProviderWebhookVerifier $verifier;
     private MailEventMapperService $mapper;
-    private MailDeliveryIngestPayloadNormalizer $normalizer;
 
-    public function __construct(
-        ProviderWebhookVerifier $verifier,
-        MailEventMapperService $mapper,
-        ?MailDeliveryIngestPayloadNormalizer $normalizer = null
-    ) {
+    public function __construct(ProviderWebhookVerifier $verifier, MailEventMapperService $mapper)
+    {
         $this->verifier = $verifier;
         $this->mapper = $mapper;
-        $this->normalizer = $normalizer ?? new MailDeliveryIngestPayloadNormalizer();
     }
 
     public function ingest(Request $request, Response $response): Response
@@ -39,7 +35,7 @@ final class MailDeliveryWebhookController
         $rawBody = (string) $request->getBody();
 
         if (!$this->verifier->verify($provider, $request->getHeaders(), $rawBody)) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => 'Invalid signature.',
             ], 401);
@@ -47,31 +43,31 @@ final class MailDeliveryWebhookController
 
         $decodedPayload = json_decode($rawBody, true);
         if (!is_array($decodedPayload)) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => 'Invalid JSON payload.',
             ], 400);
         }
 
         try {
-            $this->mapper->mapEvent($this->normalizer->normalize(
+            $this->mapper->mapEvent($this->normalizePayload(
                 $provider,
-                MailDeliveryIngestPayloadNormalizer::CHANNEL_WEBHOOK,
+                self::CHANNEL_WEBHOOK,
                 $decodedPayload,
                 $rawBody
             ));
         } catch (InvalidArgumentException $exception) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => $exception->getMessage(),
             ], 400);
         } catch (Throwable) {
-            return JsonResponse::write($response, [
+            return $this->json($response, [
                 'status' => 'error',
                 'message' => 'Webhook ingest failed.',
             ], 500);
         }
 
-        return JsonResponse::write($response, ['status' => 'ok'], 200);
+        return $this->json($response, ['status' => 'ok'], 200);
     }
 }
