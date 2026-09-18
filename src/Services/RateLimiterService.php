@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Util\EnvHelper;
 use Closure;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -33,6 +34,12 @@ class RateLimiterService
     // den Zeitpunkt des letzten Laufs und wird für den nächsten gebraucht.
     private const GC_MARKER = 'gc-state.txt';
 
+    /** Erlaubt einem Deployment, die Zähler woanders abzulegen. */
+    private const STORE_DIR_ENV = 'RATE_LIMIT_STORE_DIR';
+
+    /** Ablageort im Projekt, relativ zur Projektwurzel. */
+    private const DEFAULT_STORE_SUBPATH = 'var' . DIRECTORY_SEPARATOR . 'rate-limits';
+
     private string $storeDir;
     private Closure $clock;
     private LoggerInterface $logger;
@@ -42,7 +49,7 @@ class RateLimiterService
         ?Closure $clock = null,
         ?LoggerInterface $logger = null
     ) {
-        $this->storeDir = $storeDir ?? (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'chormanager_rate_limits');
+        $this->storeDir = $storeDir ?? self::defaultStoreDir();
         if (!is_dir($this->storeDir)) {
             @mkdir($this->storeDir, 0755, true);
         }
@@ -51,6 +58,42 @@ class RateLimiterService
         // prüfbar bleibt, ohne im Test echte Minuten zu warten.
         $this->clock = $clock ?? static fn(): int => time();
         $this->logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * Wo die Zähler liegen. Für Betrieb und Tests nachvollziehbar, ohne den
+     * Pfad an zwei Stellen zu wiederholen.
+     */
+    public function storeDir(): string
+    {
+        return $this->storeDir;
+    }
+
+    /**
+     * Standard-Ablageort: `var/rate-limits` im Projekt, per
+     * RATE_LIMIT_STORE_DIR umhängbar.
+     *
+     * Vorher lagen die Zähler in sys_get_temp_dir(). Ist der nicht
+     * beschreibbar, lässt die Bremse jeden Versuch durch - der Schutz gegen
+     * Passwort-Durchprobieren ist dann vollständig aus, und es steht nur eine
+     * Warnung im Protokoll. Das Temp-Verzeichnis gehört niemandem: Es kann je
+     * nach Aufruf (Web, CLI, Cron) woanders liegen, und aufräumende
+     * Systemdienste leeren es mitten im Fenster, wodurch ein laufender
+     * Zählerstand verschwindet. `var/` gehört dagegen zur Anwendung, ist schon
+     * in `.gitignore` und lässt sich beim Ausrollen einmal richtig setzen.
+     *
+     * Das fail-open in hit() bleibt bestehen: Es soll niemanden aussperren,
+     * wenn doch etwas mit dem Dateisystem nicht stimmt. Es soll nur nicht mehr
+     * der Regelfall sein.
+     */
+    private static function defaultStoreDir(): string
+    {
+        $configured = trim(EnvHelper::read(self::STORE_DIR_ENV, ''));
+        if ($configured !== '') {
+            return rtrim($configured, DIRECTORY_SEPARATOR);
+        }
+
+        return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . self::DEFAULT_STORE_SUBPATH;
     }
 
     /**

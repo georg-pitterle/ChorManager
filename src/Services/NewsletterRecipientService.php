@@ -43,7 +43,7 @@ class NewsletterRecipientService
             }
 
             if ($source->source_type === NewsletterRecipientSource::TYPE_EVENT_ATTENDEES) {
-                $userIds = array_merge($userIds, $this->getEventAttendees($referenceId)->pluck('id')->all());
+                $userIds = array_merge($userIds, $this->getEventAudience($referenceId)->pluck('id')->all());
                 continue;
             }
 
@@ -85,25 +85,32 @@ class NewsletterRecipientService
     }
 
     /**
-     * Get attendees for an event
+     * Die Mitglieder, für die ein Termin gilt - seine Zielgruppe.
+     *
+     * Aufgelöst wurde das bis Lauf 22 über die Anwesenheitsliste
+     * (`attendances.status = 'present'`). Die füllt sich erst, nachdem der
+     * Termin stattgefunden hat und jemand sie eingetragen hat. Im Formular
+     * stehen aber alle Termine zur Auswahl: Wer einen bevorstehenden nahm -
+     * der übliche Fall, "Infos zur Probe am Freitag" -, bekam kommentarlos
+     * null Empfänger und konnte den Newsletter gar nicht senden, ohne dass
+     * irgendwo stand, woran es lag.
+     *
+     * Massgeblich ist deshalb dieselbe Zielgruppe, über die auch Einladung und
+     * Anwesenheitsliste laufen. `eligibleUsersQuery()` filtert `is_active`
+     * bereits selbst und behandelt einen Termin ohne hinterlegte Quellen als
+     * "alle aktiven Mitglieder".
      *
      * @param int $eventId
      * @return Collection<int, User>
      */
-    public function getEventAttendees(int $eventId): Collection
+    public function getEventAudience(int $eventId): Collection
     {
         $event = Event::find($eventId);
         if (!$event) {
             return new Collection();
         }
 
-        return User::query()
-            ->whereHas('attendances', function ($query) use ($eventId) {
-                $query->where('event_id', $eventId)
-                    ->where('status', 'present');
-            })
-            ->where('is_active', 1)
-            ->get();
+        return $event->eligibleUsersQuery()->get();
     }
 
     /**

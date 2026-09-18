@@ -29,6 +29,63 @@ class RateLimiterServiceFeatureTest extends TestCase
         @rmdir($this->storeDir);
     }
 
+    /**
+     * Die Zähler liegen im Projekt, nicht im System-Temp-Verzeichnis.
+     *
+     * Ist der Ablageort nicht beschreibbar, lässt die Bremse jeden Versuch
+     * durch (fail-open, damit ein Dateisystemproblem niemanden aussperrt) - der
+     * Schutz gegen Passwort-Durchprobieren ist dann vollständig aus, und es
+     * steht nur eine Warnung im Protokoll. sys_get_temp_dir() ist dafür der
+     * falsche Ort: Er gehört keinem, kann je nach Aufruf (Web, CLI, Cron)
+     * woanders liegen und wird von aufräumenden Systemdiensten mitten im
+     * Fenster geleert. Ein fester Pfad im Projekt gehört zur Anwendung und
+     * lässt sich beim Ausrollen einmal richtig setzen.
+     */
+    public function testCountersLiveInsideTheProjectByDefault(): void
+    {
+        $projectRoot = dirname(__DIR__, 2);
+
+        $storeDir = (new RateLimiterService())->storeDir();
+
+        $this->assertStringStartsWith(
+            $projectRoot . DIRECTORY_SEPARATOR . 'var',
+            $storeDir,
+            'Der Standard-Ablageort gehört unter var/ im Projekt.'
+        );
+        $this->assertStringStartsNotWith(sys_get_temp_dir(), $storeDir);
+        $this->assertDirectoryExists($storeDir);
+    }
+
+    /**
+     * Der Ablageort lässt sich für ein Deployment umhängen, das unter var/
+     * nicht schreiben darf.
+     */
+    public function testStoreDirCanBeConfiguredThroughTheEnvironment(): void
+    {
+        $configured = $this->storeDir . DIRECTORY_SEPARATOR . 'configured';
+        $previous = $_ENV['RATE_LIMIT_STORE_DIR'] ?? null;
+        $_ENV['RATE_LIMIT_STORE_DIR'] = $_SERVER['RATE_LIMIT_STORE_DIR'] = $configured;
+
+        try {
+            $limiter = new RateLimiterService();
+
+            $this->assertSame($configured, $limiter->storeDir());
+            $this->assertDirectoryExists($configured);
+            $this->assertTrue($limiter->hit('login:configured', 2, 60)['allowed']);
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['RATE_LIMIT_STORE_DIR'], $_SERVER['RATE_LIMIT_STORE_DIR']);
+            } else {
+                $_ENV['RATE_LIMIT_STORE_DIR'] = $_SERVER['RATE_LIMIT_STORE_DIR'] = $previous;
+            }
+
+            foreach ((array) glob($configured . DIRECTORY_SEPARATOR . '*') as $file) {
+                @unlink($file);
+            }
+            @rmdir($configured);
+        }
+    }
+
     public function testBlocksWhenAttemptsExceedLimit(): void
     {
         $limiter = new RateLimiterService($this->storeDir);

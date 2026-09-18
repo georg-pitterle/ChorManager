@@ -48,6 +48,17 @@ class AttendanceScopeService
             return $this->manageableUserIdsCache;
         }
 
+        // Wer für niemanden eintragen darf, verwaltet auch niemanden. Ohne diese
+        // Abfrage greift unten der Stimmgruppen-Zweig, sobald nur
+        // can_manage_attendance_all fehlt - ein einfaches Mitglied bekam damit
+        // seine ganze Stimmgruppe als verwaltbar gemeldet. Geschrieben wurde
+        // dadurch nie etwas, weil die Schreibwege das Recht erneut prüfen; die
+        // Antwort war trotzdem falsch, und darauf verlässt sich der nächste
+        // Aufrufer womöglich allein.
+        if (!$this->canManageOthers()) {
+            return $this->manageableUserIdsCache = [];
+        }
+
         $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
         $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
 

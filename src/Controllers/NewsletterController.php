@@ -774,7 +774,7 @@ class NewsletterController
 
         $labels = [
             NewsletterRecipientSource::TYPE_PROJECT_MEMBERS => 'Projektmitglieder',
-            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES => 'Veranstaltungsteilnehmer',
+            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES => 'Zielgruppe eines Termins',
             NewsletterRecipientSource::TYPE_ROLE => 'Rollen',
             NewsletterRecipientSource::TYPE_USER => 'Einzelne Mitglieder',
         ];

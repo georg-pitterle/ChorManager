@@ -4023,43 +4023,38 @@ class DevSeedService
         $roleNewsletter->recipient_count = count($roleUserIds);
         $roleNewsletter->save();
 
-        // Entwurf mit der Quelle "Veranstaltungsteilnehmer": die Auflösung
-        // verlangt eine Veranstaltung mit tatsächlich erfasster Anwesenheit
-        // (Status "present"), sonst würde die Quelle niemanden auflösen.
-        $attendeeEvent = Event::query()
-            ->whereHas('attendances', function ($query) {
-                $query->where('status', 'present');
-            })
-            ->orderBy('id')
-            ->first();
+        // Entwurf mit der Quelle "Zielgruppe eines Termins". Bewusst ein
+        // bevorstehender Termin: Genau dieser Fall ging vor Lauf 22 nicht, weil
+        // die Quelle über die Anwesenheitsliste auflöste und die bei einem
+        // Termin in der Zukunft noch leer ist. Die Testdaten zeigen jetzt den
+        // üblichen Anlass - die Vorab-Info zur nächsten Probe.
+        $audienceEvent = Event::query()
+            ->where('starts_at', '>', (new DateTimeImmutable())->format('Y-m-d H:i:s'))
+            ->orderBy('starts_at')
+            ->first()
+            ?? Event::query()->orderByDesc('starts_at')->first();
 
-        if ($attendeeEvent === null) {
-            $this->report['warnings'][] = 'Keine Veranstaltung mit anwesenden Personen gefunden, '
-                . 'Newsletter-Entwurf mit Quelle "Veranstaltungsteilnehmer" wurde übersprungen.';
+        if ($audienceEvent === null) {
+            $this->report['warnings'][] = 'Kein Termin gefunden, '
+                . 'Newsletter-Entwurf mit Quelle "Zielgruppe eines Termins" wurde übersprungen.';
             return;
         }
 
-        // Deckt sich mit NewsletterRecipientService::getEventAttendees(), damit
+        // Deckt sich mit NewsletterRecipientService::getEventAudience(), damit
         // recipient_count der tatsächlich aufgelösten Personenzahl entspricht.
-        $eventAttendeeUserIds = User::query()
-            ->whereHas('attendances', function ($query) use ($attendeeEvent) {
-                $query->where('event_id', $attendeeEvent->id)->where('status', 'present');
-            })
-            ->where('is_active', 1)
-            ->pluck('id')
-            ->all();
+        $eventAudienceUserIds = $audienceEvent->eligibleUsersQuery()->pluck('id')->all();
 
-        if ($eventAttendeeUserIds === []) {
-            $this->report['warnings'][] = 'Anwesende Personen der gewählten Veranstaltung sind inaktiv, '
-                . 'Newsletter-Entwurf mit Quelle "Veranstaltungsteilnehmer" wurde übersprungen.';
+        if ($eventAudienceUserIds === []) {
+            $this->report['warnings'][] = 'Die Zielgruppe des gewählten Termins ist leer, '
+                . 'Newsletter-Entwurf mit Quelle "Zielgruppe eines Termins" wurde übersprungen.';
             return;
         }
 
         $eventDraft = Newsletter::create([
             'project_id' => null,
-            'title' => 'Entwurf: Rückmeldung an Teilnehmende von ' . $attendeeEvent->title,
-            'content_html' => '<h2>Rückmeldung</h2>'
-                . '<p>Dieser Entwurf richtet sich an alle, die bei "' . $attendeeEvent->title . '" anwesend waren.</p>',
+            'title' => 'Entwurf: Infos zu ' . $audienceEvent->title,
+            'content_html' => '<h2>Infos vorab</h2>'
+                . '<p>Dieser Entwurf richtet sich an alle, für die "' . $audienceEvent->title . '" gilt.</p>',
             'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $announcementAuthor->id,
             'locked_by' => null,
@@ -4070,11 +4065,11 @@ class DevSeedService
         NewsletterRecipientSource::create([
             'newsletter_id' => $eventDraft->id,
             'source_type' => NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
-            'reference_id' => $attendeeEvent->id,
+            'reference_id' => $audienceEvent->id,
         ]);
         $this->report['counts']['newsletter_recipient_sources']++;
 
-        foreach ($eventAttendeeUserIds as $userId) {
+        foreach ($eventAudienceUserIds as $userId) {
             NewsletterRecipient::create([
                 'newsletter_id' => $eventDraft->id,
                 'user_id' => $userId,
@@ -4083,7 +4078,7 @@ class DevSeedService
             $this->report['counts']['newsletter_recipients']++;
         }
 
-        $eventDraft->recipient_count = count($eventAttendeeUserIds);
+        $eventDraft->recipient_count = count($eventAudienceUserIds);
         $eventDraft->save();
     }
 }

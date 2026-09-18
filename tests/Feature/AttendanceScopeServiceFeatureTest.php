@@ -104,37 +104,38 @@ class AttendanceScopeServiceFeatureTest extends TestCase
         $this->assertTrue($service->canManageOthers());
     }
 
-    public function testVoiceGroupRepBelowManageOthersThresholdStillScopedByVoiceGroup(): void
+    /**
+     * Ohne Verwaltungsrecht ist die Antwort leer, auch mit eigener Stimmgruppe.
+     *
+     * Bis Lauf 22 lieferte die Methode einem einfachen Mitglied seine ganze
+     * Stimmgruppe zurück: Der Stimmgruppen-Zweig greift, sobald
+     * can_manage_attendance_all fehlt, und fragte das kleinere Recht gar nicht
+     * erst ab. Geschrieben wurde dadurch nichts - die Schreibwege prüfen das
+     * Recht zusätzlich, und die Oberfläche blendet die Felder aus -, aber die
+     * Methode beantwortete "wen darf ich verwalten" falsch. Der nächste
+     * Aufrufer, der sich allein darauf verlässt, hätte ein Loch.
+     */
+    public function testWithoutManagementPermissionNobodyIsManageable(): void
     {
         $ownGroup = $this->createVoiceGroup();
-        $foreignGroup = $this->createVoiceGroup();
 
-        $rep = $this->createUser();
-        $this->attachToVoiceGroup($rep, $ownGroup);
+        $member = $this->createUser();
+        $this->attachToVoiceGroup($member, $ownGroup);
         $peer = $this->createUser();
         $this->attachToVoiceGroup($peer, $ownGroup);
-        $outsider = $this->createUser();
-        $this->attachToVoiceGroup($outsider, $foreignGroup);
-
-        $groupIds = [(int) $ownGroup->id];
 
         $_SESSION['can_manage_users'] = false;
         $_SESSION['role_level'] = 10;
-        $_SESSION['voice_group_ids'] = $groupIds;
+        $_SESSION['voice_group_ids'] = [(int) $ownGroup->id];
 
         $service = new AttendanceScopeService();
-        $ids = $service->getManageableUserIds();
 
-        $expected = User::whereHas('voiceGroups', function ($q) use ($groupIds) {
-            $q->whereIn('voice_group_id', $groupIds);
-        })->where('is_active', 1)->pluck('id')->map(fn ($id) => (int) $id)->all();
-
-        sort($ids);
-        sort($expected);
-        $this->assertNotSame([], $ids);
-        $this->assertSame($expected, $ids);
-        $this->assertNotContains((int) $outsider->id, $ids);
         $this->assertFalse($service->canManageOthers());
+        $this->assertSame(
+            [],
+            $service->getManageableUserIds(),
+            'Ohne Verwaltungsrecht darf auch die eigene Stimmgruppe nicht verwaltbar sein.'
+        );
     }
 
     public function testPlainMemberManagesNobody(): void

@@ -305,12 +305,26 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringNotContainsString("scheduled', 'sent', 'archived", $migrationContent);
     }
 
-    public function testRecipientServiceUsesAttendanceStatusFieldForEventAttendees(): void
+    /**
+     * Die Termin-Quelle löst über die Zielgruppe auf, nicht über die
+     * Anwesenheitsliste.
+     *
+     * Vorher stand hier der umgekehrte Wächter: Er hielt
+     * `->where('status', 'present')` fest, weil die Auflösung einmal von einer
+     * Spalte `attended` auf den Anwesenheitsstatus umgestellt worden war. Damit
+     * war der eigentliche Fehler festgeschrieben - bei einem bevorstehenden
+     * Termin ist die Anwesenheitsliste leer, und die Quelle löste niemanden
+     * auf. Welche Personen tatsächlich herauskommen, prüft
+     * NewsletterEventAudienceRecipientsFeatureTest; hier steht nur der
+     * Wächter gegen einen Rückfall.
+     */
+    public function testRecipientServiceResolvesEventSourceViaAudienceNotAttendance(): void
     {
         $recipientService = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterRecipientService.php');
 
         $this->assertIsString($recipientService);
-        $this->assertStringContainsString("->where('status', 'present')", $recipientService);
+        $this->assertStringContainsString('eligibleUsersQuery()', $recipientService);
+        $this->assertStringNotContainsString("->where('status', 'present')", $recipientService);
         $this->assertStringNotContainsString("->where('attended', 1)", $recipientService);
     }
 
