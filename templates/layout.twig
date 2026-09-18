@@ -8,6 +8,9 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="csrf-token" content="{{ csrf_token }}">
+        {% if upload_limits is defined %}
+            <meta name="upload-limits" content="{{ upload_limits|json_encode }}">
+        {% endif %}
         <meta name="description"
               content="{{ app_settings.app_description|default('Chor-Manager – Verwaltung von Mitgliedern, Terminen und Projekten.') }}">
         <meta name="keywords"

@@ -21,8 +21,132 @@ window.uploadHelper = (() => {
 
     const bytesToMbString = (bytes) => {
         const mb = bytes / (1024 * 1024);
-        return (Math.round(mb * 10) / 10).toString();
+        return (Math.round(mb * 10) / 10).toLocaleString('de-DE');
     };
+
+    /**
+     * Grenzen je Dateiart, vom Server im Layout hinterlegt (UploadValidator::clientLimits()).
+     * Fehlt das Meta-Tag, gilt nur das Gesamtlimit.
+     * @returns {{image: number, audio: number, default: number, imageTypes: string[], audioTypes: string[]}|null}
+     */
+    const readLimits = () => {
+        const meta = document.querySelector('meta[name="upload-limits"]');
+        if (!meta) {
+            return null;
+        }
+
+        try {
+            const limits = JSON.parse(meta.getAttribute('content') || '');
+            return limits && typeof limits === 'object' ? limits : null;
+        } catch (err) {
+            return null;
+        }
+    };
+
+    /**
+     * Grenze für eine einzelne Datei, oder null, wenn sie hier nicht geprüft wird.
+     * Bilder in Formularen mit Komprimierung werden erst nach dem Verkleinern geprüft.
+     */
+    const limitFor = (file, limits, options) => {
+        if (options.maxBytes > 0) {
+            return options.maxBytes;
+        }
+
+        const type = String(file.type || '').trim().toLowerCase();
+        if (!limits) {
+            return type.startsWith('image/') && options.compressImages ? null : (options.hardLimit || null);
+        }
+
+        if (limits.imageTypes.includes(type)) {
+            return options.compressImages ? null : limits.image;
+        }
+
+        if (type.startsWith('audio/') || limits.audioTypes.includes(type)) {
+            return limits.audio;
+        }
+
+        return limits.default;
+    };
+
+    /**
+     * Dateien, die ihre Grenze überschreiten.
+     * @param {FileList|File[]} files
+     * @param {object|null} limits - siehe readLimits()
+     * @param {{maxBytes?: number, compressImages?: boolean, hardLimit?: number}} options
+     * @returns {{file: File, limit: number}[]}
+     */
+    const findOversizedFiles = (files, limits, options = {}) => {
+        const oversized = [];
+        for (const file of Array.from(files || [])) {
+            const limit = limitFor(file, limits, options);
+            if (limit !== null && file.size > limit) {
+                oversized.push({ file, limit });
+            }
+        }
+        return oversized;
+    };
+
+    const fieldAnchor = (input) => (input.closest && input.closest('.input-group')) || input;
+
+    const clearSizeError = (input) => {
+        input.classList.remove('is-invalid');
+        const next = fieldAnchor(input).nextElementSibling;
+        if (next && next.dataset && next.dataset.uploadSizeError === '1') {
+            next.parentNode.removeChild(next);
+        }
+    };
+
+    const showSizeError = (input, oversized, prefix) => {
+        clearSizeError(input);
+        const details = oversized.map(({ file, limit }) => {
+            return `„${file.name}“ (${bytesToMbString(file.size)} MB, erlaubt: ${bytesToMbString(limit)} MB)`;
+        });
+
+        const message = document.createElement('div');
+        message.className = 'invalid-feedback d-block';
+        message.dataset.uploadSizeError = '1';
+        message.textContent = `${prefix} ${details.join(', ')}`;
+
+        input.classList.add('is-invalid');
+        fieldAnchor(input).insertAdjacentElement('afterend', message);
+    };
+
+    const sizeOptionsFor = (input, hardLimit) => {
+        const maxBytes = Number.parseInt((input.dataset && input.dataset.uploadMaxBytes) || '', 10);
+        return {
+            maxBytes: Number.isFinite(maxBytes) && maxBytes > 0 ? maxBytes : 0,
+            compressImages: Boolean(input.form && input.form.dataset.uploadCompress === 'true'),
+            hardLimit,
+        };
+    };
+
+    /**
+     * Prüft die Auswahl eines Dateifelds gleich nach dem Auswählen: zu große Dateien
+     * werden aus der Auswahl genommen und am Feld gemeldet, der Rest bleibt stehen.
+     * @returns {boolean} true, wenn alle Dateien passen
+     */
+    const checkInputSizes = (input) => {
+        const oversized = findOversizedFiles(input.files, readLimits(), sizeOptionsFor(input, HARD_UPLOAD_LIMIT));
+        if (oversized.length === 0) {
+            clearSizeError(input);
+            return true;
+        }
+
+        const rejected = new Set(oversized.map(entry => entry.file));
+        const dt = new DataTransfer();
+        Array.from(input.files).filter(file => !rejected.has(file)).forEach(file => dt.items.add(file));
+        input.files = dt.files;
+
+        showSizeError(input, oversized, 'Zu groß, nicht übernommen:');
+        return false;
+    };
+
+    document.addEventListener('change', (event) => {
+        const input = event.target;
+        if (input && input.tagName === 'INPUT' && input.type === 'file') {
+            checkInputSizes(input);
+        }
+    });
 
     /**
      * Load image file into a Canvas element
@@ -186,31 +310,29 @@ window.uploadHelper = (() => {
                 return;
             }
 
+            const limits = readLimits();
+
             // Process files in all inputs
             for (const input of fileInputs) {
                 if (input.files.length > 0) {
                     try {
-                        // Non-images cannot be compressed, so reject above hard limit before submit.
-                        const tooLargeNonImages = Array.from(input.files).filter(file => {
-                            return !file.type.startsWith('image/') && file.size > hardLimitBytes;
-                        });
-
-                        if (tooLargeNonImages.length > 0) {
-                            alert(
-                                `Mindestens eine Datei ueberschreitet das Upload-Limit von ${bytesToMbString(hardLimitBytes)} MB. ` +
-                                'Bitte Datei verkleinern oder komprimieren und erneut versuchen.'
-                            );
+                        // Nicht komprimierbare Dateien gar nicht erst verarbeiten, wenn sie zu groß sind.
+                        const options = sizeOptionsFor(input, hardLimitBytes);
+                        const tooLarge = findOversizedFiles(input.files, limits, options);
+                        if (tooLarge.length > 0) {
+                            showSizeError(input, tooLarge, 'Überschreitet das Upload-Limit:');
                             return;
                         }
 
                         const processedFiles = await batchProcess(input.files, targetSize);
 
-                        const stillTooLarge = processedFiles.filter(file => file.size > hardLimitBytes);
+                        const stillTooLarge = findOversizedFiles(
+                            processedFiles,
+                            limits,
+                            Object.assign({}, options, { compressImages: false })
+                        );
                         if (stillTooLarge.length > 0) {
-                            alert(
-                                `Mindestens eine Datei ist nach der Verarbeitung noch groesser als ${bytesToMbString(hardLimitBytes)} MB. ` +
-                                'Bitte Datei weiter verkleinern und erneut versuchen.'
-                            );
+                            showSizeError(input, stillTooLarge, 'Auch nach dem Verkleinern noch zu groß:');
                             return;
                         }
 
@@ -233,7 +355,7 @@ window.uploadHelper = (() => {
 
             if (totalUploadSize > hardLimitBytes) {
                 alert(
-                    `Die gesamte Upload-Groesse (${bytesToMbString(totalUploadSize)} MB) ueberschreitet das Limit von ` +
+                    `Die gesamte Upload-Größe (${bytesToMbString(totalUploadSize)} MB) überschreitet das Limit von ` +
                     `${bytesToMbString(hardLimitBytes)} MB. Bitte weniger oder kleinere Dateien hochladen.`
                 );
                 return;
@@ -248,6 +370,8 @@ window.uploadHelper = (() => {
     return {
         processFile,
         batchProcess,
+        findOversizedFiles,
+        checkInputSizes,
         setupFormCompression,
         TARGET_SIZE,
         HARD_UPLOAD_LIMIT,

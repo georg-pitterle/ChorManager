@@ -217,6 +217,23 @@ class UploadValidator
     }
 
     /**
+     * Grenzen für die Vorprüfung im Browser (public/js/upload-helper.js). Sie kommen von
+     * hier, damit Browser und Server dieselben Zahlen verwenden.
+     *
+     * @return array{image: int, audio: int, default: int, imageTypes: list<string>, audioTypes: list<string>}
+     */
+    public static function clientLimits(): array
+    {
+        return [
+            'image' => self::MAX_IMAGE_SIZE,
+            'audio' => self::MAX_AUDIO_SIZE,
+            'default' => self::MAX_NON_IMAGE_SIZE,
+            'imageTypes' => self::$imageMimeTypes,
+            'audioTypes' => self::$audioMimeTypes,
+        ];
+    }
+
+    /**
      * Get all allowed MIME types in one array.
      */
     public static function getAllowedMimeTypes(): array

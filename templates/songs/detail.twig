@@ -229,7 +229,8 @@
 
                         <form method="post"
                               action="/song-library/songs/{{ song.id }}/attachments"
-                              enctype="multipart/form-data">
+                              enctype="multipart/form-data"
+                              data-upload-compress="true">
                             <label for="attachments" class="form-label fw-semibold">Dateien hochladen</label>
                             <input type="file"
                                    id="attachments"

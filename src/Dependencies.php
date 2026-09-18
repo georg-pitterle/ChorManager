@@ -98,6 +98,7 @@ use Illuminate\Events\Dispatcher;
 use Twig\TwigFunction;
 use App\Util\Csrf;
 use App\Util\SessionView;
+use App\Util\UploadValidator;
 use App\Services\NameFormatterService;
 use Twig\TwigFilter;
 
@@ -524,6 +525,7 @@ return function (ContainerBuilder $containerBuilder) {
             // login), and a frozen snapshot then hid the whole navbar.
             $environment->addGlobal('session', new SessionView());
             $environment->addGlobal('csrf_token', Csrf::ensureToken());
+            $environment->addGlobal('upload_limits', UploadValidator::clientLimits());
 
             $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
             $currentPath = (string) parse_url($requestUri, PHP_URL_PATH);

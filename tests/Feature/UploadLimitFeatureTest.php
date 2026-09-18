@@ -66,7 +66,7 @@ class UploadLimitFeatureTest extends TestCase
         $this->assertIsString($jsContent);
         $this->assertStringContainsString('HARD_UPLOAD_LIMIT = 100 * 1024 * 1024', $jsContent);
         $this->assertStringContainsString('form.dataset.uploadHardLimitBytes', $jsContent);
-        $this->assertStringContainsString('ueberschreitet das Upload-Limit', $jsContent);
-        $this->assertStringContainsString('Die gesamte Upload-Groesse', $jsContent);
+        $this->assertStringContainsString('Überschreitet das Upload-Limit', $jsContent);
+        $this->assertStringContainsString('Die gesamte Upload-Größe', $jsContent);
     }
 }

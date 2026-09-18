@@ -676,6 +676,7 @@
                                    id="statement"
                                    name="statement"
                                    accept=".csv,text/csv"
+                                   data-upload-max-bytes="{{ constant("App\\Services\\BankStatementImportService::MAX_FILE_SIZE") }}"
                                    required>
                             <div class="form-text">
                                 Semikolon-getrennt, Datumsformat <b>TT.MM.JJJJ</b>, maximal 2 MB. Nur EUR-Buchungen.
