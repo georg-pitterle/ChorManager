@@ -86,6 +86,57 @@ final class MailDeliveryServiceFeatureTest extends TestCase
     }
 
     /**
+     * Ein Fehler ausserhalb der Exception-Hierarchie darf den Durchlauf nicht
+     * abbrechen.
+     *
+     * Ein TypeError aus dem Mailer oder einer seiner Abhängigkeiten ist ein
+     * Error, keine Exception. Er lief an beiden Auffangstellen vorbei: Der
+     * betroffene Eintrag blieb auf "sending" stehen, bis der Wächter ihn nach
+     * einer Viertelstunde einsammelte, und alle Mails dahinter blieben in
+     * derselben Runde unbearbeitet liegen.
+     */
+    public function testAnErrorInOneEntryDoesNotStopTheRun(): void
+    {
+        $now = Carbon::now();
+        $failing = $this->enqueue('Bricht mit Error ab', $now->copy()->subMinutes(30));
+        $following = $this->enqueue('Muss trotzdem drankommen', $now->copy()->subMinutes(20));
+
+        $mailer = $this->createStub(Mailer::class);
+        $mailer->method('isUsingSmtp')->willReturn(true);
+        $mailer->method('sendHtmlMailDetailed')->willReturnCallback(
+            static function (string $to, string $subject) use ($failing): array {
+                if ($subject === $failing->subject) {
+                    throw new \Error('Fehler ausserhalb der Exception-Hierarchie.');
+                }
+
+                return [
+                    'success' => true,
+                    'skipped' => true,
+                    'provider_name' => 'disabled',
+                    'provider_message_id' => null,
+                ];
+            }
+        );
+
+        $stats = (new MailDeliveryService($mailer))->processDueEntries(10);
+
+        $this->assertSame(
+            'skipped',
+            MailQueue::findOrFail($following->id)->status,
+            'Die Mails hinter dem Fehler müssen in derselben Runde drankommen.'
+        );
+
+        $stored = MailQueue::findOrFail($failing->id);
+        $this->assertNotSame(
+            'sending',
+            $stored->status,
+            'Ein gescheiterter Eintrag darf nicht auf den Wächter warten müssen.'
+        );
+        $this->assertSame(1, (int) $stored->attempts);
+        $this->assertSame(1, $stats['failed']);
+    }
+
+    /**
      * Stellt einen Mailer, dessen Versand mit der übergebenen Fehlermeldung
      * scheitert - so wie PHPMailer die Antwort des Servers durchreicht.
      */

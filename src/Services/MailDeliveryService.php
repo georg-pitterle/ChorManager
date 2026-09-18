@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\MailQueue;
 use Carbon\Carbon;
 use Exception;
+use Throwable;
 
 class MailDeliveryService
 {
@@ -39,7 +40,10 @@ class MailDeliveryService
         foreach ($entries as $entry) {
             try {
                 $this->sendEntry($entry);
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
+                // Throwable statt Exception: Ein TypeError aus dem Mailer ist ein
+                // Error und riss bisher den ganzen Durchlauf mit - alle Mails
+                // hinter der fehlerhaften blieben in dieser Runde liegen.
                 $stats['failed']++;
                 continue;
             }
@@ -143,8 +147,13 @@ class MailDeliveryService
             throw new Exception("Entry already being processed or status changed");
         }
 
-        // Reload after status change
+        // Reload after status change. Verschwindet die Zeile in genau diesem
+        // Augenblick, darf der Zugriff darauf nicht als Error enden - der
+        // Durchlauf soll den Eintrag überspringen, nicht abbrechen.
         $entry = MailQueue::find($entry->id);
+        if (!$entry instanceof MailQueue) {
+            throw new Exception('Mail queue entry vanished while it was being claimed');
+        }
 
         try {
             // Attempt to send via Mailer
@@ -204,7 +213,10 @@ class MailDeliveryService
                 // Soft failure: might be retryable
                 $this->handleFailure($entry, 'send_failed', $this->mailer->getLastError() ?? 'Unknown error');
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            // Auch hier Throwable: Sonst bliebe der Eintrag auf "sending" stehen
+            // und wartete eine Viertelstunde auf repairStaleSendingEntries(),
+            // statt sofort seinen Fehlschlag und den nächsten Versuch zu bekommen.
             $this->handleFailure($entry, 'exception', $e->getMessage());
         }
     }

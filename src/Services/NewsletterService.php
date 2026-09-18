@@ -12,6 +12,7 @@ use App\Services\HtmlSanitizer;
 use Carbon\Carbon;
 use Exception;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 class NewsletterService
 {
@@ -97,10 +98,15 @@ class NewsletterService
 
         try {
             return $this->deliver($newsletter, $resolvedRecipients, $sentAt, $baseUrl);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             // Der Claim gilt nur für einen tatsächlich angelaufenen Versand.
             // Bricht er ab, bevor eine Mail in der Queue liegt, bliebe der
             // Entwurf sonst dauerhaft als "versendet" blockiert.
+            //
+            // Bewusst Throwable statt Exception: Ein TypeError aus einer Vorlage
+            // oder einem Platzhalter ist ein Error und lief hier vorbei - der
+            // Newsletter stand danach als versendet da, ohne dass je eine Mail
+            // eingereiht wurde, und liess sich weder senden noch bearbeiten.
             $this->releaseClaim($newsletter);
             throw $e;
         }
@@ -178,7 +184,10 @@ class NewsletterService
                 );
 
                 $sentCount++;
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
+                // Throwable statt Exception, wie in NotificationService: Ein
+                // Empfänger, an dem es scheitert, darf die übrigen nicht
+                // mitreissen - auch dann nicht, wenn der Fehler ein Error ist.
                 $this->logger->error(
                     'Failed to enqueue newsletter recipient.',
                     [

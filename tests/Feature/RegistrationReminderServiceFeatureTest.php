@@ -97,6 +97,49 @@ class RegistrationReminderServiceFeatureTest extends TestCase
             ->filter(fn (MailQueue $mail) => ($mail->payload_json['event_id'] ?? null) === $this->event->id);
     }
 
+    /**
+     * Ein Fehler ausserhalb der Exception-Hierarchie darf den Anspruch auf den
+     * Termin nicht festhalten.
+     *
+     * processDue() markiert den Termin, bevor die erste Mail eingereiht wird,
+     * damit zwei gleichzeitige Läufe ihn nicht doppelt anschreiben. Ein
+     * TypeError aus einer Vorlage ist ein Error und lief am Auffangblock je
+     * Empfänger vorbei: Die Markierung blieb stehen, und die Erinnerung zu
+     * diesem Termin ging danach nie mehr raus - ohne Wächter, der das je
+     * bemerkt hätte.
+     */
+    public function testAnErrorDuringEnqueueReleasesTheClaim(): void
+    {
+        $failingQueue = new class extends MailQueueService {
+            public function enqueueRegistrationReminderMail(
+                string $recipientEmail,
+                string $subject,
+                string $bodyHtml,
+                int $userId,
+                int $eventId
+            ): MailQueue {
+                throw new \Error('Fehler ausserhalb der Exception-Hierarchie.');
+            }
+        };
+
+        $service = new RegistrationReminderService(
+            $failingQueue,
+            Twig::create(dirname(__DIR__) . '/../templates'),
+            new NullLogger()
+        );
+
+        $enqueued = $service->processDue('https://chor.example');
+
+        $this->assertSame(0, $enqueued);
+        $this->assertSame(0, $this->reminderMailsForThisEvent()->count());
+
+        $this->event->refresh();
+        $this->assertNull(
+            $this->event->registration_reminder_sent_at,
+            'Ging keine einzige Mail raus, muss der nächste Lauf es erneut versuchen dürfen.'
+        );
+    }
+
     public function testRemindsOnlyUnregisteredUsersAndMarksEvent(): void
     {
         $registered = $this->createUser('Erinnerung', 'Angemeldet');

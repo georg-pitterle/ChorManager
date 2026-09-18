@@ -140,8 +140,12 @@ class NewsletterLockingService
             return true;
         }
 
-        $lockTime = $newsletter->locked_at;
-        $expiryTime = $lockTime->addMinutes(self::LOCK_TIMEOUT_MINUTES);
+        // copy(): Carbons addMinutes() verändert die Instanz. Eloquent gibt bei
+        // jedem Zugriff auf ein datetime-Feld zwar eine frische Instanz heraus,
+        // heute geht also nichts kaputt - wer den Wert aber einmal in einer
+        // Variablen festhält und danach weiterbenutzt, bekäme einen um eine
+        // halbe Stunde verschobenen Zeitpunkt.
+        $expiryTime = $newsletter->locked_at->copy()->addMinutes(self::LOCK_TIMEOUT_MINUTES);
 
         return Carbon::now()->gt($expiryTime);
     }

@@ -91,7 +91,12 @@ class RegistrationReminderService
                     );
                     $enqueued++;
                     $sent++;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
+                    // Throwable statt Exception: Ein TypeError aus einer Vorlage
+                    // ist ein Error und lief hier vorbei. Der Termin blieb dann
+                    // als erinnert markiert, obwohl keine Mail rausging - und
+                    // anders als bei der Mail-Warteschlange gibt es hier keinen
+                    // Wächter, der das später einsammelt.
                     $failed++;
                     $this->logger->error('Enqueueing registration reminder failed.', [
                         'event' => 'registration_reminder.enqueue_failed',
