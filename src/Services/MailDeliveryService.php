@@ -203,6 +203,13 @@ class MailDeliveryService
                     'attempts' => $entry->attempts + 1,
                     'error_code' => null,
                     'error_message' => null,
+                    // Der Einmal-Link einer Zurücksetzung oder Einladung steht
+                    // ausgeschrieben im Mailtext. Zugestellt ist er beim
+                    // Empfänger; in der Warteschlange wäre er ab jetzt nur noch
+                    // ein zweiter Weg zum Konto, lesbar für jeden, der die
+                    // Warteschlange verwalten darf. Empfänger, Betreff, Status
+                    // und Fehlertext bleiben für die Fehlersuche stehen.
+                    'body_html' => $entry->bodyHoldsSecret() ? null : $entry->body_html,
                 ]);
 
                 // Sync to NewsletterRecipient if applicable

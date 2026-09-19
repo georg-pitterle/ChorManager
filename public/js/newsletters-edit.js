@@ -622,6 +622,30 @@ function initNewsletterEdit() {
         };
         window.addEventListener("pagehide", releaseLockOnLeave);
 
+        // Die Sperre laeuft serverseitig nach 30 Minuten ab. Ohne dieses
+        // Verlaengern verliert sie, wer laenger als die Frist schreibt, ohne zu
+        // speichern - und jemand anderes kann den Entwurf uebernehmen.
+        const renewIntervalId = setInterval(function () {
+            if (!document.body.contains(editForm)) {
+                clearInterval(renewIntervalId);
+                return;
+            }
+
+            const renewData = new FormData();
+            if (csrfToken) {
+                renewData.append("_csrf", csrfToken);
+            }
+
+            fetch(`/newsletters/${newsletterId}/renew-lock`, {
+                method: "POST",
+                headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+                body: renewData,
+            }).catch(function () {
+                // Ein misslungenes Verlaengern bleibt still: Der Abgleich weiter
+                // unten meldet ohnehin, sobald jemand anderes uebernommen hat.
+            });
+        }, 600000);
+
         const lockIntervalId = setInterval(async function () {
             if (!document.body.contains(editForm)) {
                 clearInterval(lockIntervalId);

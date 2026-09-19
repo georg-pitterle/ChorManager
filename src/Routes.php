@@ -630,6 +630,10 @@ return function (App $app) {
                             [NewsletterController::class, 'checkLock']
                         );
                         $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/renew-lock',
+                            [NewsletterController::class, 'renewLock']
+                        );
+                        $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/release-lock',
                             [NewsletterController::class, 'releaseLock']
                         );

@@ -32,7 +32,12 @@ class MailQueueAdminService
         $perPage = self::normalizePerPage($filters['per_page'] ?? null);
         $page = self::normalizePage($filters['page'] ?? null);
 
+        // Nur die Spalten der Liste: `body_html` ist longtext, `payload_json`
+        // text, und die Liste zeigt beides nicht an. Der select() steht hier und
+        // nicht in buildQuery(), weil countEntries() denselben Unterbau nutzt und
+        // dort nur gezählt wird.
         return $this->buildQuery($filters)
+            ->select(MailQueue::LIST_COLUMNS)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->forPage($page, $perPage)

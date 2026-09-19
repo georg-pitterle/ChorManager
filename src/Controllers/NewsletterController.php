@@ -1112,6 +1112,38 @@ class NewsletterController
         ]);
     }
 
+    /**
+     * Die Sperre verlängern, solange das Bearbeitungsfenster offen ist.
+     *
+     * Gesetzt wurde sie bisher nur beim Öffnen der Seite und lief nach einer
+     * halben Stunde ab. Der Editor fragte zwar regelmäßig nach, aber nur lesend -
+     * wer länger als die Frist an einem Newsletter schrieb, ohne zu speichern,
+     * verlor seinen Anspruch still, und jemand anderes konnte übernehmen.
+     *
+     * Bewusst ein eigener POST-Endpunkt und nicht ein Schreibzugriff in
+     * checkLock(): Eine Abfrage darf nichts verändern, darüber wacht
+     * ServiceLayerReviewDecisionsFeatureTest.
+     *
+     * acquireLock() entscheidet wie überall sonst - eine gültige fremde Sperre
+     * lässt sich damit nicht an sich reissen.
+     */
+    public function renewLock(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $userId = $_SESSION['user_id'] ?? null;
+
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter) {
+            return $response->withStatus(404);
+        }
+
+        if ($userId === null || !$this->lockingService->acquireLock($newsletter, (int) $userId)) {
+            return $this->jsonResponse($response, ['renewed' => false], 409);
+        }
+
+        return $this->jsonResponse($response, ['renewed' => true]);
+    }
+
     public function releaseLock(Request $request, Response $response): Response
     {
         $id = (int)$request->getAttribute('id');

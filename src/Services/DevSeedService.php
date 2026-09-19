@@ -2006,6 +2006,30 @@ class DevSeedService
             ];
         }
 
+        // Zugestellte Zurücksetzung: Der Mailtext ist bewusst leer. Nach dem
+        // Versand löscht MailDeliveryService ihn für die Mailarten aus
+        // MailQueue::SECRET_BODY_MAIL_TYPES, damit der Einmal-Link nicht in der
+        // Warteschlangen-Verwaltung nachlesbar bleibt. Ohne diesen Eintrag wäre
+        // das in Dev nirgends zu sehen.
+        $entries[] = [
+            'mail_type' => 'password_reset',
+            'recipient_email' => $sampleUser->email,
+            'subject' => 'Queue: Passwort zurücksetzen (zugestellt)',
+            'body_html' => null,
+            'payload_json' => [
+                'user_id' => $sampleUser->id,
+            ],
+            'status' => 'sent',
+            'attempts' => 1,
+            'max_attempts' => 3,
+            'next_attempt_at' => null,
+            'last_attempt_at' => (new DateTimeImmutable('-3 hours'))->format('Y-m-d H:i:s'),
+            'sent_at' => (new DateTimeImmutable('-3 hours'))->format('Y-m-d H:i:s'),
+            'error_code' => null,
+            'error_message' => null,
+            'is_retryable' => false,
+        ];
+
         $entries[] = [
             'mail_type' => 'password_reset',
             'recipient_email' => $sampleUser->email,
