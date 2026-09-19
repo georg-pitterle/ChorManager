@@ -111,15 +111,29 @@ final class ServiceLayerReviewDecisionsFeatureTest extends TestCase
     // ---------------------------------------------------------------- Punkt 6
 
     /**
-     * Beide Methoden wurden nirgends aufgerufen - weder im Code noch in
-     * Vorlagen noch in Tests - und schrieben beim blossen Nachfragen.
+     * `getLockInfo()` wurde nirgends aufgerufen - weder im Code noch in Vorlagen
+     * noch in Tests - und schrieb beim blossen Nachfragen. Es bleibt entfernt.
+     *
+     * `isLockedByOther()` stand aus demselben Grund auf dieser Liste. Es gibt die
+     * Methode inzwischen wieder, weil Versand, Testmail und Löschen genau diese
+     * Frage stellen - jetzt aber als reine Abfrage ohne Schreibzugriff. Beides
+     * hält der Test darunter fest: dass sie benutzt wird und dass sie nichts
+     * schreibt.
      */
     public function testUnusedLockHelpersAreGone(): void
     {
         $reflection = new ReflectionClass(NewsletterLockingService::class);
 
-        $this->assertFalse($reflection->hasMethod('isLockedByOther'));
         $this->assertFalse($reflection->hasMethod('getLockInfo'));
+
+        $controller = (string) file_get_contents(
+            dirname(__DIR__, 2) . '/src/Controllers/NewsletterController.php'
+        );
+        $this->assertStringContainsString(
+            '$this->lockingService->isLockedByOther(',
+            $controller,
+            'Eine Sperrfrage ohne Aufrufer gehört wieder entfernt.'
+        );
     }
 
     /**
@@ -143,6 +157,8 @@ final class ServiceLayerReviewDecisionsFeatureTest extends TestCase
         $service = new NewsletterLockingService();
 
         $this->assertFalse($service->isLockedBy($newsletter, (int) $other->id));
+        $this->assertFalse($service->isLockedByOther($newsletter, (int) $other->id));
+        $this->assertFalse($service->hasActiveLock($newsletter));
 
         $stored = $newsletter->fresh();
         $this->assertSame((int) $owner->id, (int) $stored->locked_by, 'Die Abfrage darf nichts schreiben.');

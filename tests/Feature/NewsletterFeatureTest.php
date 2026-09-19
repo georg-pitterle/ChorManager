@@ -109,11 +109,15 @@ class NewsletterFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'canEdit'));
         $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedBy'));
 
-        // isLockedByOther() und getLockInfo() gab es einmal, aufgerufen wurden sie
-        // nirgends - und sie schrieben beim blossen Nachfragen (releaseLock() in
-        // einer Abfrage). Sie sind entfernt; die Zusicherung haelt fest, dass sie
-        // nicht unbemerkt zurueckkehren.
-        $this->assertFalse(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedByOther'));
+        // Die Sperrfragen, die die Ablauffrist kennen. `Newsletter::isLocked()`
+        // kennt sie nicht und taugt deshalb nicht als Entscheidungsgrundlage.
+        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'hasActiveLock'));
+        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedByOther'));
+
+        // getLockInfo() gab es einmal, aufgerufen wurde es nirgends - und es
+        // schrieb beim blossen Nachfragen (releaseLock() in einer Abfrage). Es ist
+        // entfernt; die Zusicherung haelt fest, dass es nicht unbemerkt
+        // zurueckkehrt.
         $this->assertFalse(method_exists(\App\Services\NewsletterLockingService::class, 'getLockInfo'));
     }
 
@@ -468,8 +472,15 @@ class NewsletterFeatureTest extends TestCase
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("if (!\$newsletter->isLocked()) {", $controllerContent);
-        $this->assertStringContainsString("\$this->lockingService->acquireLock(\$newsletter, \$userId);", $controllerContent);
+        $this->assertStringContainsString(
+            "\$this->lockingService->acquireLock(\$newsletter, (int) \$userId)",
+            $controllerContent
+        );
+        $this->assertStringNotContainsString(
+            "if (!\$newsletter->isLocked()) {",
+            $controllerContent,
+            'Der Versand entscheidet über den Dienst, nicht über die beiden Spalten.'
+        );
         $this->assertStringContainsString(
             'Newsletter wird gerade von einer anderen Person bearbeitet und kann derzeit nicht versendet werden.',
             $controllerContent

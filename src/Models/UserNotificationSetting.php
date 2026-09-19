@@ -62,20 +62,14 @@ class UserNotificationSetting extends Model
      * Ohne das baut Eloquent jede Änderung und jedes Löschen einer geladenen
      * Zeile als `where <primaryKey> = ...`. Mit der alten Vorgabe `id` war das
      * ein SQL-Fehler ("Unknown column 'id' in 'WHERE'"), mit `user_id` allein
-     * träfe es alle Anlässe dieser Person statt nur den gemeinten. Gelesen wird
-     * der ursprüngliche Wert, damit auch eine Zeile mit geändertem Schlüssel
-     * dort landet, wo sie herkam.
+     * träfe es alle Anlässe dieser Person statt nur den gemeinten.
      *
      * @param Builder<static> $query
      * @return Builder<static>
      */
     protected function setKeysForSaveQuery($query)
     {
-        foreach (self::KEY_COLUMNS as $column) {
-            $query->where($column, $this->getOriginal($column, $this->getAttribute($column)));
-        }
-
-        return $query;
+        return $this->scopeToKeyColumns($query);
     }
 
     /**
@@ -85,6 +79,21 @@ class UserNotificationSetting extends Model
      * @return Builder<static>
      */
     protected function setKeysForSelectQuery($query)
+    {
+        return $this->scopeToKeyColumns($query);
+    }
+
+    /**
+     * Die Bedingung, die beide Überschreibungen brauchen - einmal formuliert,
+     * damit sie nicht auseinanderlaufen können.
+     *
+     * Gelesen wird der ursprüngliche Wert, damit auch eine Zeile mit geändertem
+     * Schlüssel dort landet, wo sie herkam.
+     *
+     * @param Builder<static> $query
+     * @return Builder<static>
+     */
+    private function scopeToKeyColumns($query)
     {
         foreach (self::KEY_COLUMNS as $column) {
             $query->where($column, $this->getOriginal($column, $this->getAttribute($column)));

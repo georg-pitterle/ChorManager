@@ -78,6 +78,19 @@ class Newsletter extends Model
         return $this->status === self::STATUS_DRAFT;
     }
 
+    /**
+     * Stehen die beiden Sperrspalten? Mehr beantwortet diese Frage nicht.
+     *
+     * Insbesondere kennt sie die Ablauffrist aus NewsletterLockingService nicht:
+     * Ein Vermerk, den jemand vor Stunden liegen gelassen hat, steht hier immer
+     * noch auf `true`, obwohl acquireLock() ihn längst überschreiben würde. Wer
+     * entscheiden muss, ob gerade wirklich jemand an dem Entwurf sitzt - Versand,
+     * Testmail, Löschen, Sperr-Abfrage -, fragt
+     * `NewsletterLockingService::isLockedByOther()` bzw. `hasActiveLock()`.
+     *
+     * Genau diese Verwechslung hielt einen liegengebliebenen Entwurf dauerhaft
+     * fest: bearbeiten durfte ihn jeder, löschen niemand mehr.
+     */
     public function isLocked(): bool
     {
         return $this->locked_by !== null && $this->locked_at !== null;

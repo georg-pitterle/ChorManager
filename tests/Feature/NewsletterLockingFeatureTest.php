@@ -264,4 +264,129 @@ final class NewsletterLockingFeatureTest extends TestCase
             'Ohne Sperre darf der Versand den Status nicht verändern.'
         );
     }
+
+    /**
+     * Eine abgelaufene Sperre ist keine Sperre - acquireLock() sieht das seit
+     * jeher so, und der Test darüber hält es fest. Das Löschen las dagegen nur
+     * die beiden Spalten und hielt einen liegengebliebenen Entwurf damit
+     * dauerhaft fest: bearbeiten und versenden durfte ihn jeder, löschen
+     * niemand mehr.
+     */
+    public function testAnExpiredLockDoesNotBlockDeletion(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+
+        $draft->update([
+            'locked_by' => $userA->id,
+            'locked_at' => Carbon::now()->subHours(2),
+        ]);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $response = $this->newsletterController(new NewsletterLockingService())->deleteDraft(
+            $this->makeRequest('POST', '/newsletters/' . $draft->id . '/delete')
+                ->withAttribute('id', (string) $draft->id),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertNull(
+            Newsletter::find($draft->id),
+            'Ein Entwurf mit abgelaufener Sperre muss sich löschen lassen.'
+        );
+    }
+
+    /**
+     * Gegenprobe zum Test darüber: Solange die Sperre gilt, bleibt der Entwurf
+     * für alle anderen unantastbar.
+     */
+    public function testAnActiveLockStillBlocksDeletionByAnotherPerson(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+
+        (new NewsletterLockingService())->acquireLock($draft, (int) $userA->id);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $response = $this->newsletterController(new NewsletterLockingService())->deleteDraft(
+            $this->makeRequest('POST', '/newsletters/' . $draft->id . '/delete')
+                ->withAttribute('id', (string) $draft->id),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertNotNull(
+            Newsletter::find($draft->id),
+            'Eine gültige fremde Sperre muss das Löschen weiterhin verhindern.'
+        );
+    }
+
+    /**
+     * Die Sperr-Abfrage des Editors darf einen abgelaufenen Vermerk nicht als
+     * laufende Bearbeitung melden - sonst zeigt die Oberfläche dauerhaft einen
+     * Hinweis auf jemanden, der längst weg ist.
+     */
+    public function testCheckLockReportsAnExpiredLockAsFree(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+
+        $draft->update([
+            'locked_by' => $userA->id,
+            'locked_at' => Carbon::now()->subHours(2),
+        ]);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+
+        $response = $this->newsletterController(new NewsletterLockingService())->checkLock(
+            $this->makeRequest('GET', '/newsletters/' . $draft->id . '/lock')
+                ->withAttribute('id', (string) $draft->id),
+            $this->makeResponse()
+        );
+
+        $payload = json_decode((string) $response->getBody(), true);
+
+        $this->assertIsArray($payload);
+        $this->assertFalse($payload['locked'], 'Eine abgelaufene Sperre ist keine Sperre.');
+    }
+
+    /**
+     * Die Grenze selbst, ohne Controller: Der Dienst beantwortet "sperrt das
+     * gerade jemand anderes?" mit derselben Ablauffrist wie acquireLock().
+     */
+    public function testIsLockedByOtherIgnoresAnExpiredLock(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+
+        $service = new NewsletterLockingService();
+
+        $draft->update([
+            'locked_by' => $userA->id,
+            'locked_at' => Carbon::now()->subHours(2),
+        ]);
+        $this->assertFalse(
+            $service->isLockedByOther(Newsletter::findOrFail($draft->id), (int) $userB->id),
+            'Abgelaufen zählt nicht mehr als fremde Sperre.'
+        );
+
+        $draft->update(['locked_at' => Carbon::now()]);
+        $this->assertTrue(
+            $service->isLockedByOther(Newsletter::findOrFail($draft->id), (int) $userB->id),
+            'Eine frische fremde Sperre zählt sehr wohl.'
+        );
+        $this->assertFalse(
+            $service->isLockedByOther(Newsletter::findOrFail($draft->id), (int) $userA->id),
+            'Die eigene Sperre ist keine fremde.'
+        );
+    }
 }

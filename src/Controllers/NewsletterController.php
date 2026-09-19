@@ -989,18 +989,17 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
-        if ($newsletter->isLocked() && !$this->lockingService->isLockedBy($newsletter, $userId)) {
+        if ($this->lockingService->isLockedByOther($newsletter, $userId)) {
             return $this->lockedElsewhereResponse($response, $newsletter, $expectsJson);
         }
 
-        if (!$newsletter->isLocked()) {
-            // Der Stand von der Prüfung oben ist einen Moment alt. Ist die Sperre
-            // inzwischen an jemand anderen gegangen, meldet acquireLock() false -
-            // dann darf hier nichts mehr versendet werden.
-            $lockAcquired = $this->lockingService->acquireLock($newsletter, $userId);
-            if (!$lockAcquired) {
-                return $this->lockedElsewhereResponse($response, $newsletter, $expectsJson);
-            }
+        // Der Stand von der Prüfung oben ist einen Moment alt. Ist die Sperre
+        // inzwischen an jemand anderen gegangen, meldet acquireLock() false -
+        // dann darf hier nichts mehr versendet werden. Der Aufruf steht auch dann
+        // hier, wenn die Sperre schon dieser Sitzung gehört: er verlängert sie
+        // über den Versand hinweg.
+        if (!$this->lockingService->acquireLock($newsletter, (int) $userId)) {
+            return $this->lockedElsewhereResponse($response, $newsletter, $expectsJson);
         }
 
         $warnings = $this->placeholderWarnings(
@@ -1095,7 +1094,7 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
-        if (!$newsletter->isLocked()) {
+        if (!$this->lockingService->hasActiveLock($newsletter)) {
             return $this->jsonResponse($response, [
                 'locked' => false,
             ]);
@@ -1178,7 +1177,7 @@ class NewsletterController
             return $this->jsonResponse($response, ['error' => 'Keine gültige eigene E-Mail-Adresse.'], 422);
         }
 
-        if ($newsletter->isLocked() && !$this->lockingService->isLockedBy($newsletter, $userId)) {
+        if ($this->lockingService->isLockedByOther($newsletter, $userId)) {
             return $this->jsonResponse(
                 $response,
                 ['error' => 'Newsletter wird gerade von einer anderen Person bearbeitet.'],
@@ -1227,7 +1226,7 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
-        if ($newsletter->isLocked() && (int) ($newsletter->locked_by ?? 0) !== (int) ($userId ?? 0)) {
+        if ($this->lockingService->isLockedByOther($newsletter, $userId)) {
             $_SESSION['error'] =
                 'Newsletter-Entwurf wird gerade von einer anderen Person bearbeitet und kann derzeit nicht gelöscht werden.';
             return $response->withHeader(

@@ -81,6 +81,41 @@ class NewsletterLockingService
     }
 
     /**
+     * Trägt der Entwurf gerade eine Sperre, die noch gilt?
+     *
+     * `Newsletter::isLocked()` liest nur die beiden Spalten und weiß nichts von
+     * LOCK_TIMEOUT_MINUTES. Ein Vermerk, den jemand vor Stunden liegen gelassen
+     * hat, sieht dort deshalb aus wie eine laufende Bearbeitung, obwohl
+     * acquireLock() ihn längst überschreiben würde. Wer wissen will, ob gerade
+     * wirklich jemand an dem Entwurf sitzt, fragt hier - nicht am Modell.
+     *
+     * Bewusst ohne releaseLock(): Eine Abfrage beantwortet nur, ob gesperrt ist -
+     * sie schreibt nicht. Der abgelaufene Vermerk stört niemanden mehr, und wer
+     * als Nächster bearbeitet, überschreibt ihn ohnehin in acquireLock().
+     */
+    public function hasActiveLock(Newsletter $newsletter): bool
+    {
+        return $newsletter->isLocked() && !$this->isLockExpired($newsletter);
+    }
+
+    /**
+     * Sperrt gerade jemand anderes den Entwurf? Das ist die Frage hinter jedem
+     * "wird gerade von einer anderen Person bearbeitet" - beim Versand, bei der
+     * Testmail und beim Löschen.
+     *
+     * Ohne angemeldete Person lautet die Antwort ja: Wer niemand ist, kann auch
+     * nicht der Inhaber sein.
+     */
+    public function isLockedByOther(Newsletter $newsletter, ?int $userId): bool
+    {
+        if (!$this->hasActiveLock($newsletter)) {
+            return false;
+        }
+
+        return $userId === null || (int) $newsletter->locked_by !== $userId;
+    }
+
+    /**
      * Check if user can edit (has lock or no lock exists)
      *
      * @param Newsletter $newsletter
@@ -93,15 +128,7 @@ class NewsletterLockingService
             return false;
         }
 
-        if (!$newsletter->isLocked()) {
-            return true;
-        }
-
-        if ($this->isLockExpired($newsletter)) {
-            return true;
-        }
-
-        return $newsletter->locked_by === $userId;
+        return !$this->isLockedByOther($newsletter, $userId);
     }
 
     /**
@@ -113,19 +140,11 @@ class NewsletterLockingService
      */
     public function isLockedBy(Newsletter $newsletter, ?int $userId): bool
     {
-        if ($userId === null || !$newsletter->isLocked()) {
+        if ($userId === null) {
             return false;
         }
 
-        // Bewusst ohne releaseLock(): Eine Abfrage beantwortet nur, ob gesperrt
-        // ist - sie schreibt nicht. Der abgelaufene Vermerk stört niemanden mehr,
-        // und wer als Nächster bearbeitet, überschreibt ihn ohnehin in
-        // acquireLock(), dessen Bedingung abgelaufene Sperren einschließt.
-        if ($this->isLockExpired($newsletter)) {
-            return false;
-        }
-
-        return $newsletter->locked_by === $userId;
+        return $this->hasActiveLock($newsletter) && (int) $newsletter->locked_by === $userId;
     }
 
     /**
