@@ -78,6 +78,10 @@ class UserProjectScopeFeatureTest extends TestCase
 
         $targetUser = new User();
         $targetUser->id = $this->targetUserId;
+        // Steht für eine Zeile aus UserQuery::findById(): dort ist die Spalte
+        // immer geladen, und UserEditPolicy weist ein Ziel ohne bekannten
+        // aktiven Zustand ab.
+        $targetUser->is_active = 1;
         $targetUser->first_name = 'Target';
         $targetUser->last_name = 'User';
         $targetUser->email = $this->targetEmail;
@@ -147,6 +151,10 @@ class UserProjectScopeFeatureTest extends TestCase
 
         $targetUser = new User();
         $targetUser->id = $this->targetUserId;
+        // Steht für eine Zeile aus UserQuery::findById(): dort ist die Spalte
+        // immer geladen, und UserEditPolicy weist ein Ziel ohne bekannten
+        // aktiven Zustand ab.
+        $targetUser->is_active = 1;
         $targetUser->first_name = 'Target';
         $targetUser->last_name = 'User';
         $targetUser->email = $this->targetEmail;

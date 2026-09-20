@@ -330,4 +330,28 @@ final class UserEditPolicyTest extends TestCase
         $this->assertFalse($policy->canArchive($session, $this->makeUser(8, [5], 0)));
         $this->assertFalse($policy->canArchive([], $this->makeUser(9, [2], 0)));
     }
+
+    /**
+     * Ein Mitglied, dessen aktiver Zustand gar nicht geladen wurde, gilt als
+     * nicht bearbeitbar. Bisher nahm die Policy für eine fehlende Spalte "aktiv"
+     * an - eine Abfrage mit engerer Spaltenauswahl hätte damit still das
+     * Bearbeiten eines archivierten Mitglieds freigegeben, und zwar genau auf dem
+     * Weg, auf dem niemand danach sucht. Die sichere Richtung ist die Abweisung.
+     */
+    public function testAMemberWithoutALoadedActiveStateStaysUntouchable(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['can_edit_users' => true, 'can_manage_project_members' => true];
+
+        $partiallyLoaded = new User();
+        $partiallyLoaded->forceFill(['id' => 7]);
+        $partiallyLoaded->setRelation('voiceGroups', new Collection([]));
+        $partiallyLoaded->setRelation('roles', new Collection([]));
+
+        $this->assertNull($partiallyLoaded->is_active);
+        $this->assertFalse($policy->canEdit($session, $partiallyLoaded));
+        $this->assertFalse($policy->canEditProfile($session, $partiallyLoaded));
+        $this->assertFalse($policy->canEditProjects($session, $partiallyLoaded));
+        $this->assertFalse($policy->canEditEmail($session, $partiallyLoaded));
+    }
 }

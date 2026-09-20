@@ -246,6 +246,13 @@ class SponsoringPolicy
      * Fremdschlüssel auf projects weist sie ab, und der Versuch kommt als
      * nichtssagendes "Fehler beim Anlegen" zurück statt als Hinweis auf das
      * Projekt. Dieselbe Überlegung steht in ProjectMemberPolicy::canViewMembers().
+     *
+     * "Kein Projekt" ist allein die null. Eine Kennung, die kein Projekt sein
+     * kann - 0 oder negativ -, galt hier zuvor ebenfalls als "kein Projekt" und
+     * wurde durchgewinkt; der Controller reichte den Wert danach unverändert an
+     * Sponsorship::create() weiter und landete in genau dem Fremdschlüsselfehler,
+     * den die Existenzprüfung verhindern soll. Sie wird deshalb abgewiesen wie
+     * ein unbekanntes Projekt.
      */
     public function canUseProject(?int $projectId): bool
     {
@@ -253,8 +260,12 @@ class SponsoringPolicy
             return false;
         }
 
-        if ($projectId === null || $projectId <= 0) {
+        if ($projectId === null) {
             return true;
+        }
+
+        if ($projectId <= 0) {
+            return false;
         }
 
         // Eine Existenzfrage, keine Liste: vorher lud die Prüfung jedes laufende

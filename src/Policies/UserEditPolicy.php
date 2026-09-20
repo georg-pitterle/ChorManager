@@ -115,11 +115,19 @@ class UserEditPolicy
      * Guards that apply to every path: archived members stay untouchable, and so
      * does anybody who outranks the acting session.
      *
+     * Ein Ziel ohne geladenen `is_active`-Wert gilt als nicht bearbeitbar. Zuvor
+     * stand hier `?? 1`, also "im Zweifel aktiv": eine Abfrage mit engerer
+     * Spaltenauswahl - wie sie das Projekt an mehreren Stellen bewusst einsetzt,
+     * siehe User::LIST_COLUMNS und ProjectQuery::getUserVoiceGroupIds() - hätte
+     * damit still das Bearbeiten eines archivierten Mitglieds freigegeben. Die
+     * Abweisung ist die sichere Richtung und fällt sofort auf, weil sie den
+     * erlaubten Fall sperrt statt den verbotenen zu öffnen.
+     *
      * @param array<string, mixed> $session
      */
     private function passesBaseGuards(array $session, User $target): bool
     {
-        if ((int) ($target->is_active ?? 1) !== 1) {
+        if ((int) ($target->is_active ?? 0) !== 1) {
             return false;
         }
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Models\Project;
-use App\Models\User;
 
 /**
  * Policy for project member management authorization.
@@ -176,15 +175,23 @@ class ProjectMemberPolicy
         }
 
         // Das stimmgruppen-beschränkte Recht bleibt auf die eigenen Projekte begrenzt.
+        //
+        // Gefragt ist eine Id-Liste, nicht das Konto: zuvor lud die Prüfung dafür
+        // das vollständige Mitglied samt Passwort-Hash und stellte erst danach die
+        // zweite Abfrage über die Beziehung. Ein fehlendes Konto fällt weiterhin
+        // auf die leere Liste unten durch - es hat schlicht keine Projekte.
         if ($this->holdsVoiceGroupScope() && $this->userId > 0) {
-            $user = User::find($this->userId);
-            if ($user) {
-                $this->accessibleProjectIdsCache = array_map(
-                    'intval',
-                    $user->projects()->pluck('projects.id')->all()
-                );
-                return $this->accessibleProjectIdsCache;
-            }
+            $this->accessibleProjectIdsCache = array_map(
+                'intval',
+                Project::query()
+                    ->select('projects.id')
+                    ->whereHas('users', function ($relation): void {
+                        $relation->where('users.id', $this->userId);
+                    })
+                    ->pluck('projects.id')
+                    ->all()
+            );
+            return $this->accessibleProjectIdsCache;
         }
 
         // No access by default
