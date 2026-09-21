@@ -70,11 +70,15 @@ class ProjectQuery
             return new Collection();
         }
 
+        // Ohne distinct(): project_users hat den Primärschlüssel (project_id, user_id),
+        // je Projekt gibt es zu einem Mitglied also höchstens eine Zeile und der JOIN
+        // kann nichts vervielfachen. Das distinct() deckte hier nichts ab - es las sich
+        // nur so, als wären Doppelte möglich. Dass es keine gibt, hält jetzt
+        // AccessibleProjectsFeatureTest::testEveryProjectAppearsExactlyOnce() fest.
         return Project::query()
             ->select('projects.*')
             ->join('project_users', 'project_users.project_id', '=', 'projects.id')
             ->where('project_users.user_id', $userId)
-            ->distinct()
             ->chronological()
             ->get();
     }

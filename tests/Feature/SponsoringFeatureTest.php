@@ -21,6 +21,24 @@ class SponsoringFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    /**
+     * Die Sitzung startet leer, statt zu übernehmen, was eine andere Testklasse
+     * im selben Prozess hinterlassen hat.
+     *
+     * Konkret hing daran ein Test, der nur im parallelen Lauf und nur manchmal
+     * rot wurde: Ein geerbtes `$_SESSION['user_id']` zeigt auf ein Mitglied, das
+     * es in dieser Datenbank nicht (mehr) gibt. Es geht als
+     * `created_by_user_id` in `Sponsorship::create()`, der Fremdschlüssel weist
+     * die Zeile ab, der `try`-Block schluckt die Ausnahme - und die Anhänge,
+     * um die es dem Test geht, werden nie verarbeitet. Die Zusicherung fiel
+     * damit über eine Ursache, die zwei Testklassen weiter lag.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $_SESSION = [];
+    }
+
     public function testCreateSponsorshipLogsUploadRejectedForOversizedAttachmentWithoutFilename(): void
     {
         Bootstrap::setupTestDatabase();

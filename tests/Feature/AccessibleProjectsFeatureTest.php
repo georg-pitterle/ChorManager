@@ -128,4 +128,30 @@ class AccessibleProjectsFeatureTest extends TestCase
             'Fehlt die Sitzungskennung, ist die leere Liste die sichere Richtung.'
         );
     }
+
+    /**
+     * Die Zuordnung läuft über einen JOIN auf project_users. Dass dabei kein
+     * Projekt doppelt herauskommt, hängt allein am Primärschlüssel
+     * (project_id, user_id) - ein `distinct()` stand in der Abfrage lange
+     * zusätzlich daneben und ließ offen, ob Doppelte überhaupt möglich sind.
+     * Fällt der Schlüssel jemals, fällt dieser Test.
+     */
+    public function testEveryProjectAppearsExactlyOnce(): void
+    {
+        Capsule::table('project_users')->insert([
+            'user_id' => $this->userId,
+            'project_id' => $this->foreignProjectId,
+        ]);
+
+        $ids = $this->knownProjectIdsIn($this->query()->getAccessibleProjects($this->userId, false));
+
+        $expected = [$this->ownProjectId, $this->foreignProjectId];
+        sort($expected);
+
+        $this->assertSame(
+            $expected,
+            $ids,
+            'Der JOIN auf project_users darf kein Projekt mehrfach liefern.'
+        );
+    }
 }
