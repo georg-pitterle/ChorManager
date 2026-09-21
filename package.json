@@ -9,30 +9,27 @@
     "e2e:headed": "playwright test --config tests/e2e/playwright.config.mjs --headed --workers=1"
   },
   "dependencies": {
-    "@fullcalendar/core": "^6.1.15",
-    "@fullcalendar/daygrid": "^6.1.15",
-    "@fullcalendar/interaction": "^6.1.15",
-    "@fullcalendar/list": "^6.1.15",
-    "@fullcalendar/timegrid": "^6.1.15",
     "bootstrap": "5.3.8",
     "bootstrap-icons": "1.13.1",
+    "fullcalendar": "7.1.0",
     "html-midi-player": "1.6.0",
     "pdfjs-dist": "6.3.289",
     "sortablejs": "^1.15.7",
-    "tinymce": "8.8.2",
-    "tinymce-i18n": "26.8.2",
+    "temporal-polyfill": "1.0.5",
+    "tinymce": "8.9.1",
+    "tinymce-i18n": "26.9.14",
     "tom-select": "^2.4.3"
   },
   "overrides": {
     "minimist": "0.2.4",
-    "protobufjs": "^8.7.2",
+    "protobufjs": "^8.8.0",
     "static-eval": "^2.1.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.63.0"
   },
   "allowScripts": {
     "core-js@3.50.0": true,
-    "protobufjs@8.7.2": true
+    "protobufjs@8.8.0": true
   }
 }

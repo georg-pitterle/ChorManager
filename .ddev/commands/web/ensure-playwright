@@ -29,14 +29,12 @@ if [ ! -d node_modules/playwright ] && [ ! -d node_modules/playwright-core ]; th
     exit 0
 fi
 
-# Vorhandene Installation erkennen: das Verzeichnis enthaelt pro Browser einen
-# Ordner wie chromium_headless_shell-1234.
-if compgen -G "$BROWSERS_PATH/chromium*" >/dev/null; then
-    echo "playwright-browser bereit unter $BROWSERS_PATH"
-    exit 0
-fi
-
-echo "Lade Playwright-Chromium nach $BROWSERS_PATH ..."
+# Kein eigener Test auf ein vorhandenes chromium*-Verzeichnis: Jede
+# Playwright-Version erwartet eine bestimmte Browser-Revision. Der alte Test sah
+# nach einem Update die Revision der Vorversion, meldete "bereit", und die
+# E2E-Tests fanden ihren Browser nicht. `playwright install` prüft die Revision
+# selbst, lädt nur, was fehlt, und räumt nicht mehr benutzte Revisionen ab.
+echo "Prüfe Playwright-Chromium unter $BROWSERS_PATH ..."
 OWNER_NAME="$(getent passwd "$OWNER_UID" | cut -d: -f1)"
 
 if [ "$(id -u)" = "0" ] && [ -n "$OWNER_NAME" ]; then

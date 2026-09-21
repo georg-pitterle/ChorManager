@@ -105,17 +105,30 @@ function copyAssets(): void
         throw new RuntimeException("Failed to copy $source to $dest");
     }
 
-    foreach (['core', 'daygrid', 'timegrid', 'interaction', 'list'] as $pkg) {
-        $source = "node_modules/@fullcalendar/{$pkg}/index.global.min.js";
-        $dest   = "public/vendor/fullcalendar/{$pkg}/index.global.min.js";
+    // FullCalendar 7 bringt alle Ansichten in einem Bündel mit; Sprache und
+    // Theme hängen sich als eigene Skripte daran. Das CSS lädt es nicht mehr
+    // selbst nach, es liegt als Grundgerüst plus Theme daneben.
+    $fullCalendarFiles = [
+        'all/global.js' => 'fullcalendar.global.js',
+        'locales/de/global.js' => 'locales/de.global.js',
+        'themes/classic/global.js' => 'themes/classic.global.js',
+        'skeleton.css' => 'skeleton.css',
+        'themes/classic/theme.css' => 'themes/classic.theme.css',
+        'themes/classic/palette.css' => 'themes/classic.palette.css',
+    ];
+    foreach ($fullCalendarFiles as $from => $to) {
+        $source = "node_modules/fullcalendar/{$from}";
+        $dest   = "public/vendor/fullcalendar/{$to}";
         @mkdir(dirname($dest), 0755, true);
         if (!copy($source, $dest)) {
             throw new RuntimeException("Failed to copy $source to $dest");
         }
     }
 
-    $source = 'node_modules/@fullcalendar/core/locales/de.global.min.js';
-    $dest   = 'public/vendor/fullcalendar/core/locales/de.global.min.js';
+    // FullCalendar 7 rechnet mit Temporal. Browser ohne eingebautes Temporal
+    // bekommen es über die Nachrüstung, die sich nur einträgt, wo es fehlt.
+    $source = 'node_modules/temporal-polyfill/global.js';
+    $dest   = 'public/vendor/temporal-polyfill/global.js';
     @mkdir(dirname($dest), 0755, true);
     if (!copy($source, $dest)) {
         throw new RuntimeException("Failed to copy $source to $dest");

@@ -11,7 +11,7 @@
 # FullCalendar, Icons) - ihr Ergebnis ist auf beiden Architekturen dasselbe.
 # Käme je ein Paket mit kompilierten Bestandteilen dazu, müsste es an dieser
 # Stelle wieder architekturabhängig gebaut werden.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS assets
+FROM --platform=$BUILDPLATFORM node:24-alpine AS assets
 
 WORKDIR /assets
 

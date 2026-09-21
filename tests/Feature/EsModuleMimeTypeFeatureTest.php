@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
  *   freigegebenen MIME-Typs ("application/octet-stream") blockiert.
  *
  * Die Datei war da und wurde mit 200 ausgeliefert. Nur der MIME-Typ stimmte nicht:
- * `/etc/nginx/mime.types` im Image `nginx:1.28-alpine` kennt `js`, aber kein `mjs`,
+ * `/etc/nginx/mime.types` im Image `nginx:1.30-alpine` kennt `js`, aber kein `mjs`,
  * und damit greift `default_type application/octet-stream`. Browser prüfen den
  * MIME-Typ eines ES-Moduls streng und verweigern die Ausführung - anders als bei
  * einem klassischen `<script src>`, das sie durchgewinkt hätten.
