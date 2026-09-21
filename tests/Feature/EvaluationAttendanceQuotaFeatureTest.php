@@ -59,7 +59,22 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
 
         // Volle Sicht auf alle Projekte: hier geht es um die Quotenberechnung,
         // nicht um die Projektsichtbarkeit.
-        $_SESSION = ['user_id' => 0, 'can_manage_attendance_all' => true];
+        //
+        // Die auswertende Person wird wirklich angelegt. Vorher stand hier
+        // `user_id => 0` - eine Abkürzung, die nur trug, solange
+        // ProjectQuery::getAccessibleProjects() das übergreifende Recht vor der
+        // Sitzungskennung prüfte und deshalb auch ohne Kennung alle Projekte
+        // lieferte. Seit die Kennung zuerst geprüft wird (Antwort 2 aus dem
+        // Review-Lauf 25), ist 0 genau das, was es immer war: keine Sitzung.
+        $evaluator = User::create([
+            'first_name' => 'Auswertung',
+            'last_name' => 'Testperson ' . bin2hex(random_bytes(4)),
+            'email' => 'quota-evaluator-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => PasswordHasher::hash('test123'),
+            'is_active' => true,
+        ]);
+
+        $_SESSION = ['user_id' => (int) $evaluator->id, 'can_manage_attendance_all' => true];
     }
 
     protected function tearDown(): void

@@ -6,6 +6,9 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
@@ -26,11 +29,16 @@ class SponsorshipController
 
     private SponsoringPolicy $policy;
     private EntityAttachmentService $attachments;
+    private LoggerInterface $logger;
 
-    public function __construct(SponsoringPolicy $policy, EntityAttachmentService $attachments)
-    {
+    public function __construct(
+        SponsoringPolicy $policy,
+        EntityAttachmentService $attachments,
+        ?LoggerInterface $logger = null
+    ) {
         $this->policy = $policy;
         $this->attachments = $attachments;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -114,7 +122,15 @@ class SponsorshipController
 
             $_SESSION['success'] = 'Vereinbarung erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ';
+            // Der Grund gehört ins Protokoll, nicht vor die Augen des
+            // Sponsoring-Teams: Hier stand früher der rohe SQLSTATE-Text des
+            // Treibers, dann nur noch der Doppelpunkt, der von ihm übrig blieb.
+            $this->logger->error('Creating a sponsorship failed.', [
+                'event' => 'sponsorship.create.failed',
+                'sponsor_id' => $sponsorId,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Vereinbarung konnte nicht angelegt werden.';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -174,8 +190,19 @@ class SponsorshipController
             $this->handleAttachments($request, $sponsorship->id);
 
             $_SESSION['success'] = 'Vereinbarung erfolgreich aktualisiert.';
+        } catch (ModelNotFoundException $e) {
+            // Der häufigste Weg hierher: Die Seite lag offen, während jemand
+            // anderes dieselbe Vereinbarung entfernt hat. Kein Betriebsfehler.
+            $_SESSION['error'] = 'Die Vereinbarung wurde nicht gefunden. '
+                . 'Möglicherweise wurde sie bereits gelöscht.';
+            $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
+            $this->logger->error('Updating a sponsorship failed.', [
+                'event' => 'sponsorship.update.failed',
+                'sponsorship_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Vereinbarung konnte nicht aktualisiert werden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -203,8 +230,17 @@ class SponsorshipController
             $this->attachments->deleteAllForEntities(self::ENTITY_TYPE, [$id]);
             $sponsorship->delete();
             $_SESSION['success'] = 'Vereinbarung erfolgreich gelöscht.';
+        } catch (ModelNotFoundException $e) {
+            $_SESSION['error'] = 'Die Vereinbarung wurde nicht gefunden. '
+                . 'Möglicherweise wurde sie bereits gelöscht.';
+            $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+            $this->logger->error('Deleting a sponsorship failed.', [
+                'event' => 'sponsorship.delete.failed',
+                'sponsorship_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Vereinbarung konnte nicht gelöscht werden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 

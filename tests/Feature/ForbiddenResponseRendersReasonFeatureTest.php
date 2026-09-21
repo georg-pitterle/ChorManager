@@ -86,7 +86,8 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
         $controller = new EventController(
             $this->createAppTwig('/events'),
             new NameFormatterService(),
-            new NullLogger()
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
         );
 
         $response = $controller->index(
@@ -104,7 +105,8 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
         $controller = new EventController(
             $this->createAppTwig('/events'),
             new NameFormatterService(),
-            new NullLogger()
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
         );
 
         $response = $controller->detail(

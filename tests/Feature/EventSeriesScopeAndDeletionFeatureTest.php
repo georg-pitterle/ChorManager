@@ -20,6 +20,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 /**
  * Serienänderung, Serienlöschung und Zielgruppen-Quellen.
@@ -52,7 +53,12 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController($twig, new NameFormatterService(), new NullLogger());
+        $this->controller = new EventController(
+            $twig,
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
 
         $this->series = EventSeries::create([
             'frequency' => 'weekly',

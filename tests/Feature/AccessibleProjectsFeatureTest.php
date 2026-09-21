@@ -130,6 +130,26 @@ class AccessibleProjectsFeatureTest extends TestCase
     }
 
     /**
+     * Auch das übergreifende Recht hilft ohne Sitzungskennung nicht weiter.
+     *
+     * Vorher stand die Rechteprüfung zuerst: Mit dem Recht und userId = 0 kamen
+     * alle Projekte zurück, obwohl der Kommentar der Methode "Ohne
+     * Sitzungsnutzer bleibt die Liste leer" versprach. Hinter der AuthMiddleware
+     * war das nicht erreichbar - aber eine Zusicherung, die nur deshalb hält,
+     * weil niemand die Methode direkt aufruft, ist keine.
+     */
+    public function testBroadRightWithoutUserIdStaysEmpty(): void
+    {
+        $projects = $this->query()->getAccessibleProjects(0, true);
+
+        $this->assertCount(
+            0,
+            $projects,
+            'Ohne Kennung bleibt die Liste leer, auch mit dem übergreifenden Recht.'
+        );
+    }
+
+    /**
      * Die Zuordnung läuft über einen JOIN auf project_users. Dass dabei kein
      * Projekt doppelt herauskommt, hängt allein am Primärschlüssel
      * (project_id, user_id) - ein `distinct()` stand in der Abfrage lange

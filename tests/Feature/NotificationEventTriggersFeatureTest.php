@@ -23,6 +23,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 /**
  * Die Termin-Auslöser.
@@ -59,6 +60,7 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             $twig,
             new NameFormatterService(),
             new NullLogger(),
+            new ProjectQuery(new NameFormatterService()),
             new NotificationService(
                 new MailQueueService(),
                 Twig::create(dirname(__DIR__, 2) . '/templates'),

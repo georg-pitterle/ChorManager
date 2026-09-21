@@ -55,19 +55,24 @@ class ProjectQuery
      * hielten dafür bis hierher je eine wortgleiche Kopie.
      *
      * Ohne Sitzungsnutzer bleibt die Liste leer statt vollständig - das ist die
-     * sichere Richtung, wenn die Kennung fehlt.
+     * sichere Richtung, wenn die Kennung fehlt. Die Prüfung steht **vor** der
+     * Rechtefrage: Stand sie dahinter, lieferte das übergreifende Recht mit
+     * userId = 0 sämtliche Projekte, während dieser Absatz das Gegenteil
+     * versprach. Hinter der AuthMiddleware war das nicht erreichbar - aber eine
+     * Zusicherung, die nur deshalb hält, weil niemand die Methode direkt
+     * aufruft, ist keine.
      */
     public function getAccessibleProjects(int $userId, bool $seesAllProjects): Collection
     {
-        if ($seesAllProjects) {
-            return $this->getAllProjects();
-        }
-
         if ($userId <= 0) {
             // Leer ohne Datenbankzugriff - dieselbe Abkürzung wie in
             // getUsersNotInProjectForVoiceGroups(). Eine Abfrage, deren Ergebnis
             // schon feststeht, kostet nur eine Runde zum Server.
             return new Collection();
+        }
+
+        if ($seesAllProjects) {
+            return $this->getAllProjects();
         }
 
         // Ohne distinct(): project_users hat den Primärschlüssel (project_id, user_id),

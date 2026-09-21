@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\AppSettingController;
 use App\Controllers\AttachmentController;
 use App\Controllers\AuthController;
+use App\Controllers\EventController;
 use App\Controllers\EventTypeController;
 use App\Controllers\FinanceController;
 use App\Controllers\MailQueueController;
@@ -14,6 +15,7 @@ use App\Controllers\PasswordResetController;
 use App\Controllers\ProfileController;
 use App\Controllers\RoleController;
 use App\Controllers\SongLibraryController;
+use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
 use App\Services\EntityAttachmentService;
 use App\Controllers\TaskController;
@@ -23,6 +25,7 @@ use App\Logging\DatabaseWriteLogger;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
 use App\Persistence\UserPersistence;
+use App\Queries\ProjectQuery;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\BackupService;
 use App\Services\Mailer;
@@ -338,13 +341,33 @@ final class DependenciesContainerWiringTest extends TestCase
 
         $this->assertInstanceOf(SponsorshipController::class, $controller);
 
-        // Protokolliert wird seit dem gemeinsamen Anhang-Dienst dort, nicht mehr
-        // im Controller: eine abgelehnte Datei muss weiterhin im echten Log
-        // landen und nicht in einem NullLogger.
+        // Eine abgelehnte Datei protokolliert der gemeinsame Anhang-Dienst.
         $this->assertInstanceOf(
             Logger::class,
             $this->loggerPropertyOf($container->get(EntityAttachmentService::class))
         );
+
+        // Seit Punkt 5 aus dem Review-Lauf 25 hat der Controller auch einen
+        // eigenen Logger - und damit `?LoggerInterface $logger = null`, also
+        // genau die Signatur, an der PHP-DI still vorbeiautowired.
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
+    }
+
+    /**
+     * Dieselbe Falle beim Paket-Controller: Ohne eigene Factory bekäme er im
+     * Betrieb einen NullLogger, die frisch ergänzten
+     * sponsor_package.*.failed-Einträge landeten nie im Protokoll - und
+     * SponsoringErrorFeedbackFeatureTest bliebe mit seinem handgereichten
+     * Logger trotzdem grün.
+     */
+    public function testSponsorPackageControllerResolvesWithRealLogger(): void
+    {
+        $container = $this->buildContainer();
+
+        $controller = $container->get(SponsorPackageController::class);
+
+        $this->assertInstanceOf(SponsorPackageController::class, $controller);
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
     }
 
     public function testTaskControllerResolvesWithRealLogger(): void
@@ -428,5 +451,28 @@ final class DependenciesContainerWiringTest extends TestCase
         foreach (['finance', 'sponsoring', 'tasks'] as $module) {
             $this->assertArrayHasKey($module, $modules, $module . ' fehlt im Modul-Array der Registry');
         }
+    }
+
+    /**
+     * Antwort 3 aus dem Review-Lauf 25: EventController baute sich seine
+     * ProjectQuery zweimal pro Anfrage selbst, obwohl der Container dieselbe
+     * Klasse längst bereithält.
+     *
+     * Geprüft wird die Identität, nicht nur der Typ. Ein `new ProjectQuery(...)`
+     * im Rumpf hätte denselben Typ - nur eben nicht dieselbe Instanz, die der
+     * Container gebaut hat. Genau diesen Rückfall soll der Test bemerken.
+     */
+    public function testEventControllerReceivesTheContainersProjectQuery(): void
+    {
+        $container = $this->buildContainer();
+
+        $controller = $container->get(EventController::class);
+
+        $this->assertInstanceOf(EventController::class, $controller);
+        $this->assertSame(
+            $container->get(ProjectQuery::class),
+            $this->propertyOf($controller, 'projectQuery'),
+            'EventController muss die ProjectQuery des Containers bekommen, keine eigene.'
+        );
     }
 }

@@ -60,11 +60,19 @@ class UserQuery
      * kosten hier vier zusätzliche Abfragen pro Seitenaufruf, die niemand liest.
      * Die Spaltenauswahl hält zusätzlich den Passwort-Hash aus einer Abfrage
      * heraus, die auf jedem Seitenaufruf läuft.
+     *
+     * Deaktivierte Konten bleiben draußen. Die drei Aufrufstellen prüfen das
+     * bis heute selbst, eine Lücke war es also nie - aber eine vierte könnte
+     * die Prüfung vergessen, und ein archiviertes Konto hätte wieder eine
+     * gültige Sitzung. Am Verhalten ändert der Filter nichts: alle drei
+     * behandeln "nicht gefunden" und "deaktiviert" gleich. Dieselbe Grenze wie
+     * in findByEmail().
      */
     public function findForSession(int $id): ?User
     {
         return User::select(User::LIST_COLUMNS)
             ->with(self::SESSION_RELATIONS)
+            ->where('is_active', 1)
             ->find($id);
     }
 

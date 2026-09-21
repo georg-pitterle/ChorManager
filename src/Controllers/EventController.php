@@ -70,6 +70,7 @@ class EventController
     private Twig $view;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
+    private ProjectQuery $projectQuery;
 
     private ?NotificationService $notificationService;
 
@@ -85,11 +86,13 @@ class EventController
         Twig $view,
         NameFormatterService $nameFormatter,
         LoggerInterface $logger,
+        ProjectQuery $projectQuery,
         ?NotificationService $notificationService = null
     ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
+        $this->projectQuery = $projectQuery;
         $this->notificationService = $notificationService;
     }
 
@@ -822,13 +825,17 @@ class EventController
 
     /**
      * Dieselbe Auswahl wie in den Auswertungen, deshalb liegt sie in ProjectQuery.
-     * Der Konstruktor bleibt unverändert: NameFormatterService ist ohnehin da, und
-     * ein zusätzlicher Parameter hätte jede Aufrufstelle im Container und in sechs
-     * Testdateien angefasst.
+     *
+     * Die Abfrage kam hier lange aus einem `new ProjectQuery(...)` im Rumpf - mit
+     * der Begründung, ein weiterer Konstruktor-Parameter hätte den Container und
+     * sechs Testdateien angefasst. Der Aufwand war einmalig, der Sonderweg blieb:
+     * Jeder Aufruf baute sich seine eigene Instanz, während der Container
+     * dieselbe Klasse längst fertig bereithält und jeder andere Controller sie
+     * sich reichen lässt.
      */
     private function getAccessibleProjects(int $userId, bool $seesAllEvents)
     {
-        return (new ProjectQuery($this->nameFormatter))->getAccessibleProjects($userId, $seesAllEvents);
+        return $this->projectQuery->getAccessibleProjects($userId, $seesAllEvents);
     }
 
     public function create(Request $request, Response $response): Response

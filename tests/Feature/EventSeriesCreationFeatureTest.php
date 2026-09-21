@@ -15,6 +15,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 /**
  * Serienanlage in EventController::save().
@@ -41,7 +42,12 @@ final class EventSeriesCreationFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController($twig, new NameFormatterService(), new NullLogger());
+        $this->controller = new EventController(
+            $twig,
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $_SESSION = ['user_id' => 1, 'can_manage_events' => true];
     }
 

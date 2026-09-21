@@ -23,6 +23,7 @@ use Slim\Psr7\Response as SlimResponse;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 use Twig\Loader\ArrayLoader;
+use App\Queries\ProjectQuery;
 
 /**
  * Antworten auf die Rückfragen aus dem Review-Lauf 21.
@@ -79,7 +80,8 @@ class ReviewAnswersRun21FeatureTest extends TestCase
         return new EventController(
             new Twig(new ArrayLoader([])),
             new NameFormatterService(),
-            $logger ?? new NullLogger()
+            $logger ?? new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
         );
     }
 
@@ -151,7 +153,8 @@ class ReviewAnswersRun21FeatureTest extends TestCase
         $controller = new EventController(
             new Twig(new ArrayLoader([])),
             new NameFormatterService(),
-            $logger
+            $logger,
+            new ProjectQuery(new NameFormatterService())
         );
         $controller->create(
             $this->makeRequest('POST', '/events', $this->eventForm(['title' => str_repeat('x', 300)])),

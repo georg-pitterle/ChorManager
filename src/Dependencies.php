@@ -87,6 +87,8 @@ use App\Navigation\NavigationContext;
 use App\Util\AttachmentPreview;
 use App\Util\EnvHelper;
 use App\Policies\ProjectMemberPolicy;
+use App\Controllers\SponsorPackageController;
+use App\Controllers\SponsorshipController;
 use App\Policies\SponsoringPolicy;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\AttachmentResponseFactory;
@@ -240,6 +242,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(NameFormatterService::class),
                 $c->get(LoggerInterface::class),
+                $c->get(ProjectQuery::class),
                 $c->get(NotificationService::class)
             );
         },
@@ -332,6 +335,24 @@ return function (ContainerBuilder $containerBuilder) {
         },
         VoiceGroupController::class => function (ContainerInterface $c) {
             return new VoiceGroupController($c->get(Twig::class), $c->get(LoggerInterface::class));
+        },
+        // Beide Sponsoring-Controller tragen `?LoggerInterface $logger = null`.
+        // PHP-DI autowired optionale Parameter nicht, sondern nimmt den
+        // Vorgabewert - ohne diese beiden Einträge hätten sie im Betrieb still
+        // einen NullLogger. Siehe DependenciesContainerWiringTest.
+        SponsorshipController::class => function (ContainerInterface $c) {
+            return new SponsorshipController(
+                $c->get(SponsoringPolicy::class),
+                $c->get(EntityAttachmentService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
+        SponsorPackageController::class => function (ContainerInterface $c) {
+            return new SponsorPackageController(
+                $c->get(Twig::class),
+                $c->get(SponsoringPolicy::class),
+                $c->get(LoggerInterface::class)
+            );
         },
         MailQueueController::class => function (ContainerInterface $c) {
             return new MailQueueController(

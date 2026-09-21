@@ -6,6 +6,9 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Slim\Views\Twig;
 use App\Models\SponsorPackage;
 use App\Policies\SponsoringPolicy;
@@ -16,11 +19,13 @@ class SponsorPackageController
 
     private Twig $view;
     private SponsoringPolicy $policy;
+    private LoggerInterface $logger;
 
-    public function __construct(Twig $view, SponsoringPolicy $policy)
+    public function __construct(Twig $view, SponsoringPolicy $policy, ?LoggerInterface $logger = null)
     {
         $this->view = $view;
         $this->policy = $policy;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function index(Request $request, Response $response): Response
@@ -66,7 +71,13 @@ class SponsorPackageController
             ]);
             $_SESSION['success'] = 'Paket erfolgreich angelegt.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Anlegen: ';
+            // Wie in SponsorshipController: Der Treibertext gehört ins Protokoll,
+            // der Doppelpunkt dahinter war der Rest, den sein Ausbau hinterließ.
+            $this->logger->error('Creating a sponsor package failed.', [
+                'event' => 'sponsor_package.create.failed',
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Das Paket konnte nicht angelegt werden.';
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
@@ -100,8 +111,18 @@ class SponsorPackageController
                 'color'       => $data['color'] ?? 'info',
             ]);
             $_SESSION['success'] = 'Paket erfolgreich aktualisiert.';
+        } catch (ModelNotFoundException $e) {
+            // Der häufigste Weg hierher: Die Seite lag offen, während jemand
+            // anderes dasselbe Paket entfernt hat. Kein Betriebsfehler.
+            $_SESSION['error'] = 'Das Paket wurde nicht gefunden. '
+                . 'Möglicherweise wurde es bereits gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren: ';
+            $this->logger->error('Updating a sponsor package failed.', [
+                'event' => 'sponsor_package.update.failed',
+                'sponsor_package_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Das Paket konnte nicht aktualisiert werden.';
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
@@ -119,8 +140,16 @@ class SponsorPackageController
             }
             $package->delete();
             $_SESSION['success'] = 'Paket erfolgreich gelöscht.';
+        } catch (ModelNotFoundException $e) {
+            $_SESSION['error'] = 'Das Paket wurde nicht gefunden. '
+                . 'Möglicherweise wurde es bereits gelöscht.';
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Fehler beim Löschen: ';
+            $this->logger->error('Deleting a sponsor package failed.', [
+                'event' => 'sponsor_package.delete.failed',
+                'sponsor_package_id' => $id,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Das Paket konnte nicht gelöscht werden.';
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);

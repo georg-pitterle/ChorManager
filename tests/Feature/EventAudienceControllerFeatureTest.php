@@ -15,6 +15,7 @@ use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 /**
  * Ein Termin ohne Zielgruppen-Quellen gilt für alle Mitglieder. Beim Speichern
@@ -48,7 +49,8 @@ final class EventAudienceControllerFeatureTest extends TestCase
         return new EventController(
             Twig::create(dirname(__DIR__, 2) . '/templates'),
             new NameFormatterService(),
-            new NullLogger()
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
         );
     }
 

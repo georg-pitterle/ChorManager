@@ -23,6 +23,8 @@ use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
+use App\Queries\ProjectQuery;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class EventFeatureTest extends TestCase
 {
@@ -183,7 +185,12 @@ class EventFeatureTest extends TestCase
             'location' => null,
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
 
         $request = $this->makeRequest('GET', '/events?show_old_events=1', [], ['show_old_events' => '1']);
         $response = $this->makeResponse();
@@ -234,7 +241,12 @@ class EventFeatureTest extends TestCase
             'location' => null,
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest(
             'GET',
             '/events?show_old_events=1&project_id=' . $project->id . '&event_type_id=' . $eventType->id,
@@ -304,7 +316,12 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventRequiresAllTimeFields(): void
     {
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         unset($_SESSION['error']);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Missing Time',
@@ -320,7 +337,12 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventRejectsInvertedTimeRange(): void
     {
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         unset($_SESSION['error']);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Bad Times',
@@ -337,7 +359,12 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventValidationErrorKeepsEnteredModalValues(): void
     {
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Probe Dienstag',
             'starts_at' => '2026-06-10',
@@ -371,7 +398,12 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventStoresTimeRange(): void
     {
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Probe Montag',
             'starts_at' => '2026-05-01',
@@ -396,7 +428,12 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
             'title' => 'New Probe',
             'starts_at' => '2026-05-08',
@@ -421,7 +458,12 @@ class EventFeatureTest extends TestCase
             'location' => 'Saal',
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
             'title' => 'Neue Probe',
             'starts_at' => '2026-06-10',
@@ -482,7 +524,12 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('POST', '/events/' . $event1->id . '/update', [
             'title' => 'Probe',
             'starts_at' => '2026-05-05',
@@ -805,7 +852,12 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
             'content' => 'Neue private Bemerkung',
             'is_private' => '1',
@@ -848,7 +900,12 @@ class EventFeatureTest extends TestCase
             'is_private' => true,
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Aktualisierte private Bemerkung',
         ]);
@@ -901,7 +958,12 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Manipulationsversuch',
         ]);
@@ -949,7 +1011,12 @@ class EventFeatureTest extends TestCase
             'is_private' => false,
         ]);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Sollte nie gespeichert werden',
         ]);
@@ -999,7 +1066,12 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = true;
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Von Bearbeiter aktualisiert',
         ]);
@@ -1078,7 +1150,12 @@ class EventFeatureTest extends TestCase
 
         $twig = $this->createTwig();
 
-        $controller = new EventController($twig, new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $twig,
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('GET', '/events', [], $queryParams);
         $response = $this->makeResponse();
 
@@ -1092,7 +1169,12 @@ class EventFeatureTest extends TestCase
         $_SERVER['REQUEST_URI'] = '/events/' . $eventId;
 
         $twig = $this->createTwig();
-        $controller = new EventController($twig, new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $twig,
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('GET', '/events/' . $eventId);
         $response = $this->makeResponse();
 
@@ -1104,7 +1186,12 @@ class EventFeatureTest extends TestCase
     private function renderEventCalendarExport(string $token)
     {
         $twig = $this->createTwig();
-        $controller = new EventController($twig, new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $twig,
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
         $request = $this->makeRequest('GET', '/events/export/' . $token . '.ics');
         $response = $this->makeResponse();
 
@@ -1199,5 +1286,43 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_events'] = false;
         $body = $this->renderEventsIndex(['view' => 'calendar']);
         $this->assertStringNotContainsString('data-calendar-admin', $body);
+    }
+
+    /**
+     * Antwort 3 aus dem Review-Lauf 25: Der Controller muss die übergebene
+     * ProjectQuery auch benutzen, nicht nur entgegennehmen.
+     *
+     * DependenciesContainerWiringTest prüft, dass der Container seine Instanz
+     * hineinreicht - das bleibt aber auch dann grün, wenn der Rumpf sich
+     * daneben weiterhin ein eigenes `new ProjectQuery(...)` baut. Genau das
+     * stand hier vorher, also fängt dieser Späher den Rückfall ab.
+     */
+    public function testEventListUsesTheInjectedProjectQuery(): void
+    {
+        $spy = new class (new NameFormatterService()) extends ProjectQuery {
+            public int $calls = 0;
+
+            public function getAccessibleProjects(int $userId, bool $seesAllProjects): EloquentCollection
+            {
+                $this->calls++;
+
+                return parent::getAccessibleProjects($userId, $seesAllProjects);
+            }
+        };
+
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            $spy
+        );
+
+        $controller->index($this->makeRequest('GET', '/events'), $this->makeResponse());
+
+        $this->assertGreaterThan(
+            0,
+            $spy->calls,
+            'Die Terminliste muss die eingereichte ProjectQuery benutzen, keine selbstgebaute.'
+        );
     }
 }

@@ -18,6 +18,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 /**
  * Kalender-Abo eines archivierten Mitglieds.
@@ -99,7 +100,8 @@ final class CalendarFeedInactiveUserFeatureTest extends TestCase
         $controller = new EventController(
             $this->createStub(Twig::class),
             new NameFormatterService(),
-            new NullLogger()
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
         );
 
         return $controller->exportCalendar(

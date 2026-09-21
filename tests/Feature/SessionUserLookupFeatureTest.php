@@ -177,4 +177,25 @@ class SessionUserLookupFeatureTest extends TestCase
 
         $this->assertSame('Sopran 1', $user->subVoices->first()->name);
     }
+
+    /**
+     * Ein deaktiviertes Mitglied kommt aus dem Sitzungs-Lookup gar nicht mehr
+     * zurück.
+     *
+     * Die drei Aufrufstellen (AuthMiddleware zweimal, AuthController einmal)
+     * prüfen `is_active` bis heute selbst, eine Lücke war das also nie. Der
+     * Filter liegt trotzdem zusätzlich in der Abfrage: Eine vierte Aufrufstelle
+     * könnte die Prüfung vergessen, und dann hätte ein archiviertes Konto
+     * wieder eine gültige Sitzung. Am Verhalten ändert das nichts - alle drei
+     * behandeln "nicht gefunden" und "deaktiviert" ohnehin gleich.
+     */
+    public function testSitzungsLookupUebergehtDeaktivierteMitglieder(): void
+    {
+        User::where('id', $this->userId)->update(['is_active' => 0]);
+
+        $this->assertNull(
+            $this->query()->findForSession($this->userId),
+            'Ein deaktiviertes Konto darf keine Sitzung mehr tragen.'
+        );
+    }
 }

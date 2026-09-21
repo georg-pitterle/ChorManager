@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
+use App\Queries\ProjectQuery;
 
 /**
  * Serienanlage: Takt und Intervall kommen aus dem Formular und steuern die
@@ -227,7 +228,12 @@ class EventSeriesRecurrenceValidationFeatureTest extends TestCase
             'series_end_date' => $start->copy()->addDays(21)->format('Y-m-d'),
         ], $overrides);
 
-        $controller = new EventController($this->createTwig(), new NameFormatterService(), new NullLogger());
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
 
         return $controller->create(
             $this->makeRequest('POST', '/events', $payload),

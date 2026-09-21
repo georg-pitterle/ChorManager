@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 class EventRegistrationSettingsFeatureTest extends TestCase
 {
@@ -55,7 +56,8 @@ class EventRegistrationSettingsFeatureTest extends TestCase
         return new EventController(
             Twig::create(dirname(__DIR__) . '/../templates'),
             new NameFormatterService(),
-            new NullLogger()
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
         );
     }
 

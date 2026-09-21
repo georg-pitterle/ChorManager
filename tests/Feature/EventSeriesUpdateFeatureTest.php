@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
+use App\Queries\ProjectQuery;
 
 /**
  * Serienbearbeitung in EventController::update().
@@ -43,7 +44,12 @@ final class EventSeriesUpdateFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController($twig, new NameFormatterService(), new NullLogger());
+        $this->controller = new EventController(
+            $twig,
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
 
         $this->series = EventSeries::create([
             'frequency' => 'weekly',
