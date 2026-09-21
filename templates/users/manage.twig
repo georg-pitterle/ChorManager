@@ -227,6 +227,15 @@
                                             </td>
                                         {% endif %}
                                         <td data-label="Aktionen" class="text-end">
+                                            {% set _is_self = user.id == session.user_id %}
+                                            {% set _role_ok = can_archive_member[user.id]|default(false) %}
+                                            {% set _may_archive = _role_ok and not _is_self %}
+                                            {% set _archive_title = "Archivieren" %}
+                                            {% if _is_self %}
+                                                {% set _archive_title = "Du kannst deinen eigenen Account nicht deaktivieren" %}
+                                            {% elseif not _role_ok %}
+                                                {% set _archive_title = "Erst alle Rollen bis auf die einfache Mitgliedschaft abnehmen" %}
+                                            {% endif %}
                                             {% if show_archived %}
                                                 <div class="btn-group"
                                                      role="group"
@@ -266,7 +275,8 @@
                                                                       data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
                                                                     <button type="submit"
                                                                             class="dropdown-item text-danger"
-                                                                            {% if user.id == session.user_id %}disabled{% endif %}>
+                                                                            title="{{ _archive_title }}"
+                                                                            {% if not _may_archive %}disabled{% endif %}>
                                                                         <i class="bi bi-person-x-fill me-2"></i> Deaktivieren
                                                                     </button>
                                                                 </form>
@@ -278,7 +288,8 @@
                                                               data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
                                                             <button type="submit"
                                                                     class="btn btn-sm btn-outline-danger"
-                                                                    {% if user.id == session.user_id %}disabled{% endif %}>
+                                                                    title="{{ _archive_title }}"
+                                                                    {% if not _may_archive %}disabled{% endif %}>
                                                                 <i class="bi bi-person-x-fill me-2"></i> Deaktivieren
                                                             </button>
                                                         </form>

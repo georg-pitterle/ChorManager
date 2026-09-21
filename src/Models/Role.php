@@ -61,6 +61,23 @@ class Role extends Model
     public $timestamps = false;
 
     /**
+     * Das niedrigste vergebene Hierarchie-Level - der Maßstab dafür, ob ein
+     * Mitglied noch etwas hält, das über die reine Mitgliedschaft hinausgeht.
+     *
+     * Bewusst abgefragt statt auf 0 festgelegt: Die Rollen sind je Installation
+     * frei konfigurierbar, und nichts garantiert, dass eine davon auf 0 liegt.
+     * Wäre 0 fest verdrahtet, ließe sich in einer Installation mit der
+     * niedrigsten Rolle auf 10 überhaupt niemand mehr archivieren.
+     *
+     * Ohne jede Rolle gilt 0; ein Mitglied ohne Rolle hält dann ebenfalls
+     * nichts darüber.
+     */
+    public static function minimalHierarchyLevel(): int
+    {
+        return (int) (static::query()->min('hierarchy_level') ?? 0);
+    }
+
+    /**
      * Die Rechte kommen aus PERMISSIONS dazu, statt dort ein zweites Mal zu
      * stehen. Sonst wäre ein neues Recht anlegbar, ohne massenzuweisbar zu sein -
      * das Formular schriebe es dann stillschweigend nicht.

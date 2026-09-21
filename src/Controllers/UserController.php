@@ -34,6 +34,10 @@ class UserController
     private const LAST_MANAGER_MESSAGE = 'Das ist das letzte Mitglied mit Mitgliederverwaltung. '
         . 'Vergib das Recht zuerst an ein anderes Mitglied.';
 
+    /** Sperrgrund, solange das Mitglied noch mehr als die einfache Mitgliedschaft hält. */
+    private const ELEVATED_ROLE_MESSAGE = 'Dieses Mitglied hält noch eine Rolle mit erweiterten Rechten. '
+        . 'Nimm ihm zuerst alle Rollen bis auf die einfache Mitgliedschaft ab, dann lässt es sich archivieren.';
+
     private Twig $view;
     private UserQuery $userQuery;
     private UserPersistence $userPersistence;
@@ -41,6 +45,9 @@ class UserController
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
     private UserEditPolicy $userEditPolicy;
+
+    /** Merker für minimalRoleLevel(); null heißt "noch nicht ermittelt". */
+    private ?int $minimalRoleLevel = null;
 
     public function __construct(
         Twig $view,
@@ -130,9 +137,20 @@ class UserController
         $hasModalError = $createState['open_modal'];
 
         $canEditMember = [];
+        // Ob archiviert werden darf, hängt auch an den Rollen des Mitglieds -
+        // die Liste zeigt den Knopf deshalb nur, wo der Klick auch durchgeht.
+        // Absichtlich ohne die Prüfung auf den letzten Mitgliederverwalter: die
+        // kostet zwei Abfragen je Zeile, und sie trifft genau ein Mitglied, das
+        // beim Klick eine eigene Meldung bekommt.
+        $canArchiveMember = [];
+        $minimalRoleLevel = $this->minimalRoleLevel();
         foreach ($users as $user) {
             if ($this->userEditPolicy->canEdit($_SESSION, $user)) {
                 $canEditMember[(int) $user->id] = true;
+            }
+
+            if ($this->userEditPolicy->canDeactivate($_SESSION, $user, $minimalRoleLevel)) {
+                $canArchiveMember[(int) $user->id] = true;
             }
         }
 
@@ -156,6 +174,7 @@ class UserController
             'has_modal_error' => $hasModalError,
             'modal_form_create' => $createState,
             'can_edit_member' => $canEditMember,
+            'can_archive_member' => $canArchiveMember,
             'open_edit_user_id' => $openEditUserId,
         ]);
     }
@@ -617,6 +636,14 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
+        // Eigene Meldung statt der Sammelabweisung aus canDeactivateTargetUser():
+        // hier ist nichts verboten, sondern nur noch nicht vorbereitet, und die
+        // Meldung sagt, was zu tun ist.
+        if ($this->userEditPolicy->holdsRoleAboveMinimalLevel($targetUser, $this->minimalRoleLevel())) {
+            $_SESSION['error'] = self::ELEVATED_ROLE_MESSAGE;
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
         $targetUser->is_active = 0;
         $this->userPersistence->save($targetUser);
 
@@ -762,13 +789,33 @@ class UserController
         ));
     }
 
+    /**
+     * Darf dieses Mitglied archiviert werden? Befugnis, letzter Verwalter und
+     * die Rollenregel in einem - für die Sammelaktion, die pro Eintrag keinen
+     * eigenen Grund meldet, sondern nur zählt. deactivate() prüft dieselben drei
+     * Punkte einzeln, um jeden mit seiner eigenen Meldung zu beantworten.
+     */
     private function canDeactivateTargetUser(User $targetUser): bool
     {
         if ($this->isLastUserManager($targetUser)) {
             return false;
         }
 
-        return $this->canArchiveTargetUser($targetUser);
+        return $this->userEditPolicy->canDeactivate($_SESSION, $targetUser, $this->minimalRoleLevel());
+    }
+
+    /**
+     * Das niedrigste vergebene Rollen-Level, einmal je Anfrage ermittelt. Die
+     * Mitgliederliste fragt für jede Zeile danach; ohne diesen Merker stünde
+     * dieselbe Abfrage einmal pro Mitglied in der Liste.
+     */
+    private function minimalRoleLevel(): int
+    {
+        if ($this->minimalRoleLevel === null) {
+            $this->minimalRoleLevel = Role::minimalHierarchyLevel();
+        }
+
+        return $this->minimalRoleLevel;
     }
 
     /**

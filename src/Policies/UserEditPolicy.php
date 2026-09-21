@@ -112,6 +112,51 @@ class UserEditPolicy
     }
 
     /**
+     * True when the member may be archived - die Befugnis aus canArchive() und
+     * zusätzlich: das Mitglied hält keine Rolle mehr über dem niedrigsten
+     * vergebenen Level.
+     *
+     * Die Rollen kommen also zuerst herunter, dann das Konto ins Archiv. Der
+     * Grund steht an der Wiederherstellung: ein archiviertes Konto lässt sich
+     * nicht nur über die Mitgliederverwaltung zurückholen, sondern auch dadurch,
+     * dass jemand es einem Projekt zuordnet - ProjectPersistence::addProjectMember()
+     * aktiviert es dabei. Dieser Weg kennt die Rollenhierarchie bewusst nicht
+     * (siehe ProjectMemberPolicy). Trägt das Konto beim Archivieren nichts
+     * Erhöhtes mehr, kann er auch nichts Erhöhtes zurückholen.
+     *
+     * Die Regel greift nur in diese eine Richtung. canArchive() bleibt, wie es
+     * war, sonst steckten die vor dieser Regel archivierten Mitglieder mit ihren
+     * alten Rollen für immer im Archiv fest.
+     *
+     * @param array<string, mixed> $session
+     * @param int $minimalRoleLevel niedrigstes vergebenes Level, siehe Role::minimalHierarchyLevel()
+     */
+    public function canDeactivate(array $session, User $target, int $minimalRoleLevel): bool
+    {
+        return $this->canArchive($session, $target)
+            && !$this->holdsRoleAboveMinimalLevel($target, $minimalRoleLevel);
+    }
+
+    /**
+     * Hält das Mitglied mindestens eine Rolle über dem niedrigsten vergebenen
+     * Level? Mehrere Rollen auf dem Minimum sind unauffällig - entscheidend ist
+     * nicht ihre Anzahl, sondern ob eine davon darüber hinausreicht.
+     *
+     * Öffentlich, weil die Mitgliederliste denselben Grund braucht, um den
+     * Archivieren-Knopf gar nicht erst anzubieten.
+     */
+    public function holdsRoleAboveMinimalLevel(User $target, int $minimalRoleLevel): bool
+    {
+        foreach ($target->roles as $role) {
+            if ((int) ($role->hierarchy_level ?? 0) > $minimalRoleLevel) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Guards that apply to every path: archived members stay untouchable, and so
      * does anybody who outranks the acting session.
      *

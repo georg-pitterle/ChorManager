@@ -354,4 +354,68 @@ final class UserEditPolicyTest extends TestCase
         $this->assertFalse($policy->canEditProjects($session, $partiallyLoaded));
         $this->assertFalse($policy->canEditEmail($session, $partiallyLoaded));
     }
+
+    /**
+     * Archiviert wird nur, wer keine Rolle mehr über dem niedrigsten vergebenen
+     * Level hält. Ein stillgelegtes Konto trägt damit nie wieder Rechte, die
+     * beim Zurückholen - auch über eine Projektzuordnung - jemanden überragen
+     * könnten, der es zurückholt.
+     */
+    public function testArchivingRequiresTheMemberToHoldNoRoleAboveTheMinimalLevel(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['can_edit_users' => true, 'role_level' => 90];
+
+        // Ohne Rolle und mit genau der niedrigsten Rolle: archivierbar.
+        $this->assertTrue($policy->canDeactivate($session, $this->makeUser(7, [], 1, []), 0));
+        $this->assertTrue($policy->canDeactivate($session, $this->makeUser(7, [], 1, [0]), 0));
+
+        // Eine Rolle darüber sperrt das Archivieren, obwohl die Befugnis besteht.
+        $elevated = $this->makeUser(7, [], 1, [0, 30]);
+        $this->assertTrue($policy->canArchive($session, $elevated));
+        $this->assertFalse($policy->canDeactivate($session, $elevated, 0));
+    }
+
+    /**
+     * Rollen sind je Installation frei konfigurierbar - die niedrigste muss nicht
+     * auf 0 liegen. Maßstab ist das tatsächlich niedrigste vergebene Level.
+     */
+    public function testTheMinimalLevelIsNotAssumedToBeZero(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['can_edit_users' => true, 'role_level' => 90];
+
+        $this->assertTrue($policy->canDeactivate($session, $this->makeUser(7, [], 1, [10]), 10));
+        $this->assertFalse($policy->canDeactivate($session, $this->makeUser(7, [], 1, [20]), 10));
+    }
+
+    /**
+     * Die Rollenregel gilt zusätzlich zur Befugnis, nicht an ihrer Stelle: ein
+     * höher gereihtes Ziel bleibt unantastbar, auch wenn es gar keine Rolle hat.
+     */
+    public function testTheRoleRuleDoesNotReplaceThePermissionCheck(): void
+    {
+        $policy = new UserEditPolicy();
+
+        $this->assertFalse((new UserEditPolicy())->canDeactivate([], $this->makeUser(7, [], 1, []), 0));
+        $this->assertFalse($policy->canDeactivate(
+            ['can_edit_users' => true, 'role_level' => 10],
+            $this->makeUser(7, [], 1, [50]),
+            0
+        ));
+    }
+
+    /**
+     * Bestand: Mitglieder, die vor dieser Regel archiviert wurden, tragen noch
+     * ihre alten Rollen. Sie müssen zurückholbar bleiben, sonst stecken sie für
+     * immer im Archiv fest - deshalb greift die Regel nur in die Archivier-
+     * Richtung, nicht in canArchive() selbst.
+     */
+    public function testRestoringStaysPossibleForAnArchivedMemberWithAnElevatedRole(): void
+    {
+        $policy = new UserEditPolicy();
+        $session = ['can_edit_users' => true, 'role_level' => 90];
+
+        $this->assertTrue($policy->canArchive($session, $this->makeUser(7, [], 0, [30])));
+    }
 }
