@@ -650,14 +650,8 @@ class EventController
             return $response->withStatus(404);
         }
 
-        $content = (new CalendarFeedService($this->nameFormatter))
-            ->buildEventCalendar($user, AppUrlResolver::resolveBaseUrl($request));
-
-        $response->getBody()->write($content);
-
-        return $response
-            ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
-            ->withHeader('Content-Disposition', 'inline; filename="chor-manager.ics"');
+        return (new CalendarFeedService($this->nameFormatter))
+            ->eventCalendarResponse($response, $user, AppUrlResolver::resolveBaseUrl($request));
     }
 
     /**

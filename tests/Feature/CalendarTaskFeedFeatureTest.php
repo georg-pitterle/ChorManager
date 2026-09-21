@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\TaskController;
+use App\Models\AppSetting;
 use App\Models\Event;
 use App\Models\EventAudienceSource;
 use App\Models\Project;
@@ -79,8 +80,8 @@ final class CalendarTaskFeedFeatureTest extends TestCase
 
         $ics = $this->service->buildEventCalendar($this->user, self::BASE_URL);
 
-        $this->assertStringContainsString('UID:event-' . $event->id . '@chor-manager', $ics);
-        $this->assertStringContainsString('UID:task-' . $task->id . '@chor-manager', $ics);
+        $this->assertStringContainsString('UID:event-' . $event->id . '@chor.example', $ics);
+        $this->assertStringContainsString('UID:task-' . $task->id . '@chor.example', $ics);
         $this->assertStringContainsString('SUMMARY:Aufgabe: Bühne aufbauen', $ics);
     }
 
@@ -93,7 +94,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
         $eventFeed = $this->service->buildEventCalendar($this->user, self::BASE_URL);
         $taskFeed = $this->service->buildTaskCalendar($this->user, self::BASE_URL);
 
-        $this->assertStringContainsString('UID:event-' . $event->id . '@chor-manager', $eventFeed);
+        $this->assertStringContainsString('UID:event-' . $event->id . '@chor.example', $eventFeed);
         $this->assertStringNotContainsString('task-' . $task->id . '@', $eventFeed);
         $this->assertStringNotContainsString('task-' . $task->id . '@', $taskFeed);
     }
@@ -112,7 +113,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
         $taskFeed = $this->service->buildTaskCalendar($this->user, self::BASE_URL);
 
         $this->assertStringNotContainsString('task-' . $task->id . '@', $eventFeed);
-        $this->assertStringContainsString('UID:task-' . $task->id . '@chor-manager', $taskFeed);
+        $this->assertStringContainsString('UID:task-' . $task->id . '@chor.example', $taskFeed);
     }
 
     public function testTheTaskFeedShowsOnlyOwnOpenTasksWithAnEndDate(): void
@@ -206,6 +207,97 @@ final class CalendarTaskFeedFeatureTest extends TestCase
     public function testAnUnknownTokenIsNotFound(): void
     {
         $this->assertSame(404, $this->exportWithToken(str_repeat('a', 64))->getStatusCode());
+    }
+
+    /**
+     * Wer mehrere Chöre abonniert, die alle diese Anwendung nutzen, muss die
+     * Kalender auseinanderhalten können. Apple und Google lesen X-WR-CALNAME,
+     * neuere Programme das genormte NAME aus RFC 7986 - beide tragen den
+     * Namen aus den App-Einstellungen.
+     */
+    public function testTheCalendarIsNamedAfterTheConfiguredAppName(): void
+    {
+        $this->setAppName('Chorkuma Innsbruck');
+        $this->setFeed(User::CALENDAR_TASK_FEED_SEPARATE);
+
+        $eventFeed = $this->service->buildEventCalendar($this->user, self::BASE_URL);
+        $taskFeed = $this->service->buildTaskCalendar($this->user, self::BASE_URL);
+
+        $this->assertStringContainsString("\r\nX-WR-CALNAME:Chorkuma Innsbruck Termine\r\n", $eventFeed);
+        $this->assertStringContainsString("\r\nNAME:Chorkuma Innsbruck Termine\r\n", $eventFeed);
+        $this->assertStringContainsString("\r\nX-WR-CALNAME:Chorkuma Innsbruck Aufgaben\r\n", $taskFeed);
+        $this->assertStringContainsString("\r\nNAME:Chorkuma Innsbruck Aufgaben\r\n", $taskFeed);
+    }
+
+    public function testAnEmptyAppNameFallsBackToTheProductName(): void
+    {
+        $this->setAppName('   ');
+
+        $ics = $this->service->buildEventCalendar($this->user, self::BASE_URL);
+
+        $this->assertStringContainsString("\r\nX-WR-CALNAME:Chor-Manager Termine\r\n", $ics);
+    }
+
+    /**
+     * Die UID muss weltweit eindeutig sein (RFC 5545 §3.8.4.7). Mit einem festen
+     * Anhang trug Termin 5 in jeder Installation dieselbe UID - wer zwei Chöre
+     * abonniert, sah im Kalender nur einen der beiden Termine.
+     */
+    public function testUidsCarryTheHostOfTheInstallation(): void
+    {
+        $this->setFeed(User::CALENDAR_TASK_FEED_COMBINED);
+        $event = $this->createEventForUser($this->user);
+        $task = $this->createTask('Noten kopieren', '+2 days', [$this->user->id]);
+
+        $ics = $this->service->buildEventCalendar($this->user, self::BASE_URL);
+
+        $this->assertStringContainsString("\r\nUID:event-" . $event->id . "@chor.example\r\n", $ics);
+        $this->assertStringContainsString("\r\nUID:task-" . $task->id . "@chor.example\r\n", $ics);
+    }
+
+    /**
+     * Outlook und Thunderbird übernehmen beim Abonnieren den Dateinamen als
+     * Vorschlag für den Kalendernamen.
+     */
+    public function testTheDownloadIsNamedAfterTheConfiguredAppName(): void
+    {
+        $this->setAppName('Chorkuma Innsbruck');
+        $this->setFeed(User::CALENDAR_TASK_FEED_SEPARATE);
+        $token = (new CalendarSubscriptionService())->rotateTokenForUser((int) $this->user->id);
+
+        $disposition = $this->exportWithToken($token)->getHeaderLine('Content-Disposition');
+
+        $this->assertSame(
+            'inline; filename="Chorkuma Innsbruck Aufgaben.ics"; '
+                . "filename*=UTF-8''Chorkuma%20Innsbruck%20Aufgaben.ics",
+            $disposition
+        );
+    }
+
+    /**
+     * Der Name kommt aus den Einstellungen und damit aus Daten: Ein
+     * Anführungszeichen beendete sonst den Dateinamen im Kopf vorzeitig.
+     */
+    public function testTheDownloadNameIsSanitized(): void
+    {
+        $this->setAppName('Chor "Nord" / Süd');
+        $response = $this->service->eventCalendarResponse($this->makeResponse(), $this->user, self::BASE_URL);
+
+        $this->assertSame(
+            'inline; filename="Chor _Nord_ _ Süd Termine.ics"; '
+                . "filename*=UTF-8''Chor%20_Nord_%20_%20S%C3%BCd%20Termine.ics",
+            $response->getHeaderLine('Content-Disposition')
+        );
+        $this->assertStringStartsWith('text/calendar', $response->getHeaderLine('Content-Type'));
+    }
+
+    private function setAppName(string $name): void
+    {
+        AppSetting::query()->updateOrCreate(['setting_key' => 'app_name'], [
+            'setting_value' => $name,
+            'binary_content' => '',
+            'mime_type' => '',
+        ]);
     }
 
     private function exportWithToken(string $token): \Psr\Http\Message\ResponseInterface

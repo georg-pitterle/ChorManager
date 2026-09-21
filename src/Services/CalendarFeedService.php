@@ -11,9 +11,12 @@ use App\Models\Role;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Util\DownloadFileName;
+use App\Util\MailBranding;
 use App\Util\Timezone;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Psr\Http\Message\ResponseInterface as Response;
 
 /**
  * Baut die abonnierbaren Kalender.
@@ -85,7 +88,58 @@ class CalendarFeedService
             }
         }
 
-        return $this->wrapCalendar($lines, $includesTasks ? 'Termine und Aufgaben' : 'Termine', $timezone);
+        return $this->wrapCalendar($lines, $this->eventCalendarTitle($user), $timezone);
+    }
+
+    public function eventCalendarResponse(Response $response, User $user, string $baseUrl): Response
+    {
+        return $this->respond(
+            $response,
+            $this->buildEventCalendar($user, $baseUrl),
+            $this->eventCalendarTitle($user)
+        );
+    }
+
+    public function taskCalendarResponse(Response $response, User $user, string $baseUrl): Response
+    {
+        return $this->respond($response, $this->buildTaskCalendar($user, $baseUrl), $this->taskCalendarTitle());
+    }
+
+    /**
+     * Der Kalendername steht auch im Dateinamen: Outlook und Thunderbird
+     * schlagen ihn beim Abonnieren als Namen vor. Er stammt aus den
+     * App-Einstellungen und geht deshalb durch dieselbe Bereinigung wie jeder
+     * andere Dateiname aus Daten.
+     */
+    private function respond(Response $response, string $calendar, string $title): Response
+    {
+        $fileName = DownloadFileName::sanitize($title) . '.ics';
+
+        $response->getBody()->write($calendar);
+
+        return $response
+            ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
+            ->withHeader(
+                'Content-Disposition',
+                'inline; filename="' . $fileName . '"; filename*=UTF-8\'\'' . rawurlencode($fileName)
+            );
+    }
+
+    /**
+     * Name des Termin-Kalenders. Er beginnt mit dem Namen aus den
+     * App-Einstellungen: Wer mehrere Chöre mit dieser Anwendung abonniert hat,
+     * hält die Kalender nur daran auseinander.
+     */
+    private function eventCalendarTitle(User $user): string
+    {
+        $includesTasks = (string) $user->calendar_task_feed === User::CALENDAR_TASK_FEED_COMBINED;
+
+        return $this->appName() . ($includesTasks ? ' Termine und Aufgaben' : ' Termine');
+    }
+
+    private function taskCalendarTitle(): string
+    {
+        return $this->appName() . ' Aufgaben';
     }
 
     /**
@@ -106,7 +160,7 @@ class CalendarFeedService
             }
         }
 
-        return $this->wrapCalendar($lines, 'Aufgaben', Timezone::resolveAppTimezone());
+        return $this->wrapCalendar($lines, $this->taskCalendarTitle(), Timezone::resolveAppTimezone());
     }
 
     /**
@@ -151,25 +205,48 @@ class CalendarFeedService
     /**
      * @param list<string> $lines
      */
-    private function wrapCalendar(array $lines, string $calendarName, string $timezone): string
+    private function wrapCalendar(array $lines, string $calendarTitle, string $timezone): string
     {
-        $appName = (string) (AppSetting::query()
-            ->where('setting_key', 'app_name')
-            ->value('setting_value') ?? 'Chor Manager');
+        $title = $this->escapeIcsText($calendarTitle);
 
         $header = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//' . $appName . '//Calendar Subscription//DE',
+            'PRODID:-//Chor-Manager//Calendar Subscription//DE',
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
-            'X-WR-CALNAME:' . $appName . ' ' . $calendarName,
+            // X-WR-CALNAME lesen Apple und Google, NAME (RFC 7986) die Programme,
+            // die sich an die Norm halten.
+            'X-WR-CALNAME:' . $title,
+            'NAME:' . $title,
             'X-WR-TIMEZONE:' . $timezone,
         ];
 
         $all = array_merge($header, $lines, ['END:VCALENDAR']);
 
         return implode("\r\n", array_map([$this, 'foldLine'], $all)) . "\r\n";
+    }
+
+    private function appName(): string
+    {
+        $name = trim((string) AppSetting::query()
+            ->where('setting_key', 'app_name')
+            ->value('setting_value'));
+
+        return $name !== '' ? $name : MailBranding::DEFAULT_APP_NAME;
+    }
+
+    /**
+     * Rechter Teil der UID. RFC 5545 verlangt weltweit eindeutige UIDs; mit
+     * einem festen Anhang trug Termin 5 in jeder Installation dieselbe UID, und
+     * wer zwei Chöre abonniert hat, sah von zwei gleich nummerierten Terminen
+     * nur einen. Der Host unterscheidet die Installationen.
+     */
+    private function uidDomain(string $baseUrl): string
+    {
+        $host = parse_url($baseUrl, PHP_URL_HOST);
+
+        return is_string($host) && $host !== '' ? strtolower($host) : 'chor-manager';
     }
 
     /**
@@ -219,7 +296,7 @@ class CalendarFeedService
     {
         $lines = [
             'BEGIN:VEVENT',
-            'UID:event-' . $event->id . '@chor-manager',
+            'UID:event-' . $event->id . '@' . $this->uidDomain($baseUrl),
             'DTSTAMP:' . Carbon::now('UTC')->format('Ymd\THis\Z'),
             'DTSTART;TZID=' . $timezone . ':' . $event->starts_at->format('Ymd\THis'),
             'DTEND;TZID=' . $timezone . ':' . $event->ends_at->format('Ymd\THis'),
@@ -253,7 +330,7 @@ class CalendarFeedService
         if ((string) $user->calendar_task_format === User::CALENDAR_TASK_FORMAT_TODO) {
             return [
                 'BEGIN:VTODO',
-                'UID:task-' . $task->id . '@chor-manager',
+                'UID:task-' . $task->id . '@' . $this->uidDomain($baseUrl),
                 'DTSTAMP:' . $stamp,
                 'DUE;VALUE=DATE:' . $due->format('Ymd'),
                 'SUMMARY:' . $this->escapeIcsText((string) $task->name),
@@ -267,7 +344,7 @@ class CalendarFeedService
 
         return [
             'BEGIN:VEVENT',
-            'UID:task-' . $task->id . '@chor-manager',
+            'UID:task-' . $task->id . '@' . $this->uidDomain($baseUrl),
             'DTSTAMP:' . $stamp,
             'DTSTART;VALUE=DATE:' . $due->format('Ymd'),
             // DTEND ist bei ganztägigen Terminen der erste Tag *danach*; ohne den

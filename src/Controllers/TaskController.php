@@ -82,14 +82,8 @@ class TaskController
             return $response->withStatus(404);
         }
 
-        $content = (new CalendarFeedService($this->nameFormatter))
-            ->buildTaskCalendar($user, AppUrlResolver::resolveBaseUrl($request));
-
-        $response->getBody()->write($content);
-
-        return $response
-            ->withHeader('Content-Type', 'text/calendar; charset=utf-8')
-            ->withHeader('Content-Disposition', 'inline; filename="chor-manager-aufgaben.ics"');
+        return (new CalendarFeedService($this->nameFormatter))
+            ->taskCalendarResponse($response, $user, AppUrlResolver::resolveBaseUrl($request));
     }
 
     /**
