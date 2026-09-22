@@ -34,6 +34,15 @@ sind die Karten meist die bessere Wahl.
 Unter der Tabelle stehen die **Links** des Lieds: Aufführungsvideos, MIDI-Referenzen oder
 Übe-Tracks, die außerhalb des Chor-Managers liegen.
 
+## 3. Noten aufs Tablet
+
+Wer vom Tablet singt, muss nicht jede Datei einzeln herunterladen: Der Abschnitt **Noten
+aufs Tablet** oben auf der Downloads-Seite gibt dir eine Adresse, unter der deine Projekte
+als Ordner in einer Noten-App wie forScore oder MobileSheets erscheinen — schreibgeschützt
+und immer auf dem aktuellen Stand.
+
+Die Einrichtung steht Schritt für Schritt unter [Noten aufs Tablet](repertoire-webdav).
+
 ## Häufige Stolperfallen
 
 - **"Keine Projekt-Downloads verfügbar."** Du bist noch keinem Projekt zugeordnet. Das

@@ -45,6 +45,7 @@ use App\Controllers\SheetArchiveController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DownloadController;
+use App\Controllers\WebdavController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Psr\Log\LoggerInterface;
@@ -117,6 +118,20 @@ return function (App $app) {
     if ($settings['modules']['tasks'] ?? false) {
         $app->get('/tasks/export/{token:[a-f0-9]{64}}.ics', [TaskController::class, 'exportCalendar']);
     }
+
+    // Schreibgeschützter Noten-Ordner für Noten-Apps auf dem Tablet. Liegt
+    // außerhalb der Sitzungs-Anmeldung: Ausgewiesen wird sich per HTTP-Basic mit
+    // einem persönlichen Token, das WebdavController prüft. Auch die schreibenden
+    // Methoden landen im Controller, damit er sie mit 403 beantworten kann - Slims
+    // eigene 405 würde einen Klienten dazu verleiten, es anders herum zu versuchen.
+    $app->map(
+        [
+            'OPTIONS', 'PROPFIND', 'HEAD', 'GET',
+            'PUT', 'DELETE', 'MKCOL', 'MOVE', 'COPY', 'PROPPATCH', 'LOCK', 'UNLOCK',
+        ],
+        '/webdav[/{path:.*}]',
+        [WebdavController::class, 'handle']
+    );
 
     // Provider feedback ingest endpoints (public, verified/trusted channels)
     $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
@@ -193,6 +208,7 @@ return function (App $app) {
 
             // Download section for project members
             $group->get('/downloads', [DownloadController::class, 'index']);
+            $group->post('/downloads/webdav-token', [DownloadController::class, 'rotateWebdavToken']);
 
             // Help pages (Markdown guides under help/) - accessible for all logged-in users,
             // independent of tenant modules/roles.

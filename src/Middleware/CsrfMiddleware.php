@@ -35,6 +35,23 @@ class CsrfMiddleware implements MiddlewareInterface
         '/mail/delivery/dsn',
     ];
 
+    /**
+     * Der Noten-Ordner. Er spricht WebDAV, und dessen lesende Methode PROPFIND
+     * fällt nicht unter die oben freigegebenen GET/HEAD/OPTIONS - ohne diese
+     * Ausnahme hätte die Middleware jedes Auflisten eines Ordners mit 403
+     * abgewiesen, noch bevor der Controller die Zugangsdaten gesehen hat.
+     *
+     * Hier wird auf das Präfix geprüft und nicht auf den ganzen Pfad: Unter
+     * `/webdav` liegt ein ganzer Baum, dessen Pfade aus Projekt-, Lied- und
+     * Dateinamen bestehen. Schützenswert ist dort nichts - WebdavController
+     * wertet ausschließlich den Basic-Auth-Nachweis aus und nie die Sitzung.
+     *
+     * @var list<string>
+     */
+    private const EXEMPT_PREFIXES = [
+        '/webdav',
+    ];
+
     private LoggerInterface $logger;
 
     public function __construct(LoggerInterface $logger = new NullLogger())
@@ -191,6 +208,16 @@ class CsrfMiddleware implements MiddlewareInterface
     {
         $normalizedPath = rtrim($path, '/');
 
-        return $normalizedPath !== '' && in_array($normalizedPath, self::EXEMPT_PATHS, true);
+        if ($normalizedPath !== '' && in_array($normalizedPath, self::EXEMPT_PATHS, true)) {
+            return true;
+        }
+
+        foreach (self::EXEMPT_PREFIXES as $prefix) {
+            if ($normalizedPath === $prefix || str_starts_with($normalizedPath, $prefix . '/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

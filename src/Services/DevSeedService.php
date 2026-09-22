@@ -34,8 +34,10 @@ use App\Models\Project;
 use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
+use App\Models\WebdavAccessToken;
 use App\Services\BackupService;
 use App\Services\CalendarSubscriptionService;
+use App\Services\WebdavAccessService;
 use App\Services\FinanceJournalService;
 use App\Models\Setting;
 use App\Models\Song;
@@ -170,6 +172,7 @@ class DevSeedService
                 'newsletter_archive' => 0,
                 'mail_queue' => 0,
                 'calendar_subscription_tokens' => 0,
+                'webdav_access_tokens' => 0,
                 'backups' => 0,
             ],
         ];
@@ -189,6 +192,7 @@ class DevSeedService
             $this->buildCredentialsByRoleReport($users['credentials_candidates']);
 
             $this->seedCalendarSubscriptionTokens($users['active']);
+            $this->seedWebdavAccessTokens($users['active']);
             $this->seedNotificationSettings($users['active']);
 
             $projects = $this->seedProjects($years);
@@ -278,6 +282,7 @@ class DevSeedService
             'remember_logins',
             'password_resets',
             'calendar_subscription_tokens',
+            'webdav_access_tokens',
             'notification_dispatch_log',
             'user_notification_settings',
             'sponsoring_contacts',
@@ -1066,6 +1071,48 @@ class DevSeedService
             'created_at' => date('Y-m-d H:i:s'),
         ]);
         $this->report['counts']['calendar_subscription_tokens']++;
+    }
+
+    /**
+     * Zwei Zugänge zum Noten-Ordner, aus demselben Grund wie beim Kalender-Abo:
+     *
+     * - Einer, dessen Zugangswort der Bericht ausgibt. Nur damit lässt sich der
+     *   Ordner im Dev tatsächlich einhängen, ohne ihn vorher über die
+     *   Oberfläche zu erzeugen.
+     * - Einer, dessen Klartext auch der Seed nicht mehr kennt. Das ist der
+     *   Normalfall, in dem die Seite den Zugang nur als vorhanden meldet.
+     *
+     * @param array<int, \App\Models\User> $activeUsers
+     */
+    private function seedWebdavAccessTokens(array $activeUsers): void
+    {
+        $users = array_values($activeUsers);
+        if ($users === []) {
+            return;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        WebdavAccessToken::create([
+            'user_id' => (int) $users[0]->id,
+            'token_hash' => WebdavAccessService::hashToken($token),
+            'created_at' => date('Y-m-d H:i:s'),
+            'last_used_at' => null,
+        ]);
+        $this->report['counts']['webdav_access_tokens']++;
+        $this->report['webdav']['user'] = (string) $users[0]->email;
+        $this->report['webdav']['token'] = $token;
+
+        if (!isset($users[1])) {
+            return;
+        }
+
+        WebdavAccessToken::create([
+            'user_id' => (int) $users[1]->id,
+            'token_hash' => WebdavAccessService::hashToken(bin2hex(random_bytes(32))),
+            'created_at' => date('Y-m-d H:i:s'),
+            'last_used_at' => null,
+        ]);
+        $this->report['counts']['webdav_access_tokens']++;
     }
 
     private function seedEventAudienceSources(array $projectEvents, array $roles, array $voiceData): void

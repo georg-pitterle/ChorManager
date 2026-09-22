@@ -54,6 +54,8 @@ Dateien kannst du direkt beim Anlegen mitgeben.
   physischen Notenbestands
 - [Downloads](repertoire-downloads) – wie Mitglieder an die Noten und Aufnahmen ihrer
   Projekte kommen
+- [Noten aufs Tablet](repertoire-webdav) – die Projektordner in forScore, MobileSheets
+  oder der Dateien-App einbinden
 
 ## Häufige Stolperfallen
 

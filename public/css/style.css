@@ -1685,3 +1685,83 @@ a:hover {
 .attachment-inline-name {
     max-width: 16rem;
 }
+
+/* Noten-Ordner (WebDAV) am Fuß der Downloads-Seite.
+   Bewusst als <details> und nicht als Bootstrap-Accordion: Der Abschnitt wird
+   einmal eingerichtet und danach kaum wieder gebraucht, und <details> klappt
+   ohne eine Zeile JavaScript auf. Frisch erzeugtes Zugangswort öffnet ihn von
+   selbst (open im Template), sonst bleibt er zu. */
+.downloads-webdav {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.125));
+    padding-top: 0.75rem;
+}
+
+.downloads-webdav__summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+    list-style: none;
+}
+
+/* Das voreingestellte Dreieck fällt weg - stattdessen ein Chevron, das sich
+   beim Aufklappen dreht. In WebKit braucht das eine eigene Regel. */
+.downloads-webdav__summary::-webkit-details-marker {
+    display: none;
+}
+
+.downloads-webdav__summary::after {
+    content: "\f282";
+    font-family: bootstrap-icons, sans-serif;
+    font-size: 0.75rem;
+    transition: transform 0.15s ease-in-out;
+}
+
+.downloads-webdav[open] > .downloads-webdav__summary::after {
+    transform: rotate(180deg);
+}
+
+.downloads-webdav__summary:hover {
+    color: var(--bs-body-color, #212529);
+}
+
+.downloads-webdav__body {
+    padding: 0.75rem 0 0.25rem 1.5rem;
+}
+
+/* Adresse und Zugangswort sind lange Zeichenketten ohne Leerzeichen; ohne
+   erzwungenen Umbruch schieben sie auf dem Handy die ganze Seite in die Breite. */
+.downloads-webdav-data code,
+.downloads-webdav-token {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+.downloads-webdav-token {
+    font-size: 1rem;
+}
+
+@media (max-width: 575.98px) {
+    .downloads-webdav__body {
+        padding-left: 0;
+    }
+}
+
+/* Wert plus Kopierknopf. Der Knopf soll am Anfang des Wertes stehen bleiben,
+   auch wenn eine lange Adresse über mehrere Zeilen umbricht - deshalb
+   align-items: baseline statt center. */
+.downloads-webdav__value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    max-width: 100%;
+}
+
+.downloads-webdav__copy {
+    flex: 0 0 auto;
+    line-height: 1;
+    text-decoration: none;
+}

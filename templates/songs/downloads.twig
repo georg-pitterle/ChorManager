@@ -179,6 +179,81 @@
                 </div>
             </div>
         </section>
+
+        {% if webdav %}
+            <details class="downloads-webdav"{% if webdav.token %} open{% endif %}>
+                <summary class="downloads-webdav__summary">
+                    <i class="bi bi-tablet"></i>
+                    <span>Noten aufs Tablet - Projektordner in einer Noten-App einbinden</span>
+                </summary>
+
+                <div class="downloads-webdav__body">
+                    <p class="text-muted small">
+                        Noten-Apps wie forScore oder MobileSheets binden deine Projekte als Ordner ein.
+                        Der Ordner ist schreibgeschützt und zeigt genau die Projekte, in denen du mitsingst.
+                    </p>
+
+                    <dl class="row mb-3 downloads-webdav-data small">
+                        <dt class="col-sm-3">Adresse</dt>
+                        <dd class="col-sm-9 downloads-webdav__value">
+                            <code id="webdav-url">{{ webdav.url }}</code>
+                            <button type="button"
+                                    class="btn btn-sm btn-link p-0 downloads-webdav__copy"
+                                    data-copy-target="#webdav-url"
+                                    aria-label="Adresse kopieren"
+                                    title="Adresse kopieren"><i class="bi bi-clipboard"></i></button>
+                        </dd>
+                        <dt class="col-sm-3">Benutzername</dt>
+                        <dd class="col-sm-9 downloads-webdav__value">
+                            <code id="webdav-user">{{ webdav.user }}</code>
+                            <button type="button"
+                                    class="btn btn-sm btn-link p-0 downloads-webdav__copy"
+                                    data-copy-target="#webdav-user"
+                                    aria-label="Benutzernamen kopieren"
+                                    title="Benutzernamen kopieren"><i class="bi bi-clipboard"></i></button>
+                        </dd>
+                        <dt class="col-sm-3">Zugangswort</dt>
+                        <dd class="col-sm-9">
+                            {% if webdav.token %}
+                                <span class="downloads-webdav__value">
+                                    <code class="downloads-webdav-token" id="webdav-token">{{ webdav.token }}</code>
+                                    <button type="button"
+                                            class="btn btn-sm btn-link p-0 downloads-webdav__copy"
+                                            data-copy-target="#webdav-token"
+                                            aria-label="Zugangswort kopieren"
+                                            title="Zugangswort kopieren"><i class="bi bi-clipboard"></i></button>
+                                </span>
+                                <p class="text-danger small mb-0 mt-1">
+                                    Jetzt in die App eintragen - danach lässt es sich nicht mehr anzeigen,
+                                    nur neu erzeugen.
+                                </p>
+                            {% elseif webdav.exists %}
+                                <span class="text-muted">Vergeben. Anzeigen geht nicht mehr, nur neu erzeugen.</span>
+                            {% else %}
+                                <span class="text-muted">Noch keines erzeugt.</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+
+                    <form method="post" action="/downloads/webdav-token" class="d-inline">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-key"></i>
+                            {{ webdav.exists ? "Neues Zugangswort erzeugen" : "Zugangswort erzeugen" }}
+                        </button>
+                    </form>
+                    {% if webdav.exists %}
+                        <p class="text-muted small mb-0 mt-2">
+                            Ein neues Zugangswort sperrt jedes Gerät aus, auf dem noch das bisherige steht.
+                        </p>
+                    {% endif %}
+
+                    <a href="/help/repertoire-webdav" class="small d-inline-flex align-items-center gap-2 mt-3">
+                        <i class="bi bi-book"></i>
+                        <span>Einrichtung in forScore, MobileSheets und Co.</span>
+                    </a>
+                </div>
+            </details>
+        {% endif %}
     </div>
 {% endblock content %}
 
