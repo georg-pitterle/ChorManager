@@ -17,8 +17,8 @@ use Slim\Psr7\Response;
 
 /**
  * Sichert ab, dass das Aufräumen abgelaufener Remember-Me-Token nur dort läuft,
- * wo Remember-Me überhaupt ausgewertet wird - und nicht als Löschabfrage bei
- * jedem Aufruf einer geschützten Route.
+ * wo Remember-Me überhaupt ausgewertet wird - also nur bei einer nicht
+ * angemeldeten Anfrage, die auch wirklich ein Remember-Me-Cookie mitbringt.
  */
 final class AuthMiddlewareRememberTokenCleanupFeatureTest extends TestCase
 {
@@ -38,10 +38,38 @@ final class AuthMiddlewareRememberTokenCleanupFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testPurgesExpiredTokensForAnUnauthenticatedRequest(): void
+    public function testPurgesExpiredTokensWhenTheRequestCarriesARememberCookie(): void
     {
+        $_COOKIE[RememberLoginService::COOKIE_NAME] = 'abgelaufener-wert';
+
         $rememberLoginService = $this->createMock(RememberLoginService::class);
         $rememberLoginService->expects($this->once())->method('clearExpiredTokens');
+        $rememberLoginService->method('validateCookieValue')->willReturn(null);
+
+        $middleware = new AuthMiddleware(
+            $this->createStub(UserQuery::class),
+            $rememberLoginService,
+            $this->createStub(SessionAuthService::class)
+        );
+
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+            $this->passThroughHandler()
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame('/login', $response->getHeaderLine('Location'));
+    }
+
+    /**
+     * Ohne Cookie gibt es für diese Anfrage nichts auszuwerten. Die Löschabfrage
+     * lief hier früher trotzdem - bei jedem Aufruf einer geschützten Route ohne
+     * Anmeldung, also auch für jeden Suchroboter, der nie ein Token besessen hat.
+     */
+    public function testDoesNotPurgeExpiredTokensWithoutARememberCookie(): void
+    {
+        $rememberLoginService = $this->createMock(RememberLoginService::class);
+        $rememberLoginService->expects($this->never())->method('clearExpiredTokens');
 
         $middleware = new AuthMiddleware(
             $this->createStub(UserQuery::class),

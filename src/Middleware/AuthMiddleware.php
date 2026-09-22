@@ -47,13 +47,16 @@ class AuthMiddleware implements MiddlewareInterface
         // ungeschützt - und das fiele niemandem auf, weil die Liste wie eine bewusste
         // Entscheidung aussah statt wie ein Überbleibsel.
         if (!isset($_SESSION['user_id'])) {
-            // Aufräumen nur auf dem Pfad, der Remember-Me überhaupt auswertet. Vorher lief
-            // die Löschabfrage bei jedem einzelnen Aufruf einer geschützten Route, also auch
-            // für längst angemeldete Sitzungen, die den Tokenbestand nie anfassen.
-            $this->rememberLoginService->clearExpiredTokens();
-
             $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
             if (is_string($rememberCookie) && $rememberCookie !== '') {
+                // Aufgeräumt wird genau dort, wo Remember-Me ausgewertet wird - nicht davor.
+                // Die Löschabfrage lief zuvor bei jedem nicht angemeldeten Aufruf einer
+                // geschützten Route, also auch für jeden Suchroboter ohne Cookie, der nie
+                // ein Token besessen hat. Liegen bleibt dadurch nichts von Belang: Ein
+                // abgelaufenes Token weist validateCookieValue ohnehin ab, und wer eines
+                // besitzt, räumt beim nächsten eigenen Besuch mit auf.
+                $this->rememberLoginService->clearExpiredTokens();
+
                 $rememberToken = $this->rememberLoginService->validateCookieValue($rememberCookie);
 
                 if ($rememberToken) {
