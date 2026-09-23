@@ -30,17 +30,25 @@ use Tests\Unit\Bootstrap;
  * 'ß' = 'ss', in `general_ci` nicht. Gleichnamigkeit bedeutete damit in der
  * einen Hälfte des Schemas etwas anderes als in der anderen.
  *
+ * 20260923120000 hat die Zweiteilung zuerst auf `general_ci` aufgelöst - die
+ * gefahrlose Richtung. 20260923140000 hat das Schema dann auf `unicode_ci`
+ * gebracht, wo es hingehört.
+ *
  * Geprüft wird deshalb nicht ein fester Satz Tabellen, sondern das ganze
  * Schema: Jede neue Tabelle fällt hier auf, sobald sie ausschert.
  */
 final class SchemaCollationIsUniformTest extends TestCase
 {
     /**
-     * Die Kollation des Schemas. Sie stammt aus der Ursprungsmigration und gilt
-     * für die große Mehrheit der Tabellen; 20260923120000 hat die Ausreißer
-     * nachgezogen.
+     * Die Kollation des Schemas, seit 20260923140000.
+     *
+     * `unicode_ci` ist für deutschen Text die richtige Wahl: Es sortiert
+     * Umlaute an ihrer Wörterbuchstelle statt hinter Z und hält 'ß' und 'ss'
+     * für denselben Text. Wer sie ändern will, ändert sie hier **und** in
+     * `phinx.php`, `src/Settings.php` und `bin/prepare_test_database.php` -
+     * sonst schert die nächste angelegte Tabelle wieder aus.
      */
-    private const EXPECTED_COLLATION = 'utf8mb4_general_ci';
+    private const EXPECTED_COLLATION = 'utf8mb4_unicode_ci';
 
     /**
      * Phinx legt seine Buchführungstabelle selbst an und pflegt sie auch selbst.

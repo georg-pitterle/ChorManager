@@ -31,6 +31,16 @@ class NotificationReminderService
 {
     private const TASK_COMPLETED_STATUS = 'Abgeschlossen';
 
+    /**
+     * Wie lange ein Merkzettel aufgehoben wird.
+     *
+     * Zwölf Monate sind um ein Vielfaches mehr als das größte Fälligkeitsfenster,
+     * das sich einstellen lässt. Ein älterer Eintrag kann keine zweite Mail mehr
+     * verhindern - er sagt nur noch, dass vor über einem Jahr einmal eine raus
+     * ist, und dafür gibt es das Anwendungslog.
+     */
+    private const DISPATCH_LOG_RETENTION_MONTHS = 12;
+
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly LoggerInterface $logger
@@ -42,7 +52,51 @@ class NotificationReminderService
      */
     public function processDue(string $baseUrl): int
     {
-        return $this->processDueTasks($baseUrl) + $this->processDueFollowUps($baseUrl);
+        $enqueued = $this->processDueTasks($baseUrl) + $this->processDueFollowUps($baseUrl);
+
+        // Nach dem Verschicken, nicht davor: Ein Aufräumlauf, der scheitert,
+        // darf die Erinnerungen dieses Laufs nicht aufhalten.
+        $this->pruneExpiredDispatchLog();
+
+        return $enqueued;
+    }
+
+    /**
+     * Entfernt Merkzettel, die älter sind als die Aufbewahrungsfrist, und gibt
+     * zurück, wie viele es waren.
+     *
+     * Die Tabelle wurde bisher nie aufgeräumt und wuchs mit jeder verschickten
+     * Erinnerung weiter. Bei Chorgröße dauert es Jahre, bis das auffällt -
+     * irgendwann fällt es auf.
+     */
+    public function pruneExpiredDispatchLog(): int
+    {
+        $cutoff = Carbon::now()->subMonths(self::DISPATCH_LOG_RETENTION_MONTHS);
+
+        try {
+            $removed = NotificationDispatchLog::query()
+                ->where('created_at', '<', $cutoff->format('Y-m-d H:i:s'))
+                ->delete();
+        } catch (QueryException $e) {
+            // Das Aufräumen ist Pflege, kein Zweck des Laufs. Scheitert es,
+            // bleibt der Merkzettel eben stehen; die Erinnerungen sind raus.
+            $this->logger->error('Notification dispatch log prune failed.', [
+                'event' => 'notification_reminder.prune_failed',
+                'exception' => $e,
+            ]);
+
+            return 0;
+        }
+
+        if ($removed > 0) {
+            $this->logger->debug('Notification dispatch log pruned.', [
+                'event' => 'notification_reminder.pruned',
+                'removed' => $removed,
+                'retention_months' => self::DISPATCH_LOG_RETENTION_MONTHS,
+            ]);
+        }
+
+        return $removed;
     }
 
     private function processDueTasks(string $baseUrl): int

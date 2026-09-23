@@ -27,7 +27,7 @@ return function (ContainerBuilder $containerBuilder) {
                 // Verbindungsoptionen wieder überschreiben.
                 'options' => Timezone::databaseConnectionOptions(),
                 'charset' => 'utf8mb4',
-                'collation' => 'utf8mb4_general_ci',
+                'collation' => 'utf8mb4_unicode_ci',
                 'prefix' => '',
             ],
             'view' => [

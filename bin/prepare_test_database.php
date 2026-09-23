@@ -68,7 +68,7 @@ $connection = new PDO(
 // Der Name kommt aus TestDatabaseName und ist dort auf einen schlichten Bezeichner
 // geprüft; als Platzhalter lässt MySQL ihn an dieser Stelle nicht zu.
 $connection->exec(sprintf(
-    'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci',
+    'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
     $database
 ));
 

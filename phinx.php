@@ -18,9 +18,9 @@ return [
             'port'     => getenv('DB_PORT') ?: '3306',
             'charset'  => 'utf8mb4',
             // Ohne diese Zeile setzt Phinx seine eigene Vorgabe
-            // (utf8mb4_unicode_ci) und legt neue Tabellen neben dem
-            // übrigen Schema an - siehe 20260923120000.
-            'collation' => 'utf8mb4_general_ci',
+            // und legt neue Tabellen neben dem übrigen Schema an -
+            // siehe 20260923120000 und 20260923140000.
+            'collation' => 'utf8mb4_unicode_ci',
         ],
     ],
 ];
