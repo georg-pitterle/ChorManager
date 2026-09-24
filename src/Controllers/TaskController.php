@@ -14,6 +14,7 @@ use App\Services\CalendarFeedService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
+use App\Services\EntityAttachmentService;
 use App\Services\NotificationService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
@@ -687,11 +688,13 @@ class TaskController
                     continue;
                 }
 
+                $clientFilename = (string) $file->getClientFilename();
+
                 Attachment::create([
                     'entity_type'   => 'task',
                     'entity_id'     => $task->id,
-                    'filename'      => bin2hex(random_bytes(16)) . '_' . $file->getClientFilename(),
-                    'original_name' => $file->getClientFilename(),
+                    'filename'      => EntityAttachmentService::storedName($clientFilename),
+                    'original_name' => EntityAttachmentService::originalName($clientFilename),
                     'mime_type'     => UploadValidator::normalizeMimeType($mimeType),
                     'file_size'     => $size,
                     'file_content'  => $contents,

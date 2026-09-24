@@ -356,7 +356,12 @@ class RoleController
                 'role_name' => $deletedRoleName,
             ]);
         } catch (\Exception $e) {
-            $_SESSION['error'] = 'Datenbankfehler beim Löschen: ';
+            $this->logger->error('Role deletion failed.', [
+                'event' => 'role.delete.failed',
+                'role_id' => $deletedRoleId,
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Rolle konnte nicht gelöscht werden. Bitte erneut versuchen.';
         }
 
         return $response->withHeader('Location', '/roles')->withStatus(302);

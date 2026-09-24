@@ -12,10 +12,24 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Slim\Views\Twig;
 use App\Models\SponsorPackage;
 use App\Policies\SponsoringPolicy;
+use App\Util\InputValidator;
 
 class SponsorPackageController
 {
     private const AMOUNT_ERROR = 'Ungültiger Mindestbetrag. Bitte eine Zahl ab 0 eingeben.';
+
+    /**
+     * Die Farben, die das Formular anbietet - und damit die einzigen, für die
+     * Bootstrap eine `bg-*`-Klasse kennt. Ein abweichender Wert stammt nicht aus
+     * der Oberfläche; gespeichert ergäbe er eine Klasse, die Bootstrap nicht
+     * kennt, und das Abzeichen des Pakets bliebe für immer ungefärbt. Gleiche
+     * Liste und gleiche Begründung wie in EventTypeController.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_COLORS = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark'];
+
+    private const DEFAULT_COLOR = 'info';
 
     private Twig $view;
     private SponsoringPolicy $policy;
@@ -26,6 +40,13 @@ class SponsorPackageController
         $this->view = $view;
         $this->policy = $policy;
         $this->logger = $logger ?? new NullLogger();
+    }
+
+    private function normalizeColor(mixed $value): string
+    {
+        $color = InputValidator::asString($value);
+
+        return in_array($color, self::ALLOWED_COLORS, true) ? $color : self::DEFAULT_COLOR;
     }
 
     public function index(Request $request, Response $response): Response
@@ -67,7 +88,7 @@ class SponsorPackageController
                 'name'        => $name,
                 'description' => trim($data['description'] ?? '') ?: null,
                 'min_amount'  => $minAmount,
-                'color'       => $data['color'] ?? 'info',
+                'color'       => $this->normalizeColor($data['color'] ?? null),
             ]);
             $_SESSION['success'] = 'Paket erfolgreich angelegt.';
         } catch (\Exception $e) {
@@ -108,7 +129,7 @@ class SponsorPackageController
                 'name'        => $name,
                 'description' => trim($data['description'] ?? '') ?: null,
                 'min_amount'  => $minAmount,
-                'color'       => $data['color'] ?? 'info',
+                'color'       => $this->normalizeColor($data['color'] ?? null),
             ]);
             $_SESSION['success'] = 'Paket erfolgreich aktualisiert.';
         } catch (ModelNotFoundException $e) {

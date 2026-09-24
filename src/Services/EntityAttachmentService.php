@@ -127,11 +127,8 @@ class EntityAttachmentService
             Attachment::create([
                 'entity_type'   => $entityType,
                 'entity_id'     => $entityId,
-                'filename'      => bin2hex(random_bytes(16)) . '_' . self::shortenName(
-                    $clientFilename,
-                    self::NAME_MAX_LENGTH - self::STORED_NAME_PREFIX_LENGTH
-                ),
-                'original_name' => self::shortenName($clientFilename, self::NAME_MAX_LENGTH),
+                'filename'      => self::storedName($clientFilename),
+                'original_name' => self::originalName($clientFilename),
                 'mime_type'     => UploadValidator::normalizeMimeType($mimeType),
                 'file_size'     => $size,
                 'file_content'  => $contents,
@@ -141,6 +138,33 @@ class EntityAttachmentService
         }
 
         return ['stored' => $stored, 'error' => $error];
+    }
+
+    /**
+     * Der Name, unter dem der Anhang abgelegt wird: Zufallspräfix gegen
+     * Kollisionen, dahinter der gekürzte Name des Hochladenden.
+     *
+     * Öffentlich, weil FinanceController, SongLibraryController und
+     * TaskController ihren Upload noch selbst abwickeln und sonst jeder seine
+     * eigene - bisher fehlende - Kürzung bräuchte. Solange sie nicht auf
+     * storeUploads() umgestellt sind, ist das hier die eine Stelle, die das
+     * Namensschema und die Spaltenbreite kennt.
+     */
+    public static function storedName(string $clientFilename): string
+    {
+        return bin2hex(random_bytes(16)) . '_' . self::shortenName(
+            $clientFilename,
+            self::NAME_MAX_LENGTH - self::STORED_NAME_PREFIX_LENGTH
+        );
+    }
+
+    /**
+     * Der Name, wie ihn die Oberfläche zeigt und der Download trägt - gekürzt
+     * auf die Spaltenbreite, siehe storedName().
+     */
+    public static function originalName(string $clientFilename): string
+    {
+        return self::shortenName($clientFilename, self::NAME_MAX_LENGTH);
     }
 
     /**

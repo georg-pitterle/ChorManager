@@ -24,6 +24,15 @@ final class SessionConfigTest extends TestCase
 
     protected function setUp(): void
     {
+        // Eine noch offene Sitzung stammt aus einer anderen Testklasse desselben
+        // Prozesses. PHP lehnt jedes `session.*`-ini_set() bei aktiver Sitzung ab,
+        // und applySavePath() gab dadurch false zurück - im parallelen Lauf rot,
+        // allein grün. Das Schließen gehört deshalb hierher und nicht in die
+        // Hoffnung auf einen aufräumenden Vorgänger.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
         $this->originalSavePath = (string) ini_get('session.save_path');
         $this->hadEnvValue = array_key_exists(self::ENV_KEY, $_ENV);
         $this->originalEnvValue = $this->hadEnvValue ? (string) $_ENV[self::ENV_KEY] : null;

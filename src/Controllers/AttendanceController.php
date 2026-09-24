@@ -78,13 +78,11 @@ class AttendanceController
                 $users = $event->eligibleUsersQuery();
 
                 // Ohne das Recht für alle Mitglieder bleibt nur der eigene Stimmgruppen-Scope.
+                // Eine leere Liste braucht keinen Sonderfall: whereIn() setzt dafür
+                // selbst `0 = 1` und liefert damit genau dieselbe leere Auswahl wie
+                // das frühere whereRaw('1 = 0').
                 if (!$canManageAttendanceAll) {
-                    $manageableUserIds = $this->scopeService->getManageableUserIds();
-                    if ($manageableUserIds === []) {
-                        $users->whereRaw('1 = 0');
-                    } else {
-                        $users->whereIn('users.id', $manageableUserIds);
-                    }
+                    $users->whereIn('users.id', $this->scopeService->getManageableUserIds());
                 }
 
                 $users = $users

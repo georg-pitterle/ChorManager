@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Services\BackupLimitReachedException;
 use App\Services\BackupService;
+use App\Util\DownloadFileName;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -129,10 +130,20 @@ class BackupController
         }
         $body = new Stream($stream);
 
+        // Über DownloadFileName statt von Hand zusammengesetzt - wie jeder andere
+        // Download der Anwendung. Der Name stammt hier aus BackupService und nicht
+        // aus einem Upload, aber ein Anführungszeichen darin bräche den Kopf
+        // genauso auf, und die zweite Fassung nach RFC 5987 hält Umlaute.
+        $safeName = DownloadFileName::sanitize((string) $file['filename']);
+
         return $response
             ->withBody($body)
             ->withHeader('Content-Type', 'application/gzip')
-            ->withHeader('Content-Disposition', 'attachment; filename="' . $file['filename'] . '"')
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . $safeName . '"'
+                    . '; filename*=UTF-8\'\'' . rawurlencode($safeName)
+            )
             ->withHeader('Content-Length', (string) $file['size']);
     }
 }

@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\Project;
 use App\Models\ProjectSongAssignment;
 use App\Models\Song;
+use App\Util\SafeRedirect;
 use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -115,10 +116,20 @@ class ProjectSongAssignmentController
         return $note === '' ? null : $note;
     }
 
+    /**
+     * Rücksprungziel nach dem Speichern. SafeRedirect wehrt fremde Ziele und
+     * Steuerzeichen ab, die Präfixprüfung hält den Rücksprung in der
+     * Notenverwaltung - gleiche Bauart wie EventController::subscriptionRedirectTarget().
+     *
+     * Ohne SafeRedirect landete ein `return_to` mit CR/LF unbesehen in
+     * `withHeader('Location', ...)`; Slim lehnt einen solchen Wert mit einer
+     * InvalidArgumentException ab, und aus dem Speichern wurde eine 500 statt
+     * eines Rücksprungs auf die Liste.
+     */
     private function resolveReturnTo(mixed $value, ?int $songId = null): string
     {
-        $target = trim((string) ($value ?? ''));
-        if ($target !== '' && str_starts_with($target, '/song-library')) {
+        $target = SafeRedirect::sanitize(is_string($value) ? trim($value) : null);
+        if ($target !== null && str_starts_with($target, '/song-library')) {
             return $target;
         }
 

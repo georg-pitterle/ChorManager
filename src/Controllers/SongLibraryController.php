@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Song;
 use App\Models\Attachment;
 use App\Models\SongResource;
+use App\Services\EntityAttachmentService;
 use App\Util\UploadValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -425,8 +426,8 @@ class SongLibraryController
             Attachment::create([
                 'entity_type' => 'song',
                 'entity_id' => $songId,
-                'filename' => bin2hex(random_bytes(16)) . '_' . $originalName,
-                'original_name' => $originalName,
+                'filename' => EntityAttachmentService::storedName($originalName),
+                'original_name' => EntityAttachmentService::originalName($originalName),
                 'mime_type' => UploadValidator::normalizeMimeType($mimeType),
                 'file_size' => $size,
                 'file_content' => $contents,

@@ -85,6 +85,68 @@ final class AttachmentLongFilenameFeatureTest extends TestCase
         $this->assertStringEndsWith('_Probenplan Mai.pdf', (string) $attachment->filename);
     }
 
+    /**
+     * FinanceController, SongLibraryController und TaskController wickeln ihren
+     * Upload noch selbst ab. Sie bauten ihren Namen dabei von Hand zusammen und
+     * hatten die Kürzung nie mitbekommen - ein langer Dateiname endete dort in
+     * "Data too long for column" und damit in einer Fehlerseite. Seit sie die
+     * Namen über den Dienst beziehen, gilt die Spaltenbreite auch für sie.
+     *
+     * Der Wächter liest nur Dateien, wie Tests\Unit\TestSuite\NoHandBuiltSchemaTest.
+     */
+    public function testNoControllerBuildsAStoredAttachmentNameByHand(): void
+    {
+        $offenders = [];
+
+        foreach (glob(dirname(__DIR__, 2) . '/src/Controllers/*.php') ?: [] as $path) {
+            $content = (string) file_get_contents($path);
+
+            // Das Namensschema des Dienstes: Zufallspräfix plus Unterstrich.
+            if (preg_match('/random_bytes\(16\)\)\s*\.\s*._/', $content) === 1) {
+                $offenders[] = basename($path);
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "Diese Controller bauen den Ablagenamen selbst und umgehen damit die Kürzung.\n"
+                . "Nutze EntityAttachmentService::storedName()/originalName():\n"
+                . implode("\n", $offenders)
+        );
+    }
+
+    public function testTheGuardActuallyScansTheControllers(): void
+    {
+        // Ohne Gegenprobe bliebe der Wächter auch grün, wenn er nach einer
+        // Umbenennung des Verzeichnisses gar keine Datei mehr fände.
+        $files = glob(dirname(__DIR__, 2) . '/src/Controllers/*.php') ?: [];
+
+        $this->assertGreaterThan(30, count($files), 'Der Wächter findet die Controller nicht mehr.');
+    }
+
+    /**
+     * Die beiden öffentlichen Namensbauer des Dienstes - sie sind es, die die
+     * drei Controller oben nutzen.
+     */
+    public function testTheSharedNameBuildersRespectTheColumnWidth(): void
+    {
+        $longName = str_repeat('Kontoauszug-', 40) . '.pdf';
+        $this->assertGreaterThan(255, mb_strlen($longName), 'Der Testname muss die Spalte sprengen.');
+
+        $stored = EntityAttachmentService::storedName($longName);
+        $original = EntityAttachmentService::originalName($longName);
+
+        $this->assertLessThanOrEqual(255, mb_strlen($stored));
+        $this->assertLessThanOrEqual(255, mb_strlen($original));
+        $this->assertStringEndsWith('.pdf', $stored);
+        $this->assertStringEndsWith('.pdf', $original);
+
+        // Das Zufallspräfix trennt zwei Uploads desselben Namens.
+        $this->assertNotSame($stored, EntityAttachmentService::storedName($longName));
+        $this->assertSame('Probenplan.pdf', EntityAttachmentService::originalName('Probenplan.pdf'));
+    }
+
     private function uploadedFile(string $clientFilename): UploadedFile
     {
         $content = '%PDF-1.4 Testinhalt';

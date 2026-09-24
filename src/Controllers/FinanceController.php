@@ -351,7 +351,14 @@ class FinanceController
                             continue;
                         }
 
-                        $safeName = DownloadFileName::sanitize((string) $file->getClientFilename());
+                        // Gekürzt auf die Spaltenbreite: `attachments.filename` und
+                        // `original_name` sind varchar(255), und der Name kommt vom
+                        // Hochladenden. Ungekürzt lehnt MySQL die Zeile ab und der
+                        // ganze Buchungs-Speichervorgang endet in der Fehlermeldung
+                        // unten, statt den Beleg zu sichern.
+                        $safeName = EntityAttachmentService::originalName(
+                            DownloadFileName::sanitize((string) $file->getClientFilename())
+                        );
 
                         Attachment::create([
                             'entity_type' => 'finance',
