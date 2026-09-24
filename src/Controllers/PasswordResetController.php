@@ -17,6 +17,7 @@ use App\Services\RateLimiterService;
 use App\Services\RememberLoginService;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
+use App\Util\ClientIpResolver;
 use App\Util\InputValidator;
 use App\Util\MailBranding;
 use Psr\Log\LoggerInterface;
@@ -198,6 +199,52 @@ class PasswordResetController
         ]);
     }
 
+    /**
+     * Zählt einen Einlöseversuch und meldet, ob er noch durchgelassen wird.
+     *
+     * Dieselben Zahlen wie bei der Anmeldung (AuthController::processLogin): zehn
+     * Versuche je Viertelstunde. Beim Anfordern sind es bewusst nur drei - dort
+     * verschickt jeder Versuch eine Mail, hier nicht.
+     *
+     * Ohne Begrenzer im Container (der Dienst ist optional) bleibt der Weg offen;
+     * das ist dieselbe Wahl, die sendResetLink() mit `?->` trifft.
+     */
+    private function resetAttemptAllowed(Request $request, string $email): bool
+    {
+        if ($this->rateLimiter === null) {
+            return true;
+        }
+
+        $ipLimit = $this->rateLimiter->hit(
+            'password_reset:consume:ip:' . ClientIpResolver::resolve($request),
+            10,
+            900
+        );
+
+        // Auch ohne Adresse gezählt: Ein Aufruf ohne `email` kostet keinen
+        // bcrypt-Durchlauf, soll aber die IP-Grenze nicht umgehen können.
+        $emailLimit = ['allowed' => true];
+        if ($email !== '') {
+            $emailLimit = $this->rateLimiter->hit(
+                'password_reset:consume:email:' . strtolower(trim($email)),
+                10,
+                900
+            );
+        }
+
+        if (($ipLimit['allowed'] ?? true) && ($emailLimit['allowed'] ?? true)) {
+            return true;
+        }
+
+        // WARNING wie bei auth.login.rate_limited: ein überschrittenes Limit ist
+        // ein Angriffssignal und muss auch bei angehobenem Level sichtbar bleiben.
+        $this->logger->warning('Password reset consumption blocked by rate limit.', [
+            'event' => 'auth.password_reset.rate_limited',
+        ]);
+
+        return false;
+    }
+
     public function processReset(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
@@ -205,6 +252,18 @@ class PasswordResetController
         $email = InputValidator::asString($data['email'] ?? null);
         $password = InputValidator::asString($data['password'] ?? null);
         $passwordConfirm = InputValidator::asString($data['password_confirm'] ?? null);
+
+        // Das Anfordern eines Links war begrenzt, das Einlösen nicht. Der Token
+        // selbst ist mit 256 Bit nicht zu erraten - es geht um die Last: Jeder
+        // Aufruf prüft ihn mit password_verify(), und ein bcrypt-Durchlauf kostet
+        // im Container rund 160 ms. Zwei Grenzen wie bei der Anmeldung: eine je
+        // Quell-IP, eine je Zielkonto, damit ein Angriff nicht durch Wechseln der
+        // einen an der anderen vorbeiläuft.
+        if (!$this->resetAttemptAllowed($request, $email)) {
+            $_SESSION['error'] = 'Zu viele Versuche. Bitte versuche es in wenigen Minuten erneut.';
+
+            return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+        }
 
         if (!$token || !$email || !$password) {
             $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus.';
