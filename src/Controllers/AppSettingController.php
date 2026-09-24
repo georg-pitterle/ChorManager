@@ -14,6 +14,7 @@ use App\Util\UploadValidator;
 use App\Services\NameFormatterService;
 use Psr\Log\LoggerInterface;
 use App\Util\DownloadFileName;
+use App\Util\InputValidator;
 
 class AppSettingController
 {
@@ -122,7 +123,7 @@ class AppSettingController
     public function save(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $appName = trim($data['app_name'] ?? '');
+        $appName = trim(InputValidator::asString($data['app_name'] ?? null));
         $primaryColor = self::normalizePrimaryColor($data['primary_color'] ?? null);
         $mailQueueTriggerMode = self::normalizeMailQueueTriggerMode($data['mailqueue_trigger_mode'] ?? null);
         $mailQueueOpportunisticRateLimit = self::normalizePositiveInteger(

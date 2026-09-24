@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Role;
+use App\Util\InputValidator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -262,7 +263,7 @@ class RoleController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
         $hierarchyLevel = (int) ($data['hierarchy_level'] ?? 0);
         $permissions = self::buildPermissionFlags($data, $this->moduleFlags());
 
@@ -337,7 +338,7 @@ class RoleController
     {
         $roleId = (int) $args['id'];
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
         $hierarchyLevel = (int) ($data['hierarchy_level'] ?? 0);
 
         if (!$name) {

@@ -9,6 +9,7 @@ use App\Models\BudgetItem;
 use App\Models\FinanceGroup;
 use App\Services\BudgetService;
 use App\Util\AmountNormalizer;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -173,8 +174,8 @@ class BudgetController
     {
         $categoryId = (int) ($args['id'] ?? 0);
         $data = (array) $request->getParsedBody();
-        $description = trim($data['description'] ?? '');
-        $plannedAmount = trim($data['planned_amount'] ?? '');
+        $description = trim(InputValidator::asString($data['description'] ?? null));
+        $plannedAmount = trim(InputValidator::asString($data['planned_amount'] ?? null));
 
         $category = BudgetCategory::find($categoryId);
         if ($category === null) {
@@ -211,8 +212,8 @@ class BudgetController
     {
         $id = (int) ($args['id'] ?? 0);
         $data = (array) $request->getParsedBody();
-        $description = trim($data['description'] ?? '');
-        $plannedAmount = trim($data['planned_amount'] ?? '');
+        $description = trim(InputValidator::asString($data['description'] ?? null));
+        $plannedAmount = trim(InputValidator::asString($data['planned_amount'] ?? null));
 
         $item = BudgetItem::with('category')->find($id);
         if ($item === null) {
@@ -274,7 +275,7 @@ class BudgetController
      */
     private function resolveFinanceGroupId(array $data): ?int
     {
-        $newName = trim($data['new_group_name'] ?? '');
+        $newName = trim(InputValidator::asString($data['new_group_name'] ?? null));
         if ($newName !== '') {
             return (int) FinanceGroup::firstOrCreate(['name' => $newName])->id;
         }

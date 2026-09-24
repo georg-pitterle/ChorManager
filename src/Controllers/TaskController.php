@@ -20,6 +20,7 @@ use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -411,7 +412,7 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
-        $title = trim($data['title'] ?? '');
+        $title = trim(InputValidator::asString($data['title'] ?? null));
 
         // Validate required fields
         if (empty($title)) {
@@ -494,7 +495,7 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
-        $title = trim($data['title'] ?? $task->name);
+        $title = trim(InputValidator::asString($data['title'] ?? $task->name));
 
         // Validate required fields
         if (empty($title)) {
@@ -620,7 +621,7 @@ class TaskController
         }
 
         $data = (array) $request->getParsedBody();
-        $content = trim($data['content'] ?? '');
+        $content = trim(InputValidator::asString($data['content'] ?? null));
 
         if ($content !== '') {
             Capsule::connection()->transaction(function () use ($task, $content) {

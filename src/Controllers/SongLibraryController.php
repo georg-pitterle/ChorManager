@@ -11,6 +11,7 @@ use App\Models\Attachment;
 use App\Models\SongResource;
 use App\Services\EntityAttachmentService;
 use App\Util\UploadValidator;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -149,7 +150,7 @@ class SongLibraryController
     public function createSong(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $title = trim($data['title'] ?? '');
+        $title = trim(InputValidator::asString($data['title'] ?? null));
 
         if ($title === '') {
             $_SESSION['error'] = 'Der Liedtitel ist ein Pflichtfeld.';
@@ -158,9 +159,9 @@ class SongLibraryController
 
         $song = Song::create([
             'title' => $title,
-            'composer' => trim($data['composer'] ?? '') ?: null,
-            'arranger' => trim($data['arranger'] ?? '') ?: null,
-            'publisher' => trim($data['publisher'] ?? '') ?: null,
+            'composer' => trim(InputValidator::asString($data['composer'] ?? null)) ?: null,
+            'arranger' => trim(InputValidator::asString($data['arranger'] ?? null)) ?: null,
+            'publisher' => trim(InputValidator::asString($data['publisher'] ?? null)) ?: null,
             'created_by_user_id' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
         ]);
 
@@ -205,7 +206,7 @@ class SongLibraryController
         }
 
         $data = (array) $request->getParsedBody();
-        $title = trim($data['title'] ?? '');
+        $title = trim(InputValidator::asString($data['title'] ?? null));
 
         if ($title === '') {
             $_SESSION['error'] = 'Der Liedtitel ist ein Pflichtfeld.';
@@ -214,9 +215,9 @@ class SongLibraryController
 
         $song->update([
             'title' => $title,
-            'composer' => trim($data['composer'] ?? '') ?: null,
-            'arranger' => trim($data['arranger'] ?? '') ?: null,
-            'publisher' => trim($data['publisher'] ?? '') ?: null,
+            'composer' => trim(InputValidator::asString($data['composer'] ?? null)) ?: null,
+            'arranger' => trim(InputValidator::asString($data['arranger'] ?? null)) ?: null,
+            'publisher' => trim(InputValidator::asString($data['publisher'] ?? null)) ?: null,
         ]);
 
         $_SESSION['success'] = 'Lied erfolgreich aktualisiert.';

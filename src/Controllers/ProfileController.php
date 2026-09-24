@@ -21,6 +21,7 @@ use App\Services\RememberLoginService;
 use App\Util\BlockedHostException;
 use App\Util\NotificationType;
 use App\Util\OutboundConnectionGuard;
+use App\Util\InputValidator;
 use Psr\Log\LoggerInterface;
 
 class ProfileController
@@ -163,9 +164,9 @@ class ProfileController
         $userId = (int)$_SESSION['user_id'];
         $data = (array)$request->getParsedBody();
 
-        $firstName = trim($data['first_name'] ?? '');
-        $lastName = trim($data['last_name'] ?? '');
-        $email = trim($data['email'] ?? '');
+        $firstName = trim(InputValidator::asString($data['first_name'] ?? null));
+        $lastName = trim(InputValidator::asString($data['last_name'] ?? null));
+        $email = trim(InputValidator::asString($data['email'] ?? null));
 
         if (!$firstName || !$lastName || !$email) {
             $_SESSION['error'] = 'Bitte fülle alle Pflichtfelder aus.';

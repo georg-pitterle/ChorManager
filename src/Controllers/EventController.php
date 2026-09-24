@@ -835,7 +835,7 @@ class EventController
     public function create(Request $request, Response $response): Response
     {
         $data = (array)$request->getParsedBody();
-        $title = trim($data['title'] ?? '');
+        $title = trim(InputValidator::asString($data['title'] ?? null));
         $startsAtDate = $data['starts_at'] ?? '';
         $startTime = $data['start_time'] ?? '';
         $endTime = $data['end_time'] ?? '';
@@ -859,7 +859,7 @@ class EventController
             'start_time' => $startTime,
             'end_time' => $endTime,
             'event_type_id' => $eventTypeId ?? '',
-            'location' => trim($data['location'] ?? ''),
+            'location' => trim(InputValidator::asString($data['location'] ?? null)),
             'repeat' => $repeat,
             'recurrence_interval' => trim((string) ($data['recurrence_interval'] ?? '1')),
             'frequency' => trim((string) ($data['frequency'] ?? 'weekly')),
@@ -976,7 +976,7 @@ class EventController
                     'ends_at' => $endsAt,
                     'event_type_id' => $eventTypeId,
                     'type' => $typeName,
-                    'location' => trim($data['location'] ?? ''),
+                    'location' => trim(InputValidator::asString($data['location'] ?? null)),
                     'registration_enabled' => $registrationEnabled,
                     'registration_deadline' => $registrationDeadline,
                     'attendance_required' => $attendanceRequired,
@@ -1038,7 +1038,7 @@ class EventController
                         'event_type_id' => $eventTypeId,
                         'type' => $typeName,
                         'series_id' => $series->id,
-                        'location' => trim($data['location'] ?? ''),
+                        'location' => trim(InputValidator::asString($data['location'] ?? null)),
                         'registration_enabled' => $registrationEnabled,
                         'registration_deadline' => $deadlineLeadSeconds === null
                             ? null
@@ -1165,7 +1165,7 @@ class EventController
         }
 
         $data = (array)$request->getParsedBody();
-        $title = trim($data['title'] ?? '');
+        $title = trim(InputValidator::asString($data['title'] ?? null));
         $startsAtDate = $data['starts_at'] ?? '';
         $startTime = $data['start_time'] ?? '';
         $endTime = $data['end_time'] ?? '';
@@ -1190,7 +1190,7 @@ class EventController
             'start_time' => $startTime,
             'end_time' => $endTime,
             'event_type_id' => $eventTypeId ?? '',
-            'location' => trim($data['location'] ?? ''),
+            'location' => trim(InputValidator::asString($data['location'] ?? null)),
             'update_series' => $updateSeries,
             'series_fields' => $seriesFields,
             'registration_enabled' => $registrationEnabled,
@@ -1251,7 +1251,7 @@ class EventController
                 'title' => $title,
                 'event_type_id' => $eventTypeId,
                 'type' => $typeName,
-                'location' => trim($data['location'] ?? ''),
+                'location' => trim(InputValidator::asString($data['location'] ?? null)),
                 'registration_enabled' => $registrationEnabled,
                 'attendance_required' => $attendanceRequired,
             ];

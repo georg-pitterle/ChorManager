@@ -26,6 +26,7 @@ use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
 use App\Util\InvitationHandoffLink;
 use App\Util\MailBranding;
+use App\Util\InputValidator;
 use Psr\Log\LoggerInterface;
 
 class UserController
@@ -184,9 +185,9 @@ class UserController
         $data = (array) $request->getParsedBody();
         $submitAction = (string) ($data['submit_action'] ?? 'save');
 
-        $firstName = trim($data['first_name'] ?? '');
-        $lastName = trim($data['last_name'] ?? '');
-        $email = trim($data['email'] ?? '');
+        $firstName = trim(InputValidator::asString($data['first_name'] ?? null));
+        $lastName = trim(InputValidator::asString($data['last_name'] ?? null));
+        $email = trim(InputValidator::asString($data['email'] ?? null));
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
@@ -341,14 +342,14 @@ class UserController
         }
 
         $data = (array) $request->getParsedBody();
-        $firstName = trim($data['first_name'] ?? '');
-        $lastName = trim($data['last_name'] ?? '');
+        $firstName = trim(InputValidator::asString($data['first_name'] ?? null));
+        $lastName = trim(InputValidator::asString($data['last_name'] ?? null));
 
         // Ohne can_edit_users bleibt die Adresse, wie sie ist. Ein übermittelter
         // Wert wird verworfen statt abgewiesen: das Formular zeigt das Feld dann
         // nur lesend an, ein trotzdem gesendeter Wert stammt nicht aus der
         // Oberfläche und darf die erlaubten Änderungen nicht blockieren.
-        $email = $canEditEmail ? trim($data['email'] ?? '') : (string) $targetUser->email;
+        $email = $canEditEmail ? trim(InputValidator::asString($data['email'] ?? null)) : (string) $targetUser->email;
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];

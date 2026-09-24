@@ -16,6 +16,7 @@ use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
 use App\Util\AmountNormalizer;
 use App\Util\SponsorshipStatus;
+use App\Util\InputValidator;
 
 class SponsorshipController
 {
@@ -66,7 +67,7 @@ class SponsorshipController
 
         $data      = (array) $request->getParsedBody();
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
-        $amount    = trim($data['amount'] ?? '');
+        $amount    = trim(InputValidator::asString($data['amount'] ?? null));
 
         if (!$sponsorId || $amount === '') {
             $_SESSION['error'] = 'Sponsor und Betrag sind Pflichtfelder.';
@@ -115,7 +116,7 @@ class SponsorshipController
                 'status'           => $status,
                 'start_date'       => $period['start_date'],
                 'end_date'         => $period['end_date'],
-                'notes'            => trim($data['notes'] ?? '') ?: null,
+                'notes'            => trim(InputValidator::asString($data['notes'] ?? null)) ?: null,
             ]);
 
             $this->handleAttachments($request, $sponsorship->id);
@@ -184,7 +185,7 @@ class SponsorshipController
                 'status'           => $status,
                 'start_date'       => !empty($data['start_date']) ? (string) $data['start_date'] : null,
                 'end_date'         => !empty($data['end_date']) ? (string) $data['end_date'] : null,
-                'notes'            => trim($data['notes'] ?? '') ?: null,
+                'notes'            => trim(InputValidator::asString($data['notes'] ?? null)) ?: null,
             ]);
 
             $this->handleAttachments($request, $sponsorship->id);

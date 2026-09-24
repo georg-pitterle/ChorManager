@@ -27,6 +27,7 @@ use Psr\Log\LoggerInterface;
 use App\Util\AmountNormalizer;
 use App\Util\UploadValidator;
 use App\Util\DownloadFileName;
+use App\Util\InputValidator;
 
 class FinanceController
 {
@@ -233,7 +234,7 @@ class FinanceController
         // Pflichtfeld auch serverseitig: das `required` im Formular hält nur die
         // Oberfläche auf, und eine Buchung ohne Text ist im Kassabuch später
         // niemandem mehr zuzuordnen.
-        $description = trim($data['description'] ?? '');
+        $description = trim(InputValidator::asString($data['description'] ?? null));
         if ($description === '') {
             $_SESSION['error'] = 'Bitte eine Beschreibung angeben.';
             return $response->withHeader('Location', '/finances')->withStatus(302);
@@ -259,7 +260,7 @@ class FinanceController
         }
 
         try {
-            $groupNameRaw = trim($data['group_name'] ?? '');
+            $groupNameRaw = trim(InputValidator::asString($data['group_name'] ?? null));
             $groupName = $groupNameRaw !== '' ? $groupNameRaw : null;
             $recordData = [
                 'invoice_date' => $invoiceDate,
@@ -942,7 +943,7 @@ class FinanceController
     public function updateSettings(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $startStr = trim($data['fiscal_year_start'] ?? '');
+        $startStr = trim(InputValidator::asString($data['fiscal_year_start'] ?? null));
         $matches = [];
         $matched = (bool) preg_match('/^(\d{2})\.(\d{2})\.$/', $startStr, $matches);
         $day = $matched ? (int) $matches[1] : 0;

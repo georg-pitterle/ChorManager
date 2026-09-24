@@ -68,7 +68,7 @@ class SponsorPackageController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
 
         if (!$name) {
             $_SESSION['error'] = 'Name ist ein Pflichtfeld.';
@@ -86,7 +86,7 @@ class SponsorPackageController
         try {
             SponsorPackage::create([
                 'name'        => $name,
-                'description' => trim($data['description'] ?? '') ?: null,
+                'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
                 'min_amount'  => $minAmount,
                 'color'       => $this->normalizeColor($data['color'] ?? null),
             ]);
@@ -108,7 +108,7 @@ class SponsorPackageController
     {
         $id = (int) $args['id'];
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
 
         if (!$name) {
             $_SESSION['error'] = 'Name ist ein Pflichtfeld.';
@@ -127,7 +127,7 @@ class SponsorPackageController
             $package = SponsorPackage::findOrFail($id);
             $package->update([
                 'name'        => $name,
-                'description' => trim($data['description'] ?? '') ?: null,
+                'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
                 'min_amount'  => $minAmount,
                 'color'       => $this->normalizeColor($data['color'] ?? null),
             ]);

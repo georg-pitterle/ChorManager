@@ -17,6 +17,7 @@ use App\Services\NotificationService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Persistence\ProjectPersistence;
+use App\Util\InputValidator;
 
 class ProjectController
 {
@@ -91,8 +92,8 @@ class ProjectController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
-        $description = trim($data['description'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
+        $description = trim(InputValidator::asString($data['description'] ?? null));
         $startDate = $data['start_date'] ?? null;
         $endDate = $data['end_date'] ?? null;
 
@@ -116,8 +117,8 @@ class ProjectController
     {
         $projectId = (int) $args['id'];
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
-        $description = trim($data['description'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
+        $description = trim(InputValidator::asString($data['description'] ?? null));
         $startDate = $data['start_date'] ?? null;
         $endDate = $data['end_date'] ?? null;
 

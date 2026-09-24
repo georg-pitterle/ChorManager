@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\Category;
+use App\Util\InputValidator;
 use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -14,7 +15,7 @@ class CategoryController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
         $sortOrder = $this->parseSortOrder($data['sort_order'] ?? null);
 
         if ($name === '') {
@@ -49,7 +50,7 @@ class CategoryController
         }
 
         $data = (array) $request->getParsedBody();
-        $name = trim($data['name'] ?? '');
+        $name = trim(InputValidator::asString($data['name'] ?? null));
         $sortOrder = $this->parseSortOrder($data['sort_order'] ?? null);
 
         if ($name === '') {
