@@ -187,7 +187,7 @@ class UserController
 
         $firstName = trim(InputValidator::asString($data['first_name'] ?? null));
         $lastName = trim(InputValidator::asString($data['last_name'] ?? null));
-        $email = trim(InputValidator::asString($data['email'] ?? null));
+        $emailInput = trim(InputValidator::asString($data['email'] ?? null));
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
@@ -200,7 +200,7 @@ class UserController
         $formData = [
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'email' => $email,
+            'email' => $emailInput,
             'roles' => array_map('intval', (array) $roleIds),
             'voice_groups' => array_map('intval', (array) $voiceGroupIds),
             'sub_voices' => array_map('intval', (array) ($subVoices ?? [])),
@@ -221,16 +221,25 @@ class UserController
         // Never allow assigning a role that outranks the actor's own hierarchy level.
         $roleIds = $this->capRoleIdsToActorLevel($roleIds);
 
-        if (!$firstName || !$lastName || !$email || empty($roleIds)) {
+        if (!$firstName || !$lastName || !$emailInput || empty($roleIds)) {
             $createService = new ModalFormService('user_create');
             $createService->setError('Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        // Reject malformed or over-long addresses before the DB write. The email
-        // column is varchar(255); without this guard an invalid value surfaces as
-        // a generic QueryException/500 instead of a form-level hint.
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 254) {
+        // Die Spalte fasst 255 Zeichen; ohne diese Grenze käme ein zu langer Wert
+        // als QueryException und damit als 500 zurück statt als Formularhinweis.
+        // Kleingeschrieben gespeichert, über InputValidator::validateEmail(): Das
+        // Zurücksetzen des Passworts schreibt die Adresse seit immer klein
+        // (sendResetLink), das Anlegen bisher so, wie sie eingegeben wurde. Heute
+        // fällt das nicht auf, weil die Kollation der Tabelle Groß- und
+        // Kleinschreibung gleich behandelt - würde die Datenbank je auf eine
+        // _bin-Kollation umgestellt, fände das Zurücksetzen das Konto nicht mehr.
+        // Der Aufruf prüft zugleich die Form, deshalb entfällt das frühere
+        // filter_var() an dieser Stelle; die Längengrenze bleibt, weil
+        // validateEmail() sie nicht kennt.
+        $email = InputValidator::validateEmail($emailInput);
+        if ($email === null || strlen($email) > 254) {
             $createService = new ModalFormService('user_create');
             $createService->setError('Bitte gib eine gültige E-Mail-Adresse ein.', $formData);
             return $response->withHeader('Location', '/users')->withStatus(302);
@@ -349,7 +358,13 @@ class UserController
         // Wert wird verworfen statt abgewiesen: das Formular zeigt das Feld dann
         // nur lesend an, ein trotzdem gesendeter Wert stammt nicht aus der
         // Oberfläche und darf die erlaubten Änderungen nicht blockieren.
-        $email = $canEditEmail ? trim(InputValidator::asString($data['email'] ?? null)) : (string) $targetUser->email;
+        // Nur der eingereichte Wert wird normalisiert. Die gespeicherte Adresse
+        // bleibt unangetastet, wenn das Feld gar nicht bearbeitet werden darf -
+        // sonst schriebe ein Speichern, das die Adresse nicht anfasst, sie
+        // kleingeschrieben zurück und löste ein `user.email.changed` aus.
+        $emailInput = $canEditEmail
+            ? trim(InputValidator::asString($data['email'] ?? null))
+            : (string) $targetUser->email;
 
         $roleIds = $data['roles'] ?? [];
         $voiceGroupIds = $data['voice_groups'] ?? [];
@@ -379,7 +394,7 @@ class UserController
         $formData = [
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'email' => $email,
+            'email' => $emailInput,
             'roles' => array_map('intval', (array) $roleIds),
             'voice_groups' => array_map('intval', (array) $voiceGroupIds),
             'sub_voices' => array_map('intval', (array) ($subVoices ?? [])),
@@ -423,7 +438,7 @@ class UserController
             return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
         }
 
-        if (!$firstName || !$lastName || !$email || empty($roleIds)) {
+        if (!$firstName || !$lastName || !$emailInput || empty($roleIds)) {
             $editService = new ModalFormService('user_edit_' . $userId);
             $editService->setError(
                 'Bitte fülle alle Pflichtfelder aus (inkl. mind. einer Rolle).',
@@ -434,9 +449,12 @@ class UserController
             return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
         }
 
-        // Reject malformed or over-long addresses before the DB write (varchar(255)),
-        // so an invalid value yields a form-level hint instead of a 500.
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 254) {
+        // Die Spalte fasst 255 Zeichen; ohne diese Grenze käme ein zu langer Wert
+        // als QueryException und damit als 500 zurück statt als Formularhinweis.
+        // Zur Kleinschreibung siehe create() - hier gilt sie nur für den
+        // eingereichten Wert, siehe $emailInput oben.
+        $email = $canEditEmail ? InputValidator::validateEmail($emailInput) : $emailInput;
+        if ($email === null || strlen($email) > 254) {
             $editService = new ModalFormService('user_edit_' . $userId);
             $editService->setError('Bitte gib eine gültige E-Mail-Adresse ein.', $formData, [], false);
             return $response->withHeader('Location', '/users?edit=' . $userId)->withStatus(302);
