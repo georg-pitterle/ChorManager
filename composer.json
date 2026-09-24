@@ -52,7 +52,7 @@
     "scripts": {
         "phpcs": "phpcs --standard=phpcs.xml src/",
         "phpcbf": "phpcbf --standard=phpcs.xml src/",
-        "twigcs": "twigcs --display blocking",
+        "twigcs": "twigcs templates --display blocking",
         "twigcbf": "twig-cs-fixer fix",
         "twig:reformat": "djlint templates --profile=twig --extension=twig --reformat || true",
         "twig:check": "djlint templates --profile=twig --extension=twig --check",
