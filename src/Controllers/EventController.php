@@ -55,6 +55,13 @@ class EventController
      * Auswahl gelten alle - so verhält sich die Serienänderung wie bisher, wer
      * einzelne Termine angepasst hat, kann sie aber gezielt aussparen.
      */
+    /**
+     * Wie weit die Terminliste ohne gesetzten Haken zurückreicht. Ein gerade
+     * vergangener Termin soll nicht sofort aus der Liste fallen - an ihm hängen
+     * noch die Anwesenheiten.
+     */
+    private const RECENT_EVENT_DAYS = 14;
+
     private const SERIES_FIELD_GROUPS = ['title', 'location', 'time', 'registration', 'attendance', 'audience'];
 
     /** Beschriftungen derselben Feldgruppen für das Bearbeiten-Formular. */
@@ -358,10 +365,18 @@ class EventController
             $query->where('event_type_id', $eventTypeId);
         }
 
-        // Filter out old events (older than 14 days) unless show_old_events=1
-        if (!$showOldEvents) {
-            $query->whereDate('starts_at', '>=', Carbon::now()->subDays(14));
-        }
+        // Die Liste kennt keinen Seitenumbruch: Was die Abfrage liefert, geht
+        // vollständig in die Antwort. Zwei Wochen zurück im Regelfall, ein Jahr mit
+        // gesetztem Haken - unbegrenzt war das Fenster vorher, und damit wuchs die
+        // Seite mit jedem Chorjahr weiter, bis irgendwann jeder Aufruf alle
+        // Termine seit der Erstinstallation lud. Ein Jahr deckt den Zweck des
+        // Hakens ab, nämlich den Blick auf die vergangene Saison; wer weiter
+        // zurückschauen will, findet die Zahlen in den Auswertungen.
+        $query->whereDate(
+            'starts_at',
+            '>=',
+            $showOldEvents ? Carbon::now()->subYear() : Carbon::now()->subDays(self::RECENT_EVENT_DAYS)
+        );
 
         if ($sort === 'type') {
             $query->leftJoin('event_types', 'events.event_type_id', '=', 'event_types.id')

@@ -138,6 +138,23 @@ class EventFeatureTest extends TestCase
         $this->assertStringContainsString('Event 15d Ago', $body);
     }
 
+    /**
+     * Die Liste kennt keinen Seitenumbruch: Was die Abfrage liefert, geht
+     * vollständig in die Antwort. Der Haken reichte vorher unbegrenzt zurück,
+     * damit wuchs die Seite mit jedem Chorjahr weiter. Ein Jahr deckt den Zweck
+     * ab - den Blick auf die vergangene Saison.
+     */
+    public function testShowOldEventsReachesBackOneYearAtMost(): void
+    {
+        $this->createEvent('Termin vor 11 Monaten', '-335 days');
+        $this->createEvent('Termin vor 13 Monaten', '-395 days');
+
+        $body = $this->renderEventsIndex(['show_old_events' => '1']);
+
+        $this->assertStringContainsString('Termin vor 11 Monaten', $body);
+        $this->assertStringNotContainsString('Termin vor 13 Monaten', $body);
+    }
+
     public function testShowOldEventsCheckboxStatePersistedInUrl(): void
     {
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
