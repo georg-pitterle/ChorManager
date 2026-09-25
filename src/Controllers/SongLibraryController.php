@@ -10,7 +10,6 @@ use App\Models\Song;
 use App\Models\Attachment;
 use App\Models\SongResource;
 use App\Services\EntityAttachmentService;
-use App\Util\UploadValidator;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -20,13 +19,26 @@ use Slim\Views\Twig;
 
 class SongLibraryController
 {
+    /** Anhänge, die am Lied hängen: Noten, Übungsaufnahmen, Begleitstimmen. */
+    public const ENTITY_TYPE = 'song';
+
     private Twig $view;
     private LoggerInterface $logger;
+    private EntityAttachmentService $attachments;
 
-    public function __construct(Twig $view, LoggerInterface $logger = new NullLogger())
-    {
+    /**
+     * `$attachments` steht am Ende und optional, weil mehrere Tests diesen
+     * Controller mit festen Positionsargumenten bauen. Ausfallen kann er nicht:
+     * Der Dienst braucht nur einen Logger, und den hat der Konstruktor schon.
+     */
+    public function __construct(
+        Twig $view,
+        LoggerInterface $logger = new NullLogger(),
+        ?EntityAttachmentService $attachments = null
+    ) {
         $this->view = $view;
         $this->logger = $logger;
+        $this->attachments = $attachments ?? new EntityAttachmentService($logger);
     }
 
     public function index(Request $request, Response $response): Response
@@ -234,7 +246,7 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library')->withStatus(302);
         }
 
-        Attachment::where('entity_type', 'song')
+        Attachment::where('entity_type', self::ENTITY_TYPE)
             ->where('entity_id', $songId)
             ->delete();
         $song->delete();
@@ -394,48 +406,19 @@ class SongLibraryController
         ], null];
     }
 
+    /**
+     * Über den gemeinsamen Dienst statt einer eigenen Kopie des Ablaufs.
+     *
+     * Eine Beanstandung bricht den Lauf dadurch nicht mehr ab. Das ist die
+     * Verbesserung und nicht der Preis: Vorher kehrte die Methode beim ersten
+     * beanstandeten Anhang zurück - die davor lagen, waren schon geschrieben, die
+     * danach nie. Wer fünf Noten wählt und bei der dritten die Größe reißt, hatte
+     * hinterher zwei gespeichert und keine Ahnung, welche fehlen. Jetzt werden
+     * alle gültigen gespeichert und die erste Beanstandung gemeldet.
+     */
     private function persistAttachments(int $songId, array $files): ?string
     {
-        foreach ($files as $file) {
-            if ($file->getError() === UPLOAD_ERR_NO_FILE) {
-                continue;
-            }
-
-            $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Datei');
-            if ($uploadError !== null) {
-                return $uploadError;
-            }
-
-            $mimeType = UploadValidator::detectMimeType($file);
-            $contents = $file->getStream()->getContents();
-            $size = strlen($contents);
-
-            $validation = UploadValidator::validateFileSize($size, $mimeType);
-            if (!$validation['valid']) {
-                $this->logger->warning('File upload rejected.', [
-                    'event' => 'security.upload.rejected',
-                    'reason' => $validation['reason'],
-                ]);
-                return $validation['error'];
-            }
-
-            $originalName = trim((string) $file->getClientFilename());
-            if ($originalName === '') {
-                return 'Dateiname fehlt.';
-            }
-
-            Attachment::create([
-                'entity_type' => 'song',
-                'entity_id' => $songId,
-                'filename' => EntityAttachmentService::storedName($originalName),
-                'original_name' => EntityAttachmentService::originalName($originalName),
-                'mime_type' => UploadValidator::normalizeMimeType($mimeType),
-                'file_size' => $size,
-                'file_content' => $contents,
-            ]);
-        }
-
-        return null;
+        return $this->attachments->storeUploads($files, self::ENTITY_TYPE, $songId)['error'];
     }
 
     public function deleteAttachment(Request $request, Response $response, array $args): Response
@@ -443,7 +426,7 @@ class SongLibraryController
         $songId = (int) ($args['song_id'] ?? 0);
         $attachmentId = (int) ($args['attachment_id'] ?? 0);
 
-        $attachment = Attachment::where('entity_type', 'song')->find($attachmentId);
+        $attachment = Attachment::where('entity_type', self::ENTITY_TYPE)->find($attachmentId);
         if (!$attachment || $attachment->entity_id !== $songId) {
             $_SESSION['error'] = 'Anhang nicht gefunden.';
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);

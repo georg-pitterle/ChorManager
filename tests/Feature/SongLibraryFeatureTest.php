@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\SongLibraryController;
+use App\Models\Attachment;
 use App\Models\Song;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -87,42 +88,221 @@ class SongLibraryFeatureTest extends TestCase
         $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/songs/detail.twig'));
     }
 
+    /**
+     * Geprüft wird das Verhalten, nicht der Quelltext.
+     *
+     * Vorher suchte dieser Test die Zeichenkette
+     * "Attachment::where('entity_type', 'song')" in der Datei. Das hielt weder
+     * fest, dass gelöscht wird, noch überlebte es die Umstellung des Literals auf
+     * die Konstante ENTITY_TYPE - eine Änderung, die am Verhalten nichts dreht.
+     */
     public function testSongDeleteAlsoRemovesAttachments(): void
     {
-        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        Bootstrap::setupTestDatabase();
 
-        $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("Attachment::where('entity_type', 'song')", $controllerContent);
-        $this->assertStringContainsString("->where('entity_id', " . '$' . "songId)", $controllerContent);
-        $this->assertStringContainsString("->delete();", $controllerContent);
+        $song = Song::create(['title' => 'Löschtest ' . bin2hex(random_bytes(4))]);
+        $otherSong = Song::create(['title' => 'Bleibt ' . bin2hex(random_bytes(4))]);
+        $attachment = $this->songAttachment((int) $song->id);
+        $foreignAttachment = $this->songAttachment((int) $otherSong->id);
+
+        $_SESSION = ['can_manage_song_library' => true];
+
+        try {
+            $this->controller()->deleteSong(
+                $this->makeRequest('POST', '/song-library/songs/' . $song->id . '/delete'),
+                $this->makeResponse(),
+                ['id' => (string) $song->id]
+            );
+
+            $this->assertNull(Song::find($song->id), 'Das Lied ist gelöscht.');
+            $this->assertNull(Attachment::find($attachment->id), 'Sein Anhang ebenso.');
+            $this->assertNotNull(
+                Attachment::find($foreignAttachment->id),
+                'Der Anhang eines anderen Liedes bleibt unberührt.'
+            );
+        } finally {
+            Attachment::whereIn('id', [$attachment->id, $foreignAttachment->id])->delete();
+            $otherSong->delete();
+            $song->delete();
+            $_SESSION = [];
+        }
     }
 
+    /**
+     * Der Dateityp wird geprüft, *bevor* etwas geschrieben wird.
+     *
+     * Vorher las dieser Test die Reihenfolge der Anweisungen aus dem Quelltext ab -
+     * detectMimeType, getContents, strlen, validateFileSize. Die Zeilen stehen seit
+     * der Umstellung auf EntityAttachmentService nicht mehr im Controller, und
+     * abgesichert war die Reihenfolge damit ohnehin nicht: Sie hätte sich ändern
+     * lassen, ohne dass der Test etwas gemerkt hätte. Jetzt zählt das Ergebnis -
+     * eine Datei mit unerlaubtem Typ landet nicht in der Tabelle.
+     */
     public function testSongUploadValidatesDeclaredMimeBeforePersisting(): void
     {
-        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
+        Bootstrap::setupTestDatabase();
 
-        $this->assertIsString($controllerContent);
-        $this->assertStringContainsString(
-            'UploadValidator::detectMimeType(' . '$' . 'file)',
-            $controllerContent
+        $song = Song::create(['title' => 'Typtest ' . bin2hex(random_bytes(4))]);
+        $_SESSION = ['can_manage_song_library' => true];
+
+        $content = '<?php echo "kein Notenblatt";';
+        $uploadedFile = new UploadedFile(
+            (new StreamFactory())->createStream($content),
+            'noten.php',
+            'application/x-php',
+            strlen($content),
+            UPLOAD_ERR_OK
         );
-        $this->assertStringContainsString(
-            '$contents = $file->getStream()->getContents();',
-            $controllerContent
+
+        try {
+            $this->controller()->uploadAttachments(
+                $this->makeRequest('POST', '/song-library/songs/' . $song->id . '/attachments')
+                    ->withUploadedFiles(['attachments' => [$uploadedFile]]),
+                $this->makeResponse(),
+                ['id' => (string) $song->id]
+            );
+
+            $this->assertSame(
+                0,
+                Attachment::where('entity_type', SongLibraryController::ENTITY_TYPE)
+                    ->where('entity_id', (int) $song->id)
+                    ->count(),
+                'Eine Datei mit unerlaubtem Typ darf nicht in der Tabelle landen.'
+            );
+            $this->assertNotNull($_SESSION['error'] ?? null, 'Die Ablehnung wird gemeldet.');
+        } finally {
+            Attachment::where('entity_type', SongLibraryController::ENTITY_TYPE)
+                ->where('entity_id', (int) $song->id)
+                ->delete();
+            $song->delete();
+            $_SESSION = [];
+        }
+    }
+
+    /**
+     * Eine gültige Datei landet unter dem Lied - mit Namen gekürzt auf die
+     * Spaltenbreite. Ohne diesen Fall blieb die Suite grün, selbst wenn der Anhang
+     * unter einem falschen `entity_type` gelandet wäre.
+     */
+    public function testSongUploadStoresTheAttachmentUnderTheSong(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $song = Song::create(['title' => 'Ablagetest ' . bin2hex(random_bytes(4))]);
+        $_SESSION = ['can_manage_song_library' => true];
+
+        $longName = str_repeat('Partitur-', 40) . '.pdf';
+        $content = '%PDF-1.4 Testinhalt';
+        $uploadedFile = new UploadedFile(
+            (new StreamFactory())->createStream($content),
+            $longName,
+            'application/pdf',
+            strlen($content),
+            UPLOAD_ERR_OK
         );
-        $this->assertStringContainsString(
-            '$size = strlen($contents);',
-            $controllerContent
-        );
-        $this->assertStringContainsString(
-            "UploadValidator::validateFileSize(" . '$' . "size, " . '$' . "mimeType)",
-            $controllerContent
-        );
-        $this->assertStringContainsString(
-            "'mime_type' => UploadValidator::normalizeMimeType(" . '$' . "mimeType)",
-            $controllerContent
-        );
-        $this->assertStringContainsString("'file_size' => " . '$' . "size", $controllerContent);
+
+        try {
+            $this->controller()->uploadAttachments(
+                $this->makeRequest('POST', '/song-library/songs/' . $song->id . '/attachments')
+                    ->withUploadedFiles(['attachments' => [$uploadedFile]]),
+                $this->makeResponse(),
+                ['id' => (string) $song->id]
+            );
+
+            $stored = Attachment::where('entity_type', SongLibraryController::ENTITY_TYPE)
+                ->where('entity_id', (int) $song->id)
+                ->get();
+
+            $this->assertCount(1, $stored, 'Der Anhang muss unter dem Lied liegen: '
+                . ($_SESSION['error'] ?? 'kein Fehler'));
+
+            $attachment = $stored->first();
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $attachment->filename));
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $attachment->original_name));
+            $this->assertStringEndsWith('.pdf', (string) $attachment->original_name);
+            $this->assertSame('application/pdf', (string) $attachment->mime_type);
+            $this->assertSame(strlen($content), (int) $attachment->file_size);
+        } finally {
+            Attachment::where('entity_type', SongLibraryController::ENTITY_TYPE)
+                ->where('entity_id', (int) $song->id)
+                ->delete();
+            $song->delete();
+            $_SESSION = [];
+        }
+    }
+
+    /**
+     * Eine beanstandete Datei bricht den Lauf nicht mehr ab.
+     *
+     * Vorher kehrte persistAttachments() beim ersten beanstandeten Anhang zurück:
+     * die davor lagen, waren schon geschrieben, die danach nie. Wer fünf Noten
+     * wählt und bei der dritten die Größe reißt, hatte hinterher zwei gespeichert
+     * und keine Ahnung, welche fehlen.
+     */
+    public function testAValidFileAfterARejectedOneIsStillStored(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $song = Song::create(['title' => 'Reihentest ' . bin2hex(random_bytes(4))]);
+        $_SESSION = ['can_manage_song_library' => true];
+
+        $good = '%PDF-1.4 gueltig';
+
+        try {
+            $this->controller()->uploadAttachments(
+                $this->makeRequest('POST', '/song-library/songs/' . $song->id . '/attachments')
+                    ->withUploadedFiles(['attachments' => [
+                        new UploadedFile(
+                            (new StreamFactory())->createStream('<?php'),
+                            'abgelehnt.php',
+                            'application/x-php',
+                            5,
+                            UPLOAD_ERR_OK
+                        ),
+                        new UploadedFile(
+                            (new StreamFactory())->createStream($good),
+                            'danach.pdf',
+                            'application/pdf',
+                            strlen($good),
+                            UPLOAD_ERR_OK
+                        ),
+                    ]]),
+                $this->makeResponse(),
+                ['id' => (string) $song->id]
+            );
+
+            $stored = Attachment::where('entity_type', SongLibraryController::ENTITY_TYPE)
+                ->where('entity_id', (int) $song->id)
+                ->pluck('original_name')
+                ->all();
+
+            $this->assertSame(['danach.pdf'], $stored);
+            $this->assertNotNull($_SESSION['error'] ?? null, 'Die Ablehnung wird trotzdem gemeldet.');
+        } finally {
+            Attachment::where('entity_type', SongLibraryController::ENTITY_TYPE)
+                ->where('entity_id', (int) $song->id)
+                ->delete();
+            $song->delete();
+            $_SESSION = [];
+        }
+    }
+
+    private function controller(): SongLibraryController
+    {
+        return new SongLibraryController($this->createStub(Twig::class), new Logger('test'));
+    }
+
+    private function songAttachment(int $songId): Attachment
+    {
+        return Attachment::create([
+            'entity_type' => SongLibraryController::ENTITY_TYPE,
+            'entity_id' => $songId,
+            'filename' => bin2hex(random_bytes(8)) . '_noten.pdf',
+            'original_name' => 'noten.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 6,
+            'file_content' => 'Inhalt',
+        ]);
     }
 
     public function testDevSeedServiceSeedsSongsAndSongAttachments(): void

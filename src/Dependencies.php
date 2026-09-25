@@ -325,7 +325,11 @@ return function (ContainerBuilder $containerBuilder) {
         // Controller mit nur $view), daher hier explizit verdrahten - sonst überspringt
         // die Autowiring-Reflexion den Parameter und der echte Logger kommt nie an.
         SongLibraryController::class => function (ContainerInterface $c) {
-            return new SongLibraryController($c->get(Twig::class), $c->get(LoggerInterface::class));
+            return new SongLibraryController(
+                $c->get(Twig::class),
+                $c->get(LoggerInterface::class),
+                $c->get(EntityAttachmentService::class)
+            );
         },
         // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter wird von
         // der Autowiring-Reflexion übersprungen und bliebe der NullLogger - die

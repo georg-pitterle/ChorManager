@@ -127,7 +127,16 @@ class EntityAttachmentService
                 continue;
             }
 
-            $clientFilename = (string) $file->getClientFilename();
+            $clientFilename = trim((string) $file->getClientFilename());
+
+            // Ein Browser schickt immer einen Namen mit. Fehlt er, ist die Anfrage
+            // von Hand gebaut, und ohne Namen ließe sich der Anhang später weder
+            // zuordnen noch sinnvoll herunterladen. Die Prüfung stand vorher nur
+            // in der Kopie in SongLibraryController und gilt jetzt für jeden Weg.
+            if ($clientFilename === '') {
+                $error ??= 'Dateiname fehlt.';
+                continue;
+            }
 
             Attachment::create([
                 'entity_type'   => $entityType,

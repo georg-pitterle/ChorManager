@@ -46,12 +46,12 @@ class UploadLimitFeatureTest extends TestCase
             [
                 $root . '/src/Controllers/AppSettingController.php',
                 $root . '/src/Controllers/FinanceController.php',
-                $root . '/src/Controllers/SongLibraryController.php',
-                // Der Dienst selbst, für Sponsoring, Vereinbarungen und Aufgaben.
+                // Der Dienst selbst, für alle delegierenden Wege unten.
                 $root . '/src/Services/EntityAttachmentService.php',
             ],
             // Laden über EntityAttachmentService::storeUploads() hoch.
             [
+                $root . '/src/Controllers/SongLibraryController.php',
                 $root . '/src/Controllers/SponsorController.php',
                 $root . '/src/Controllers/SponsorshipController.php',
                 $root . '/src/Controllers/TaskController.php',
