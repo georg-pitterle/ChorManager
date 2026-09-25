@@ -75,6 +75,11 @@ class EntityAttachmentService
      * zurück. Eine abgelehnte Datei bricht den Lauf nicht ab - die übrigen
      * werden weiterhin gespeichert, wie es die Vorgängerfassung tat.
      *
+     * Die *erste* und nicht die letzte: Eine schlichte Zuweisung überschrieb den
+     * Wert bei jeder weiteren Ablehnung, sodass bei mehreren beanstandeten
+     * Dateien die letzte Meldung gewann. Wer fünf Dateien wählt und bei der
+     * ersten etwas falsch macht, soll darüber lesen und nicht über die fünfte.
+     *
      * @param UploadedFileInterface|list<UploadedFileInterface>|null $files
      * @return array{stored: int, error: ?string}
      */
@@ -98,7 +103,7 @@ class EntityAttachmentService
 
             $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Anhang');
             if ($uploadError !== null) {
-                $error = $uploadError;
+                $error ??= $uploadError;
                 continue;
             }
 
@@ -118,7 +123,7 @@ class EntityAttachmentService
                     'event' => 'security.upload.rejected',
                     'reason' => $validation['reason'],
                 ]);
-                $error = $validation['error'];
+                $error ??= $validation['error'];
                 continue;
             }
 
