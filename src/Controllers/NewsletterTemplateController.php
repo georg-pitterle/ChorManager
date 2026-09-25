@@ -17,6 +17,7 @@ use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
 use App\Util\RequestFormat;
+use App\Util\InputValidator;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -83,10 +84,10 @@ class NewsletterTemplateController
      */
     private function validateTemplateInput(array $data): array
     {
-        $name = trim((string) ($data['name'] ?? ''));
+        $name = trim(InputValidator::asString($data['name'] ?? null));
         $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
-        $description = trim((string) ($data['description'] ?? ''));
-        $defaultTitle = trim((string) ($data['default_title'] ?? ''));
+        $description = trim(InputValidator::asString($data['description'] ?? null));
+        $defaultTitle = trim(InputValidator::asString($data['default_title'] ?? null));
 
         if ($name === '' || mb_strlen($name) > 255 || $contentHtml === '') {
             return ['ok' => false, 'payload' => []];
@@ -372,8 +373,8 @@ class NewsletterTemplateController
         }
 
         $data = (array) $request->getParsedBody();
-        $templateName = trim((string) ($data['template_name'] ?? $newsletter->title));
-        $templateDescription = trim((string) ($data['template_description'] ?? ''));
+        $templateName = trim(InputValidator::asString($data['template_name'] ?? $newsletter->title));
+        $templateDescription = trim(InputValidator::asString($data['template_description'] ?? null));
         $templateContentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($newsletter->content_html);
 
         if ($templateName === '' || mb_strlen($templateName) > 255 || trim(strip_tags($templateContentHtml)) === '') {

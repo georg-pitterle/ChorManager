@@ -321,7 +321,7 @@ class EventController
         $projectId = !empty($queryParams['project_id']) ? (int)$queryParams['project_id'] : null;
         $eventTypeId = !empty($queryParams['event_type_id']) ? (int)$queryParams['event_type_id'] : null;
         $sort = $queryParams['sort'] ?? 'starts_at';
-        $direction = strtolower((string) ($queryParams['direction'] ?? 'asc'));
+        $direction = strtolower(InputValidator::asString($queryParams['direction'] ?? 'asc'));
         if (!in_array($direction, ['asc', 'desc'], true)) {
             $direction = 'asc';
         }
@@ -678,7 +678,7 @@ class EventController
      */
     private function readAudienceSources(array $data): array
     {
-        $sourcesJson = trim((string) ($data['sources_json'] ?? ''));
+        $sourcesJson = trim(InputValidator::asString($data['sources_json'] ?? null));
         if ($sourcesJson !== '') {
             $decoded = json_decode($sourcesJson, true);
             if (is_array($decoded)) {
@@ -713,7 +713,7 @@ class EventController
         }
 
         $data = (array) $request->getParsedBody();
-        $content = trim((string) ($data['content'] ?? ''));
+        $content = trim(InputValidator::asString($data['content'] ?? null));
         if ($content === '') {
             $_SESSION['error'] = 'Bemerkung darf nicht leer sein.';
             return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
@@ -782,7 +782,7 @@ class EventController
         }
 
         $data = (array) $request->getParsedBody();
-        $content = trim((string) ($data['content'] ?? ''));
+        $content = trim(InputValidator::asString($data['content'] ?? null));
         if ($content === '') {
             $_SESSION['error'] = 'Bemerkung darf nicht leer sein.';
             return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
@@ -858,7 +858,7 @@ class EventController
         $repeat = !empty($data['repeat']);
         $registrationEnabled = !empty($data['registration_enabled']);
         $attendanceRequired = !empty($data['attendance_required']);
-        $registrationDeadlineRaw = trim((string) ($data['registration_deadline'] ?? ''));
+        $registrationDeadlineRaw = trim(InputValidator::asString($data['registration_deadline'] ?? null));
         $registrationDeadline = null;
         if ($registrationEnabled && $registrationDeadlineRaw !== '') {
             try {
@@ -876,10 +876,10 @@ class EventController
             'event_type_id' => $eventTypeId ?? '',
             'location' => trim(InputValidator::asString($data['location'] ?? null)),
             'repeat' => $repeat,
-            'recurrence_interval' => trim((string) ($data['recurrence_interval'] ?? '1')),
-            'frequency' => trim((string) ($data['frequency'] ?? 'weekly')),
+            'recurrence_interval' => trim(InputValidator::asString($data['recurrence_interval'] ?? '1')),
+            'frequency' => trim(InputValidator::asString($data['frequency'] ?? 'weekly')),
             'weekdays' => array_values(array_map('intval', (array) ($data['weekdays'] ?? [1]))),
-            'series_end_date' => trim((string) ($data['series_end_date'] ?? '')),
+            'series_end_date' => trim(InputValidator::asString($data['series_end_date'] ?? null)),
             'registration_enabled' => $registrationEnabled,
             'registration_deadline' => $registrationDeadlineRaw,
             'attendance_required' => $attendanceRequired,
@@ -1189,7 +1189,7 @@ class EventController
         $seriesFields = self::normalizeSeriesFieldGroups($data['series_fields'] ?? null);
         $registrationEnabled = !empty($data['registration_enabled']);
         $attendanceRequired = !empty($data['attendance_required']);
-        $registrationDeadlineRaw = trim((string) ($data['registration_deadline'] ?? ''));
+        $registrationDeadlineRaw = trim(InputValidator::asString($data['registration_deadline'] ?? null));
         $registrationDeadline = null;
         if ($registrationEnabled && $registrationDeadlineRaw !== '') {
             try {

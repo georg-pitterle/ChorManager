@@ -12,6 +12,7 @@ use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\RequestFormat;
 use App\Util\VoiceGroupOrder;
+use App\Util\InputValidator;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -208,8 +209,8 @@ class RegistrationController
         }
 
         $data = (array) $request->getParsedBody();
-        $status = (string) ($data['status'] ?? '');
-        $note = trim((string) ($data['note'] ?? ''));
+        $status = InputValidator::asString($data['status'] ?? null);
+        $note = trim(InputValidator::asString($data['note'] ?? null));
 
         if (!in_array($status, EventRegistration::STATUSES, true)) {
             if ($expectsJson) {
@@ -329,7 +330,7 @@ class RegistrationController
         $data = (array) $request->getParsedBody();
         $registrations = (array) ($data['registration'] ?? []);
         $notes = (array) ($data['note'] ?? []);
-        $loadedStateHash = (string) ($data['state_hash'] ?? '');
+        $loadedStateHash = InputValidator::asString($data['state_hash'] ?? null);
 
         // Vertretungseinträge sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
         // auf die Zielgruppe des Termins - sonst entstünden Anmeldungen für Unbeteiligte.

@@ -47,10 +47,12 @@ class NewsletterSecurityHardeningFeatureTest extends TestCase
         );
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString(
-            'trim((string) ($data[\'template_name\'] ?? $newsletter->title))',
-            $controllerContent
-        );
+        // Der Name lief vorher über `trim((string) ($data['template_name'] ?? ...))`
+        // und wurde hier als Zeichenkette gesucht. Seit dem Umstieg auf
+        // InputValidator::asString() steht dort ein anderer Wortlaut, und die Suche
+        // hätte ohnehin nie gemerkt, ob der Rückfall und die Längengrenze wirken.
+        // Beides prüft jetzt Tests\Feature\NewsletterTemplateSettingsFeatureTest
+        // am gespeicherten Datensatz.
         $this->assertStringContainsString('mb_strlen($templateName) > 255', $controllerContent);
         $this->assertStringContainsString(
             '$this->htmlSanitizer->sanitizeNewsletterHtml($newsletter->content_html)',

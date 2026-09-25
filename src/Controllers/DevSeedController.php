@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Services\DevSeedService;
 use App\Util\AppEnvironment;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -28,7 +29,7 @@ class DevSeedController
         $data = (array) ($request->getParsedBody() ?? []);
         $params = $request->getQueryParams();
 
-        $mode = (string) ($data['mode'] ?? $params['mode'] ?? 'append');
+        $mode = InputValidator::asString($data['mode'] ?? $params['mode'] ?? 'append');
         $years = (int) ($data['years'] ?? $params['years'] ?? 3);
         $seed = (int) ($data['seed'] ?? $params['seed'] ?? 20260321);
 

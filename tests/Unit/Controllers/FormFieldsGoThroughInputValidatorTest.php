@@ -35,15 +35,7 @@ final class FormFieldsGoThroughInputValidatorTest extends TestCase
 
     public function testNoControllerTrimsARequestFieldDirectly(): void
     {
-        $offenders = [];
-
-        foreach ($this->controllerFiles() as $path) {
-            foreach (file($path) ?: [] as $number => $line) {
-                if (preg_match('/trim\(\$data\[/', $line) === 1) {
-                    $offenders[] = basename($path) . ':' . ($number + 1) . ' ' . trim($line);
-                }
-            }
-        }
+        $offenders = $this->linesMatching('/trim\(\$data\[/');
 
         $this->assertSame(
             [],
@@ -55,6 +47,43 @@ final class FormFieldsGoThroughInputValidatorTest extends TestCase
     }
 
     /**
+     * Die mildere Schwester des Falls oben: `(string) $data['x']` wirft keinen
+     * TypeError, liefert aus einem Array aber die Zeichenkette "Array" - ein Wert,
+     * den nie jemand eingegeben hat und der jede Längen- und Leerprüfung dahinter
+     * besteht. An ein paar Stellen wurde er dadurch gespeichert statt abgewiesen.
+     */
+    public function testNoControllerCastsARequestFieldToStringByHand(): void
+    {
+        $offenders = $this->linesMatching('/\(string\) \(\$(?:data|queryParams|params)\[/');
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "Diese Stellen wandeln ein Formularfeld mit (string) um. Aus einem Feld-Array\n"
+                . "wird dabei \"Array\". Nutze InputValidator::asString():\n"
+                . implode("\n", $offenders)
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function linesMatching(string $pattern): array
+    {
+        $offenders = [];
+
+        foreach ($this->controllerFiles() as $path) {
+            foreach (file($path) ?: [] as $number => $line) {
+                if (preg_match($pattern, $line) === 1) {
+                    $offenders[] = basename($path) . ':' . ($number + 1) . ' ' . trim($line);
+                }
+            }
+        }
+
+        return $offenders;
+    }
+
+    /**
      * Gegenprobe: Ohne sie bliebe der Wächter auch dann grün, wenn er nach einer
      * Umbenennung des Verzeichnisses gar keine Datei mehr fände.
      */
@@ -63,11 +92,18 @@ final class FormFieldsGoThroughInputValidatorTest extends TestCase
         $this->assertGreaterThan(30, count($this->controllerFiles()));
     }
 
-    public function testTheGuardRecognisesTheOldPattern(): void
+    public function testTheGuardRecognisesTheOldPatterns(): void
     {
         $this->assertSame(
             1,
             preg_match('/trim\(\$data\[/', "        \$name = trim(\$data['name'] ?? '');")
+        );
+        $this->assertSame(
+            1,
+            preg_match(
+                '/\(string\) \(\$(?:data|queryParams|params)\[/',
+                "        \$name = trim((string) (\$data['name'] ?? ''));"
+            )
         );
     }
 }

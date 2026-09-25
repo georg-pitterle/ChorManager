@@ -21,6 +21,7 @@ use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 use Twig\TwigFilter;
@@ -103,6 +104,106 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
             ],
             $this->sourceKeys($template)
         );
+    }
+
+    /**
+     * Fehlt `template_name`, tritt der Titel des Newsletters an seine Stelle.
+     */
+    public function testStoreFromNewsletterFallsBackToTheNewsletterTitle(): void
+    {
+        $newsletter = $this->newsletterForTemplate();
+
+        $response = $this->storeFromNewsletter($newsletter->id, []);
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertSame('Probenwoche im Herbst', $this->createdTemplate($response)->name);
+    }
+
+    /**
+     * `newsletter_templates.name` fasst 255 Zeichen. Ein längerer Name wird
+     * abgewiesen, statt in einen Datenbankfehler zu laufen.
+     */
+    public function testStoreFromNewsletterRejectsAnOverlongName(): void
+    {
+        $newsletter = $this->newsletterForTemplate();
+        $before = NewsletterTemplate::query()->count();
+
+        $response = $this->storeFromNewsletter($newsletter->id, [
+            'template_name' => str_repeat('a', 256),
+        ]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame($before, NewsletterTemplate::query()->count(), 'Es darf keine Vorlage entstehen.');
+    }
+
+    /**
+     * Ein Feld, das als Feld-Array hereinkommt, darf nicht als Zeichenkette
+     * "Array" in der Spalte landen.
+     *
+     * `(string) $data['template_name']` lieferte genau das: einen Namen, den nie
+     * jemand eingegeben hat, der aber jede Längen- und Leerprüfung dahinter besteht
+     * und deshalb gespeichert wurde. Über InputValidator::asString() wird daraus
+     * ein leerer Wert, und die Vorlage wird abgewiesen.
+     *
+     * Der Rückfall auf den Newsletter-Titel greift dabei ausdrücklich *nicht*:
+     * `??` prüft, ob der Schlüssel fehlt, und bei `template_name[]=x` ist er
+     * vorhanden - nur eben als Array. Abgewiesen zu werden ist hier richtig, denn
+     * so ein Feld kommt nicht aus der Oberfläche.
+     */
+    public function testStoreFromNewsletterRejectsAnArrayInsteadOfStoringTheWordArray(): void
+    {
+        $newsletter = $this->newsletterForTemplate();
+        $before = NewsletterTemplate::query()->count();
+
+        $response = $this->storeFromNewsletter($newsletter->id, [
+            'template_name' => ['Probenwochen-Vorlage'],
+            'template_description' => ['Beschreibung'],
+        ]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame($before, NewsletterTemplate::query()->count(), 'Es darf keine Vorlage entstehen.');
+        $this->assertSame(
+            0,
+            NewsletterTemplate::where('name', 'Array')->count(),
+            'Erst recht keine mit dem Namen "Array".'
+        );
+    }
+
+    private function newsletterForTemplate(): Newsletter
+    {
+        $creator = $this->createUser();
+        $_SESSION['user_id'] = $creator->id;
+
+        return Newsletter::create([
+            'project_id' => $this->createProject()->id,
+            'title' => 'Probenwoche im Herbst',
+            'content_html' => '<p>Hallo Chor!</p>',
+            'status' => Newsletter::STATUS_DRAFT,
+            'created_by' => $creator->id,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    private function storeFromNewsletter(int $newsletterId, array $body): ResponseInterface
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/newsletters/' . $newsletterId . '/save-as-template',
+            $body,
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest']
+        )->withAttribute('id', (string) $newsletterId);
+
+        return $this->templateController()->storeFromNewsletter($request, $this->makeResponse());
+    }
+
+    private function createdTemplate(ResponseInterface $response): NewsletterTemplate
+    {
+        $payload = json_decode((string) $response->getBody(), true);
+
+        return NewsletterTemplate::findOrFail((int) $payload['template_id']);
     }
 
     public function testTemplateUpdatePersistsSettings(): void

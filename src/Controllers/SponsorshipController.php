@@ -83,7 +83,7 @@ class SponsorshipController
         // Ohne diese Prüfung landet ein unbekannter Wert direkt im Enum der
         // Spalte: MySQL weist ihn ab, und der Fehler kam bisher als
         // nichtssagendes "Fehler beim Anlegen" zurück.
-        $status = (string) ($data['status'] ?? SponsorshipStatus::DEFAULT);
+        $status = InputValidator::asString($data['status'] ?? SponsorshipStatus::DEFAULT);
         if (!SponsorshipStatus::isValid($status)) {
             $_SESSION['error'] = self::STATUS_ERROR;
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -156,13 +156,13 @@ class SponsorshipController
                 return $this->deny($response);
             }
 
-            $normalizedAmount = self::validateAmount(trim((string) ($data['amount'] ?? '')));
+            $normalizedAmount = self::validateAmount(trim(InputValidator::asString($data['amount'] ?? null)));
             if ($normalizedAmount === null) {
                 $_SESSION['error'] = self::AMOUNT_ERROR;
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
             }
 
-            $status = (string) ($data['status'] ?? $sponsorship->status);
+            $status = InputValidator::asString($data['status'] ?? $sponsorship->status);
             if (!SponsorshipStatus::isValid($status)) {
                 $_SESSION['error'] = self::STATUS_ERROR;
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);

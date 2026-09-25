@@ -13,6 +13,7 @@ use App\Models\Attendance;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
+use App\Util\InputValidator;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
@@ -162,7 +163,7 @@ class AttendanceController
         $data = (array) $request->getParsedBody();
         $attendances = (array) ($data['attendance'] ?? []);
         $notes = (array) ($data['note'] ?? []);
-        $loadedStateHash = (string) ($data['state_hash'] ?? '');
+        $loadedStateHash = InputValidator::asString($data['state_hash'] ?? null);
 
         $event = Event::find($eventId);
         if (!$event) {

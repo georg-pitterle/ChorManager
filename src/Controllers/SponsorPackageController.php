@@ -76,7 +76,7 @@ class SponsorPackageController
         }
 
         // Das Feld ist optional; leer heißt "kein Mindestbetrag".
-        $minAmountInput = trim((string) ($data['min_amount'] ?? ''));
+        $minAmountInput = trim(InputValidator::asString($data['min_amount'] ?? null));
         $minAmount = SponsorshipController::validateAmount($minAmountInput === '' ? '0' : $minAmountInput);
         if ($minAmount === null) {
             $_SESSION['error'] = self::AMOUNT_ERROR;
@@ -116,7 +116,7 @@ class SponsorPackageController
         }
 
         // Das Feld ist optional; leer heißt "kein Mindestbetrag".
-        $minAmountInput = trim((string) ($data['min_amount'] ?? ''));
+        $minAmountInput = trim(InputValidator::asString($data['min_amount'] ?? null));
         $minAmount = SponsorshipController::validateAmount($minAmountInput === '' ? '0' : $minAmountInput);
         if ($minAmount === null) {
             $_SESSION['error'] = self::AMOUNT_ERROR;

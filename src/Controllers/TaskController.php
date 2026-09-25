@@ -751,7 +751,7 @@ class TaskController
             $data = (array) json_decode($json, true);
         }
 
-        $statusInput = trim((string) ($data['status'] ?? ''));
+        $statusInput = trim(InputValidator::asString($data['status'] ?? null));
         if (empty($statusInput)) {
             $response->getBody()->write((string) json_encode([
                 'success' => false,

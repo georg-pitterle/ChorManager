@@ -15,6 +15,7 @@ use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
 use App\Util\SponsorEngagementState;
 use App\Util\SponsorshipStatus;
+use App\Util\InputValidator;
 
 class SponsorController
 {
@@ -303,7 +304,7 @@ class SponsorController
     {
         $fail = static fn (string $message): array => ['error' => $message, 'values' => []];
 
-        $name = trim((string) ($data['name'] ?? ''));
+        $name = trim(InputValidator::asString($data['name'] ?? null));
         if ($name === '') {
             return $fail('Name ist ein Pflichtfeld.');
         }
@@ -347,7 +348,7 @@ class SponsorController
         return [
             'error' => null,
             'values' => [
-                'type'           => in_array((string) ($data['type'] ?? ''), ['organization', 'person'], true)
+                'type'           => in_array(InputValidator::asString($data['type'] ?? null), ['organization', 'person'], true)
                     ? (string) $data['type']
                     : 'organization',
                 'name'           => $name,

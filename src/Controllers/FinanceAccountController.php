@@ -9,6 +9,7 @@ use App\Models\FinanceAccount;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceJournalService;
 use App\Util\AmountNormalizer;
+use App\Util\InputValidator;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -61,10 +62,10 @@ class FinanceAccountController
         $data = (array) $request->getParsedBody();
         $id = isset($data['id']) && $data['id'] ? (int) $data['id'] : null;
 
-        $name = trim((string) ($data['name'] ?? ''));
-        $type = (string) ($data['type'] ?? '');
-        $openingDate = (string) ($data['opening_date'] ?? '');
-        $openingBalance = AmountNormalizer::normalize((string) ($data['opening_balance'] ?? '0'));
+        $name = trim(InputValidator::asString($data['name'] ?? null));
+        $type = InputValidator::asString($data['type'] ?? null);
+        $openingDate = InputValidator::asString($data['opening_date'] ?? null);
+        $openingBalance = AmountNormalizer::normalize(InputValidator::asString($data['opening_balance'] ?? '0'));
 
         $validationError = $this->validate($name, $type, $openingDate, $openingBalance, $id);
         if ($validationError !== null) {
@@ -75,7 +76,7 @@ class FinanceAccountController
         $payload = [
             'name' => $name,
             'type' => $type,
-            'iban' => FinanceAccount::normalizeIban((string) ($data['iban'] ?? '')),
+            'iban' => FinanceAccount::normalizeIban(InputValidator::asString($data['iban'] ?? null)),
             'opening_balance' => $openingBalance,
             'opening_date' => $openingDate,
             'is_active' => isset($data['is_active']),

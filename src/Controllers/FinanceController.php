@@ -210,13 +210,13 @@ class FinanceController
         $data = (array) $request->getParsedBody();
         $id = isset($data['id']) && $data['id'] ? (int) $data['id'] : null;
 
-        $amount = self::normalizeAmountInput((string) ($data['amount'] ?? '0'));
+        $amount = self::normalizeAmountInput(InputValidator::asString($data['amount'] ?? '0'));
         if (!is_numeric($amount) || (float) $amount <= 0) {
             $_SESSION['error'] = 'Ungültiger Betrag. Bitte eine positive Zahl eingeben.';
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
-        $type = (string) ($data['type'] ?? '');
+        $type = InputValidator::asString($data['type'] ?? null);
         if (!in_array($type, ['income', 'expense'], true)) {
             $_SESSION['error'] = 'Ungültige Buchungsart. Bitte "Einnahme" oder "Ausgabe" wählen.';
             return $response->withHeader('Location', '/finances')->withStatus(302);
@@ -225,7 +225,7 @@ class FinanceController
         // Die Datumsfelder werden als Zeichenkette verglichen und gespeichert. Ohne
         // Formatprüfung landet ein unsinniger Wert als 0000-00-00 in den Büchern,
         // sobald der SQL-Modus nicht strikt ist.
-        $invoiceDate = (string) ($data['invoice_date'] ?? '');
+        $invoiceDate = InputValidator::asString($data['invoice_date'] ?? null);
         if (!self::isValidDate($invoiceDate)) {
             $_SESSION['error'] = 'Bitte ein gültiges Rechnungsdatum angeben.';
             return $response->withHeader('Location', '/finances')->withStatus(302);
@@ -372,7 +372,7 @@ class FinanceController
             }
         }
 
-        $paymentMethod = (string) ($data['payment_method'] ?? 'bank_transfer');
+        $paymentMethod = InputValidator::asString($data['payment_method'] ?? 'bank_transfer');
 
         return $this->accountService->defaultAccountForPaymentMethod($paymentMethod);
     }
@@ -925,7 +925,7 @@ class FinanceController
             return $response->withHeader('Location', '/finances')->withStatus(302);
         }
 
-        $closedUntilRaw = trim((string) ($data['closed_until'] ?? ''));
+        $closedUntilRaw = trim(InputValidator::asString($data['closed_until'] ?? null));
         if ($closedUntilRaw !== '' && !Carbon::canBeCreatedFromFormat($closedUntilRaw, 'Y-m-d')) {
             $_SESSION['error'] = 'Ungültiges Datum für den Buchungsabschluss.';
             return $response->withHeader('Location', '/finances')->withStatus(302);

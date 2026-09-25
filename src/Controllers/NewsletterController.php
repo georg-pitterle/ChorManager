@@ -28,6 +28,7 @@ use App\Services\NewsletterPlaceholderService;
 use App\Util\AppUrlResolver;
 use App\Util\EnvHelper;
 use App\Util\RequestFormat;
+use App\Util\InputValidator;
 use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
 
@@ -241,7 +242,7 @@ class NewsletterController
 
     private function validateNewsletterDraftInput(array $data): array
     {
-        $title = trim((string) ($data['title'] ?? ''));
+        $title = trim(InputValidator::asString($data['title'] ?? null));
         $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
         $plainContent = trim(strip_tags((string) $contentHtml));
         $hasMediaContent = (bool) preg_match('/<(img|table)\b/i', (string) $contentHtml);
@@ -309,12 +310,12 @@ class NewsletterController
 
         $projects = $this->selectableProjects();
 
-        $status = (string) ($queryParams['status'] ?? Newsletter::STATUS_DRAFT);
+        $status = InputValidator::asString($queryParams['status'] ?? Newsletter::STATUS_DRAFT);
         if (!in_array($status, Newsletter::SUPPORTED_STATUSES, true)) {
             $status = Newsletter::STATUS_DRAFT;
         }
 
-        $recipientType = trim((string) ($queryParams['recipient_type'] ?? ''));
+        $recipientType = trim(InputValidator::asString($queryParams['recipient_type'] ?? null));
         $allowedRecipientTypes = [
             NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
             NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
@@ -330,7 +331,7 @@ class NewsletterController
         // numerische, aber nicht (mehr) existierende Projekt-Kennung, sonst
         // wirkt die Liste grundlos leer, während das Auswahlfeld mangels
         // passender Option "Alle Projekte" anzeigt.
-        $projectFilter = trim((string) ($queryParams['project_id'] ?? ''));
+        $projectFilter = trim(InputValidator::asString($queryParams['project_id'] ?? null));
         if ($projectFilter !== '' && $projectFilter !== 'none' && !ctype_digit($projectFilter)) {
             $projectFilter = '';
         }
@@ -417,7 +418,7 @@ class NewsletterController
     public function create(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
-        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
+        $isModal = InputValidator::asString($queryParams['modal'] ?? '0') === '1';
         $projects = $this->selectableProjects();
 
         $projectId = !empty($queryParams['project_id']) ? (int) $queryParams['project_id'] : null;
@@ -449,7 +450,7 @@ class NewsletterController
     public function store(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $isModal = ((string) ($data['modal'] ?? '0')) === '1';
+        $isModal = InputValidator::asString($data['modal'] ?? '0') === '1';
         $userId = $_SESSION['user_id'] ?? null;
         $expectsJson = RequestFormat::expectsJson($request);
 
@@ -541,7 +542,7 @@ class NewsletterController
     {
         $id = (int)$request->getAttribute('id');
         $queryParams = $request->getQueryParams();
-        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
+        $isModal = InputValidator::asString($queryParams['modal'] ?? '0') === '1';
         $userId = $_SESSION['user_id'] ?? null;
         $projects = $this->selectableProjects();
 
@@ -639,8 +640,8 @@ class NewsletterController
             (string) $validation['payload']['content_html']
         );
 
-        $suppressFlash = ((string) ($data['suppress_flash'] ?? '0')) === '1';
-        $isModalRequest = ((string) ($data['is_modal'] ?? '0')) === '1';
+        $suppressFlash = InputValidator::asString($data['suppress_flash'] ?? '0') === '1';
+        $isModalRequest = InputValidator::asString($data['is_modal'] ?? '0') === '1';
         if (!$suppressFlash) {
             $_SESSION['success'] = 'Newsletter gespeichert';
 
@@ -683,7 +684,7 @@ class NewsletterController
     {
         $id = (int)$request->getAttribute('id');
         $queryParams = $request->getQueryParams();
-        $isModal = ((string) ($queryParams['modal'] ?? '0')) === '1';
+        $isModal = InputValidator::asString($queryParams['modal'] ?? '0') === '1';
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)) {
@@ -754,7 +755,7 @@ class NewsletterController
             'newsletter' => $newsletter,
             'project' => $newsletter->project,
             'recipient_source_groups' => $this->describeRecipientSources($newsletter),
-            'is_modal' => ((string) ($queryParams['modal'] ?? '0')) === '1',
+            'is_modal' => InputValidator::asString($queryParams['modal'] ?? '0') === '1',
         ]);
     }
 
@@ -923,10 +924,10 @@ class NewsletterController
 
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
         $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
-        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) ($data['content_html'] ?? ''));
+        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml(InputValidator::asString($data['content_html'] ?? null));
 
         $subject = $this->placeholderService->renderSubject(
-            trim((string) ($data['title'] ?? '')),
+            trim(InputValidator::asString($data['title'] ?? null)),
             $context,
             $recipient
         );
@@ -1220,10 +1221,10 @@ class NewsletterController
         $data = (array) $request->getParsedBody();
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
         $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
-        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) ($data['content_html'] ?? ''));
+        $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml(InputValidator::asString($data['content_html'] ?? null));
 
         $subject = $this->placeholderService->renderSubject(
-            trim((string) ($data['title'] ?? '')),
+            trim(InputValidator::asString($data['title'] ?? null)),
             $context,
             $sender
         );

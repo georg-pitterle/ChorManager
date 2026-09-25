@@ -44,7 +44,7 @@ class SongLibraryController
     public function index(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
-        $search = trim((string) ($queryParams['search'] ?? ''));
+        $search = trim(InputValidator::asString($queryParams['search'] ?? null));
         $categoryId = (int) ($queryParams['category'] ?? 0);
 
         $songQuery = Song::with([
@@ -383,9 +383,9 @@ class SongLibraryController
      */
     private function validateLinkResourcePayload(array $data): array
     {
-        $title = trim((string) ($data['title'] ?? ''));
-        $url = trim((string) ($data['url'] ?? ''));
-        $description = trim((string) ($data['description'] ?? ''));
+        $title = trim(InputValidator::asString($data['title'] ?? null));
+        $url = trim(InputValidator::asString($data['url'] ?? null));
+        $description = trim(InputValidator::asString($data['description'] ?? null));
 
         if ($title === '') {
             return [[], 'Der Linktitel ist ein Pflichtfeld.'];

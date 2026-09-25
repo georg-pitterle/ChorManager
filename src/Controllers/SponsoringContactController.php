@@ -11,6 +11,7 @@ use App\Models\Sponsor;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
 use App\Policies\SponsoringPolicy;
+use App\Util\InputValidator;
 
 class SponsoringContactController
 {
@@ -69,7 +70,7 @@ class SponsoringContactController
         $id   = (int) $args['id'];
         $data = (array) $request->getParsedBody();
         $queryParams = $request->getQueryParams();
-        $redirectTo = (string) ($data['redirect_to'] ?? $queryParams['redirect_to'] ?? '');
+        $redirectTo = InputValidator::asString($data['redirect_to'] ?? $queryParams['redirect_to'] ?? null);
         $providedSponsorId = (int) ($data['sponsor_id'] ?? $queryParams['sponsor_id'] ?? 0);
 
         try {
@@ -195,10 +196,10 @@ class SponsoringContactController
         $fail = static fn (string $message): array => ['error' => $message, 'values' => []];
 
         $sponsorId     = (int) ($data['sponsor_id'] ?? 0);
-        $contactDate   = trim((string) ($data['contact_date'] ?? ''));
-        $summary       = trim((string) ($data['summary'] ?? ''));
-        $type          = (string) ($data['type'] ?? '');
-        $followUpDate  = trim((string) ($data['follow_up_date'] ?? ''));
+        $contactDate   = trim(InputValidator::asString($data['contact_date'] ?? null));
+        $summary       = trim(InputValidator::asString($data['summary'] ?? null));
+        $type          = InputValidator::asString($data['type'] ?? null);
+        $followUpDate  = trim(InputValidator::asString($data['follow_up_date'] ?? null));
         $sponsorshipId = $this->normalizeOptionalId($data['sponsorship_id'] ?? null);
 
         if (!$sponsorId || !$contactDate || !$summary || !$type) {

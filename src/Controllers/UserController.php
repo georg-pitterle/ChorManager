@@ -183,7 +183,7 @@ class UserController
     public function create(Request $request, Response $response): Response
     {
         $data = (array) $request->getParsedBody();
-        $submitAction = (string) ($data['submit_action'] ?? 'save');
+        $submitAction = InputValidator::asString($data['submit_action'] ?? 'save');
 
         $firstName = trim(InputValidator::asString($data['first_name'] ?? null));
         $lastName = trim(InputValidator::asString($data['last_name'] ?? null));
