@@ -51,6 +51,11 @@ return function (ContainerBuilder $containerBuilder) {
                 'sponsoring'    => EnvHelper::read('FEATURE_SPONSORING', 'false') === 'true',
                 'tasks'         => EnvHelper::read('FEATURE_TASKS', 'false') === 'true',
                 'registration'  => EnvHelper::read('FEATURE_REGISTRATION', 'false') === 'true',
+                // OpenID-Connect-Provider: Ist er aus, werden seine Routen gar
+                // nicht erst registriert - ein Discovery-Dokument ohne
+                // hinterlegten Client und Signierschlüssel hätte niemandem
+                // genützt und stünde offen im Netz.
+                'oidc'          => EnvHelper::read('FEATURE_OIDC', 'false') === 'true',
             ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),

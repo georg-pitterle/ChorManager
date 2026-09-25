@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Services\Oidc\OidcEndpoints;
 use App\Util\Csrf;
 use App\Util\RequestFormat;
 use App\Util\SafeRedirect;
@@ -33,6 +34,13 @@ class CsrfMiddleware implements MiddlewareInterface
     private const EXEMPT_PATHS = [
         '/mail/delivery/webhook',
         '/mail/delivery/dsn',
+        // Der Token-Endpunkt des OIDC-Providers. Absender ist die
+        // angeschlossene Anwendung von Server zu Server, kein Browser: Es gibt
+        // keine Sitzung und damit keinen Token, den sie mitschicken könnte.
+        // Ausgewiesen wird sich mit Client-Secret und code_verifier, und
+        // TokenController prüft beides, bevor er die Nutzlast anfasst - ohne
+        // diese Ausnahme hätte die Middleware jede Anmeldung mit 403 abgewiesen.
+        OidcEndpoints::TOKEN,
     ];
 
     /**

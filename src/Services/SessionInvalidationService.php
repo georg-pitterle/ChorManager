@@ -6,13 +6,14 @@ namespace App\Services;
 
 use App\Models\AppSetting;
 use App\Models\RememberLogin;
+use App\Services\Oidc\AuthorizationCodeService;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
  * Entwertet sämtliche bestehenden Anmeldungen.
  *
- * Die Sperre besteht aus zwei Teilen, die nur gemeinsam wirken:
+ * Die Sperre besteht aus drei Teilen, die nur gemeinsam wirken:
  * `session_valid_after` entwertet die laufenden Sitzungen, und das Löschen der
  * Remember-Me-Token verhindert, dass ein gespeichertes Cookie den Benutzer
  * unmittelbar danach wieder anmeldet. Die AuthMiddleware wertet ein solches
@@ -20,13 +21,19 @@ use Psr\Log\NullLogger;
  * `auth_epoch`, die immer über der Sperre liegt - ein Aufrufer, der nur die
  * Einstellung setzt, sperrt Remember-Me-Anmeldungen also gar nicht aus.
  *
- * Deshalb gehört beides in einen gemeinsamen Aufruf und nicht in die einzelnen
- * Aufrufstellen.
+ * Der dritte Teil kam mit dem OIDC-Provider dazu: Ein dort ausgestelltes
+ * Zugriffstoken hängt an keiner Sitzung und überlebte die Sperre sonst als
+ * eigenständiger Weg hinein.
+ *
+ * Deshalb gehört alles drei in einen gemeinsamen Aufruf und nicht in die
+ * einzelnen Aufrufstellen.
  */
 class SessionInvalidationService
 {
-    public function __construct(private readonly LoggerInterface $logger = new NullLogger())
-    {
+    public function __construct(
+        private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?AuthorizationCodeService $authorizationCodeService = null
+    ) {
     }
 
     public function invalidateAllLogins(): void
@@ -42,9 +49,16 @@ class SessionInvalidationService
 
         $deletedTokens = (int) RememberLogin::query()->delete();
 
+        // Der dritte Teil: Anmeldungen, die ChorManager für angeschlossene
+        // Anwendungen ausgestellt hat. Sie hängen nicht an der Sitzung und
+        // überlebten die Sperre sonst als eigenständiger Weg hinein.
+        $revoked = ($this->authorizationCodeService ?? new AuthorizationCodeService($this->logger))->revokeAll();
+
         $this->logger->info('All logins invalidated.', [
             'event' => 'auth.sessions.invalidated',
             'deleted_remember_tokens' => $deletedTokens,
+            'revoked_oidc_codes' => $revoked['codes'],
+            'revoked_oidc_tokens' => $revoked['tokens'],
         ]);
     }
 }

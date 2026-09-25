@@ -20,6 +20,15 @@ class CsrfMiddlewareFeatureTest extends TestCase
 
     protected function setUp(): void
     {
+        // Die Sitzung hier starten und nicht erst in der Middleware: Deren
+        // session_start() ersetzt $_SESSION durch den (leeren) gespeicherten
+        // Stand und warf damit alles weg, was der Test zuvor hineingelegt hat.
+        // Allein aufgerufen fiel ein Test dadurch um, im Klassenlauf nicht -
+        // dort hatte ein Vorgänger die Sitzung längst gestartet.
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         $_SESSION = [];
     }
 
@@ -105,6 +114,32 @@ class CsrfMiddlewareFeatureTest extends TestCase
             $result = $middleware->process($this->makeRequest('POST', $path), $handler);
 
             $this->assertSame(200, $result->getStatusCode(), $path);
+        }
+    }
+
+    public function testOidcTokenEndpointPassesWithoutCsrfTokenButItsNeighboursDoNot(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        // Die angeschlossene Anwendung spricht von Server zu Server: keine
+        // Sitzung, kein Token - ausgewiesen wird sich mit Client-Secret und
+        // code_verifier, die TokenController vor allem anderen prüft.
+        $passed = $middleware->process($this->makeRequest('POST', '/oidc/token'), $handler);
+        $this->assertSame(200, $passed->getStatusCode());
+
+        // Die Ausnahme gilt genau diesem einen Pfad und keinem darunter.
+        foreach (['/oidc/token/extra', '/oidc/authorize', '/profile'] as $path) {
+            $blocked = $middleware->process($this->makeRequest('POST', $path), $handler);
+            $this->assertSame(403, $blocked->getStatusCode(), $path);
         }
     }
 

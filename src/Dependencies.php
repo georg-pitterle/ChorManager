@@ -36,6 +36,20 @@ use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
 use App\Services\SessionInvalidationService;
+use App\Services\SessionAuthService;
+use App\Services\RateLimiterService;
+use App\Services\SecretBoxCryptoService;
+use App\Services\Oidc\AccessTokenService;
+use App\Services\Oidc\AuthorizationCodeService;
+use App\Services\Oidc\IdTokenSigner;
+use App\Services\Oidc\OidcAdminService;
+use App\Services\Oidc\OidcClaimsBuilder;
+use App\Services\Oidc\OidcClientService;
+use App\Services\Oidc\OidcSigningKeyService;
+use App\Controllers\Oidc\AuthorizeController;
+use App\Controllers\Oidc\DiscoveryController;
+use App\Controllers\Oidc\TokenController;
+use App\Controllers\Oidc\UserinfoController;
 use App\Services\SheetArchiveService;
 use App\Services\MailQueueService;
 use App\Services\MailDeliveryService;
@@ -196,7 +210,72 @@ return function (ContainerBuilder $containerBuilder) {
         // füllt optionale Parameter nicht aus dem Container. Die Sperre liefe dann
         // still mit einem NullLogger.
         SessionInvalidationService::class => function (ContainerInterface $c) {
-            return new SessionInvalidationService($c->get(LoggerInterface::class));
+            return new SessionInvalidationService(
+                $c->get(LoggerInterface::class),
+                $c->get(AuthorizationCodeService::class)
+            );
+        },
+
+        // OpenID-Connect-Provider. Durchweg von Hand zusammengesetzt statt
+        // autoverdrahtet: Jeder dieser Dienste nimmt den Logger als optionalen
+        // letzten Parameter, und PHP-DI füllt optionale Parameter nicht aus dem
+        // Container - die Ereignisse oidc.* kämen sonst nie im Log an. Denselben
+        // Fall tragen Mailer und MailCredentialCryptoService weiter oben.
+        OidcSigningKeyService::class => function (ContainerInterface $c): OidcSigningKeyService {
+            return new OidcSigningKeyService(
+                new SecretBoxCryptoService(
+                    OidcSigningKeyService::KEY_ENV,
+                    null,
+                    $c->get(LoggerInterface::class),
+                    'oidc.signing_key.decrypt.failed'
+                ),
+                $c->get(LoggerInterface::class)
+            );
+        },
+        IdTokenSigner::class => function (ContainerInterface $c): IdTokenSigner {
+            return new IdTokenSigner($c->get(OidcSigningKeyService::class));
+        },
+        OidcClientService::class => function (ContainerInterface $c): OidcClientService {
+            return new OidcClientService($c->get(LoggerInterface::class));
+        },
+        AuthorizationCodeService::class => function (ContainerInterface $c): AuthorizationCodeService {
+            return new AuthorizationCodeService($c->get(LoggerInterface::class));
+        },
+        AccessTokenService::class => \DI\autowire(),
+        OidcClaimsBuilder::class => \DI\autowire(),
+        OidcAdminService::class => \DI\autowire(),
+        DiscoveryController::class => \DI\autowire(),
+        AuthorizeController::class => function (ContainerInterface $c): AuthorizeController {
+            return new AuthorizeController(
+                $c->get(OidcClientService::class),
+                $c->get(AuthorizationCodeService::class),
+                $c->get(UserQuery::class),
+                $c->get(RateLimiterService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
+        TokenController::class => function (ContainerInterface $c): TokenController {
+            return new TokenController(
+                $c->get(OidcClientService::class),
+                $c->get(AuthorizationCodeService::class),
+                $c->get(AccessTokenService::class),
+                $c->get(IdTokenSigner::class),
+                $c->get(OidcClaimsBuilder::class),
+                $c->get(UserQuery::class),
+                $c->get(RateLimiterService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
+        UserinfoController::class => function (ContainerInterface $c): UserinfoController {
+            return new UserinfoController(
+                $c->get(AccessTokenService::class),
+                $c->get(OidcClaimsBuilder::class),
+                $c->get(OidcClientService::class),
+                $c->get(UserQuery::class),
+                $c->get(SessionAuthService::class),
+                $c->get(RememberLoginService::class),
+                $c->get(LoggerInterface::class)
+            );
         },
         RegistrationReminderService::class => \DI\autowire(),
         // Nicht `autowire()`: Der Dienst braucht die Modul-Flags aus den

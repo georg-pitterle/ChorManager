@@ -57,7 +57,10 @@ class User extends Model
         'password',
         'first_name',
         'last_name',
-        'is_active'
+        'is_active',
+        // Die Kennung in einer angeschlossenen Anwendung. Leer heißt: das
+        // Anmeldezeugnis trägt die abgeleitete Form `cm-<id>`.
+        'external_uid',
     ];
 
     /**

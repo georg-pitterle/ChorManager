@@ -34,10 +34,19 @@ use App\Models\Project;
 use App\Models\ProjectSongAssignment;
 use App\Models\RememberLogin;
 use App\Models\Role;
+use App\Models\OidcAccessToken;
+use App\Models\OidcAuthCode;
+use App\Models\OidcClient;
+use App\Models\OidcSigningKey;
 use App\Models\WebdavAccessToken;
 use App\Services\BackupService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\WebdavAccessService;
+use App\Services\Oidc\AccessTokenService;
+use App\Services\Oidc\OidcSigningKeyService;
+use App\Services\SecretBoxCryptoService;
+use App\Services\Oidc\AuthorizationCodeService;
+use App\Services\Oidc\OidcClientService;
 use App\Services\FinanceJournalService;
 use App\Models\Setting;
 use App\Models\Song;
@@ -70,6 +79,13 @@ class DevSeedService
     private const MODE_APPEND = 'append';
     private const MODE_RESET = 'reset-and-seed';
     private const DEFAULT_SEED_PASSWORD = 'seed';
+
+    /**
+     * Fester PKCE-Verifier für den Dev-Stand. Er steht im Seed-Bericht, damit
+     * sich der Tausch am Token-Endpunkt von Hand nachspielen lässt - im Betrieb
+     * würfelt ihn der Client je Anmeldung neu.
+     */
+    private const DEV_SEED_CODE_VERIFIER = 'dev-seed-code-verifier-0123456789abcdef';
     private const ACTIVE_USER_TARGET = 80;
 
     public function __construct(private readonly BackupService $backupService)
@@ -173,6 +189,10 @@ class DevSeedService
                 'mail_queue' => 0,
                 'calendar_subscription_tokens' => 0,
                 'webdav_access_tokens' => 0,
+                'oidc_signing_keys' => 0,
+                'oidc_clients' => 0,
+                'oidc_auth_codes' => 0,
+                'oidc_access_tokens' => 0,
                 'backups' => 0,
             ],
         ];
@@ -193,6 +213,9 @@ class DevSeedService
 
             $this->seedCalendarSubscriptionTokens($users['active']);
             $this->seedWebdavAccessTokens($users['active']);
+            // Nach den Benutzern: Die Codes und Token hängen über einen
+            // Fremdschlüssel an users.
+            $this->seedOidcClients($users['active']);
             $this->seedNotificationSettings($users['active']);
 
             $projects = $this->seedProjects($years);
@@ -283,6 +306,10 @@ class DevSeedService
             'password_resets',
             'calendar_subscription_tokens',
             'webdav_access_tokens',
+            'oidc_access_tokens',
+            'oidc_auth_codes',
+            'oidc_clients',
+            'oidc_signing_keys',
             'notification_dispatch_log',
             'user_notification_settings',
             'sponsoring_contacts',
@@ -336,6 +363,7 @@ class DevSeedService
             [
                 'name' => 'Admin',
                 'hierarchy_level' => 100,
+                'external_group' => 'admin',
                 'can_manage_users' => 1,
                 'can_manage_roles' => 1,
                 'can_edit_users' => 1,
@@ -360,6 +388,7 @@ class DevSeedService
             [
                 'name' => 'Vorstand',
                 'hierarchy_level' => 80,
+                'external_group' => 'vorstand',
                 'can_manage_users' => 1,
                 'can_manage_roles' => 1,
                 'can_edit_users' => 1,
@@ -382,6 +411,7 @@ class DevSeedService
             [
                 'name' => 'Kassier',
                 'hierarchy_level' => 60,
+                'external_group' => 'kassier',
                 'can_manage_users' => 0,
                 'can_manage_roles' => 0,
                 'can_edit_users' => 0,
@@ -491,6 +521,10 @@ class DevSeedService
             ],
         ];
 
+        // Nur drei der sieben Rollen bekommen eine Gruppe in der angeschlossenen
+        // Anwendung. Die übrigen bleiben bewusst ohne: Nur so ist im Dev-Stand
+        // beides zu sehen - zugeordnet und nicht zugeordnet - und es fällt auf,
+        // wenn ein Rollenname doch einmal ersatzweise hinausginge.
         $roles = [];
         foreach ($definitions as $roleData) {
             $role = Role::updateOrCreate(['name' => $roleData['name']], $roleData);
@@ -1113,6 +1147,142 @@ class DevSeedService
             'last_used_at' => null,
         ]);
         $this->report['counts']['webdav_access_tokens']++;
+    }
+
+    /**
+     * Der OpenID-Connect-Provider im Dev-Stand.
+     *
+     * Angelegt wird, was zum Ausprobieren nötig ist: ein Signierschlüssel, eine
+     * angeschlossene Anwendung mit bekanntem Secret - und dazu die beiden
+     * Zustände, die sich sonst nur von Hand herstellen lassen:
+     *
+     * - ein Mitglied mit eigener Kennung (der Bestandsfall, in dem drüben schon
+     *   ein Konto liegt) neben allen anderen, die die abgeleitete Form
+     *   `cm-<id>` bekommen,
+     * - ein offener und ein bereits eingelöster Autorisierungscode samt daraus
+     *   ausgestelltem Zugriffstoken.
+     *
+     * Der Signierschlüssel entsteht nur, wenn OIDC_SIGNING_KEY_SECRET gesetzt
+     * ist. Fehlt es, bleibt der Provider ohne Schlüssel - dieselbe
+     * Fail-Closed-Haltung wie im Betrieb. Der Bericht vermerkt das als Warnung,
+     * statt den ganzen Seed-Lauf abzubrechen.
+     *
+     * @param array<int, \App\Models\User> $activeUsers
+     */
+    private function seedOidcClients(array $activeUsers): void
+    {
+        $users = array_values($activeUsers);
+        if ($users === []) {
+            return;
+        }
+
+        $this->seedOidcSigningKey();
+
+        // Festes Secret statt eines Zufallswerts: Im Dev soll die Anwendung
+        // ohne Umweg über bin/oidc_admin.php ansprechbar sein. Gespeichert ist
+        // auch hier nur der Hash.
+        $clientSecret = 'dev-secret-nextcloud';
+        $client = OidcClient::create([
+            'client_id' => 'dev-nextcloud',
+            'client_secret_hash' => PasswordHasher::hash($clientSecret),
+            'name' => 'Nextcloud',
+            'redirect_uris' => OidcClient::encodeUriList([
+                'https://cloud.example.org/apps/user_oidc/code',
+            ]),
+            'post_logout_redirect_uris' => OidcClient::encodeUriList([
+                'https://cloud.example.org/',
+            ]),
+            'is_trusted' => true,
+            'is_active' => true,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->report['counts']['oidc_clients']++;
+        $this->report['oidc']['client_id'] = 'dev-nextcloud';
+        $this->report['oidc']['client_secret'] = $clientSecret;
+
+        // Der Bestandsfall: Dieses Mitglied hat drüben schon ein Konto, seine
+        // Kennung wurde von Hand eingetragen. Alle anderen bekommen cm-<id>.
+        $users[0]->external_uid = 'bestandskonto';
+        $users[0]->save();
+        $this->report['oidc']['external_uid_user'] = (string) $users[0]->email;
+
+        $this->seedOidcGrants($client, $users);
+    }
+
+    private function seedOidcSigningKey(): void
+    {
+        try {
+            $crypto = new SecretBoxCryptoService(OidcSigningKeyService::KEY_ENV);
+        } catch (\RuntimeException) {
+            $this->report['warnings'][] = 'OIDC_SIGNING_KEY_SECRET fehlt oder ist unbrauchbar - '
+                . 'der Provider bleibt ohne Signierschlüssel. Nach dem Setzen hilft '
+                . '"ddev php bin/oidc_admin.php key:generate".';
+
+            return;
+        }
+
+        (new OidcSigningKeyService($crypto))->generateKey();
+        $this->report['counts']['oidc_signing_keys']++;
+    }
+
+    /**
+     * Ein offener und ein verbrauchter Code, dazu das Token aus dem verbrauchten.
+     *
+     * Die Challenge ist fest und ihr Verifier steht im Bericht: Nur so lässt
+     * sich der Tausch am Token-Endpunkt im Dev von Hand nachspielen.
+     *
+     * @param array<int, \App\Models\User> $users
+     */
+    private function seedOidcGrants(OidcClient $client, array $users): void
+    {
+        $redirectUri = 'https://cloud.example.org/apps/user_oidc/code';
+        $scope = 'openid profile email groups';
+        $codeService = new AuthorizationCodeService();
+        $challenge = rtrim(
+            strtr(base64_encode(hash('sha256', self::DEV_SEED_CODE_VERIFIER, true)), '+/', '-_'),
+            '='
+        );
+
+        $openCode = $codeService->issue(
+            $client,
+            (int) $users[0]->id,
+            $redirectUri,
+            $scope,
+            bin2hex(random_bytes(8)),
+            $challenge
+        );
+        $this->report['counts']['oidc_auth_codes']++;
+        $this->report['oidc']['open_code'] = $openCode;
+        $this->report['oidc']['code_verifier'] = self::DEV_SEED_CODE_VERIFIER;
+
+        if (!isset($users[1])) {
+            return;
+        }
+
+        $usedCode = $codeService->issue(
+            $client,
+            (int) $users[1]->id,
+            $redirectUri,
+            $scope,
+            bin2hex(random_bytes(8)),
+            $challenge
+        );
+        $this->report['counts']['oidc_auth_codes']++;
+
+        $stored = OidcAuthCode::query()
+            ->where('code_hash', AuthorizationCodeService::hashCode($usedCode))
+            ->first();
+
+        if ($stored === null) {
+            return;
+        }
+
+        $stored->used_at = date('Y-m-d H:i:s');
+        $stored->save();
+
+        (new AccessTokenService())->issueForCode($stored);
+        $this->report['counts']['oidc_access_tokens']++;
     }
 
     private function seedEventAudienceSources(array $projectEvents, array $roles, array $voiceData): void

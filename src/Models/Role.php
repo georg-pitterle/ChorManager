@@ -87,6 +87,9 @@ class Role extends Model
     protected $fillable = [
         'name',
         'hierarchy_level',
+        // Die Gruppe, die dieser Rolle in einer angeschlossenen Anwendung
+        // entspricht. Ohne Wert geht die Rolle gar nicht hinaus.
+        'external_group',
         ...self::PERMISSIONS,
     ];
 

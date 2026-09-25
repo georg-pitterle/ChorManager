@@ -46,6 +46,11 @@ use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DownloadController;
 use App\Controllers\WebdavController;
+use App\Controllers\Oidc\AuthorizeController;
+use App\Controllers\Oidc\DiscoveryController;
+use App\Controllers\Oidc\TokenController;
+use App\Controllers\Oidc\UserinfoController;
+use App\Services\Oidc\OidcEndpoints;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use Psr\Log\LoggerInterface;
@@ -137,12 +142,35 @@ return function (App $app) {
     $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
     $app->post('/mail/delivery/dsn', [MailDeliveryDsnController::class, 'ingest']);
 
+    // OpenID-Connect-Provider. Öffentlich ist alles außer /oidc/authorize - das
+    // liegt weiter unten in der geschützten Gruppe, denn genau dort entscheidet
+    // sich, wer angemeldet ist. Discovery und JWKS müssen lesbar sein, bevor
+    // sich überhaupt jemand angemeldet hat; /oidc/token weist sich mit
+    // Client-Secret und code_verifier aus, /oidc/userinfo mit dem Bearer-Token.
+    if ($settings['modules']['oidc'] ?? false) {
+        $app->get(OidcEndpoints::DISCOVERY, [DiscoveryController::class, 'configuration']);
+        $app->get(OidcEndpoints::JWKS, [DiscoveryController::class, 'jwks']);
+        $app->post(OidcEndpoints::TOKEN, [TokenController::class, 'issue']);
+        $app->get(OidcEndpoints::USERINFO, [UserinfoController::class, 'claims']);
+        $app->get(OidcEndpoints::LOGOUT, [UserinfoController::class, 'logout']);
+    }
+
 
     // Protected Routes
     $app->group(
         '',
         function (RouteCollectorProxy $group) use ($settings) {
             $group->get('/dashboard', [DashboardController::class, 'index']);
+
+            // Ohne RoleMiddleware: Jedes aktive Mitglied darf sich an der
+            // angeschlossenen Anwendung anmelden. Welche Gruppen es dort
+            // bekommt, entscheidet erst der groups-Anspruch. Der Umweg über die
+            // Anmeldung kommt von AuthMiddleware geschenkt - sie hängt die
+            // vollständige Authorize-Adresse an `?redirect=`, samt state, nonce
+            // und code_challenge.
+            if ($settings['modules']['oidc'] ?? false) {
+                $group->get(OidcEndpoints::AUTHORIZE, [AuthorizeController::class, 'authorize']);
+            }
 
             // Profile Routes
             $group->get('/profile', [ProfileController::class, 'index']);
