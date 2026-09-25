@@ -97,30 +97,21 @@ final class MoveSchemaToUnicodeCollation extends AbstractMigration
         $collisions = [];
 
         foreach ($this->uniqueIndexes() as $index) {
-            $expressions = [];
             $hasTextColumn = false;
-
-            foreach ($index['columns'] as $column => $columnCollation) {
-                if ($columnCollation === null) {
-                    $expressions[] = sprintf('`%s`', $column);
-                    continue;
+            foreach ($index['columns'] as $columnCollation) {
+                if ($columnCollation !== null) {
+                    $hasTextColumn = true;
+                    break;
                 }
-
-                $hasTextColumn = true;
-                $expressions[] = sprintf('CONVERT(`%s` USING utf8mb4) COLLATE %s', $column, $collation);
             }
 
             if (!$hasTextColumn) {
                 continue;
             }
 
-            $collided = (int) ($this->fetchRow(sprintf(
-                'SELECT COUNT(*) AS collided FROM (
-                     SELECT 1 FROM `%s` GROUP BY %s HAVING COUNT(*) > 1
-                 ) AS doubled',
-                $index['table'],
-                implode(', ', $expressions)
-            ))['collided'] ?? 0);
+            $collided = (int) ($this->fetchRow(
+                self::collisionQuery($index['table'], $index['columns'], $collation)
+            )['collided'] ?? 0);
 
             if ($collided > 0) {
                 $collisions[] = sprintf(
@@ -142,6 +133,46 @@ final class MoveSchemaToUnicodeCollation extends AbstractMigration
                 implode('; ', $collisions)
             ));
         }
+    }
+
+    /**
+     * Die Abfrage, die einen eindeutigen Index auf Kollisionen absucht.
+     *
+     * Öffentlich und statisch, damit sie prüfbar ist, ohne eine Migration
+     * auszuführen - `tests/Feature/CollationGuardIgnoresNullRowsTest` stellt ihr
+     * beide Fälle vor.
+     *
+     * Die `IS NOT NULL`-Bedingung über **alle** Spalten des Index ist der Kern:
+     * MySQL bindet eine Zeile nur dann an einen eindeutigen Index, wenn jede
+     * indizierte Spalte gefüllt ist; `NULL` darf beliebig oft vorkommen. Ohne
+     * diese Bedingung zählte `COUNT(*)` alle `NULL`-Zeilen als eine Gruppe und
+     * meldete sie ab der zweiten als Kollision. Auf dem Entwicklungsbestand
+     * brach die Migration genau daran ab: `finances` führt 646 Zeilen, davon 602
+     * ohne `import_hash`, und die 44 echten Prüfsummen sind sämtlich verschieden.
+     *
+     * @param array<string, string|null> $columns Spalte => Kollation (null bei Zahlen)
+     */
+    public static function collisionQuery(string $table, array $columns, string $collation): string
+    {
+        $expressions = [];
+        $notNull = [];
+
+        foreach ($columns as $column => $columnCollation) {
+            $expressions[] = $columnCollation === null
+                ? sprintf('`%s`', $column)
+                : sprintf('CONVERT(`%s` USING utf8mb4) COLLATE %s', $column, $collation);
+
+            $notNull[] = sprintf('`%s` IS NOT NULL', $column);
+        }
+
+        return sprintf(
+            'SELECT COUNT(*) AS collided FROM (
+                 SELECT 1 FROM `%s` WHERE %s GROUP BY %s HAVING COUNT(*) > 1
+             ) AS doubled',
+            $table,
+            implode(' AND ', $notNull),
+            implode(', ', $expressions)
+        );
     }
 
     /**
