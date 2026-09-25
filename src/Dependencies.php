@@ -216,7 +216,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(TaskPolicy::class),
                 $c->get(NameFormatterService::class),
                 $c->get(LoggerInterface::class),
-                $c->get(NotificationService::class)
+                $c->get(NotificationService::class),
+                $c->get(EntityAttachmentService::class)
             );
         },
         AppSettingController::class => function (ContainerInterface $c): AppSettingController {

@@ -18,7 +18,6 @@ use App\Services\EntityAttachmentService;
 use App\Services\NotificationService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
-use App\Util\UploadValidator;
 use App\Policies\TaskPolicy;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -30,12 +29,16 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class TaskController
 {
+    /** Anhänge, die an der Aufgabe hängen. */
+    public const ENTITY_TYPE = 'task';
+
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
     private TaskPolicy $policy;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
     private ?NotificationService $notificationService;
+    private EntityAttachmentService $attachments;
 
     /**
      * `$notificationService` steht am Ende und ist optional, weil zahlreiche
@@ -47,6 +50,12 @@ class TaskController
      * Registrierung in `Dependencies.php` durch. Ohne sie verschickte der
      * Betrieb still keine Benachrichtigungen - dagegen steht
      * `NotificationWiringFeatureTest`.
+     *
+     * `$attachments` steht aus demselben Grund dahinter. Es fällt hier aber
+     * wirklich nicht aus, wenn es fehlt: Der Anhang-Dienst braucht nur einen
+     * Logger, und den hat der Konstruktor schon. Die Vorgabe baut ihn damit,
+     * statt dem Betrieb ein `null` zu überlassen, das erst beim Hochladen
+     * auffiele.
      */
     public function __construct(
         Twig $view,
@@ -54,7 +63,8 @@ class TaskController
         TaskPolicy $policy,
         NameFormatterService $nameFormatter,
         LoggerInterface $logger,
-        ?NotificationService $notificationService = null
+        ?NotificationService $notificationService = null,
+        ?EntityAttachmentService $attachments = null
     ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
@@ -62,6 +72,7 @@ class TaskController
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
         $this->notificationService = $notificationService;
+        $this->attachments = $attachments ?? new EntityAttachmentService($logger);
     }
 
     /**
@@ -601,7 +612,7 @@ class TaskController
         }
 
         $projectId = $task->project_id;
-        Attachment::where('entity_type', 'task')
+        Attachment::where('entity_type', self::ENTITY_TYPE)
             ->where('entity_id', $taskId)
             ->delete();
         $task->delete();
@@ -659,59 +670,28 @@ class TaskController
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
 
-        $files = $request->getUploadedFiles()['attachments'] ?? [];
-        if (!is_array($files)) {
-            $files = [$files];
-        }
+        // Über den gemeinsamen Dienst statt einer eigenen Kopie des Ablaufs: Die
+        // Kopie hier hatte die Kürzung der Dateinamen auf die Spaltenbreite nie
+        // mitbekommen, und genau dieses Auseinanderlaufen hatte den Dienst
+        // überhaupt veranlasst.
+        $result = $this->attachments->storeUploads(
+            $request->getUploadedFiles()['attachments'] ?? null,
+            self::ENTITY_TYPE,
+            (int) $task->id
+        );
 
-        $uploadedCount = 0;
-        $errors = [];
+        $uploadedCount = $result['stored'];
 
-        foreach ($files as $file) {
-            $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Anhang');
-            if ($uploadError !== null) {
-                $errors[] = $uploadError;
-                continue;
-            }
-
-            if ($file->getError() === UPLOAD_ERR_OK) {
-                $mimeType = UploadValidator::detectMimeType($file);
-                $contents = $file->getStream()->getContents();
-                $size = strlen($contents);
-
-                $validation = UploadValidator::validateFileSize($size, $mimeType);
-                if (!$validation['valid']) {
-                    $this->logger->warning('File upload rejected.', [
-                        'event' => 'security.upload.rejected',
-                        'reason' => $validation['reason'],
-                    ]);
-                    $errors[] = $validation['error'];
-                    continue;
-                }
-
-                $clientFilename = (string) $file->getClientFilename();
-
-                Attachment::create([
-                    'entity_type'   => 'task',
-                    'entity_id'     => $task->id,
-                    'filename'      => EntityAttachmentService::storedName($clientFilename),
-                    'original_name' => EntityAttachmentService::originalName($clientFilename),
-                    'mime_type'     => UploadValidator::normalizeMimeType($mimeType),
-                    'file_size'     => $size,
-                    'file_content'  => $contents,
-                ]);
-                $uploadedCount++;
-            }
-        }
-
-        // Handle errors and success
-        if (count($errors) > 0) {
-            $_SESSION['error'] = implode('; ', $errors);
+        // Der Dienst meldet die erste Beanstandung, nicht alle mit "; " verkettet.
+        // Bei mehreren beanstandeten Dateien gleicht sich der Text ohnehin meist,
+        // und eine Kette aus fünf Meldungen liest niemand zu Ende.
+        if ($result['error'] !== null) {
+            $_SESSION['error'] = $result['error'];
         }
 
         if ($uploadedCount > 0) {
             Activity::create([
-                'entity_type' => 'task',
+                'entity_type' => self::ENTITY_TYPE,
                 'entity_id'   => $task->id,
                 'user_id'     => $_SESSION['user_id'],
                 'action'      => 'attachment_added',
@@ -734,7 +714,7 @@ class TaskController
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
 
-        $attachment = Attachment::where('entity_type', 'task')
+        $attachment = Attachment::where('entity_type', self::ENTITY_TYPE)
             ->where('entity_id', $taskId)
             ->findOrFail($attachmentId);
 

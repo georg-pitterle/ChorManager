@@ -195,14 +195,178 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString("'error'   => " . '$' . 'error,', $controllerContent);
     }
 
+    /**
+     * Geprüft wird das Verhalten, nicht der Quelltext.
+     *
+     * Vorher suchte dieser Test die Zeichenkette
+     * "Attachment::where('entity_type', 'task')" in der Datei. Das hielt weder
+     * fest, dass gelöscht wird, noch überlebte es die Umstellung des Literals auf
+     * die Konstante ENTITY_TYPE - eine Änderung, die am Verhalten nichts dreht.
+     * Jetzt liegt ein echter Anhang in der Tabelle und der Test schaut nach, ob er
+     * mit der Aufgabe verschwindet und der Anhang einer anderen Aufgabe bleibt.
+     */
     public function testTaskDeleteAlsoRemovesAttachments(): void
     {
-        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+        $project = Project::create(['name' => 'Anhang-Löschtest ' . bin2hex(random_bytes(4))]);
+        $user = User::create([
+            'first_name' => 'Task',
+            'last_name' => 'Loescher',
+            'email' => 'task.loescher.' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => PasswordHasher::hash('irrelevant'),
+            'is_active' => 1,
+        ]);
+        $project->users()->attach($user->id);
 
-        $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("Attachment::where('entity_type', 'task')", $controllerContent);
-        $this->assertStringContainsString("->where('entity_id', " . '$' . "taskId)", $controllerContent);
-        $this->assertStringContainsString("->delete();", $controllerContent);
+        $task = Task::create([
+            'project_id' => $project->id,
+            'name' => 'Aufgabe mit Anhang',
+            'status' => 'Offen',
+            'created_by' => $user->id,
+        ]);
+        $otherTask = Task::create([
+            'project_id' => $project->id,
+            'name' => 'Andere Aufgabe',
+            'status' => 'Offen',
+            'created_by' => $user->id,
+        ]);
+
+        $attachment = $this->taskAttachment((int) $task->id);
+        $foreignAttachment = $this->taskAttachment((int) $otherTask->id);
+
+        $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
+
+        try {
+            $controller = new TaskController(
+                $this->createStub(Twig::class),
+                new HtmlSanitizer(),
+                new TaskPolicy(),
+                new NameFormatterService(),
+                new Logger('test')
+            );
+
+            $controller->delete(
+                $this->makeRequest('POST', '/tasks/' . $task->id . '/delete'),
+                $this->makeResponse(),
+                ['id' => (string) $task->id]
+            );
+
+            $this->assertNull(Task::find($task->id), 'Die Aufgabe ist gelöscht.');
+            $this->assertNull(Attachment::find($attachment->id), 'Ihr Anhang ebenso.');
+            $this->assertNotNull(
+                Attachment::find($foreignAttachment->id),
+                'Der Anhang einer anderen Aufgabe bleibt unberührt.'
+            );
+        } finally {
+            Attachment::whereIn('id', [$attachment->id, $foreignAttachment->id])->delete();
+            $otherTask->delete();
+            $task->delete();
+            $project->users()->detach();
+            $project->delete();
+            $user->delete();
+            $_SESSION = [];
+        }
+    }
+
+    /**
+     * Der Upload läuft seit der Umstellung über EntityAttachmentService.
+     *
+     * Ohne diesen Fall blieb die Suite grün, selbst wenn der Anhang unter einem
+     * falschen `entity_type` landete - er wäre dann über die Aufgabe nie wieder
+     * erreichbar gewesen. Mitgeprüft wird die Kürzung auf die Spaltenbreite, die
+     * der frühere handgebaute Name nicht kannte.
+     */
+    public function testUploadStoresTheAttachmentUnderTheTask(): void
+    {
+        $project = Project::create(['name' => 'Upload-Ablage ' . bin2hex(random_bytes(4))]);
+        $user = User::create([
+            'first_name' => 'Task',
+            'last_name' => 'Ablage',
+            'email' => 'task.ablage.' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => PasswordHasher::hash('irrelevant'),
+            'is_active' => 1,
+        ]);
+        $project->users()->attach($user->id);
+        $task = Task::create([
+            'project_id' => $project->id,
+            'name' => 'Aufgabe für den Upload',
+            'status' => 'Offen',
+            'created_by' => $user->id,
+        ]);
+
+        $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
+
+        // Ein Name jenseits der Spaltenbreite: ungekürzt lehnte MySQL die Zeile
+        // ab und der Upload endete in einer Fehlerseite.
+        $longName = str_repeat('Protokoll-', 40) . '.pdf';
+        $content = '%PDF-1.4 Testinhalt';
+        $uploadedFile = new UploadedFile(
+            (new StreamFactory())->createStream($content),
+            $longName,
+            'application/pdf',
+            strlen($content),
+            UPLOAD_ERR_OK
+        );
+
+        try {
+            $controller = new TaskController(
+                $this->createStub(Twig::class),
+                new HtmlSanitizer(),
+                new TaskPolicy(),
+                new NameFormatterService(),
+                new Logger('test')
+            );
+
+            $controller->uploadAttachment(
+                $this->makeRequest('POST', '/tasks/' . $task->id . '/attachments')
+                    ->withUploadedFiles(['attachments' => [$uploadedFile]]),
+                $this->makeResponse(),
+                ['id' => (string) $task->id]
+            );
+
+            $stored = Attachment::where('entity_type', TaskController::ENTITY_TYPE)
+                ->where('entity_id', (int) $task->id)
+                ->get();
+
+            $this->assertCount(1, $stored, 'Der Anhang muss unter der Aufgabe liegen: '
+                . ($_SESSION['error'] ?? 'kein Fehler'));
+
+            $attachment = $stored->first();
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $attachment->filename));
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $attachment->original_name));
+            $this->assertStringEndsWith('.pdf', (string) $attachment->original_name);
+            $this->assertSame('application/pdf', (string) $attachment->mime_type);
+            $this->assertSame(strlen($content), (int) $attachment->file_size);
+            $this->assertSame('Anhänge hochgeladen.', $_SESSION['success'] ?? null);
+
+            Attachment::where('entity_type', TaskController::ENTITY_TYPE)
+                ->where('entity_id', (int) $task->id)
+                ->delete();
+        } finally {
+            Attachment::where('entity_type', TaskController::ENTITY_TYPE)
+                ->where('entity_id', (int) $task->id)
+                ->delete();
+            Activity::where('entity_type', TaskController::ENTITY_TYPE)
+                ->where('entity_id', (int) $task->id)
+                ->delete();
+            $task->delete();
+            $project->users()->detach();
+            $project->delete();
+            $user->delete();
+            $_SESSION = [];
+        }
+    }
+
+    private function taskAttachment(int $taskId): Attachment
+    {
+        return Attachment::create([
+            'entity_type' => TaskController::ENTITY_TYPE,
+            'entity_id' => $taskId,
+            'filename' => bin2hex(random_bytes(8)) . '_notiz.pdf',
+            'original_name' => 'notiz.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 5,
+            'file_content' => 'Inhalt',
+        ]);
     }
 
     public function testProjectsTemplateShowsPlanningLinkOnlyWithTaskRelatedPermissions(): void

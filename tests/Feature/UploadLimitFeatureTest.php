@@ -23,22 +23,99 @@ class UploadLimitFeatureTest extends TestCase
         $this->assertNull(UploadValidator::getUploadErrorMessage(UPLOAD_ERR_NO_FILE, 'Datei'));
     }
 
+    /**
+     * Jeder Weg, über den eine Datei hereinkommt, muss den PHP-Fehlercode über
+     * UploadValidator::getUploadErrorMessage() in Text übersetzen - sonst
+     * verschwindet ein "Datei zu groß für das Upload-Limit" lautlos und die
+     * hochladende Person sieht eine leere Erfolgsmeldung.
+     *
+     * Zwei Arten von Wegen: Wer noch selbst hochlädt, ruft die Abbildung selbst
+     * auf. Wer über EntityAttachmentService geht, bekommt sie von dort - dann muss
+     * die Datei den Dienst nachweisbar nutzen, statt die Prüfung stillschweigend
+     * ganz zu verlieren. Ein Controller wandert von der ersten Liste in die
+     * zweite, sobald er umgestellt ist.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function uploadPaths(): array
+    {
+        $root = dirname(__DIR__, 2);
+
+        return [
+            // Wickeln den Upload noch selbst ab.
+            [
+                $root . '/src/Controllers/AppSettingController.php',
+                $root . '/src/Controllers/FinanceController.php',
+                $root . '/src/Controllers/SongLibraryController.php',
+                // Der Dienst selbst, für Sponsoring, Vereinbarungen und Aufgaben.
+                $root . '/src/Services/EntityAttachmentService.php',
+            ],
+            // Laden über EntityAttachmentService::storeUploads() hoch.
+            [
+                $root . '/src/Controllers/SponsorController.php',
+                $root . '/src/Controllers/SponsorshipController.php',
+                $root . '/src/Controllers/TaskController.php',
+            ],
+        ];
+    }
+
     public function testUploadControllersUseCentralUploadErrorMapping(): void
     {
-        $files = [
-            dirname(__DIR__, 2) . '/src/Controllers/AppSettingController.php',
-            dirname(__DIR__, 2) . '/src/Controllers/FinanceController.php',
-            dirname(__DIR__, 2) . '/src/Controllers/SongLibraryController.php',
-            dirname(__DIR__, 2) . '/src/Controllers/TaskController.php',
-            // Sponsoring lädt über den gemeinsamen Dienst hoch.
-            dirname(__DIR__, 2) . '/src/Services/EntityAttachmentService.php',
-        ];
+        [$ownHandling] = $this->uploadPaths();
 
-        foreach ($files as $path) {
+        foreach ($ownHandling as $path) {
             $content = file_get_contents($path);
-            $this->assertIsString($content);
-            $this->assertStringContainsString('UploadValidator::getUploadErrorMessage(', $content);
+            $this->assertIsString($content, $path);
+            $this->assertStringContainsString(
+                'UploadValidator::getUploadErrorMessage(',
+                $content,
+                basename($path) . ' lädt selbst hoch und muss die zentrale Fehlerabbildung aufrufen.'
+            );
         }
+    }
+
+    public function testDelegatingControllersGoThroughTheSharedService(): void
+    {
+        [, $delegating] = $this->uploadPaths();
+
+        foreach ($delegating as $path) {
+            $content = file_get_contents($path);
+            $this->assertIsString($content, $path);
+            $this->assertStringContainsString(
+                'storeUploads(',
+                $content,
+                basename($path) . ' soll den gemeinsamen Anhang-Dienst nutzen.'
+            );
+        }
+    }
+
+    /**
+     * Gegenprobe: Kein Weg darf in beiden Listen stehen oder aus beiden
+     * herausfallen. Ohne sie bliebe der Wächter grün, wenn ein Controller beim
+     * Umstellen aus der ersten Liste gestrichen und in die zweite vergessen wird.
+     */
+    public function testEveryUploadPathIsListedExactlyOnce(): void
+    {
+        [$ownHandling, $delegating] = $this->uploadPaths();
+        $all = [...$ownHandling, ...$delegating];
+
+        $this->assertSame(array_unique($all), $all, 'Ein Weg steht doppelt in den Listen.');
+
+        foreach ($all as $path) {
+            $this->assertFileExists($path);
+        }
+
+        // Jede Datei in src/, die getUploadedFiles() auswertet, muss gelistet sein.
+        $handlers = [];
+        foreach ((array) glob(dirname(__DIR__, 2) . '/src/Controllers/*.php') as $path) {
+            $content = (string) file_get_contents($path);
+            if (str_contains($content, 'getUploadedFiles()')) {
+                $handlers[] = $path;
+            }
+        }
+
+        $this->assertNotEmpty($handlers, 'Der Wächter findet keinen Upload-Weg mehr.');
+        $this->assertSame([], array_diff($handlers, $all), 'Diese Upload-Wege fehlen in den Listen.');
     }
 
     public function testProductionNginxImageBakesFixedClientMaxBodySize(): void
