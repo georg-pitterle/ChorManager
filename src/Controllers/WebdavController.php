@@ -92,11 +92,13 @@ class WebdavController
         }
 
         $userId = (int) $user->id;
-        $path = $this->pathFromRequest($request);
+        $segments = $this->segmentsFromRequest($request);
+        $prefix = $this->nextcloudPrefix($segments);
+        $path = implode('/', array_slice($segments, count($prefix)));
 
         return match (strtoupper($request->getMethod())) {
             'OPTIONS' => $this->options($response),
-            'PROPFIND' => $this->propfind($request, $response, $userId, $path),
+            'PROPFIND' => $this->propfind($request, $response, $userId, $path, $prefix),
             'GET', 'HEAD' => $this->get($request, $response, $userId, $path),
             default => $this->readOnly($response),
         };
@@ -111,8 +113,16 @@ class WebdavController
             ->withHeader('Content-Length', '0');
     }
 
-    private function propfind(Request $request, Response $response, int $userId, string $path): Response
-    {
+    /**
+     * @param list<string> $prefix Wegstrecke, die der Klient vor den Pfad gesetzt hat
+     */
+    private function propfind(
+        Request $request,
+        Response $response,
+        int $userId,
+        string $path,
+        array $prefix = []
+    ): Response {
         $depth = $this->depth($request);
 
         // RFC 4918, Abschnitt 9.1: Ein Server darf unbegrenzte Tiefe ablehnen,
@@ -127,11 +137,11 @@ class WebdavController
             return $response->withStatus(404);
         }
 
-        $resources = [['href' => $this->href($node), 'node' => $node]];
+        $resources = [['href' => $this->href($node, $prefix), 'node' => $node]];
 
         if ($depth === '1') {
             foreach ($this->tree->children($userId, $node) as $child) {
-                $resources[] = ['href' => $this->href($child), 'node' => $child];
+                $resources[] = ['href' => $this->href($child, $prefix), 'node' => $child];
             }
         }
 
@@ -223,7 +233,7 @@ class WebdavController
      * reicht die unentschlüsselt weiter, und ein Liedtitel mit Leerzeichen oder
      * Umlaut steht dort prozentkodiert.
      */
-    private function pathFromRequest(Request $request): string
+    private function segmentsFromRequest(Request $request): array
     {
         $raw = $request->getUri()->getPath();
 
@@ -239,13 +249,64 @@ class WebdavController
             }
         }
 
-        return implode('/', $segments);
+        return $segments;
     }
 
-    private function href(WebdavNode $node): string
+    /**
+     * Entfernt die Nextcloud-Wegstrecke, wenn ein Klient sie anhängt.
+     *
+     * MobileSheets bietet WebDAV nur als "Nextcloud-Server" an und hängt an die
+     * eingegebene Basis-Adresse `remote.php/dav/files/<benutzer>/` an - bei
+     * Nextcloud liegen die Dateien dort. Ohne diesen Ausgleich landete jede
+     * Anfrage der App auf einer 404, und die App meldete ihren nichtssagenden
+     * "WebdavError 6". Belegt durch die Protokollzeile vom 24.09.2026, 15:07 UTC:
+     *
+     *   PROPFIND /webdav/remote.php/dav/files/<mail>/ 404 MobileSheets/2 CFNetwork/...
+     *
+     * Der Benutzer im Pfad wird verworfen, nicht geprüft: Wer etwas sieht,
+     * entscheidet allein das Token aus der Basic-Auth-Anmeldung. Ein anderer
+     * Name im Pfad verschafft damit keinen anderen Bestand, er wäre nur eine
+     * zweite Wahrheit neben der ersten.
+     *
+     * `remote.php/webdav` ist die ältere ownCloud-Form derselben Sache.
+     *
+     * @param list<string> $segments
+     * @return list<string>
+     */
+    private function nextcloudPrefix(array $segments): array
+    {
+        if (($segments[0] ?? '') !== 'remote.php') {
+            return [];
+        }
+
+        if (($segments[1] ?? '') === 'dav' && ($segments[2] ?? '') === 'files') {
+            // Der Benutzername ist bei Nextcloud Teil des Pfades; fehlt er, ist
+            // die Wurzel gemeint.
+            return array_values(array_slice($segments, 0, min(4, count($segments))));
+        }
+
+        if (($segments[1] ?? '') === 'webdav') {
+            return array_values(array_slice($segments, 0, 2));
+        }
+
+        return [];
+    }
+
+    /**
+     * Die Adresse eines Knotens, so wie der Klient sie angefragt hat.
+     *
+     * `$prefix` kommt wieder mit hinein, obwohl er für uns bedeutungslos ist:
+     * Ein Klient ordnet die Einträge einer 207-Antwort über ihre href zu und
+     * sucht darin seine eigene Anfrage wieder. Antwortete der Server auf
+     * `/webdav/remote.php/dav/files/x/` mit Einträgen unter `/webdav/`, fände er
+     * sich selbst nicht und hielte die Antwort für fremd.
+     *
+     * @param list<string> $prefix
+     */
+    private function href(WebdavNode $node, array $prefix = []): string
     {
         $segments = $node->path === '' ? [] : explode('/', $node->path);
-        $encoded = implode('/', array_map('rawurlencode', $segments));
+        $encoded = implode('/', array_map('rawurlencode', [...$prefix, ...$segments]));
 
         $href = self::BASE_PATH . ($encoded === '' ? '' : '/' . $encoded);
 

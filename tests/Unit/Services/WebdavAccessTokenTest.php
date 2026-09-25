@@ -98,6 +98,23 @@ final class WebdavAccessTokenTest extends TestCase
         $this->assertNotSame(200, $response->getStatusCode());
     }
 
+    /**
+     * CsrfMiddleware startet eine Sitzung, und die bleibt sonst für den Rest
+     * des Prozesses offen. `ini_set('session.save_path', ...)` scheitert bei
+     * aktiver Sitzung - SessionConfigTest wurde dadurch im parallelen Lauf rot,
+     * je nachdem, welche Klasse vorher im selben Prozess lief.
+     */
+    protected function tearDown(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        $_SESSION = [];
+
+        parent::tearDown();
+    }
+
     private function runCsrf(string $method, string $path): ResponseInterface
     {
         $request = (new ServerRequestFactory())->createServerRequest($method, $path);

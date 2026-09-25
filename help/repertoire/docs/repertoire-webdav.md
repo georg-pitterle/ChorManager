@@ -83,10 +83,15 @@ Die Noten liegen danach dauerhaft in forScore und sind auch ohne Netz da.
 
 ### MobileSheets (Android, iPad, Windows)
 
-1. In der Bibliothek **Dateien importieren** wählen.
-2. Als Quelle **WebDAV** wählen (in manchen Fassungen unter **Cloud-Dienste**).
-3. Adresse, Benutzername und Zugangswort eintragen und die Verbindung speichern.
-4. Im Ordnerbaum das Projekt öffnen und die gewünschten Dateien importieren.
+MobileSheets bietet WebDAV nicht unter diesem Namen an, sondern als
+**Nextcloud** — der Dialog heißt „Verbinden mit Nextcloud Server". Das ist der
+richtige Eintrag; unser Ordner spricht dieselbe Sprache.
+
+1. **Einstellungen → Speicher → Nextcloud** öffnen.
+2. Bei **Server-Basis-URL** die Adresse von der Downloads-Seite eintragen, mit
+   Schrägstrich am Ende.
+3. **Benutzername** ist deine E-Mail-Adresse, **Passwort** das Zugangswort.
+4. Speichern, dann im Ordnerbaum das Projekt öffnen und die Dateien importieren.
 
 ### Dateien-App (iPhone, iPad)
 
@@ -127,6 +132,9 @@ nach dem Neuerzeugen auf allen das neue ein.
 - **"Anmeldung fehlgeschlagen" oder ständige Passwortabfrage.** In der App steht das
   Kontopasswort statt des Zugangsworts, oder noch ein altes Zugangswort. Neu erzeugen und
   überall eintragen.
+- **MobileSheets meldet „WebdavError 6".** Die Zahl sagt nichts Bestimmtes; in aller Regel
+  stimmt die Basis-URL nicht. Sie muss genau so lauten wie auf der Downloads-Seite, samt
+  `/webdav/` am Ende — hänge nichts an, den Rest des Pfades ergänzt MobileSheets selbst.
 - **Die App will etwas speichern und meldet einen Fehler.** Der Ordner ist absichtlich nur
   zum Lesen. Importiere die Noten in die App, statt in den Ordner hineinzuspeichern.
 - **Ein Projekt fehlt.** Du bist ihm nicht zugeordnet — es erscheint auch auf der

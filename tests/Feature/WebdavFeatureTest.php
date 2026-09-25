@@ -207,6 +207,92 @@ final class WebdavFeatureTest extends TestCase
         }
     }
 
+    /**
+     * MobileSheets bietet WebDAV nur als "Nextcloud-Server" an und hängt an die
+     * eingegebene Adresse `remote.php/dav/files/<benutzer>/` an. Belegt durch
+     * die Protokollzeile vom 24.09.2026, 15:07 UTC:
+     *
+     *   PROPFIND /webdav/remote.php/dav/files/<mail>/ 404 MobileSheets/2 CFNetwork/...
+     *
+     * Die 404 war die ganze Fehlermeldung, die der Nutzer zu sehen bekam.
+     */
+    public function testTheNextcloudPathLeadsToTheSameFolder(): void
+    {
+        $response = $this->call(
+            'PROPFIND',
+            'remote.php/dav/files/' . $this->member->email,
+            $this->token,
+            ['Depth' => '1']
+        );
+
+        $this->assertSame(207, $response->getStatusCode());
+        $this->assertStringContainsString('Herbstkonzert', (string) $response->getBody());
+    }
+
+    /**
+     * Die href der Antwort trägt die Wegstrecke des Klienten weiter - sonst
+     * findet er in der 207-Antwort seine eigene Anfrage nicht wieder.
+     */
+    public function testTheAnswerKeepsThePathTheClientAsked(): void
+    {
+        $response = $this->call(
+            'PROPFIND',
+            'remote.php/dav/files/' . $this->member->email,
+            $this->token,
+            ['Depth' => '1']
+        );
+
+        $body = (string) $response->getBody();
+
+        $this->assertStringContainsString('/webdav/remote.php/dav/files/', $body);
+        $this->assertStringNotContainsString('<D:href>/webdav/Herbstkonzert/</D:href>', $body);
+    }
+
+    public function testSheetMusicIsAlsoReachableThroughTheNextcloudPath(): void
+    {
+        $this->assignSong($this->project, 'Ave Maria', 'ave.pdf', 'Noteninhalt');
+
+        $response = $this->call(
+            'GET',
+            'remote.php/dav/files/' . $this->member->email . '/Herbstkonzert/Ave Maria/ave.pdf',
+            $this->token
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('Noteninhalt', (string) $response->getBody());
+    }
+
+    /**
+     * Die ältere ownCloud-Form derselben Wegstrecke.
+     */
+    public function testTheOwncloudPathLeadsToTheSameFolder(): void
+    {
+        $response = $this->call('PROPFIND', 'remote.php/webdav', $this->token, ['Depth' => '1']);
+
+        $this->assertSame(207, $response->getStatusCode());
+        $this->assertStringContainsString('Herbstkonzert', (string) $response->getBody());
+    }
+
+    /**
+     * Der Benutzer im Pfad entscheidet nichts - das tut allein das Token. Ein
+     * fremder Name darf deshalb weder mehr noch weniger zeigen.
+     */
+    public function testTheUserInThePathGrantsNothing(): void
+    {
+        $response = $this->call(
+            'PROPFIND',
+            'remote.php/dav/files/' . $this->stranger->email,
+            $this->token,
+            ['Depth' => '1']
+        );
+
+        $body = (string) $response->getBody();
+
+        $this->assertSame(207, $response->getStatusCode());
+        $this->assertStringContainsString('Herbstkonzert', $body);
+        $this->assertStringNotContainsString('Fremdprojekt', $body);
+    }
+
     public function testAGetOnACollectionIsNotAllowed(): void
     {
         $response = $this->call('GET', 'Herbstkonzert', $this->token);
