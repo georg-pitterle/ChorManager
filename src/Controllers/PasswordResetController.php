@@ -182,7 +182,10 @@ class PasswordResetController
     {
         $queryParams = $request->getQueryParams();
         $token = InputValidator::asString($queryParams['token'] ?? null);
-        $email = InputValidator::asString($queryParams['email'] ?? null);
+        // Dieselbe Fassung, die processReset() nachschlägt: Das Formular trägt die
+        // Adresse als verstecktes Feld weiter, und beide Seiten sollen denselben
+        // Text sehen.
+        $email = strtolower(trim(InputValidator::asString($queryParams['email'] ?? null)));
 
         if (!$token || !$email) {
             $_SESSION['error'] = 'Ungültiger oder fehlender Token.';
@@ -223,13 +226,15 @@ class PasswordResetController
 
         // Auch ohne Adresse gezählt: Ein Aufruf ohne `email` kostet keinen
         // bcrypt-Durchlauf, soll aber die IP-Grenze nicht umgehen können.
+        //
+        // Ohne eigenes strtolower(): Den Schlüssel schreibt
+        // `RateLimiterService::normalizeKey()` selbst klein. Zwei Schreibweisen
+        // derselben Adresse fallen deshalb ohnehin auf einen Zählstand zusammen -
+        // die Grenze ist nicht durch Wechseln der Schreibweise zu umgehen, auch
+        // wenn der Aufrufer nichts normalisierte.
         $emailLimit = ['allowed' => true];
         if ($email !== '') {
-            $emailLimit = $this->rateLimiter->hit(
-                'password_reset:consume:email:' . strtolower(trim($email)),
-                10,
-                900
-            );
+            $emailLimit = $this->rateLimiter->hit('password_reset:consume:email:' . $email, 10, 900);
         }
 
         if (($ipLimit['allowed'] ?? true) && ($emailLimit['allowed'] ?? true)) {
@@ -249,7 +254,20 @@ class PasswordResetController
     {
         $data = (array) $request->getParsedBody();
         $token = InputValidator::asString($data['token'] ?? null);
-        $email = InputValidator::asString($data['email'] ?? null);
+        // Kleingeschrieben wie in sendResetLink(): Dort wird die Adresse so
+        // gespeichert, hier über sie nachgeschlagen.
+        //
+        // Heute ohne sichtbare Wirkung - die Spalten liegen auf
+        // `utf8mb4_unicode_ci`, ein `WHERE email = ?` trifft also ohne Rücksicht
+        // auf die Schreibweise, und den Zählschlüssel des Begrenzers schreibt
+        // dieser selbst klein. Die Zeile steht für den Wechsel auf eine
+        // `_bin`-Kollation: Dort fände ein Link, dessen Adresse jemand von Hand
+        // anders schreibt, das Konto nicht mehr. Dass der Vergleich dann
+        // tatsächlich scheitert, hält
+        // `Tests\Feature\LowercaseEmailBackfillTest` an einer Wegwerf-Tabelle
+        // fest; ein Test gegen die echten Tabellen müsste deren Kollation
+        // umstellen und hinterließe sie bei einem Abbruch verändert.
+        $email = strtolower(trim(InputValidator::asString($data['email'] ?? null)));
         $password = InputValidator::asString($data['password'] ?? null);
         $passwordConfirm = InputValidator::asString($data['password_confirm'] ?? null);
 
