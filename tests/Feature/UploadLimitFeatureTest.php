@@ -35,6 +35,11 @@ class UploadLimitFeatureTest extends TestCase
      * ganz zu verlieren. Ein Controller wandert von der ersten Liste in die
      * zweite, sobald er umgestellt ist.
      *
+     * Beides zugleich ist erlaubt und kommt vor: FinanceController lädt die Belege
+     * über den Dienst hoch, liest den Kontoauszug für den Import aber weiterhin
+     * selbst ein. Geprüft wird deshalb, dass jeder Weg in mindestens einer Liste
+     * steht - nicht in genau einer.
+     *
      * @return array{0: list<string>, 1: list<string>}
      */
     private function uploadPaths(): array
@@ -45,12 +50,14 @@ class UploadLimitFeatureTest extends TestCase
             // Wickeln den Upload noch selbst ab.
             [
                 $root . '/src/Controllers/AppSettingController.php',
+                // Liest den Kontoauszug für den Import selbst ein.
                 $root . '/src/Controllers/FinanceController.php',
                 // Der Dienst selbst, für alle delegierenden Wege unten.
                 $root . '/src/Services/EntityAttachmentService.php',
             ],
             // Laden über EntityAttachmentService::storeUploads() hoch.
             [
+                $root . '/src/Controllers/FinanceController.php',
                 $root . '/src/Controllers/SongLibraryController.php',
                 $root . '/src/Controllers/SponsorController.php',
                 $root . '/src/Controllers/SponsorshipController.php',
@@ -90,16 +97,14 @@ class UploadLimitFeatureTest extends TestCase
     }
 
     /**
-     * Gegenprobe: Kein Weg darf in beiden Listen stehen oder aus beiden
-     * herausfallen. Ohne sie bliebe der Wächter grün, wenn ein Controller beim
-     * Umstellen aus der ersten Liste gestrichen und in die zweite vergessen wird.
+     * Gegenprobe: Kein Weg darf aus beiden Listen herausfallen. Ohne sie bliebe der
+     * Wächter grün, wenn ein Controller beim Umstellen aus der ersten Liste
+     * gestrichen und in die zweite vergessen wird.
      */
-    public function testEveryUploadPathIsListedExactlyOnce(): void
+    public function testEveryUploadPathIsListedAtLeastOnce(): void
     {
         [$ownHandling, $delegating] = $this->uploadPaths();
-        $all = [...$ownHandling, ...$delegating];
-
-        $this->assertSame(array_unique($all), $all, 'Ein Weg steht doppelt in den Listen.');
+        $all = array_values(array_unique([...$ownHandling, ...$delegating]));
 
         foreach ($all as $path) {
             $this->assertFileExists($path);

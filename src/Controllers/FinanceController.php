@@ -31,6 +31,9 @@ use App\Util\InputValidator;
 
 class FinanceController
 {
+    /** Belege, die an der Buchung hängen. */
+    public const ENTITY_TYPE = 'finance';
+
     /** Seconds a parsed statement stays available for confirmation. */
     private const IMPORT_TTL = 3600;
     private const IMPORT_SESSION_KEY = 'finance_import';
@@ -43,7 +46,13 @@ class FinanceController
     private FinanceAccountService $accountService;
     private FinanceJournalService $journal;
     private FinanceCsvExportService $csvExportService;
+    private EntityAttachmentService $attachments;
 
+    /**
+     * `$attachments` steht am Ende und optional, weil mehrere Tests diesen
+     * Controller mit festen Positionsargumenten bauen. Ausfallen kann er nicht:
+     * Der Dienst braucht nur einen Logger, und den hat der Konstruktor schon.
+     */
     public function __construct(
         Twig $view,
         BudgetService $budgetService,
@@ -52,7 +61,8 @@ class FinanceController
         BankStatementImportService $importService,
         FinanceAccountService $accountService,
         FinanceJournalService $journal,
-        FinanceCsvExportService $csvExportService
+        FinanceCsvExportService $csvExportService,
+        ?EntityAttachmentService $attachments = null
     ) {
         $this->view = $view;
         $this->budgetService = $budgetService;
@@ -62,6 +72,7 @@ class FinanceController
         $this->accountService = $accountService;
         $this->journal = $journal;
         $this->csvExportService = $csvExportService;
+        $this->attachments = $attachments ?? new EntityAttachmentService($logger);
     }
 
     private function getFiscalConfig(): array
@@ -321,57 +332,18 @@ class FinanceController
 
             $_SESSION['success'] = $id ? 'Eintrag erfolgreich aktualisiert.' : 'Neuer Eintrag erfolgreich verbucht.';
 
-            // Handle Attachments
-            $uploadedFiles = $request->getUploadedFiles();
-            if (isset($uploadedFiles['attachments'])) {
-                $files = $uploadedFiles['attachments'];
-                if (!is_array($files)) {
-                    $files = [$files];
-                }
+            // Belege über den gemeinsamen Dienst, wie jeder andere Anhang.
+            $uploadResult = $this->attachments->storeUploads(
+                $request->getUploadedFiles()['attachments'] ?? null,
+                self::ENTITY_TYPE,
+                (int) $finance->id
+            );
 
-                foreach ($files as $file) {
-                    $uploadError = UploadValidator::getUploadErrorMessage($file->getError(), 'Anhang');
-                    if ($uploadError !== null) {
-                        $_SESSION['error'] = $uploadError;
-                        continue;
-                    }
-
-                    if ($file->getError() === UPLOAD_ERR_OK) {
-                        $mimeType = UploadValidator::detectMimeType($file);
-                        $contents = $file->getStream()->getContents();
-                        $size = strlen($contents);
-
-                        // Use centralized validation
-                        $validation = UploadValidator::validateFileSize($size, $mimeType);
-                        if (!$validation['valid']) {
-                            $this->logger->warning('File upload rejected.', [
-                                'event' => 'security.upload.rejected',
-                                'reason' => $validation['reason'],
-                            ]);
-                            $_SESSION['error'] = $validation['error'];
-                            continue;
-                        }
-
-                        // Gekürzt auf die Spaltenbreite: `attachments.filename` und
-                        // `original_name` sind varchar(255), und der Name kommt vom
-                        // Hochladenden. Ungekürzt lehnt MySQL die Zeile ab und der
-                        // ganze Buchungs-Speichervorgang endet in der Fehlermeldung
-                        // unten, statt den Beleg zu sichern.
-                        $safeName = EntityAttachmentService::originalName(
-                            DownloadFileName::sanitize((string) $file->getClientFilename())
-                        );
-
-                        Attachment::create([
-                            'entity_type' => 'finance',
-                            'entity_id' => $finance->id,
-                            'filename' => $safeName,
-                            'original_name' => $safeName,
-                            'mime_type' => UploadValidator::normalizeMimeType($mimeType),
-                            'file_size' => $size,
-                            'file_content' => $contents,
-                        ]);
-                    }
-                }
+            // Der Beleg ist die Beilage, die Buchung die Hauptsache: Eine
+            // beanstandete Datei macht das Verbuchen nicht rückgängig, sie wird
+            // neben der Erfolgsmeldung gemeldet. So war es vorher auch.
+            if ($uploadResult['error'] !== null) {
+                $_SESSION['error'] = $uploadResult['error'];
             }
         } catch (\Exception $e) {
             $this->logger->error('Finance booking save failed.', [
@@ -993,7 +965,7 @@ class FinanceController
     public function deleteAttachment(Request $request, Response $response, array $args): Response
     {
         try {
-            $attachment = Attachment::where('entity_type', 'finance')->findOrFail((int) $args['id']);
+            $attachment = Attachment::where('entity_type', self::ENTITY_TYPE)->findOrFail((int) $args['id']);
             $finance = Finance::find((int) $attachment->entity_id);
 
             // Der Beleg gehört zur Buchung: Ist deren Zeitraum abgeschlossen,

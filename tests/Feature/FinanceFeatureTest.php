@@ -69,14 +69,15 @@ class FinanceFeatureTest extends TestCase
         $this->assertStringNotContainsString('public function delete(', $controllerContent);
     }
 
-    public function testFinanceAttachmentUploadStillTracksFileSize(): void
-    {
-        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
-
-        $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("'file_size' => " . '$' . "size", $controllerContent);
-    }
-
+    /**
+     * Dass die Belegzeile ihre Größe trägt, prüft jetzt
+     * Tests\Feature\FinanceReceiptUploadFeatureTest am tatsächlich gespeicherten
+     * Datensatz. Hier stand dafür die Suche nach der Zeichenkette
+     * "'file_size' => $size" im Controller - die Zeile steht seit der Umstellung
+     * auf EntityAttachmentService nicht mehr dort, geschrieben wird die Größe
+     * weiterhin. Der Quelltexttest hätte auch nie gemerkt, wenn dort eine falsche
+     * Zahl gestanden hätte.
+     */
     public function testFinanceTemplateUsesSeparateReadAndWriteVisibilityFlags(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/finances/index.twig');
