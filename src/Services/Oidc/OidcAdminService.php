@@ -115,6 +115,18 @@ class OidcAdminService
             ));
         }
 
+        // Vor der Dublettenprüfung, weil die abgeleitete Form dort gar nicht
+        // auftauchen kann: Sie steht in keiner Spalte, sondern entsteht erst beim
+        // Ausstellen des Anmeldezeugnisses.
+        if (OidcClaimsBuilder::isDerivedSubject($uid)) {
+            throw new RuntimeException(sprintf(
+                'Die Kennung "%s" ist reserviert. Diese Form vergibt ChorManager selbst an '
+                    . 'Mitglieder ohne eigene Kennung; von Hand eingetragen würden zwei '
+                    . 'Mitglieder auf dasselbe Konto der angeschlossenen Anwendung zeigen.',
+                $uid
+            ));
+        }
+
         $user = $this->requireUser($email);
 
         $owner = User::query()->where('external_uid', $uid)->first();

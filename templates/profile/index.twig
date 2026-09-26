@@ -436,12 +436,17 @@
                             <div class="col-6 mb-3">
                                 <label for="imap_encryption"
                                        class="form-label text-muted small fw-bold text-uppercase">Verschlüsselung</label>
-                                {% set _encryption = mail_account.imap_encryption|default('ssl') %}
+                                {% set _encryption = mail_account.imap_encryption|default("ssl") %}
                                 <select class="form-select" id="imap_encryption" name="imap_encryption" required>
-                                    <option value="ssl" {{ _encryption == 'ssl' ? 'selected' : '' }}>SSL</option>
-                                    <option value="tls" {{ _encryption == 'tls' ? 'selected' : '' }}>TLS</option>
-                                    <option value="none" {{ _encryption == 'none' ? 'selected' : '' }}>Keine</option>
+                                    <option value="ssl" {{ _encryption == "ssl" ? "selected" : "" }}>SSL</option>
+                                    <option value="tls" {{ _encryption == "tls" ? "selected" : "" }}>TLS</option>
                                 </select>
+                                {% if _encryption == "none" %}
+                                    <div class="form-text text-warning">
+                                        Dein Zugang steht noch auf "keine Verschlüsselung". Dabei ginge dein
+                                        Passwort im Klartext über das Netz - bitte wähle SSL oder TLS.
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="mb-3">
@@ -488,11 +493,10 @@
                             </div>
                             <div class="col-6">
                                 <label for="smtp_encryption" class="form-label text-muted small fw-bold text-uppercase">Verschlüsselung</label>
-                                {% set _smtp_enc = mail_account.smtp_encryption|default('tls') %}
+                                {% set _smtp_enc = mail_account.smtp_encryption|default("tls") %}
                                 <select class="form-select" id="smtp_encryption" name="smtp_encryption">
-                                    <option value="ssl" {{ _smtp_enc == 'ssl' ? 'selected' : '' }}>SSL</option>
-                                    <option value="tls" {{ _smtp_enc == 'tls' ? 'selected' : '' }}>TLS</option>
-                                    <option value="none" {{ _smtp_enc == 'none' ? 'selected' : '' }}>Keine</option>
+                                    <option value="ssl" {{ _smtp_enc == "ssl" ? "selected" : "" }}>SSL</option>
+                                    <option value="tls" {{ _smtp_enc == "tls" ? "selected" : "" }}>TLS</option>
                                 </select>
                             </div>
                         </div>

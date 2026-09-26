@@ -29,11 +29,39 @@ class OidcClaimsBuilder
     public const SCOPE_EMAIL = 'email';
     public const SCOPE_GROUPS = 'groups';
 
+    /**
+     * Vorsilbe der abgeleiteten Kennung. Steht hier und nicht in der Verwaltung:
+     * Wer die Form ändert, muss auch die Sperre in isDerivedSubject() ändern, und
+     * das fällt nur auf, wenn beides nebeneinander liegt.
+     */
+    public const DERIVED_PREFIX = 'cm-';
+
     public static function subjectFor(User $user): string
     {
         $external = trim((string) ($user->external_uid ?? ''));
 
-        return $external !== '' ? $external : 'cm-' . (int) $user->id;
+        return $external !== '' ? $external : self::DERIVED_PREFIX . (int) $user->id;
+    }
+
+    /**
+     * Trägt diese Kennung genau die Form, die subjectFor() selbst vergibt?
+     *
+     * Von Hand eingetragen wäre sie eine Falle: Mitglied 4711 ohne eigene
+     * Kennung weist sich als `cm-4711` aus, und wer dieselbe Zeichenfolge bei
+     * einem anderen Mitglied hinterlegt, schickt beide auf dasselbe Konto der
+     * angeschlossenen Anwendung. Die Dublettenprüfung der Verwaltung sieht das
+     * nicht - sie vergleicht nur gespeicherte Kennungen, und die abgeleitete
+     * steht nirgends.
+     *
+     * Ohne Rücksicht auf Groß- und Kleinschreibung: `CM-4711` kann mit keinem
+     * abgeleiteten `sub` zusammenfallen, taugt aber auch zu nichts - die Form
+     * gehört ChorManager. "cm-georg" bleibt erlaubt, dort steht keine Zahl.
+     */
+    public static function isDerivedSubject(string $candidate): bool
+    {
+        $pattern = '/^' . preg_quote(self::DERIVED_PREFIX, '/') . '\d+$/i';
+
+        return preg_match($pattern, trim($candidate)) === 1;
     }
 
     /**

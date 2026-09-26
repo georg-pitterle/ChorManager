@@ -26,7 +26,14 @@ use Psr\Log\LoggerInterface;
 
 class ProfileController
 {
-    private const IMAP_ENCRYPTIONS = ['ssl', 'tls', 'none'];
+    /**
+     * Ohne Verschlüsselung ging das IMAP-Passwort des Mitglieds im Klartext über
+     * das Netz - MailBadgeService baut die Verbindung wirklich auf. `none` ist
+     * deshalb nicht mehr wählbar. Bestehende Zeilen behalten ihren Wert (die
+     * Spalte kennt ihn weiterhin); wer seine Anbindung das nächste Mal
+     * speichert, muss sich für ssl oder tls entscheiden.
+     */
+    private const IMAP_ENCRYPTIONS = ['ssl', 'tls'];
 
     private Twig $view;
     private UserQuery $userQuery;
@@ -433,7 +440,11 @@ class ProfileController
         $mailBadgeEnabled = $this->isCheckboxChecked($data, 'mail_badge_enabled');
 
         $smtpPort = ($smtpPortRaw !== '' && ctype_digit($smtpPortRaw)) ? (int)$smtpPortRaw : null;
-        $validEncryptions = ['ssl', 'tls', 'none'];
+        // Dieselbe Liste wie beim Abruf: Auch der Versandweg trägt die
+        // Zugangsdaten, und auch er wird von einem anderen Laufzeitsystem
+        // (Tachyon) benutzt. Ein `none` fällt hier still weg, statt den ganzen
+        // Zugang abzulehnen - das Feld ist freiwillig und war es immer.
+        $validEncryptions = self::IMAP_ENCRYPTIONS;
 
         $attributes = [
             'imap_host' => $imapHost,
@@ -612,7 +623,8 @@ class ProfileController
         }
 
         if (!in_array($imapEncryption, self::IMAP_ENCRYPTIONS, true)) {
-            return 'Bitte wähle eine gültige Verschlüsselung (SSL, TLS oder Keine).';
+            return 'Bitte wähle eine Verschlüsselung (SSL oder TLS). '
+                . 'Ohne Verschlüsselung ginge dein Passwort im Klartext über das Netz.';
         }
 
         return null;

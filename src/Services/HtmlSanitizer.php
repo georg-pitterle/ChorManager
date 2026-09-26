@@ -135,12 +135,40 @@ class HtmlSanitizer
         return $config;
     }
 
+    /**
+     * Ablageort des Definitions-Zwischenspeichers: `var/htmlpurifier` im Projekt.
+     *
+     * Vorher lag er in sys_get_temp_dir() - dieselbe Stelle, die die
+     * Rate-Limit-Zähler aus guten Gründen verlassen haben
+     * (RateLimiterService::defaultStoreDir()): Das Temp-Verzeichnis gehört
+     * niemandem, kann je nach Aufruf (Web, CLI, Cron) woanders liegen und wird
+     * von aufräumenden Systemdiensten geleert. `var/` gehört zur Anwendung, ist
+     * schon in `.gitignore` und wird beim Ausrollen einmal richtig gesetzt.
+     *
+     * Hier wiegt das leichter als bei den Zählern - ein verlorener
+     * Zwischenspeicher kostet nur die Zeit, ihn neu aufzubauen, und sperrt
+     * niemanden aus. Zwei verschiedene Antworten auf dieselbe Frage im selben
+     * Projekt sind aber schlechter als eine.
+     *
+     * Liefert null, wenn sich das Verzeichnis nicht anlegen oder nicht
+     * beschreiben lässt. HTMLPurifier arbeitet dann ohne Zwischenspeicher
+     * weiter, statt bei jedem Aufruf eine Warnung zu schreiben.
+     */
+    public static function cacheDir(): ?string
+    {
+        $cacheDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'var'
+            . DIRECTORY_SEPARATOR . 'htmlpurifier';
+
+        if (!is_dir($cacheDir) && !@mkdir($cacheDir, 0755, true) && !is_dir($cacheDir)) {
+            return null;
+        }
+
+        return is_writable($cacheDir) ? $cacheDir : null;
+    }
+
     private function buildBaseConfig(): HTMLPurifier_Config
     {
-        $cacheDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'chormanager_htmlpurifier';
-        if (!is_dir($cacheDir)) {
-            @mkdir($cacheDir, 0755, true);
-        }
+        $cacheDir = self::cacheDir();
 
         $config = HTMLPurifier_Config::createDefault();
         $config->set('Core.Encoding', 'UTF-8');
@@ -150,7 +178,11 @@ class HtmlSanitizer
         // werden. Der Inhalt der Tags bleibt erhalten, Script- und Style-Blöcke
         // entfernt HTMLPurifier samt Inhalt.
         $config->set('Core.EscapeInvalidTags', false);
-        $config->set('Cache.SerializerPath', $cacheDir);
+        if ($cacheDir === null) {
+            $config->set('Cache.DefinitionImpl', null);
+        } else {
+            $config->set('Cache.SerializerPath', $cacheDir);
+        }
         $config->set('Attr.EnableID', false);
         $config->set('HTML.TargetBlank', true);
         $config->set('HTML.Nofollow', true);
