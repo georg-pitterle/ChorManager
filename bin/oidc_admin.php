@@ -39,6 +39,7 @@ use App\Services\Oidc\OidcClientService;
 use App\Services\Oidc\OidcSigningKeyService;
 use App\Services\SecretBoxCryptoService;
 use App\Util\CliBootstrap;
+use Psr\Log\LoggerInterface;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 require __DIR__ . '/bootstrap_cli.php';
@@ -82,23 +83,38 @@ function fail(string $message): never
     exit(1);
 }
 
-$keyService = new OidcSigningKeyService(
-    new SecretBoxCryptoService(OidcSigningKeyService::KEY_ENV, null, $logger),
-    $logger
-);
+/**
+ * Der Schlüsseldienst wird erst gebaut, wenn ein Unterbefehl ihn braucht.
+ *
+ * Sein Konstruktor wirft, wenn OIDC_SIGNING_KEY_SECRET fehlt. Stand er hier
+ * unbedingt und vor dem try, endete jeder Aufruf mit einem ungefangenen
+ * Fehler samt Stapelabzug - auch group:list und client:list, die mit dem
+ * Signierschlüssel nichts zu tun haben. Ein Stapelabzug als Antwort auf eine
+ * fehlende Zeile in der .env sagt niemandem, was zu tun ist.
+ */
+function keyService(LoggerInterface $logger): OidcSigningKeyService
+{
+    static $service = null;
+
+    return $service ??= new OidcSigningKeyService(
+        new SecretBoxCryptoService(OidcSigningKeyService::KEY_ENV, null, $logger),
+        $logger
+    );
+}
+
 $clientService = new OidcClientService($logger);
 $adminService = new OidcAdminService();
 
 try {
     switch ($command) {
         case 'key:generate':
-            $key = $keyService->generateKey();
+            $key = keyService($logger)->generateKey();
             echo 'Neuer Signierschlüssel angelegt: ' . $key->kid . PHP_EOL;
             echo 'Der bisherige bleibt in JWKS stehen, bis er mit key:prune entfernt wird.' . PHP_EOL;
             break;
 
         case 'key:list':
-            $keys = $keyService->allKeys();
+            $keys = keyService($logger)->allKeys();
             if ($keys === []) {
                 echo 'Es ist kein Signierschlüssel hinterlegt. Zuerst key:generate ausführen.' . PHP_EOL;
                 break;
@@ -116,7 +132,7 @@ try {
 
         case 'key:prune':
             $graceDays = (int) (optionValues($options, 'grace-days')[0] ?? '30');
-            $removed = $keyService->pruneRetiredKeys($graceDays);
+            $removed = keyService($logger)->pruneRetiredKeys($graceDays);
             printf("%d abgelöste Schlüssel entfernt (älter als %d Tage).\n", $removed, $graceDays);
             break;
 

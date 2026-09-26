@@ -21,6 +21,7 @@ use App\Services\Oidc\IdTokenSigner;
 use App\Services\Oidc\OidcClaimsBuilder;
 use App\Services\Oidc\OidcClientService;
 use App\Services\Oidc\OidcSigningKeyService;
+use App\Services\Oidc\OidcSigningReadiness;
 use App\Services\RateLimiterService;
 use App\Services\RememberLoginService;
 use App\Services\SecretBoxCryptoService;
@@ -435,6 +436,7 @@ final class OidcAuthorizationFlowFeatureTest extends TestCase
             new OidcClientService(),
             new AuthorizationCodeService(),
             $this->userQuery(),
+            new OidcSigningReadiness(fn(): OidcSigningKeyService => $this->keyService()),
             $this->rateLimiter
         );
     }

@@ -173,6 +173,11 @@ curl https://<chormanager>/oidc/jwks.json
   aus, oder die Rollen haben keine Zuordnung — `group:list` zeigt das sofort.
 - **Client-Secret verlegt.** Es lässt sich nicht nachschlagen, nur neu ausstellen. Danach
   muss es auch in Nextcloud neu eingetragen werden.
+- **Nextcloud meldet `temporarily_unavailable`.** Dann fehlt der Signierschlüssel: Entweder
+  ist `OIDC_SIGNING_KEY_SECRET` nicht gesetzt, oder `key:generate` wurde nie ausgeführt.
+  ChorManager stellt in dem Fall bewusst gar keinen Code aus, statt die Anmeldung
+  durchlaufen zu lassen und erst beim Tausch abzubrechen. Im Server-Log steht
+  `oidc.signing_key.unavailable`.
 - **Anmeldung schlägt mit einer unscharfen Meldung fehl.** Nach außen gibt ChorManager nur
   die knappen Standardfehler aus; woran es lag, steht im Server-Log unter den Einträgen
   `oidc.authorize.denied` und `oidc.token.rejected`.

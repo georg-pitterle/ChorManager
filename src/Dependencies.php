@@ -46,6 +46,7 @@ use App\Services\Oidc\OidcAdminService;
 use App\Services\Oidc\OidcClaimsBuilder;
 use App\Services\Oidc\OidcClientService;
 use App\Services\Oidc\OidcSigningKeyService;
+use App\Services\Oidc\OidcSigningReadiness;
 use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
 use App\Controllers\Oidc\TokenController;
@@ -235,6 +236,16 @@ return function (ContainerBuilder $containerBuilder) {
         IdTokenSigner::class => function (ContainerInterface $c): IdTokenSigner {
             return new IdTokenSigner($c->get(OidcSigningKeyService::class));
         },
+        // Die Fabrik statt der fertigen Instanz: OidcSigningKeyService wirft im
+        // Konstruktor, wenn OIDC_SIGNING_KEY_SECRET fehlt - genau der Fall, den
+        // diese Klasse beantworten soll. Als Abhängigkeit scheiterte schon das
+        // Auflösen des Authorize-Controllers.
+        OidcSigningReadiness::class => function (ContainerInterface $c): OidcSigningReadiness {
+            return new OidcSigningReadiness(
+                fn(): OidcSigningKeyService => $c->get(OidcSigningKeyService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         OidcClientService::class => function (ContainerInterface $c): OidcClientService {
             return new OidcClientService($c->get(LoggerInterface::class));
         },
@@ -250,6 +261,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(OidcClientService::class),
                 $c->get(AuthorizationCodeService::class),
                 $c->get(UserQuery::class),
+                $c->get(OidcSigningReadiness::class),
                 $c->get(RateLimiterService::class),
                 $c->get(LoggerInterface::class)
             );

@@ -9,6 +9,7 @@ use App\Queries\UserQuery;
 use App\Services\Oidc\AuthorizationCodeService;
 use App\Services\Oidc\OidcClaimsBuilder;
 use App\Services\Oidc\OidcClientService;
+use App\Services\Oidc\OidcSigningReadiness;
 use App\Services\RateLimiterService;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -43,6 +44,7 @@ class AuthorizeController
         private readonly OidcClientService $clientService,
         private readonly AuthorizationCodeService $codeService,
         private readonly UserQuery $userQuery,
+        private readonly OidcSigningReadiness $signingReadiness,
         private readonly RateLimiterService $rateLimiter = new RateLimiterService(),
         private readonly LoggerInterface $logger = new NullLogger()
     ) {
@@ -88,6 +90,21 @@ class AuthorizeController
 
         if (!in_array('openid', OidcClaimsBuilder::splitScope($scope), true)) {
             return $this->fail($response, $redirectUri, $state, 'invalid_scope', 'openid fehlt im scope');
+        }
+
+        // Vor dem Ausstellen, nicht erst beim Tausch: Ein Code, den der
+        // Token-Endpunkt mangels Signierschlüssel nie einlösen kann, darf gar
+        // nicht erst entstehen. Sonst liefe die Anmeldung scheinbar durch und
+        // bräche an der unverständlichsten Stelle ab - mit einer Zeile in
+        // oidc_auth_codes je Versuch.
+        if (!$this->signingReadiness->canSign()) {
+            return $this->fail(
+                $response,
+                $redirectUri,
+                $state,
+                'temporarily_unavailable',
+                'kein brauchbarer Signierschlüssel hinterlegt'
+            );
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
