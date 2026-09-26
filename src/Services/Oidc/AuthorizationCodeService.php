@@ -131,8 +131,41 @@ class AuthorizationCodeService
             throw new OidcProtocolException('invalid_grant', 'code_verifier passt nicht zur code_challenge');
         }
 
-        $stored->used_at = date('Y-m-d H:i:s');
-        $stored->save();
+        // Bedingtes Update statt Lesen-und-dann-Schreiben, wie beim Anspruch auf
+        // einen Newsletter-Entwurf (NewsletterLockingService::acquireLock) oder
+        // eine Warteschlangen-Zeile (MailDeliveryService::sendEntry): Zwischen der
+        // Abfrage oben und dieser Markierung passt sonst ein zweiter Lauf. Beide
+        // sahen einen offenen Code, beide kamen durch die Prüfungen, und beide
+        // bekamen ein Zugriffstoken - die Einmaligkeit, auf der hier alles
+        // aufbaut, galt dann nur ohne gleichzeitigen Zugriff. Schlimmer noch: Die
+        // Wiedereinlösung unten, die die Token eines mitgelesenen Codes verbrennt,
+        // trat in genau diesem Fall nie ein.
+        //
+        // Erst hier und nicht schon oben: Ein Code, dessen code_verifier nicht
+        // passt, darf nicht verbraucht sein. Sonst genügte eine Anfrage mit
+        // falschem Verifier, um dem berechtigten Klienten seinen Code zu nehmen.
+        $now = date('Y-m-d H:i:s');
+        $claimed = OidcAuthCode::query()
+            ->whereKey($stored->id)
+            ->whereNull('used_at')
+            ->update(['used_at' => $now]);
+
+        if ($claimed === 0) {
+            $revoked = $this->revokeTokensFromCode($stored);
+
+            $this->logger->warning('OIDC authorization code redeemed twice at once.', [
+                'event' => 'oidc.token.rejected',
+                'reason' => 'code_replayed',
+                'client_id' => (string) $stored->client_id,
+                'user_id' => (int) $stored->user_id,
+                'revoked_tokens' => $revoked,
+            ]);
+
+            throw new OidcProtocolException('invalid_grant', 'Code war bereits eingelöst');
+        }
+
+        $stored->used_at = $now;
+        $stored->syncOriginal();
 
         return $stored;
     }

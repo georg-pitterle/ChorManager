@@ -328,12 +328,19 @@ class BankStatementImportService
     {
         $candidates = null;
         foreach ($records as $record) {
-            $ibans = array_filter([
+            // Doppelte zusammenlegen: Bei Kontoführungsgebühren schreiben manche
+            // Institute das eigene Konto als Auftraggeber *und* als Empfänger.
+            // Die Kennung blieb dann zweimal in der Schnittmenge stehen, die
+            // Eindeutigkeitsprüfung unten griff, und der Auszug galt als nicht
+            // zuordenbar - obwohl genau eine Kennung durch jede Zeile lief.
+            $ibans = array_values(array_unique(array_filter([
                 $this->field($header, $record, self::COLUMN_SENDER_IBAN),
                 $this->field($header, $record, self::COLUMN_RECEIVER_IBAN),
-            ], static fn(string $iban): bool => $iban !== '');
+            ], static fn(string $iban): bool => $iban !== '')));
 
-            $candidates = $candidates === null ? $ibans : array_intersect($candidates, $ibans);
+            $candidates = $candidates === null
+                ? $ibans
+                : array_values(array_intersect($candidates, $ibans));
             if ($candidates === []) {
                 return null;
             }

@@ -325,4 +325,31 @@ final class BankStatementImportServiceTest extends TestCase
         // sonst greift die Auswahl im Formular auf die falsche Zeile zu.
         $this->assertSame([0, 1, 2, 3, 4], array_column($rows, 'index'));
     }
+
+    /**
+     * Steht das eigene Konto in beiden Spalten - bei Kontoführungsgebühren
+     * schreiben manche Institute es als Auftraggeber *und* als Empfänger -, blieb
+     * es in der Schnittmenge doppelt stehen. `count() !== 1` griff dann, obwohl
+     * die Kennung eindeutig war, und der Auszug galt als nicht zuordenbar.
+     */
+    public function testDetectsTheOwnIbanEvenWhenItStandsInBothColumns(): void
+    {
+        $result = $this->service->parse($this->csv(
+            '01.03.2026;01.03.2026;-3,90;EUR;Chor;AT111111111111111111;;Chor;AT111111111111111111;;Gebuehr;Kontofuehrung',
+            '01.04.2026;01.04.2026;-3,90;EUR;Chor;AT111111111111111111;;Chor;AT111111111111111111;;Gebuehr;Kontofuehrung'
+        ));
+
+        $this->assertSame([], $result['errors']);
+        $this->assertSame('AT111111111111111111', $result['own_iban']);
+    }
+
+    public function testStillReportsNoOwnIbanWhenTwoDifferentIbansRunThroughEveryRow(): void
+    {
+        $result = $this->service->parse($this->csv(
+            '01.03.2026;01.03.2026;-10,00;EUR;A;AT111111111111111111;;B;AT222222222222222222;;T;Zweck',
+            '02.03.2026;02.03.2026;10,00;EUR;B;AT222222222222222222;;A;AT111111111111111111;;T;Zweck'
+        ));
+
+        $this->assertNull($result['own_iban']);
+    }
 }

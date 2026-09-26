@@ -6,6 +6,7 @@ namespace App\Services\Oidc;
 
 use App\Models\OidcSigningKey;
 use App\Services\SecretBoxCryptoService;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
@@ -63,15 +64,26 @@ class OidcSigningKeyService
         // und in JWKS, ein Zufallswert täte es auch, wäre aber nicht prüfbar.
         $kid = substr(hash('sha256', (string) $details['key']), 0, 32);
 
-        OidcSigningKey::query()->update(['is_active' => false]);
+        // Wegschließen, bevor der bisherige Schlüssel sein `is_active` verliert:
+        // Gibt der Tresor hier auf, hat noch nichts in der Datenbank gestanden.
+        $privateKeyEncrypted = $this->crypto->encrypt($privatePem);
 
-        $key = OidcSigningKey::create([
-            'kid' => $kid,
-            'public_key' => (string) $details['key'],
-            'private_key_encrypted' => $this->crypto->encrypt($privatePem),
-            'is_active' => true,
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        // Ablösen und Anlegen gehören zusammen. Scheitert das Anlegen, stand die
+        // Anwendung sonst ohne aktiven Schlüssel da - und ohne aktiven Schlüssel
+        // signiert der Anbieter kein Anmeldezeugnis mehr (IdTokenSigner::sign()
+        // wirft). Jede Anmeldung über ChorManager bräche ab, bis jemand von Hand
+        // einen neuen Schlüssel erzeugt.
+        $key = Capsule::connection()->transaction(function () use ($kid, $details, $privateKeyEncrypted) {
+            OidcSigningKey::query()->update(['is_active' => false]);
+
+            return OidcSigningKey::create([
+                'kid' => $kid,
+                'public_key' => (string) $details['key'],
+                'private_key_encrypted' => $privateKeyEncrypted,
+                'is_active' => true,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        });
 
         $this->logger->info('OIDC signing key generated.', [
             'event' => 'oidc.key.generated',
