@@ -159,7 +159,10 @@ class MailQueueAdminService
             throw new Exception("Entry not found: {$entryId}");
         }
 
-        if ($entry->status !== 'dead') {
+        // Die Bedingung steht am Modell, nicht hier: Beide Stellen beantworteten
+        // dieselbe Frage und gaben verschiedene Antworten, weil jede ihre eigene
+        // Bedingung mitbrachte.
+        if (!$entry->canRetry()) {
             throw new Exception("Only dead entries can be retried. Current status: {$entry->status}");
         }
 

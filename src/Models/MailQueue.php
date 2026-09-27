@@ -115,24 +115,9 @@ class MailQueue extends Model
     ];
 
     // Scopes
-    public function scopeQueued($query)
-    {
-        return $query->where('status', 'queued');
-    }
-
-    public function scopeFailed($query)
-    {
-        return $query->where('status', 'failed');
-    }
-
     public function scopeDead($query)
     {
         return $query->where('status', 'dead');
-    }
-
-    public function scopeSent($query)
-    {
-        return $query->where('status', 'sent');
     }
 
     public function scopeDueSoon($query)
@@ -151,16 +136,6 @@ class MailQueue extends Model
     }
 
     // Helpers
-    public function isDelivered(): bool
-    {
-        return $this->delivery_status === 'delivered';
-    }
-
-    public function isDeadLetter(): bool
-    {
-        return $this->status === 'dead';
-    }
-
     /**
      * Trägt der Mailtext dieses Eintrags ein Geheimnis, das nach der Zustellung
      * verschwinden muss?
@@ -170,16 +145,22 @@ class MailQueue extends Model
         return in_array((string) $this->mail_type, self::SECRET_BODY_MAIL_TYPES, true);
     }
 
+    /**
+     * Darf dieser Eintrag von Hand erneut in die Warteschlange gestellt werden?
+     *
+     * Nur ein endgültig liegengebliebener - `status = dead`. Ein `failed`-Eintrag,
+     * der noch Versuche frei hat, ist kein Fall für den Handknopf: Ihn holt sich
+     * `scopeDueSoon()` von selbst wieder, und ein Zurücksetzen von Hand würde
+     * dabei nur den Zähler verlieren.
+     *
+     * Vorher bejahte diese Methode genau diesen Fall und widersprach damit
+     * `MailQueueAdminService::retrySingle()`, das ihn abweist ("Only dead entries
+     * can be retried"). Die beiden Antworten liefen auseinander, weil die
+     * Verwaltung ihre eigene Bedingung mitbrachte statt zu fragen; sie fragt
+     * jetzt hier.
+     */
     public function canRetry(): bool
     {
-        if ($this->status === 'dead') {
-            return true;
-        }
-
-        if ($this->status !== 'failed') {
-            return false;
-        }
-
-        return $this->is_retryable && $this->attempts < $this->max_attempts;
+        return $this->status === 'dead';
     }
 }

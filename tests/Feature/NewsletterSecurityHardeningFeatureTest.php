@@ -72,7 +72,13 @@ class NewsletterSecurityHardeningFeatureTest extends TestCase
         $this->assertStringContainsString("whereColumn('attempts', '<', 'max_attempts')", $modelContent);
     }
 
-    public function testMailQueueCanRetryRespectsRetryabilityAndAttemptsForFailedEntries(): void
+    /**
+     * Von Hand erneut versenden darf man nur einen endgültig liegengebliebenen
+     * Eintrag. Ein `failed`-Eintrag mit freien Versuchen gehört dem automatischen
+     * Weg (`scopeDueSoon()`) - vorher bejahte `canRetry()` ihn und widersprach
+     * damit `MailQueueAdminService::retrySingle()`, das ihn abweist.
+     */
+    public function testMailQueueCanRetryOnlyAllowsDeadEntries(): void
     {
         $failedRetryable = new MailQueue();
         $failedRetryable->status = 'failed';
@@ -86,14 +92,38 @@ class NewsletterSecurityHardeningFeatureTest extends TestCase
         $failedExhausted->attempts = 3;
         $failedExhausted->max_attempts = 3;
 
+        $queued = new MailQueue();
+        $queued->status = 'queued';
+
+        $sent = new MailQueue();
+        $sent->status = 'sent';
+
         $deadLetter = new MailQueue();
         $deadLetter->status = 'dead';
         $deadLetter->is_retryable = false;
         $deadLetter->attempts = 5;
         $deadLetter->max_attempts = 3;
 
-        $this->assertTrue($failedRetryable->canRetry());
-        $this->assertFalse($failedExhausted->canRetry());
         $this->assertTrue($deadLetter->canRetry());
+        $this->assertFalse(
+            $failedRetryable->canRetry(),
+            'Den holt sich dueSoon() von selbst - der Handknopf ist dafür nicht da.'
+        );
+        $this->assertFalse($failedExhausted->canRetry());
+        $this->assertFalse($queued->canRetry());
+        $this->assertFalse($sent->canRetry());
+    }
+
+    /**
+     * Die Verwaltung muss dieselbe Bedingung benutzen und nicht ihre eigene
+     * mitbringen. Genau daran liefen die beiden Antworten vorher auseinander.
+     */
+    public function testRetrySingleAsksTheModelWhetherAnEntryMayBeRetried(): void
+    {
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/MailQueueAdminService.php');
+
+        $this->assertIsString($serviceContent);
+        $this->assertStringContainsString('if (!$entry->canRetry())', $serviceContent);
+        $this->assertStringNotContainsString("if (\$entry->status !== 'dead')", $serviceContent);
     }
 }
