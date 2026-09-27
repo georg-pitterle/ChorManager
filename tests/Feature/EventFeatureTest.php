@@ -237,7 +237,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Old Event in Project',
             'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
             'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
-            'project_id' => $project->id,
             'event_type_id' => $eventType->id,
             'type' => 'Probe',
             'location' => null,
@@ -252,7 +251,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Old Event Other Project',
             'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
             'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
-            'project_id' => null,
             'event_type_id' => $eventType->id,
             'type' => 'Probe',
             'location' => null,
@@ -1143,7 +1141,6 @@ class EventFeatureTest extends TestCase
 
         $event = Event::create([
             'title' => $title,
-            'project_id' => $projectId,
             'starts_at' => $date . ' 12:00:00',
             'ends_at' => $date . ' 14:00:00',
             'type' => 'Probe',

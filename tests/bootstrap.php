@@ -9,6 +9,22 @@ $_SERVER['HTTP_HOST'] = 'localhost';
 // Load autoloader
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+// Eine Massenzuweisung, die eine Spalte nennt, die nicht in `$fillable` steht, soll im
+// Testlauf auffliegen statt lautlos zu verschwinden.
+//
+// Eloquent wirft dabei von sich aus keinen Fehler: `create()`, `update()` und `fill()`
+// lassen einen unbekannten Schlüssel einfach weg. Der Aufruf sieht danach aus, als hätte
+// er den Wert gesetzt, und ein Test, der genau diesen Wert als Vorbedingung braucht,
+// prüft anschließend etwas anderes als seinen Namen. So konnte
+// `MailDeliveryLifecycleFeatureTest::testSendEntryRefreshesUpdatedAtWhenClaimingSendingState`
+// nie rot werden: Sein `updated_at` fiel weg, und weil `MailQueue` Zeitstempel selbst
+// führt, stand dort danach die aktuelle Zeit statt der gewollten 45 Minuten Vergangenheit.
+//
+// Nur im Testlauf. Im Betrieb bleibt das nachsichtige Verhalten, damit ein zusätzliches
+// Feld in einem Formular keine Seite mit einer Ausnahme beendet - dort ist das Verwerfen
+// gerade der Schutz, den `$fillable` leisten soll.
+Illuminate\Database\Eloquent\Model::preventSilentlyDiscardingAttributes(true);
+
 // Dieselbe Zeitzone wie im Web-Einstieg (public/index.php) und in den CLI-Skripten
 // (bin/bootstrap_cli.php). Ohne das lief PHPUnit in der Zeitzone aus der php.ini (UTC),
 // während Seed und Oberfläche ihre Zeitstempel in der App-Zeitzone schreiben: ein im

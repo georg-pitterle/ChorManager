@@ -461,7 +461,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
 
         $event = Event::create([
             'title' => 'Projektprobe Auswertung Task11 ' . $suffix,
-            'project_id' => $project->id,
             'starts_at' => Carbon::now()->addDays(10),
             'ends_at' => Carbon::now()->addDays(10)->addHours(2),
             'type' => 'Probe',

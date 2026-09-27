@@ -185,7 +185,8 @@ class RegistrationReminderServiceFeatureTest extends TestCase
         // $nonMember is deliberately NOT attached to the project: only
         // project members may be reminded for a project-bound event.
 
-        $this->event->update(['project_id' => $project->id]);
+        // Die Bindung an das Projekt läuft allein über die Zielgruppen-Quelle unten.
+        // `events.project_id` ist mit 20260722130000 entfallen.
         EventAudienceSource::create([
             'event_id' => $this->event->id,
             'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,

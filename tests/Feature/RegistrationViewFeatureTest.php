@@ -306,7 +306,6 @@ class RegistrationViewFeatureTest extends TestCase
 
         $event = Event::create([
             'title' => 'Projektprobe mit Anmeldung',
-            'project_id' => $project->id,
             'starts_at' => Carbon::now()->addDays(10),
             'ends_at' => Carbon::now()->addDays(10)->addHours(2),
             'type' => 'Probe',

@@ -512,11 +512,24 @@ final class MailDeliveryLifecycleFeatureTest extends TestCase
     public function testSendEntryRefreshesUpdatedAtWhenClaimingSendingState(): void
     {
         $queue = $this->createQueue('queued', 'invitation');
-        $historicalUpdatedAt = Carbon::now()->subMinutes(45);
+        // Auf die Sekunde abgeschnitten: `mail_queue.updated_at` ist ein timestamp und
+        // kennt keine Bruchteile. Ohne das verglich die Vorbedingung unten einen Wert mit
+        // Mikrosekunden gegen den gerundeten aus der Datenbank.
+        $historicalUpdatedAt = Carbon::now()->subMinutes(45)->startOfSecond();
 
-        $queue->update([
-            'updated_at' => $historicalUpdatedAt,
-        ]);
+        // Der Zeitstempel muss über den Abfrage-Erbauer zurückgestellt werden, nicht über
+        // das Modell: `updated_at` steht nicht in `MailQueue::$fillable`, und `$timestamps`
+        // steht auf true. Ein `$queue->update(['updated_at' => ...])` verwarf den Wert
+        // deshalb und schrieb stattdessen die aktuelle Zeit - die Vorbedingung dieses
+        // Tests kam nie zustande, und die Behauptung unten war von selbst wahr.
+        self::$capsule?->table('mail_queue')
+            ->where('id', $queue->id)
+            ->update(['updated_at' => $historicalUpdatedAt->format('Y-m-d H:i:s')]);
+
+        self::assertTrue(
+            $queue->fresh()?->updated_at->equalTo($historicalUpdatedAt),
+            'Die Vorbedingung muss stehen, sonst prüft der Test nichts.'
+        );
 
         $inspectingMailer = new class extends Mailer {
             private ?string $observedStatus = null;

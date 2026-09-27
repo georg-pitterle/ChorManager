@@ -332,7 +332,6 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $requiredEvent = Event::create([
             'title' => 'Projektprobe mit Anwesenheitspflicht Task9',
-            'project_id' => $project->id,
             'starts_at' => Carbon::now()->subDays(1)->setTime(19, 0),
             'ends_at' => Carbon::now()->subDays(1)->setTime(21, 0),
             'type' => 'Probe',
@@ -346,7 +345,6 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $notRequiredEvent = Event::create([
             'title' => 'Projektfest ohne Anwesenheitspflicht Task9',
-            'project_id' => $project->id,
             'starts_at' => Carbon::now()->subDays(2)->setTime(18, 0),
             'ends_at' => Carbon::now()->subDays(2)->setTime(23, 0),
             'type' => 'Sonstiges',
