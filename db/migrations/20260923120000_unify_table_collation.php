@@ -59,6 +59,16 @@ final class UnifyTableCollation extends AbstractMigration
      * `phinxlog` fehlt bewusst: Die Tabelle gehört Phinx, trägt keine
      * Anwendungsdaten und wird von keinem JOIN berührt.
      *
+     * `password_resets` und `remember_logins` stehen mit in der Liste, obwohl die
+     * Ursprungsmigration sie heute als rohes `CREATE TABLE` mit
+     * `COLLATE=utf8mb4_general_ci` anlegt: Angelegt wurden sie ursprünglich über
+     * die Phinx-API (`20260317000000_add_password_resets`,
+     * `20260321110000_create_remember_logins`), und beide Migrationen wurden erst
+     * später in die Ursprungsmigration eingeschmolzen. Ihre Kollation hängt damit
+     * am Alter des Bestands - vor der Konsolidierung `unicode_ci`, danach
+     * `general_ci`. Auf dem Produktivbestand brach die Prüfung darunter genau
+     * daran ab.
+     *
      * @var list<string>
      */
     private const PHINX_CREATED_TABLES = [
@@ -73,6 +83,8 @@ final class UnifyTableCollation extends AbstractMigration
         'newsletter_recipient_sources',
         'newsletter_template_recipient_sources',
         'notification_dispatch_log',
+        'password_resets',
+        'remember_logins',
         'task_assignees',
         'user_notification_settings',
         'webdav_access_tokens',
