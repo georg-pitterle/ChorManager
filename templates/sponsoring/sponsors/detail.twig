@@ -874,7 +874,7 @@
                                                                         {{ contact.sponsorship_id == sp.id ? 'selected' : '' }}>
                                                                     {{ sp.project ? sp.project.name : 'Ohne Projekt' }}
                                                                     {% if sp.package %}– {{ sp.package.name }}{% endif %}
-                                                                    ({{ sp.amount|number_format(2, ",", ".") }} €)
+                                                                    {% if visible_details[sp.id] %}({{ sp.amount|number_format(2, ",", ".") }} €){% endif %}
                                                                 </option>
                                                             {% endfor %}
                                                         </select>
@@ -966,7 +966,7 @@
                                         <option value="{{ sp.id }}">
                                             {{ sp.project ? sp.project.name : 'Ohne Projekt' }}
                                             {% if sp.package %}– {{ sp.package.name }}{% endif %}
-                                            ({{ sp.amount|number_format(2, ",", ".") }} €)
+                                            {% if visible_details[sp.id] %}({{ sp.amount|number_format(2, ",", ".") }} €){% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
