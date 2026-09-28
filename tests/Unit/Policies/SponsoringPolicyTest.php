@@ -34,7 +34,7 @@ final class SponsoringPolicyTest extends TestCase
     {
         $_SESSION = ['user_id' => 7];
 
-        $policy = new SponsoringPolicy();
+        $policy = new SponsoringPolicy($_SESSION);
 
         $this->assertFalse($policy->canUseProject(null));
         $this->assertFalse($policy->canUseProject(5));
@@ -48,7 +48,7 @@ final class SponsoringPolicyTest extends TestCase
     {
         $_SESSION = ['user_id' => 7, 'can_create_own_sponsorships' => true];
 
-        $this->assertTrue((new SponsoringPolicy())->canUseProject(null));
+        $this->assertTrue((new SponsoringPolicy($_SESSION))->canUseProject(null));
     }
 
     /**
@@ -61,7 +61,7 @@ final class SponsoringPolicyTest extends TestCase
     public function testAnImpossibleProjectIdIsRejectedInsteadOfTreatedAsNoProject(): void
     {
         $_SESSION = ['user_id' => 7, 'can_create_own_sponsorships' => true];
-        $contributor = new SponsoringPolicy();
+        $contributor = new SponsoringPolicy($_SESSION);
 
         $this->assertFalse($contributor->canUseProject(0));
         $this->assertFalse($contributor->canUseProject(-5));
@@ -69,7 +69,7 @@ final class SponsoringPolicyTest extends TestCase
         // Auch das Vollrecht prüft die Kennung - es darf jedes Projekt wählen,
         // aber keines, das es nicht geben kann.
         $_SESSION = ['user_id' => 7, 'can_manage_sponsoring' => true];
-        $manager = new SponsoringPolicy();
+        $manager = new SponsoringPolicy($_SESSION);
 
         $this->assertFalse($manager->canUseProject(0));
         $this->assertFalse($manager->canUseProject(-5));

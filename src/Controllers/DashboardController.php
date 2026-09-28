@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Models\Newsletter;
 use App\Models\Project;
+use App\Policies\TaskPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -14,15 +15,18 @@ class DashboardController
 {
     private Twig $view;
     private \App\Services\MailQueueAdminService $mailQueueAdminService;
+    private TaskPolicy $taskPolicy;
     private array $settings;
 
     public function __construct(
         Twig $view,
         \App\Services\MailQueueAdminService $mailQueueAdminService,
+        TaskPolicy $taskPolicy,
         array $settings = []
     ) {
         $this->view = $view;
         $this->mailQueueAdminService = $mailQueueAdminService;
+        $this->taskPolicy = $taskPolicy;
         $this->settings = $settings;
     }
 
@@ -30,7 +34,9 @@ class DashboardController
     {
         $today = date('Y-m-d');
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $canManageTasks = (bool) ($_SESSION['can_manage_tasks'] ?? false);
+        // Eine Quelle für das Aufgaben-Recht: die Policy. Der Sitzungsschlüssel
+        // wurde hier zuvor ein zweites Mal selbst gelesen.
+        $canManageTasks = $this->taskPolicy->canManageTasks();
         $tasksModuleEnabled = (bool) ($this->settings['modules']['tasks'] ?? false);
         $newsletterModuleEnabled = (bool) ($this->settings['modules']['newsletter'] ?? false);
         $canViewNewsletterArea = $newsletterModuleEnabled

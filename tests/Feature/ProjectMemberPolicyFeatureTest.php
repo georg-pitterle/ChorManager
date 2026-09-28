@@ -27,7 +27,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_project_members'] = false;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         $this->assertFalse($policy->canViewMembers(1));
         $this->assertFalse($policy->canAddMember(1));
@@ -42,7 +42,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = true;
         $_SESSION['can_manage_project_members'] = false;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         // can_manage_users no longer implies project-member access; the dedicated
         // can_manage_project_members permission is required.
@@ -66,6 +66,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         // nur die eigenen. Der Beweis gegen die echte Datenbank steht in
         // ProjectAccessWithoutMembershipFeatureTest.
         $policy = self::getStubBuilder(ProjectMemberPolicy::class)
+            ->setConstructorArgs([$_SESSION])
             ->onlyMethods(['getAccessibleProjectIds'])
             ->getStub();
 
@@ -88,6 +89,7 @@ class ProjectMemberPolicyFeatureTest extends TestCase
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
 
         $policy = self::getStubBuilder(ProjectMemberPolicy::class)
+            ->setConstructorArgs([$_SESSION])
             ->onlyMethods(['getAccessibleProjectIds'])
             ->getStub();
 

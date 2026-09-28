@@ -97,7 +97,7 @@ class ProjectActionVisibilityFeatureTest extends TestCase
             $twig,
             $projectQuery,
             $this->createStub(\App\Persistence\ProjectPersistence::class),
-            new ProjectMemberPolicy()
+            new ProjectMemberPolicy($_SESSION)
         );
 
         $controller->index($this->makeRequest('GET', '/projects'), $this->makeResponse());
@@ -186,7 +186,7 @@ class ProjectActionVisibilityFeatureTest extends TestCase
             $twig,
             $projectQuery,
             new NameFormatterService(),
-            new ProjectMemberPolicy()
+            new ProjectMemberPolicy($_SESSION)
         );
 
         $controller->projectMembers(

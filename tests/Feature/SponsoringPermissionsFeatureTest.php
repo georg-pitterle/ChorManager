@@ -201,7 +201,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $this->loginAsContributor();
         $name = 'Testpaket ' . bin2hex(random_bytes(4));
 
-        $controller = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy());
+        $controller = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
         $middleware = new RoleMiddleware(requiresSponsoringManagement: true);
 
         // Die Route liegt hinter der Verwaltungs-Middleware; der Controller
@@ -232,7 +232,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         ]);
 
         try {
-            $policy = new SponsoringPolicy();
+            $policy = new SponsoringPolicy($_SESSION);
             $this->assertTrue($policy->canUseProject((int) $running->id));
             $this->assertTrue($policy->canUseProject(null));
             $this->assertFalse($policy->canUseProject((int) $past->id));
@@ -252,7 +252,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
             // Das Sponsoring-Team ist an laufende Projekte nicht gebunden.
             $_SESSION['can_manage_sponsoring'] = true;
-            $this->assertTrue((new SponsoringPolicy())->canUseProject((int) $past->id));
+            $this->assertTrue((new SponsoringPolicy($_SESSION))->canUseProject((int) $past->id));
         } finally {
             $this->cleanUp($sponsor);
             $running->delete();
@@ -269,12 +269,12 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $unknownId = ((int) Project::query()->max('id')) + 10000;
 
         $this->loginAsContributor();
-        $this->assertFalse((new SponsoringPolicy())->canUseProject($unknownId));
+        $this->assertFalse((new SponsoringPolicy($_SESSION))->canUseProject($unknownId));
 
         $_SESSION['can_manage_sponsoring'] = true;
-        $this->assertFalse((new SponsoringPolicy())->canUseProject($unknownId));
+        $this->assertFalse((new SponsoringPolicy($_SESSION))->canUseProject($unknownId));
         // Ohne Projektbezug bleibt die Vereinbarung weiterhin erlaubt.
-        $this->assertTrue((new SponsoringPolicy())->canUseProject(null));
+        $this->assertTrue((new SponsoringPolicy($_SESSION))->canUseProject(null));
     }
 
     public function testAgreementInheritsTheProjectPeriodWhenNoDatesAreGiven(): void
@@ -332,7 +332,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
             $contactController = new SponsoringContactController(
                 $this->createStub(Twig::class),
-                new SponsoringPolicy()
+                new SponsoringPolicy($_SESSION)
             );
 
             $contact = $contactController->create(
@@ -410,7 +410,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         ]);
 
         try {
-            $policy = new SponsoringPolicy();
+            $policy = new SponsoringPolicy($_SESSION);
 
             // Ein fehlendes Datum heißt "offen", nicht "nicht laufend".
             $this->assertTrue($policy->canUseProject((int) $openEnded->id));
@@ -436,14 +436,14 @@ class SponsoringPermissionsFeatureTest extends TestCase
         try {
             // Die Auswahl bot vorher alle Projekte an; wer eines davon nahm,
             // verlor beim Absenden das ganze ausgefüllte Formular.
-            $offered = (new SponsoringPolicy())->selectableProjects();
+            $offered = (new SponsoringPolicy($_SESSION))->selectableProjects();
             $this->assertFalse(
                 $offered->contains(static fn (Project $project): bool => (int) $project->id === (int) $past->id)
             );
 
             $_SESSION['can_manage_sponsoring'] = true;
             $this->assertTrue(
-                (new SponsoringPolicy())->selectableProjects()
+                (new SponsoringPolicy($_SESSION))->selectableProjects()
                     ->contains(static fn (Project $project): bool => (int) $project->id === (int) $past->id)
             );
         } finally {
@@ -485,7 +485,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
             $withoutProject = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
 
-            $policy = new SponsoringPolicy();
+            $policy = new SponsoringPolicy($_SESSION);
             $sponsorships = Sponsorship::with('project')->where('sponsor_id', $sponsor->id)->get();
             $retained = $policy->retainedProjects($sponsorships, $policy->selectableProjects());
 
@@ -499,7 +499,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
             // Das Vollrecht sieht jedes Projekt schon in der regulären Auswahl.
             $_SESSION['can_manage_sponsoring'] = true;
-            $managerPolicy = new SponsoringPolicy();
+            $managerPolicy = new SponsoringPolicy($_SESSION);
             $this->assertSame(
                 [],
                 $managerPolicy->retainedProjects($sponsorships, $managerPolicy->selectableProjects())
@@ -635,7 +635,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             $this->assertStringContainsString('/contacts/' . $onMyAgreement->id . '/done', $urls[0]);
 
             // Was in der Liste steht, lässt sich auch abhaken - dieselbe Regel.
-            $policy = new SponsoringPolicy();
+            $policy = new SponsoringPolicy($_SESSION);
             $this->assertTrue($policy->canCompleteFollowUp($onMyAgreement->fresh()));
             $this->assertFalse($policy->canCompleteFollowUp($elsewhere->fresh()));
 
@@ -658,7 +658,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $mine = $this->makeContact($sponsor, $sponsorship, (int) $this->contributor->id, 'Eigene Wiedervorlage');
         $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Wiedervorlage');
 
-        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy());
+        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
 
         try {
             $denied = $controller->markDone(
@@ -701,7 +701,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
         $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Wiedervorlage');
 
-        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy());
+        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
 
         try {
             $allowed = $controller->markDone(
@@ -713,7 +713,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             $this->assertSame(1, (int) $theirs->fresh()->follow_up_done);
 
             // Die Zusammenfassung bleibt trotzdem fremd.
-            $this->assertFalse((new SponsoringPolicy())->canEditContact($theirs->fresh()));
+            $this->assertFalse((new SponsoringPolicy($_SESSION))->canEditContact($theirs->fresh()));
 
             // Und die Detailseite reicht beides getrennt an das Template weiter:
             // ohne das käme der Abhaken-Knopf nie an, weil das Template die
@@ -738,7 +738,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
         $theirs = $this->makeContact($sponsor, null, (int) $this->otherUser->id, 'Loser Kontakt');
 
-        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy());
+        $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
 
         try {
             $denied = $controller->markDone(
@@ -768,7 +768,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             }
         );
 
-        (new SponsoringAttachmentController($twig, new SponsoringPolicy()))
+        (new SponsoringAttachmentController($twig, new SponsoringPolicy($_SESSION)))
             ->index($this->makeRequest('GET', '/sponsoring/attachments'), $this->makeResponse());
 
         return $captured['attachments'];
@@ -788,7 +788,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             }
         );
 
-        (new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy()))
+        (new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy($_SESSION)))
             ->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
 
         return $captured;
@@ -836,7 +836,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
     private function sponsorshipController(): SponsorshipController
     {
-        return new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
+        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
     }
 
     /**
@@ -855,7 +855,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             }
         );
 
-        (new SponsorController($twig, new SponsoringPolicy(), $this->attachmentService()))->detail(
+        (new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService()))->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsorId),
             $this->makeResponse(),
             ['id' => (string) $sponsorId]
@@ -868,7 +868,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
     {
         return new SponsorController(
             $this->createStub(Twig::class),
-            new SponsoringPolicy(),
+            new SponsoringPolicy($_SESSION),
             $this->attachmentService()
         );
     }

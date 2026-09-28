@@ -75,8 +75,8 @@ final class AttachmentAccessFeatureTest extends TestCase
     private function makeController(): AttachmentController
     {
         $registry = new AttachmentAccessRegistry(
-            new SponsoringPolicy(),
-            new TaskPolicy(),
+            new SponsoringPolicy($_SESSION),
+            new TaskPolicy($_SESSION),
             ['finance' => true, 'sponsoring' => true, 'tasks' => true]
         );
 

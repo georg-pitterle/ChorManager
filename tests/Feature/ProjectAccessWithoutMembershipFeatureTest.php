@@ -77,7 +77,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['can_manage_project_members'] = true;
         $_SESSION['can_assign_own_voice_group_to_project'] = false;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         $this->assertTrue($policy->canViewMembers($this->emptyProjectId));
         $this->assertTrue($policy->canAddMember($this->emptyProjectId));
@@ -90,7 +90,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->adminUserId;
         $_SESSION['can_manage_project_members'] = true;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         // Gegen die echte Datenbank gibt es neben den beiden selbst angelegten
         // Projekten auch Bestandsprojekte. Das breite Recht muss trotzdem
@@ -110,7 +110,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['can_assign_own_voice_group_to_project'] = true;
         $_SESSION['voice_group_ids'] = [7];
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         $this->assertSame([$this->projectWithMemberId], $policy->getAccessibleProjectIds());
         $this->assertTrue($policy->canViewMembers($this->projectWithMemberId));
@@ -123,7 +123,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['can_manage_project_members'] = false;
         $_SESSION['can_assign_own_voice_group_to_project'] = false;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         $this->assertSame([], $policy->getAccessibleProjectIds());
         $this->assertFalse($policy->canViewMembers($this->projectWithMemberId));
@@ -140,7 +140,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->adminUserId;
         $_SESSION['can_manage_project_members'] = true;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
         $unknownProjectId = ((int) Project::query()->max('id')) + 1000;
 
         $this->assertFalse($policy->canViewMembers($unknownProjectId));
@@ -160,7 +160,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->adminUserId;
         $_SESSION['can_manage_project_members'] = 1;
 
-        $policy = new ProjectMemberPolicy();
+        $policy = new ProjectMemberPolicy($_SESSION);
 
         $this->assertTrue($policy->canViewMembers($this->emptyProjectId));
         $this->assertTrue($policy->canViewAllCandidates());
@@ -171,7 +171,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->adminUserId;
         $_SESSION['can_manage_tasks'] = 1;
 
-        $this->assertTrue((new TaskPolicy())->canManageTasks());
+        $this->assertTrue((new TaskPolicy($_SESSION))->canManageTasks());
     }
 
     public function testTaskManagerReachesPlanningOfProjectWithoutOwnMembership(): void
@@ -179,7 +179,7 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->adminUserId;
         $_SESSION['can_manage_tasks'] = true;
 
-        $this->assertTrue((new TaskPolicy())->canManageTasks());
+        $this->assertTrue((new TaskPolicy($_SESSION))->canManageTasks());
     }
 
     public function testTaskPolicyStillRequiresTheTaskRight(): void
@@ -187,6 +187,6 @@ class ProjectAccessWithoutMembershipFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->adminUserId;
         $_SESSION['can_manage_tasks'] = false;
 
-        $this->assertFalse((new TaskPolicy())->canManageTasks());
+        $this->assertFalse((new TaskPolicy($_SESSION))->canManageTasks());
     }
 }

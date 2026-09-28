@@ -42,16 +42,22 @@ class ProjectMemberPolicy
     private array $ownVoiceGroupIds;
     private ?array $accessibleProjectIdsCache = null;
 
-    public function __construct()
+    /**
+     * Die Sitzung kommt von außen - siehe
+     * tests/Unit/Policies/PoliciesReceiveTheSessionTest.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function __construct(array $session)
     {
         // Auf Wahrheitswert prüfen, nicht strikt auf true: Middleware und Controller
         // lesen dieselben Session-Schlüssel überall nur truthy. Eine 1 aus einer
         // anderen Quelle ließe die Middleware passieren, während ein === true hier
         // still verweigert - die Abweisung erschiene dann als Fehler ohne Ursache.
-        $this->userId = (int) ($_SESSION['user_id'] ?? 0);
-        $this->canManageProjectMembers = (bool) ($_SESSION['can_manage_project_members'] ?? false);
-        $this->canAssignOwnVoiceGroup = (bool) ($_SESSION['can_assign_own_voice_group_to_project'] ?? false);
-        $this->ownVoiceGroupIds = array_map('intval', (array) ($_SESSION['voice_group_ids'] ?? []));
+        $this->userId = (int) ($session['user_id'] ?? 0);
+        $this->canManageProjectMembers = (bool) ($session['can_manage_project_members'] ?? false);
+        $this->canAssignOwnVoiceGroup = (bool) ($session['can_assign_own_voice_group_to_project'] ?? false);
+        $this->ownVoiceGroupIds = array_map('intval', (array) ($session['voice_group_ids'] ?? []));
     }
 
     /**

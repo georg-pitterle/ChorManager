@@ -38,6 +38,7 @@ class ProjectMemberOwnVoiceGroupPolicyFeatureTest extends TestCase
     private function policyWithAccessibleProjects(array $accessibleIds): ProjectMemberPolicy
     {
         $policy = self::getStubBuilder(ProjectMemberPolicy::class)
+            ->setConstructorArgs([$_SESSION])
             ->onlyMethods(['getAccessibleProjectIds'])
             ->getStub();
 
@@ -170,11 +171,11 @@ class ProjectMemberOwnVoiceGroupPolicyFeatureTest extends TestCase
             $_SESSION['can_assign_own_voice_group_to_project'] = true;
             $_SESSION['voice_group_ids'] = [];
 
-            $this->assertSame([], (new ProjectMemberPolicy())->getAccessibleProjectIds());
+            $this->assertSame([], (new ProjectMemberPolicy($_SESSION))->getAccessibleProjectIds());
 
             // Mit eigener Stimmgruppe steht das eigene Projekt wie bisher drin.
             $_SESSION['voice_group_ids'] = [1];
-            $this->assertSame([(int) $project->id], (new ProjectMemberPolicy())->getAccessibleProjectIds());
+            $this->assertSame([(int) $project->id], (new ProjectMemberPolicy($_SESSION))->getAccessibleProjectIds());
         } finally {
             if ($connection !== null && $connection->transactionLevel() > 0) {
                 $connection->rollBack();

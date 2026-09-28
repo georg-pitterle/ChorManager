@@ -44,7 +44,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateRejectsAnUnknownStatusInsteadOfRunningIntoTheColumnEnum(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
+        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
 
         try {
             $response = $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -64,7 +64,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateFallsBackToRequestedWhenNoStatusIsSubmitted(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
+        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
 
         try {
             $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -141,7 +141,7 @@ class SponsorshipStatusFeatureTest extends TestCase
                 }
             );
 
-            $controller = new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy());
+            $controller = new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy($_SESSION));
             $controller->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
 
             // Der Sponsor selbst traegt keinen Status mehr - die Kennzahl kommt
@@ -221,7 +221,7 @@ class SponsorshipStatusFeatureTest extends TestCase
 
         $controller = new SponsorController(
             $this->createStub(Twig::class),
-            new \App\Policies\SponsoringPolicy(),
+            new \App\Policies\SponsoringPolicy($_SESSION),
             $this->attachmentService()
         );
 
@@ -258,7 +258,7 @@ class SponsorshipStatusFeatureTest extends TestCase
             }
         );
 
-        (new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy()))
+        (new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy($_SESSION)))
             ->index($this->makeRequest('GET', '/sponsoring'), $this->makeResponse());
 
         return $captured;

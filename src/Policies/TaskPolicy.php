@@ -14,11 +14,17 @@ class TaskPolicy
 {
     private bool $canManageTasks;
 
-    public function __construct()
+    /**
+     * Die Sitzung kommt von außen - siehe
+     * tests/Unit/Policies/PoliciesReceiveTheSessionTest.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function __construct(array $session)
     {
-        // Auf Wahrheitswert prüfen, nicht strikt auf true - RoleMiddleware und
-        // DashboardController lesen denselben Schlüssel ebenfalls nur truthy.
-        $this->canManageTasks = (bool) ($_SESSION['can_manage_tasks'] ?? false);
+        // Auf Wahrheitswert prüfen, nicht strikt auf true - RoleMiddleware
+        // liest denselben Schlüssel ebenfalls nur truthy.
+        $this->canManageTasks = (bool) ($session['can_manage_tasks'] ?? false);
     }
 
     /**

@@ -209,7 +209,7 @@ class ProjectQueryMissingUserFeatureTest extends TestCase
             $twig,
             new ProjectQuery(new NameFormatterService()),
             $this->createStub(ProjectPersistence::class),
-            new ProjectMemberPolicy()
+            new ProjectMemberPolicy($_SESSION)
         );
 
         $controller->index($this->makeRequest('GET', '/projects'), $this->makeResponse());

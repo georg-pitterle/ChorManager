@@ -210,7 +210,7 @@ final class NotificationTriggersFeatureTest extends TestCase
         return new TaskController(
             $this->createStub(Twig::class),
             new HtmlSanitizer(),
-            new TaskPolicy(),
+            new TaskPolicy($_SESSION),
             new NameFormatterService(),
             new NullLogger(),
             new NotificationService(

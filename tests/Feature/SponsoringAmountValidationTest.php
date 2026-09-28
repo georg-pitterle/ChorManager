@@ -42,8 +42,8 @@ final class SponsoringAmountValidationTest extends TestCase
         // weil dort immer eine passende Kennung in der Sitzung stand.
         $_SESSION = [];
         $_SESSION['can_manage_sponsoring'] = true;
-        $this->sponsorships = new SponsorshipController(new SponsoringPolicy(), $this->attachmentService());
-        $this->packages = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy());
+        $this->sponsorships = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $this->packages = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
         $this->sponsor = Sponsor::create(['name' => 'Betragsprüfung ' . bin2hex(random_bytes(4))]);
 
         $_SESSION = [];

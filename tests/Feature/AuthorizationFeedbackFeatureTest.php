@@ -131,7 +131,7 @@ class AuthorizationFeedbackFeatureTest extends TestCase
         $controller = new TaskController(
             $this->createStub(Twig::class),
             new HtmlSanitizer(),
-            new TaskPolicy(),
+            new TaskPolicy($_SESSION),
             new NameFormatterService(),
             $logger
         );

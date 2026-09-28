@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Policies\TaskPolicy;
 use App\Services\MailQueueAdminService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
@@ -119,6 +120,7 @@ class DashboardFeatureTest extends TestCase
         $controller = new DashboardController(
             $this->createDashboardTwig($settings),
             new MailQueueAdminService(),
+            new TaskPolicy($_SESSION),
             $settings
         );
 
@@ -158,6 +160,7 @@ class DashboardFeatureTest extends TestCase
         $controller = new DashboardController(
             $this->createDashboardTwig($settings),
             new MailQueueAdminService(),
+            new TaskPolicy($_SESSION),
             $settings
         );
 
@@ -239,6 +242,20 @@ class DashboardFeatureTest extends TestCase
         $this->assertIsString($controller);
         $this->assertStringContainsString('if ($tasksModuleEnabled && $canManageTasks) {', $controller);
         $this->assertStringContainsString("(bool) (\$this->settings['modules']['tasks'] ?? false)", $controller);
+    }
+
+    /**
+     * Das Recht auf Aufgaben hat eine Quelle: `TaskPolicy`. Das Dashboard las
+     * denselben Sitzungsschlüssel zuvor selbst aus - gleiches Ergebnis, aber
+     * zwei Stellen, die beim nächsten Eingriff auseinanderlaufen.
+     */
+    public function testDashboardControllerAsksThePolicyForTheTaskPermission(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DashboardController.php');
+
+        $this->assertIsString($controller);
+        $this->assertStringContainsString('$this->taskPolicy->canManageTasks()', $controller);
+        $this->assertStringNotContainsString("\$_SESSION['can_manage_tasks']", $controller);
     }
 
     public function testDashboardControllerOmitsUnusedSessionDataFromViewModel(): void

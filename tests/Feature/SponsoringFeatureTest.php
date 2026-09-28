@@ -49,7 +49,7 @@ class SponsoringFeatureTest extends TestCase
         $logger = new Logger('test');
         $logger->pushHandler($handlerLog);
         $_SESSION['can_manage_sponsoring'] = true;
-        $controller = new SponsorshipController(new SponsoringPolicy(), new EntityAttachmentService($logger));
+        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), new EntityAttachmentService($logger));
 
         $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
         $stream = (new StreamFactory())->createStream($oversizedContent);

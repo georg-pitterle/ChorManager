@@ -76,7 +76,7 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
                 }
             );
 
-            $controller = new SponsorController($twig, new SponsoringPolicy(), $this->attachmentService());
+            $controller = new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService());
             $controller->detail(
                 $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsor->id),
                 $this->makeResponse(),
@@ -124,6 +124,44 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
         $this->assertStringNotContainsString(
             'id="newContactModal"',
             substr($template, 0, strpos($template, '</section>') ?: 0)
+        );
+    }
+
+    /**
+     * Das Auswahlfeld "Vereinbarung" zeigt den Betrag nur noch, wer ihn sehen
+     * darf (siehe SponsoringAmountVisibilityFeatureTest). Vorher hielt gerade
+     * der Betrag zwei Vereinbarungen auseinander, die am selben Projekt hängen
+     * und dasselbe Paket tragen - ohne ihn hießen beide Einträge gleich.
+     * Deshalb steht jetzt der Status in der Zeile, und zwar für alle sichtbar:
+     * ob angefragt oder zugesagt, ist keine Betragsangabe.
+     */
+    public function testTheAgreementDropdownNamesTheStatusSoEntriesStayTellableApart(): void
+    {
+        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
+        $this->assertIsString($template);
+
+        $lines = explode("\n", $template);
+        $selectsWithoutStatus = [];
+        $selectsChecked = 0;
+
+        foreach ($lines as $index => $line) {
+            if (!str_contains($line, 'name="sponsorship_id"')) {
+                continue;
+            }
+
+            $selectsChecked++;
+            $block = implode("\n", array_slice($lines, $index, 12));
+
+            if (!str_contains($block, 'status_labels[sp.status]')) {
+                $selectsWithoutStatus[] = 'Zeile ' . ($index + 1);
+            }
+        }
+
+        $this->assertSame(2, $selectsChecked, 'Erwartet werden die beiden Kontakt-Modale.');
+        $this->assertSame(
+            [],
+            $selectsWithoutStatus,
+            'Ohne Status sind zwei Vereinbarungen am selben Projekt nicht zu unterscheiden.'
         );
     }
 

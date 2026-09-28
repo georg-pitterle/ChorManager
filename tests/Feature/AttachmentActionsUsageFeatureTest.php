@@ -473,7 +473,7 @@ final class AttachmentActionsUsageFeatureTest extends TestCase
         );
 
         try {
-            $controller = new SponsoringAttachmentController($this->createStub(Twig::class), new SponsoringPolicy());
+            $controller = new SponsoringAttachmentController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
 
             $mapSponsorAttachment = new ReflectionMethod(SponsoringAttachmentController::class, 'mapSponsorAttachment');
             $sponsorRow = $mapSponsorAttachment->invoke($controller, $sponsorAttachment, $sponsor);

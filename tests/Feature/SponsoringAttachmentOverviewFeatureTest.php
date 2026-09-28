@@ -64,7 +64,7 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
                 }
             );
 
-            (new SponsoringAttachmentController($twig, new SponsoringPolicy()))
+            (new SponsoringAttachmentController($twig, new SponsoringPolicy($_SESSION)))
                 ->index($this->makeRequest('GET', '/sponsoring/attachments'), $this->makeResponse());
 
             $names = array_column($captured['attachments'], 'name');

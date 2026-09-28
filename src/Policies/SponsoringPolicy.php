@@ -38,13 +38,19 @@ class SponsoringPolicy
     private bool $canManageSponsoring;
     private bool $canCreateOwnSponsorships;
 
-    public function __construct()
+    /**
+     * Die Sitzung kommt von außen - siehe
+     * tests/Unit/Policies/PoliciesReceiveTheSessionTest.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function __construct(array $session)
     {
         // Auf Wahrheitswert prüfen, nicht strikt auf true - Middleware und
         // Controller lesen dieselben Sitzungsschlüssel ebenfalls nur truthy.
-        $this->userId = (int) ($_SESSION['user_id'] ?? 0);
-        $this->canManageSponsoring = (bool) ($_SESSION['can_manage_sponsoring'] ?? false);
-        $this->canCreateOwnSponsorships = (bool) ($_SESSION['can_create_own_sponsorships'] ?? false);
+        $this->userId = (int) ($session['user_id'] ?? 0);
+        $this->canManageSponsoring = (bool) ($session['can_manage_sponsoring'] ?? false);
+        $this->canCreateOwnSponsorships = (bool) ($session['can_create_own_sponsorships'] ?? false);
     }
 
     /**

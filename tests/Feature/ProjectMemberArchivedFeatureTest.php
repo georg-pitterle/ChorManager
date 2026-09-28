@@ -145,7 +145,7 @@ class ProjectMemberArchivedFeatureTest extends TestCase
             $twig,
             new ProjectQuery(new \App\Services\NameFormatterService()),
             $this->createStub(ProjectPersistence::class),
-            new ProjectMemberPolicy()
+            new ProjectMemberPolicy($_SESSION)
         );
 
         $controller->showMembers(

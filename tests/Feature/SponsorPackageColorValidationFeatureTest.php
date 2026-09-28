@@ -121,6 +121,6 @@ final class SponsorPackageColorValidationFeatureTest extends TestCase
 
     private function controller(): SponsorPackageController
     {
-        return new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy());
+        return new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
     }
 }

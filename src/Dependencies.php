@@ -371,6 +371,7 @@ return function (ContainerBuilder $containerBuilder) {
             return new DashboardController(
                 $c->get(Twig::class),
                 $c->get(MailQueueAdminService::class),
+                $c->get(TaskPolicy::class),
                 $c->get('settings')
             );
         },
@@ -583,10 +584,13 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(LoggerInterface::class)
             );
         },
-        ProjectMemberPolicy::class => \DI\autowire(),
-        SponsoringPolicy::class => \DI\autowire(),
+        // Die Sitzung kommt von hier, nicht aus dem Superglobal in der Policy.
+        // Aufgelöst wird erst beim ersten Zugriff eines Controllers, also nach
+        // dem Start der Sitzung - derselbe Zeitpunkt wie zuvor im Konstruktor.
+        ProjectMemberPolicy::class => static fn (): ProjectMemberPolicy => new ProjectMemberPolicy($_SESSION),
+        SponsoringPolicy::class => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
         EntityAttachmentService::class => \DI\autowire(),
-        TaskPolicy::class => \DI\autowire(),
+        TaskPolicy::class => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
         UserEditPolicy::class => \DI\autowire(),
         AttachmentResponseFactory::class => \DI\autowire(),
         // Die Registry braucht das Modul-Array aus den Settings; PHP-DI kann

@@ -73,7 +73,7 @@ class SponsoringErrorFeedbackFeatureTest extends TestCase
 
             [$logger, $handler] = $this->logger();
             $controller = new SponsorshipController(
-                new SponsoringPolicy(),
+                new SponsoringPolicy($_SESSION),
                 $this->attachmentService(),
                 $logger
             );
@@ -116,7 +116,7 @@ class SponsoringErrorFeedbackFeatureTest extends TestCase
     public function testUnbekanntesPaketMeldetSichBenennendOhneProtokolleintrag(): void
     {
         [$logger, $handler] = $this->logger();
-        $controller = new SponsorPackageController($this->emptyTwig(), new SponsoringPolicy(), $logger);
+        $controller = new SponsorPackageController($this->emptyTwig(), new SponsoringPolicy($_SESSION), $logger);
 
         $result = $controller->update(
             $this->makeRequest('POST', '/sponsoring/packages/0/update', [
@@ -139,7 +139,7 @@ class SponsoringErrorFeedbackFeatureTest extends TestCase
     public function testUnbekanntePaketLoeschungMeldetSichBenennendOhneProtokolleintrag(): void
     {
         [$logger, $handler] = $this->logger();
-        $controller = new SponsorPackageController($this->emptyTwig(), new SponsoringPolicy(), $logger);
+        $controller = new SponsorPackageController($this->emptyTwig(), new SponsoringPolicy($_SESSION), $logger);
 
         $result = $controller->delete(
             $this->makeRequest('POST', '/sponsoring/packages/0/delete'),

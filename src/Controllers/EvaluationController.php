@@ -42,7 +42,7 @@ class EvaluationController
         $this->view = $view;
         $this->projectQuery = $projectQuery;
         $this->nameFormatter = $nameFormatter;
-        $this->memberPolicy = $memberPolicy ?? new ProjectMemberPolicy();
+        $this->memberPolicy = $memberPolicy ?? new ProjectMemberPolicy($_SESSION);
         $this->logger = $logger ?? new NullLogger();
     }
 

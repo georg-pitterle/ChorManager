@@ -143,8 +143,8 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
         ];
 
         return new AttachmentAccessRegistry(
-            new SponsoringPolicy(),
-            new TaskPolicy(),
+            new SponsoringPolicy($_SESSION),
+            new TaskPolicy($_SESSION),
             array_merge($defaults, $modules)
         );
     }
