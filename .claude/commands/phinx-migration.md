@@ -32,4 +32,18 @@ The change is purely application logic with no schema modification.
   `20260820120000_require_finance_account_on_finances` (guard),
   `20260513220000_add_newsletter_recipient_sources` (restore in `down()`).
 
-Details and rationale: `instructions/database.md`.
+## Warum die Reihenfolge zählt
+
+**Die Prüfung steht vor den `DROP`s, nie danach.** Greift sie erst danach, sind die
+Daten schon weg und der Lauf endet auf halbem Weg — nachholen lässt sich das nicht,
+weil Phinx den Eintrag in `phinxlog` bereits gesetzt bzw. entfernt hat. So geschehen
+in `20260421100000_add_repertoire_tables`, dort inzwischen korrigiert.
+
+**Nimmt ein `down()` eine Spalte zurück, deren Werte inzwischen woanders stehen,
+müssen sie zurückgeschrieben werden.** Muster: `20260513220000` für
+`newsletters.event_id`, `20260722130000` für `events.project_id`.
+
+**Phinx-Ketten abschließen.** `addColumn()`, `removeColumn()`, `addIndex()`, `drop()`
+und Konsorten reihen die Aktion nur ein. Ausgeführt wird sie erst durch `create()`,
+`save()` oder `update()`. Fehlt der Abschluss, meldet der Lauf trotzdem Erfolg und die
+Änderung findet nie statt.

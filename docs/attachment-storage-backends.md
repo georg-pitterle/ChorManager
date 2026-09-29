@@ -61,7 +61,7 @@ Neue Migration `db/migrations/2026XXXXXXXXXX_add_attachment_storage_driver.php`:
 - `storage_path` `varchar(1024) NULL` (Pfad relativ zur konfigurierten WebDAV-Sammlung)
 - `file_content` → `longblob NULL` (Aufweitung, ungefährlich)
 - Index auf `storage_driver` (der Umzugsbefehl filtert danach)
-- Kette mit `->update()` abschließen (Vorgabe aus `instructions/database.md`, statisch geprüft von
+- Kette mit `->update()` abschließen (Vorgabe aus `/phinx-migration`, statisch geprüft von
   `tests/Unit/Migrations/MigrationChainCompletionTest`)
 
 `down()` enthält `MODIFY … NOT NULL` und `DROP COLUMN`, also **Wächter davor**, Muster

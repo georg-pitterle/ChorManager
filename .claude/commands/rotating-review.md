@@ -1,9 +1,18 @@
 # Rotierender Code-Review
 
-Ein geplanter Lauf prüft täglich einen Abschnitt der Anwendung. Welcher an der Reihe
-ist, entscheidet die Lauf-Nummer in `.claude/rotating-review-state.json` — nicht das
-Datum, damit ein ausgefallener Tag oder ein zusätzlicher Handlauf die Reihenfolge
-nicht verschiebt.
+Ein geplanter Lauf prüft täglich einen Abschnitt der Anwendung.
+
+## Use when
+Ein rotierender Review-Lauf ansteht oder der Zählerstand fortgeschrieben werden soll.
+
+## Do not use when
+Es geht um einen gewöhnlichen Review einer Änderung — dafür ist kein Zähler nötig.
+
+## Welcher Abschnitt an der Reihe ist
+
+Entscheidet die Lauf-Nummer in `.claude/rotating-review-state.json` — nicht das Datum,
+damit ein ausgefallener Tag oder ein zusätzlicher Handlauf die Reihenfolge nicht
+verschiebt.
 
 ## Zählerstand nie von Hand schreiben
 

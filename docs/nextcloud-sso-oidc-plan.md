@@ -252,7 +252,7 @@ schon offene Nextcloud-Sitzung läuft aber noch aus.
 
 ## Seed-Daten
 
-Pflicht laut `instructions/seed.md`, in `src/Services/DevSeedService.php`:
+Pflicht laut `/dev-seed-completeness`, in `src/Services/DevSeedService.php`:
 
 - `oidc_clients`, `oidc_auth_codes`, `oidc_access_tokens`, `oidc_signing_keys` in `resetSeedData()`
 - neue Seed-Methode `seedOidcClients()`: ein Client „Nextcloud" mit realistischer Redirect-URI
@@ -299,7 +299,7 @@ Pflicht laut `instructions/seed.md`, in `src/Services/DevSeedService.php`:
 13. **Hilfetext** über die `create-help-topic`-Skill: Einrichtung in Nextcloud (App `user_oidc`
     installieren, Provider mit Discovery-URL, Client-ID und Secret anlegen, „unique user id"
     abschalten, Gruppen-Provisioning aktivieren), Zuordnung der Bestandskonten über `external_uid`,
-    Rollen-zu-Gruppen-Zuordnung über `group:set`. Regel aus `instructions/help-docs.md` beachten:
+    Rollen-zu-Gruppen-Zuordnung über `group:set`. Regel aus `/create-help-topic` beachten:
     keine konkreten Rollennamen, nur Rechte-Labels.
 14. **Schärfeprobe** für die drei sicherheitstragenden Tests (PKCE, Code-Einmaligkeit,
     `redirect_uri`-Vergleich): jeweils die Prüfung im Produktivcode gezielt sabotieren und belegen,

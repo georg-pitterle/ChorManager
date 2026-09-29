@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * `instructions/database.md` verlangt vor jedem Schritt, der Daten beseitigt,
+ * Die Vorgabe (`/phinx-migration`) verlangt vor jedem Schritt, der Daten beseitigt,
  * eine Vollständigkeitsprüfung, die mit `RuntimeException` abbricht - und zwar
  * **vor** dem Schritt, nicht danach. Danach sind die Daten fort, und nachholen
  * lässt sich das nicht, weil Phinx den Lauf bereits in `phinxlog` verbucht hat.
@@ -35,7 +35,7 @@ use PHPUnit\Framework\TestCase;
  *
  * ## Warum MODIFY ... NOT NULL fehlt
  *
- * `instructions/database.md` nennt es in einem Atemzug mit den beiden anderen,
+ * `/phinx-migration` nennt es in einem Atemzug mit den beiden anderen,
  * und zu Recht: Eine Spalte enger zu machen wirft die Zeilen weg, die nicht mehr
  * hineinpassen. Statisch ist der Fall aber nicht von seinem harmlosen Zwilling
  * zu trennen. `MODIFY COLUMN status enum(...) NOT NULL` schreibt in
@@ -155,7 +155,7 @@ final class DestructiveStepNeedsGuardTest extends TestCase
                 "%s: destruktiver Schritt ohne vorangehende Prüfung.\n%s\n"
                     . 'Vor jedem DROP COLUMN / DROP TABLE auf Bestand gehört eine Zählabfrage, '
                     . 'die mit RuntimeException abbricht - und zwar davor, nicht danach. '
-                    . 'Muster: 20260421120000_drop_songs_project_id. Siehe instructions/database.md.',
+                    . 'Muster: 20260421120000_drop_songs_project_id. Siehe /phinx-migration.',
                 basename($file),
                 implode("\n", $unguarded)
             )

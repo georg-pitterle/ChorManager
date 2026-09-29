@@ -1,23 +1,13 @@
-# Feature Tests Required
+# Testläufe
 
-- Every new feature must include automated tests.
-- Use TDD: write a failing test before writing implementation code.
-- Feature work is not complete until tests covering the new behavior are added or updated.
-- Tests should cover the primary success path and relevant edge cases or failure paths.
-- Run the relevant automated tests before finishing and report the outcome.
+Welcher Testbefehl wann läuft, gegen welche Datenbank, und was ein roter
+paralleler Lauf bedeutet.
 
-## Datenbank eines Testlaufs
+## Use when
+Tests laufen sollen, ein Testlauf rot ist, oder ein Befund nachgestellt wird.
 
-Die Suite läuft nicht gegen die Entwicklungsdatenbank. `tests/bootstrap.php` leitet den
-Namen ab (`db` wird zu `db_test`), legt die Datenbank bei Bedarf an und migriert sie —
-über `bin/prepare_test_database.php`, das bei jedem Lauf mitläuft und rund eine Sekunde
-kostet. Eine neue Migration ist damit im nächsten Testlauf von selbst eingespielt.
-
-Ein zweiter gleichzeitiger Lauf auf derselben Datenbank bricht ab (`Tests\Support\TestRunLock`).
-Das ist Absicht: zwei Läufe auf einem Bestand überschreiben einander, und das sah bisher
-aus wie ein sporadisch undichter Test.
-
-Gegen eine andere Datenbank läuft die Suite nur mit `ALLOW_NON_TEST_DATABASE=1`.
+## Do not use when
+Es geht um das Schreiben neuer Tests — die Pflicht dazu steht in `AGENT.md`.
 
 ## Welcher Befehl wann
 
@@ -39,16 +29,30 @@ Für einen einzelnen Test bleibt `--filter` das Mittel der Wahl: paratest starte
 Prozesse, von denen jeder seine Datenbank vorbereitet, und ist für einen Ausschnitt
 langsamer als ein einzelner Prozess.
 
+## Datenbank eines Testlaufs
+
+Die Suite läuft nicht gegen die Entwicklungsdatenbank. `tests/bootstrap.php` leitet den
+Namen ab (`db` wird zu `db_test`), legt die Datenbank bei Bedarf an und migriert sie —
+über `bin/prepare_test_database.php`, das bei jedem Lauf mitläuft und rund eine Sekunde
+kostet. Eine neue Migration ist damit im nächsten Testlauf von selbst eingespielt.
+
+Ein zweiter gleichzeitiger Lauf auf derselben Datenbank bricht ab (`Tests\Support\TestRunLock`).
+Das ist Absicht: zwei Läufe auf einem Bestand überschreiben einander, und das sah bisher
+aus wie ein sporadisch undichter Test.
+
+Gegen eine andere Datenbank läuft die Suite nur mit `ALLOW_NON_TEST_DATABASE=1`.
+
 Jeder paratest-Prozess bekommt über `TEST_TOKEN` eine eigene Datenbank (`db_test_1` und
 so weiter) und eine eigene Sperre. Weil die Reihenfolge der Test-Suites aus `phpunit.xml`
 dann nur noch innerhalb eines Prozesses gilt, prüft zusätzlich jeder Prozess am Ende
 selbst, ob er Zeilen hinterlassen hat — der Leck-Wächter deckt parallel also dasselbe ab
 wie sequenziell.
 
-Ein Test, der im parallelen Lauf rot wird und allein grün bleibt, hängt an der
-Reihenfolge: er verlässt sich auf etwas, das eine andere Testklasse im selben Prozess
-gesetzt hat — `$_SESSION`, eine Umgebungsvariable, eine Twig-Funktion. Das gehört in den
-eigenen `setUp()`, nicht in die Hoffnung auf einen Vorgänger.
+## Ein Test ist parallel rot und allein grün
+
+Dann hängt er an der Reihenfolge: er verlässt sich auf etwas, das eine andere Testklasse
+im selben Prozess gesetzt hat — `$_SESSION`, eine Umgebungsvariable, eine Twig-Funktion.
+Das gehört in den eigenen `setUp()`, nicht in die Hoffnung auf einen Vorgänger.
 
 ## Passwörter in Tests
 
