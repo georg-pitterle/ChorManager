@@ -54,6 +54,9 @@ You are a professional software engineer.
   `bin/rotating_review_state.php`. Ablauf: `/rotating-review`.
 
 ## Hilfetexte
+- Ein Hilfethema wird nur auf ausdrückliche Anforderung erstellt oder erweitert, nicht
+  automatisch als Teil eines neuen Features. Grund: Neue Features ändern sich nach dem
+  ersten Wurf oft noch; die Hilfe entsteht erst, wenn das Feature fertig ist.
 - In `docs/*.md` nie auf konkrete Rollennamen verweisen — Rollen sind pro Installation
   frei konfigurierbar. Stattdessen das tatsächliche Recht mit seinem Label aus
   `templates/roles/index.twig` nennen, und bei fehlenden Rechten generisch auf den
