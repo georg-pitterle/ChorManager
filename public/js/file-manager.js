@@ -317,7 +317,7 @@
         if (!window.bootstrap || !window.bootstrap.Dropdown) {
             return;
         }
-        document.querySelectorAll('.files-table [data-bs-toggle="dropdown"]').forEach(function (toggle) {
+        document.querySelectorAll('[data-files-row-menu]').forEach(function (toggle) {
             const existing = window.bootstrap.Dropdown.getInstance(toggle);
             if (existing) {
                 existing.dispose();

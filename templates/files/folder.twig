@@ -140,8 +140,175 @@
         </div>
     {% endif %}
 
+    {% if subfolders is empty and files is empty %}
+        <div class="alert alert-light border">Dieser Ordner ist leer.</div>
+    {% endif %}
+
+    {# Ordner stehen getrennt und immer alphabetisch über der Tabelle: Die
+       Table-Engine sortiert alle Zeilen gemeinsam, nach Größe oder Datum
+       landeten Ordner sonst mitten zwischen den Dateien. #}
+    {% if subfolders is not empty %}
+        <div class="files-folder-grid mb-3" aria-label="Unterordner">
+            {% for child in subfolders %}
+                <a class="files-folder-tile" href="/files/folders/{{ child.id }}">
+                    <i class="bi bi-folder-fill text-warning" aria-hidden="true"></i>
+                    <span class="files-folder-tile-name">{{ child.name }}</span>
+                    {% if child.id in favorite_folder_ids %}
+                        <i class="bi bi-star-fill text-warning" aria-label="Favorit"></i>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if files is not empty %}
+        <div class="surface-card card border-0 table-shell"
+             data-table-engine="true"
+             data-table-id="files.folder"
+             data-default-view="auto"
+             data-default-page-size="50"
+             data-page-size-options="25,50,100"
+             data-default-sort-key="name"
+             data-default-sort-dir="asc">
+            {{ include("partials/table_toolbar.twig") }}
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-responsive-cards files-table">
+                        <thead class="table-dark">
+                            <tr>
+                                <th data-sort-key="name" data-sort-type="text">Name</th>
+                                <th data-sort-key="size" data-sort-type="number" class="text-end">Größe</th>
+                                <th data-sort-key="changed" data-sort-type="date">Geändert</th>
+                                <th class="text-end"><span class="visually-hidden">Aktionen</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in files %}
+                                {% set _previewable = attachment_previewable(file.mime_type) %}
+                                {% set _is_favorite = file.id in favorite_file_ids %}
+                                <tr data-sort-name="{{ file.name|lower }}"
+                                    data-sort-size="{{ file.size }}"
+                                    data-sort-changed="{{ file.updated_at|date("Y-m-d H:i:s") }}">
+                                    <td data-label="Name">
+                                        {% if _previewable %}
+                                            <button type="button"
+                                                    class="btn btn-link p-0 text-start files-name"
+                                                    data-attachment-preview
+                                                    data-attachment-id="{{ file.id }}"
+                                                    data-attachment-name="{{ file.name }}"
+                                                    data-attachment-mime="{{ file.mime_type }}"
+                                                    data-attachment-size="{{ file.size }}"
+                                                    data-preview-url="/files/{{ file.id }}/preview"
+                                                    data-download-url="/files/{{ file.id }}/download">
+                                                <i class="bi {{ files_ui.icon(file.mime_type) }} me-2"
+                                                   aria-hidden="true"></i>{{ file.name }}
+                                            </button>
+                                        {% else %}
+                                            <a class="files-name" href="/files/{{ file.id }}/download">
+                                                <i class="bi {{ files_ui.icon(file.mime_type) }} me-2"
+                                                   aria-hidden="true"></i>{{ file.name }}
+                                            </a>
+                                        {% endif %}
+                                        {% if _is_favorite %}
+                                            <i class="bi bi-star-fill text-warning ms-1" aria-label="Favorit"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Größe" class="text-end text-nowrap">{{ files_ui.size(file.size) }}</td>
+                                    <td data-label="Geändert" class="small">
+                                        {{ file.updated_at|date("d.m.Y H:i") }}
+                                        {% if file.updater %}
+                                            <span class="text-muted">· {{ file.updater|person_name }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Aktionen" class="text-end">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    type="button"
+                                                    data-bs-toggle="dropdown"
+                                                    data-files-row-menu
+                                                    aria-expanded="false"
+                                                    aria-label="Aktionen für {{ file.name }}">
+                                                <i class="bi bi-three-dots" aria-hidden="true"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <a class="dropdown-item" href="/files/{{ file.id }}/download">
+                                                        <i class="bi bi-download me-2" aria-hidden="true"></i>Herunterladen
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <button type="button"
+                                                            class="dropdown-item"
+                                                            data-files-versions
+                                                            data-versions-url="/files/{{ file.id }}/versions"
+                                                            data-name="{{ file.name }}"
+                                                            data-can-restore="{{ can_edit ? "1" : "0" }}">
+                                                        <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Versionen
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <form method="post" action="/files/favorites">
+                                                        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                                        <input type="hidden" name="type" value="file">
+                                                        <input type="hidden" name="id" value="{{ file.id }}">
+                                                        <input type="hidden" name="back" value="{{ current_url }}">
+                                                        <button type="submit" class="dropdown-item">
+                                                            {% if _is_favorite %}
+                                                                <i class="bi bi-star-fill text-warning me-2"
+                                                                   aria-hidden="true"></i>Favorit entfernen
+                                                            {% else %}
+                                                                <i class="bi bi-star me-2"
+                                                                   aria-hidden="true"></i>Als Favorit anheften
+                                                            {% endif %}
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% if can_edit %}
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <button type="button"
+                                                                class="dropdown-item"
+                                                                data-files-rename
+                                                                data-action="/files/{{ file.id }}/rename"
+                                                                data-name="{{ file.name }}">
+                                                            <i class="bi bi-pencil me-2" aria-hidden="true"></i>Umbenennen
+                                                        </button>
+                                                    </li>
+                                                    <li>
+                                                        <button type="button"
+                                                                class="dropdown-item"
+                                                                data-files-move
+                                                                data-action="/files/{{ file.id }}/move">
+                                                            <i class="bi bi-arrow-right-square me-2"
+                                                               aria-hidden="true"></i>Verschieben
+                                                        </button>
+                                                    </li>
+                                                    <li>
+                                                        <form method="post"
+                                                              action="/files/{{ file.id }}/delete"
+                                                              data-confirm="„{{ file.name }}“ in den Papierkorb legen?">
+                                                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                                            <button type="submit" class="dropdown-item text-danger">
+                                                                <i class="bi bi-trash3 me-2"
+                                                                   aria-hidden="true"></i>In den Papierkorb
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     {% if can_upload %}
-        <div class="files-dropzone mb-3"
+        <div class="files-dropzone mt-3"
              data-files-dropzone
              data-upload-url="/files/folders/{{ folder.id }}/upload"
              data-max-bytes="{{ max_upload_bytes }}"
@@ -154,156 +321,6 @@
             </span>
             <small class="d-block text-muted">Höchstens {{ files_ui.size(max_upload_bytes) }} je Datei.</small>
             <ul class="list-unstyled files-upload-list mt-2 mb-0" data-files-progress></ul>
-        </div>
-    {% endif %}
-
-    {% if subfolders is empty and files is empty %}
-        <div class="alert alert-light border">Dieser Ordner ist leer.</div>
-    {% else %}
-        <div class="table-responsive files-table-wrap">
-            <table class="table table-hover align-middle files-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col" class="text-end d-none d-md-table-cell">Größe</th>
-                        <th scope="col" class="d-none d-md-table-cell">Geändert</th>
-                        <th scope="col" class="text-end"><span class="visually-hidden">Aktionen</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for child in subfolders %}
-                        <tr>
-                            <td>
-                                <a class="files-name" href="/files/folders/{{ child.id }}">
-                                    <i class="bi bi-folder-fill text-warning me-2" aria-hidden="true"></i>{{ child.name }}
-                                </a>
-                                {% if child.id in favorite_folder_ids %}
-                                    <i class="bi bi-star-fill text-warning ms-1" aria-label="Favorit"></i>
-                                {% endif %}
-                            </td>
-                            <td class="text-end d-none d-md-table-cell text-muted">–</td>
-                            <td class="d-none d-md-table-cell text-muted small">
-                                {{ child.updated_at ? child.updated_at|date("d.m.Y H:i") : "" }}
-                            </td>
-                            <td class="text-end"></td>
-                        </tr>
-                    {% endfor %}
-                    {% for file in files %}
-                        {% set _previewable = attachment_previewable(file.mime_type) %}
-                        {% set _is_favorite = file.id in favorite_file_ids %}
-                        <tr>
-                            <td>
-                                {% if _previewable %}
-                                    <button type="button"
-                                            class="btn btn-link p-0 text-start files-name"
-                                            data-attachment-preview
-                                            data-attachment-id="{{ file.id }}"
-                                            data-attachment-name="{{ file.name }}"
-                                            data-attachment-mime="{{ file.mime_type }}"
-                                            data-attachment-size="{{ file.size }}"
-                                            data-preview-url="/files/{{ file.id }}/preview"
-                                            data-download-url="/files/{{ file.id }}/download">
-                                        <i class="bi {{ files_ui.icon(file.mime_type) }} me-2"
-                                           aria-hidden="true"></i>{{ file.name }}
-                                    </button>
-                                {% else %}
-                                    <a class="files-name" href="/files/{{ file.id }}/download">
-                                        <i class="bi {{ files_ui.icon(file.mime_type) }} me-2"
-                                           aria-hidden="true"></i>{{ file.name }}
-                                    </a>
-                                {% endif %}
-                                {% if _is_favorite %}
-                                    <i class="bi bi-star-fill text-warning ms-1" aria-label="Favorit"></i>
-                                {% endif %}
-                                <div class="d-md-none small text-muted">
-                                    {{ files_ui.size(file.size) }} · {{ file.updated_at|date("d.m.Y") }}
-                                </div>
-                            </td>
-                            <td class="text-end d-none d-md-table-cell text-nowrap">{{ files_ui.size(file.size) }}</td>
-                            <td class="d-none d-md-table-cell small">
-                                {{ file.updated_at|date("d.m.Y H:i") }}
-                                {% if file.updater %}
-                                    <span class="text-muted">· {{ file.updater|person_name }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary"
-                                            type="button"
-                                            data-bs-toggle="dropdown"
-                                            aria-expanded="false"
-                                            aria-label="Aktionen für {{ file.name }}">
-                                        <i class="bi bi-three-dots" aria-hidden="true"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li>
-                                            <a class="dropdown-item" href="/files/{{ file.id }}/download">
-                                                <i class="bi bi-download me-2" aria-hidden="true"></i>Herunterladen
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <button type="button"
-                                                    class="dropdown-item"
-                                                    data-files-versions
-                                                    data-versions-url="/files/{{ file.id }}/versions"
-                                                    data-name="{{ file.name }}"
-                                                    data-can-restore="{{ can_edit ? "1" : "0" }}">
-                                                <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Versionen
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <form method="post" action="/files/favorites">
-                                                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                                                <input type="hidden" name="type" value="file">
-                                                <input type="hidden" name="id" value="{{ file.id }}">
-                                                <input type="hidden" name="back" value="{{ current_url }}">
-                                                <button type="submit" class="dropdown-item">
-                                                    {% if _is_favorite %}
-                                                        <i class="bi bi-star-fill text-warning me-2"
-                                                           aria-hidden="true"></i>Favorit entfernen
-                                                    {% else %}
-                                                        <i class="bi bi-star me-2" aria-hidden="true"></i>Als Favorit anheften
-                                                    {% endif %}
-                                                </button>
-                                            </form>
-                                        </li>
-                                        {% if can_edit %}
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                <button type="button"
-                                                        class="dropdown-item"
-                                                        data-files-rename
-                                                        data-action="/files/{{ file.id }}/rename"
-                                                        data-name="{{ file.name }}">
-                                                    <i class="bi bi-pencil me-2" aria-hidden="true"></i>Umbenennen
-                                                </button>
-                                            </li>
-                                            <li>
-                                                <button type="button"
-                                                        class="dropdown-item"
-                                                        data-files-move
-                                                        data-action="/files/{{ file.id }}/move">
-                                                    <i class="bi bi-arrow-right-square me-2" aria-hidden="true"></i>Verschieben
-                                                </button>
-                                            </li>
-                                            <li>
-                                                <form method="post"
-                                                      action="/files/{{ file.id }}/delete"
-                                                      data-confirm="„{{ file.name }}“ in den Papierkorb legen?">
-                                                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                                                    <button type="submit" class="dropdown-item text-danger">
-                                                        <i class="bi bi-trash3 me-2" aria-hidden="true"></i>In den Papierkorb
-                                                    </button>
-                                                </form>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </div>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
     {% endif %}
 

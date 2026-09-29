@@ -1831,6 +1831,39 @@ a:hover {
     text-decoration: underline;
 }
 
+.files-folder-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 0.5rem;
+}
+
+.files-folder-tile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--theme-border);
+    border-radius: 0.5rem;
+    background: var(--theme-surface);
+    color: var(--theme-text);
+    text-decoration: none;
+    min-width: 0;
+}
+
+.files-folder-tile:hover,
+.files-folder-tile:focus-visible {
+    border-color: var(--theme-primary);
+    box-shadow: var(--theme-shadow);
+}
+
+.files-folder-tile-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .files-search-form {
     min-width: 12rem;
 }

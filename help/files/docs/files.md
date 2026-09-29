@@ -23,13 +23,13 @@ Jede Freigabe hat eine Stufe. Die höchste passende Stufe gilt:
 | **Bearbeiten** | zusätzlich Dateien ersetzen (neue Version), umbenennen, verschieben und in den Papierkorb legen |
 | **Verwalten** | zusätzlich Freigaben ändern und Einträge endgültig aus dem Papierkorb löschen |
 
-Deine Stufe steht im Kopf jeder Ordnerseite. Wer **"Dateiverwaltung verwalten"** hat, verwaltet jeden Ordner.
+Deine Stufe steht im Kopf jeder Ordnerseite. Unterordner stehen als Kacheln über der Dateiliste; die Dateien lassen sich nach Name, Größe und Datum sortieren und über das Suchfeld der Liste filtern. Wer **"Dateiverwaltung verwalten"** hat, verwaltet jeden Ordner.
 
 ![Ordnerseite mit Dateiliste](images/files/02-folder.png)
 
 ## 3. Dateien hochladen
 
-Ab der Stufe **Hochladen** ziehst du Dateien einfach auf die markierte Fläche oder klickst auf **Hochladen**. Mehrere Dateien auf einmal sind möglich; jede zeigt ihren eigenen Fortschritt. Die Größe je Datei ist begrenzt – die Grenze steht unter der Fläche.
+Ab der Stufe **Hochladen** ziehst du Dateien auf die markierte Fläche unter der Dateiliste oder klickst oben auf **Hochladen**. Mehrere Dateien auf einmal sind möglich; jede zeigt ihren eigenen Fortschritt. Die Größe je Datei ist begrenzt – die Grenze steht unter der Fläche.
 
 Lädst du eine Datei mit einem Namen hoch, den es im Ordner schon gibt, wird sie zur **neuen Version** der vorhandenen Datei. Das geht nur ab der Stufe **Bearbeiten**; mit der Stufe **Hochladen** erscheint ein Hinweis, dass die Datei schon existiert.
 

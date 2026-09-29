@@ -157,6 +157,31 @@ class FileControllerFeatureTest extends TestCase
         $this->assertMatchesRegularExpression('#value="role:' . $role->id . '"\s+selected#', $html);
     }
 
+    public function testFilesUseTableEngineWhileFoldersStayOutside(): void
+    {
+        $member = $this->createMember();
+        $root = $this->createFolder('Engine');
+        $this->createFolder('1 Sopran', $root);
+        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_UPLOAD);
+        $controller = $this->container->get(FileBrowserController::class);
+        $this->login((int) $member->id);
+        $this->uploadAs((int) $root->id, 'Zebra.txt', '12345');
+
+        $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
+
+        $this->assertStringContainsString('data-table-engine="true"', $html);
+        $this->assertStringContainsString('data-table-id="files.folder"', $html);
+        $this->assertMatchesRegularExpression('#data-sort-name="zebra\.txt"\s+data-sort-size="5"#', $html);
+
+        // Ordner als Kachel vor der Tabelle, nicht als Tabellenzeile - sonst
+        // sortierte die Engine sie zwischen die Dateien.
+        $tilePosition = strpos($html, 'files-folder-tile');
+        $tablePosition = strpos($html, 'data-table-engine="true"');
+        $this->assertNotFalse($tilePosition);
+        $this->assertLessThan($tablePosition, $tilePosition);
+        $this->assertSame(1, substr_count($html, 'data-sort-name='), 'Nur Dateien sind Tabellenzeilen.');
+    }
+
     public function testFolderOfOthersRedirectsWithoutRevealingIt(): void
     {
         $stranger = $this->createMember();
