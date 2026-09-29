@@ -73,6 +73,8 @@ class UploadLimitFeatureTest extends TestCase
             // Laden über FileService::upload() hoch (Dateiverwaltung).
             [
                 $root . '/src/Controllers/FileController.php',
+                // Neue Version über die Dateiseite (FileService::replace).
+                $root . '/src/Controllers/FileDetailController.php',
             ],
         ];
     }
@@ -84,8 +86,8 @@ class UploadLimitFeatureTest extends TestCase
         foreach ($viaFileService as $path) {
             $content = file_get_contents($path);
             $this->assertIsString($content, $path);
-            $this->assertStringContainsString(
-                '$this->files->upload(',
+            $this->assertMatchesRegularExpression(
+                '/\$this->files->(upload|replace)\(/',
                 $content,
                 basename($path) . ' soll über FileService hochladen.'
             );

@@ -1,0 +1,261 @@
+{% extends "layout.twig" %}
+{% import "files/partials/macros.twig" as files_ui %}
+
+{% block title %}
+    {{ file.name }} - Dateien - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div class="files-header-main">
+            <nav aria-label="Ordnerpfad">
+                <ol class="breadcrumb small mb-1">
+                    <li class="breadcrumb-item"><a href="/files">Dateien</a></li>
+                    {% for node in folder_path %}
+                        <li class="breadcrumb-item"><a href="/files/folders/{{ node.id }}">{{ node.name }}</a></li>
+                    {% endfor %}
+                    {% if folder_path is empty %}
+                        <li class="breadcrumb-item active" aria-current="page">Mit mir geteilt</li>
+                    {% endif %}
+                </ol>
+            </nav>
+            <h1 class="h2 mb-1 text-break">
+                <i class="bi {{ files_ui.icon(file.mime_type) }} me-1" aria-hidden="true"></i>{{ file.name }}
+            </h1>
+            <p class="text-muted mb-0 small">
+                {{ files_ui.size(file.size) }}
+                · geändert {{ file.updated_at|date("d.m.Y H:i") }}
+                · Deine Stufe: {{ level_labels[level] }}
+            </p>
+        </div>
+        <div class="page-actions">
+            {% if attachment_previewable(file.mime_type) %}
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        data-attachment-preview
+                        data-attachment-id="{{ file.id }}"
+                        data-attachment-name="{{ file.name }}"
+                        data-attachment-mime="{{ file.mime_type }}"
+                        data-attachment-size="{{ file.size }}"
+                        data-preview-url="/files/{{ file.id }}/preview"
+                        data-download-url="/files/{{ file.id }}/download">
+                    <i class="bi bi-eye me-1" aria-hidden="true"></i> Vorschau
+                </button>
+            {% endif %}
+            <a class="btn btn-primary btn-sm" href="/files/{{ file.id }}/download">
+                <i class="bi bi-download me-1" aria-hidden="true"></i> Herunterladen
+            </a>
+            <form method="post" action="/files/favorites">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="type" value="file">
+                <input type="hidden" name="id" value="{{ file.id }}">
+                <input type="hidden" name="back" value="/files/{{ file.id }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    {% if is_favorite %}
+                        <i class="bi bi-star-fill text-warning me-1" aria-hidden="true"></i> Favorit entfernen
+                    {% else %}
+                        <i class="bi bi-star me-1" aria-hidden="true"></i> Anheften
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if new_link_url %}
+        <div class="alert alert-success" role="status">
+            <strong>Neuer öffentlicher Link</strong> – jetzt kopieren, er wird nur dieses eine Mal angezeigt:
+            <div class="input-group mt-2">
+                <input class="form-control"
+                       type="text"
+                       readonly
+                       value="{{ new_link_url }}"
+                       id="filesNewLink"
+                       aria-label="Öffentlicher Link">
+                <button class="btn btn-outline-secondary" type="button" data-files-copy="#filesNewLink">
+                    <i class="bi bi-clipboard me-1" aria-hidden="true"></i> Kopieren
+                </button>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <section class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5">Versionen</h2>
+                    <ul class="list-group list-group-flush mb-3">
+                        {% for version in versions %}
+                            <li class="list-group-item files-list-row">
+                                <div>
+                                    <strong>Version {{ version.version_number }}</strong>
+                                    {% if version.id == file.current_version_id %}
+                                        <span class="badge bg-success ms-1">aktuell</span>
+                                    {% endif %}
+                                    <div class="small text-muted">
+                                        {{ version.created_at|date("d.m.Y H:i") }}
+                                        {% if version.uploader %}· {{ version.uploader|person_name }}{% endif %}
+                                        · {{ files_ui.size(version.size) }}
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       href="/files/versions/{{ version.id }}/download">Herunterladen</a>
+                                    {% if can_edit and version.id != file.current_version_id %}
+                                        <form method="post" action="/files/versions/{{ version.id }}/restore">
+                                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Wiederherstellen</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    {% if can_edit %}
+                        <form method="post"
+                              action="/files/{{ file.id }}/replace"
+                              enctype="multipart/form-data"
+                              class="files-replace-form">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <label class="form-label" for="filesReplaceInput">Neue Version hochladen</label>
+                            <div class="input-group">
+                                <input class="form-control" type="file" name="file" id="filesReplaceInput" required>
+                                <button class="btn btn-primary" type="submit">Hochladen</button>
+                            </div>
+                            <div class="form-text">
+                                Der Name „{{ file.name }}“ bleibt. Höchstens {{ files_ui.size(max_upload_bytes) }}.
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        {% if can_manage %}
+            <div class="col-12 col-lg-6">
+                <section class="card mb-4">
+                    <div class="card-body">
+                        <h2 class="h5">Freigaben dieser Datei</h2>
+                        <p class="small text-muted">
+                            Zusätzlich zu den Freigaben des Ordners. Lesen: ansehen und herunterladen.
+                            Bearbeiten: zusätzlich neue Versionen hochladen.
+                            Wer nur die Datei freigegeben hat, sieht den Ordner nicht.
+                        </p>
+                        <form method="post" action="/files/{{ file.id }}/shares" data-files-shares-form>
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <div data-files-share-rows>
+                                {% for share in shares %}
+                                    {{ include("files/partials/share_row.twig", {
+                                        index: loop.index0,
+                                        selected_target: share.type ~ ":" ~ share.reference_id,
+                                        selected_level: share.level,
+                                        level_labels: file_level_labels,
+                                    }) }}
+                                {% endfor %}
+                            </div>
+                            <template data-files-share-template>
+                                {{ include("files/partials/share_row.twig", {
+                                    index: "__INDEX__",
+                                    selected_target: "",
+                                    selected_level: 1,
+                                    level_labels: file_level_labels,
+                                }) }}
+                            </template>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-files-share-add>
+                                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Freigabe hinzufügen
+                                </button>
+                                <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-body">
+                        <h2 class="h5">Öffentliche Links</h2>
+                        <p class="small text-muted">
+                            Für Menschen ohne Konto, etwa Presse oder Aushilfen. Wer den Link hat, kann die Datei herunterladen.
+                        </p>
+                        {% if links is not empty %}
+                            <ul class="list-group list-group-flush mb-3">
+                                {% for link in links %}
+                                    {% set _active = link.isUsable() %}
+                                    <li class="list-group-item files-list-row">
+                                        <div>
+                                            <strong>{{ link.label ?: "Link vom " ~ link.created_at|date("d.m.Y") }}</strong>
+                                            {% if not _active %}
+                                                <span class="badge bg-secondary ms-1">
+                                                    {{ link.revoked_at ? "widerrufen" : "abgelaufen" }}
+                                                </span>
+                                            {% endif %}
+                                            {% if link.hasPassword() %}
+                                                <span class="badge bg-info text-dark ms-1">Passwort</span>
+                                            {% endif %}
+                                            <div class="small text-muted">
+                                                {% if link.expires_at %}
+                                                    gültig bis {{ link.expires_at|date("d.m.Y") }}
+                                                {% else %}
+                                                    ohne Ablauf
+                                                {% endif %}
+                                                · {{ link.download_count }} Downloads
+                                                {% if link.last_used_at %}
+                                                    · zuletzt {{ link.last_used_at|date("d.m.Y H:i") }}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% if _active %}
+                                            <form method="post"
+                                                  action="/files/links/{{ link.id }}/revoke"
+                                                  data-confirm="Link widerrufen? Danach kommt niemand mehr damit an die Datei.">
+                                                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Widerrufen</button>
+                                            </form>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                        <form method="post" action="/files/{{ file.id }}/links" class="row g-2">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <div class="col-12">
+                                <label class="form-label small" for="filesLinkLabel">Bezeichnung (optional)</label>
+                                <input class="form-control form-control-sm"
+                                       id="filesLinkLabel"
+                                       name="label"
+                                       maxlength="120"
+                                       placeholder="z. B. Presse Frühjahrskonzert">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small" for="filesLinkExpires">Gültig bis (optional)</label>
+                                <input class="form-control form-control-sm"
+                                       id="filesLinkExpires"
+                                       name="expires_at"
+                                       type="date"
+                                       min="{{ min_expiry }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small" for="filesLinkPassword">Passwort (optional)</label>
+                                <input class="form-control form-control-sm"
+                                       id="filesLinkPassword"
+                                       name="password"
+                                       type="password"
+                                       autocomplete="new-password">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-link-45deg me-1" aria-hidden="true"></i> Link anlegen
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    <script src="{{ asset_path("/js/file-manager.js") }}"></script>
+{% endblock scripts %}

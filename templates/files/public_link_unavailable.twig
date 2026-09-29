@@ -1,0 +1,18 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Link nicht verfügbar - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block content %}
+    <div class="files-public-card card mx-auto">
+        <div class="card-body text-center">
+            <i class="bi bi-link-45deg fs-1 text-muted d-block mb-2" aria-hidden="true"></i>
+            <h1 class="h4">Dieser Link ist nicht verfügbar</h1>
+            <p class="text-muted mb-0">
+                Er ist abgelaufen, wurde widerrufen oder war nie gültig.
+                Bitte wende dich an die Person, von der du ihn bekommen hast.
+            </p>
+        </div>
+    </div>
+{% endblock content %}

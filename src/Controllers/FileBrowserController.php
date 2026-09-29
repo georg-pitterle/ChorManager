@@ -7,18 +7,14 @@ namespace App\Controllers;
 use App\Controllers\Concerns\FileControllerSupport;
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
-use App\Models\Project;
-use App\Models\Role;
 use App\Models\StoredFile;
-use App\Models\User;
-use App\Models\VoiceGroup;
 use App\Services\Files\FileAccessService;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileFavoriteService;
 use App\Services\Files\FileQuotaService;
 use App\Services\Files\FileSearchService;
 use App\Services\Files\FileService;
-use App\Services\NameFormatterService;
+use App\Services\Files\FileShareDescriber;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -37,7 +33,7 @@ final class FileBrowserController
         private readonly FileQuotaService $quota,
         private readonly FileSearchService $search,
         private readonly FileService $files,
-        private readonly NameFormatterService $nameFormatter
+        private readonly FileShareDescriber $describer
     ) {
     }
 
@@ -60,6 +56,8 @@ final class FileBrowserController
                 'folder' => $folder,
                 'path' => $sharedPaths[(int) $folder->id] ?? [],
             ])->all(),
+            'shared_files' => $this->access->sharedFilesFor($actor),
+            'visible_folder_ids' => array_keys($this->access->folderLevels($actor)),
             'favorites' => $this->favorites->listFor($actor),
             'is_file_admin' => $actor->isFileAdmin,
             'total_used_bytes' => $actor->isFileAdmin ? $this->quota->totalUsedBytes() : null,
@@ -112,7 +110,7 @@ final class FileBrowserController
             'move_targets' => $level >= FileFolderShare::LEVEL_EDIT ? $this->moveTargets($actor, $levels) : [],
             'shares' => $canManage ? $this->describeShares($folder) : [],
             'inherited_shares' => $canManage ? $this->inheritedShares($path) : [],
-            'share_options' => $canManage ? $this->shareOptions() : null,
+            'share_options' => $canManage ? $this->describer->options() : null,
         ]);
     }
 
@@ -155,9 +153,7 @@ final class FileBrowserController
      */
     private function describeShares(FileFolder $folder): array
     {
-        return $this->labelShares(
-            FileFolderShare::query()->where('folder_id', $folder->id)->get()->all()
-        );
+        return $this->describer->label(FileFolderShare::query()->where('folder_id', $folder->id)->get());
     }
 
     /**
@@ -182,73 +178,10 @@ final class FileBrowserController
         foreach ($ancestors as $ancestor) {
             $shares = $byFolder->get($ancestor['id']);
             if ($shares !== null && $shares->isNotEmpty()) {
-                $result[] = ['folder' => $ancestor['name'], 'shares' => $this->labelShares($shares->all())];
+                $result[] = ['folder' => $ancestor['name'], 'shares' => $this->describer->label($shares)];
             }
         }
 
         return $result;
-    }
-
-    /**
-     * @param list<FileFolderShare> $shares
-     * @return list<array{type: string, reference_id: int, level: int, label: string}>
-     */
-    private function labelShares(array $shares): array
-    {
-        $ids = [];
-        foreach ($shares as $share) {
-            $ids[$share->target_type][] = (int) $share->reference_id;
-        }
-
-        $names = [
-            FileFolderShare::TYPE_ROLE => Role::query()->whereIn('id', $ids['role'] ?? [0])->pluck('name', 'id')->all(),
-            FileFolderShare::TYPE_VOICE_GROUP => VoiceGroup::query()->whereIn('id', $ids['voice_group'] ?? [0])
-                ->pluck('name', 'id')->all(),
-            FileFolderShare::TYPE_PROJECT_MEMBERS => Project::query()->whereIn('id', $ids['project_members'] ?? [0])
-                ->pluck('name', 'id')->all(),
-            FileFolderShare::TYPE_USER => User::query()->whereIn('id', $ids['user'] ?? [0])->get()
-                ->mapWithKeys(fn (User $u): array => [(int) $u->id => $this->nameFormatter->formatPerson($u)])
-                ->all(),
-        ];
-
-        $prefix = [
-            FileFolderShare::TYPE_ROLE => 'Rolle',
-            FileFolderShare::TYPE_VOICE_GROUP => 'Stimmgruppe',
-            FileFolderShare::TYPE_PROJECT_MEMBERS => 'Projekt',
-            FileFolderShare::TYPE_USER => 'Mitglied',
-        ];
-
-        $described = [];
-        foreach ($shares as $share) {
-            $type = (string) $share->target_type;
-            $label = $type === FileFolderShare::TYPE_ALL_MEMBERS
-                ? 'Alle Mitglieder'
-                : $prefix[$type] . ': ' . ($names[$type][(int) $share->reference_id] ?? 'gelöscht');
-            $described[] = [
-                'type' => $type,
-                'reference_id' => (int) $share->reference_id,
-                'level' => (int) $share->level,
-                'label' => $label,
-            ];
-        }
-        usort($described, static fn (array $a, array $b): int => strcasecmp($a['label'], $b['label']));
-
-        return $described;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function shareOptions(): array
-    {
-        $usersQuery = User::query()->where('is_active', 1);
-        $this->nameFormatter->applyNameOrder($usersQuery);
-
-        return [
-            'roles' => Role::query()->orderBy('name')->get(['id', 'name']),
-            'voice_groups' => VoiceGroup::query()->orderBy('id')->get(['id', 'name']),
-            'projects' => Project::query()->chronological()->get(['id', 'name']),
-            'users' => $usersQuery->get(),
-        ];
     }
 }

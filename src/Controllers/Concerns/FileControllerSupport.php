@@ -92,6 +92,34 @@ trait FileControllerSupport
     }
 
     /**
+     * Das Formular schickt das Ziel als "typ:kennung" (eine Auswahl statt zwei
+     * abhängiger Listen). Die Prüfung auf gültige Typen und Stufen macht der Service.
+     *
+     * @param array<mixed> $rows
+     * @return list<array{type: string, reference_id: int, level: int}>
+     */
+    private static function parseShareRows(array $rows): array
+    {
+        $shares = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $target = explode(':', (string) ($row['target'] ?? ''), 2);
+            if (count($target) !== 2) {
+                continue;
+            }
+            $shares[] = [
+                'type' => $target[0],
+                'reference_id' => (int) $target[1],
+                'level' => (int) ($row['level'] ?? 0),
+            ];
+        }
+
+        return $shares;
+    }
+
+    /**
      * @param array<string, mixed>|object|null $body
      */
     private static function field($body, string $key): string

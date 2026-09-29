@@ -6,7 +6,10 @@ namespace App\Services\Files;
 
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
+use App\Models\FileShare;
+use App\Models\StoredFile;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,6 +25,10 @@ use Illuminate\Support\Collection;
  * Berechnet wird über den ganzen Ordnerbaum (zwei schlanke Abfragen). Für die
  * Größe eines Chor-Bestands ist das billiger und vor allem einfacher als
  * rekursive Abfragen je Ordner.
+ *
+ * Dateien: Ihre Stufe ist die höhere aus Ordnerstufe und eigener
+ * Dateifreigabe. Eine Dateifreigabe wirkt nur, solange Datei und alle
+ * Vorfahren leben.
  */
 final class FileAccessService
 {
@@ -30,6 +37,59 @@ final class FileAccessService
         $folderId = $folder instanceof FileFolder ? (int) $folder->id : $folder;
 
         return $this->folderLevels($actor)[$folderId] ?? FileFolderShare::LEVEL_NONE;
+    }
+
+    public function fileLevelFor(FileActor $actor, StoredFile $file): int
+    {
+        if ($file->trashed() || $this->isInTrash((int) $file->folder_id)) {
+            return FileFolderShare::LEVEL_NONE;
+        }
+        if ($actor->isFileAdmin) {
+            return FileFolderShare::LEVEL_MANAGE;
+        }
+
+        return max(
+            $this->levelFor($actor, (int) $file->folder_id),
+            $this->directFileLevels($actor)[(int) $file->id] ?? FileFolderShare::LEVEL_NONE
+        );
+    }
+
+    /**
+     * Dateien, die nur über ihre eigene Freigabe erreichbar sind - der Ordner
+     * bleibt dem Nutzer verschlossen ("Mit mir geteilt").
+     *
+     * @return Collection<int, StoredFile>
+     */
+    public function sharedFilesFor(FileActor $actor): Collection
+    {
+        $direct = $this->directFileLevels($actor);
+        if ($direct === [] || $actor->isFileAdmin) {
+            return new Collection();
+        }
+
+        $folderLevels = $this->folderLevels($actor);
+        $tree = $this->tree();
+
+        return StoredFile::query()
+            ->whereIn('id', array_keys($direct))
+            ->orderBy('name')
+            ->get()
+            ->filter(function (StoredFile $file) use ($folderLevels, $tree): bool {
+                $folderId = (int) $file->folder_id;
+
+                return !isset($folderLevels[$folderId]) && isset($tree[$folderId]) && !$this->isInTrash($folderId);
+            })
+            ->values();
+    }
+
+    /**
+     * Höchste direkt passende Dateifreigabe je Datei.
+     *
+     * @return array<int, int>
+     */
+    public function directFileLevels(FileActor $actor): array
+    {
+        return $this->matchingLevels($actor, FileShare::query(), 'file_id');
     }
 
     public function can(FileActor $actor, FileFolder|int $folder, int $requiredLevel): bool
@@ -245,6 +305,18 @@ final class FileAccessService
      */
     private function matchingShareLevels(FileActor $actor): array
     {
+        return $this->matchingLevels($actor, FileFolderShare::query(), 'folder_id');
+    }
+
+    /**
+     * Gemeinsamer Abgleich für Ordner- und Dateifreigaben: dieselben Zieltypen,
+     * dieselbe Auflösung über Rollen, Stimmgruppen und Projekte.
+     *
+     * @param Builder<FileFolderShare>|Builder<FileShare> $query
+     * @return array<int, int> Kennung => höchste Stufe
+     */
+    private function matchingLevels(FileActor $actor, Builder $query, string $keyColumn): array
+    {
         $user = User::find($actor->userId);
         if ($user === null) {
             return [];
@@ -254,7 +326,7 @@ final class FileAccessService
         $voiceGroupIds = $this->ids($user->voiceGroups()->pluck('voice_group_id'));
         $projectIds = $this->ids($user->projects()->pluck('project_id'));
 
-        $rows = FileFolderShare::query()
+        $rows = $query
             ->where(function ($query) use ($actor, $roleIds, $voiceGroupIds, $projectIds) {
                 $query->where('target_type', FileFolderShare::TYPE_ALL_MEMBERS)
                     ->orWhere(function ($q) use ($actor) {
@@ -274,14 +346,14 @@ final class FileAccessService
                             ->whereIn('reference_id', $projectIds ?: [0]);
                     });
             })
-            ->groupBy('folder_id')
-            ->selectRaw('folder_id, MAX(level) AS level')
+            ->groupBy($keyColumn)
+            ->selectRaw($keyColumn . ' AS target_id, MAX(level) AS level')
             ->toBase()
             ->get();
 
         $levels = [];
         foreach ($rows as $row) {
-            $levels[(int) $row->folder_id] = (int) $row->level;
+            $levels[(int) $row->target_id] = (int) $row->level;
         }
 
         return $levels;

@@ -66,6 +66,13 @@
         });
 
         function uploadAll(files) {
+            // Eine neue Auswahl ersetzt die Rückmeldungen der vorigen, sonst
+            // stapeln sich nach mehreren Fehlversuchen dieselben Meldungen.
+            // Läuft noch etwas, bleiben dessen Zeilen stehen.
+            if (pending === 0) {
+                list.textContent = '';
+                succeeded = 0;
+            }
             Array.prototype.forEach.call(files, uploadOne);
         }
 
@@ -93,6 +100,8 @@
             row.bar.classList.add(ok ? 'bg-success' : 'bg-danger');
             row.bar.style.setProperty('--progress-value', '100%');
             row.status.textContent = message;
+            // text-muted setzt seine Farbe mit !important und überstimmte text-danger.
+            row.status.classList.toggle('text-muted', ok);
             row.status.classList.toggle('text-danger', !ok);
             pending -= 1;
             if (ok) {
@@ -331,8 +340,35 @@
         });
     }
 
+    function setupCopyButtons() {
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-files-copy]');
+            if (!button) {
+                return;
+            }
+            const field = document.querySelector(button.getAttribute('data-files-copy'));
+            if (!field) {
+                return;
+            }
+            field.select();
+            const done = function () {
+                button.textContent = 'Kopiert';
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(field.value).then(done).catch(function () {
+                    document.execCommand('copy');
+                    done();
+                });
+            } else {
+                document.execCommand('copy');
+                done();
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         setupRowMenus();
+        setupCopyButtons();
         setupUpload();
         setupSharedModals();
         setupVersions();

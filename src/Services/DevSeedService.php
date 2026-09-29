@@ -7,6 +7,8 @@ namespace App\Services;
 use App\Models\FileFavorite;
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
+use App\Models\FilePublicLink;
+use App\Models\FileShare;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileFolderService;
 use App\Services\Files\FileService;
@@ -74,6 +76,7 @@ use App\Util\NotificationType;
 use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use App\Util\PasswordHasher;
+use Carbon\Carbon;
 use DateTimeImmutable;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use RuntimeException;
@@ -95,6 +98,14 @@ class DevSeedService
      * würfelt ihn der Client je Anmeldung neu.
      */
     private const DEV_SEED_CODE_VERIFIER = 'dev-seed-code-verifier-0123456789abcdef';
+
+    /**
+     * Feste Tokens der öffentlichen Datei-Links, damit sich /s/<token> im
+     * Dev-Stand ohne Nachschlagen öffnen lässt. Der zweite Link hat das
+     * Passwort "seed". In der Datenbank steht wie im Betrieb nur der Hash.
+     */
+    private const DEV_SEED_PUBLIC_LINK_TOKEN = 'devSeedPublicLinkOpen00000000000';
+    private const DEV_SEED_PROTECTED_LINK_TOKEN = 'devSeedPublicLinkPassword0000000';
     private const ACTIVE_USER_TARGET = 80;
 
     public function __construct(
@@ -212,6 +223,8 @@ class DevSeedService
                 'file_versions' => 0,
                 'file_folder_shares' => 0,
                 'file_favorites' => 0,
+                'file_shares' => 0,
+                'file_public_links' => 0,
                 'files_trashed' => 0,
                 'backups' => 0,
             ],
@@ -311,6 +324,8 @@ class DevSeedService
 
         $tables = [
             'file_favorites',
+            'file_public_links',
+            'file_shares',
             'file_folder_shares',
             'file_versions',
             'files',
@@ -2293,6 +2308,32 @@ class DevSeedService
             $upload($contracts, 'Mietvertrag Probenraum.pdf', $pdf('Mietvertrag Probenraum'));
             $upload($contracts, 'Mietvertrag Probenraum.pdf', $pdf('Mietvertrag Probenraum, Nachtrag'));
 
+            // Dateifreigaben: eine Einladung an alle, ohne den Vorstandsordner zu
+            // öffnen; der Mietvertrag für die Kassaführung zum Bearbeiten.
+            $upload($board, 'Einladung Jahreshauptversammlung.pdf', $pdf('Einladung Jahreshauptversammlung'));
+            $invitation = StoredFile::query()->where('folder_id', $board->id)
+                ->where('name', 'Einladung Jahreshauptversammlung.pdf')->first();
+            $contract = StoredFile::query()->where('folder_id', $contracts->id)
+                ->where('name', 'Mietvertrag Probenraum.pdf')->first();
+            $fileShares = [];
+            if ($invitation !== null) {
+                $fileShares[] = [$invitation, FileFolderShare::TYPE_ALL_MEMBERS, 0, FileFolderShare::LEVEL_READ];
+            }
+            $treasurerRole = $roles['Kassier'] ?? null;
+            if ($contract !== null && $treasurerRole !== null) {
+                $fileShares[] = [$contract, FileFolderShare::TYPE_ROLE, (int) $treasurerRole->id, FileFolderShare::LEVEL_EDIT];
+            }
+            foreach ($fileShares as [$sharedFile, $type, $referenceId, $level]) {
+                FileShare::create([
+                    'file_id' => (int) $sharedFile->id,
+                    'target_type' => $type,
+                    'reference_id' => $referenceId,
+                    'level' => $level,
+                    'created_by' => (int) $adminUser->id,
+                ]);
+                $this->report['counts']['file_shares']++;
+            }
+
             $old = $child($board, 'Altes Archiv');
             $upload($old, 'Kassabericht 2019.txt', DevSeedAttachmentFixtures::text('Kassabericht 2019 - abgelegt.'));
             $this->fileFolderService->trash($admin, $old);
@@ -2359,6 +2400,28 @@ class DevSeedService
             if ($draft !== null) {
                 FileFavorite::firstOrCreate(['user_id' => (int) $helper->id, 'file_id' => (int) $draft->id]);
                 $this->report['counts']['file_favorites']++;
+
+                // Öffentliche Links: offen, mit Passwort, abgelaufen.
+                $links = [
+                    [self::DEV_SEED_PUBLIC_LINK_TOKEN, 'Presse', null, null],
+                    [self::DEV_SEED_PROTECTED_LINK_TOKEN, 'Presse mit Passwort', 'seed', Carbon::now()->addMonth()],
+                    [bin2hex(random_bytes(16)), 'Alter Link', null, Carbon::now()->subDay()],
+                ];
+                foreach ($links as [$token, $label, $password, $expiresAt]) {
+                    FilePublicLink::create([
+                        'file_id' => (int) $draft->id,
+                        'token_hash' => hash('sha256', $token),
+                        'label' => $label,
+                        'password_hash' => $password === null ? null : PasswordHasher::hash($password),
+                        'expires_at' => $expiresAt,
+                        'created_by' => (int) $adminUser->id,
+                    ]);
+                    $this->report['counts']['file_public_links']++;
+                }
+                $this->report['file_public_links'] = [
+                    'open' => '/s/' . self::DEV_SEED_PUBLIC_LINK_TOKEN,
+                    'password_seed' => '/s/' . self::DEV_SEED_PROTECTED_LINK_TOKEN,
+                ];
             }
         }
     }

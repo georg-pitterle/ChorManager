@@ -65,11 +65,7 @@ final class FileService
     public function upload(FileActor $actor, FileFolder $folder, UploadedFileInterface $upload): UploadResult
     {
         $this->folders->requireLevel($actor, $folder, FileFolderShare::LEVEL_UPLOAD);
-
-        $uploadError = UploadValidator::getUploadErrorMessage($upload->getError());
-        if ($upload->getError() !== UPLOAD_ERR_OK) {
-            throw new FileManagementException($uploadError ?? 'Es wurde keine Datei übertragen.', 422);
-        }
+        $this->assertUploadOk($upload);
 
         $name = FileNameCleaner::clean((string) $upload->getClientFilename());
         if ($name === null) {
@@ -77,6 +73,49 @@ final class FileService
         }
         $this->assertAllowedExtension($name);
 
+        $existing = StoredFile::query()->where('folder_id', $folder->id)->where('name', $name)->first();
+        if ($existing !== null && $this->access->fileLevelFor($actor, $existing) < FileFolderShare::LEVEL_EDIT) {
+            throw new FileManagementException(
+                'Eine Datei mit diesem Namen existiert bereits. Zum Ersetzen fehlt die Berechtigung.',
+                409
+            );
+        }
+
+        return $this->store($actor, $folder, $upload, $name, $existing);
+    }
+
+    /**
+     * Neue Version einer bestimmten Datei, unabhängig vom Namen der
+     * hochgeladenen Datei. Der Weg für alle, die die Datei über eine
+     * Dateifreigabe bearbeiten dürfen, den Ordner aber nicht sehen.
+     */
+    public function replace(FileActor $actor, int $fileId, UploadedFileInterface $upload): UploadResult
+    {
+        $file = $this->findWithFileLevel($actor, $fileId, FileFolderShare::LEVEL_EDIT);
+        $this->assertUploadOk($upload);
+        $uploadedName = FileNameCleaner::clean((string) $upload->getClientFilename());
+        if ($uploadedName !== null) {
+            $this->assertAllowedExtension($uploadedName);
+        }
+
+        return $this->store($actor, $file->folder, $upload, (string) $file->name, $file);
+    }
+
+    private function assertUploadOk(UploadedFileInterface $upload): void
+    {
+        $uploadError = UploadValidator::getUploadErrorMessage($upload->getError());
+        if ($upload->getError() !== UPLOAD_ERR_OK) {
+            throw new FileManagementException($uploadError ?? 'Es wurde keine Datei übertragen.', 422);
+        }
+    }
+
+    private function store(
+        FileActor $actor,
+        FileFolder $folder,
+        UploadedFileInterface $upload,
+        string $name,
+        ?StoredFile $existing
+    ): UploadResult {
         [$sourcePath, $isTemporary] = $this->localSource($upload);
         try {
             $size = (int) filesize($sourcePath);
@@ -96,14 +135,6 @@ final class FileService
                     'user_id' => $actor->userId,
                 ]);
                 throw new FileManagementException('Dieser Dateityp ist nicht erlaubt.', 422);
-            }
-
-            $existing = StoredFile::query()->where('folder_id', $folder->id)->where('name', $name)->first();
-            if ($existing !== null && !$this->access->can($actor, $folder, FileFolderShare::LEVEL_EDIT)) {
-                throw new FileManagementException(
-                    'Eine Datei mit diesem Namen existiert bereits. Zum Ersetzen fehlt die Berechtigung.',
-                    409
-                );
             }
 
             $this->assertQuota($folder, $size);
@@ -169,7 +200,7 @@ final class FileService
 
     public function restoreVersion(FileActor $actor, FileVersion $version): StoredFile
     {
-        $file = $this->findWithLevel($actor, (int) $version->file_id, FileFolderShare::LEVEL_EDIT);
+        $file = $this->findWithFileLevel($actor, (int) $version->file_id, FileFolderShare::LEVEL_EDIT);
         if ((int) $file->current_version_id === (int) $version->id) {
             return $file;
         }
@@ -264,7 +295,29 @@ final class FileService
 
     public function findReadable(FileActor $actor, int $fileId): StoredFile
     {
-        return $this->findWithLevel($actor, $fileId, FileFolderShare::LEVEL_READ);
+        return $this->findWithFileLevel($actor, $fileId, FileFolderShare::LEVEL_READ);
+    }
+
+    /**
+     * Stufe der Datei selbst: Ordnerstufe oder Dateifreigabe, je nachdem, was
+     * höher ist. Für alles, was nur die Datei betrifft (lesen, neue Version).
+     */
+    public function findWithFileLevel(FileActor $actor, int $fileId, int $level): StoredFile
+    {
+        $file = StoredFile::find($fileId);
+        if ($file === null) {
+            throw FileManagementException::notFound();
+        }
+
+        $actual = $this->access->fileLevelFor($actor, $file);
+        if ($actual === FileFolderShare::LEVEL_NONE) {
+            throw FileManagementException::notFound();
+        }
+        if ($actual < $level) {
+            throw FileManagementException::forbidden();
+        }
+
+        return $file;
     }
 
     public function findReadableVersion(FileActor $actor, int $versionId): FileVersion
@@ -278,6 +331,11 @@ final class FileService
         return $version;
     }
 
+    /**
+     * Stufe im Ordner der Datei. Für alles, was den Ordner verändert
+     * (umbenennen, verschieben, in den Papierkorb) - eine Dateifreigabe reicht
+     * dafür nicht.
+     */
     public function findWithLevel(FileActor $actor, int $fileId, int $level): StoredFile
     {
         $file = StoredFile::find($fileId);

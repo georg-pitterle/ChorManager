@@ -56,9 +56,12 @@ final class FileFavoriteService
             ->whereIn('id', array_intersect($folderIds, $visibleIds) ?: [0])
             ->orderBy('name')
             ->get();
+        $sharedIds = $this->access->sharedFilesFor($actor)->pluck('id')->all();
         $files = StoredFile::query()
             ->whereIn('id', $fileIds ?: [0])
-            ->whereIn('folder_id', $visibleIds ?: [0])
+            ->where(function ($query) use ($visibleIds, $sharedIds): void {
+                $query->whereIn('folder_id', $visibleIds ?: [0])->orWhereIn('id', $sharedIds ?: [0]);
+            })
             ->orderBy('name')
             ->get();
 
@@ -92,7 +95,7 @@ final class FileFavoriteService
 
         if ($type === self::TYPE_FILE) {
             $file = StoredFile::find($id);
-            if ($file === null || $this->access->levelFor($actor, (int) $file->folder_id) === 0) {
+            if ($file === null || $this->access->fileLevelFor($actor, $file) === 0) {
                 throw FileManagementException::notFound();
             }
 

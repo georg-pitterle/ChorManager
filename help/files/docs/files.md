@@ -6,7 +6,7 @@ In der Dateiverwaltung legt der Chor seine Unterlagen an einem Ort ab: Noten und
 
 ## 1. Übersicht
 
-Klickpfad: **Bereiche → Dateien**.
+Klickpfad: **Verwaltung → Dateien**.
 
 Oben stehen deine **Favoriten**, darunter die **Teamordner**, auf die du Zugriff hast, jeweils mit ihrer Speicherbelegung. Unter **Mit mir geteilt** findest du Ordner, die tiefer in einem Teamordner liegen und direkt für dich freigegeben sind – etwa der Ordner deiner Stimmgruppe –, auch wenn du den Teamordner selbst nicht sehen darfst.
 

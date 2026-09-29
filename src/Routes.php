@@ -50,6 +50,8 @@ use App\Controllers\FileBrowserController;
 use App\Controllers\FileController;
 use App\Controllers\FileFolderController;
 use App\Controllers\FileTrashController;
+use App\Controllers\FileDetailController;
+use App\Controllers\PublicFileLinkController;
 use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
 use App\Controllers\Oidc\TokenController;
@@ -141,6 +143,17 @@ return function (App $app) {
         '/webdav[/{path:.*}]',
         [WebdavController::class, 'handle']
     );
+
+    // Öffentliche Links der Dateiverwaltung: ohne Anmeldung, der Token ist die
+    // Berechtigung. Gültigkeit, Ablauf und Passwort prüft FileShareService bzw.
+    // PublicFileLinkController.
+    if ($settings['modules']['files'] ?? false) {
+        $publicLinkToken = '{token:[A-Za-z0-9_-]{32}}';
+        $app->get('/s/' . $publicLinkToken, [PublicFileLinkController::class, 'show']);
+        $app->post('/s/' . $publicLinkToken, [PublicFileLinkController::class, 'unlock']);
+        $app->get('/s/' . $publicLinkToken . '/download', [PublicFileLinkController::class, 'download']);
+        $app->get('/s/' . $publicLinkToken . '/view', [PublicFileLinkController::class, 'view']);
+    }
 
     // Provider feedback ingest endpoints (public, verified/trusted channels)
     $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
@@ -267,6 +280,11 @@ return function (App $app) {
                         $files->post('/{id:[0-9]+}/delete', [FileController::class, 'delete']);
                         $files->get('/versions/{id:[0-9]+}/download', [FileController::class, 'downloadVersion']);
                         $files->post('/versions/{id:[0-9]+}/restore', [FileController::class, 'restoreVersion']);
+                        $files->get('/{id:[0-9]+}', [FileDetailController::class, 'show']);
+                        $files->post('/{id:[0-9]+}/replace', [FileDetailController::class, 'replace']);
+                        $files->post('/{id:[0-9]+}/shares', [FileDetailController::class, 'saveShares']);
+                        $files->post('/{id:[0-9]+}/links', [FileDetailController::class, 'createLink']);
+                        $files->post('/links/{id:[0-9]+}/revoke', [FileDetailController::class, 'revokeLink']);
                         $files->post('/favorites', [FileController::class, 'toggleFavorite']);
                         $files->get('/trash', [FileTrashController::class, 'index']);
                         $files->post(

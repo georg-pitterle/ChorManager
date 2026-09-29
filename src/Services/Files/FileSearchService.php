@@ -37,21 +37,25 @@ final class FileSearchService
         }
 
         $levels = $this->access->folderLevels($actor);
-        if ($levels === []) {
+        $sharedIds = $this->access->sharedFilesFor($actor)->pluck('id')->all();
+        if ($levels === [] && $sharedIds === []) {
             return $empty;
         }
         $visibleIds = array_keys($levels);
         $pattern = '%' . addcslashes($term, '%_\\') . '%';
 
         $folders = FileFolder::query()
-            ->whereIn('id', $visibleIds)
+            ->whereIn('id', $visibleIds ?: [0])
             ->where('name', 'like', $pattern)
             ->orderBy('name')
             ->limit(self::LIMIT)
             ->get(['id', 'name', 'parent_id']);
 
+        // Einzeln freigegebene Dateien zählen mit; ihr Ordner bleibt verborgen.
         $files = StoredFile::query()
-            ->whereIn('folder_id', $visibleIds)
+            ->where(function ($query) use ($visibleIds, $sharedIds): void {
+                $query->whereIn('folder_id', $visibleIds ?: [0])->orWhereIn('id', $sharedIds ?: [0]);
+            })
             ->where('name', 'like', $pattern)
             ->orderBy('name')
             ->limit(self::LIMIT)
@@ -75,7 +79,8 @@ final class FileSearchService
                 'mime_type' => (string) $file->mime_type,
                 'folder_id' => (int) $file->folder_id,
                 'updated_at' => $file->updated_at,
-                'path' => $paths[(int) $file->folder_id] ?? [],
+                // Pfad nur bei sichtbarem Ordner - sonst verriete er Ordnernamen.
+                'path' => isset($levels[(int) $file->folder_id]) ? ($paths[(int) $file->folder_id] ?? []) : [],
             ])->values()->all(),
         ];
     }
