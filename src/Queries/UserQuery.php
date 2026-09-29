@@ -19,6 +19,17 @@ class UserQuery
      */
     private const SESSION_RELATIONS = ['roles', 'voiceGroups'];
 
+    /**
+     * Spalten und Relationen der drei OIDC-Zugänge. `external_uid` steht
+     * zusätzlich zu den Listenspalten drin: OidcClaimsBuilder baut daraus `sub`.
+     *
+     * @var list<string>
+     */
+    private const OIDC_COLUMNS = [...User::LIST_COLUMNS, 'external_uid'];
+
+    /** @var list<string> */
+    private const OIDC_RELATIONS = ['roles'];
+
     private NameFormatterService $nameFormatter;
 
     public function __construct(NameFormatterService $nameFormatter)
@@ -72,6 +83,34 @@ class UserQuery
     {
         return User::select(User::LIST_COLUMNS)
             ->with(self::SESSION_RELATIONS)
+            ->where('is_active', 1)
+            ->find($id);
+    }
+
+    /**
+     * Lookup der drei OIDC-Zugänge (/oidc/authorize, /oidc/token, /oidc/userinfo).
+     *
+     * Gelesen wird dort nur, was OidcClaimsBuilder in die Ansprüche schreibt -
+     * `external_uid`, Vor- und Nachname, die Adresse und `roles.external_group` -
+     * dazu `is_active` für die Sperre.
+     *
+     * Bewusst nicht findById(): dessen Detail-Eager-Loads (Stimmgruppen,
+     * Teilstimmen, Postfach) kosten vier zusätzliche Abfragen, die im OIDC-Zugang
+     * niemand ausliest. Eine davon zieht das verschlüsselte IMAP-Passwort
+     * ausgerechnet in den Zugang, der Daten an eine fremde Anwendung ausliefert;
+     * dass UserMailAccount::$hidden es aus Serialisierungen hält, ist die zweite
+     * Absicherung, nicht die erste. Die Spaltenauswahl hält denselben Abstand zum
+     * Passwort-Hash wie findForSession().
+     *
+     * Deaktivierte Konten bleiben draußen - dieselbe Grenze wie in findForSession()
+     * und findByEmail(). Die drei Aufrufstellen prüfen `is_active` bis heute selbst
+     * und behandeln "nicht gefunden" und "gesperrt" gleich; am Verhalten ändert der
+     * Filter nichts, aber eine vierte Aufrufstelle kann ihn nicht mehr vergessen.
+     */
+    public function findForOidc(int $id): ?User
+    {
+        return User::select(self::OIDC_COLUMNS)
+            ->with(self::OIDC_RELATIONS)
             ->where('is_active', 1)
             ->find($id);
     }

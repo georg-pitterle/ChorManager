@@ -82,7 +82,7 @@ class TokenController
                 InputValidator::asString($body['code_verifier'] ?? null)
             );
 
-            $user = $this->userQuery->findById((int) $code->user_id);
+            $user = $this->userQuery->findForOidc((int) $code->user_id);
             if ($user === null || !(bool) $user->is_active) {
                 throw new OidcProtocolException('invalid_grant', 'Mitglied ist nicht mehr aktiv');
             }

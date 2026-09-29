@@ -108,7 +108,7 @@ class AuthorizeController
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $user = $userId > 0 ? $this->userQuery->findById($userId) : null;
+        $user = $userId > 0 ? $this->userQuery->findForOidc($userId) : null;
 
         // AuthMiddleware hat die Sitzung bereits geprüft. Hier wird der Zustand
         // trotzdem noch einmal frisch gelesen: Diese Anmeldung wirkt in einer

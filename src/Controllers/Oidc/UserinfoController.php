@@ -51,7 +51,7 @@ class UserinfoController
             return $this->unauthorized($response, 'Token unbekannt, abgelaufen oder widerrufen');
         }
 
-        $user = $this->userQuery->findById((int) $stored->user_id);
+        $user = $this->userQuery->findForOidc((int) $stored->user_id);
         if ($user === null || !(bool) $user->is_active) {
             return $this->unauthorized($response, 'Mitglied ist nicht mehr aktiv');
         }
