@@ -87,6 +87,17 @@ use App\Services\PasswordPolicyService;
 use App\Services\NotificationService;
 use App\Services\RegistrationReminderService;
 use App\Services\BackupService;
+use App\Commands\PurgeFileTrashCommand;
+use App\Services\Files\FileAccessService;
+use App\Services\Files\FileBackupService;
+use App\Services\Files\FileFolderService;
+use App\Services\Files\FileQuotaService;
+use App\Services\Files\FileResponseFactory;
+use App\Services\Files\FileService;
+use App\Services\Files\FileStorageRegistry;
+use App\Services\Files\FileTrashService;
+use App\Services\Files\FileZipService;
+use App\Services\Files\LocalFileStorage;
 use App\Services\DumpRunnerInterface;
 use App\Services\FlashMessageService;
 use App\Services\MysqldumpRunner;
@@ -531,10 +542,69 @@ return function (ContainerBuilder $containerBuilder) {
                 EnvHelper::read('DB_DATABASE', 'db'),
                 $backupSettings['app_version'],
                 $mailKeyId,
-                $c->get(SessionInvalidationService::class)
+                $c->get(SessionInvalidationService::class),
+                null,
+                $c->get(FileBackupService::class)
             );
         },
         BackupController::class => \DI\autowire(),
+        // Dateiverwaltung: Einstellungen aus settings['files'] explizit, damit
+        // Autowiring die skalaren Grenzen nicht mit Vorgaben füllt.
+        LocalFileStorage::class => function (ContainerInterface $c): LocalFileStorage {
+            return new LocalFileStorage($c->get('settings')['files']['storage_path']);
+        },
+        FileStorageRegistry::class => function (ContainerInterface $c): FileStorageRegistry {
+            return new FileStorageRegistry($c->get(LocalFileStorage::class));
+        },
+        FileAccessService::class => \DI\autowire(),
+        FileBackupService::class => \DI\autowire(),
+        FileQuotaService::class => function (ContainerInterface $c): FileQuotaService {
+            return new FileQuotaService(
+                $c->get(FileAccessService::class),
+                $c->get('settings')['files']['total_quota_bytes']
+            );
+        },
+        FileFolderService::class => \DI\autowire(),
+        FileService::class => function (ContainerInterface $c): FileService {
+            $files = $c->get('settings')['files'];
+
+            return new FileService(
+                $c->get(FileAccessService::class),
+                $c->get(FileFolderService::class),
+                $c->get(FileQuotaService::class),
+                $c->get(FileStorageRegistry::class),
+                $c->get(LoggerInterface::class),
+                $files['max_upload_bytes'],
+                $files['max_versions']
+            );
+        },
+        FileTrashService::class => function (ContainerInterface $c): FileTrashService {
+            return new FileTrashService(
+                $c->get(FileAccessService::class),
+                $c->get(FileService::class),
+                $c->get(FileStorageRegistry::class),
+                $c->get(LoggerInterface::class),
+                $c->get('settings')['files']['trash_days']
+            );
+        },
+        FileZipService::class => function (ContainerInterface $c): FileZipService {
+            return new FileZipService(
+                $c->get(FileAccessService::class),
+                $c->get(FileFolderService::class),
+                $c->get(FileStorageRegistry::class),
+                $c->get('settings')['files']['max_zip_bytes']
+            );
+        },
+        FileResponseFactory::class => function (ContainerInterface $c): FileResponseFactory {
+            return new FileResponseFactory($c->get(FileStorageRegistry::class));
+        },
+        PurgeFileTrashCommand::class => function (ContainerInterface $c): PurgeFileTrashCommand {
+            return new PurgeFileTrashCommand(
+                $c->get(FileTrashService::class),
+                $c->get(LocalFileStorage::class),
+                (bool) ($c->get('settings')['modules']['files'] ?? false)
+            );
+        },
         CreateBackupCommand::class => \DI\autowire(),
         SheetArchiveService::class => function (ContainerInterface $c) {
             return new SheetArchiveService();

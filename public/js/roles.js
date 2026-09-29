@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 setCheckedIfPresent('edit_can_manage_budget', this.getAttribute('data-budget') === '1');
                 setCheckedIfPresent('edit_can_manage_tasks', this.getAttribute('data-tasks') === '1');
                 setCheckedIfPresent('edit_can_manage_backups', this.getAttribute('data-backups') === '1');
+                setCheckedIfPresent('edit_can_manage_files', this.getAttribute('data-files') === '1');
                 setCheckedIfPresent('edit_can_manage_own_voice_group', this.getAttribute('data-own-voice-group') === '1');
                 setCheckedIfPresent('edit_can_assign_own_voice_group_to_project', this.getAttribute('data-assign-own-voice-group-project') === '1');
             });

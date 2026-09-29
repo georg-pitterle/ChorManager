@@ -1765,3 +1765,76 @@ a:hover {
     line-height: 1;
     text-decoration: none;
 }
+
+/* ------------------------------------------------------------------
+   Dateiverwaltung
+   ------------------------------------------------------------------ */
+
+/* Ablagefläche für Uploads. Hervorgehoben, solange Dateien darüber gezogen werden. */
+.files-dropzone {
+    border: 2px dashed var(--theme-border);
+    border-radius: 0.75rem;
+    background: var(--theme-surface-muted);
+    color: var(--theme-text-muted);
+    padding: 1.25rem 1rem;
+    text-align: center;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.files-dropzone.is-dragover {
+    border-color: var(--theme-primary);
+    background: rgba(var(--theme-primary-rgb), 0.08);
+}
+
+.files-upload-list {
+    text-align: left;
+}
+
+.files-upload-item + .files-upload-item {
+    margin-top: 0.5rem;
+}
+
+.files-upload-progress,
+.files-quota-bar {
+    height: 0.4rem;
+}
+
+/* Breite aus --progress-value, gesetzt vom JS (Upload) bzw. Twig (Kontingent). */
+.files-upload-progress .progress-bar,
+.files-quota-fill {
+    width: var(--progress-value, 0%);
+}
+
+.files-quota {
+    max-width: 22rem;
+}
+
+.files-root-card {
+    color: var(--theme-text);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.files-root-card:hover,
+.files-root-card:focus-visible {
+    box-shadow: var(--theme-shadow);
+    transform: translateY(-1px);
+}
+
+.files-name {
+    color: var(--theme-text);
+    text-decoration: none;
+    word-break: break-word;
+}
+
+.files-name:hover,
+.files-name:focus-visible {
+    text-decoration: underline;
+}
+
+.files-search-form {
+    min-width: 12rem;
+}
+
+.files-header-main {
+    min-width: 0;
+}

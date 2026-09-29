@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\FileFavorite;
+use App\Models\FileFolder;
+use App\Models\FileFolderShare;
+use App\Services\Files\FileActor;
+use App\Services\Files\FileFolderService;
+use App\Services\Files\FileService;
+use App\Models\StoredFile;
+use App\Services\Files\LocalFileStorage;
+use Slim\Psr7\UploadedFile;
 use App\Models\AppSetting;
 use App\Models\Activity;
 use App\Models\Attendance;
@@ -88,8 +97,12 @@ class DevSeedService
     private const DEV_SEED_CODE_VERIFIER = 'dev-seed-code-verifier-0123456789abcdef';
     private const ACTIVE_USER_TARGET = 80;
 
-    public function __construct(private readonly BackupService $backupService)
-    {
+    public function __construct(
+        private readonly BackupService $backupService,
+        private readonly FileService $fileService,
+        private readonly FileFolderService $fileFolderService,
+        private readonly LocalFileStorage $fileStorage
+    ) {
     }
 
     /** @var array<string,int> */
@@ -194,6 +207,12 @@ class DevSeedService
                 'oidc_clients' => 0,
                 'oidc_auth_codes' => 0,
                 'oidc_access_tokens' => 0,
+                'file_folders' => 0,
+                'files' => 0,
+                'file_versions' => 0,
+                'file_folder_shares' => 0,
+                'file_favorites' => 0,
+                'files_trashed' => 0,
                 'backups' => 0,
             ],
         ];
@@ -251,6 +270,8 @@ class DevSeedService
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
             $this->seedSponsorAttachments($sponsors, $sponsorships);
             $this->seedNewsletters($projects, $users['active']);
+            // Nach Rollen, Stimmgruppen und Projekten: Die Freigaben zeigen auf sie.
+            $this->seedFileManagement($roles, $voiceData, $projects, $users['active']);
             $this->seedMailQueue($users['active']);
             $this->seedUserMailAccounts($users['active'], new MailCredentialCryptoService());
             $this->seedAuthData($users['all']);
@@ -289,6 +310,11 @@ class DevSeedService
         $connection->statement('SET FOREIGN_KEY_CHECKS=0');
 
         $tables = [
+            'file_favorites',
+            'file_folder_shares',
+            'file_versions',
+            'files',
+            'file_folders',
             'event_registrations',
             'attendance',
             'activities',
@@ -353,6 +379,12 @@ class DevSeedService
 
         $connection->statement('SET FOREIGN_KEY_CHECKS=1');
 
+        // Die Dateien der Dateiverwaltung liegen auf der Platte; ohne Datenbankzeilen
+        // wären sie nach dem Reset nur noch verwaister Ballast.
+        foreach (iterator_to_array($this->fileStorage->allPaths(), false) as $path) {
+            $this->fileStorage->delete($path);
+        }
+
         foreach ($this->backupService->list() as $backup) {
             $this->backupService->delete($backup['id']);
         }
@@ -383,6 +415,7 @@ class DevSeedService
                 'can_manage_tasks' => 1,
                 'can_manage_sheet_archive' => 1,
                 'can_manage_backups' => 1,
+                'can_manage_files' => 1,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
             ],
@@ -2142,6 +2175,190 @@ class DevSeedService
 
             if ($model->wasRecentlyCreated) {
                 $this->report['counts']['app_settings']++;
+            }
+        }
+    }
+
+    /**
+     * Teamordner mit allen fünf Freigabearten, Unterordnern, mehreren Versionen,
+     * Papierkorb-Einträgen und Favoriten. Hochgeladen wird über FileService, damit
+     * die Dateien wirklich in der Ablage liegen und ins Backup kommen.
+     *
+     * Bereits vorhandene Teamordner (Modus append) bleiben unangetastet.
+     *
+     * @param array<string, Role> $roles
+     * @param array{groups: array<string, VoiceGroup>, subs: array<string, mixed>} $voiceData
+     * @param array<Project> $projects
+     * @param array<User> $activeUsers
+     */
+    private function seedFileManagement(array $roles, array $voiceData, array $projects, array $activeUsers): void
+    {
+        if ($activeUsers === []) {
+            return;
+        }
+
+        $adminUser = $activeUsers[0];
+        $admin = new FileActor((int) $adminUser->id, true);
+
+        $upload = function (FileFolder $folder, string $name, array $fixture) use ($admin): void {
+            $temp = tempnam(sys_get_temp_dir(), 'seed');
+            file_put_contents($temp, $fixture['content']);
+            try {
+                $result = $this->fileService->upload(
+                    $admin,
+                    $folder,
+                    new UploadedFile($temp, $name, $fixture['mime_type'], strlen($fixture['content']), UPLOAD_ERR_OK)
+                );
+            } finally {
+                @unlink($temp);
+            }
+            $this->report['counts']['file_versions']++;
+            if (!$result->isNewVersion) {
+                $this->report['counts']['files']++;
+            }
+        };
+
+        $root = function (string $name, ?int $quotaMb, array $shares) use ($admin): ?FileFolder {
+            if (FileFolder::withTrashed()->whereNull('parent_id')->where('name', $name)->exists()) {
+                return null;
+            }
+            $folder = $this->fileFolderService->createRoot($admin, $name, $quotaMb === null ? null : $quotaMb << 20);
+            $this->report['counts']['file_folders']++;
+            $this->fileFolderService->setShares($admin, $folder, $shares);
+            $this->report['counts']['file_folder_shares'] += count($shares);
+
+            return $folder;
+        };
+
+        $child = function (FileFolder $parent, string $name, array $shares = []) use ($admin): FileFolder {
+            $folder = $this->fileFolderService->create($admin, $parent, $name);
+            $this->report['counts']['file_folders']++;
+            if ($shares !== []) {
+                $this->fileFolderService->setShares($admin, $folder, $shares);
+                $this->report['counts']['file_folder_shares'] += count($shares);
+            }
+
+            return $folder;
+        };
+
+        $pdf = static fn (string $caption): array => DevSeedAttachmentFixtures::pdf($caption);
+
+        $share = static fn (string $type, int $referenceId, int $level): array => [
+            'type' => $type,
+            'reference_id' => $referenceId,
+            'level' => $level,
+        ];
+
+        // Noten und Übe-Material: alle lesen, Chorleitung pflegt, jede Stimmgruppe
+        // lädt in ihren eigenen Ordner hoch.
+        $leadRole = $roles['Chorleitung'] ?? null;
+        $notes = $root('Noten & Übe-Material', 500, array_values(array_filter([
+            $share(FileFolderShare::TYPE_ALL_MEMBERS, 0, FileFolderShare::LEVEL_READ),
+            $leadRole !== null
+                ? $share(FileFolderShare::TYPE_ROLE, (int) $leadRole->id, FileFolderShare::LEVEL_EDIT)
+                : null,
+        ])));
+        if ($notes !== null) {
+            // Nummeriert, damit die alphabetische Ordnerliste Sopran, Alt, Tenor, Bass zeigt.
+            foreach (['Sopran', 'Alt', 'Tenor', 'Bass'] as $position => $voice) {
+                $group = $voiceData['groups'][$voice] ?? null;
+                $folder = $child($notes, ($position + 1) . ' ' . $voice, $group === null ? [] : [
+                    $share(FileFolderShare::TYPE_VOICE_GROUP, (int) $group->id, FileFolderShare::LEVEL_UPLOAD),
+                ]);
+                $upload($folder, "Einsingen {$voice}.mp3", [
+                    'mime_type' => 'audio/mpeg',
+                    'content' => $this->silentMp3(40),
+                ]);
+                $upload($folder, "Stimmauszug {$voice} - Ave verum.pdf", $pdf("Stimmauszug {$voice}"));
+            }
+            $upload($notes, 'Ave verum corpus - Partitur.pdf', $pdf('Partitur Ave verum, Fassung 1'));
+            $upload($notes, 'Ave verum corpus - Partitur.pdf', $pdf('Partitur Ave verum, Fassung 2'));
+            $upload($notes, 'Ave verum corpus - Partitur.pdf', $pdf('Partitur Ave verum, Fassung 3'));
+            $upload($notes, 'Aussprache Latein.txt', DevSeedAttachmentFixtures::text(
+                "Ave verum corpus: 'a-ve 've-rum 'kor-pus.\nC vor e und i wie tsch, g vor e und i wie dsch."
+            ));
+        }
+
+        // Vorstand: nur die Rolle, dafür mit Verwaltung.
+        $boardRole = $roles['Vorstand'] ?? null;
+        $board = $root('Vorstand', 200, $boardRole === null ? [] : [
+            $share(FileFolderShare::TYPE_ROLE, (int) $boardRole->id, FileFolderShare::LEVEL_MANAGE),
+        ]);
+        if ($board !== null) {
+            $minutes = $child($board, 'Protokolle');
+            $contracts = $child($board, 'Verträge');
+            foreach (['Jänner', 'März', 'Mai'] as $month) {
+                $upload($minutes, "Vorstandssitzung {$month} " . date('Y') . '.pdf', $pdf("Protokoll {$month}"));
+            }
+            $upload($contracts, 'Mietvertrag Probenraum.pdf', $pdf('Mietvertrag Probenraum'));
+            $upload($contracts, 'Mietvertrag Probenraum.pdf', $pdf('Mietvertrag Probenraum, Nachtrag'));
+
+            $old = $child($board, 'Altes Archiv');
+            $upload($old, 'Kassabericht 2019.txt', DevSeedAttachmentFixtures::text('Kassabericht 2019 - abgelegt.'));
+            $this->fileFolderService->trash($admin, $old);
+            $this->report['counts']['files_trashed']++;
+        }
+
+        // Laufendes Projekt: Projektmitglieder laden Material hoch.
+        $running = null;
+        $today = date('Y-m-d');
+        foreach ($projects as $project) {
+            $start = (string) $project->start_date?->format('Y-m-d');
+            $end = (string) $project->end_date?->format('Y-m-d');
+            if ($start !== '' && $end !== '' && $start <= $today && $end >= $today) {
+                $running = $project;
+                break;
+            }
+        }
+        if ($running !== null) {
+            $projectFolder = $root('Projekt: ' . $running->name, null, [
+                $share(FileFolderShare::TYPE_PROJECT_MEMBERS, (int) $running->id, FileFolderShare::LEVEL_UPLOAD),
+            ]);
+            if ($projectFolder !== null) {
+                $upload($projectFolder, 'Probenplan.txt', DevSeedAttachmentFixtures::text(
+                    "Dienstag 19:00 Tutti\nDonnerstag 19:00 Registerproben\nSamstag 10:00 Generalprobe"
+                ));
+                $upload($projectFolder, 'Plakat Entwurf.png', DevSeedAttachmentFixtures::png('Plakat Entwurf'));
+                $upload($projectFolder, 'Sitzplan Konzert.pdf', $pdf('Sitzplan'));
+            }
+        }
+
+        // Öffentlichkeitsarbeit: einzelnes Mitglied mit Hochladen-Stufe.
+        $helper = $activeUsers[min(5, count($activeUsers) - 1)];
+        $press = $root('Öffentlichkeitsarbeit', 100, array_values(array_filter([
+            $boardRole !== null
+                ? $share(FileFolderShare::TYPE_ROLE, (int) $boardRole->id, FileFolderShare::LEVEL_EDIT)
+                : null,
+            $share(FileFolderShare::TYPE_USER, (int) $helper->id, FileFolderShare::LEVEL_UPLOAD),
+        ])));
+        if ($press !== null) {
+            $photos = $child($press, 'Fotos Frühjahrskonzert');
+            $upload($photos, 'Chorfoto.png', DevSeedAttachmentFixtures::png('Chorfoto'));
+            $upload($press, 'Pressetext Frühjahrskonzert.txt', DevSeedAttachmentFixtures::text(
+                'Der Chor lädt zum Frühjahrskonzert mit Werken von Mozart, Bruckner und Rheinberger.'
+            ));
+            $inPress = static fn (string $name): ?StoredFile => StoredFile::query()
+                ->where('folder_id', $press->id)
+                ->where('name', $name)
+                ->first();
+            $draft = $inPress('Pressetext Frühjahrskonzert.txt');
+            $upload($press, 'Pressetext Entwurf alt.txt', DevSeedAttachmentFixtures::text('Veralteter Entwurf.'));
+            $oldDraft = $inPress('Pressetext Entwurf alt.txt');
+            if ($oldDraft !== null) {
+                $this->fileService->trashFile($admin, $oldDraft);
+                $this->report['counts']['files_trashed']++;
+            }
+
+            // Favoriten: das Admin-Konto und das helfende Mitglied heften an.
+            foreach ([[$adminUser, $notes], [$helper, $press]] as [$user, $folder]) {
+                if ($folder !== null) {
+                    FileFavorite::firstOrCreate(['user_id' => (int) $user->id, 'folder_id' => (int) $folder->id]);
+                    $this->report['counts']['file_favorites']++;
+                }
+            }
+            if ($draft !== null) {
+                FileFavorite::firstOrCreate(['user_id' => (int) $helper->id, 'file_id' => (int) $draft->id]);
+                $this->report['counts']['file_favorites']++;
             }
         }
     }

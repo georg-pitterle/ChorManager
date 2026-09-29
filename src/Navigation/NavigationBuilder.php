@@ -236,6 +236,14 @@ final class NavigationBuilder
                         'visible' => $always,
                     ],
                     [
+                        'label' => 'Dateien',
+                        'url' => '/files',
+                        'icon' => 'bi-folder2-open',
+                        'prefixes' => ['/files'],
+                        'navKeys' => ['files'],
+                        'visible' => static fn(NavigationContext $c): bool => $c->module('files'),
+                    ],
+                    [
                         'label' => 'Meine Newsletter',
                         'url' => '/newsletters/archive',
                         'icon' => 'bi-envelope',

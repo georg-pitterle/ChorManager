@@ -146,4 +146,41 @@ class BackupController
             )
             ->withHeader('Content-Length', (string) $file['size']);
     }
+
+    /**
+     * Die gesicherten Dateien der Dateiverwaltung. Das Archiv entsteht erst auf
+     * Anforderung in einer Temp-Datei und verschwindet nach dem Ausliefern.
+     */
+    public function downloadFiles(Request $request, Response $response, array $args): Response
+    {
+        $id = (string) $args['id'];
+
+        try {
+            $archive = $this->backupService->getFilesArchive($id);
+        } catch (\Throwable) {
+            $archive = null;
+        }
+        if ($archive === null) {
+            $response->getBody()->write('Zu diesem Backup gibt es keine gesicherten Dateien.');
+            return $response->withStatus(404);
+        }
+
+        $stream = fopen($archive['path'], 'rb');
+        if ($stream === false) {
+            return $response->withStatus(404);
+        }
+        // Geöffnet bleibt der Inhalt lesbar; der Verzeichniseintrag darf schon weg.
+        @unlink($archive['path']);
+        $safeName = DownloadFileName::sanitize($archive['filename']);
+
+        return $response
+            ->withBody(new Stream($stream))
+            ->withHeader('Content-Type', 'application/gzip')
+            ->withHeader(
+                'Content-Disposition',
+                'attachment; filename="' . $safeName . '"'
+                    . '; filename*=UTF-8\'\'' . rawurlencode($safeName)
+            )
+            ->withHeader('Content-Length', (string) $archive['size']);
+    }
 }

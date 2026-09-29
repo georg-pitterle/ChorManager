@@ -250,8 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    function render(mime, id, name) {
-        const previewUrl = '/attachments/' + encodeURIComponent(id) + '/preview';
+    function render(mime, previewUrl, name) {
         clearBody();
 
         if (mime.indexOf('image/') === 0) {
@@ -295,9 +294,15 @@ document.addEventListener('DOMContentLoaded', function () {
         title.textContent = name;
         const sizeText = formatSize(size);
         meta.textContent = sizeText ? rawMime + ' · ' + sizeText : rawMime;
-        downloadLink.setAttribute('href', '/attachments/' + encodeURIComponent(id) + '/download');
+        // Die Dateiverwaltung liefert über eigene Adressen aus; Anhänge über
+        // die gemeinsame. Ohne Angabe gilt weiter die Anhang-Adresse.
+        const previewUrl = trigger.getAttribute('data-preview-url')
+            || '/attachments/' + encodeURIComponent(id) + '/preview';
+        const downloadUrl = trigger.getAttribute('data-download-url')
+            || '/attachments/' + encodeURIComponent(id) + '/download';
+        downloadLink.setAttribute('href', downloadUrl);
 
-        render(mime, id, name);
+        render(mime, previewUrl, name);
 
         window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
     });

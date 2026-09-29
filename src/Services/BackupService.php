@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Files\FileBackupInterface;
 use Psr\Log\LoggerInterface;
 
 class BackupService
@@ -30,7 +31,13 @@ class BackupService
          * eine ganze Sekunde vergehen, damit sie sich unterscheiden. Sechs solche
          * Wartezeiten kosteten den Testlauf knapp sieben Sekunden.
          */
-        private readonly ?\Closure $clock = null
+        private readonly ?\Closure $clock = null,
+        /**
+         * Dateien der Dateiverwaltung. Sie liegen nicht in der Datenbank und
+         * wären ohne diesen Teil nach einem Restore verloren. Ohne Angabe
+         * sichert der Dienst wie bisher nur die Datenbank.
+         */
+        private readonly ?FileBackupInterface $fileBackup = null
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
@@ -50,6 +57,9 @@ class BackupService
         $entries = [];
 
         foreach (glob($this->backupDir . '/*.json') ?: [] as $metaPath) {
+            if (str_ends_with($metaPath, '.files.json')) {
+                continue;
+            }
             $decoded = json_decode((string) file_get_contents($metaPath), true);
             if (!is_array($decoded) || !isset($decoded['id'], $decoded['type'], $decoded['created_at'])) {
                 continue;
@@ -115,11 +125,19 @@ class BackupService
 
         $this->logger->debug('Starting backup creation.', ['event' => 'backup.create.start', 'type' => $type]);
 
+        $fileStats = null;
         try {
+            $preparedFiles = $this->fileBackup?->prepare($this->backupDir) ?? [];
             $this->dumpRunner->dump($dataPath, $this->gzip);
+            $fileStats = $this->fileBackup?->finalize($this->backupDir, $base, $preparedFiles);
         } catch (\Throwable $exception) {
             if (file_exists($dataPath)) {
                 unlink($dataPath);
+            }
+            // Ein halbes Backup ist schlimmer als keins: ohne passendes Manifest
+            // fehlten beim Restore die Dateien, ohne es zu merken.
+            if ($this->fileBackup !== null) {
+                $this->fileBackup->forget($this->backupDir, $base);
             }
             $this->logger->error('Backup creation failed.', [
                 'event' => 'backup.create.failed',
@@ -141,6 +159,11 @@ class BackupService
             'mail_key_id' => $this->mailKeyId,
             'gzip' => $this->gzip,
         ];
+        if ($fileStats !== null) {
+            $metadata['files_count'] = $fileStats['count'];
+            $metadata['files_bytes'] = $fileStats['bytes'];
+            $metadata['files_missing'] = $fileStats['missing'];
+        }
 
         file_put_contents($metaPath, (string) json_encode($metadata, JSON_PRETTY_PRINT));
 
@@ -170,8 +193,34 @@ class BackupService
             unlink($dataPath);
         }
         unlink($metaPath);
+        $this->fileBackup?->forget($this->backupDir, $id);
 
         $this->logger->info('Backup deleted.', ['event' => 'backup.delete', 'id' => $id]);
+    }
+
+    /**
+     * Die gesicherten Dateien eines Backups als .tar.gz (Temp-Datei, der
+     * Aufrufer löscht sie nach dem Ausliefern), oder null ohne Dateisicherung.
+     *
+     * @return array{path:string,filename:string,size:int}|null
+     */
+    public function getFilesArchive(string $id): ?array
+    {
+        $this->assertValidId($id);
+        if (!file_exists($this->backupDir . '/' . $id . '.json')) {
+            throw new \RuntimeException('Backup not found: ' . $id);
+        }
+
+        $path = $this->fileBackup?->archive($this->backupDir, $id);
+        if ($path === null) {
+            return null;
+        }
+
+        return [
+            'path' => $path,
+            'filename' => $id . '_files.tar.gz',
+            'size' => (int) filesize($path),
+        ];
     }
 
     /**
@@ -229,10 +278,16 @@ class BackupService
             throw new \RuntimeException('Backup file integrity check failed: ' . $id);
         }
 
+        // Die Dateien werden vor dem Einspielen geprüft, nicht danach: Stellt sich
+        // erst nach dem Restore heraus, dass Dateien fehlen, zeigt die Datenbank
+        // schon auf sie.
+        $this->fileBackup?->verify($this->backupDir, $id);
+
         $this->logger->info('Starting backup restore.', ['event' => 'backup.restore.start', 'id' => $id]);
 
         try {
             $this->dumpRunner->restore($dataPath, (bool) ($metadata['gzip'] ?? true));
+            $this->fileBackup?->restore($this->backupDir, $id);
         } catch (\Throwable $exception) {
             $this->logger->error('Backup restore failed.', [
                 'event' => 'backup.restore.failed',

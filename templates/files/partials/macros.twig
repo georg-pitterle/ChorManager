@@ -1,0 +1,58 @@
+{# Kleine Helfer der Dateiverwaltung. #}
+
+{% macro size(bytes) %}
+    {%- if bytes is null -%}
+        –
+    {%- elseif bytes >= 1073741824 -%}
+        {{ (bytes / 1073741824)|number_format(1, ",", ".") }} GB
+    {%- elseif bytes >= 1048576 -%}
+        {{ (bytes / 1048576)|number_format(1, ",", ".") }} MB
+    {%- elseif bytes >= 1024 -%}
+        {{ (bytes / 1024)|number_format(0, ",", ".") }} KB
+    {%- else -%}
+        {{ bytes }} B
+    {%- endif -%}
+{% endmacro %}
+
+{% macro icon(mime) %}
+    {%- set _mime = mime|default("") -%}
+    {%- if _mime starts with "image/" -%}
+        bi-file-earmark-image
+    {%- elseif _mime starts with "audio/" -%}
+        bi-file-earmark-music
+    {%- elseif _mime starts with "video/" -%}
+        bi-file-earmark-play
+    {%- elseif _mime == "application/pdf" -%}
+        bi-file-earmark-pdf
+    {%- elseif _mime == "application/zip" -%}
+        bi-file-earmark-zip
+    {%- elseif "spreadsheet" in _mime or "excel" in _mime -%}
+        bi-file-earmark-spreadsheet
+    {%- elseif "word" in _mime or "opendocument.text" in _mime -%}
+        bi-file-earmark-word
+    {%- elseif _mime starts with "text/" -%}
+        bi-file-earmark-text
+    {%- else -%}
+        bi-file-earmark
+    {%- endif -%}
+{% endmacro %}
+
+{% macro quota_bar(used, quota) %}
+    {% if quota %}
+        {% set _percent = min(100, (used / quota * 100)|round) %}
+        {% set _state = _percent >= 90 ? "bg-danger" : (_percent >= 75 ? "bg-warning" : "bg-success") %}
+        <div class="files-quota" title="{{ _percent }} % belegt">
+            <div class="progress files-quota-bar"
+                 role="progressbar"
+                 aria-label="Speicherbelegung"
+                 aria-valuenow="{{ _percent }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+                <div class="progress-bar files-quota-fill {{ _state }}" style="--progress-value: {{ _percent }}%"></div>
+            </div>
+            <small class="text-muted">{{ _self.size(used) }} von {{ _self.size(quota) }}</small>
+        </div>
+    {% else %}
+        <small class="text-muted">{{ _self.size(used) }} belegt</small>
+    {% endif %}
+{% endmacro %}

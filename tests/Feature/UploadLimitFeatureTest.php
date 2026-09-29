@@ -40,7 +40,11 @@ class UploadLimitFeatureTest extends TestCase
      * selbst ein. Geprüft wird deshalb, dass jeder Weg in mindestens einer Liste
      * steht - nicht in genau einer.
      *
-     * @return array{0: list<string>, 1: list<string>}
+     * Dritte Art: Die Dateiverwaltung hat einen eigenen Dienst (FileService), weil
+     * ihre Dateien auf der Platte statt in `attachments` liegen. Der Dienst ruft
+     * die Abbildung selbst auf und steht deshalb in der ersten Liste.
+     *
+     * @return array{0: list<string>, 1: list<string>, 2: list<string>}
      */
     private function uploadPaths(): array
     {
@@ -54,6 +58,8 @@ class UploadLimitFeatureTest extends TestCase
                 $root . '/src/Controllers/FinanceController.php',
                 // Der Dienst selbst, für alle delegierenden Wege unten.
                 $root . '/src/Services/EntityAttachmentService.php',
+                // Dienst der Dateiverwaltung, für die dritte Liste.
+                $root . '/src/Services/Files/FileService.php',
             ],
             // Laden über EntityAttachmentService::storeUploads() hoch.
             [
@@ -64,7 +70,26 @@ class UploadLimitFeatureTest extends TestCase
                 $root . '/src/Controllers/SponsorshipController.php',
                 $root . '/src/Controllers/TaskController.php',
             ],
+            // Laden über FileService::upload() hoch (Dateiverwaltung).
+            [
+                $root . '/src/Controllers/FileController.php',
+            ],
         ];
+    }
+
+    public function testFileManagementControllersGoThroughFileService(): void
+    {
+        [, , $viaFileService] = $this->uploadPaths();
+
+        foreach ($viaFileService as $path) {
+            $content = file_get_contents($path);
+            $this->assertIsString($content, $path);
+            $this->assertStringContainsString(
+                '$this->files->upload(',
+                $content,
+                basename($path) . ' soll über FileService hochladen.'
+            );
+        }
     }
 
     public function testUploadControllersUseCentralUploadErrorMapping(): void
@@ -104,8 +129,8 @@ class UploadLimitFeatureTest extends TestCase
      */
     public function testEveryUploadPathIsListedAtLeastOnce(): void
     {
-        [$ownHandling, $delegating] = $this->uploadPaths();
-        $all = array_values(array_unique([...$ownHandling, ...$delegating]));
+        [$ownHandling, $delegating, $viaFileService] = $this->uploadPaths();
+        $all = array_values(array_unique([...$ownHandling, ...$delegating, ...$viaFileService]));
 
         foreach ($all as $path) {
             $this->assertFileExists($path);

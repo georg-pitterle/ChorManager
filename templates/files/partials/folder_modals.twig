@@ -1,0 +1,175 @@
+{# Modals der Ordnerseite. Umbenennen und Verschieben teilen sich je ein Modal;
+   public/js/file-manager.js setzt Ziel-Adresse und Namen beim Öffnen. #}
+
+{% if can_upload %}
+    <div class="modal fade" id="filesNewFolderModal" tabindex="-1" aria-labelledby="filesNewFolderTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/folders">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="filesNewFolderTitle">Neuer Ordner</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="filesNewFolderName">Name</label>
+                    <input class="form-control" id="filesNewFolderName" name="name" maxlength="255" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+{% if can_edit %}
+    <div class="modal fade" id="filesRenameModal" tabindex="-1" aria-labelledby="filesRenameTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" action="" data-files-rename-form>
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="filesRenameTitle">Umbenennen</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="filesRenameName">Neuer Name</label>
+                    <input class="form-control" id="filesRenameName" name="name" maxlength="255" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="filesMoveModal" tabindex="-1" aria-labelledby="filesMoveTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" action="" data-files-move-form>
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="filesMoveTitle">Verschieben</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="filesMoveTarget">Zielordner</label>
+                    <select class="form-select" id="filesMoveTarget" name="target_id" required>
+                        {% for target in move_targets %}
+                            <option value="{{ target.id }}" {{ target.id == folder.id ? "selected" : "" }}>
+                                {{ target.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Angezeigt werden alle Ordner, in denen du bearbeiten darfst.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Verschieben</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+<div class="modal fade" id="filesVersionsModal" tabindex="-1" aria-labelledby="filesVersionsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="filesVersionsTitle">Versionen</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" data-files-versions-body data-csrf="{{ csrf_token }}">
+                <p class="text-muted mb-0">Wird geladen …</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if can_manage %}
+    <div class="modal fade" id="filesSharesModal" tabindex="-1" aria-labelledby="filesSharesTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/shares" data-files-shares-form>
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="filesSharesTitle">Freigaben für „{{ folder.name }}“</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted">
+                        Unterordner übernehmen diese Freigaben und können sie nur erweitern.
+                        Lesen: ansehen und herunterladen. Hochladen: zusätzlich neue Dateien und Ordner.
+                        Bearbeiten: zusätzlich ersetzen, umbenennen, verschieben, löschen.
+                        Verwalten: zusätzlich Freigaben ändern und den Papierkorb leeren.
+                    </p>
+                    {% if inherited_shares is not empty %}
+                        <div class="alert alert-light border small">
+                            <strong>Geerbt:</strong>
+                            {% for entry in inherited_shares %}
+                                <div>
+                                    {{ entry.folder }}:
+                                    {% for share in entry.shares %}
+                                        {{ share.label }} ({{ level_labels[share.level] }}){{ not loop.last ? ", " : "" }}
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div data-files-share-rows>
+                        {% for share in shares %}
+                            {{ include("files/partials/share_row.twig", {
+                                index: loop.index0,
+                                selected_target: share.type ~ ":" ~ share.reference_id,
+                                selected_level: share.level,
+                            }) }}
+                        {% endfor %}
+                    </div>
+                    <template data-files-share-template>
+                        {{ include("files/partials/share_row.twig", {
+                            index: "__INDEX__",
+                            selected_target: "",
+                            selected_level: 1,
+                        }) }}
+                    </template>
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-files-share-add>
+                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Freigabe hinzufügen
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+{% if is_root and is_file_admin %}
+    <div class="modal fade" id="filesQuotaModal" tabindex="-1" aria-labelledby="filesQuotaTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/quota">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="filesQuotaTitle">Kontingent</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="filesQuotaValue">Kontingent in MB</label>
+                    <input class="form-control"
+                           id="filesQuotaValue"
+                           name="quota_mb"
+                           type="number"
+                           min="1"
+                           step="1"
+                           value="{{ folder.quota_bytes ? (folder.quota_bytes / 1048576)|round : "" }}"
+                           placeholder="leer = unbegrenzt">
+                    <div class="form-text">Zählt alle Versionen und den Papierkorb mit.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}

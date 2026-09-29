@@ -53,6 +53,13 @@ mkdir -p "${BACKUP_DIR}"
 chown -R www-data:www-data "${BACKUP_DIR}"
 chmod 750 "${BACKUP_DIR}"
 
+# Stored files of the file management module. Same reasoning as the backup
+# directory: a fresh named volume arrives as root:root.
+FILES_STORAGE_PATH="${FILES_STORAGE_PATH:-/var/www/html/var/files}"
+mkdir -p "${FILES_STORAGE_PATH}"
+chown -R www-data:www-data "${FILES_STORAGE_PATH}"
+chmod 750 "${FILES_STORAGE_PATH}"
+
 # PHP keeps session files in the container's writable layer by default, so every
 # image update or recreate logs every user out. SESSION_SAVE_PATH moves them into
 # a named volume; like the backup volume it arrives as root:root, so it has to be
@@ -78,6 +85,10 @@ registration_reminder_worker_pid=$!
 /usr/local/bin/notification-reminder-worker.sh &
 notification_reminder_worker_pid=$!
 
+# Leert abgelaufene Papierkorb-Einträge der Dateiverwaltung; ohne das Modul ein No-op.
+/usr/local/bin/file-trash-worker.sh &
+file_trash_worker_pid=$!
+
 php-fpm -F &
 php_fpm_pid=$!
 
@@ -87,6 +98,7 @@ shutdown() {
   kill "${mail_queue_worker_pid}" 2>/dev/null || true
   kill "${registration_reminder_worker_pid}" 2>/dev/null || true
   kill "${notification_reminder_worker_pid}" 2>/dev/null || true
+  kill "${file_trash_worker_pid}" 2>/dev/null || true
   kill "${php_fpm_pid}" 2>/dev/null || true
 }
 

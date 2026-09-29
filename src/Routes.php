@@ -46,6 +46,10 @@ use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
 use App\Controllers\DownloadController;
 use App\Controllers\WebdavController;
+use App\Controllers\FileBrowserController;
+use App\Controllers\FileController;
+use App\Controllers\FileFolderController;
+use App\Controllers\FileTrashController;
 use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
 use App\Controllers\Oidc\TokenController;
@@ -237,6 +241,52 @@ return function (App $app) {
             // Download section for project members
             $group->get('/downloads', [DownloadController::class, 'index']);
             $group->post('/downloads/webdav-token', [DownloadController::class, 'rotateWebdavToken']);
+
+            // Dateiverwaltung (Teamordner). Ohne RoleMiddleware: Wer was darf, hängt
+            // an den Freigaben des einzelnen Ordners, und die prüfen die Services.
+            // Nur das Anlegen von Teamordnern ist an das Rollenrecht gebunden.
+            if ($settings['modules']['files'] ?? false) {
+                $group->group(
+                    '/files',
+                    function (RouteCollectorProxy $files) {
+                        $files->get('', [FileBrowserController::class, 'index']);
+                        $files->get('/search', [FileBrowserController::class, 'search']);
+                        $files->get('/folders/{id:[0-9]+}', [FileBrowserController::class, 'folder']);
+                        $files->post('/folders/{id:[0-9]+}/upload', [FileController::class, 'upload']);
+                        $files->post('/folders/{id:[0-9]+}/folders', [FileFolderController::class, 'create']);
+                        $files->post('/folders/{id:[0-9]+}/rename', [FileFolderController::class, 'rename']);
+                        $files->post('/folders/{id:[0-9]+}/move', [FileFolderController::class, 'move']);
+                        $files->post('/folders/{id:[0-9]+}/delete', [FileFolderController::class, 'delete']);
+                        $files->post('/folders/{id:[0-9]+}/shares', [FileFolderController::class, 'shares']);
+                        $files->get('/folders/{id:[0-9]+}/zip', [FileFolderController::class, 'zip']);
+                        $files->get('/{id:[0-9]+}/download', [FileController::class, 'download']);
+                        $files->get('/{id:[0-9]+}/preview', [FileController::class, 'preview']);
+                        $files->get('/{id:[0-9]+}/versions', [FileController::class, 'versions']);
+                        $files->post('/{id:[0-9]+}/rename', [FileController::class, 'rename']);
+                        $files->post('/{id:[0-9]+}/move', [FileController::class, 'move']);
+                        $files->post('/{id:[0-9]+}/delete', [FileController::class, 'delete']);
+                        $files->get('/versions/{id:[0-9]+}/download', [FileController::class, 'downloadVersion']);
+                        $files->post('/versions/{id:[0-9]+}/restore', [FileController::class, 'restoreVersion']);
+                        $files->post('/favorites', [FileController::class, 'toggleFavorite']);
+                        $files->get('/trash', [FileTrashController::class, 'index']);
+                        $files->post(
+                            '/trash/{type:file|folder}/{id:[0-9]+}/restore',
+                            [FileTrashController::class, 'restore']
+                        );
+                        $files->post(
+                            '/trash/{type:file|folder}/{id:[0-9]+}/purge',
+                            [FileTrashController::class, 'purge']
+                        );
+                    }
+                );
+                $group->group(
+                    '/files',
+                    function (RouteCollectorProxy $filesAdmin) {
+                        $filesAdmin->post('/roots', [FileFolderController::class, 'createRoot']);
+                        $filesAdmin->post('/folders/{id:[0-9]+}/quota', [FileFolderController::class, 'quota']);
+                    }
+                )->add(new RoleMiddleware(requiresFilesManagement: true));
+            }
 
             // Help pages (Markdown guides under help/) - accessible for all logged-in users,
             // independent of tenant modules/roles.
@@ -744,6 +794,10 @@ return function (App $app) {
                     $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/restore', [BackupController::class, 'restore']);
                     $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/delete', [BackupController::class, 'delete']);
                     $backupGroup->get('/backups/{id:[A-Za-z0-9_]+}/download', [BackupController::class, 'download']);
+                    $backupGroup->get(
+                        '/backups/{id:[A-Za-z0-9_]+}/download-files',
+                        [BackupController::class, 'downloadFiles']
+                    );
                 }
             )->add(new RoleMiddleware(requiresBackupManagement: true));
 

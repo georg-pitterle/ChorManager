@@ -40,6 +40,7 @@
     <div class="alert alert-warning">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         Eine Wiederherstellung überschreibt die gesamte Datenbank und beendet alle aktiven Sitzungen, auch Ihre eigene.
+        Gesicherte Dateien der Dateiverwaltung werden dabei zurückgeschrieben.
     </div>
 
     <div class="table-responsive">
@@ -49,6 +50,7 @@
                     <th scope="col">Typ</th>
                     <th scope="col">Erstellt am</th>
                     <th scope="col">Größe</th>
+                    <th scope="col">Dateien</th>
                     <th scope="col">Aktionen</th>
                 </tr>
             </thead>
@@ -64,11 +66,28 @@
                         </td>
                         <td data-label="Erstellt am">{{ backup.created_at }}</td>
                         <td data-label="Größe">{{ (backup.size / 1024 / 1024)|round(2) }} MB</td>
+                        <td data-label="Dateien">
+                            {% if backup.files_count is defined %}
+                                {{ backup.files_count }} ({{ (backup.files_bytes / 1024 / 1024)|round(1) }} MB)
+                                {% if backup.files_missing|default(0) > 0 %}
+                                    <span class="badge bg-warning text-dark" title="Beim Sichern nicht gefunden">
+                                        {{ backup.files_missing }} fehlend
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">nur Datenbank</span>
+                            {% endif %}
+                        </td>
                         <td data-label="Aktionen">
                             <div class="btn-group" role="group" aria-label="Backup-Aktionen">
                                 <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download">
                                     <i class="bi bi-download"></i> Download
                                 </a>
+                                {% if backup.files_count is defined %}
+                                    <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download-files">
+                                        <i class="bi bi-folder2"></i> Dateien
+                                    </a>
+                                {% endif %}
                                 <button type="button"
                                         class="btn btn-sm btn-outline-warning restore-backup-btn"
                                         data-bs-toggle="modal"
@@ -88,7 +107,7 @@
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-4 text-muted">Keine Backups vorhanden.</td>
+                        <td colspan="5" class="text-center py-4 text-muted">Keine Backups vorhanden.</td>
                     </tr>
                 {% endfor %}
             </tbody>

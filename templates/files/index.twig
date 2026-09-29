@@ -1,0 +1,132 @@
+{% extends "layout.twig" %}
+{% import "files/partials/macros.twig" as files_ui %}
+
+{% block title %}
+    Dateien - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <p class="text-uppercase text-muted small mb-1">Bereiche</p>
+            <h1 class="h2 mb-1">Dateien</h1>
+            <p class="text-muted mb-0">Teamordner mit Noten, Aufnahmen und Unterlagen.</p>
+        </div>
+        <div class="page-actions">
+            {{ include("files/partials/search_form.twig", {term: ""}, false) }}
+            <a class="btn btn-outline-secondary btn-sm" href="/files/trash">
+                <i class="bi bi-trash3 me-1" aria-hidden="true"></i> Papierkorb
+            </a>
+            {% if is_file_admin %}
+                <button type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#filesCreateRootModal">
+                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Teamordner anlegen
+                </button>
+            {% endif %}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if is_file_admin and total_used_bytes is not null %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 mb-2">Gesamter Speicher</h2>
+                {{ files_ui.quota_bar(total_used_bytes, total_quota_bytes) }}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if favorites.folders is not empty or favorites.files is not empty %}
+        <h2 class="h5 mb-3"><i class="bi bi-star-fill text-warning me-1" aria-hidden="true"></i> Favoriten</h2>
+        <div class="list-group mb-4">
+            {% for folder in favorites.folders %}
+                <a class="list-group-item list-group-item-action" href="/files/folders/{{ folder.id }}">
+                    <i class="bi bi-folder-fill text-warning me-2" aria-hidden="true"></i>{{ folder.name }}
+                </a>
+            {% endfor %}
+            {% for file in favorites.files %}
+                <a class="list-group-item list-group-item-action" href="/files/folders/{{ file.folder_id }}">
+                    <i class="bi {{ files_ui.icon(file.mime_type) }} me-2" aria-hidden="true"></i>{{ file.name }}
+                    <small class="text-muted ms-2">{{ files_ui.size(file.size) }}</small>
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <h2 class="h5 mb-3">Teamordner</h2>
+    {% if roots is empty %}
+        <div class="alert alert-info">
+            {% if is_file_admin %}
+                Noch keine Teamordner. Lege den ersten an und gib ihn an Rollen, Stimmgruppen oder Mitglieder frei.
+            {% else %}
+                Für dich ist noch kein Teamordner freigegeben.
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="row g-3 mb-4">
+            {% for root in roots %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a class="card h-100 files-root-card text-decoration-none" href="/files/folders/{{ root.folder.id }}">
+                        <div class="card-body">
+                            <h3 class="h6 card-title mb-2">
+                                <i class="bi bi-folder2-open text-warning me-1" aria-hidden="true"></i>
+                                {{ root.folder.name }}
+                            </h3>
+                            {{ files_ui.quota_bar(root.used_bytes, root.quota_bytes) }}
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if shared is not empty %}
+        <h2 class="h5 mb-3">Mit mir geteilt</h2>
+        <div class="list-group mb-4">
+            {% for entry in shared %}
+                <a class="list-group-item list-group-item-action" href="/files/folders/{{ entry.folder.id }}">
+                    <i class="bi bi-folder-symlink text-warning me-2" aria-hidden="true"></i>{{ entry.folder.name }}
+                    <small class="text-muted ms-2">{{ entry.path|column("name")|slice(0, -1)|join(" / ") }}</small>
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if is_file_admin %}
+        <div class="modal fade" id="filesCreateRootModal" tabindex="-1" aria-labelledby="filesCreateRootTitle" aria-hidden="true">
+            <div class="modal-dialog">
+                <form class="modal-content" method="post" action="/files/roots">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <div class="modal-header">
+                        <h2 class="modal-title h5" id="filesCreateRootTitle">Teamordner anlegen</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="filesRootName">Name</label>
+                            <input class="form-control" id="filesRootName" name="name" maxlength="255" required>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="filesRootQuota">Kontingent in MB</label>
+                            <input class="form-control"
+                                   id="filesRootQuota"
+                                   name="quota_mb"
+                                   type="number"
+                                   min="1"
+                                   step="1"
+                                   placeholder="leer = unbegrenzt">
+                            <div class="form-text">Zählt alle Versionen und den Papierkorb mit.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Anlegen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock content %}

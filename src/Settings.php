@@ -56,6 +56,18 @@ return function (ContainerBuilder $containerBuilder) {
                 // hinterlegten Client und Signierschlüssel hätte niemandem
                 // genützt und stünde offen im Netz.
                 'oidc'          => EnvHelper::read('FEATURE_OIDC', 'false') === 'true',
+                'files'         => EnvHelper::read('FEATURE_FILES', 'false') === 'true',
+            ],
+            // Dateiverwaltung: Die Dateien liegen auf der Platte, nicht in der
+            // Datenbank. Das Verzeichnis muss im Betrieb persistent sein.
+            'files' => [
+                'storage_path' => EnvHelper::read('FILES_STORAGE_PATH', __DIR__ . '/../var/files'),
+                'max_upload_bytes' => (int) EnvHelper::read('FILES_MAX_UPLOAD_MB', '90') * 1024 * 1024,
+                'max_versions' => max(1, (int) EnvHelper::read('FILES_MAX_VERSIONS', '10')),
+                'trash_days' => max(1, (int) EnvHelper::read('FILES_TRASH_DAYS', '30')),
+                // 0 heißt: kein Gesamtlimit, nur die Kontingente der Teamordner.
+                'total_quota_bytes' => (int) EnvHelper::read('FILES_TOTAL_QUOTA_MB', '0') * 1024 * 1024,
+                'max_zip_bytes' => (int) EnvHelper::read('FILES_MAX_ZIP_MB', '500') * 1024 * 1024,
             ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),

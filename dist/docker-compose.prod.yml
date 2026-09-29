@@ -27,6 +27,15 @@ x-app-environment: &app-environment
   FEATURE_SPONSORING: ${FEATURE_SPONSORING:-false}
   FEATURE_TASKS: ${FEATURE_TASKS:-false}
   FEATURE_REGISTRATION: ${FEATURE_REGISTRATION:-false}
+  FEATURE_FILES: ${FEATURE_FILES:-false}
+  # Must point into the file_data volume mounted on the app service. Files of
+  # the file management module live only there, not in the database.
+  FILES_STORAGE_PATH: ${FILES_STORAGE_PATH:-/var/lib/chormanager-files}
+  FILES_MAX_UPLOAD_MB: ${FILES_MAX_UPLOAD_MB:-90}
+  FILES_MAX_VERSIONS: ${FILES_MAX_VERSIONS:-10}
+  FILES_TRASH_DAYS: ${FILES_TRASH_DAYS:-30}
+  FILES_TOTAL_QUOTA_MB: ${FILES_TOTAL_QUOTA_MB:-0}
+  FILES_MAX_ZIP_MB: ${FILES_MAX_ZIP_MB:-500}
   MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
   WEBMAIL_SSO_SECRET: ${WEBMAIL_SSO_SECRET:?set in Portainer}
   APP_URL: ${APP_URL:?set in Portainer}
@@ -64,6 +73,9 @@ services:
       - backup_data:${BACKUP_DIR:-/var/backups/chormanager}
       # Keeps login sessions alive across image updates and stack recreations.
       - session_data:${SESSION_SAVE_PATH:-/var/lib/php-sessions}
+      # Stored files of the file management module. Without this volume every
+      # recreate would discard all uploaded files.
+      - file_data:${FILES_STORAGE_PATH:-/var/lib/chormanager-files}
     depends_on:
       db:
         condition: service_healthy 
@@ -224,6 +236,7 @@ volumes:
   snappymail_data:
   backup_data:
   session_data:
+  file_data:
   maintenance_data:
 
 

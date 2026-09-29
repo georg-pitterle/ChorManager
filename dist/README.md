@@ -63,6 +63,13 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `BACKUP_DIR`              | In-app backup directory; must be inside the `backup_data` volume     | `/var/backups/chormanager` | No |
 | `BACKUP_MAX_MANUAL`       | Manual backups kept; new ones are refused at the limit               | `5`             | No       |
 | `BACKUP_MAX_AUTO`         | Automatic backups kept; the oldest is rotated out                    | `7`             | No       |
+| `FEATURE_FILES`           | Enable the file management module (team folders)                     | `false`         | No       |
+| `FILES_STORAGE_PATH`      | Storage directory for files; must be inside the `file_data` volume   | `/var/lib/chormanager-files` | No |
+| `FILES_MAX_UPLOAD_MB`     | Per-file upload limit; keep below `client_max_body_size`             | `90`            | No       |
+| `FILES_MAX_VERSIONS`      | Versions kept per file                                               | `10`            | No       |
+| `FILES_TRASH_DAYS`        | Days in the trash before final deletion                              | `30`            | No       |
+| `FILES_TOTAL_QUOTA_MB`    | Total limit across all team folders (`0` = unlimited)                | `0`             | No       |
+| `FILES_MAX_ZIP_MB`        | Upper limit for downloading a folder as ZIP                          | `500`           | No       |
 
 SMTP is configured exclusively via environment variables. It is no longer managed in the application UI.
 

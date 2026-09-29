@@ -110,6 +110,11 @@ class RoleMiddleware implements MiddlewareInterface
             'logged_permission' => 'can_manage_backups',
             'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Backup-Verwaltung.',
         ],
+        'requiresFilesManagement' => [
+            'permissions' => ['can_manage_files'],
+            'logged_permission' => 'can_manage_files',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung zur Dateiverwaltung.',
+        ],
         'requiresBudgetRead' => [
             'permissions' => ['can_read_finances', 'can_manage_finances', 'can_manage_budget'],
             'logged_permission' => 'can_read_finances',
@@ -204,6 +209,7 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresProjectMemberManagement = false,
         bool $allowVoiceGroupReps = false,
         bool $requiresUserManagement = false,
+        bool $requiresFilesManagement = false,
         ?LoggerInterface $logger = null
     ) {
         $requestedGates = [
@@ -226,6 +232,7 @@ class RoleMiddleware implements MiddlewareInterface
             'requiresProjectMemberManagement' => $requiresProjectMemberManagement,
             'allowVoiceGroupReps' => $allowVoiceGroupReps,
             'requiresUserManagement' => $requiresUserManagement,
+            'requiresFilesManagement' => $requiresFilesManagement,
         ];
 
         // Über self::GATES laufen, nicht über $requestedGates: So bestimmt die

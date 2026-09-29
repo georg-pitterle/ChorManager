@@ -1,0 +1,48 @@
+{# Eine Freigabe-Zeile. Das Ziel steckt als "typ:kennung" in einem Feld, damit
+   die Auswahl ohne abhängige Listen auskommt. #}
+<div class="row g-2 align-items-center mb-2 files-share-row" data-files-share-row>
+    <div class="col-12 col-md-7">
+        <select class="form-select form-select-sm" name="shares[{{ index }}][target]" aria-label="Ziel" required>
+            <option value="" {{ selected_target == "" ? "selected" : "" }}>Ziel wählen …</option>
+            <option value="all_members:0" {{ selected_target == "all_members:0" ? "selected" : "" }}>Alle Mitglieder</option>
+            <optgroup label="Rollen">
+                {% for role in share_options.roles %}
+                    {% set _value = "role:" ~ role.id %}
+                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>{{ role.name }}</option>
+                {% endfor %}
+            </optgroup>
+            <optgroup label="Stimmgruppen">
+                {% for group in share_options.voice_groups %}
+                    {% set _value = "voice_group:" ~ group.id %}
+                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>{{ group.name }}</option>
+                {% endfor %}
+            </optgroup>
+            <optgroup label="Projektmitglieder">
+                {% for project in share_options.projects %}
+                    {% set _value = "project_members:" ~ project.id %}
+                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>{{ project.name }}</option>
+                {% endfor %}
+            </optgroup>
+            <optgroup label="Mitglieder">
+                {% for member in share_options.users %}
+                    {% set _value = "user:" ~ member.id %}
+                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>
+                        {{ member|person_name }}
+                    </option>
+                {% endfor %}
+            </optgroup>
+        </select>
+    </div>
+    <div class="col-9 col-md-4">
+        <select class="form-select form-select-sm" name="shares[{{ index }}][level]" aria-label="Stufe">
+            {% for value, label in level_labels %}
+                <option value="{{ value }}" {{ selected_level == value ? "selected" : "" }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-3 col-md-1 text-end">
+        <button type="button" class="btn btn-outline-danger btn-sm" data-files-share-remove aria-label="Freigabe entfernen">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+    </div>
+</div>

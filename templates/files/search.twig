@@ -1,0 +1,62 @@
+{% extends "layout.twig" %}
+{% import "files/partials/macros.twig" as files_ui %}
+
+{% block title %}
+    Suche - Dateien - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <nav aria-label="Ordnerpfad">
+                <ol class="breadcrumb small mb-1">
+                    <li class="breadcrumb-item"><a href="/files">Dateien</a></li>
+                </ol>
+            </nav>
+            <h1 class="h2 mb-1">Suche</h1>
+        </div>
+        <div class="page-actions">
+            {{ include("files/partials/search_form.twig", {term: term}, false) }}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if term|length < min_length %}
+        <div class="alert alert-info">Bitte mindestens {{ min_length }} Zeichen eingeben.</div>
+    {% elseif results.folders is empty and results.files is empty %}
+        <div class="alert alert-light border">Keine Treffer für „{{ term }}“.</div>
+    {% else %}
+        <div class="list-group">
+            {% for folder in results.folders %}
+                <a class="list-group-item list-group-item-action" href="/files/folders/{{ folder.id }}">
+                    <i class="bi bi-folder-fill text-warning me-2" aria-hidden="true"></i>{{ folder.name }}
+                    {% if folder.path is not empty %}
+                        <small class="d-block text-muted">{{ folder.path|column("name")|join(" / ") }}</small>
+                    {% endif %}
+                </a>
+            {% endfor %}
+            {% for file in results.files %}
+                <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                    <div class="text-truncate">
+                        <a href="/files/{{ file.id }}/download">
+                            <i class="bi {{ files_ui.icon(file.mime_type) }} me-2" aria-hidden="true"></i>{{ file.name }}
+                        </a>
+                        {% if file.id in favorite_file_ids %}
+                            <i class="bi bi-star-fill text-warning ms-1" aria-label="Favorit"></i>
+                        {% endif %}
+                        <small class="d-block text-muted">
+                            <a class="text-muted" href="/files/folders/{{ file.folder_id }}">
+                                {{ file.path|column("name")|join(" / ") }}
+                            </a>
+                            · {{ files_ui.size(file.size) }}
+                        </small>
+                    </div>
+                    <a class="btn btn-sm btn-outline-primary" href="/files/{{ file.id }}/download" aria-label="Herunterladen">
+                        <i class="bi bi-download" aria-hidden="true"></i>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock content %}
