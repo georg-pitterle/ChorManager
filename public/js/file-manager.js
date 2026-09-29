@@ -307,7 +307,32 @@
         });
     }
 
+    /**
+     * Die Tabelle steckt in .table-responsive, das per overflow abschneidet - das
+     * Aktionsmenü der letzten Zeilen verschwand darunter. Mit der Strategie
+     * "fixed" richtet Popper das Menü am Fenster aus statt am Tabellenrahmen
+     * (dasselbe Vorgehen wie in newsletters.js).
+     */
+    function setupRowMenus() {
+        if (!window.bootstrap || !window.bootstrap.Dropdown) {
+            return;
+        }
+        document.querySelectorAll('.files-table [data-bs-toggle="dropdown"]').forEach(function (toggle) {
+            const existing = window.bootstrap.Dropdown.getInstance(toggle);
+            if (existing) {
+                existing.dispose();
+            }
+            new window.bootstrap.Dropdown(toggle, {
+                boundary: 'viewport',
+                popperConfig: function (defaultConfig) {
+                    return Object.assign({}, defaultConfig, { strategy: 'fixed' });
+                },
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        setupRowMenus();
         setupUpload();
         setupSharedModals();
         setupVersions();
