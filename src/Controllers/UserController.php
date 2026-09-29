@@ -319,7 +319,7 @@ class UserController
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
 
         $userId = (int) $args['id'];
-        $targetUser = $this->userQuery->findById($userId);
+        $targetUser = $this->userQuery->findIncludingArchived($userId);
 
         if (!$targetUser) {
             $_SESSION['error'] = 'Nutzer nicht gefunden.';
@@ -556,7 +556,7 @@ class UserController
     public function editForm(Request $request, Response $response, array $args): Response
     {
         $userId = (int) $args['id'];
-        $targetUser = $this->userQuery->findById($userId);
+        $targetUser = $this->userQuery->findIncludingArchived($userId);
 
         if (!$targetUser) {
             $response->getBody()->write(
@@ -636,7 +636,7 @@ class UserController
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
-        $targetUser = $this->userQuery->findById($userId);
+        $targetUser = $this->userQuery->findIncludingArchived($userId);
         if (!$targetUser) {
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
@@ -700,7 +700,7 @@ class UserController
                 continue;
             }
 
-            $targetUser = $this->userQuery->findById($id);
+            $targetUser = $this->userQuery->findIncludingArchived($id);
             if (!$targetUser) {
                 $failed[] = $id;
                 continue;
@@ -734,7 +734,7 @@ class UserController
     public function restore(Request $request, Response $response, array $args): Response
     {
         $userId = (int) $args['id'];
-        $targetUser = $this->userQuery->findById($userId);
+        $targetUser = $this->userQuery->findIncludingArchived($userId);
 
         if (!$targetUser || (bool) $targetUser->is_active) {
             $_SESSION['error'] = 'Mitglied nicht gefunden oder bereits aktiv.';
@@ -906,7 +906,7 @@ class UserController
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
 
         $userId = (int) $args['id'];
-        $targetUser = $this->userQuery->findById($userId);
+        $targetUser = $this->userQuery->findIncludingArchived($userId);
 
         if (!$targetUser) {
             $response->getBody()->write(json_encode(['success' => false, 'message' => 'Nutzer nicht gefunden.']));

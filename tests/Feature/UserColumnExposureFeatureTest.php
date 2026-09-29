@@ -157,7 +157,7 @@ class UserColumnExposureFeatureTest extends TestCase
             'findByEmail() ist der Login-Pfad und braucht den Hash weiterhin.'
         );
 
-        $byId = $userQuery->findById($this->userIds['mitglied']);
+        $byId = $userQuery->findIncludingArchived($this->userIds['mitglied']);
         $this->assertNotNull($byId);
         $this->assertArrayHasKey('password', $byId->getAttributes());
     }

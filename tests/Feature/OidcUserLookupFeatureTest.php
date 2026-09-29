@@ -30,7 +30,7 @@ use Tests\Unit\Bootstrap;
  * User::LIST_COLUMNS. Fehlte sie, wiese sich jedes Mitglied stillschweigend
  * mit der abgeleiteten Form `cm-<id>` aus, und die angeschlossene Anwendung
  * fände die bestehenden Konten nicht mehr wieder. Der Vergleich gegen
- * findById() hält das fest.
+ * findIncludingArchived() hält das fest.
  */
 final class OidcUserLookupFeatureTest extends TestCase
 {
@@ -141,7 +141,7 @@ final class OidcUserLookupFeatureTest extends TestCase
         $query = $this->query();
 
         $narrow = $query->findForOidc($this->userId);
-        $full = $query->findById($this->userId);
+        $full = $query->findIncludingArchived($this->userId);
 
         $this->assertNotNull($narrow);
         $this->assertNotNull($full);

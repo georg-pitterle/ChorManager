@@ -235,7 +235,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -267,7 +267,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [2]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -352,7 +352,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeTargetForUpdate($targetId, [1], [$this->roleIdLevelZero]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -394,7 +394,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeTargetForUpdate($targetId, [2], [$this->roleIdLevelZero]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -438,7 +438,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeTargetForUpdate($targetId, [1], [$this->roleIdLevelZero]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -483,7 +483,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -512,7 +512,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [2]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -544,7 +544,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -599,7 +599,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $controller = $this->makeInviteController($userQuery);
 
@@ -625,7 +625,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $controller = $this->makeInviteController($userQuery);
 
@@ -652,7 +652,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [2]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $controller = $this->makeInviteController($userQuery);
 
@@ -680,7 +680,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $target = $this->makeUserWithVoiceGroups($targetId, [1]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $controller = $this->makeInviteController($userQuery);
 

@@ -78,7 +78,7 @@ class UserProjectScopeFeatureTest extends TestCase
 
         $targetUser = new User();
         $targetUser->id = $this->targetUserId;
-        // Steht für eine Zeile aus UserQuery::findById(): dort ist die Spalte
+        // Steht für eine Zeile aus UserQuery::findIncludingArchived(): dort ist die Spalte
         // immer geladen, und UserEditPolicy weist ein Ziel ohne bekannten
         // aktiven Zustand ab.
         $targetUser->is_active = 1;
@@ -92,7 +92,7 @@ class UserProjectScopeFeatureTest extends TestCase
 
         $userQuery = $this->createMock(UserQuery::class);
         $userQuery->expects($this->once())
-            ->method('findById')
+            ->method('findIncludingArchived')
             ->with($this->targetUserId)
             ->willReturn($targetUser);
 
@@ -151,7 +151,7 @@ class UserProjectScopeFeatureTest extends TestCase
 
         $targetUser = new User();
         $targetUser->id = $this->targetUserId;
-        // Steht für eine Zeile aus UserQuery::findById(): dort ist die Spalte
+        // Steht für eine Zeile aus UserQuery::findIncludingArchived(): dort ist die Spalte
         // immer geladen, und UserEditPolicy weist ein Ziel ohne bekannten
         // aktiven Zustand ab.
         $targetUser->is_active = 1;
@@ -165,7 +165,7 @@ class UserProjectScopeFeatureTest extends TestCase
 
         $userQuery = $this->createMock(UserQuery::class);
         $userQuery->expects($this->once())
-            ->method('findById')
+            ->method('findIncludingArchived')
             ->with($this->targetUserId)
             ->willReturn($targetUser);
 

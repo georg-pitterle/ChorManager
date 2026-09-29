@@ -217,7 +217,8 @@ class UserEditPolicy
      * True when the target holds a role that outranks the acting session's own level.
      *
      * Die Rollen sind an beiden Aufrufstellen (UserQuery::getAllUsers() und
-     * ::findById()) bereits eager-geladen, ein zusätzlicher Query entsteht nicht.
+     * ::findIncludingArchived()) bereits eager-geladen, ein zusätzlicher Query
+     * entsteht nicht.
      *
      * Öffentlich, weil UserController dieselbe Regel auf Wegen braucht, die diese
      * Policy sonst nicht berührt - Einladen und Deaktivieren. Sie dort ein zweites

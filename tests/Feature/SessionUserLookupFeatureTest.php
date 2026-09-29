@@ -23,7 +23,15 @@ use Tests\Unit\Bootstrap;
 class SessionUserLookupFeatureTest extends TestCase
 {
     private const SESSION_RELATIONS = ['roles', 'voiceGroups'];
-    private const DETAIL_RELATIONS = ['subVoices', 'mailAccount'];
+
+    /** Was der Detail-Lookup zusätzlich zu den Sitzungs-Relationen lädt. */
+    private const DETAIL_RELATIONS = ['subVoices'];
+
+    /**
+     * Das Postfach lädt kein Lookup mehr von selbst. Gelesen wird es allein in
+     * der Profilmaske, und die lädt es dort, wo sie es anzeigt.
+     */
+    private const LAZY_RELATIONS = ['mailAccount'];
 
     private int $userId = 0;
     private string $roleName = '';
@@ -126,7 +134,7 @@ class SessionUserLookupFeatureTest extends TestCase
 
         $this->assertNotNull($user);
 
-        foreach (self::DETAIL_RELATIONS as $relation) {
+        foreach ([...self::DETAIL_RELATIONS, ...self::LAZY_RELATIONS] as $relation) {
             $this->assertFalse(
                 $user->relationLoaded($relation),
                 'Relation ' . $relation . ' kostet eine Abfrage pro Request und wird dort nicht gelesen.'
@@ -154,7 +162,7 @@ class SessionUserLookupFeatureTest extends TestCase
             $this->assertTrue($user->relationLoaded($relation));
         }
 
-        foreach (self::DETAIL_RELATIONS as $relation) {
+        foreach ([...self::DETAIL_RELATIONS, ...self::LAZY_RELATIONS] as $relation) {
             $this->assertFalse(
                 $user->relationLoaded($relation),
                 'Der Login wertet ' . $relation . ' nicht aus.'
@@ -162,9 +170,9 @@ class SessionUserLookupFeatureTest extends TestCase
         }
     }
 
-    public function testDetailLookupLaedtWeiterhinTeilstimmenUndPostfach(): void
+    public function testDetailLookupLaedtWeiterhinTeilstimmenAberKeinPostfachMehr(): void
     {
-        $user = $this->query()->findById($this->userId);
+        $user = $this->query()->findIncludingArchived($this->userId);
 
         $this->assertNotNull($user);
 
@@ -176,6 +184,29 @@ class SessionUserLookupFeatureTest extends TestCase
         }
 
         $this->assertSame('Sopran 1', $user->subVoices->first()->name);
+
+        foreach (self::LAZY_RELATIONS as $relation) {
+            $this->assertFalse(
+                $user->relationLoaded($relation),
+                'Relation ' . $relation . ' liest nur die Profilmaske; sechs der sieben '
+                . 'Aufrufstellen bezahlten sie umsonst.'
+            );
+        }
+    }
+
+    /**
+     * Der Name ist das Versprechen: Dieser Lookup ist der einzige, der auch ein
+     * archiviertes Mitglied zurückgibt - die Mitgliederpflege bearbeitet
+     * archivierte Leute, und genau dafür gibt es ihn.
+     */
+    public function testDetailLookupLiefertAuchArchivierteMitglieder(): void
+    {
+        User::where('id', $this->userId)->update(['is_active' => 0]);
+
+        $user = $this->query()->findIncludingArchived($this->userId);
+
+        $this->assertNotNull($user, 'Die Mitgliederpflege muss archivierte Mitglieder laden können.');
+        $this->assertSame(0, (int) $user->is_active);
     }
 
     /**

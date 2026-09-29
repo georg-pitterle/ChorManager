@@ -573,4 +573,53 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertFalse($capturedData['webmail_available']);
         $this->assertNull($capturedData['mail_account']);
     }
+
+    /**
+     * Das gespeicherte Postfach muss in der Profilmaske ankommen.
+     *
+     * Der Lookup dahinter lädt die Relation nicht mehr von selbst mit - die
+     * Mitgliederpflege liest sie nie und bezahlte sie an sechs Stellen trotzdem.
+     * Geladen wird sie jetzt in der Profilmaske selbst.
+     *
+     * Geprüft wird das Ergebnis, nicht der Weg dorthin: Fiele das explizite
+     * load() weg, holte Eloquent die Relation still nach und der Test bliebe
+     * grün. Er deckt den Fall ab, in dem die Maske das Postfach gar nicht mehr
+     * bekommt - eine falsche Relation, ein fehlender Schlüssel in den
+     * Vorlagendaten. Bis zu diesem Test gab es dafür nur den Gegenfall, dass
+     * kein Postfach gespeichert ist.
+     */
+    public function testTheSavedMailboxStillReachesTheProfileView(): void
+    {
+        UserMailAccount::create([
+            'user_id' => $this->user->id,
+            'imap_host' => 'imap.example.org',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password_enc' => $this->crypto->encrypt('S3cr3t-Imap-Pass'),
+            'smtp_host' => 'smtp.example.org',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'imap_enabled' => 1,
+            'external_webmail_url' => 'https://webmail.example.org/inbox',
+        ]);
+
+        $capturedData = null;
+        $this->twigMock->method('render')
+            ->willReturnCallback(function ($response, $template, $data) use (&$capturedData) {
+                $capturedData = $data;
+                return $response;
+            });
+
+        $this->controller->index($this->makeRequest('GET', '/profile'), $this->makeResponse());
+
+        $this->assertIsArray($capturedData);
+        $this->assertTrue($capturedData['has_saved_account'], 'Das gespeicherte Postfach fehlt in der Maske.');
+        $this->assertTrue($capturedData['webmail_available']);
+        $this->assertSame('imap.example.org', $capturedData['mail_account']->imap_host);
+        $this->assertSame(
+            'https://webmail.example.org/inbox',
+            $capturedData['mail_account']->external_webmail_url
+        );
+    }
 }

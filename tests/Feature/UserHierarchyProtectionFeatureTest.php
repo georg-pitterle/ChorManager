@@ -120,7 +120,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $target = $this->makeTarget([100]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');
@@ -163,7 +163,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $target = $this->makeTarget([]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -214,7 +214,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $target = $this->makeTarget([80]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -257,7 +257,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $target->password = $existingHash;
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())->method('save')->with($target);
@@ -297,7 +297,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $target = $this->makeTarget([100]);
 
         $userQuery = $this->createStub(UserQuery::class);
-        $userQuery->method('findById')->willReturn($target);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->never())->method('save');

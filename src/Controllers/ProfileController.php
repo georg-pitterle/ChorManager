@@ -70,7 +70,7 @@ class ProfileController
     public function index(Request $request, Response $response): Response
     {
         $userId = (int)$_SESSION['user_id'];
-        $user = $this->userQuery->findById($userId);
+        $user = $this->userQuery->findIncludingArchived($userId);
 
         // Prepare voice group data for template
         $user->voice_group_ids = $user->voiceGroups->pluck('id')->toArray();
@@ -92,7 +92,10 @@ class ProfileController
             ->orderByRaw('start_date IS NULL, start_date DESC')
             ->get();
 
-        $mailAccount = $user->mailAccount;
+        // Die einzige Stelle, die das Postfach liest - deshalb lädt sie es auch
+        // selbst. Im Detail-Lookup wäre es eine Abfrage, die die sechs
+        // Aufrufstellen der Mitgliederpflege mitbezahlen, ohne sie je anzuzeigen.
+        $mailAccount = $user->load('mailAccount')->mailAccount;
         $formOld = $_SESSION['mailbox_form_old'] ?? null;
         unset($_SESSION['mailbox_form_old']);
 

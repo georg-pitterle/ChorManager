@@ -67,8 +67,9 @@ class UserQuery
      * Lookup für die Anmeldung per Remember-Me und für die Rechte-Auffrischung, die
      * AuthMiddleware bei *jedem* geschützten Request ausführt.
      *
-     * Bewusst nicht findById(): dessen Detail-Eager-Loads (Teilstimmen, Postfach)
-     * kosten hier vier zusätzliche Abfragen pro Seitenaufruf, die niemand liest.
+     * Bewusst nicht findIncludingArchived(): dessen Detail-Eager-Loads (Teilstimmen
+     * samt Stimmgruppe) kosten hier drei zusätzliche Abfragen pro Seitenaufruf, die
+     * niemand liest.
      * Die Spaltenauswahl hält zusätzlich den Passwort-Hash aus einer Abfrage
      * heraus, die auf jedem Seitenaufruf läuft.
      *
@@ -94,13 +95,11 @@ class UserQuery
      * `external_uid`, Vor- und Nachname, die Adresse und `roles.external_group` -
      * dazu `is_active` für die Sperre.
      *
-     * Bewusst nicht findById(): dessen Detail-Eager-Loads (Stimmgruppen,
-     * Teilstimmen, Postfach) kosten vier zusätzliche Abfragen, die im OIDC-Zugang
-     * niemand ausliest. Eine davon zieht das verschlüsselte IMAP-Passwort
-     * ausgerechnet in den Zugang, der Daten an eine fremde Anwendung ausliefert;
-     * dass UserMailAccount::$hidden es aus Serialisierungen hält, ist die zweite
-     * Absicherung, nicht die erste. Die Spaltenauswahl hält denselben Abstand zum
-     * Passwort-Hash wie findForSession().
+     * Bewusst nicht findIncludingArchived(): dessen Detail-Eager-Loads
+     * (Stimmgruppen, Teilstimmen) kosten drei zusätzliche Abfragen, die im
+     * OIDC-Zugang niemand ausliest, und die volle Spaltenauswahl zöge den
+     * Passwort-Hash mit. Die enge Auswahl hier hält denselben Abstand wie
+     * findForSession().
      *
      * Deaktivierte Konten bleiben draußen - dieselbe Grenze wie in findForSession()
      * und findByEmail(). Die drei Aufrufstellen prüfen `is_active` bis heute selbst
@@ -116,12 +115,24 @@ class UserQuery
     }
 
     /**
-     * Vollständiger Lookup für die Detailmasken (Profil, Mitgliederpflege), die
-     * Teilstimmen und Postfach anzeigen.
+     * Vollständiger Lookup der Detailmasken (Profil, Mitgliederpflege), die
+     * Teilstimmen samt ihrer Stimmgruppe anzeigen.
+     *
+     * Der Name benennt, was diesen Lookup von jedem anderen hier unterscheidet:
+     * Er ist der einzige ohne Filter auf `is_active`. Das muss er sein - die
+     * Mitgliederpflege bearbeitet auch archivierte Mitglieder. Unter dem früheren
+     * Namen findById() stand die Grenze allein in diesem Kommentar, und genau
+     * daran hing der OIDC-Zugang, bis findForOidc() dazukam. Jetzt steht sie an
+     * jeder Aufrufstelle.
+     *
+     * Das Postfach lädt er nicht mehr mit: `mailAccount` liest allein
+     * ProfileController::index(); die sechs Aufrufstellen in UserController
+     * bezahlten die Abfrage umsonst. Die Profilmaske lädt die Relation jetzt
+     * dort, wo sie sie auch anzeigt.
      */
-    public function findById(int $id): ?User
+    public function findIncludingArchived(int $id): ?User
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup', 'mailAccount'])
+        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
             ->find($id);
     }
 
@@ -170,7 +181,7 @@ class UserQuery
      * `subVoices.voiceGroup` kosteten deshalb drei Abfragen je Seitenaufruf (sieben
      * statt vier), ohne dass sie jemand ausliest; die erste holte zudem sämtliche
      * Teilstimmen sämtlicher Stimmgruppen. Die Detailmasken laden weiterhin
-     * vollständig, siehe findById().
+     * vollständig, siehe findIncludingArchived().
      *
      * @param array<int>|null $voiceGroupIds null = keine Einschränkung auf Stimmgruppen
      */
