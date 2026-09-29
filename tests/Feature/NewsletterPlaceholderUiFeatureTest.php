@@ -13,7 +13,10 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Queries\NewsletterTemplateQuery;
+use App\Policies\NewsletterPolicy;
+use App\Services\EntityAttachmentService;
 use App\Services\HtmlSanitizer;
+use App\Services\NewsletterAttachmentService;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
@@ -139,7 +142,8 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
                 new MailQueueService(),
                 new NullLogger(),
                 new NewsletterPlaceholderService(new NameFormatterService()),
-                new NewsletterMailRenderer($twig)
+                new NewsletterMailRenderer($twig),
+                new NewsletterAttachmentService()
             ),
             new NewsletterLockingService(),
             new NewsletterRecipientService(),
@@ -148,7 +152,10 @@ final class NewsletterPlaceholderUiFeatureTest extends TestCase
             new NameFormatterService(),
             new NewsletterPlaceholderService(new NameFormatterService()),
             new MailQueueService(),
-            new NewsletterMailRenderer($twig)
+            new NewsletterMailRenderer($twig),
+            new NewsletterPolicy($_SESSION),
+            new EntityAttachmentService(new NullLogger()),
+            new NewsletterAttachmentService()
         );
     }
 

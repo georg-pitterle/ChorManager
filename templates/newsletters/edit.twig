@@ -205,41 +205,133 @@
                                       data-placeholder-source="/newsletters/placeholders">{{ newsletter.content_html }}</textarea>
                         </div>
                     </div>
+
+                    {# Die Dateien stehen direkt unter dem Editor, weil sie zum Inhalt
+                       gehören: Wer den Text schreibt, entscheidet im selben Zug, was
+                       mitgeht. Ihre Formulare liegen weiter unten außerhalb dieses
+                       Formulars und sind über das form-Attribut angebunden -
+                       verschachtelte Formulare erlaubt HTML nicht. Der Autosave baut sein
+                       FormData aus dem Editor-Formular und lässt die Anhang-Felder damit
+                       von selbst aus. #}
+                    <div class="surface-card form-surface card border-0 mt-3">
+                        <div class="card-header bg-light d-flex flex-wrap align-items-baseline gap-2">
+                            <h5 class="mb-0" id="newsletter-attachments-title">Dateien</h5>
+                            <small class="text-muted">
+                                Kleine Dateien hängen an der Mail, große werden darin verlinkt.
+                            </small>
+                        </div>
+                        <div class="card-body">
+                            {% if attachments|length > 0 %}
+                                <ul class="list-group list-group-flush mb-3">
+                                    {% for attachment in attachments %}
+                                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                                            <span class="flex-grow-1">
+                                                <i class="bi bi-paperclip"></i>
+                                                {{ attachment.original_name }}
+                                                <small class="text-muted">
+                                                    {{ (attachment.file_size / 1024)|round(1) ~ " KB" }}
+                                                </small>
+                                            </span>
+                                            <label class="visually-hidden"
+                                                   for="delivery-mode-{{ attachment.id }}">Zustellweg</label>
+                                            <select class="form-select form-select-sm w-auto"
+                                                    id="delivery-mode-{{ attachment.id }}"
+                                                    name="delivery_mode"
+                                                    form="attachment-mode-form-{{ attachment.id }}">
+                                                <option value="attach"
+                                                        {{ attachment.delivery_mode == "attach" ? "selected" : "" }}>
+                                                    An die Mail hängen
+                                                </option>
+                                                <option value="link"
+                                                        {{ attachment.delivery_mode == "link" ? "selected" : "" }}>
+                                                    In der Mail verlinken
+                                                </option>
+                                            </select>
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    form="attachment-mode-form-{{ attachment.id }}">
+                                                Übernehmen
+                                            </button>
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    form="attachment-delete-form-{{ attachment.id }}">
+                                                <i class="bi bi-trash"></i>
+                                                <span class="visually-hidden">Entfernen</span>
+                                            </button>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+
+                                {% if attached_total > max_attached_total %}
+                                    <div class="alert alert-warning">
+                                        Die angehängten Dateien sind zusammen zu groß
+                                        ({{ (max_attached_total / 1048576)|round ~ " MB" }} sind erlaubt).
+                                        Der Versand wird abgelehnt, solange das so bleibt - stelle große
+                                        Dateien auf "In der Mail verlinken" um.
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-muted mb-3">Noch keine Dateien.</p>
+                            {% endif %}
+
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <label class="visually-hidden" for="newsletter-attachments">Dateien wählen</label>
+                                <input type="file"
+                                       class="form-control w-auto"
+                                       id="newsletter-attachments"
+                                       name="attachments[]"
+                                       form="attachment-upload-form"
+                                       multiple>
+                                <button type="submit"
+                                        class="btn btn-outline-primary"
+                                        form="attachment-upload-form">
+                                    <i class="bi bi-upload"></i> Hochladen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </section>
             </div>
 
-            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
-                <div>
-                    <a href="/newsletters?status=draft" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Zurück
-                    </a>
-                </div>
-                <div>
-                    <form method="post"
-                          action="/newsletters/{{ newsletter.id }}/delete"
-                          class="d-inline"
-                          data-confirm="Diesen Newsletter-Entwurf wirklich löschen?">
-                        <button type="submit" class="btn btn-outline-danger">
-                            <i class="bi bi-trash"></i> Löschen
+            {# Eine Leiste statt zweier Knopfreihen: links, was den Entwurf verlässt oder
+               verwirft, rechts die Arbeit am Inhalt bis zum Versand. Gefüllt ist nur der
+               Versand - vorher trugen vier Knöpfe vier verschiedene Umrandungsfarben ohne
+               erkennbare Rangfolge. #}
+            <div class="form-action-bar d-flex flex-wrap align-items-center gap-2">
+                <a href="/newsletters?status=draft" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#saveTemplateModal">
+                    <i class="bi bi-bookmark"></i> Als Vorlage speichern
+                </button>
+                <button type="submit" class="btn btn-outline-danger" form="newsletter-delete-form">
+                    <i class="bi bi-trash"></i> Löschen
+                </button>
+
+                <div class="ms-md-auto d-flex flex-wrap align-items-center gap-2">
+                    <div class="input-group w-auto">
+                        <label class="visually-hidden" for="preview-recipient">Vorschau für</label>
+                        <select id="preview-recipient" class="form-select" aria-label="Vorschau für">
+                            <option value="">Vorschau mit eigenen Daten</option>
+                            {% for recipient in preview_recipients %}
+                                <option value="{{ recipient.id }}">{{ recipient|person_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                id="preview-btn"
+                                {% if not is_modal|default(false) %}data-bs-toggle="modal" data-bs-target="#previewModal"{% endif %}>
+                            <i class="bi bi-eye"></i> Vorschau
                         </button>
-                    </form>
-                    <button type="button" class="btn btn-outline-warning" id="save-draft-btn">
-                        <i class="bi bi-floppy"></i> Speichern
-                    </button>
-                    <select id="preview-recipient" class="form-select form-select-sm w-auto" aria-label="Vorschau für">
-                        <option value="">Vorschau mit eigenen Daten</option>
-                        {% for recipient in preview_recipients %}
-                            <option value="{{ recipient.id }}">{{ recipient|person_name }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="button"
-                            class="btn btn-outline-info"
-                            id="preview-btn"
-                            {% if not is_modal|default(false) %}data-bs-toggle="modal" data-bs-target="#previewModal"{% endif %}>
-                        <i class="bi bi-eye"></i> Vorschau
-                    </button>
+                    </div>
                     <button type="button" class="btn btn-outline-secondary" id="test-mail-btn">
                         <i class="bi bi-envelope-check"></i> Testmail
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="save-draft-btn">
+                        <i class="bi bi-floppy"></i> Speichern
                     </button>
                     <button type="button" class="btn btn-success" id="send-newsletter-btn">
                         <i class="bi bi-send"></i> Versenden
@@ -288,6 +380,34 @@
             </button>
         </form>
 
+        {# Die Ziele der Knöpfe aus dem Editor-Formular: leere Formulare, angebunden über
+           das form-Attribut. Sie stehen hier unten, weil HTML kein Formular in einem
+           Formular erlaubt - der Anhang-Bereich und die Aktionsleiste liegen beide
+           innerhalb des Editor-Formulars. #}
+        <form id="newsletter-delete-form"
+              method="post"
+              action="/newsletters/{{ newsletter.id }}/delete"
+              class="d-none"
+              data-confirm="Diesen Newsletter-Entwurf wirklich löschen?"></form>
+
+        <form id="attachment-upload-form"
+              method="post"
+              action="/newsletters/{{ newsletter.id }}/attachments"
+              enctype="multipart/form-data"
+              class="d-none"></form>
+
+        {% for attachment in attachments %}
+            <form id="attachment-mode-form-{{ attachment.id }}"
+                  method="post"
+                  action="/newsletters/{{ newsletter.id }}/attachments/{{ attachment.id }}/mode"
+                  class="d-none"></form>
+            <form id="attachment-delete-form-{{ attachment.id }}"
+                  method="post"
+                  action="/newsletters/{{ newsletter.id }}/attachments/{{ attachment.id }}/delete"
+                  class="d-none"
+                  data-confirm="Diese Datei wirklich entfernen?"></form>
+        {% endfor %}
+
         <div class="modal fade"
              id="previewModal"
              tabindex="-1"
@@ -306,7 +426,7 @@
                         <iframe id="preview-modal-frame"
                                 class="newsletter-preview-frame"
                                 title="Newsletter-Vorschau"
-                                sandbox=""></iframe>
+                                sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"></iframe>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>

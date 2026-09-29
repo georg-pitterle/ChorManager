@@ -81,12 +81,21 @@ class EntityAttachmentService
      * ersten etwas falsch macht, soll darüber lesen und nicht über die fünfte.
      *
      * @param UploadedFileInterface|list<UploadedFileInterface>|null $files
-     * @return array{stored: int, error: ?string}
+     * @param callable(int, string): array<string, mixed>|null $extraColumns Zusätzliche
+     *        Spalten je Datei, abgeleitet aus Größe und MIME-Typ. Der Dienst kennt ihre
+     *        Bedeutung nicht - der Newsletter setzt darüber seinen Zustellmodus, und ohne
+     *        diesen Weg bräuchte er entweder eine eigene Kopie des Upload-Ablaufs oder
+     *        einen Nachlauf, der die eben geschriebenen Zeilen wieder sucht.
+     * @return array{stored: int, error: ?string, ids: list<int>}
      */
-    public function storeUploads(mixed $files, string $entityType, int $entityId): array
-    {
+    public function storeUploads(
+        mixed $files,
+        string $entityType,
+        int $entityId,
+        ?callable $extraColumns = null
+    ): array {
         if ($files === null) {
-            return ['stored' => 0, 'error' => null];
+            return ['stored' => 0, 'error' => null, 'ids' => []];
         }
 
         if (!is_array($files)) {
@@ -95,6 +104,7 @@ class EntityAttachmentService
 
         $stored = 0;
         $error = null;
+        $ids = [];
 
         foreach ($files as $file) {
             if (!$file instanceof UploadedFileInterface) {
@@ -138,7 +148,7 @@ class EntityAttachmentService
                 continue;
             }
 
-            Attachment::create([
+            $columns = [
                 'entity_type'   => $entityType,
                 'entity_id'     => $entityId,
                 'filename'      => self::storedName($clientFilename),
@@ -146,12 +156,19 @@ class EntityAttachmentService
                 'mime_type'     => UploadValidator::normalizeMimeType($mimeType),
                 'file_size'     => $size,
                 'file_content'  => $contents,
-            ]);
+            ];
 
+            if ($extraColumns !== null) {
+                $columns = array_merge($columns, $extraColumns($size, $mimeType));
+            }
+
+            $attachment = Attachment::create($columns);
+
+            $ids[] = (int) $attachment->id;
             $stored++;
         }
 
-        return ['stored' => $stored, 'error' => $error];
+        return ['stored' => $stored, 'error' => $error, 'ids' => $ids];
     }
 
     /**

@@ -58,6 +58,7 @@ class UploadLimitFeatureTest extends TestCase
             // Laden über EntityAttachmentService::storeUploads() hoch.
             [
                 $root . '/src/Controllers/FinanceController.php',
+                $root . '/src/Controllers/NewsletterController.php',
                 $root . '/src/Controllers/SongLibraryController.php',
                 $root . '/src/Controllers/SponsorController.php',
                 $root . '/src/Controllers/SponsorshipController.php',

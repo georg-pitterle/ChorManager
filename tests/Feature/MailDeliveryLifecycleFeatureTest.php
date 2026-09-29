@@ -535,7 +535,12 @@ final class MailDeliveryLifecycleFeatureTest extends TestCase
             private ?string $observedStatus = null;
             private ?Carbon $observedUpdatedAt = null;
 
-            public function sendHtmlMailDetailed(string $to, string $subject, string $htmlBody): array
+            public function sendHtmlMailDetailed(
+                string $to,
+                string $subject,
+                string $htmlBody,
+                array $attachments = []
+            ): array
             {
                 $current = MailQueue::query()->where('recipient_email', $to)->latest('id')->first();
                 if ($current instanceof MailQueue) {
@@ -599,12 +604,22 @@ final class MailDeliveryLifecycleFeatureTest extends TestCase
                 $this->result = $result;
             }
 
-            public function sendHtmlMailDetailed(string $to, string $subject, string $htmlBody): array
+            public function sendHtmlMailDetailed(
+                string $to,
+                string $subject,
+                string $htmlBody,
+                array $attachments = []
+            ): array
             {
                 return $this->result;
             }
 
-            public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
+            public function sendHtmlMail(
+                string $to,
+                string $subject,
+                string $htmlBody,
+                array $attachments = []
+            ): bool
             {
                 return (bool) $this->result['success'];
             }

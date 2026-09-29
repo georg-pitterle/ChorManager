@@ -23,11 +23,8 @@ class SecurityHardeningFeatureTest extends TestCase
 
         $this->assertIsString($content);
         $this->assertStringContainsString('private function canManageNewsletters', $content);
-        $this->assertStringContainsString('private function canAccessReceivedNewsletterById', $content);
-        $this->assertStringContainsString(
-            '!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)',
-            $content
-        );
+        $this->assertStringContainsString('private function canViewNewsletterById', $content);
+        $this->assertStringContainsString('!$this->canViewNewsletterById($id, $userId)', $content);
     }
 
     public function testPasswordResetBuildsLinkFromTrustedAppUrl(): void

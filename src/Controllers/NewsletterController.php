@@ -7,6 +7,7 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Exceptions\NewsletterAttachmentsTooLargeException;
 use App\Exceptions\NewsletterWithoutRecipientsException;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
@@ -17,6 +18,9 @@ use App\Models\Project;
 use App\Models\Event;
 use App\Models\Role;
 use App\Models\User;
+use App\Policies\NewsletterPolicy;
+use App\Services\EntityAttachmentService;
+use App\Services\NewsletterAttachmentService;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterMailRenderer;
@@ -44,6 +48,9 @@ class NewsletterController
     private NewsletterPlaceholderService $placeholderService;
     private MailQueueService $mailQueueService;
     private NewsletterMailRenderer $mailRenderer;
+    private NewsletterPolicy $newsletterPolicy;
+    private EntityAttachmentService $entityAttachments;
+    private NewsletterAttachmentService $newsletterAttachments;
 
     public function __construct(
         Twig $view,
@@ -55,7 +62,10 @@ class NewsletterController
         NameFormatterService $nameFormatter,
         NewsletterPlaceholderService $placeholderService,
         MailQueueService $mailQueueService,
-        NewsletterMailRenderer $mailRenderer
+        NewsletterMailRenderer $mailRenderer,
+        NewsletterPolicy $newsletterPolicy,
+        EntityAttachmentService $entityAttachments,
+        NewsletterAttachmentService $newsletterAttachments
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -67,6 +77,9 @@ class NewsletterController
         $this->placeholderService = $placeholderService;
         $this->mailQueueService = $mailQueueService;
         $this->mailRenderer = $mailRenderer;
+        $this->newsletterPolicy = $newsletterPolicy;
+        $this->entityAttachments = $entityAttachments;
+        $this->newsletterAttachments = $newsletterAttachments;
     }
 
     /**
@@ -185,16 +198,15 @@ class NewsletterController
         return ['Unbekannte Platzhalter bleiben unverändert stehen: ' . $tokens];
     }
 
-    private function canAccessReceivedNewsletterById(int $newsletterId, ?int $userId): bool
+    /**
+     * Die Regel liegt in der Policy, weil sie eine zweite Leserin hat: Die
+     * AttachmentAccessRegistry entscheidet damit über die Dateien des
+     * Newsletters. Zwei Kopien derselben Zugriffsregel liefen auseinander,
+     * sobald eine von beiden angepasst wird.
+     */
+    private function canViewNewsletterById(int $newsletterId, ?int $userId): bool
     {
-        if (!$userId) {
-            return false;
-        }
-
-        return NewsletterArchive::query()
-            ->where('newsletter_id', $newsletterId)
-            ->where('user_id', (int) $userId)
-            ->exists();
+        return $this->newsletterPolicy->canView($newsletterId, $userId);
     }
 
     /**
@@ -586,6 +598,9 @@ class NewsletterController
             'users' => $users,
             'preview_recipients' => $previewRecipients,
             'recipient_sources' => $sources,
+            'attachments' => $this->newsletterAttachments->metadataFor((int) $newsletter->id),
+            'attached_total' => $this->newsletterAttachments->attachedTotalBytes((int) $newsletter->id),
+            'max_attached_total' => NewsletterAttachmentService::MAX_ATTACHED_TOTAL,
             'template_groups' => $this->groupedTemplates(),
             'is_modal' => $isModal,
         ]);
@@ -687,7 +702,7 @@ class NewsletterController
         $isModal = InputValidator::asString($queryParams['modal'] ?? '0') === '1';
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)) {
+        if (!$this->canViewNewsletterById($id, $userId)) {
             return $response->withStatus(403);
         }
 
@@ -849,7 +864,7 @@ class NewsletterController
         $id = (int) $request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canManageNewsletters() && !$this->canAccessReceivedNewsletterById($id, $userId)) {
+        if (!$this->canViewNewsletterById($id, $userId)) {
             return $response->withStatus(403);
         }
 
@@ -882,7 +897,8 @@ class NewsletterController
             $rendered['title'],
             $rendered['content_html'],
             $baseUrl,
-            includeBrowseLink: false
+            includeBrowseLink: false,
+            linkedFiles: $this->newsletterAttachments->linkedFiles((int) $newsletter->id, $baseUrl)
         );
 
         $response->getBody()->write($mailHtml);
@@ -940,7 +956,8 @@ class NewsletterController
             $subject,
             $contentHtml,
             $baseUrl,
-            includeBrowseLink: false
+            includeBrowseLink: false,
+            linkedFiles: $this->newsletterAttachments->linkedFiles((int) $newsletter->id, $baseUrl)
         );
 
         $response->getBody()->write($mailHtml);
@@ -1045,6 +1062,28 @@ class NewsletterController
                 $_SESSION['error'] = $message;
                 return $response
                     ->withHeader('Location', '/newsletters?status=' . Newsletter::STATUS_DRAFT)
+                    ->withStatus(302);
+            }
+
+            return $this->jsonResponse($response, ['error' => $message], 422);
+        } catch (NewsletterAttachmentsTooLargeException $e) {
+            // Eigener Zweig vor dem allgemeinen: Die Meldung nennt die Größen und
+            // den Ausweg. Unter "Fehler beim Versand." wüsste die Redaktion nicht,
+            // dass ein Umschalten auf "In der Mail verlinken" genügt.
+            $message = $e->getMessage();
+            $this->logger->info(
+                'Newsletter send blocked by attachment size.',
+                [
+                    'event' => 'newsletter.send.blocked_attachments_too_large',
+                    'newsletter_id' => $id,
+                    'user_id' => is_numeric($userId) ? (int) $userId : null,
+                ]
+            );
+
+            if (!$expectsJson) {
+                $_SESSION['error'] = $message;
+                return $response
+                    ->withHeader('Location', "/newsletters/{$id}/edit")
                     ->withStatus(302);
             }
 
@@ -1233,7 +1272,14 @@ class NewsletterController
         $this->mailQueueService->enqueueNewsletterTestMail(
             recipientEmail: $senderEmail,
             subject: $subject,
-            bodyHtml: $this->mailRenderer->renderHtml($newsletter, $subject, $personalizedContent, $baseUrl),
+            bodyHtml: $this->mailRenderer->renderHtml(
+                $newsletter,
+                $subject,
+                $personalizedContent,
+                $baseUrl,
+                true,
+                $this->newsletterAttachments->linkedFiles((int) $newsletter->id, $baseUrl)
+            ),
             newsletterId: (int) $newsletter->id
         );
 
@@ -1278,5 +1324,131 @@ class NewsletterController
             "/newsletters?project_id={$newsletter->project_id}&status=" . Newsletter::STATUS_DRAFT
         )
             ->withStatus(302);
+    }
+
+    /**
+     * Gemeinsamer Vorlauf der drei Anhang-Aktionen: Newsletter vorhanden, Recht
+     * vorhanden, und noch ein Entwurf.
+     *
+     * Der Status steht bewusst in dieser Prüfung und nicht nur in der
+     * Oberfläche: Ein versendeter Newsletter darf seine Dateien nicht mehr
+     * verlieren, sonst zeigen die Links in bereits zugestellten Mails ins Leere.
+     * Aus demselben Grund ist auch der Moduswechsel gesperrt - er entscheidet
+     * mit, ob eine Datei überhaupt noch abrufbar sein muss.
+     */
+    private function attachmentGuard(int $newsletterId): ?Newsletter
+    {
+        if (!$this->canManageNewsletters()) {
+            $_SESSION['error'] = 'Zugriff verweigert.';
+
+            return null;
+        }
+
+        $newsletter = Newsletter::find($newsletterId);
+        if (!$newsletter instanceof Newsletter) {
+            $_SESSION['error'] = 'Newsletter nicht gefunden.';
+
+            return null;
+        }
+
+        if (!$newsletter->isDraft()) {
+            $_SESSION['error'] = 'Ein versendeter Newsletter lässt sich nicht mehr ändern.';
+
+            return null;
+        }
+
+        return $newsletter;
+    }
+
+    private function backToEdit(Response $response, int $newsletterId): Response
+    {
+        return $response
+            ->withHeader('Location', "/newsletters/{$newsletterId}/edit")
+            ->withStatus(302);
+    }
+
+    /**
+     * @param array<string, string> $args
+     */
+    public function uploadAttachments(Request $request, Response $response, array $args): Response
+    {
+        $newsletterId = (int) ($args['id'] ?? 0);
+        $newsletter = $this->attachmentGuard($newsletterId);
+        if ($newsletter === null) {
+            return $this->backToEdit($response, $newsletterId);
+        }
+
+        // Der Zustellweg wird je Datei aus ihrer Größe vorbelegt; umschalten
+        // kann die Redaktion anschließend in der Liste.
+        $result = $this->entityAttachments->storeUploads(
+            $request->getUploadedFiles()['attachments'] ?? null,
+            NewsletterAttachmentService::ENTITY_TYPE,
+            (int) $newsletter->id,
+            fn (int $size): array => ['delivery_mode' => $this->newsletterAttachments->suggestMode($size)]
+        );
+
+        if ($result['error'] !== null) {
+            $_SESSION['error'] = $result['error'];
+        }
+
+        if ($result['stored'] > 0) {
+            $_SESSION['success'] = $result['stored'] === 1
+                ? 'Datei hinzugefügt.'
+                : $result['stored'] . ' Dateien hinzugefügt.';
+        }
+
+        return $this->backToEdit($response, (int) $newsletter->id);
+    }
+
+    /**
+     * @param array<string, string> $args
+     */
+    public function updateAttachmentMode(Request $request, Response $response, array $args): Response
+    {
+        $newsletterId = (int) ($args['id'] ?? 0);
+        $newsletter = $this->attachmentGuard($newsletterId);
+        if ($newsletter === null) {
+            return $this->backToEdit($response, $newsletterId);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $mode = InputValidator::asString($data['delivery_mode'] ?? '');
+        $attachmentId = (int) ($args['attachment_id'] ?? 0);
+
+        if (!$this->newsletterAttachments->setMode((int) $newsletter->id, $attachmentId, $mode)) {
+            $_SESSION['error'] = 'Der Zustellweg konnte nicht geändert werden.';
+
+            return $this->backToEdit($response, (int) $newsletter->id);
+        }
+
+        $_SESSION['success'] = $mode === NewsletterAttachmentService::MODE_ATTACH
+            ? 'Datei wird an die Mail gehängt.'
+            : 'Datei wird in der Mail verlinkt.';
+
+        return $this->backToEdit($response, (int) $newsletter->id);
+    }
+
+    /**
+     * @param array<string, string> $args
+     */
+    public function deleteAttachment(Request $request, Response $response, array $args): Response
+    {
+        $newsletterId = (int) ($args['id'] ?? 0);
+        $newsletter = $this->attachmentGuard($newsletterId);
+        if ($newsletter === null) {
+            return $this->backToEdit($response, $newsletterId);
+        }
+
+        $deleted = $this->entityAttachments->deleteForEntity(
+            NewsletterAttachmentService::ENTITY_TYPE,
+            (int) $newsletter->id,
+            (int) ($args['attachment_id'] ?? 0)
+        );
+
+        $_SESSION[$deleted ? 'success' : 'error'] = $deleted
+            ? 'Datei entfernt.'
+            : 'Datei nicht gefunden.';
+
+        return $this->backToEdit($response, (int) $newsletter->id);
     }
 }

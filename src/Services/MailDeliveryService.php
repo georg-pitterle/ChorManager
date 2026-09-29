@@ -12,10 +12,16 @@ use Throwable;
 class MailDeliveryService
 {
     private Mailer $mailer;
+    private NewsletterAttachmentService $attachments;
 
-    public function __construct(Mailer $mailer)
+    public function __construct(Mailer $mailer, ?NewsletterAttachmentService $attachments = null)
     {
         $this->mailer = $mailer;
+
+        // Der Dienst ist zustandslos und liest nur. Der Vorgabewert hält die
+        // Aufrufer frei, die den Versand ohne Newsletter-Bezug bauen - etwa
+        // den Queue-Worker in bin/ und die Tests der Zustellwege.
+        $this->attachments = $attachments ?? new NewsletterAttachmentService();
     }
 
     /**
@@ -157,10 +163,14 @@ class MailDeliveryService
 
         try {
             // Attempt to send via Mailer
+            // Die Dateien liegen nicht in der Queue, sondern am Newsletter: Eine
+            // Kopie je Empfängerzeile wären bei 80 Empfängern und einem 3-MB-PDF
+            // eine Viertelgigabyte in mail_queue. Deshalb erst hier nachladen.
             $result = $this->mailer->sendHtmlMailDetailed(
                 $entry->recipient_email,
                 $entry->subject,
-                $entry->body_html
+                $entry->body_html,
+                $this->attachmentsFor($entry)
             );
 
             $success = (bool) ($result['success'] ?? false);
@@ -235,6 +245,25 @@ class MailDeliveryService
      * @param string $errorCode
      * @param string $errorMessage
      */
+    /**
+     * Die angehängten Dateien einer eingereihten Newsletter-Mail, sonst nichts.
+     *
+     * @return array<int, array{content: string, name: string, mime: string}>
+     */
+    private function attachmentsFor(MailQueue $entry): array
+    {
+        if ($entry->mail_type !== 'newsletter') {
+            return [];
+        }
+
+        $payload = $entry->payload_json ?? [];
+        if (!isset($payload['newsletter_id'])) {
+            return [];
+        }
+
+        return $this->attachments->attachedFiles((int) $payload['newsletter_id']);
+    }
+
     private function handleFailure(MailQueue $entry, string $errorCode, string $errorMessage): void
     {
         $entry->update([

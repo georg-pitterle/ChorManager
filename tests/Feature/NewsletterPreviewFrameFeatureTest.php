@@ -221,7 +221,12 @@ final class NewsletterPreviewFrameFeatureTest extends TestCase
             'src="/newsletters/' . $newsletter->id . '/preview-frame"',
             $body
         );
-        $this->assertStringContainsString('sandbox=""', $body);
+        // Erlaubt ist allein, einen Link in ein neues Tab zu öffnen - sonst liefe
+        // der Klick auf eine verlinkte Newsletter-Datei gegen die Sandbox.
+        // allow-scripts und allow-same-origin bleiben draußen.
+        $this->assertStringContainsString('sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"', $body);
+        $this->assertStringNotContainsString('allow-scripts', $body);
+        $this->assertStringNotContainsString('allow-same-origin', $body);
         $this->assertStringNotContainsString('eigenen Daten', $body);
         $this->assertStringNotContainsString('{{anrede}}', $body);
     }

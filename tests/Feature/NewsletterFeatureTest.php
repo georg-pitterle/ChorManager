@@ -394,16 +394,23 @@ class NewsletterFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Die Regel liegt seit den Newsletter-Anhängen in der NewsletterPolicy: Die
+     * AttachmentAccessRegistry braucht dieselbe Antwort, und zwei Kopien liefen
+     * auseinander. Der Controller fragt sie nur noch.
+     */
     public function testPreviewAccessAllowsReceivedNewsletterArchiveEntries(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
+        $policyContent = file_get_contents(dirname(__DIR__) . '/../src/Policies/NewsletterPolicy.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('private function canAccessReceivedNewsletterById', $controllerContent);
-        $this->assertStringContainsString('NewsletterArchive::query()', $controllerContent);
-        $this->assertStringContainsString("->where('newsletter_id', \$newsletterId)", $controllerContent);
-        $this->assertStringContainsString("->where('user_id', (int) \$userId)", $controllerContent);
-        $this->assertStringContainsString('&& !$this->canAccessReceivedNewsletterById($id, $userId)', $controllerContent);
+        $this->assertIsString($policyContent);
+        $this->assertStringContainsString('NewsletterArchive::query()', $policyContent);
+        $this->assertStringContainsString("->where('newsletter_id', \$newsletterId)", $policyContent);
+        $this->assertStringContainsString("->where('user_id', \$userId)", $policyContent);
+        $this->assertStringContainsString('$this->newsletterPolicy->canView($newsletterId, $userId)', $controllerContent);
+        $this->assertStringContainsString('!$this->canViewNewsletterById($id, $userId)', $controllerContent);
     }
 
     public function testMailerHasIsMailSendDisabledMethod(): void

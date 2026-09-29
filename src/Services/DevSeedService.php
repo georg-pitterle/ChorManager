@@ -186,6 +186,7 @@ class DevSeedService
                 'newsletter_recipient_sources' => 0,
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
+                'newsletter_attachments' => 0,
                 'mail_queue' => 0,
                 'calendar_subscription_tokens' => 0,
                 'webdav_access_tokens' => 0,
@@ -3953,6 +3954,40 @@ class DevSeedService
         }
     }
 
+    /**
+     * Zwei Dateien an einem Newsletter, eine je Zustellweg.
+     *
+     * Nur so zeigt der Dev-Stand beide Seiten: Der Probenplan hängt an der Mail,
+     * das Konzertprogramm steht als Link darin. Die Angabe in `file_size` ist
+     * dabei bewusst größer als der abgelegte Inhalt - der Link-Fall soll
+     * sichtbar sein, ohne vier Megabyte Platzhalter in die Datenbank zu
+     * schreiben.
+     */
+    private function seedNewsletterAttachments(Newsletter $newsletter): void
+    {
+        $files = [
+            ['Probenplan.pdf', NewsletterAttachmentService::MODE_ATTACH, 40 * 1024],
+            ['Konzertprogramm.pdf', NewsletterAttachmentService::MODE_LINK, 4 * 1024 * 1024],
+        ];
+
+        foreach ($files as [$name, $mode, $size]) {
+            $fixture = DevSeedAttachmentFixtures::pdf('Anhang zum Newsletter: ' . $name);
+
+            Attachment::create([
+                'entity_type' => NewsletterAttachmentService::ENTITY_TYPE,
+                'entity_id' => (int) $newsletter->id,
+                'filename' => EntityAttachmentService::storedName($name),
+                'original_name' => $name,
+                'mime_type' => $fixture['mime_type'],
+                'file_size' => $size,
+                'file_content' => $fixture['content'],
+                'delivery_mode' => $mode,
+            ]);
+
+            $this->report['counts']['newsletter_attachments']++;
+        }
+    }
+
     private function seedNewsletters(array $projects, array $activeUsers): void
     {
         $templateDefinitions = [
@@ -4053,6 +4088,14 @@ class DevSeedService
 
                 $this->report['counts']['newsletters']++;
 
+                // Nur am ersten versendeten Newsletter je Projekt: So steht im
+                // Dev-Stand ein Archiv-Eintrag, dessen Mail beide Zustellwege
+                // zeigt - und an dem sich die Sperre nach dem Versand ablesen
+                // lässt.
+                if ($i === 0) {
+                    $this->seedNewsletterAttachments($newsletter);
+                }
+
                 NewsletterRecipientSource::create([
                     'newsletter_id' => $newsletter->id,
                     'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
@@ -4102,6 +4145,8 @@ class DevSeedService
             ]);
 
             $this->report['counts']['newsletters']++;
+
+            $this->seedNewsletterAttachments($draft);
 
             NewsletterRecipientSource::create([
                 'newsletter_id' => $draft->id,

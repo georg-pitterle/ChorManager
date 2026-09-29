@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Attachment;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
+use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -32,6 +33,7 @@ final class AttachmentAccessRegistry
 {
     private SponsoringPolicy $sponsoringPolicy;
     private TaskPolicy $taskPolicy;
+    private NewsletterPolicy $newsletterPolicy;
 
     /** @var array<string, bool> */
     private array $modules;
@@ -39,11 +41,16 @@ final class AttachmentAccessRegistry
     /**
      * @param array<string, bool> $modules
      */
-    public function __construct(SponsoringPolicy $sponsoringPolicy, TaskPolicy $taskPolicy, array $modules)
-    {
+    public function __construct(
+        SponsoringPolicy $sponsoringPolicy,
+        TaskPolicy $taskPolicy,
+        array $modules,
+        NewsletterPolicy $newsletterPolicy
+    ) {
         $this->sponsoringPolicy = $sponsoringPolicy;
         $this->taskPolicy = $taskPolicy;
         $this->modules = $modules;
+        $this->newsletterPolicy = $newsletterPolicy;
     }
 
     /**
@@ -67,6 +74,8 @@ final class AttachmentAccessRegistry
             'sponsor'     => $this->moduleEnabled('sponsoring') && $this->maySeeSponsor($entityId),
             'sponsorship' => $this->moduleEnabled('sponsoring') && $this->maySeeSponsorship($entityId),
             'song'        => $this->maySeeSong($entityId, $userId),
+            'newsletter'  => $this->moduleEnabled('newsletter')
+                && $this->newsletterPolicy->canView($entityId, $userId),
             default       => false,
         };
     }

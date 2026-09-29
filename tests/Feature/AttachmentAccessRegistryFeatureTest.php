@@ -8,6 +8,7 @@ use App\Models\Attachment;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\User;
+use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\AttachmentAccessRegistry;
@@ -140,12 +141,14 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
             'finance' => true,
             'sponsoring' => true,
             'tasks' => true,
+            'newsletter' => true,
         ];
 
         return new AttachmentAccessRegistry(
             new SponsoringPolicy($_SESSION),
             new TaskPolicy($_SESSION),
-            array_merge($defaults, $modules)
+            array_merge($defaults, $modules),
+            new NewsletterPolicy($_SESSION)
         );
     }
 

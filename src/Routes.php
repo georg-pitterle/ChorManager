@@ -658,6 +658,18 @@ return function (App $app) {
                             [NewsletterController::class, 'previewRender']
                         );
                         $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/attachments',
+                            [NewsletterController::class, 'uploadAttachments']
+                        );
+                        $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/mode',
+                            [NewsletterController::class, 'updateAttachmentMode']
+                        );
+                        $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
+                            [NewsletterController::class, 'deleteAttachment']
+                        );
+                        $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/test-mail',
                             [NewsletterController::class, 'testMail']
                         );

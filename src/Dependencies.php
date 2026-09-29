@@ -26,6 +26,7 @@ use App\Persistence\ProjectPersistence;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Services\Mailer;
 use App\Services\NewsletterService;
+use App\Services\NewsletterAttachmentService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
@@ -101,6 +102,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Util\AttachmentPreview;
 use App\Util\EnvHelper;
+use App\Policies\NewsletterPolicy;
 use App\Policies\ProjectMemberPolicy;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
@@ -360,6 +362,7 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         SendRegistrationRemindersCommand::class => \DI\autowire(),
+        NewsletterAttachmentService::class => \DI\autowire(),
         NewsletterRecipientService::class => \DI\autowire(),
         NewsletterLockingService::class => \DI\autowire(),
         NewsletterPlaceholderService::class => \DI\autowire(),
@@ -591,6 +594,8 @@ return function (ContainerBuilder $containerBuilder) {
         SponsoringPolicy::class => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
         EntityAttachmentService::class => \DI\autowire(),
         TaskPolicy::class => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
+
+        NewsletterPolicy::class => static fn (): NewsletterPolicy => new NewsletterPolicy($_SESSION),
         UserEditPolicy::class => \DI\autowire(),
         AttachmentResponseFactory::class => \DI\autowire(),
         // Die Registry braucht das Modul-Array aus den Settings; PHP-DI kann
@@ -601,7 +606,8 @@ return function (ContainerBuilder $containerBuilder) {
             return new AttachmentAccessRegistry(
                 $c->get(SponsoringPolicy::class),
                 $c->get(TaskPolicy::class),
-                is_array($modules) ? $modules : []
+                is_array($modules) ? $modules : [],
+                $c->get(NewsletterPolicy::class)
             );
         },
 

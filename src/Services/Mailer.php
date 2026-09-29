@@ -81,9 +81,12 @@ class Mailer
     /**
      * Send a HTML mail and return delivery metadata for queue lifecycle handling.
      *
+     * @param array<int, array{content: string, name: string, mime: string}> $attachments Dateien,
+     *        die an der Mail hängen. Der Inhalt kommt als Zeichenkette aus der Datenbank, nicht
+     *        als Pfad - im Dateisystem des Containers liegt er nicht.
      * @return array{success: bool, skipped: bool, provider_name: string, provider_message_id: ?string}
      */
-    public function sendHtmlMailDetailed(string $to, string $subject, string $htmlBody): array
+    public function sendHtmlMailDetailed(string $to, string $subject, string $htmlBody, array $attachments = []): array
     {
         $providerName = $this->useSmtp ? 'smtp' : 'sendmail';
 
@@ -107,7 +110,7 @@ class Mailer
 
         try {
             $this->lastError = null;
-            $this->composeMessage($to, $subject, $htmlBody);
+            $this->composeMessage($to, $subject, $htmlBody, $attachments);
 
             $result = $this->mail->send();
             if ($result) {
@@ -168,8 +171,12 @@ class Mailer
      * Bilder aus `data:`-URIs werden zu eingebetteten Anhängen: Gmail entfernt solche Quellen
      * beim Umschreiben des HTML, das Logo im Mailkopf bliebe dort sonst unsichtbar.
      */
-    private function composeMessage(string $to, string $subject, string $htmlBody): void
-    {
+    private function composeMessage(
+        string $to,
+        string $subject,
+        string $htmlBody,
+        array $attachments = []
+    ): void {
         // Die Instanz lebt über mehrere Mails hinweg; ohne Zurücksetzen hängen die
         // eingebetteten Bilder der Vormail an der nächsten.
         $this->mail->clearAddresses();
@@ -190,6 +197,17 @@ class Mailer
             );
         }
 
+        // Die Newsletter-Anhänge. Das clearAttachments() oben deckt auch sie ab -
+        // ohne das hinge die Datei der Vormail an der nächsten.
+        foreach ($attachments as $attachment) {
+            $this->mail->addStringAttachment(
+                $attachment['content'],
+                $attachment['name'],
+                PHPMailer::ENCODING_BASE64,
+                $attachment['mime']
+            );
+        }
+
         $this->mail->Body = $inline['html'];
 
         // Generate plain text version from HTML
@@ -198,18 +216,23 @@ class Mailer
 
     /**
      * Baut die fertige MIME-Nachricht, ohne sie zu verschicken — für Diagnose und Tests.
+     *
+     * @param array<int, array{content: string, name: string, mime: string}> $attachments
      */
-    public function buildMimeMessage(string $to, string $subject, string $htmlBody): string
+    public function buildMimeMessage(string $to, string $subject, string $htmlBody, array $attachments = []): string
     {
-        $this->composeMessage($to, $subject, $htmlBody);
+        $this->composeMessage($to, $subject, $htmlBody, $attachments);
         $this->mail->preSend();
 
         return $this->mail->getSentMIMEMessage();
     }
 
-    public function sendHtmlMail(string $to, string $subject, string $htmlBody): bool
+    /**
+     * @param array<int, array{content: string, name: string, mime: string}> $attachments
+     */
+    public function sendHtmlMail(string $to, string $subject, string $htmlBody, array $attachments = []): bool
     {
-        $result = $this->sendHtmlMailDetailed($to, $subject, $htmlBody);
+        $result = $this->sendHtmlMailDetailed($to, $subject, $htmlBody, $attachments);
 
         return (bool) ($result['success'] ?? false);
     }

@@ -12,6 +12,7 @@ use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
+use App\Services\NewsletterAttachmentService;
 use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
@@ -97,7 +98,8 @@ final class NewsletterSendClaimReleaseFeatureTest extends TestCase
                 string $subject,
                 string $contentHtml,
                 string $baseUrl,
-                bool $includeBrowseLink = true
+                bool $includeBrowseLink = true,
+                array $linkedFiles = []
             ): string {
                 throw new \Error('Rendering ist an einem Fehler ausserhalb der Exception-Hierarchie gescheitert.');
             }
@@ -110,7 +112,8 @@ final class NewsletterSendClaimReleaseFeatureTest extends TestCase
             new MailQueueService(),
             new NullLogger(),
             new NewsletterPlaceholderService(new NameFormatterService()),
-            $renderer
+            $renderer,
+            new NewsletterAttachmentService()
         );
     }
 

@@ -13,7 +13,32 @@
 {% block closing %}{% endblock %}
 
 {# content_html ist bereits sanitisiert und die Platzhalter sind ersetzt: hier nicht erneut escapen. #}
-{% block content %}{{ content_html|raw }}{% endblock %}
+{% block content %}
+    {{ content_html|raw }}
+
+    {# Nur die verlinkten Dateien. Angehängte hängen an der Mail und brauchen hier nichts.
+       Inline-Styles sind in Mail-Vorlagen Pflicht: Ein style-Block wird von Outlook
+       teilweise ganz verworfen. #}
+    {% if linked_files|default([])|length > 0 %}
+        <div class="newsletter-files" style="margin-top: 24px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 16px;">Dateien</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+                {% for file in linked_files %}
+                    {# target="_blank": In der Vorschau läuft die Mail in einem sandboxten
+                       Rahmen, in dem eine Navigation blockiert wäre - und ohne eigene
+                       Herkunft fehlte dem Download das Sitzungs-Cookie. In der zugestellten
+                       Mail ist ein neues Fenster ohnehin das erwartete Verhalten. #}
+                    <li style="margin-bottom: 4px;">
+                        <a href="{{ file.url }}"
+                           class="cm-linkaccent"
+                           target="_blank"
+                           rel="noopener noreferrer">{{ file.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+{% endblock %}
 
 {% block footer_note %}
     Diese Nachricht wurde von {{ app_name|default("Chor-Manager") }} versendet.

@@ -55,12 +55,20 @@ class NewsletterMailRenderer
      *                                von emails/newsletter.twig, nur dieser eine Block ändert
      *                                sich - so laufen Vorschau und Mail nicht auseinander.
      */
+    /**
+     * @param array<int, array{name: string, size: int, url: string}> $linkedFiles Dateien,
+     *        die nicht an der Mail hängen, sondern darin verlinkt werden. Die Liste kommt
+     *        fertig aufbereitet aus dem NewsletterAttachmentService - der Renderer
+     *        entscheidet nicht, was verlinkt wird, er stellt es nur dar. Angehängte Dateien
+     *        stehen bewusst nicht darin: Sie hängen an der Mail und brauchen keinen Link.
+     */
     public function renderHtml(
         Newsletter $newsletter,
         string $subject,
         string $contentHtml,
         string $baseUrl,
-        bool $includeBrowseLink = true
+        bool $includeBrowseLink = true,
+        array $linkedFiles = []
     ): string {
         $branding = $this->resolveBranding();
 
@@ -75,6 +83,7 @@ class NewsletterMailRenderer
             'eyebrow_label' => $eyebrowLabel,
             'browse_url' => $browseUrl,
             'include_browse_link' => $includeBrowseLink,
+            'linked_files' => $linkedFiles,
         ]));
     }
 

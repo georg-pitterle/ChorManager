@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\NewsletterAttachmentsTooLargeException;
 use App\Exceptions\NewsletterWithoutRecipientsException;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
@@ -23,6 +24,7 @@ class NewsletterService
     private LoggerInterface $logger;
     private NewsletterPlaceholderService $placeholderService;
     private NewsletterMailRenderer $mailRenderer;
+    private NewsletterAttachmentService $attachments;
 
     public function __construct(
         NewsletterRecipientService $recipientService,
@@ -31,7 +33,8 @@ class NewsletterService
         MailQueueService $mailQueueService,
         LoggerInterface $logger,
         NewsletterPlaceholderService $placeholderService,
-        NewsletterMailRenderer $mailRenderer
+        NewsletterMailRenderer $mailRenderer,
+        NewsletterAttachmentService $attachments
     ) {
         $this->recipientService = $recipientService;
         $this->mailer = $mailer;
@@ -40,6 +43,7 @@ class NewsletterService
         $this->logger = $logger;
         $this->placeholderService = $placeholderService;
         $this->mailRenderer = $mailRenderer;
+        $this->attachments = $attachments;
     }
 
     /**
@@ -72,6 +76,17 @@ class NewsletterService
         // nicht verändern.
         if ($resolvedRecipients->count() === 0) {
             throw new NewsletterWithoutRecipientsException();
+        }
+
+        // Vor dem Claim: Ein abgelehnter Versand darf den Entwurf nicht als
+        // "versendet" zurücklassen. Verlinkte Dateien zählen nicht mit - sie
+        // reisen nicht in der Mail.
+        $attachedTotal = $this->attachments->attachedTotalBytes((int) $newsletter->id);
+        if ($attachedTotal > NewsletterAttachmentService::MAX_ATTACHED_TOTAL) {
+            throw new NewsletterAttachmentsTooLargeException(
+                $attachedTotal,
+                NewsletterAttachmentService::MAX_ATTACHED_TOTAL
+            );
         }
 
         $sentAt = Carbon::now();
@@ -137,6 +152,10 @@ class NewsletterService
         // Empfänger-unabhängige Werte einmal auflösen, nicht je Empfänger.
         $renderContext = $this->placeholderService->contextFor($newsletter, $baseUrl);
 
+        // Die verlinkten Dateien sind für alle dieselben. Je Empfänger
+        // nachzuschlagen wären bei 80 Empfängern 80 gleiche Abfragen.
+        $linkedFiles = $this->attachments->linkedFiles((int) $newsletter->id, $baseUrl);
+
         // Enqueue newsletter for each recipient
         foreach ($recipients as $recipient) {
             $toEmail = trim((string) $recipient->user->email);
@@ -159,7 +178,14 @@ class NewsletterService
                 $this->mailQueueService->enqueueNewsletterMail(
                     recipientEmail: $toEmail,
                     subject: $subject,
-                    bodyHtml: $this->mailRenderer->renderHtml($newsletter, $subject, $personalizedContent, $baseUrl),
+                    bodyHtml: $this->mailRenderer->renderHtml(
+                        $newsletter,
+                        $subject,
+                        $personalizedContent,
+                        $baseUrl,
+                        true,
+                        $linkedFiles
+                    ),
                     newsletterId: (int) $newsletter->id,
                     recipientId: (int) $recipient->id
                 );

@@ -15,6 +15,7 @@ use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
+use App\Services\NewsletterAttachmentService;
 use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
@@ -97,7 +98,8 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
             new MailQueueService(),
             new NullLogger(),
             new NewsletterPlaceholderService(new NameFormatterService()),
-            new NewsletterMailRenderer($twig)
+            new NewsletterMailRenderer($twig),
+            new NewsletterAttachmentService()
         );
     }
 

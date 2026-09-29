@@ -155,7 +155,7 @@
             <div class="surface-card card border-0">
                 <div class="card-body">
                     <iframe srcdoc="{{ entry.body_html|escape('html_attr') }}"
-                            sandbox=""
+                            sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
                             class="mail-queue-preview-frame"></iframe>
                 </div>
             </div>

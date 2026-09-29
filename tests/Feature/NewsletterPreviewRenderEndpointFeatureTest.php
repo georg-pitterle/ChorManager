@@ -243,8 +243,10 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
      * Der eingebettete Rahmen im Editor-Modal (#preview-modal-frame) muss dieselbe strenge
      * Sandbox tragen wie der Rahmen der eigenständigen Vorschauseite - siehe
      * NewsletterPreviewFrameFeatureTest::testPreviewPageEmbedsSandboxedFrame().
-     * Ohne sandbox="" könnte der über previewRender() geladene Mail-Inhalt im Editor Skripte
-     * ausführen oder aus dem Rahmen heraus navigieren.
+     * Ohne diese Sandbox könnte der über previewRender() geladene Mail-Inhalt im Editor
+     * Skripte ausführen oder an die Herkunft der Anwendung kommen. Erlaubt ist allein,
+     * einen Link in ein neues Tab zu öffnen - ohne das liefe der Klick auf eine verlinkte
+     * Newsletter-Datei gegen die Sandbox.
      */
     public function testEditPageEmbedsSandboxedPreviewFrame(): void
     {
@@ -263,7 +265,9 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('id="preview-modal-frame"', $body);
-        $this->assertStringContainsString('sandbox=""', $body);
+        $this->assertStringContainsString('sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"', $body);
+        $this->assertStringNotContainsString('allow-scripts', $body);
+        $this->assertStringNotContainsString('allow-same-origin', $body);
     }
 
     /**

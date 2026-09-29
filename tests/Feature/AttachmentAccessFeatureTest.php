@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\AttachmentController;
 use App\Models\Attachment;
+use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\AttachmentAccessRegistry;
@@ -77,7 +78,8 @@ final class AttachmentAccessFeatureTest extends TestCase
         $registry = new AttachmentAccessRegistry(
             new SponsoringPolicy($_SESSION),
             new TaskPolicy($_SESSION),
-            ['finance' => true, 'sponsoring' => true, 'tasks' => true]
+            ['finance' => true, 'sponsoring' => true, 'tasks' => true, 'newsletter' => true],
+            new NewsletterPolicy($_SESSION)
         );
 
         return new AttachmentController($registry, new AttachmentResponseFactory(), new NullLogger());

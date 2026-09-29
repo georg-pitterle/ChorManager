@@ -11,7 +11,10 @@ use App\Models\NewsletterRecipientSource;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Policies\NewsletterPolicy;
+use App\Services\EntityAttachmentService;
 use App\Services\HtmlSanitizer;
+use App\Services\NewsletterAttachmentService;
 use App\Services\MailQueueService;
 use App\Services\Mailer;
 use App\Services\NameFormatterService;
@@ -70,6 +73,36 @@ trait NewsletterControllerTestScaffold
         ]);
     }
 
+    /**
+     * Derselbe Renderer, den auch controller() nutzt - Vorschau und Mail dürfen
+     * im Test nicht auf zwei verschiedene Twig-Instanzen laufen.
+     */
+    private function mailRenderer(): NewsletterMailRenderer
+    {
+        return new NewsletterMailRenderer($this->twigForMails());
+    }
+
+    private function newsletterService(): NewsletterService
+    {
+        $twig = $this->twigForMails();
+
+        return new NewsletterService(
+            new NewsletterRecipientService(),
+            new Mailer(new NullLogger()),
+            new HtmlSanitizer(),
+            new MailQueueService(),
+            new NullLogger(),
+            new NewsletterPlaceholderService(new NameFormatterService()),
+            new NewsletterMailRenderer($twig),
+            new NewsletterAttachmentService()
+        );
+    }
+
+    private function twigForMails(): Twig
+    {
+        return Twig::create(dirname(__DIR__, 2) . '/templates');
+    }
+
     private function controller(): NewsletterController
     {
         $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
@@ -101,7 +134,8 @@ trait NewsletterControllerTestScaffold
                 new MailQueueService(),
                 new NullLogger(),
                 new NewsletterPlaceholderService(new NameFormatterService()),
-                new NewsletterMailRenderer($twig)
+                new NewsletterMailRenderer($twig),
+                new NewsletterAttachmentService()
             ),
             new NewsletterLockingService(),
             new NewsletterRecipientService(),
@@ -110,7 +144,10 @@ trait NewsletterControllerTestScaffold
             new NameFormatterService(),
             new NewsletterPlaceholderService(new NameFormatterService()),
             new MailQueueService(),
-            new NewsletterMailRenderer($twig)
+            new NewsletterMailRenderer($twig),
+            new NewsletterPolicy($_SESSION),
+            new EntityAttachmentService(new NullLogger()),
+            new NewsletterAttachmentService()
         );
     }
 
