@@ -36,6 +36,34 @@ return function (App $app): void {
         }
     }
 
+    // Zuletzt hinzugefügt heißt zuerst ausgeführt: Der Request-Kontext steht
+    // damit allen nachfolgenden Middlewares und Controllern zur Verfügung.
+    $app->add(HtmlFormCsrfInjectorMiddleware::class);
+    $app->add(CsrfMiddleware::class);
+    $app->add(MailQueueProcessingMiddleware::class);
+
+    $settings = $container instanceof ContainerInterface ? $container->get('settings') : [];
+    if ($settings['modules']['registration'] ?? false) {
+        $app->add(RegistrationReminderMiddleware::class);
+    }
+
+    // Bewusst außerhalb des Registrierungs-Moduls: Die Benachrichtigungs-Erinnerungen
+    // betreffen fällige Aufgaben und Sponsoring-Wiedervorlagen, nicht die Anmeldung zu
+    // Terminen. Am Modul "registration" hängend blieben sie in der Voreinstellung
+    // (FEATURE_REGISTRATION=false) unregistriert und die Mails kamen ohne eigenen
+    // Cron-Lauf nie an. Welche Anlässe tatsächlich versendet werden, entscheidet
+    // weiterhin NotificationService::isAvailable() je Anlass anhand seines Moduls.
+    $app->add(NotificationReminderMiddleware::class);
+
+    $app->add(MailBadgeRefreshMiddleware::class);
+
+    // Der Fehler-Handler kommt nach den inneren Middlewares und vor den beiden
+    // äußeren: Er fängt damit alles von der Mailwarteschlange einwärts, und die
+    // Fehlerseite bekommt von der SecurityHeadersMiddleware weiterhin ihre
+    // Kopfzeilen. Stand er - wie zuvor - vor allen `add`-Aufrufen, lag er ganz
+    // innen: Eine Ausnahme aus CsrfMiddleware, HtmlFormCsrfInjectorMiddleware
+    // oder einer der nebenbei laufenden Middlewares verließ `$app->handle()`
+    // ungefangen - ohne Fehlerseite und ohne Protokollzeile.
     $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
     $defaultErrorHandler = $errorMiddleware->getDefaultErrorHandler();
 
@@ -80,26 +108,6 @@ return function (App $app): void {
         }
     );
 
-    // Zuletzt hinzugefügt heißt zuerst ausgeführt: Der Request-Kontext steht
-    // damit allen nachfolgenden Middlewares und Controllern zur Verfügung.
-    $app->add(HtmlFormCsrfInjectorMiddleware::class);
-    $app->add(CsrfMiddleware::class);
-    $app->add(MailQueueProcessingMiddleware::class);
-
-    $settings = $container instanceof ContainerInterface ? $container->get('settings') : [];
-    if ($settings['modules']['registration'] ?? false) {
-        $app->add(RegistrationReminderMiddleware::class);
-    }
-
-    // Bewusst außerhalb des Registrierungs-Moduls: Die Benachrichtigungs-Erinnerungen
-    // betreffen fällige Aufgaben und Sponsoring-Wiedervorlagen, nicht die Anmeldung zu
-    // Terminen. Am Modul "registration" hängend blieben sie in der Voreinstellung
-    // (FEATURE_REGISTRATION=false) unregistriert und die Mails kamen ohne eigenen
-    // Cron-Lauf nie an. Welche Anlässe tatsächlich versendet werden, entscheidet
-    // weiterhin NotificationService::isAvailable() je Anlass anhand seines Moduls.
-    $app->add(NotificationReminderMiddleware::class);
-
-    $app->add(MailBadgeRefreshMiddleware::class);
     $app->add(SecurityHeadersMiddleware::class);
     $app->add(RequestContextMiddleware::class);
 };

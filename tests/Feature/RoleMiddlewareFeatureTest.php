@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Middleware\RoleMiddleware;
+use App\Util\SessionExpiredSignal;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -321,6 +322,46 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame('text/plain; charset=utf-8', $response->getHeaderLine('Content-Type'));
         $this->assertStringContainsString('Rollenverwaltung', (string) $response->getBody());
+    }
+
+
+    /**
+     * Ohne Sitzung schickt die Middleware zur Anmeldung - aber nur den Browser.
+     *
+     * Erreicht wird dieser Zweig im Regelbetrieb nicht: Die AuthMiddleware hängt in
+     * Routes.php an der ganzen Gruppe und weist vorher ab. Er ist die zweite Reihe,
+     * und die muss dasselbe tun wie die erste - sonst bekäme ein `fetch`-Aufruf eine
+     * Weiterleitung, folgte ihr und wertete die Anmeldeseite als HTML mit Status 200
+     * aus.
+     */
+    public function testUnauthenticatedJsonCallerGetsSessionExpiredInsteadOfRedirect(): void
+    {
+        unset($_SESSION['user_id']);
+
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/users/42/roles')
+            ->withHeader('X-Requested-With', 'XMLHttpRequest');
+
+        $middleware = new RoleMiddleware(requiresUserManagement: true);
+        $response = $middleware->process($request, $this->passthroughHandler());
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame('1', $response->getHeaderLine(SessionExpiredSignal::HEADER));
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+    }
+
+    public function testUnauthenticatedBrowserCallerIsStillRedirectedToLogin(): void
+    {
+        unset($_SESSION['user_id']);
+
+        $middleware = new RoleMiddleware(requiresUserManagement: true);
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/users'),
+            $this->passthroughHandler()
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame('/login', $response->getHeaderLine('Location'));
     }
 
     private function passthroughHandler(): RequestHandlerInterface
