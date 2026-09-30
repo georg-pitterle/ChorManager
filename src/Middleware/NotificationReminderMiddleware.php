@@ -4,66 +4,23 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use App\Services\NotificationReminderService;
-use App\Util\AppUrlResolver;
-use App\Util\OpportunisticRunGate;
-use Closure;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Http\Server\MiddlewareInterface;
-use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
-use Psr\Log\LoggerInterface;
-
 /**
- * Stößt die fälligen Erinnerungen nebenbei an, wenn kein Cron läuft.
+ * Die Erinnerung an fällige Aufgaben und Sponsoring-Wiedervorlagen.
  *
- * Wortgleich zur `RegistrationReminderMiddleware` aufgebaut, inklusive des
- * Stundentakts. Die Wartezeit und die Betriebsart-Prüfung - eine Installation,
- * die `mailqueue_trigger_mode` auf reinen Cron stellt, will hier keine Arbeit im
- * Anfrageweg - liegen beide im `OpportunisticRunGate`.
+ * Der ganze Ablauf - Wartezeit, Betriebsart, träge aufgelöster Dienst,
+ * Fehlerbehandlung - steht in `OpportunisticReminderMiddleware`. Welche Anlässe
+ * tatsächlich versendet werden, entscheidet weiterhin
+ * `NotificationService::isAvailable()` je Anlass anhand seines Moduls.
  */
-class NotificationReminderMiddleware implements MiddlewareInterface
+class NotificationReminderMiddleware extends OpportunisticReminderMiddleware
 {
-    private const MARKER_KEY = 'notification_reminder_last_check_at';
-    private const CHECK_INTERVAL_SECONDS = 3600;
-
-    /**
-     * Der Dienst kommt über eine Fabrik, nicht als fertige Instanz. Grund ist
-     * derselbe wie bei der Anmelde-Erinnerung: Diese Middleware läuft global
-     * und damit vor der AuthMiddleware. Twig hier zu bauen fror den noch
-     * unangemeldeten Sitzungszustand ein, und eine per Remember-Me
-     * wiederhergestellte Anmeldung erreichte die Templates nicht mehr - die
-     * Navigationsleiste verschwand für diese eine Anfrage.
-     *
-     * @param Closure(): NotificationReminderService $reminderServiceFactory
-     */
-    public function __construct(
-        private readonly Closure $reminderServiceFactory,
-        private readonly LoggerInterface $logger
-    ) {
+    protected function markerKey(): string
+    {
+        return 'notification_reminder_last_check_at';
     }
 
-    public function process(Request $request, RequestHandler $handler): Response
+    protected function failureEvent(): string
     {
-        $this->processIfDue($request);
-
-        return $handler->handle($request);
-    }
-
-    private function processIfDue(Request $request): void
-    {
-        try {
-            if (!OpportunisticRunGate::tryClaim(self::MARKER_KEY, self::CHECK_INTERVAL_SECONDS)) {
-                return;
-            }
-
-            $reminderService = ($this->reminderServiceFactory)();
-            $reminderService->processDue(AppUrlResolver::resolveBaseUrl($request));
-        } catch (\Throwable $exception) {
-            $this->logger->error('Opportunistic notification reminder processing failed.', [
-                'event' => 'notification_reminder.opportunistic.failed',
-                'exception' => $exception,
-            ]);
-        }
+        return 'notification_reminder.opportunistic.failed';
     }
 }

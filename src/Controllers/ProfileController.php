@@ -19,6 +19,7 @@ use App\Services\NotificationService;
 use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
 use App\Util\BlockedHostException;
+use App\Util\Csrf;
 use App\Util\NotificationType;
 use App\Util\OutboundConnectionGuard;
 use App\Util\InputValidator;
@@ -376,9 +377,12 @@ class ProfileController
         }
 
         // Die eigene Sitzung bleibt bestehen, bekommt aber eine neue Kennung: Wer sie
-        // mitgelesen hat, kommt mit der alten nicht weiter.
+        // mitgelesen hat, kommt mit der alten nicht weiter. Der CSRF-Token geht
+        // mit - er überlebt den Wechsel der Kennung sonst, und wer ihn vorher
+        // kannte, kennt ihn danach weiter.
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
+            Csrf::rotate();
         }
 
         $this->logger->info('Password changed.', [

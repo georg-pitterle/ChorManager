@@ -6,6 +6,7 @@ namespace App\Middleware;
 
 use App\Models\AppSetting;
 use App\Queries\UserQuery;
+use App\Services\RememberLoginRestoreService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
 use App\Util\RequestFormat;
@@ -21,7 +22,15 @@ class AuthMiddleware implements MiddlewareInterface
     private UserQuery $userQuery;
     private RememberLoginService $rememberLoginService;
     private SessionAuthService $sessionAuthService;
+    private RememberLoginRestoreService $rememberLoginRestoreService;
 
+    /**
+     * Der Wiederherstellungs-Dienst wird hier gebaut und nicht übergeben: Er
+     * braucht genau die drei Mitarbeiter, die diese Middleware ohnehin schon
+     * bekommt. Ein vierter Parameter zwänge jede der zahlreichen Aufrufstellen
+     * in den Tests zu einem Argument, das sie sich aus denselben drei
+     * zusammensetzen müsste.
+     */
     public function __construct(
         UserQuery $userQuery,
         RememberLoginService $rememberLoginService,
@@ -30,6 +39,11 @@ class AuthMiddleware implements MiddlewareInterface
         $this->userQuery = $userQuery;
         $this->rememberLoginService = $rememberLoginService;
         $this->sessionAuthService = $sessionAuthService;
+        $this->rememberLoginRestoreService = new RememberLoginRestoreService(
+            $rememberLoginService,
+            $userQuery,
+            $sessionAuthService
+        );
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -47,34 +61,7 @@ class AuthMiddleware implements MiddlewareInterface
         // ungeschützt - und das fiele niemandem auf, weil die Liste wie eine bewusste
         // Entscheidung aussah statt wie ein Überbleibsel.
         if (!isset($_SESSION['user_id'])) {
-            $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
-            if (is_string($rememberCookie) && $rememberCookie !== '') {
-                // Aufgeräumt wird genau dort, wo Remember-Me ausgewertet wird - nicht davor.
-                // Die Löschabfrage lief zuvor bei jedem nicht angemeldeten Aufruf einer
-                // geschützten Route, also auch für jeden Suchroboter ohne Cookie, der nie
-                // ein Token besessen hat. Liegen bleibt dadurch nichts von Belang: Ein
-                // abgelaufenes Token weist validateCookieValue ohnehin ab, und wer eines
-                // besitzt, räumt beim nächsten eigenen Besuch mit auf.
-                $this->rememberLoginService->clearExpiredTokens();
-
-                $rememberToken = $this->rememberLoginService->validateCookieValue($rememberCookie);
-
-                if ($rememberToken) {
-                    $user = $this->userQuery->findForSession((int) $rememberToken->user_id);
-                    if ($user && (bool) $user->is_active) {
-                        session_regenerate_id(true);
-                        $this->sessionAuthService->setAuthenticatedUser($user);
-
-                        $rotatedToken = $this->rememberLoginService->rotateToken($rememberToken, $request);
-                        $this->rememberLoginService->setRememberCookie($rotatedToken);
-                    } else {
-                        $rememberToken->delete();
-                        $this->rememberLoginService->clearRememberCookie();
-                    }
-                } else {
-                    $this->rememberLoginService->clearRememberCookie();
-                }
-            }
+            $this->rememberLoginRestoreService->restoreFromCookie($request);
         }
 
         if (!isset($_SESSION['user_id'])) {

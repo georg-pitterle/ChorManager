@@ -11,11 +11,13 @@ use Slim\Views\Twig;
 use App\Queries\UserQuery;
 use App\Models\User;
 use App\Models\Role;
+use App\Services\RememberLoginRestoreService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
 use App\Services\RateLimiterService;
 use App\Services\PasswordPolicyService;
 use App\Util\ClientIpResolver;
+use App\Util\Csrf;
 use App\Util\InputValidator;
 use App\Util\SafeRedirect;
 use Psr\Log\LoggerInterface;
@@ -28,6 +30,7 @@ class AuthController
     private UserQuery $userQuery;
     private RememberLoginService $rememberLoginService;
     private SessionAuthService $sessionAuthService;
+    private RememberLoginRestoreService $rememberLoginRestoreService;
     private RateLimiterService $rateLimiterService;
     private PasswordPolicyService $passwordPolicyService;
     private LoggerInterface $logger;
@@ -45,6 +48,14 @@ class AuthController
         $this->userQuery = $userQuery;
         $this->rememberLoginService = $rememberLoginService;
         $this->sessionAuthService = $sessionAuthService;
+        // Gebaut statt übergeben, aus demselben Grund wie in der AuthMiddleware:
+        // Der Dienst braucht genau die drei Mitarbeiter, die hier ohnehin
+        // ankommen.
+        $this->rememberLoginRestoreService = new RememberLoginRestoreService(
+            $rememberLoginService,
+            $userQuery,
+            $sessionAuthService
+        );
         $this->rateLimiterService = $rateLimiterService;
         $this->passwordPolicyService = $passwordPolicyService;
         $this->logger = $logger;
@@ -123,6 +134,7 @@ class AuthController
 
         if ($user && $passwordMatches) {
             session_regenerate_id(true);
+            Csrf::rotate();
             $this->sessionAuthService->setAuthenticatedUser($user);
             unset($_SESSION[self::ATTENDANCE_SELECTED_EVENT_SESSION_KEY]);
 
@@ -240,6 +252,7 @@ class AuthController
 
             // Log them in immediately
             session_regenerate_id(true);
+            Csrf::rotate();
             $this->sessionAuthService->setAuthenticatedUser($user->load(['roles', 'voiceGroups']));
 
             $_SESSION['success'] = 'Administratorkonto erfolgreich erstellt!';
@@ -277,30 +290,15 @@ class AuthController
 
     private function tryAutoLoginFromRememberCookie(Request $request): bool
     {
-        $rememberCookie = $_COOKIE[RememberLoginService::COOKIE_NAME] ?? '';
-        if (!is_string($rememberCookie) || $rememberCookie === '') {
+        if (!$this->rememberLoginRestoreService->restoreFromCookie($request)) {
             return false;
         }
 
-        $rememberToken = $this->rememberLoginService->validateCookieValue($rememberCookie);
-        if (!$rememberToken) {
-            $this->rememberLoginService->clearRememberCookie();
-            return false;
-        }
-
-        $user = $this->userQuery->findForSession((int) $rememberToken->user_id);
-        if (!$user || !(bool) $user->is_active) {
-            $rememberToken->delete();
-            $this->rememberLoginService->clearRememberCookie();
-            return false;
-        }
-
-        session_regenerate_id(true);
-        $this->sessionAuthService->setAuthenticatedUser($user);
+        // Die gewählte Anwesenheitsliste gehört zur vorigen Sitzung und nicht zur
+        // neuen. Sie bleibt hier und wandert nicht in den gemeinsamen Dienst: Der
+        // Schlüssel ist eine Eigenheit der Anwesenheitsverwaltung, nicht des
+        // Anmeldewegs.
         unset($_SESSION[self::ATTENDANCE_SELECTED_EVENT_SESSION_KEY]);
-
-        $rotatedToken = $this->rememberLoginService->rotateToken($rememberToken, $request);
-        $this->rememberLoginService->setRememberCookie($rotatedToken);
 
         return true;
     }
