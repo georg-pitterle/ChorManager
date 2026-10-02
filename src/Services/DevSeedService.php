@@ -9,6 +9,7 @@ use App\Models\FileFolder;
 use App\Models\FileFolderShare;
 use App\Models\FilePublicLink;
 use App\Models\FileShare;
+use App\Services\Audience\AudienceFilterService;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileFolderService;
 use App\Services\Files\FileService;
@@ -225,6 +226,8 @@ class DevSeedService
                 'file_favorites' => 0,
                 'file_shares' => 0,
                 'file_public_links' => 0,
+                'audience_filters' => 0,
+                'audience_filter_conditions' => 0,
                 'files_trashed' => 0,
                 'backups' => 0,
             ],
@@ -324,6 +327,8 @@ class DevSeedService
 
         $tables = [
             'file_favorites',
+            'audience_filter_conditions',
+            'audience_filters',
             'file_public_links',
             'file_shares',
             'file_folder_shares',
@@ -2258,19 +2263,22 @@ class DevSeedService
 
         $pdf = static fn (string $caption): array => DevSeedAttachmentFixtures::pdf($caption);
 
-        $share = static fn (string $type, int $referenceId, int $level): array => [
-            'type' => $type,
-            'reference_id' => $referenceId,
-            'level' => $level,
-        ];
+        // Freigabe-Zeile im Format von FileFolderService::setShares; alte Zieltypen
+        // als Kurzform, all_members als "Alle Mitglieder".
+        $share = static fn (string $type, int $referenceId, int $level): array => $type === 'all_members'
+            ? ['level' => $level, 'all' => '1']
+            : ['level' => $level, 'conditions' => [
+                ['role' => 'role', 'voice_group' => 'voice_group', 'user' => 'user', 'project_members' => 'project'][$type]
+                    => [$referenceId],
+            ]];
 
         // Noten und Übe-Material: alle lesen, Chorleitung pflegt, jede Stimmgruppe
         // lädt in ihren eigenen Ordner hoch.
         $leadRole = $roles['Chorleitung'] ?? null;
         $notes = $root('Noten & Übe-Material', 500, array_values(array_filter([
-            $share(FileFolderShare::TYPE_ALL_MEMBERS, 0, FileFolderShare::LEVEL_READ),
+            $share('all_members', 0, FileFolderShare::LEVEL_READ),
             $leadRole !== null
-                ? $share(FileFolderShare::TYPE_ROLE, (int) $leadRole->id, FileFolderShare::LEVEL_EDIT)
+                ? $share('role', (int) $leadRole->id, FileFolderShare::LEVEL_EDIT)
                 : null,
         ])));
         if ($notes !== null) {
@@ -2278,7 +2286,7 @@ class DevSeedService
             foreach (['Sopran', 'Alt', 'Tenor', 'Bass'] as $position => $voice) {
                 $group = $voiceData['groups'][$voice] ?? null;
                 $folder = $child($notes, ($position + 1) . ' ' . $voice, $group === null ? [] : [
-                    $share(FileFolderShare::TYPE_VOICE_GROUP, (int) $group->id, FileFolderShare::LEVEL_UPLOAD),
+                    $share('voice_group', (int) $group->id, FileFolderShare::LEVEL_UPLOAD),
                 ]);
                 $upload($folder, "Einsingen {$voice}.mp3", [
                     'mime_type' => 'audio/mpeg',
@@ -2297,7 +2305,7 @@ class DevSeedService
         // Vorstand: nur die Rolle, dafür mit Verwaltung.
         $boardRole = $roles['Vorstand'] ?? null;
         $board = $root('Vorstand', 200, $boardRole === null ? [] : [
-            $share(FileFolderShare::TYPE_ROLE, (int) $boardRole->id, FileFolderShare::LEVEL_MANAGE),
+            $share('role', (int) $boardRole->id, FileFolderShare::LEVEL_MANAGE),
         ]);
         if ($board !== null) {
             $minutes = $child($board, 'Protokolle');
@@ -2317,17 +2325,17 @@ class DevSeedService
                 ->where('name', 'Mietvertrag Probenraum.pdf')->first();
             $fileShares = [];
             if ($invitation !== null) {
-                $fileShares[] = [$invitation, FileFolderShare::TYPE_ALL_MEMBERS, 0, FileFolderShare::LEVEL_READ];
+                $fileShares[] = [$invitation, [], FileFolderShare::LEVEL_READ];
             }
             $treasurerRole = $roles['Kassier'] ?? null;
             if ($contract !== null && $treasurerRole !== null) {
-                $fileShares[] = [$contract, FileFolderShare::TYPE_ROLE, (int) $treasurerRole->id, FileFolderShare::LEVEL_EDIT];
+                $fileShares[] = [$contract, ['role' => [(int) $treasurerRole->id]], FileFolderShare::LEVEL_EDIT];
             }
-            foreach ($fileShares as [$sharedFile, $type, $referenceId, $level]) {
+            foreach ($fileShares as [$sharedFile, $conditions, $level]) {
+                $filter = (new AudienceFilterService())->create($conditions);
                 FileShare::create([
                     'file_id' => (int) $sharedFile->id,
-                    'target_type' => $type,
-                    'reference_id' => $referenceId,
+                    'audience_filter_id' => (int) $filter->id,
                     'level' => $level,
                     'created_by' => (int) $adminUser->id,
                 ]);
@@ -2353,7 +2361,7 @@ class DevSeedService
         }
         if ($running !== null) {
             $projectFolder = $root('Projekt: ' . $running->name, null, [
-                $share(FileFolderShare::TYPE_PROJECT_MEMBERS, (int) $running->id, FileFolderShare::LEVEL_UPLOAD),
+                $share('project_members', (int) $running->id, FileFolderShare::LEVEL_UPLOAD),
             ]);
             if ($projectFolder !== null) {
                 $upload($projectFolder, 'Probenplan.txt', DevSeedAttachmentFixtures::text(
@@ -2362,15 +2370,50 @@ class DevSeedService
                 $upload($projectFolder, 'Plakat Entwurf.png', DevSeedAttachmentFixtures::png('Plakat Entwurf'));
                 $upload($projectFolder, 'Sitzplan Konzert.pdf', $pdf('Sitzplan'));
             }
+
+            // Kombinierte Freigabe: nur die Soprane, die auch im laufenden Projekt sind.
+            $soprano = $voiceData['groups']['Sopran'] ?? null;
+            if ($soprano !== null) {
+                $rehearsals = $root('Stimmproben ' . $running->name, null, [
+                    ['level' => FileFolderShare::LEVEL_READ, 'conditions' => [
+                        'voice_group' => [(int) $soprano->id],
+                        'project' => [(int) $running->id],
+                    ]],
+                ]);
+                if ($rehearsals !== null) {
+                    $upload($rehearsals, 'Sopran Einsingen.mp3', [
+                        'mime_type' => 'audio/mpeg',
+                        'content' => $this->silentMp3(40),
+                    ]);
+                }
+            }
+        }
+
+        // Kombinierte Dateifreigabe: Untergruppe Alt 2 und Rolle Mitglied.
+        $alt2 = SubVoice::query()->where('name', 'Alt 2')->first();
+        $memberRole = $roles['Mitglied'] ?? null;
+        $altPart = StoredFile::query()->where('name', 'Stimmauszug Alt - Ave verum.pdf')->first();
+        if ($alt2 !== null && $memberRole !== null && $altPart !== null) {
+            $filter = (new AudienceFilterService())->create([
+                'role' => [(int) $memberRole->id],
+                'sub_voice' => [(int) $alt2->id],
+            ]);
+            FileShare::create([
+                'file_id' => (int) $altPart->id,
+                'audience_filter_id' => (int) $filter->id,
+                'level' => FileFolderShare::LEVEL_READ,
+                'created_by' => (int) $adminUser->id,
+            ]);
+            $this->report['counts']['file_shares']++;
         }
 
         // Öffentlichkeitsarbeit: einzelnes Mitglied mit Hochladen-Stufe.
         $helper = $activeUsers[min(5, count($activeUsers) - 1)];
         $press = $root('Öffentlichkeitsarbeit', 100, array_values(array_filter([
             $boardRole !== null
-                ? $share(FileFolderShare::TYPE_ROLE, (int) $boardRole->id, FileFolderShare::LEVEL_EDIT)
+                ? $share('role', (int) $boardRole->id, FileFolderShare::LEVEL_EDIT)
                 : null,
-            $share(FileFolderShare::TYPE_USER, (int) $helper->id, FileFolderShare::LEVEL_UPLOAD),
+            $share('user', (int) $helper->id, FileFolderShare::LEVEL_UPLOAD),
         ])));
         if ($press !== null) {
             $photos = $child($press, 'Fotos Frühjahrskonzert');
@@ -2424,6 +2467,9 @@ class DevSeedService
                 ];
             }
         }
+
+        $this->report['counts']['audience_filters'] = (int) Capsule::table('audience_filters')->count();
+        $this->report['counts']['audience_filter_conditions'] = (int) Capsule::table('audience_filter_conditions')->count();
     }
 
     private function seedBackups(): void

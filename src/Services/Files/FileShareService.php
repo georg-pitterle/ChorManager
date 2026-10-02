@@ -8,6 +8,7 @@ use App\Models\FileFolderShare;
 use App\Models\FilePublicLink;
 use App\Models\FileShare;
 use App\Models\StoredFile;
+use App\Services\Audience\AudienceFilterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as DB;
@@ -27,7 +28,8 @@ final class FileShareService
     public function __construct(
         private readonly FileAccessService $access,
         private readonly FileFolderService $folders,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AudienceFilterService $filters = new AudienceFilterService()
     ) {
     }
 
@@ -42,19 +44,18 @@ final class FileShareService
     public function setShares(FileActor $actor, StoredFile $file, array $rawShares): void
     {
         $this->requireManage($actor, $file);
-
-        $shares = array_values(array_filter(
-            $this->folders->normalizeShares($rawShares),
-            static fn (array $share): bool => isset(FileShare::LEVELS[$share['level']])
-        ));
+        $shares = $this->folders->normalizeShares($rawShares, array_keys(FileShare::LEVELS));
 
         DB::connection()->transaction(function () use ($actor, $file, $shares): void {
+            $old = FileShare::query()->where('file_id', $file->id)->pluck('audience_filter_id')
+                ->map(fn ($id): int => (int) $id)->all();
             FileShare::query()->where('file_id', $file->id)->delete();
+            $this->filters->delete($old);
             foreach ($shares as $share) {
+                $filter = $this->filters->create($share['conditions']);
                 FileShare::create([
                     'file_id' => (int) $file->id,
-                    'target_type' => $share['type'],
-                    'reference_id' => $share['reference_id'],
+                    'audience_filter_id' => (int) $filter->id,
                     'level' => $share['level'],
                     'created_by' => $actor->userId,
                 ]);

@@ -57,6 +57,7 @@ final class FileDetailController
         $level = $this->access->fileLevelFor($actor, $file);
         $folderLevel = $this->access->levelFor($actor, (int) $file->folder_id);
         $canManage = $level >= FileFolderShare::LEVEL_MANAGE;
+        $shares = $canManage ? $this->describer->label(FileShare::query()->where('file_id', $file->id)->get()) : [];
 
         $newLink = $_SESSION[self::NEW_LINK_SESSION_KEY] ?? null;
         unset($_SESSION[self::NEW_LINK_SESSION_KEY]);
@@ -80,8 +81,10 @@ final class FileDetailController
                 ->orderByDesc('version_number')->get(),
             'is_favorite' => in_array((int) $file->id, $this->favorites->favoriteIds($actor, 'file'), true),
             'max_upload_bytes' => $this->files->maxUploadBytes(),
-            'shares' => $canManage ? $this->describer->label(FileShare::query()->where('file_id', $file->id)->get()) : [],
-            'share_options' => $canManage ? $this->describer->options() : null,
+            'shares' => $shares,
+            'share_options' => $canManage
+                ? $this->describer->options(self::projectIdsOf($shares), self::selectedIdsOf($shares, 'user'))
+                : null,
             'links' => $canManage
                 ? FilePublicLink::query()->where('file_id', $file->id)->orderByDesc('created_at')->get()
                 : [],

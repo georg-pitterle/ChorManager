@@ -25,18 +25,22 @@ class FileShare extends Model
 
     protected $fillable = [
         'file_id',
-        'target_type',
-        'reference_id',
+        'audience_filter_id',
         'level',
         'created_by',
     ];
 
     protected $casts = [
         'file_id' => 'integer',
-        'reference_id' => 'integer',
+        'audience_filter_id' => 'integer',
         'level' => 'integer',
         'created_by' => 'integer',
     ];
+
+    public function filter(): BelongsTo
+    {
+        return $this->belongsTo(AudienceFilter::class, 'audience_filter_id');
+    }
 
     public function file(): BelongsTo
     {

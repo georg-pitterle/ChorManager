@@ -16,20 +16,6 @@ class FileFolderShare extends Model
 {
     public const UPDATED_AT = null;
 
-    public const TYPE_ROLE = 'role';
-    public const TYPE_USER = 'user';
-    public const TYPE_VOICE_GROUP = 'voice_group';
-    public const TYPE_PROJECT_MEMBERS = 'project_members';
-    public const TYPE_ALL_MEMBERS = 'all_members';
-
-    public const TYPES = [
-        self::TYPE_ROLE,
-        self::TYPE_USER,
-        self::TYPE_VOICE_GROUP,
-        self::TYPE_PROJECT_MEMBERS,
-        self::TYPE_ALL_MEMBERS,
-    ];
-
     public const LEVEL_NONE = 0;
     public const LEVEL_READ = 1;
     public const LEVEL_UPLOAD = 2;
@@ -47,18 +33,22 @@ class FileFolderShare extends Model
 
     protected $fillable = [
         'folder_id',
-        'target_type',
-        'reference_id',
+        'audience_filter_id',
         'level',
         'created_by',
     ];
 
     protected $casts = [
         'folder_id' => 'integer',
-        'reference_id' => 'integer',
+        'audience_filter_id' => 'integer',
         'level' => 'integer',
         'created_by' => 'integer',
     ];
+
+    public function filter(): BelongsTo
+    {
+        return $this->belongsTo(AudienceFilter::class, 'audience_filter_id');
+    }
 
     public function folder(): BelongsTo
     {

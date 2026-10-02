@@ -94,7 +94,7 @@ class FileSharingControllerFeatureTest extends TestCase
     {
         $manager = $this->createMember('Verwalter');
         $folder = $this->createFolder('Vorstand ' . bin2hex(random_bytes(3)));
-        $this->share($folder, Share::TYPE_USER, (int) $manager->id, Share::LEVEL_MANAGE);
+        $this->share($folder, 'user', (int) $manager->id, Share::LEVEL_MANAGE);
         $this->login((int) $manager->id);
         $request = $this->makeRequest('POST', '/', [], [], ['Accept' => 'application/json'])
             ->withUploadedFiles(['file' => $this->uploadedFile('Presse.txt', $content)]);
@@ -107,7 +107,7 @@ class FileSharingControllerFeatureTest extends TestCase
     {
         [$file] = $this->managedFile();
         $recipient = $this->createMember('Empfänger');
-        FileShare::create(['file_id' => $file->id, 'target_type' => 'user', 'reference_id' => $recipient->id, 'level' => 1]);
+        $this->shareFileWith($file, ['user' => [(int) $recipient->id]], 1);
         $this->login((int) $recipient->id);
 
         $html = $this->body($this->detail->show($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $file->id]));
@@ -128,7 +128,7 @@ class FileSharingControllerFeatureTest extends TestCase
     {
         [$file] = $this->managedFile('alt');
         $editor = $this->createMember('Bearbeiter');
-        FileShare::create(['file_id' => $file->id, 'target_type' => 'user', 'reference_id' => $editor->id, 'level' => 3]);
+        $this->shareFileWith($file, ['user' => [(int) $editor->id]], 3);
         $this->login((int) $editor->id);
 
         $request = $this->makeRequest('POST', '/')->withUploadedFiles(['file' => $this->uploadedFile('beliebig.txt', 'neu')]);
@@ -155,7 +155,9 @@ class FileSharingControllerFeatureTest extends TestCase
         $this->login((int) $manager->id);
 
         $this->detail->saveShares(
-            $this->makeRequest('POST', '/', ['shares' => [['target' => 'voice_group:' . $group->id, 'level' => '3']]]),
+            $this->makeRequest('POST', '/', ['shares' => [
+                ['level' => '3', 'conditions' => ['voice_group' => [(string) $group->id]]],
+            ]]),
             $this->makeResponse(),
             ['id' => $file->id]
         );

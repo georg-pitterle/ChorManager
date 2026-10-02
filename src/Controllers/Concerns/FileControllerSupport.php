@@ -92,11 +92,11 @@ trait FileControllerSupport
     }
 
     /**
-     * Das Formular schickt das Ziel als "typ:kennung" (eine Auswahl statt zwei
-     * abhängiger Listen). Die Prüfung auf gültige Typen und Stufen macht der Service.
+     * Freigabe-Zeilen aus dem Formular: Stufe, "Alle Mitglieder", Bedingungen je
+     * Kategorie. Geprüft wird im Service.
      *
      * @param array<mixed> $rows
-     * @return list<array{type: string, reference_id: int, level: int}>
+     * @return list<array{level: int, all: bool, conditions: array<string, list<string>>}>
      */
     private static function parseShareRows(array $rows): array
     {
@@ -105,18 +105,48 @@ trait FileControllerSupport
             if (!is_array($row)) {
                 continue;
             }
-            $target = explode(':', (string) ($row['target'] ?? ''), 2);
-            if (count($target) !== 2) {
-                continue;
+            $conditions = [];
+            foreach (is_array($row['conditions'] ?? null) ? $row['conditions'] : [] as $category => $values) {
+                if (is_string($category) && is_array($values)) {
+                    $conditions[$category] = array_values(array_map('strval', array_filter($values, 'is_scalar')));
+                }
             }
             $shares[] = [
-                'type' => $target[0],
-                'reference_id' => (int) $target[1],
                 'level' => (int) ($row['level'] ?? 0),
+                'all' => !empty($row['all']),
+                'conditions' => $conditions,
             ];
         }
 
         return $shares;
+    }
+
+    /**
+     * Projekte, die in den beschriebenen Freigaben schon gewählt sind - sie
+     * bleiben in der Auswahl, auch wenn sie inzwischen beendet sind.
+     *
+     * @param list<array{conditions: array<string, list<int>>}> $described
+     * @return list<int>
+     */
+    private static function projectIdsOf(array $described): array
+    {
+        return self::selectedIdsOf($described, 'project');
+    }
+
+    /**
+     * @param list<array{conditions: array<string, list<int>>}> $described
+     * @return list<int>
+     */
+    private static function selectedIdsOf(array $described, string $category): array
+    {
+        $ids = [];
+        foreach ($described as $share) {
+            foreach ($share['conditions'][$category] ?? [] as $id) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**

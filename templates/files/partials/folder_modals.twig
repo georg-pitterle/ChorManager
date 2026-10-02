@@ -117,19 +117,11 @@
                     {% endif %}
                     <div data-files-share-rows>
                         {% for share in shares %}
-                            {{ include("files/partials/share_row.twig", {
-                                index: loop.index0,
-                                selected_target: share.type ~ ":" ~ share.reference_id,
-                                selected_level: share.level,
-                            }) }}
+                            {{ include("files/partials/share_row.twig", {index: loop.index0, share: share}) }}
                         {% endfor %}
                     </div>
                     <template data-files-share-template>
-                        {{ include("files/partials/share_row.twig", {
-                            index: "__INDEX__",
-                            selected_target: "",
-                            selected_level: 1,
-                        }) }}
+                        {{ include("files/partials/share_row.twig", {index: "__INDEX__", share: null}) }}
                     </template>
                     <button type="button" class="btn btn-outline-primary btn-sm" data-files-share-add>
                         <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Freigabe hinzufügen

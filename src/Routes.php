@@ -51,6 +51,7 @@ use App\Controllers\FileController;
 use App\Controllers\FileFolderController;
 use App\Controllers\FileTrashController;
 use App\Controllers\FileDetailController;
+use App\Controllers\FileAudienceController;
 use App\Controllers\PublicFileLinkController;
 use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
@@ -264,6 +265,7 @@ return function (App $app) {
                     function (RouteCollectorProxy $files) {
                         $files->get('', [FileBrowserController::class, 'index']);
                         $files->get('/search', [FileBrowserController::class, 'search']);
+                        $files->post('/audience-preview', [FileAudienceController::class, 'preview']);
                         $files->get('/folders/{id:[0-9]+}', [FileBrowserController::class, 'folder']);
                         $files->post('/folders/{id:[0-9]+}/upload', [FileController::class, 'upload']);
                         $files->post('/folders/{id:[0-9]+}/folders', [FileFolderController::class, 'create']);

@@ -6,6 +6,9 @@ namespace App\Services\Files;
 
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
+use App\Services\Audience\AudienceFilterNormalizer;
+use App\Services\Audience\AudienceFilterService;
+use App\Services\Audience\InvalidAudienceFilterException;
 use Illuminate\Database\Capsule\Manager as DB;
 use Psr\Log\LoggerInterface;
 
@@ -19,7 +22,9 @@ final class FileFolderService
     public function __construct(
         private readonly FileAccessService $access,
         private readonly FileQuotaService $quota,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AudienceFilterService $filters = new AudienceFilterService(),
+        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer()
     ) {
     }
 
@@ -152,23 +157,28 @@ final class FileFolderService
     }
 
     /**
-     * Ersetzt alle Freigaben des Ordners. Unbekannte Typen und Stufen fallen
-     * weg; doppelte Ziele behalten die höchste Stufe.
+     * Ersetzt alle Freigaben des Ordners. Jede Zeile wird ein eigener
+     * Zielgruppen-Filter; gleiche Bedingungsmengen werden zusammengelegt, die
+     * höhere Stufe bleibt.
      *
-     * @param array<int, mixed> $rawShares Einträge mit type, reference_id, level
+     * @param array<int, mixed> $rawShares Zeilen mit level, all, conditions
      */
     public function setShares(FileActor $actor, FileFolder $folder, array $rawShares): void
     {
         $this->requireLevel($actor, $folder, FileFolderShare::LEVEL_MANAGE);
-        $shares = $this->normalizeShares($rawShares);
+        $shares = $this->normalizeShares($rawShares, array_keys(FileFolderShare::LEVEL_LABELS));
 
         DB::connection()->transaction(function () use ($actor, $folder, $shares): void {
+            $old = FileFolderShare::query()->where('folder_id', $folder->id)->pluck('audience_filter_id')
+                ->map(fn ($id): int => (int) $id)->all();
             FileFolderShare::query()->where('folder_id', $folder->id)->delete();
+            $this->filters->delete($old);
+
             foreach ($shares as $share) {
+                $filter = $this->filters->create($share['conditions']);
                 FileFolderShare::create([
                     'folder_id' => (int) $folder->id,
-                    'target_type' => $share['type'],
-                    'reference_id' => $share['reference_id'],
+                    'audience_filter_id' => (int) $filter->id,
                     'level' => $share['level'],
                     'created_by' => $actor->userId,
                 ]);
@@ -193,39 +203,36 @@ final class FileFolderService
     }
 
     /**
-     * @param array<int, mixed> $rawShares
-     * @return list<array{type: string, reference_id: int, level: int}>
+     * Prüft Freigabe-Zeilen. Zeilen mit unzulässiger Stufe fallen weg; eine
+     * Zeile ohne Bedingung und ohne "Alle Mitglieder" bricht mit 422 ab.
+     *
+     * @param array<int, mixed> $rawShares Zeilen mit level, all, conditions
+     * @param list<int> $allowedLevels
+     * @return list<array{conditions: array<string, list<int>>, level: int}>
      */
-    public function normalizeShares(array $rawShares): array
+    public function normalizeShares(array $rawShares, array $allowedLevels): array
     {
-        $byTarget = [];
+        $bySignature = [];
         foreach ($rawShares as $raw) {
             if (!is_array($raw)) {
                 continue;
             }
-            $type = (string) ($raw['type'] ?? '');
             $level = (int) ($raw['level'] ?? 0);
-            $referenceId = (int) ($raw['reference_id'] ?? 0);
-
-            if (!in_array($type, FileFolderShare::TYPES, true)) {
+            if (!in_array($level, $allowedLevels, true)) {
                 continue;
             }
-            if (!isset(FileFolderShare::LEVEL_LABELS[$level])) {
-                continue;
+            try {
+                $conditions = $this->normalizer->normalize($raw);
+            } catch (InvalidAudienceFilterException $exception) {
+                throw new FileManagementException($exception->getMessage(), 422);
             }
-            if ($type === FileFolderShare::TYPE_ALL_MEMBERS) {
-                $referenceId = 0;
-            } elseif ($referenceId <= 0) {
-                continue;
-            }
-
-            $key = $type . ':' . $referenceId;
-            if (!isset($byTarget[$key]) || $byTarget[$key]['level'] < $level) {
-                $byTarget[$key] = ['type' => $type, 'reference_id' => $referenceId, 'level' => $level];
+            $signature = $this->normalizer->signature($conditions);
+            if (!isset($bySignature[$signature]) || $bySignature[$signature]['level'] < $level) {
+                $bySignature[$signature] = ['conditions' => $conditions, 'level' => $level];
             }
         }
 
-        return array_values($byTarget);
+        return array_values($bySignature);
     }
 
     public function requireLevel(FileActor $actor, FileFolder $folder, int $level): void

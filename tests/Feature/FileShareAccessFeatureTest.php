@@ -43,12 +43,7 @@ class FileShareAccessFeatureTest extends TestCase
 
     private function shareFile(StoredFile $file, string $type, int $reference, int $level): void
     {
-        FileShare::create([
-            'file_id' => $file->id,
-            'target_type' => $type,
-            'reference_id' => $reference,
-            'level' => $level,
-        ]);
+        $this->shareFileWith($file, self::legacyConditions($type, $reference), $level);
     }
 
     public function testFileShareGrantsAccessWithoutFolderAccess(): void
@@ -58,7 +53,7 @@ class FileShareAccessFeatureTest extends TestCase
         $folder = $this->createFolder('Vorstand');
         $file = $this->file($folder, 'Einladung.pdf');
         $other = $this->file($folder, 'Geheim.pdf');
-        $this->shareFile($file, Share::TYPE_VOICE_GROUP, (int) $group->id, Share::LEVEL_READ);
+        $this->shareFile($file, 'voice_group', (int) $group->id, Share::LEVEL_READ);
         $actor = $this->actor($member);
 
         $this->assertSame(Share::LEVEL_READ, $this->access->fileLevelFor($actor, $file));
@@ -71,9 +66,9 @@ class FileShareAccessFeatureTest extends TestCase
     {
         $member = $this->createMember();
         $folder = $this->createFolder('Noten');
-        $this->share($folder, Share::TYPE_USER, (int) $member->id, Share::LEVEL_UPLOAD);
+        $this->share($folder, 'user', (int) $member->id, Share::LEVEL_UPLOAD);
         $file = $this->file($folder, 'Partitur.pdf');
-        $this->shareFile($file, Share::TYPE_USER, (int) $member->id, Share::LEVEL_READ);
+        $this->shareFile($file, 'user', (int) $member->id, Share::LEVEL_READ);
         $actor = $this->actor($member);
 
         $this->assertSame(Share::LEVEL_UPLOAD, $this->access->fileLevelFor($actor, $file));
@@ -90,7 +85,7 @@ class FileShareAccessFeatureTest extends TestCase
         $root = $this->createFolder('Wurzel');
         $folder = $this->createFolder('Kind', $root);
         $file = $this->file($folder, 'a.pdf');
-        $this->shareFile($file, Share::TYPE_ALL_MEMBERS, 0, Share::LEVEL_READ);
+        $this->shareFile($file, 'all_members', 0, Share::LEVEL_READ);
         $actor = $this->actor($member);
 
         $root->delete();
@@ -109,7 +104,7 @@ class FileShareAccessFeatureTest extends TestCase
         $token = 'qq' . bin2hex(random_bytes(3));
         $file = $this->file($folder, "Einladung {$token}.pdf");
         $this->file($folder, "Protokoll {$token}.pdf");
-        $this->shareFile($file, Share::TYPE_USER, (int) $member->id, Share::LEVEL_READ);
+        $this->shareFile($file, 'user', (int) $member->id, Share::LEVEL_READ);
         $actor = $this->actor($member);
 
         $result = (new \App\Services\Files\FileSearchService($this->access))->search($actor, $token);
@@ -129,9 +124,9 @@ class FileShareAccessFeatureTest extends TestCase
         $editor = $this->createMember();
         $folder = $this->createFolder('Vorstand');
         $target = $this->createFolder('Ziel');
-        $this->share($target, Share::TYPE_USER, (int) $editor->id, Share::LEVEL_EDIT);
+        $this->share($target, 'user', (int) $editor->id, Share::LEVEL_EDIT);
         $file = $this->file($folder, 'Vertrag.pdf');
-        $this->shareFile($file, Share::TYPE_USER, (int) $editor->id, Share::LEVEL_EDIT);
+        $this->shareFile($file, 'user', (int) $editor->id, Share::LEVEL_EDIT);
         $actor = $this->actor($editor);
 
         $quota = new \App\Services\Files\FileQuotaService($this->access, 0);
@@ -162,6 +157,28 @@ class FileShareAccessFeatureTest extends TestCase
         $this->assertSame('Vertrag.pdf', $file->fresh()->name);
     }
 
+    public function testSopranoAndProjectCombinedOnFolder(): void
+    {
+        $sopran = $this->createMember('Sopran im Projekt');
+        $soprano = $this->createVoiceGroupFor($sopran, 'Sopran');
+        $project = $this->createProjectFor($sopran, 'Frühjahrskonzert');
+        $outside = $this->createMember('Sopran außerhalb');
+        $outside->voiceGroups()->attach($soprano->id);
+        $alto = $this->createMember('Alt im Projekt');
+        $this->createVoiceGroupFor($alto, 'Alt');
+        $alto->projects()->attach($project->id);
+        $folder = $this->createFolder('Stimmproben');
+        $this->shareWith(
+            $folder,
+            ['voice_group' => [(int) $soprano->id], 'project' => [(int) $project->id]],
+            Share::LEVEL_READ
+        );
+
+        $this->assertSame(Share::LEVEL_READ, $this->access->levelFor($this->actor($sopran), $folder));
+        $this->assertSame(Share::LEVEL_NONE, $this->access->levelFor($this->actor($outside), $folder));
+        $this->assertSame(Share::LEVEL_NONE, $this->access->levelFor($this->actor($alto), $folder));
+    }
+
     public function testSharesOfOthersDoNotApply(): void
     {
         $member = $this->createMember();
@@ -169,8 +186,8 @@ class FileShareAccessFeatureTest extends TestCase
         $role = $this->createRoleFor($other);
         $folder = $this->createFolder('Fremd');
         $file = $this->file($folder, 'x.pdf');
-        $this->shareFile($file, Share::TYPE_ROLE, (int) $role->id, Share::LEVEL_EDIT);
-        $this->shareFile($file, Share::TYPE_USER, (int) $other->id, Share::LEVEL_EDIT);
+        $this->shareFile($file, 'role', (int) $role->id, Share::LEVEL_EDIT);
+        $this->shareFile($file, 'user', (int) $other->id, Share::LEVEL_EDIT);
 
         $this->assertSame(Share::LEVEL_NONE, $this->access->fileLevelFor($this->actor($member), $file));
     }

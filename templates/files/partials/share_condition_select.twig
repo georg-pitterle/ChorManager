@@ -1,0 +1,39 @@
+{# Mehrfachauswahl einer Kategorie in einer Freigabe-Zeile.
+   Parameter: index, category, label, selected, dazu entweder items (Liste mit
+   id/name, optional ended) oder grouped (Liste mit group/items); person: true
+   formatiert Mitgliedernamen; missing sind gespeicherte, inzwischen gelöschte
+   Kennungen. #}
+<div class="col-12 col-md-6">
+    <label class="form-label small mb-1" for="share-{{ index }}-{{ category }}">{{ label }}</label>
+    <select class="form-select form-select-sm"
+            id="share-{{ index }}-{{ category }}"
+            name="shares[{{ index }}][conditions][{{ category }}][]"
+            data-tom-select
+            data-files-share-condition
+            data-placeholder="{{ label }} wählen …"
+            multiple>
+        {# Gespeicherte Werte, die es nicht mehr gibt: sichtbar und gewählt, damit
+           sie beim Speichern nicht still wegfallen und den Filter erweitern. #}
+        {% for id in missing|default([]) %}
+            <option value="{{ id }}" selected>gelöschter Eintrag</option>
+        {% endfor %}
+        {% if grouped is defined %}
+            {% for entry in grouped %}
+                <optgroup label="{{ entry.group }}">
+                    {% for item in entry.items %}
+                        <option value="{{ item.id }}" {{ item.id in selected ? "selected" : "" }}>{{ item.name }}</option>
+                    {% endfor %}
+                </optgroup>
+            {% endfor %}
+        {% else %}
+            {% for item in items %}
+                {% set _name = person|default(false) ? item|person_name : item.name %}
+                {% set _ended = item.ended|default(false) %}
+                {% set _inactive = person|default(false) and not item.is_active %}
+                <option value="{{ item.id }}" {{ item.id in selected ? "selected" : "" }}>
+                    {{ _name }}{{ _ended ? " (beendet)" : "" }}{{ _inactive ? " (inaktiv)" : "" }}
+                </option>
+            {% endfor %}
+        {% endif %}
+    </select>
+</div>

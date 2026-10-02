@@ -57,7 +57,7 @@ class FileBackupFeatureTest extends TestCase
 
         $member = $this->createMember();
         $this->folder = $this->createFolder('Sicherung');
-        $this->share($this->folder, Share::TYPE_USER, (int) $member->id, Share::LEVEL_EDIT);
+        $this->share($this->folder, 'user', (int) $member->id, Share::LEVEL_EDIT);
         $this->actor = $this->actor($member);
     }
 

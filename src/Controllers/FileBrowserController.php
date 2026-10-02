@@ -93,6 +93,7 @@ final class FileBrowserController
             ->get();
 
         $canManage = $level >= FileFolderShare::LEVEL_MANAGE;
+        $shares = $canManage ? $this->describeShares($folder) : [];
 
         return $this->view->render($response, 'files/folder.twig', [
             'folder' => $folder,
@@ -108,9 +109,11 @@ final class FileBrowserController
             'root_used_bytes' => $this->quota->usedBytesInSubtree($rootId),
             'max_upload_bytes' => $this->files->maxUploadBytes(),
             'move_targets' => $level >= FileFolderShare::LEVEL_EDIT ? $this->moveTargets($actor, $levels) : [],
-            'shares' => $canManage ? $this->describeShares($folder) : [],
+            'shares' => $shares,
             'inherited_shares' => $canManage ? $this->inheritedShares($path) : [],
-            'share_options' => $canManage ? $this->describer->options() : null,
+            'share_options' => $canManage
+                ? $this->describer->options(self::projectIdsOf($shares), self::selectedIdsOf($shares, 'user'))
+                : null,
         ]);
     }
 

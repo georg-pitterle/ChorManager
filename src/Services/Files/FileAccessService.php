@@ -8,7 +8,7 @@ use App\Models\FileFolder;
 use App\Models\FileFolderShare;
 use App\Models\FileShare;
 use App\Models\StoredFile;
-use App\Models\User;
+use App\Services\Audience\AudienceFilterService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -32,6 +32,10 @@ use Illuminate\Support\Collection;
  */
 final class FileAccessService
 {
+    public function __construct(private readonly AudienceFilterService $filters = new AudienceFilterService())
+    {
+    }
+
     public function levelFor(FileActor $actor, FileFolder|int $folder): int
     {
         $folderId = $folder instanceof FileFolder ? (int) $folder->id : $folder;
@@ -309,67 +313,34 @@ final class FileAccessService
     }
 
     /**
-     * Gemeinsamer Abgleich für Ordner- und Dateifreigaben: dieselben Zieltypen,
-     * dieselbe Auflösung über Rollen, Stimmgruppen und Projekte.
+     * Gemeinsamer Abgleich für Ordner- und Dateifreigaben über ihre
+     * Zielgruppen-Filter. Ergebnis: höchste passende Stufe je Ordner bzw. Datei.
      *
      * @param Builder<FileFolderShare>|Builder<FileShare> $query
      * @return array<int, int> Kennung => höchste Stufe
      */
     private function matchingLevels(FileActor $actor, Builder $query, string $keyColumn): array
     {
-        $user = User::find($actor->userId);
-        if ($user === null) {
+        $profile = $this->filters->profileOf($actor->userId);
+        if ($profile === null) {
             return [];
         }
 
-        $roleIds = $this->ids($user->roles()->pluck('role_id'));
-        $voiceGroupIds = $this->ids($user->voiceGroups()->pluck('voice_group_id'));
-        $projectIds = $this->ids($user->projects()->pluck('project_id'));
-
-        $rows = $query
-            ->where(function ($query) use ($actor, $roleIds, $voiceGroupIds, $projectIds) {
-                $query->where('target_type', FileFolderShare::TYPE_ALL_MEMBERS)
-                    ->orWhere(function ($q) use ($actor) {
-                        $q->where('target_type', FileFolderShare::TYPE_USER)
-                            ->where('reference_id', $actor->userId);
-                    })
-                    ->orWhere(function ($q) use ($roleIds) {
-                        $q->where('target_type', FileFolderShare::TYPE_ROLE)
-                            ->whereIn('reference_id', $roleIds ?: [0]);
-                    })
-                    ->orWhere(function ($q) use ($voiceGroupIds) {
-                        $q->where('target_type', FileFolderShare::TYPE_VOICE_GROUP)
-                            ->whereIn('reference_id', $voiceGroupIds ?: [0]);
-                    })
-                    ->orWhere(function ($q) use ($projectIds) {
-                        $q->where('target_type', FileFolderShare::TYPE_PROJECT_MEMBERS)
-                            ->whereIn('reference_id', $projectIds ?: [0]);
-                    });
-            })
-            ->groupBy($keyColumn)
-            ->selectRaw($keyColumn . ' AS target_id, MAX(level) AS level')
-            ->toBase()
-            ->get();
+        $rows = $query->toBase()->get([$keyColumn . ' AS target_id', 'level', 'audience_filter_id']);
+        $matching = array_flip($this->filters->matchingFilterIds(
+            $profile,
+            $rows->pluck('audience_filter_id')->map(fn ($id): int => (int) $id)->all()
+        ));
 
         $levels = [];
         foreach ($rows as $row) {
-            $levels[(int) $row->target_id] = (int) $row->level;
+            if (!isset($matching[(int) $row->audience_filter_id])) {
+                continue;
+            }
+            $target = (int) $row->target_id;
+            $levels[$target] = max($levels[$target] ?? 0, (int) $row->level);
         }
 
         return $levels;
-    }
-
-    /**
-     * @param iterable<mixed> $values
-     * @return list<int>
-     */
-    private function ids(iterable $values): array
-    {
-        $ids = [];
-        foreach ($values as $value) {
-            $ids[] = (int) $value;
-        }
-
-        return array_values(array_unique($ids));
     }
 }

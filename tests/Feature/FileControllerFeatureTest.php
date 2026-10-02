@@ -120,7 +120,7 @@ class FileControllerFeatureTest extends TestCase
         $member = $this->createMember();
         $visible = $this->createFolder('Sichtbar ' . bin2hex(random_bytes(3)));
         $hidden = $this->createFolder('Versteckt ' . bin2hex(random_bytes(3)));
-        $this->share($visible, Share::TYPE_ALL_MEMBERS, 0, Share::LEVEL_READ);
+        $this->share($visible, 'all_members', 0, Share::LEVEL_READ);
         // Erst auflösen, dann anmelden: Der Aufbau von Twig setzt die Sitzung neu auf.
         $controller = $this->container->get(FileBrowserController::class);
         $this->login((int) $member->id);
@@ -138,8 +138,8 @@ class FileControllerFeatureTest extends TestCase
         $manager = $this->createMember('Verwalter');
         $role = $this->createRoleFor($manager);
         $root = $this->createFolder('Noten');
-        $this->share($root, Share::TYPE_USER, (int) $reader->id, Share::LEVEL_READ);
-        $this->share($root, Share::TYPE_ROLE, (int) $role->id, Share::LEVEL_MANAGE);
+        $this->share($root, 'user', (int) $reader->id, Share::LEVEL_READ);
+        $this->share($root, 'role', (int) $role->id, Share::LEVEL_MANAGE);
         $this->login((int) $manager->id);
         $this->uploadAs((int) $root->id, 'Ave Maria.pdf', '%PDF-1.4');
         $controller = $this->container->get(FileBrowserController::class);
@@ -154,7 +154,10 @@ class FileControllerFeatureTest extends TestCase
         $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
         $this->assertStringContainsString('data-files-dropzone', $html);
         $this->assertStringContainsString('filesSharesModal', $html);
-        $this->assertMatchesRegularExpression('#value="role:' . $role->id . '"\s+selected#', $html);
+        $this->assertMatchesRegularExpression(
+            '#name="shares\[\d+\]\[conditions\]\[role\]\[\]".*?value="' . $role->id . '"\s+selected#s',
+            $html
+        );
     }
 
     public function testFilesUseTableEngineWhileFoldersStayOutside(): void
@@ -162,7 +165,7 @@ class FileControllerFeatureTest extends TestCase
         $member = $this->createMember();
         $root = $this->createFolder('Engine');
         $this->createFolder('1 Sopran', $root);
-        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_UPLOAD);
+        $this->share($root, 'user', (int) $member->id, Share::LEVEL_UPLOAD);
         $controller = $this->container->get(FileBrowserController::class);
         $this->login((int) $member->id);
         $this->uploadAs((int) $root->id, 'Zebra.txt', '12345');
@@ -182,6 +185,25 @@ class FileControllerFeatureTest extends TestCase
         $this->assertSame(1, substr_count($html, 'data-sort-name='), 'Nur Dateien sind Tabellenzeilen.');
     }
 
+    public function testShareFormKeepsVanishedAndInactiveValuesSelected(): void
+    {
+        $manager = $this->createMember('Verwalter');
+        $inactive = $this->createMember('Ehemalig');
+        $inactive->is_active = 0;
+        $inactive->save();
+        $root = $this->createFolder('Alt');
+        $this->share($root, 'user', (int) $manager->id, Share::LEVEL_MANAGE);
+        $this->shareWith($root, ['role' => [999999], 'user' => [(int) $inactive->id]], Share::LEVEL_READ);
+        $controller = $this->container->get(FileBrowserController::class);
+        $this->login((int) $manager->id);
+
+        $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
+
+        // Was gespeichert ist, muss im Formular stehen, sonst fällt es beim nächsten Speichern weg.
+        $this->assertMatchesRegularExpression('#value="999999"\s+selected>\s*gelöschter Eintrag#', $html);
+        $this->assertMatchesRegularExpression('#value="' . $inactive->id . '"\s+selected>\s*[^<]*\(inaktiv\)#', $html);
+    }
+
     public function testFolderOfOthersRedirectsWithoutRevealingIt(): void
     {
         $stranger = $this->createMember();
@@ -198,7 +220,7 @@ class FileControllerFeatureTest extends TestCase
     {
         $member = $this->createMember();
         $root = $this->createFolder('Uploads');
-        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_UPLOAD);
+        $this->share($root, 'user', (int) $member->id, Share::LEVEL_UPLOAD);
         $this->login((int) $member->id);
 
         $file = $this->uploadAs((int) $root->id, 'Probenplan.txt', 'Dienstag 19 Uhr');
@@ -218,7 +240,7 @@ class FileControllerFeatureTest extends TestCase
     {
         $reader = $this->createMember();
         $root = $this->createFolder('Nur lesen');
-        $this->share($root, Share::TYPE_USER, (int) $reader->id, Share::LEVEL_READ);
+        $this->share($root, 'user', (int) $reader->id, Share::LEVEL_READ);
         $this->login((int) $reader->id);
 
         $response = $this->container->get(FileController::class)
@@ -239,7 +261,7 @@ class FileControllerFeatureTest extends TestCase
     {
         $member = $this->createMember();
         $root = $this->createFolder('Vorschau');
-        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_UPLOAD);
+        $this->share($root, 'user', (int) $member->id, Share::LEVEL_UPLOAD);
         $this->login((int) $member->id);
         $html = $this->uploadAs((int) $root->id, 'seite.html', '<html><script>alert(1)</script></html>');
         $text = $this->uploadAs((int) $root->id, 'notiz.txt', 'hallo');
@@ -252,19 +274,30 @@ class FileControllerFeatureTest extends TestCase
         $this->assertStringStartsWith('inline;', $response->getHeaderLine('Content-Disposition'));
     }
 
-    public function testSharesFormStoresCombinedTargets(): void
+    public function testSharesFormStoresFiltersAndRejectsBrokenRows(): void
     {
         $manager = $this->createMember();
         $group = $this->createVoiceGroupFor($this->createMember('Sopranistin'));
         $root = $this->createFolder('Freigaben');
-        $this->share($root, Share::TYPE_USER, (int) $manager->id, Share::LEVEL_MANAGE);
+        $this->share($root, 'user', (int) $manager->id, Share::LEVEL_MANAGE);
         $this->login((int) $manager->id);
+        $controller = $this->container->get(FileFolderController::class);
+        $own = ['level' => '4', 'conditions' => ['user' => [(string) $manager->id]]];
 
-        $response = $this->container->get(FileFolderController::class)->shares(
+        $response = $controller->shares(
+            $this->makeRequest('POST', '/', ['shares' => [$own, ['level' => '1', 'conditions' => ['unsinn' => ['1']]]]]),
+            $this->makeResponse(),
+            ['id' => $root->id]
+        );
+        $this->assertRedirect($response, '/files/folders/' . $root->id);
+        $this->assertNotEmpty($_SESSION['error'] ?? null, 'Kaputte Zeile abgelehnt.');
+        $this->assertSame(1, Share::query()->where('folder_id', $root->id)->count());
+
+        $this->login((int) $manager->id);
+        $response = $controller->shares(
             $this->makeRequest('POST', '/', ['shares' => [
-                ['target' => 'user:' . $manager->id, 'level' => '4'],
-                ['target' => 'voice_group:' . $group->id, 'level' => '1'],
-                ['target' => 'kaputt', 'level' => '1'],
+                $own,
+                ['level' => '1', 'conditions' => ['voice_group' => [(string) $group->id]]],
             ]]),
             $this->makeResponse(),
             ['id' => $root->id]
@@ -295,7 +328,7 @@ class FileControllerFeatureTest extends TestCase
     {
         $member = $this->createMember();
         $root = $this->createFolder('Seiten');
-        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_EDIT);
+        $this->share($root, 'user', (int) $member->id, Share::LEVEL_EDIT);
         $this->login((int) $member->id);
         $token = 'zz' . bin2hex(random_bytes(3));
         $file = $this->uploadAs((int) $root->id, "Suchbar {$token}.txt", 'x');
@@ -326,7 +359,7 @@ class FileControllerFeatureTest extends TestCase
     {
         $member = $this->createMember();
         $root = $this->createFolder('Archiv');
-        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_UPLOAD);
+        $this->share($root, 'user', (int) $member->id, Share::LEVEL_UPLOAD);
         $this->login((int) $member->id);
         $this->uploadAs((int) $root->id, 'a.txt', 'a');
 

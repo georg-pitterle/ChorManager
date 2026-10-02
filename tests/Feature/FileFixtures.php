@@ -6,6 +6,9 @@ namespace Tests\Feature;
 
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
+use App\Models\FileShare;
+use App\Models\StoredFile;
+use App\Services\Audience\AudienceFilterService;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -109,14 +112,53 @@ trait FileFixtures
         ]);
     }
 
+    /** Alte Zieltypen der Tests auf Filter-Bedingungen abgebildet. */
+    private const LEGACY_TYPES = [
+        'role' => 'role',
+        'voice_group' => 'voice_group',
+        'user' => 'user',
+        'project_members' => 'project',
+    ];
+
     protected function share(FileFolder $folder, string $type, int $referenceId, int $level): FileFolderShare
     {
+        return $this->shareWith($folder, self::legacyConditions($type, $referenceId), $level);
+    }
+
+    /**
+     * @param array<string, list<int>> $conditions
+     */
+    protected function shareWith(FileFolder $folder, array $conditions, int $level): FileFolderShare
+    {
+        $filter = (new AudienceFilterService())->create($conditions);
+
         return FileFolderShare::create([
             'folder_id' => $folder->id,
-            'target_type' => $type,
-            'reference_id' => $referenceId,
+            'audience_filter_id' => (int) $filter->id,
             'level' => $level,
         ]);
+    }
+
+    /**
+     * @param array<string, list<int>> $conditions
+     */
+    protected function shareFileWith(StoredFile $file, array $conditions, int $level): FileShare
+    {
+        $filter = (new AudienceFilterService())->create($conditions);
+
+        return FileShare::create([
+            'file_id' => $file->id,
+            'audience_filter_id' => (int) $filter->id,
+            'level' => $level,
+        ]);
+    }
+
+    /**
+     * @return array<string, list<int>>
+     */
+    protected static function legacyConditions(string $type, int $referenceId): array
+    {
+        return $type === 'all_members' ? [] : [self::LEGACY_TYPES[$type] => [$referenceId]];
     }
 
     protected function actor(User $user, bool $isAdmin = false): FileActor

@@ -1,48 +1,86 @@
-{# Eine Freigabe-Zeile. Das Ziel steckt als "typ:kennung" in einem Feld, damit
-   die Auswahl ohne abhängige Listen auskommt. #}
-<div class="row g-2 align-items-center mb-2 files-share-row" data-files-share-row>
-    <div class="col-12 col-md-7">
-        <select class="form-select form-select-sm" name="shares[{{ index }}][target]" aria-label="Ziel" required>
-            <option value="" {{ selected_target == "" ? "selected" : "" }}>Ziel wählen …</option>
-            <option value="all_members:0" {{ selected_target == "all_members:0" ? "selected" : "" }}>Alle Mitglieder</option>
-            <optgroup label="Rollen">
-                {% for role in share_options.roles %}
-                    {% set _value = "role:" ~ role.id %}
-                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>{{ role.name }}</option>
+{# Eine Freigabe: Zielgruppen-Filter plus Stufe. Mehrere Werte in einem Feld
+   genügen einzeln, mehrere Felder müssen alle zutreffen.
+   Parameter: index, share (Eintrag aus FileShareDescriber::label oder null),
+   level_labels, share_options. #}
+{% set _conditions = share.conditions|default({}) %}
+{% set _all = share.all|default(false) %}
+{% set _missing = share.missing|default({}) %}
+{% set _summary = share.label|default("Neue Freigabe") %}
+{% set _level = share.level|default(1) %}
+<div class="files-share-row card mb-2" data-files-share-row>
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button type="button"
+                    class="btn btn-link p-0 text-start flex-grow-1 files-share-summary"
+                    data-files-share-toggle
+                    aria-expanded="{{ share ? "false" : "true" }}">
+                <i class="bi bi-people me-1" aria-hidden="true"></i>{{ _summary }}
+            </button>
+            <span class="small text-muted" data-files-share-count></span>
+            <select class="form-select form-select-sm w-auto" name="shares[{{ index }}][level]" aria-label="Stufe">
+                {% for value, label in level_labels %}
+                    <option value="{{ value }}" {{ _level == value ? "selected" : "" }}>{{ label }}</option>
                 {% endfor %}
-            </optgroup>
-            <optgroup label="Stimmgruppen">
-                {% for group in share_options.voice_groups %}
-                    {% set _value = "voice_group:" ~ group.id %}
-                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>{{ group.name }}</option>
-                {% endfor %}
-            </optgroup>
-            <optgroup label="Projektmitglieder">
-                {% for project in share_options.projects %}
-                    {% set _value = "project_members:" ~ project.id %}
-                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>{{ project.name }}</option>
-                {% endfor %}
-            </optgroup>
-            <optgroup label="Mitglieder">
-                {% for member in share_options.users %}
-                    {% set _value = "user:" ~ member.id %}
-                    <option value="{{ _value }}" {{ selected_target == _value ? "selected" : "" }}>
-                        {{ member|person_name }}
-                    </option>
-                {% endfor %}
-            </optgroup>
-        </select>
-    </div>
-    <div class="col-9 col-md-4">
-        <select class="form-select form-select-sm" name="shares[{{ index }}][level]" aria-label="Stufe">
-            {% for value, label in level_labels %}
-                <option value="{{ value }}" {{ selected_level == value ? "selected" : "" }}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="col-3 col-md-1 text-end">
-        <button type="button" class="btn btn-outline-danger btn-sm" data-files-share-remove aria-label="Freigabe entfernen">
-            <i class="bi bi-x-lg" aria-hidden="true"></i>
-        </button>
+            </select>
+            <button type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    data-files-share-remove
+                    aria-label="Freigabe entfernen">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="files-share-editor mt-2" data-files-share-editor {{ share ? "hidden" : "" }}>
+            <div class="form-check mb-2">
+                <input class="form-check-input"
+                       type="checkbox"
+                       value="1"
+                       id="share-all-{{ index }}"
+                       name="shares[{{ index }}][all]"
+                       data-files-share-all
+                       {{ _all ? "checked" : "" }}>
+                <label class="form-check-label" for="share-all-{{ index }}">Alle Mitglieder</label>
+            </div>
+            <div class="row g-2">
+                {{ include("files/partials/share_condition_select.twig", {
+                    category: "role",
+                    label: "Rolle",
+                    items: share_options.roles,
+                    selected: _conditions.role|default([]),
+                    missing: _missing.role|default([]),
+                }) }}
+                {{ include("files/partials/share_condition_select.twig", {
+                    category: "voice_group",
+                    label: "Stimmgruppe",
+                    items: share_options.voice_groups,
+                    selected: _conditions.voice_group|default([]),
+                    missing: _missing.voice_group|default([]),
+                }) }}
+                {{ include("files/partials/share_condition_select.twig", {
+                    category: "sub_voice",
+                    label: "Untergruppe",
+                    grouped: share_options.sub_voices,
+                    selected: _conditions.sub_voice|default([]),
+                    missing: _missing.sub_voice|default([]),
+                }) }}
+                {{ include("files/partials/share_condition_select.twig", {
+                    category: "project",
+                    label: "Projekt",
+                    items: share_options.projects,
+                    selected: _conditions.project|default([]),
+                    missing: _missing.project|default([]),
+                }) }}
+                {{ include("files/partials/share_condition_select.twig", {
+                    category: "user",
+                    label: "Mitglied",
+                    items: share_options.users,
+                    person: true,
+                    selected: _conditions.user|default([]),
+                    missing: _missing.user|default([]),
+                }) }}
+            </div>
+            <p class="form-text mb-0">
+                Mehrere Werte in einem Feld: eines davon genügt. Mehrere Felder: alle müssen zutreffen.
+            </p>
+        </div>
     </div>
 </div>

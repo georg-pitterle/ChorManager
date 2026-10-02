@@ -333,6 +333,13 @@
     {{ include("files/partials/folder_modals.twig") }}
 {% endblock content %}
 
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
 {% block scripts %}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="{{ asset_path("/js/tom-select-init.js") }}"></script>
+    <script src="{{ asset_path("/js/file-audience.js") }}"></script>
     <script src="{{ asset_path("/js/file-manager.js") }}"></script>
 {% endblock scripts %}

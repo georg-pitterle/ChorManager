@@ -302,10 +302,18 @@
             const row = template.content.firstElementChild.cloneNode(true);
             const index = 'n' + counter;
             counter += 1;
-            row.querySelectorAll('[name]').forEach(function (field) {
-                field.setAttribute('name', field.getAttribute('name').split('__INDEX__').join(index));
+            ['name', 'id', 'for'].forEach(function (attribute) {
+                row.querySelectorAll('[' + attribute + ']').forEach(function (field) {
+                    field.setAttribute(attribute, field.getAttribute(attribute).split('__INDEX__').join(index));
+                });
             });
             rows.appendChild(row);
+            if (window.initTomSelects) {
+                window.initTomSelects(row);
+            }
+            if (window.fileAudience) {
+                window.fileAudience.bind(row);
+            }
         });
 
         rows.addEventListener('click', function (event) {

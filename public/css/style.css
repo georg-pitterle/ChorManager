@@ -1874,6 +1874,17 @@ a:hover {
     padding-right: 0;
 }
 
+/* Freigabe-Zeile, die derzeit niemanden trifft. */
+.files-share-row--empty {
+    border-color: var(--bs-warning);
+    background: rgba(var(--bs-warning-rgb), 0.08);
+}
+
+.files-share-summary {
+    color: var(--theme-text);
+    text-decoration: none;
+}
+
 .files-public-card {
     max-width: 28rem;
     margin-top: 3rem;

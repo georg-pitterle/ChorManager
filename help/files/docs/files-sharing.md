@@ -14,6 +14,8 @@ Gib einen Namen und optional ein **Kontingent** in MB an. Ohne Kontingent ist de
 
 ## 2. Freigaben setzen
 
+> **Hinweis:** Die Auswahl der Ziele hat sich geändert. Eine Freigabe kann jetzt mehrere Bedingungen verbinden, z. B. „Stimmgruppe Sopran“ **und** „Projekt Frühjahrskonzert“. Mehrere Werte in einem Feld genügen einzeln, mehrere Felder müssen alle zutreffen. Diese Seite wird noch überarbeitet.
+
 Klickpfad: **Ordner → Freigaben** auf der Ordnerseite.
 
 Jede Zeile besteht aus einem **Ziel** und einer **Stufe**. Als Ziel stehen zur Wahl:

@@ -43,8 +43,8 @@ class FileShareServiceFeatureTest extends TestCase
         $manager = $this->createMember('Verwalter');
         $editor = $this->createMember('Bearbeiter');
         $folder = $this->createFolder('Ordner');
-        $this->share($folder, Share::TYPE_USER, (int) $manager->id, Share::LEVEL_MANAGE);
-        $this->share($folder, Share::TYPE_USER, (int) $editor->id, Share::LEVEL_EDIT);
+        $this->share($folder, 'user', (int) $manager->id, Share::LEVEL_MANAGE);
+        $this->share($folder, 'user', (int) $editor->id, Share::LEVEL_EDIT);
         $file = StoredFile::create([
             'folder_id' => $folder->id,
             'name' => 'a.pdf',
@@ -61,15 +61,14 @@ class FileShareServiceFeatureTest extends TestCase
         $role = $this->createRoleFor($this->createMember());
 
         $this->shares->setShares($manager, $file, [
-            ['type' => Share::TYPE_ROLE, 'reference_id' => (int) $role->id, 'level' => Share::LEVEL_EDIT],
-            ['type' => Share::TYPE_ALL_MEMBERS, 'reference_id' => 0, 'level' => Share::LEVEL_READ],
-            ['type' => Share::TYPE_USER, 'reference_id' => 5, 'level' => Share::LEVEL_MANAGE],
-            ['type' => Share::TYPE_USER, 'reference_id' => 6, 'level' => Share::LEVEL_UPLOAD],
+            ['level' => Share::LEVEL_EDIT, 'conditions' => ['role' => [(int) $role->id]]],
+            ['level' => Share::LEVEL_READ, 'all' => '1'],
+            ['level' => Share::LEVEL_MANAGE, 'conditions' => ['user' => [$manager->userId]]],
+            ['level' => Share::LEVEL_UPLOAD, 'conditions' => ['user' => [$manager->userId]]],
         ]);
 
-        $stored = FileShare::query()->where('file_id', $file->id)->orderBy('target_type')->get()
-            ->map(fn (FileShare $s): array => [$s->target_type, $s->level])->all();
-        $this->assertSame([[Share::TYPE_ROLE, Share::LEVEL_EDIT], [Share::TYPE_ALL_MEMBERS, Share::LEVEL_READ]], $stored);
+        $levels = FileShare::query()->where('file_id', $file->id)->orderBy('level')->pluck('level')->all();
+        $this->assertSame([Share::LEVEL_READ, Share::LEVEL_EDIT], $levels);
     }
 
     public function testEditorMayNotShare(): void

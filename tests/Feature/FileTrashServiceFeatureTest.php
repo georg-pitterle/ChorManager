@@ -59,8 +59,8 @@ class FileTrashServiceFeatureTest extends TestCase
         $editor = $this->createMember('Bearbeiter');
         $reader = $this->createMember('Leser');
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, (int) $editor->id, Share::LEVEL_EDIT);
-        $this->share($root, Share::TYPE_USER, (int) $reader->id, Share::LEVEL_READ);
+        $this->share($root, 'user', (int) $editor->id, Share::LEVEL_EDIT);
+        $this->share($root, 'user', (int) $reader->id, Share::LEVEL_READ);
         $child = $this->createFolder('Alt', $root);
         $inChild = $this->upload($child, $this->actor($editor), 'drin.txt', 'x');
         $loose = $this->upload($root, $this->actor($editor), 'lose.txt', 'y');
@@ -80,7 +80,7 @@ class FileTrashServiceFeatureTest extends TestCase
     {
         $editor = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $editor->userId, Share::LEVEL_EDIT);
+        $this->share($root, 'user', $editor->userId, Share::LEVEL_EDIT);
         $old = $this->upload($root, $editor, 'Plan.txt', 'alt');
         $this->files->trashFile($editor, $old);
         $this->upload($root, $editor, 'Plan.txt', 'neu');
@@ -95,7 +95,7 @@ class FileTrashServiceFeatureTest extends TestCase
     {
         $editor = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $editor->userId, Share::LEVEL_EDIT);
+        $this->share($root, 'user', $editor->userId, Share::LEVEL_EDIT);
         $child = $this->createFolder('Kind', $root);
         $file = $this->upload($child, $editor, 'a.txt', 'a');
         $this->folders->trash($editor, $child);
@@ -110,8 +110,8 @@ class FileTrashServiceFeatureTest extends TestCase
         $editor = $this->actor($this->createMember('Bearbeiter'));
         $manager = $this->actor($this->createMember('Verwalter'));
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $editor->userId, Share::LEVEL_EDIT);
-        $this->share($root, Share::TYPE_USER, $manager->userId, Share::LEVEL_MANAGE);
+        $this->share($root, 'user', $editor->userId, Share::LEVEL_EDIT);
+        $this->share($root, 'user', $manager->userId, Share::LEVEL_MANAGE);
         $child = $this->createFolder('Kind', $root);
         $file = $this->upload($child, $editor, 'a.txt', 'a');
         $path = FileVersion::find($file->current_version_id)->storage_path;
@@ -131,11 +131,25 @@ class FileTrashServiceFeatureTest extends TestCase
         $this->assertFalse($this->storage()->exists($path));
     }
 
+    public function testPurgeRemovesFiltersOfShares(): void
+    {
+        $manager = $this->actor($this->createMember());
+        $root = $this->createFolder('Wurzel');
+        $this->share($root, 'user', $manager->userId, Share::LEVEL_MANAGE);
+        $child = $this->createFolder('Kind', $root);
+        $childShare = $this->share($child, 'all_members', 0, Share::LEVEL_READ);
+        $this->folders->trash($manager, $child);
+
+        $this->trash->purgeFolder($manager, (int) $child->id);
+
+        $this->assertNull(\App\Models\AudienceFilter::find($childShare->audience_filter_id));
+    }
+
     public function testPurgeRefusesLiveItems(): void
     {
         $manager = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $manager->userId, Share::LEVEL_MANAGE);
+        $this->share($root, 'user', $manager->userId, Share::LEVEL_MANAGE);
         $file = $this->upload($root, $manager, 'a.txt', 'a');
 
         $this->expectException(FileManagementException::class);
@@ -146,7 +160,7 @@ class FileTrashServiceFeatureTest extends TestCase
     {
         $editor = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $editor->userId, Share::LEVEL_EDIT);
+        $this->share($root, 'user', $editor->userId, Share::LEVEL_EDIT);
         $old = $this->upload($root, $editor, 'alt.txt', 'a');
         $fresh = $this->upload($root, $editor, 'frisch.txt', 'b');
         $oldFolder = $this->createFolder('Alter Ordner', $root);
@@ -168,7 +182,7 @@ class FileTrashServiceFeatureTest extends TestCase
     {
         $editor = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $editor->userId, Share::LEVEL_EDIT);
+        $this->share($root, 'user', $editor->userId, Share::LEVEL_EDIT);
         $this->upload($root, $editor, 'bleibt.txt', 'a');
         $source = tempnam(sys_get_temp_dir(), 'orph');
         file_put_contents($source, 'verwaist');

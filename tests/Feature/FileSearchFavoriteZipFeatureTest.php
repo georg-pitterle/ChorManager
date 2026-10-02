@@ -61,7 +61,7 @@ class FileSearchFavoriteZipFeatureTest extends TestCase
         $open = $this->createFolder('Noten ' . bin2hex(random_bytes(3)));
         $closed = $this->createFolder('Vorstand ' . bin2hex(random_bytes(3)));
         $sub = $this->createFolder('Messe-Unterordner', $open);
-        $this->share($open, Share::TYPE_USER, $member->userId, Share::LEVEL_EDIT);
+        $this->share($open, 'user', $member->userId, Share::LEVEL_EDIT);
         $token = 'xq' . bin2hex(random_bytes(3));
 
         $this->put($sub, $member, "Messe {$token}.pdf", 'a');
@@ -80,7 +80,7 @@ class FileSearchFavoriteZipFeatureTest extends TestCase
     {
         $member = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $this->share($root, Share::TYPE_USER, $member->userId, Share::LEVEL_UPLOAD);
+        $this->share($root, 'user', $member->userId, Share::LEVEL_UPLOAD);
         $this->put($root, $member, 'abcdef.txt', 'a');
 
         $this->assertSame([], (new FileSearchService($this->access))->search($member, 'a%f')['files']);
@@ -90,7 +90,7 @@ class FileSearchFavoriteZipFeatureTest extends TestCase
     {
         $member = $this->actor($this->createMember());
         $root = $this->createFolder('Wurzel');
-        $share = $this->share($root, Share::TYPE_USER, $member->userId, Share::LEVEL_UPLOAD);
+        $share = $this->share($root, 'user', $member->userId, Share::LEVEL_UPLOAD);
         $file = $this->put($root, $member, 'Lieblings.pdf', 'a');
         $favorites = new FileFavoriteService($this->access);
 
@@ -122,7 +122,7 @@ class FileSearchFavoriteZipFeatureTest extends TestCase
         $root = $this->createFolder('Konzert');
         $sub = $this->createFolder('Plakate', $root);
         $gone = $this->createFolder('Weg', $root);
-        $this->share($root, Share::TYPE_USER, $member->userId, Share::LEVEL_EDIT);
+        $this->share($root, 'user', $member->userId, Share::LEVEL_EDIT);
         $this->put($root, $member, 'Programm.txt', 'Programm');
         $this->put($sub, $member, 'A3.txt', 'Plakat');
         $this->put($gone, $member, 'x.txt', 'x');
@@ -150,7 +150,7 @@ class FileSearchFavoriteZipFeatureTest extends TestCase
         $member = $this->actor($this->createMember());
         $stranger = $this->actor($this->createMember());
         $root = $this->createFolder('Gross');
-        $this->share($root, Share::TYPE_USER, $member->userId, Share::LEVEL_UPLOAD);
+        $this->share($root, 'user', $member->userId, Share::LEVEL_UPLOAD);
         $this->put($root, $member, 'a.txt', str_repeat('a', 20));
 
         try {

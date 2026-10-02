@@ -46,11 +46,11 @@ class FileAccessFeatureTest extends TestCase
         $group = $this->createVoiceGroupFor($member);
         $project = $this->createProjectFor($member);
         $cases = [
-            [Share::TYPE_ROLE, (int) $role->id, Share::LEVEL_MANAGE],
-            [Share::TYPE_USER, (int) $member->id, Share::LEVEL_EDIT],
-            [Share::TYPE_VOICE_GROUP, (int) $group->id, Share::LEVEL_READ],
-            [Share::TYPE_PROJECT_MEMBERS, (int) $project->id, Share::LEVEL_UPLOAD],
-            [Share::TYPE_ALL_MEMBERS, 0, Share::LEVEL_READ],
+            ['role', (int) $role->id, Share::LEVEL_MANAGE],
+            ['user', (int) $member->id, Share::LEVEL_EDIT],
+            ['voice_group', (int) $group->id, Share::LEVEL_READ],
+            ['project_members', (int) $project->id, Share::LEVEL_UPLOAD],
+            ['all_members', 0, Share::LEVEL_READ],
         ];
 
         foreach ($cases as [$type, $reference, $level]) {
@@ -68,9 +68,9 @@ class FileAccessFeatureTest extends TestCase
         $foreignRole = $this->createRoleFor($other);
         $foreignGroup = $this->createVoiceGroupFor($other);
         $folder = $this->createFolder('Fremd');
-        $this->share($folder, Share::TYPE_ROLE, (int) $foreignRole->id, Share::LEVEL_MANAGE);
-        $this->share($folder, Share::TYPE_VOICE_GROUP, (int) $foreignGroup->id, Share::LEVEL_MANAGE);
-        $this->share($folder, Share::TYPE_USER, (int) $other->id, Share::LEVEL_MANAGE);
+        $this->share($folder, 'role', (int) $foreignRole->id, Share::LEVEL_MANAGE);
+        $this->share($folder, 'voice_group', (int) $foreignGroup->id, Share::LEVEL_MANAGE);
+        $this->share($folder, 'user', (int) $other->id, Share::LEVEL_MANAGE);
 
         $this->assertSame(Share::LEVEL_NONE, $this->access->levelFor($this->actor($member), $folder));
     }
@@ -81,8 +81,8 @@ class FileAccessFeatureTest extends TestCase
         $root = $this->createFolder('Noten');
         $child = $this->createFolder('Sopran', $root);
         $grandChild = $this->createFolder('Proben', $child);
-        $this->share($root, Share::TYPE_ALL_MEMBERS, 0, Share::LEVEL_READ);
-        $this->share($child, Share::TYPE_USER, (int) $member->id, Share::LEVEL_EDIT);
+        $this->share($root, 'all_members', 0, Share::LEVEL_READ);
+        $this->share($child, 'user', (int) $member->id, Share::LEVEL_EDIT);
 
         $this->assertSame(Share::LEVEL_READ, $this->access->levelFor($this->actor($member), $root));
         $this->assertSame(Share::LEVEL_EDIT, $this->access->levelFor($this->actor($member), $child));
@@ -94,8 +94,8 @@ class FileAccessFeatureTest extends TestCase
         $member = $this->createMember();
         $role = $this->createRoleFor($member);
         $folder = $this->createFolder('Mehrfach');
-        $this->share($folder, Share::TYPE_ALL_MEMBERS, 0, Share::LEVEL_READ);
-        $this->share($folder, Share::TYPE_ROLE, (int) $role->id, Share::LEVEL_UPLOAD);
+        $this->share($folder, 'all_members', 0, Share::LEVEL_READ);
+        $this->share($folder, 'role', (int) $role->id, Share::LEVEL_UPLOAD);
 
         $this->assertSame(Share::LEVEL_UPLOAD, $this->access->levelFor($this->actor($member), $folder));
     }
@@ -115,7 +115,7 @@ class FileAccessFeatureTest extends TestCase
         $member = $this->createMember();
         $root = $this->createFolder('Alt');
         $child = $this->createFolder('Kind', $root);
-        $this->share($root, Share::TYPE_USER, (int) $member->id, Share::LEVEL_MANAGE);
+        $this->share($root, 'user', (int) $member->id, Share::LEVEL_MANAGE);
 
         $root->delete();
 
@@ -130,7 +130,7 @@ class FileAccessFeatureTest extends TestCase
         $group = $this->createVoiceGroupFor($member);
         $root = $this->createFolder('Stimmproben');
         $child = $this->createFolder('Sopran', $root);
-        $this->share($child, Share::TYPE_VOICE_GROUP, (int) $group->id, Share::LEVEL_READ);
+        $this->share($child, 'voice_group', (int) $group->id, Share::LEVEL_READ);
 
         $actor = $this->actor($member);
 
@@ -144,8 +144,8 @@ class FileAccessFeatureTest extends TestCase
         $member = $this->createMember();
         $root = $this->createFolder('Offen');
         $child = $this->createFolder('Mehr', $root);
-        $this->share($root, Share::TYPE_ALL_MEMBERS, 0, Share::LEVEL_READ);
-        $this->share($child, Share::TYPE_USER, (int) $member->id, Share::LEVEL_EDIT);
+        $this->share($root, 'all_members', 0, Share::LEVEL_READ);
+        $this->share($child, 'user', (int) $member->id, Share::LEVEL_EDIT);
 
         $this->assertSame([], $this->access->sharedEntryPointsFor($this->actor($member))->pluck('id')->all());
     }

@@ -61,7 +61,7 @@ class FileServiceFeatureTest extends TestCase
     {
         $member = $this->createMember();
         $root = $this->createFolder('Teamordner', null, $quota);
-        $this->share($root, Share::TYPE_USER, (int) $member->id, $level);
+        $this->share($root, 'user', (int) $member->id, $level);
 
         return [$root, $this->actor($member)];
     }
