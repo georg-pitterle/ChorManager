@@ -14,7 +14,7 @@
                     class="btn btn-link p-0 text-start flex-grow-1 files-share-summary"
                     data-files-share-toggle
                     aria-expanded="{{ share ? "false" : "true" }}">
-                <i class="bi bi-people me-1" aria-hidden="true"></i>{{ _summary }}
+                <i class="bi bi-people me-1" aria-hidden="true"></i><span data-files-share-summary-text>{{ _summary }}</span>
             </button>
             <span class="small text-muted" data-files-share-count></span>
             <select class="form-select form-select-sm w-auto" name="shares[{{ index }}][level]" aria-label="Stufe">

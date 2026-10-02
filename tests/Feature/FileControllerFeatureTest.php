@@ -160,6 +160,20 @@ class FileControllerFeatureTest extends TestCase
         );
     }
 
+    public function testShareSummaryHasItsOwnElementForLiveUpdates(): void
+    {
+        $manager = $this->createMember();
+        $root = $this->createFolder('Zusammenfassung');
+        $this->share($root, 'user', (int) $manager->id, Share::LEVEL_MANAGE);
+        $controller = $this->container->get(FileBrowserController::class);
+        $this->login((int) $manager->id);
+
+        $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
+
+        // file-audience.js schreibt den Text bei jeder Änderung neu - das Symbol davor bleibt stehen.
+        $this->assertMatchesRegularExpression('#<span data-files-share-summary-text>\s*Mitglied: #', $html);
+    }
+
     public function testFilesUseTableEngineWhileFoldersStayOutside(): void
     {
         $member = $this->createMember();

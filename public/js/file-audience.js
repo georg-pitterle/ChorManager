@@ -40,6 +40,36 @@
         });
     }
 
+    /**
+     * Zusammenfassung aus der aktuellen Auswahl, im selben Wortlaut wie
+     * FileShareDescriber::summarize: "Rolle: A, B · Stimmgruppe: Tenor".
+     */
+    function summaryOf(row) {
+        const all = row.querySelector('[data-files-share-all]');
+        if (all && all.checked) {
+            return 'Alle Mitglieder';
+        }
+        const parts = [];
+        row.querySelectorAll('[data-files-share-condition]').forEach(function (select) {
+            const names = Array.prototype.map.call(select.selectedOptions, function (option) {
+                return option.textContent.replace(/\s+/g, ' ').trim();
+            });
+            if (names.length === 0) {
+                return;
+            }
+            const label = row.querySelector('label[for="' + select.id + '"]');
+            parts.push((label ? label.textContent.trim() : '') + ': ' + names.join(', '));
+        });
+        return parts.length > 0 ? parts.join(' · ') : 'Keine Bedingung gewählt';
+    }
+
+    function updateSummary(row) {
+        const target = row.querySelector('[data-files-share-summary-text]');
+        if (target) {
+            target.textContent = summaryOf(row);
+        }
+    }
+
     function bind(row) {
         if (row.dataset.filesAudienceBound === '1') {
             return;
@@ -88,6 +118,7 @@
             if (event.target.matches('[data-files-share-all]')) {
                 setFieldsDisabled(row);
             }
+            updateSummary(row);
             refresh();
         });
         setFieldsDisabled(row);
