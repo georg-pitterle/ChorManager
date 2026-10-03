@@ -17,7 +17,7 @@ Klicke in der Seitenleiste auf **Kommunikation → Newsletter versenden**. Diese
 
 Die Übersicht besteht aus zwei Teilen:
 
-- **Newsletter-Status**: die Filterleiste. Hier wechselst du zwischen **Entwürfe** und **Versendet**, schränkst nach **Empfängertyp** ein (Projektmitglieder, Veranstaltungsteilnehmer, Rollen, Einzelne Mitglieder) und filterst nach **Projekt**. Die Auswahl wird sofort übernommen, ein Klick auf "Anwenden" ist nicht nötig.
+- **Newsletter-Status**: die Filterleiste. Hier wechselst du zwischen **Entwürfe** und **Versendet**, schränkst nach **Empfängertyp** ein (Projektmitglieder, Zielgruppe eines Termins, Rollen, Einzelne Mitglieder) und filterst nach **Projekt**. Die Auswahl wird sofort übernommen, ein Klick auf "Anwenden" ist nicht nötig.
 - **Newsletter-Übersicht**: die Liste mit Titel, Projekt, Ersteller, Empfängerzahl, Erstelldatum, Status und den Aktionen.
 
 Mit dem Recht **„Newsletter verwalten"** siehst du alle Newsletter – unabhängig davon, in welchen Projekten du selbst mitsingst.

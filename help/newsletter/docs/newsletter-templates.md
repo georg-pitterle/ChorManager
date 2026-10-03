@@ -39,7 +39,7 @@ In der Übersicht öffnest du eine Vorlage über **Bearbeiten**. Neben Name, Bes
 
 - **Kontext** – Global oder ein einzelnes Projekt.
 - **Titelvorschlag** – der Titel, den ein Newsletter aus dieser Vorlage erhält.
-- **Empfängerquellen** – Projektmitglieder, Veranstaltungsteilnehmer, Rollen und einzelne Mitglieder. Genau diese Auswahl steht später im neuen Newsletter.
+- **Empfängerquellen** – Projektmitglieder, Zielgruppe eines Termins, Rollen und einzelne Mitglieder. Genau diese Auswahl steht später im neuen Newsletter.
 
 ![Dialog "Vorlage bearbeiten"](images/newsletter/10-template-edit-modal.png)
 

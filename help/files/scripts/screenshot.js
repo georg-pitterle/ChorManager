@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { chromium } = require('playwright');
+const { prepareSidebarForScreenshots } = require('../../screenshot-support');
 
 const BASE_URL = process.env.BASE_URL || 'https://chormanager.ddev.site';
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL || 'seed.001@chor.local';
@@ -60,6 +61,7 @@ async function main() {
 
     const browser = await chromium.launch();
     const context = await browser.newContext({ viewport: VIEWPORT, ignoreHTTPSErrors: true, locale: 'de-AT' });
+    await prepareSidebarForScreenshots(context);
     const page = await context.newPage();
 
     try {

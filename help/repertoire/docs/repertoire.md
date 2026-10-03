@@ -52,14 +52,14 @@ Dateien kannst du direkt beim Anlegen mitgeben.
   Projektzuordnungen auf der Detailseite
 - [Notenarchiv](repertoire-sheet-archive) – Archivnummer, Standort und Einzelstimmen des
   physischen Notenbestands
-- [Downloads](repertoire-downloads) – wie Mitglieder an die Noten und Aufnahmen ihrer
+- [Probenmaterial](repertoire-downloads) – wie Mitglieder an die Noten und Aufnahmen ihrer
   Projekte kommen
 - [Noten aufs Tablet](repertoire-webdav) – die Projektordner in forScore, MobileSheets
   oder der Dateien-App einbinden
 
 ## Häufige Stolperfallen
 
-- **Lied taucht bei den Mitgliedern nicht auf.** Downloads zeigen nur Lieder, die einem
+- **Lied taucht bei den Mitgliedern nicht auf.** Das Probenmaterial zeigt nur Lieder, die einem
   Projekt zugeordnet sind — und nur den Mitgliedern genau dieses Projekts.
 - **Löschen ist endgültig.** Mit dem Lied verschwinden auch seine hochgeladenen Dateien.
 - **Kategorie fehlt in der Liste.** Kategorien gelten chorweit und werden über

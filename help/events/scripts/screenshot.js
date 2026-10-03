@@ -16,6 +16,7 @@
 const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
+const { prepareSidebarForScreenshots } = require('../../screenshot-support');
 
 const BASE_URL = process.env.BASE_URL || 'https://chormanager.ddev.site';
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL || 'seed.001@chor.local';
@@ -68,6 +69,7 @@ async function main() {
         deviceScaleFactor: 1,
         ignoreHTTPSErrors: true,
     });
+    await prepareSidebarForScreenshots(context);
     const page = await context.newPage();
 
     try {
@@ -80,7 +82,10 @@ async function main() {
 
         // 2. Kalenderansicht
         await page.goto(`${BASE_URL}/events?view=calendar`, { waitUntil: 'networkidle' });
-        await page.locator('#event-calendar .fc-toolbar').waitFor({ state: 'visible' });
+        // FullCalendar 7 vergibt nur noch generierte Klassen (fc-classic-…). Gewartet wird
+        // deshalb auf die eigene Toolbar-Klasse aus public/js/event-calendar.js und das Raster.
+        await page.locator('#event-calendar .event-calendar-toolbar').waitFor({ state: 'visible' });
+        await page.locator('#event-calendar [role="grid"]').waitFor({ state: 'visible' });
         await shot(page, '02-calendar');
 
         // 3. Modal: Neuen Termin anlegen (inkl. Wiederholung aufgeklappt)

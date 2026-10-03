@@ -15,7 +15,7 @@ die Betriebssysteme und Noten-Apps von Haus aus sprechen. Du brauchst nur drei A
 
 ## Was dich erwartet
 
-Der Ordner ist nach dem gleichen Aufbau gegliedert, den du von der Downloads-Seite kennst:
+Der Ordner ist nach dem gleichen Aufbau gegliedert, den du von der Seite Probenmaterial kennst:
 
 ```
 Noten (Wurzel)
@@ -88,7 +88,7 @@ MobileSheets bietet WebDAV nicht unter diesem Namen an, sondern als
 richtige Eintrag; unser Ordner spricht dieselbe Sprache.
 
 1. **Einstellungen → Speicher → Nextcloud** öffnen.
-2. Bei **Server-Basis-URL** die Adresse von der Downloads-Seite eintragen, mit
+2. Bei **Server-Basis-URL** die Adresse von der Seite Probenmaterial eintragen, mit
    Schrägstrich am Ende.
 3. **Benutzername** ist deine E-Mail-Adresse, **Passwort** das Zugangswort.
 4. Speichern, dann im Ordnerbaum das Projekt öffnen und die Dateien importieren.
@@ -120,7 +120,7 @@ ein lokaler Speicher zur Verfügung.
 
 ## 3. Zugang zurückziehen
 
-Gerät verloren, verkauft oder weitergegeben? Dann auf der Downloads-Seite **Neues
+Gerät verloren, verkauft oder weitergegeben? Dann auf der Seite Probenmaterial **Neues
 Zugangswort erzeugen**. Das bisherige verliert damit sofort seine Gültigkeit — jedes
 Gerät, auf dem es noch steht, kommt nicht mehr an die Noten.
 
@@ -133,14 +133,14 @@ nach dem Neuerzeugen auf allen das neue ein.
   Kontopasswort statt des Zugangsworts, oder noch ein altes Zugangswort. Neu erzeugen und
   überall eintragen.
 - **MobileSheets meldet „WebdavError 6".** Die Zahl sagt nichts Bestimmtes; in aller Regel
-  stimmt die Basis-URL nicht. Sie muss genau so lauten wie auf der Downloads-Seite, samt
+  stimmt die Basis-URL nicht. Sie muss genau so lauten wie auf der Seite Probenmaterial, samt
   `/webdav/` am Ende — hänge nichts an, den Rest des Pfades ergänzt MobileSheets selbst.
 - **Die App will etwas speichern und meldet einen Fehler.** Der Ordner ist absichtlich nur
   zum Lesen. Importiere die Noten in die App, statt in den Ordner hineinzuspeichern.
 - **Ein Projekt fehlt.** Du bist ihm nicht zugeordnet — es erscheint auch auf der
-  Downloads-Seite nicht.
+  Seite Probenmaterial nicht.
 - **Der Ordner ist ganz leer.** Dann bist du in keinem Projekt, dem Lieder zugeordnet
-  sind. Siehe [Downloads](repertoire-downloads).
+  sind. Siehe [Probenmaterial](repertoire-downloads).
 - **Die Datei heißt anders als im Chor-Manager.** Tragen zwei Lieder oder zwei Dateien im
   selben Ordner denselben Namen, hängt der Ordner an den zweiten eine Nummer an
   (`Kyrie (2).pdf`). Anders ließen sie sich nicht auseinanderhalten.

@@ -1,6 +1,6 @@
-# Downloads
+# Probenmaterial
 
-Unter Downloads findest du als Mitglied die Noten, Aufnahmen und Links zu den Liedern
+Unter **Probenmaterial** findest du als Mitglied die Noten, Aufnahmen und Links zu den Liedern
 deiner Projekte — zum Anhören direkt im Browser oder zum Herunterladen fürs Üben zu Hause.
 
 > **Berechtigung:** Der Menüpunkt **Noten & Dateien → Probenmaterial** braucht kein besonderes Recht,
@@ -14,7 +14,7 @@ Klickpfad: **Noten & Dateien → Probenmaterial**.
 Jedes deiner Projekte steht als aufklappbarer Block, die Zahl daneben nennt die Anzahl der
 zugeordneten Lieder. Ein Klick öffnet das Projekt, ein weiterer schließt es wieder.
 
-![Downloads mit geöffnetem Projekt](images/repertoire/08-downloads.png)
+![Probenmaterial mit geöffnetem Projekt](images/repertoire/08-downloads.png)
 
 ## 2. Dateien anhören und herunterladen
 
@@ -37,7 +37,7 @@ Unter der Tabelle stehen die **Links** des Lieds: Aufführungsvideos, MIDI-Refer
 ## 3. Noten aufs Tablet
 
 Wer vom Tablet singt, muss nicht jede Datei einzeln herunterladen: Der Abschnitt **Noten
-aufs Tablet** oben auf der Downloads-Seite gibt dir eine Adresse, unter der deine Projekte
+aufs Tablet** oben auf der Seite Probenmaterial gibt dir eine Adresse, unter der deine Projekte
 als Ordner in einer Noten-App wie forScore oder MobileSheets erscheinen — schreibgeschützt
 und immer auf dem aktuellen Stand.
 

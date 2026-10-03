@@ -36,7 +36,7 @@ Der mittlere Abschnitt teilt sich in drei Spalten.
   MIDI-Referenzen, Übe-Tracks. Jeder Link hat Titel, URL und eine optionale Beschreibung.
 
 Anhänge und Links sind das, was die Mitglieder später unter
-[Downloads](repertoire-downloads) sehen.
+[Probenmaterial](repertoire-downloads) sehen.
 
 ## 3. Projektzuordnungen
 
@@ -48,7 +48,7 @@ die Stimmgruppen), und bestätige mit **Zuordnen**.
 
 Die Notiz einer bestehenden Zuordnung änderst du direkt in der Zeile und speicherst mit
 dem Disketten-Symbol. Das rote Kreuz löst die Zuordnung wieder — das Lied selbst bleibt
-erhalten, es verschwindet nur aus den Downloads dieses Projekts.
+erhalten, es verschwindet nur aus dem Probenmaterial dieses Projekts.
 
 ## Häufige Stolperfallen
 
