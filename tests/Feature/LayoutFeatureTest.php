@@ -8,17 +8,21 @@ use PHPUnit\Framework\TestCase;
 
 class LayoutFeatureTest extends TestCase
 {
-    public function testLayoutContainsResponsiveTopbarBrandAndTogglerMarkup(): void
+    public function testLayoutContainsTopbarBrandAndSidebarToggle(): void
     {
         $layoutPath = dirname(__DIR__) . '/../templates/layout.twig';
         $layoutContent = file_get_contents($layoutPath);
 
         $this->assertIsString($layoutContent);
         $this->assertStringContainsString('class="app-topbar__brand-name"', $layoutContent);
-        $this->assertStringContainsString('class="navbar-toggler"', $layoutContent);
-        $this->assertStringContainsString('class="bi bi-list fs-3 text-white toggler-icon toggler-icon-open"', $layoutContent);
-        $this->assertStringContainsString('class="bi bi-x-lg fs-4 text-white toggler-icon toggler-icon-close"', $layoutContent);
-        $this->assertStringContainsString('navbar-expand-lg', $layoutContent);
+        $this->assertMatchesRegularExpression(
+            '/class="app-topbar__menu-toggle"\s+data-nav-toggle\s+aria-controls="app-sidebar"/',
+            $layoutContent
+        );
+        $this->assertStringContainsString('<i class="bi bi-list" aria-hidden="true"></i>', $layoutContent);
+        // Die Menüpunkte stecken nicht mehr im Navbar-Collapse, sondern in der Seitenleiste.
+        $this->assertStringNotContainsString('navbar-toggler', $layoutContent);
+        $this->assertStringNotContainsString('navbar-expand-lg', $layoutContent);
     }
 
     public function testTopbarCssDoesNotForceHideBrandNameOnSmallScreens(): void
@@ -31,35 +35,35 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringNotContainsString(".app-topbar__brand-name {\n        display: none;", $styleContent);
     }
 
-    public function testTopbarCssDefinesVisibleTogglerIconStyling(): void
+    public function testTopbarCssDefinesVisibleMenuToggleStyling(): void
     {
         $stylePath = dirname(__DIR__) . '/../public/css/style.css';
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
-        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler .toggler-icon', $styleContent);
-        $this->assertStringContainsString('.navbar.bg-dark.app-topbar .navbar-toggler[aria-expanded="true"] .toggler-icon-close', $styleContent);
-        $this->assertStringContainsString('line-height: 1;', $styleContent);
+        $this->assertMatchesRegularExpression(
+            '/\.app-topbar__menu-toggle \{[^}]*display: inline-flex;[^}]*color: #ffffff;/s',
+            $styleContent
+        );
+        $this->assertMatchesRegularExpression('/\.app-topbar__actions \{[^}]*margin-left: auto;/s', $styleContent);
     }
 
-    public function testTopbarCssDoesNotOverrideBootstrapTogglerVisibility(): void
+    public function testSidebarCssPlacesSidebarBesideContentFromLg(): void
     {
         $stylePath = dirname(__DIR__) . '/../public/css/style.css';
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
 
-        $selector = '.navbar.bg-dark.app-topbar .navbar-toggler {';
-        $start = strpos($styleContent, $selector);
-        $this->assertNotFalse($start, "Expected CSS selector {$selector} to exist in style.css");
+        $start = strpos($styleContent, '@media (min-width: 992px) {' . "
+" . '    .app-sidebar.offcanvas-lg {');
+        $this->assertNotFalse($start, 'Ab lg muss die Seitenleiste fest neben dem Inhalt stehen.');
+        $block = substr($styleContent, $start, 2500);
 
-        $block = substr($styleContent, $start);
-        $end = strpos($block, '}');
-        $this->assertNotFalse($end, "Expected closing brace for {$selector}");
-        $block = substr($block, 0, $end);
-
-        $this->assertStringNotContainsString('display: inline-flex;', $block);
-        $this->assertStringNotContainsString('display: none !important;', $block);
+        $this->assertStringContainsString('position: fixed;', $block);
+        $this->assertStringContainsString('margin-left: var(--app-sidebar-width);', $block);
+        $this->assertStringContainsString('html.nav-collapsed .app-sidebar.offcanvas-lg', $block);
+        $this->assertStringContainsString('width: var(--app-sidebar-rail-width);', $block);
     }
 
     public function testPageHeaderCssWrapsActionsToAvoidHorizontalOverflow(): void
@@ -107,13 +111,13 @@ class LayoutFeatureTest extends TestCase
         $styleContent = file_get_contents($stylePath);
 
         $this->assertIsString($styleContent);
-        // Active link must have a primary-tinted background chip
-        $this->assertStringContainsString(
-            'background: rgba(var(--theme-primary-rgb), 0.12)',
+        // Der aktive Leisteneintrag trägt einen Chip in der Themenfarbe.
+        $this->assertMatchesRegularExpression(
+            '/\.app-sidebar__link\.active \{[^}]*background: rgba\(var\(--theme-primary-rgb\), 0\.16\);'
+                . '[^}]*color: var\(--theme-primary, #E8A817\);/s',
             $styleContent
         );
-        // Must be visually contained with a border-radius
-        $this->assertStringContainsString('border-radius: 0.375rem', $styleContent);
+        $this->assertMatchesRegularExpression('/\.app-sidebar__link \{[^}]*border-radius: 0\.375rem;/s', $styleContent);
     }
 
     public function testCssDefinesListheadHarmonizationRules(): void
@@ -213,7 +217,10 @@ class LayoutFeatureTest extends TestCase
         $this->assertIsString($eventsTemplateContent);
         $this->assertStringNotContainsString('text-white text-decoration-none', $eventsTemplateContent);
         $this->assertStringNotContainsString('/events?{{', $eventsTemplateContent);
-        $this->assertStringContainsString('<th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>', $eventsTemplateContent);
+        $this->assertStringContainsString(
+            '<th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>',
+            $eventsTemplateContent
+        );
     }
 
     public function testLayoutUsesNavbarLogoClassWithoutFixedHeightAttribute(): void

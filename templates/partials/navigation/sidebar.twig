@@ -1,0 +1,67 @@
+{% import _self as sidebar_ui %}
+
+{# Ein Eintrag der Seitenleiste. Die data-nav-*-Attribute liest die Schnellsuche
+   (navigation-search.js) - sie durchsucht damit genau die Links, die die Rolle sieht. #}
+{% macro link(item) %}
+    {% set _active_class = item.active ? " active" : "" %}
+    <a class="app-sidebar__link{{ _active_class }}"
+       href="{{ item.url }}"
+       title="{{ item.label }}"
+       data-nav-icon="{{ item.icon }}"
+       data-nav-keywords="{{ item.keywords|join("|") }}"
+       {% if item.active %}aria-current="page"{% endif %}>
+        <i class="bi {{ item.icon }}" aria-hidden="true"></i>
+        <span class="app-sidebar__label">{{ item.label }}</span>
+    </a>
+{% endmacro %}
+
+{# Ab lg fest links neben dem Inhalt, darunter ein Offcanvas, das der Menüknopf in der
+   Kopfleiste öffnet (navigation.js). Ohne JavaScript bleibt die Leiste am Desktop nutzbar. #}
+<aside class="offcanvas-lg offcanvas-start app-sidebar"
+       tabindex="-1"
+       id="app-sidebar"
+       aria-labelledby="app-sidebar-title">
+    <div class="offcanvas-header app-sidebar__header">
+        <span class="offcanvas-title app-sidebar__title" id="app-sidebar-title">Menü</span>
+        <button type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="offcanvas"
+                data-bs-target="#app-sidebar"
+                aria-label="Menü schließen"></button>
+    </div>
+    <nav class="offcanvas-body app-sidebar__body" aria-label="Hauptnavigation">
+        {% for node in navigation %}
+            {% if node.type == "link" %}
+                {% if node.position == "bottom" %}
+                    <div class="app-sidebar__spacer"></div>
+                {% endif %}
+                {{ sidebar_ui.link(node) }}
+            {% else %}
+                {% set _foldable_class = node.foldable ? " app-sidebar__section--foldable" : "" %}
+                {% set _active_class = node.active ? " is-active" : "" %}
+                <div class="app-sidebar__section{{ _foldable_class }}{{ _active_class }}"
+                     data-nav-section="{{ node.key }}"
+                     data-nav-section-title="{{ node.label }}">
+                    {% if node.foldable %}
+                        {% set _expanded = node.active ? "true" : "false" %}
+                        <button type="button"
+                                class="app-sidebar__heading app-sidebar__toggle"
+                                aria-expanded="{{ _expanded }}"
+                                aria-controls="app-sidebar-{{ node.key }}"
+                                data-nav-fold="{{ node.key }}">
+                            <span>{{ node.label }}</span>
+                            <i class="bi bi-chevron-down app-sidebar__chevron" aria-hidden="true"></i>
+                        </button>
+                    {% else %}
+                        <div class="app-sidebar__heading"><span>{{ node.label }}</span></div>
+                    {% endif %}
+                    <ul class="app-sidebar__items" id="app-sidebar-{{ node.key }}">
+                        {% for item in node.items %}
+                            <li>{{ sidebar_ui.link(item) }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </nav>
+</aside>

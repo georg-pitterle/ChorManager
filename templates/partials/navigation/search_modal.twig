@@ -1,0 +1,39 @@
+{# Schnellsuche (Strg+K). Die Trefferliste baut navigation-search.js aus den Links der
+   Seitenleiste - gefunden wird damit nur, was die Rolle ohnehin sehen darf. #}
+<div class="modal fade nav-search"
+     id="nav-search-modal"
+     tabindex="-1"
+     aria-labelledby="nav-search-label"
+     aria-hidden="true">
+    <div class="modal-dialog nav-search__dialog">
+        <div class="modal-content">
+            <div class="nav-search__field">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <label class="visually-hidden" for="nav-search-input" id="nav-search-label">Seite suchen</label>
+                <input type="text"
+                       class="nav-search__input"
+                       id="nav-search-input"
+                       placeholder="Seite oder Stichwort suchen …"
+                       autocomplete="off"
+                       spellcheck="false"
+                       role="combobox"
+                       aria-expanded="true"
+                       aria-controls="nav-search-results"
+                       aria-autocomplete="list">
+                <kbd class="nav-search__kbd">Esc</kbd>
+            </div>
+            <div class="nav-search__body">
+                <ul class="nav-search__results"
+                    id="nav-search-results"
+                    role="listbox"
+                    aria-label="Suchergebnisse"></ul>
+                <p class="nav-search__empty d-none" data-nav-search-empty>Keine Seite gefunden.</p>
+            </div>
+            <div class="nav-search__footer">
+                <span><kbd>↑</kbd> <kbd>↓</kbd> auswählen</span>
+                <span><kbd>Enter</kbd> öffnen</span>
+                <span><kbd>Esc</kbd> schließen</span>
+            </div>
+        </div>
+    </div>
+</div>

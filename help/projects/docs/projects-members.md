@@ -2,14 +2,14 @@
 
 Damit ein Projekt lebt, ordnest du ihm die beteiligten Sängerinnen und Sänger zu. Die Projektmitgliedschaft steuert unter anderem, wer als Verantwortlicher für Aufgaben auswählbar ist und wer über projektbezogene Termine und Newsletter erreicht wird.
 
-> **Berechtigung:** Mitglieder verwalten darf, wer das Recht **"Projektmitglieder verwalten"** hat (für alle Projekte) oder das Recht **"Eigene Stimmgruppe ins Projekt zuweisen"** (nur für Mitglieder der eigenen Stimmgruppe). Fehlt dir der Zugriff, frag den Administrator unter **Verwaltung → Rollen**.
+> **Berechtigung:** Mitglieder verwalten darf, wer das Recht **"Projektmitglieder verwalten"** hat (für alle Projekte) oder das Recht **"Eigene Stimmgruppe ins Projekt zuweisen"** (nur für Mitglieder der eigenen Stimmgruppe). Fehlt dir der Zugriff, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Einstieg
 
 Welchen Weg du siehst, hängt von deinen Rechten ab – beide führen zur selben Mitgliederverwaltung:
 
-- **Mit dem Recht "Stammdaten verwalten"**: über **Verwaltung → Projekte** und dort im Aktionsmenü der Projektzeile auf **Mitglieder**. Der Menüpunkt **Bereiche → Meine Projekte** wird dir in diesem Fall **nicht** angezeigt – du brauchst ihn nicht, weil du jedes Projekt schon über die Projektverwaltung erreichst.
-- **Ohne "Stammdaten verwalten"** (nur mit "Projektmitglieder verwalten" oder "Eigene Stimmgruppe ins Projekt zuweisen"): über **Bereiche → Meine Projekte**. Dieser Menüpunkt erscheint nur in dieser Konstellation und zeigt genau die Projekte, deren Mitglieder du verwalten darfst.
+- **Mit dem Recht "Stammdaten verwalten"**: über **Mitglieder & Projekte → Projekte** und dort im Aktionsmenü der Projektzeile auf **Mitglieder**. Der Menüpunkt **Mitglieder & Projekte → Projektbesetzung** wird dir in diesem Fall **nicht** angezeigt – du brauchst ihn nicht, weil du jedes Projekt schon über die Projektverwaltung erreichst.
+- **Ohne "Stammdaten verwalten"** (nur mit "Projektmitglieder verwalten" oder "Eigene Stimmgruppe ins Projekt zuweisen"): über **Mitglieder & Projekte → Projektbesetzung**. Dieser Menüpunkt erscheint nur in dieser Konstellation und zeigt genau die Projekte, deren Mitglieder du verwalten darfst.
 
 ![Übersicht "Meine Projekte" mit den verwaltbaren Projekten](images/projects/10-my-projects.png)
 

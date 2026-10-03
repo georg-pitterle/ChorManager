@@ -8,6 +8,8 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="csrf-token" content="{{ csrf_token }}">
+        {# Setzt den gemerkten Zustand der Seitenleiste, bevor gezeichnet wird - sonst springt die Leiste beim Laden. #}
+        <script src="{{ asset_path('/js/navigation-state.js') }}"></script>
         {% if upload_limits is defined %}
             <meta name="upload-limits" content="{{ upload_limits|json_encode }}">
         {% endif %}
@@ -34,39 +36,44 @@
         {% block styles %}
         {% endblock styles %}
     </head>
-    <body class="app-shell">
+    {% set _sidebar_class = session.user_id ? " app-shell--with-sidebar" : "" %}
+    <body class="app-shell{{ _sidebar_class }}">
         {% if session.user_id %}
             {% set navigation = navigation(active_nav|default("")) %}
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top app-topbar">
+            <header class="navbar navbar-dark bg-dark fixed-top app-topbar">
                 <div class="container-fluid app-topbar__inner">
+                    <button type="button"
+                            class="app-topbar__menu-toggle"
+                            data-nav-toggle
+                            aria-controls="app-sidebar"
+                            aria-expanded="true"
+                            aria-label="Menü ein- und ausklappen">
+                        <i class="bi bi-list" aria-hidden="true"></i>
+                    </button>
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
                         <img src="/logo"
                              alt="Logo"
                              width="200"
                              height="64"
                              class="me-2 navbar-logo">
-                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default('Chor-Manager') }}</span></a>
-                    <button class="navbar-toggler"
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#navbarsExampleDefault"
-                            aria-controls="navbarsExampleDefault"
-                            aria-expanded="false"
-                            aria-label="Toggle navigation">
-                        <i class="bi bi-list fs-3 text-white toggler-icon toggler-icon-open"
-                           aria-hidden="true"></i>
-                        <i class="bi bi-x-lg fs-4 text-white toggler-icon toggler-icon-close"
-                           aria-hidden="true"></i>
-                    </button>
-                    <div class="collapse navbar-collapse" id="navbarsExampleDefault">
-                        <ul class="navbar-nav me-auto mb-2 mb-md-0">
-                            {{ include('partials/navigation/menu.twig', {navigation: navigation}, false) }}
-                        </ul>
-                        {{ include('partials/navigation/user_menu.twig', [], false) }}
-
+                        <span class="app-topbar__brand-name">{{ app_settings.app_name|default("Chor-Manager") }}</span></a>
+                    <div class="app-topbar__actions">
+                        <button type="button"
+                                class="app-topbar__search"
+                                data-nav-search-open
+                                aria-haspopup="dialog"
+                                aria-controls="nav-search-modal"
+                                title="Seite suchen (Strg+K)">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <span class="app-topbar__search-label">Seite suchen …</span>
+                            <kbd class="app-topbar__search-kbd">Strg K</kbd>
+                        </button>
+                        {{ include("partials/navigation/user_menu.twig", [], false) }}
                     </div>
                 </div>
-            </nav>
+            </header>
+            {{ include("partials/navigation/sidebar.twig", {navigation: navigation}, false) }}
+            {{ include("partials/navigation/search_modal.twig", [], false) }}
         {% endif %}
         <main class="app-main container-fluid">
             {% block page_header %}
@@ -89,6 +96,9 @@
         <script src="{{ asset_path('/js/attachment-preview.js') }}"></script>
         {% if session.user_id %}
             <script src="{{ asset_path('/js/mail-badge.js') }}"></script>
+            <script src="{{ asset_path('/js/navigation.js') }}"></script>
+            <script src="{{ asset_path('/js/navigation-search-rank.js') }}"></script>
+            <script src="{{ asset_path('/js/navigation-search.js') }}"></script>
         {% endif %}
         <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
         <script src="{{ asset_path('/js/tinymce-init.js') }}"></script>

@@ -2,11 +2,11 @@
 
 Für Termine mit aktivierter Anwesenheitsliste kannst du strukturiert erfassen, wer anwesend, entschuldigt oder unentschuldigt gefehlt hat.
 
-> **Berechtigung:** Anwesenheiten erfassen kannst du, wenn deine Rolle das Recht **"Anwesenheit verwalten"** hat. Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> **Berechtigung:** Anwesenheiten erfassen kannst du, wenn deine Rolle das Recht **"Anwesenheit verwalten"** hat. Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Termin auswählen
 
-Unter **Termine → Anwesenheit** wählst du über das Dropdown-Menü einen Termin aus, oder navigierst über die Buttons **Vorheriger Termin** / **Nächster Termin** durch alle Termine mit aktivierter Anwesenheitsliste. Alternativ gelangst du direkt über den Button **Anwesenheit** in der Terminliste zu einem konkreten Termin.
+Unter **Termine → Anwesenheit erfassen** wählst du über das Dropdown-Menü einen Termin aus, oder navigierst über die Buttons **Vorheriger Termin** / **Nächster Termin** durch alle Termine mit aktivierter Anwesenheitsliste. Alternativ gelangst du direkt über den Button **Anwesenheit** in der Terminliste zu einem konkreten Termin.
 
 ![Anwesenheitsliste eines Termins nach Stimmgruppen sortiert](images/events/08-attendance-list.png)
 

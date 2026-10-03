@@ -10,9 +10,33 @@ use PHPUnit\Framework\TestCase;
 
 class NavigationBuilderFeatureTest extends TestCase
 {
+    private const ADMIN_PERMISSIONS = [
+        'can_manage_users' => true,
+        'can_manage_roles' => true,
+        'can_manage_master_data' => true,
+        'can_manage_mail_queue' => true,
+        'can_manage_backups' => true,
+        'can_manage_events' => true,
+        'can_manage_song_library' => true,
+        'can_manage_newsletters' => true,
+        'can_manage_finances' => true,
+        'can_manage_sponsoring' => true,
+        'can_manage_attendance_all' => true,
+    ];
+
+    private const ALL_MODULES = [
+        'registration' => true,
+        'finance' => true,
+        'budget' => true,
+        'sponsoring' => true,
+        'newsletter' => true,
+        'files' => true,
+    ];
+
     /**
      * @param array<string,bool> $permissions
      * @param array<string,bool> $modules
+     * @return array<int,array<string,mixed>>
      */
     private function build(array $permissions, array $modules = [], string $path = '/dashboard'): array
     {
@@ -23,10 +47,10 @@ class NavigationBuilderFeatureTest extends TestCase
     /**
      * @param array<int,array<string,mixed>> $tree
      */
-    private function group(array $tree, string $label): ?array
+    private function section(array $tree, string $key): ?array
     {
         foreach ($tree as $node) {
-            if ($node['type'] === 'group' && $node['label'] === $label) {
+            if ($node['type'] === 'section' && $node['key'] === $key) {
                 return $node;
             }
         }
@@ -35,73 +59,184 @@ class NavigationBuilderFeatureTest extends TestCase
 
     /**
      * @param array<int,array<string,mixed>> $tree
+     * @return list<string>
      */
-    private function urls(array $tree): array
+    private function sectionKeys(array $tree): array
     {
-        $urls = [];
+        $keys = [];
         foreach ($tree as $node) {
-            if ($node['type'] === 'link') {
-                $urls[] = $node['url'];
-            } else {
-                foreach ($node['items'] as $item) {
-                    $urls[] = $item['url'];
-                }
+            if ($node['type'] === 'section') {
+                $keys[] = $node['key'];
             }
         }
-        return $urls;
-    }
-
-    public function testPlainMemberSeesOnlyPublicItems(): void
-    {
-        $tree = $this->build([], ['registration' => false]);
-        $urls = $this->urls($tree);
-
-        $this->assertContains('/dashboard', $urls);
-        $this->assertContains('/events', $urls);
-        $this->assertContains('/downloads', $urls);
-        $this->assertContains('/evaluations/project-members', $urls);
-
-        $this->assertNotContains('/attendance', $urls);
-        $this->assertNotContains('/registrations', $urls);
-        $this->assertNotContains('/users', $urls);
-        $this->assertNotContains('/roles', $urls);
-        $this->assertNotContains('/backups', $urls);
-
-        // Keine leeren Admin-Gruppen im Baum.
-        $this->assertNull($this->group($tree, 'Verwaltung'));
+        return $keys;
     }
 
     /**
-     * Pins the group placement of the Projektmitglieder-Ansicht: it belongs to "Bereiche"
-     * (Inhalte fuer alle Mitglieder) und nicht zu "Auswertungen" (auswertende Sichten fuer
-     * Verwaltungsrechte). Ein reines Mitglied ohne Rechte darf den Punkt sehen, ohne dass
-     * dafuer die Auswertungen-Gruppe aufgeklappt wird.
+     * @param array<int,array<string,mixed>> $tree
+     * @return list<array<string,mixed>>
      */
-    public function testProjectMembersLinkLivesInBereicheGroup(): void
+    private function entries(array $tree): array
+    {
+        $entries = [];
+        foreach ($tree as $node) {
+            if ($node['type'] === 'link') {
+                $entries[] = $node;
+            } else {
+                foreach ($node['items'] as $item) {
+                    $entries[] = $item;
+                }
+            }
+        }
+        return $entries;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $tree
+     * @return list<string>
+     */
+    private function urls(array $tree): array
+    {
+        return array_column($this->entries($tree), 'url');
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $tree
+     */
+    private function entry(array $tree, string $url): ?array
+    {
+        foreach ($this->entries($tree) as $entry) {
+            if ($entry['url'] === $url) {
+                return $entry;
+            }
+        }
+        return null;
+    }
+
+    public function testSectionsAppearInTaskOrderBetweenStartAndHelp(): void
+    {
+        $tree = $this->build(self::ADMIN_PERMISSIONS, self::ALL_MODULES);
+
+        $first = $tree[0];
+        $last = $tree[array_key_last($tree)];
+        $this->assertSame(['link', '/dashboard', 'top'], [$first['type'], $first['url'], $first['position']]);
+        $this->assertSame(['link', '/help', 'bottom'], [$last['type'], $last['url'], $last['position']]);
+
+        $this->assertSame(
+            ['events', 'material', 'people', 'finance', 'communication', 'administration'],
+            $this->sectionKeys($tree)
+        );
+        $titles = [];
+        foreach ($tree as $node) {
+            if ($node['type'] === 'section') {
+                $titles[$node['key']] = $node['label'];
+            }
+        }
+        $this->assertSame([
+            'events' => 'Termine',
+            'material' => 'Noten & Dateien',
+            'people' => 'Mitglieder & Projekte',
+            'finance' => 'Finanzen',
+            'communication' => 'Kommunikation',
+            'administration' => 'Administration',
+        ], $titles);
+    }
+
+    public function testEntriesCarryTheNewNamesInTheirSections(): void
+    {
+        $tree = $this->build(self::ADMIN_PERMISSIONS, self::ALL_MODULES);
+
+        $expected = [
+            'events' => [
+                '/events' => 'Termine',
+                '/registrations' => 'Anmeldungen',
+                '/attendance' => 'Anwesenheit erfassen',
+                '/evaluations' => 'Anwesenheitsquoten',
+                '/evaluations/registrations' => 'Anmelde-Auswertung',
+            ],
+            'material' => [
+                '/downloads' => 'Probenmaterial',
+                '/files' => 'Dateien',
+                '/song-library' => 'Repertoire',
+            ],
+            'people' => [
+                '/users' => 'Mitglieder',
+                '/projects' => 'Projekte',
+                '/evaluations/project-members' => 'Projektübersicht',
+            ],
+            'finance' => [
+                '/finances' => 'Kassa',
+                '/budget' => 'Budget',
+                '/sponsoring' => 'Sponsoring',
+            ],
+            'communication' => [
+                '/newsletters' => 'Newsletter versenden',
+                '/newsletters/archive' => 'Newsletter-Archiv',
+            ],
+            'administration' => [
+                '/roles' => 'Rollen & Rechte',
+                '/voice-groups' => 'Stimmgruppen',
+                '/event-types' => 'Termin-Typen',
+                '/settings' => 'App-Einstellungen',
+                '/admin/mail-queue' => 'Mailversand',
+                '/backups' => 'Backups',
+            ],
+        ];
+
+        foreach ($expected as $key => $labelsByUrl) {
+            $section = $this->section($tree, $key);
+            $this->assertNotNull($section, "Abschnitt {$key} fehlt.");
+            $this->assertSame(
+                $labelsByUrl,
+                array_combine(array_column($section['items'], 'url'), array_column($section['items'], 'label')),
+                "Einträge im Abschnitt {$key} stimmen nicht."
+            );
+        }
+        $this->assertSame('Start', $tree[0]['label']);
+    }
+
+    /**
+     * "Projektbesetzung" ist die Seite, auf der eine Stimmgruppe ihre Leute einem Projekt
+     * zuteilt. Wer Stammdaten verwaltet, arbeitet stattdessen über "Projekte" - der
+     * Eintrag bleibt für diese Personen ausgeblendet, wie bisher "Meine Projekte".
+     */
+    public function testProjectStaffingIsForAssignersWithoutMasterData(): void
+    {
+        $assigner = $this->build(['can_assign_own_voice_group_to_project' => true]);
+        $staffing = $this->entry($assigner, '/projects/members');
+        $this->assertNotNull($staffing);
+        $this->assertSame('Projektbesetzung', $staffing['label']);
+        $this->assertContains('/projects/members', array_column($this->section($assigner, 'people')['items'], 'url'));
+
+        $masterData = $this->urls($this->build([
+            'can_manage_project_members' => true,
+            'can_manage_master_data' => true,
+        ]));
+        $this->assertNotContains('/projects/members', $masterData);
+        $this->assertContains('/projects', $masterData);
+    }
+
+    public function testPlainMemberSeesOnlyPublicSections(): void
     {
         $tree = $this->build([], ['registration' => false]);
 
-        $bereiche = $this->group($tree, 'Bereiche');
-        $this->assertNotNull($bereiche);
-        $this->assertContains('/evaluations/project-members', array_column($bereiche['items'], 'url'));
-
-        $auswertungen = $this->group($tree, 'Auswertungen');
-        $this->assertNotNull($auswertungen, 'Anwesenheitsquoten sind fuer alle Mitglieder offen.');
-        $this->assertNotContains('/evaluations/project-members', array_column($auswertungen['items'], 'url'));
-        $this->assertContains('/evaluations', array_column($auswertungen['items'], 'url'));
+        $this->assertSame(['events', 'material', 'people'], $this->sectionKeys($tree));
+        $this->assertSame(['/events', '/evaluations'], array_column($this->section($tree, 'events')['items'], 'url'));
+        $this->assertSame(['/downloads'], array_column($this->section($tree, 'material')['items'], 'url'));
+        $this->assertSame(
+            ['/evaluations/project-members'],
+            array_column($this->section($tree, 'people')['items'], 'url')
+        );
+        $this->assertNull($this->section($tree, 'administration'), 'Leere Abschnitte erscheinen nicht.');
+        $this->assertNull($this->section($tree, 'finance'));
     }
 
-    public function testProjectMembersLinkNotInAuswertungenGroupForAdmin(): void
+    public function testFilesModuleMovesFilesIntoMaterialForEveryone(): void
     {
-        $tree = $this->build(['can_manage_users' => true], ['registration' => true]);
+        $tree = $this->build([], ['files' => true]);
 
-        $auswertungen = $this->group($tree, 'Auswertungen');
-        $this->assertNotNull($auswertungen);
-        $this->assertNotContains('/evaluations/project-members', array_column($auswertungen['items'], 'url'));
-
-        $bereiche = $this->group($tree, 'Bereiche');
-        $this->assertNotNull($bereiche);
-        $this->assertContains('/evaluations/project-members', array_column($bereiche['items'], 'url'));
+        $this->assertContains('/files', array_column($this->section($tree, 'material')['items'], 'url'));
+        $this->assertNull($this->section($tree, 'administration'));
     }
 
     public function testRegistrationModuleTogglesRegistrationLinks(): void
@@ -123,105 +258,93 @@ class NavigationBuilderFeatureTest extends TestCase
 
         $this->assertContains('/users', $urls);
         $this->assertContains('/evaluations', $urls);
-        // Seit dem Wegfall von can_manage_attendance (Migration 20260902120000) oeffnet
-        // can_manage_own_voice_group die Anwesenheitsliste selbst - der Link gehoert dazu.
+        // Seit dem Wegfall von can_manage_attendance (Migration 20260902120000) öffnet
+        // can_manage_own_voice_group die Anwesenheitsliste selbst - der Link gehört dazu.
         $this->assertContains('/attendance', $urls);
     }
 
     /**
-     * Haelt die Invariante zwischen Navigation und Route fuer '/attendance' fest: Die
-     * Bedingung im Menue muss genau dem Gate requiresAttendanceManagement in
+     * Hält die Invariante zwischen Navigation und Route für '/attendance' fest: Die
+     * Bedingung im Menü muss genau dem Gate requiresAttendanceManagement in
      * RoleMiddleware entsprechen - can_manage_own_voice_group oder
      * can_manage_attendance_all. Laufen die beiden auseinander, sieht jemand den
-     * Eintrag "Anwesenheit" und bekommt beim Klick einen 403.
+     * Eintrag und bekommt beim Klick einen 403.
      */
     public function testAttendanceLinkMatchesTheRouteGate(): void
     {
-        $voiceGroupOnly = $this->urls($this->build([
-            'can_manage_own_voice_group' => true,
-        ]));
-        $this->assertContains('/attendance', $voiceGroupOnly);
-
-        $allManager = $this->urls($this->build([
-            'can_manage_attendance_all' => true,
-        ]));
-        $this->assertContains('/attendance', $allManager);
-
-        $neither = $this->urls($this->build([
-            'can_manage_events' => true,
-        ]));
-        $this->assertNotContains('/attendance', $neither);
+        $this->assertContains('/attendance', $this->urls($this->build(['can_manage_own_voice_group' => true])));
+        $this->assertContains('/attendance', $this->urls($this->build(['can_manage_attendance_all' => true])));
+        $this->assertNotContains('/attendance', $this->urls($this->build(['can_manage_events' => true])));
     }
 
-    public function testBackupOnlyRoleSeesVerwaltungWithBackupItem(): void
+    public function testBackupOnlyRoleSeesAdministrationWithBackupItem(): void
     {
         $tree = $this->build(['can_manage_backups' => true]);
-        $verwaltung = $this->group($tree, 'Verwaltung');
+        $administration = $this->section($tree, 'administration');
 
-        $this->assertNotNull($verwaltung, 'Verwaltung-Gruppe muss fuer Backup-Recht erscheinen.');
-        $itemUrls = array_column($verwaltung['items'], 'url');
-        $this->assertContains('/backups', $itemUrls);
-        $this->assertNotContains('/roles', $itemUrls);
+        $this->assertNotNull($administration, 'Administration muss für das Backup-Recht erscheinen.');
+        $this->assertSame(['/backups'], array_column($administration['items'], 'url'));
     }
 
     public function testAdminSeesFullStructure(): void
     {
-        $tree = $this->build([
-            'can_manage_users' => true,
-            'can_manage_roles' => true,
-            'can_manage_master_data' => true,
-            'can_manage_mail_queue' => true,
-            'can_manage_backups' => true,
-        ], [
-            'finance' => true,
-            'newsletter' => true,
-        ]);
-        $urls = $this->urls($tree);
+        $urls = $this->urls($this->build(self::ADMIN_PERMISSIONS, self::ALL_MODULES));
 
-        foreach (['/users', '/roles', '/voice-groups', '/settings', '/admin/mail-queue', '/backups'] as $u) {
+        foreach (['/users', '/roles', '/voice-groups', '/settings', '/admin/mail-queue', '/backups', '/files'] as $u) {
             $this->assertContains($u, $urls, "Admin muss {$u} sehen.");
         }
-        $this->assertNotNull($this->group($tree, 'Verwaltung'));
     }
 
-    public function testActiveStatePropagatesToGroup(): void
+    public function testOnlyAdministrationIsFoldable(): void
     {
-        $tree = $this->build(['can_manage_users' => true], ['registration' => true], '/registrations');
-        $termine = $this->group($tree, 'Termine');
+        $tree = $this->build(self::ADMIN_PERMISSIONS, self::ALL_MODULES);
 
-        $this->assertNotNull($termine);
-        $this->assertTrue($termine['active'], 'Gruppe Termine muss aktiv sein bei /registrations.');
-
-        $anmeldung = null;
-        foreach ($termine['items'] as $item) {
-            if ($item['url'] === '/registrations') {
-                $anmeldung = $item;
+        foreach ($tree as $node) {
+            if ($node['type'] === 'section') {
+                $this->assertSame($node['key'] === 'administration', $node['foldable'], "foldable bei {$node['key']}");
             }
         }
-        $this->assertNotNull($anmeldung);
-        $this->assertTrue($anmeldung['active']);
     }
 
-    public function testDividerOnlyBetweenVisibleAdminSections(): void
+    public function testActiveStatePropagatesToSection(): void
     {
-        // Nur Backup-Recht: Verwaltung hat genau ein sichtbares Item, kein fuehrender Divider.
-        $tree = $this->build(['can_manage_backups' => true]);
-        $verwaltung = $this->group($tree, 'Verwaltung');
-        $this->assertFalse($verwaltung['items'][0]['divider_before']);
+        $tree = $this->build(['can_manage_users' => true], ['registration' => true], '/registrations');
+
+        $events = $this->section($tree, 'events');
+        $this->assertTrue($events['active'], 'Abschnitt Termine muss bei /registrations aktiv sein.');
+        $this->assertTrue($this->entry($tree, '/registrations')['active']);
+        $this->assertFalse($this->entry($tree, '/evaluations/registrations')['active']);
+        $this->assertFalse($this->section($tree, 'people')['active']);
     }
 
-    /**
-     * Pins the Kassa/Budget visibility rules behaviorally rather than via source-text
-     * matching. A finance reader with both modules enabled must see both '/finances'
-     * and '/budget'; with the modules disabled, neither may appear even though the
-     * permission flag stays true.
-     */
+    public function testEveryEntryCarriesUsableKeywords(): void
+    {
+        $tree = $this->build(self::ADMIN_PERMISSIONS + ['can_assign_own_voice_group_to_project' => true], self::ALL_MODULES);
+
+        foreach ($this->entries($tree) as $entry) {
+            $this->assertNotEmpty($entry['keywords'], "Keine Stichwörter bei {$entry['url']}.");
+            foreach ($entry['keywords'] as $keyword) {
+                $this->assertMatchesRegularExpression(
+                    '/^[a-zäöüß0-9][a-zäöüß0-9 -]*$/u',
+                    $keyword,
+                    "Stichwort '{$keyword}' bei {$entry['url']} muss klein geschrieben sein und darf kein '|' enthalten."
+                );
+            }
+        }
+    }
+
+    public function testKeywordsCoverEverydaySynonyms(): void
+    {
+        $tree = $this->build(self::ADMIN_PERMISSIONS, self::ALL_MODULES);
+
+        $this->assertContains('kassabuch', $this->entry($tree, '/finances')['keywords']);
+        $this->assertContains('sopran', $this->entry($tree, '/voice-groups')['keywords']);
+        $this->assertContains('noten', $this->entry($tree, '/downloads')['keywords']);
+    }
+
     public function testFinanceReaderSeesFinancesAndBudgetWhenModulesEnabled(): void
     {
-        $urls = $this->urls($this->build(
-            ['can_read_finances' => true],
-            ['finance' => true, 'budget' => true]
-        ));
+        $urls = $this->urls($this->build(['can_read_finances' => true], ['finance' => true, 'budget' => true]));
 
         $this->assertContains('/finances', $urls);
         $this->assertContains('/budget', $urls);
@@ -229,79 +352,35 @@ class NavigationBuilderFeatureTest extends TestCase
 
     public function testFinanceReaderDoesNotSeeFinancesOrBudgetWhenModulesDisabled(): void
     {
-        $urls = $this->urls($this->build(
-            ['can_read_finances' => true],
-            ['finance' => false, 'budget' => false]
-        ));
+        $urls = $this->urls($this->build(['can_read_finances' => true], ['finance' => false, 'budget' => false]));
 
         $this->assertNotContains('/finances', $urls);
         $this->assertNotContains('/budget', $urls);
     }
 
-    /**
-     * Pins the Kassa entry's remaining permission paths (currently uncovered by the tests
-     * above, which only exercise can_read_finances): can_manage_finances alone, and
-     * can_manage_users alone, must each be sufficient to see '/finances' when the finance
-     * module is on.
-     */
     public function testFinanceManagerSeesFinancesWithoutReadPermission(): void
     {
-        $urls = $this->urls($this->build(
-            ['can_manage_finances' => true],
-            ['finance' => true]
-        ));
-
-        $this->assertContains('/finances', $urls);
+        $this->assertContains('/finances', $this->urls($this->build(['can_manage_finances' => true], ['finance' => true])));
     }
 
     public function testUserManagerDoesNotSeeFinancesWithoutFinancePermissions(): void
     {
-        $urls = $this->urls($this->build(
-            ['can_manage_users' => true],
-            ['finance' => true]
-        ));
-
-        $this->assertNotContains('/finances', $urls);
+        $this->assertNotContains('/finances', $this->urls($this->build(['can_manage_users' => true], ['finance' => true])));
     }
 
     /**
-     * Pins the navKey branch of NavigationBuilder::matchesActive(): controllers such as
-     * DownloadController pass active_nav='downloads' to highlight the Downloads item on
-     * pages whose path (e.g. a download-serving route) does not start with '/downloads'.
-     * Level chosen: NavigationContext/NavigationBuilder directly, not a rendered template.
-     * This is the exact seam that needs pinning (the navKey-vs-prefix precedence inside
-     * matchesActive()); driving it through a full controller+layout render would add DB/
-     * routing setup without exercising anything this narrower test does not already cover.
+     * Controller wie DownloadController setzen active_nav='downloads', damit der Eintrag
+     * auch auf Seiten leuchtet, deren Pfad nicht mit '/downloads' beginnt.
      */
-    public function testActiveNavKeyHighlightsDownloadsRegardlessOfCurrentPath(): void
+    public function testActiveNavKeyHighlightsProbenmaterialRegardlessOfCurrentPath(): void
     {
-        $ctx = new NavigationContext([], [], '/dashboard', 'downloads');
-        $tree = (new NavigationBuilder())->build($ctx);
+        $tree = (new NavigationBuilder())->build(new NavigationContext([], [], '/dashboard', 'downloads'));
 
-        $bereiche = $this->group($tree, 'Bereiche');
-        $this->assertNotNull($bereiche);
-
-        $downloads = null;
-        foreach ($bereiche['items'] as $item) {
-            if ($item['url'] === '/downloads') {
-                $downloads = $item;
-            }
-        }
-
-        $this->assertNotNull($downloads, 'Downloads-Item muss im Baum vorhanden sein.');
-        $this->assertTrue(
-            $downloads['active'],
-            'Downloads-Item muss aktiv sein, wenn active_nav=downloads gesetzt ist, ' .
-                'unabhängig vom aktuellen Pfad.'
-        );
+        $this->assertTrue($this->entry($tree, '/downloads')['active']);
+        $this->assertTrue($this->section($tree, 'material')['active']);
+        $this->assertFalse($tree[0]['active'], 'Start darf nicht zusätzlich aktiv sein.');
     }
 
-    /**
-     * Closes the "no test touches fromSession()" gap: every other test in this class builds
-     * NavigationContext directly, so a bug in fromSession() itself (e.g. its former hardcoded
-     * flag allowlist) would go completely unnoticed. This drives a real session array and real
-     * settings array through fromSession() and NavigationBuilder::build() end-to-end.
-     */
     public function testFromSessionBuildsExpectedMenuFromSessionArrayAndSettings(): void
     {
         $session = [
@@ -312,26 +391,18 @@ class NavigationBuilderFeatureTest extends TestCase
         ];
         $settings = ['modules' => ['finance' => true, 'newsletter' => true]];
 
-        $context = NavigationContext::fromSession($session, $settings, '/backups');
-        $tree = (new NavigationBuilder())->build($context);
+        $tree = (new NavigationBuilder())->build(NavigationContext::fromSession($session, $settings, '/backups'));
         $urls = $this->urls($tree);
 
         $this->assertContains('/users', $urls);
         $this->assertContains('/backups', $urls);
         $this->assertContains('/finances', $urls);
-
-        $backupsGroup = $this->group($tree, 'Verwaltung');
-        $this->assertNotNull($backupsGroup);
-        $this->assertTrue($backupsGroup['active'], 'Verwaltung muss aktiv sein bei /backups.');
+        $this->assertTrue($this->section($tree, 'administration')['active'], 'Administration muss bei /backups aktiv sein.');
     }
 
     /**
-     * Pins Finding 2's fix: fromSession() must copy every "can_"-prefixed session key present,
-     * not filter through an explicit, hand-maintained allowlist. A brand-new capability flag
-     * referenced by a future NavigationBuilder predicate must work through fromSession()
-     * without this class needing a matching update in lockstep — otherwise the exact
-     * gate-in-one-file/flag-in-another desync bug class this branch removes from the builder
-     * would simply relocate here, undetected.
+     * fromSession() muss jedes "can_"-Flag übernehmen statt einer gepflegten Liste - sonst
+     * läse ein neues Prädikat im Builder still false.
      */
     public function testFromSessionCopiesAnyCanPrefixedFlagWithoutAnAllowlist(): void
     {
@@ -343,5 +414,12 @@ class NavigationBuilderFeatureTest extends TestCase
 
         $this->assertTrue($context->can('can_manage_totally_new_capability'));
         $this->assertFalse($context->can('user_id'));
+    }
+
+    public function testUnknownNavKeyFallsBackToThePath(): void
+    {
+        $tree = (new NavigationBuilder())->build(new NavigationContext([], [], '/events', 'not_a_nav_key'));
+
+        $this->assertTrue($this->entry($tree, '/events')['active']);
     }
 }

@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test:js": "node --test \"tests/js/**/*.test.mjs\"",
     "e2e": "playwright test --config tests/e2e/playwright.config.mjs",
     "e2e:scenarios": "playwright test --config tests/e2e/playwright.config.mjs --project=scenarios",
     "e2e:crawler": "playwright test --config tests/e2e/playwright.config.mjs --project=crawler",

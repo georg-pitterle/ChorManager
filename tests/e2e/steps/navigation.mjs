@@ -1,41 +1,37 @@
-// Bausteine fuer die Hauptnavigation (templates/layout.twig).
+// Bausteine für die Seitenleiste (templates/partials/navigation/sidebar.twig).
 //
-// Selektoren aus templates/layout.twig:
-//  - Burger-Button: button.navbar-toggler mit data-bs-target="#navbarsExampleDefault"
-//  - einklappbarer Bereich: div#navbarsExampleDefault.collapse.navbar-collapse
-//    (enthaelt ul.navbar-nav mit dem rechtegefilterten Menue)
+// Selektoren:
+//  - Menüknopf in der Kopfleiste: button[data-nav-toggle]
+//  - Leiste: aside#app-sidebar (ab 992 px fest sichtbar, darunter Bootstrap-Offcanvas)
 
 import { expect } from '@playwright/test';
 
-const TOGGLER = 'button.navbar-toggler';
-const COLLAPSE = '#navbarsExampleDefault';
+const TOGGLE = 'button[data-nav-toggle]';
+const SIDEBAR = '#app-sidebar';
 
 /**
- * Sorgt dafuer, dass die Menuelinks sichtbar sind.
+ * Sorgt dafür, dass die Leistenlinks sichtbar sind.
  *
- * Unterhalb von Bootstraps lg-Breakpoint (mobiler Lauf, E2E_VIEWPORT=mobile) steckt das Menue
- * im Burger: die Links sind im DOM, aber unsichtbar. Pruefungen auf ":visible" waeren dort
- * sonst still wirkungslos - ein Test, der "kein verbotener Link sichtbar" erwartet, wuerde
- * gruen sein, ohne irgendetwas zu pruefen.
+ * Unterhalb von Bootstraps lg-Breakpoint (mobiler Lauf, E2E_VIEWPORT=mobile) steckt die
+ * Leiste im Offcanvas: die Links sind im DOM, aber unsichtbar. Prüfungen auf ":visible"
+ * wären dort sonst still wirkungslos - ein Test, der "kein verbotener Link sichtbar"
+ * erwartet, wäre grün, ohne irgendetwas zu prüfen.
  *
- * Auf Desktop-Breite ist der Toggler ausgeblendet; die Funktion tut dann nichts.
+ * Am Desktop ist die Leiste immer sichtbar; die Funktion tut dann nichts.
  */
 export async function openMainNavigation(page) {
-    const toggler = page.locator(TOGGLER);
-    if (!(await toggler.isVisible())) {
+    const sidebar = page.locator(SIDEBAR);
+    if (await sidebar.isVisible()) {
         return;
     }
 
-    const collapse = page.locator(COLLAPSE);
-    if (!(await collapse.isVisible())) {
-        await toggler.click();
-    }
-    await collapse.waitFor({ state: 'visible' });
-    // Bootstrap animiert das Ausklappen; erst danach stimmen die Sichtbarkeiten der Links.
-    await expect(collapse).toHaveClass(/\bshow\b/);
+    await page.locator(TOGGLE).click();
+    // Bootstrap animiert das Hereinfahren; erst mit "show" stimmen die Sichtbarkeiten.
+    await expect(sidebar).toHaveClass(/\bshow\b/);
+    await expect(sidebar).toBeVisible();
 }
 
-/** Anzahl sichtbarer Menuelinks - Absicherung gegen still leere Navigations-Pruefungen. */
+/** Anzahl sichtbarer Leistenlinks - Absicherung gegen still leere Navigations-Prüfungen. */
 export async function visibleNavLinkCount(page) {
-    return page.locator(`${COLLAPSE} a:visible`).count();
+    return page.locator(`${SIDEBAR} a:visible`).count();
 }

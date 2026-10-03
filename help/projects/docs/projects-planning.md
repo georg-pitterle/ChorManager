@@ -2,9 +2,9 @@
 
 Das Planungsmodul hält fest, was in einem Projekt zu tun ist: einzelne **Aufgaben** mit Verantwortlichen, Fälligkeitsdaten, Priorität und Status. Eine Aufgabe kann mehreren Personen gemeinsam gehören. So behältst du den Überblick, wer sich um welche Vorbereitung kümmert – von der Saalreservierung bis zum Programmheft.
 
-> **Berechtigung:** Die Projektplanung ist nur verfügbar, wenn das Aufgaben-Modul aktiv ist und deine Rolle das Recht **"Projektplanung (Aufgaben)"** hat. Fehlt dir der Zugriff, frag den Administrator unter **Verwaltung → Rollen**.
+> **Berechtigung:** Die Projektplanung ist nur verfügbar, wenn das Aufgaben-Modul aktiv ist und deine Rolle das Recht **"Projektplanung (Aufgaben)"** hat. Fehlt dir der Zugriff, frag den Administrator unter **Administration → Rollen & Rechte**.
 
-Du erreichst die Planung eines Projekts über **Verwaltung → Projekte → Aktionsmenü → Planung**.
+Du erreichst die Planung eines Projekts über **Mitglieder & Projekte → Projekte → Aktionsmenü → Planung**.
 
 ## 1. Aufgabenliste
 

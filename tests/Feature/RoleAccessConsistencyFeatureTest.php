@@ -71,7 +71,7 @@ final class RoleAccessConsistencyFeatureTest extends TestCase
         $this->assertIsString($nav);
 
         $this->assertMatchesRegularExpression(
-            "/'label' => 'Rollen',.*?'url' => '\/roles',.*?\\\$c->can\('can_manage_roles'\)/s",
+            "/'label' => 'Rollen & Rechte',.*?'url' => '\/roles',.*?\\\$c->can\('can_manage_roles'\)/s",
             $nav
         );
     }

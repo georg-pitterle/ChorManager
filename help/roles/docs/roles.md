@@ -3,11 +3,11 @@
 Über **Rollen** legst du fest, was Mitglieder in deiner Installation sehen und tun dürfen. Jede Rolle hat einen Namen, ein Hierarchie-Level (0–100) und eine Reihe von Einzelrechten, die du unabhängig voneinander ein- oder ausschalten kannst. Ein Mitglied kann mehrere Rollen haben – es erhält dann die Vereinigung aller zugehörigen Rechte.
 
 > **Berechtigung:** Dieses Modul ist nur sichtbar, wenn deine Rolle das Recht **"Rollen verwalten"** hat.
-> Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Berechtigungsmatrix
 
-Unter **Verwaltung → Rollen** siehst du alle Rollen deiner Installation nebeneinander in einer Matrix: Jede Spalte ist eine Rolle, jede Zeile ein Recht. Ein grüner Haken zeigt, dass die Rolle dieses Recht besitzt, ein rotes Kreuz, dass sie es nicht hat. Zusätzlich zeigt die Matrix pro Rolle die Anzahl aktiver Mitglieder und bietet einen direkten Zugang zum Bearbeiten.
+Unter **Administration → Rollen & Rechte** siehst du alle Rollen deiner Installation nebeneinander in einer Matrix: Jede Spalte ist eine Rolle, jede Zeile ein Recht. Ein grüner Haken zeigt, dass die Rolle dieses Recht besitzt, ein rotes Kreuz, dass sie es nicht hat. Zusätzlich zeigt die Matrix pro Rolle die Anzahl aktiver Mitglieder und bietet einen direkten Zugang zum Bearbeiten.
 
 ![Berechtigungsmatrix mit allen Rollen und Rechten](images/roles/01-permission-matrix.png)
 

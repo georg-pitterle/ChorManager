@@ -6,7 +6,7 @@ Vorlagen sind fertige Bausteine für wiederkehrende Rundschreiben – etwa eine 
 
 ## 1. Vorlagenübersicht öffnen
 
-Klicke auf **Bereiche → Newsletter** und dort oben rechts auf **Vorlagen verwalten**.
+Klicke auf **Kommunikation → Newsletter versenden** und dort oben rechts auf **Vorlagen verwalten**.
 
 ![Vorlagenübersicht](images/newsletter/08-templates.png)
 

@@ -11,7 +11,7 @@ vorhanden sind. Es ist unabhängig von den hochgeladenen Dateien.
 
 ## 1. Archivdaten erfassen
 
-Klickpfad: **Bereiche → Repertoire → Details** beim Lied, dann den Bereich **Notenarchiv**
+Klickpfad: **Noten & Dateien → Repertoire → Details** beim Lied, dann den Bereich **Notenarchiv**
 aufklappen.
 
 ![Notenarchiv eines Lieds](images/repertoire/05-sheet-archive.png)

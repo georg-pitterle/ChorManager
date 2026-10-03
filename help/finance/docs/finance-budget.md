@@ -11,11 +11,11 @@ nachgesteuert werden muss.
 > **Kategorien und Posten anlegen, bearbeiten oder löschen** kannst du nur mit
 > dem Recht **"Budget verwalten"** – ohne dieses Recht siehst du das Budget nur.
 > Fehlt der Menüpunkt oder eine Schaltfläche, frag den Administrator unter
-> **Verwaltung → Rollen**.
+> **Administration → Rollen & Rechte**.
 
 ## 1. Übersicht
 
-Klickpfad: **Bereiche → Budget**. Die Seite ist in **Einnahmen** und **Ausgaben**
+Klickpfad: **Finanzen → Budget**. Die Seite ist in **Einnahmen** und **Ausgaben**
 geteilt. Jede Zeile ist eine Budgetkategorie mit **Geplant**, **Ist** und der
 **Differenz**. Unten je Abschnitt stehen die Summen. Oben rechts wählst du im
 Feld **Jahr** das Haushaltsjahr.

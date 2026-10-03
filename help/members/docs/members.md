@@ -15,11 +15,11 @@ ein und archivierst Personen, die den Chor verlassen haben.
 > - Die **E-Mail-Adresse** eines Mitglieds ändert nur, wer zusätzlich das Recht
 >   **"Mitglieder editieren erlauben"** hat.
 >
-> Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Mitgliederübersicht
 
-Klickpfad: **Bereiche → Mitgliederverwaltung**.
+Klickpfad: **Mitglieder & Projekte → Mitglieder**.
 
 Die Liste zeigt Name, E-Mail-Adresse, Rolle, Stimme (mit Teilstimme in Klammern) und die
 Anzahl der Projekte. Über die Tabellenleiste durchsuchst, filterst und sortierst du die

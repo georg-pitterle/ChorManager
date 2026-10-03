@@ -6,7 +6,7 @@ Freigaben legen fest, wer einen Ordner sieht und was er darin tun darf.
 
 ## 1. Teamordner anlegen
 
-Klickpfad: **Verwaltung → Dateien → Teamordner anlegen**. Die Schaltfläche erscheint nur mit dem Recht **"Dateiverwaltung verwalten"**.
+Klickpfad: **Noten & Dateien → Dateien → Teamordner anlegen**. Die Schaltfläche erscheint nur mit dem Recht **"Dateiverwaltung verwalten"**.
 
 Gib einen Namen und optional ein **Kontingent** in MB an. Ohne Kontingent ist der Ordner nur durch den Gesamtspeicher begrenzt. Nach dem Anlegen landest du direkt im neuen Ordner – dort legst du als Nächstes die Freigaben fest. Bis dahin sieht ihn niemand außer der Verwaltung.
 

@@ -4,7 +4,7 @@ Die Anwesenheitsquote zeigt je Projekt, wer wie oft bei den Terminen war. Sie be
 die Frage, die vor jedem Auftritt kommt: Wie verlässlich ist die Besetzung, und wo fehlt
 regelmäßig jemand?
 
-> **Berechtigung:** Der Menüpunkt **Auswertungen → Anwesenheitsquoten** ist für jedes
+> **Berechtigung:** Der Menüpunkt **Termine → Anwesenheitsquoten** ist für jedes
 > angemeldete Mitglied sichtbar. Welche Projekte in der Auswahl stehen, hängt allerdings
 > vom Recht **"Anwesenheit/Anmeldung verwalten (alle Mitglieder)"** ab: Mit diesem Recht siehst du alle
 > Projekte, ohne es nur die eigenen. Ein fremdes Projekt lässt sich auch nicht über die
@@ -12,7 +12,7 @@ regelmäßig jemand?
 
 ## 1. Projekt wählen
 
-Klickpfad: **Auswertungen → Anwesenheitsquoten**.
+Klickpfad: **Termine → Anwesenheitsquoten**.
 
 Oben rechts wählst du das Projekt; die Seite lädt sofort neu. Ohne eigene Wahl steht dort
 das laufende Projekt, sonst das zuletzt passende. Direkt unter der Auswahl steht, wie

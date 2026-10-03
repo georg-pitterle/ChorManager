@@ -40,7 +40,7 @@ bleibt dabei verborgen. Die Geld-Kacheln erscheinen nicht.
 
 Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, während das Sponsoring-Team koordiniert und prüft. Vor jeder Anfrage lohnt ein Blick in die Sponsorenliste: dort steht, wo schon jemand angefragt hat.
 
-> **Berechtigung:** Siehst du den Menüpunkt "Sponsoring" nicht, frag den Administrator, ob eines der beiden Rechte bei deiner Rolle unter **Verwaltung → Rollen** aktiviert ist.
+> **Berechtigung:** Siehst du den Menüpunkt "Sponsoring" nicht, frag den Administrator, ob eines der beiden Rechte bei deiner Rolle unter **Administration → Rollen & Rechte** aktiviert ist.
 
 ## Status einer Vereinbarung
 
@@ -58,7 +58,7 @@ Nur wenn jemand grundsätzlich nicht mehr angefragt werden möchte, wird beim Sp
 
 ## Einstieg: das Dashboard
 
-Klicke oben in der Navigation auf **Bereiche → Sponsoring**. Du landest auf dem Sponsoring-Dashboard.
+Klicke in der Seitenleiste auf **Finanzen → Sponsoring**. Du landest auf dem Sponsoring-Dashboard.
 
 ![Sponsoring-Dashboard](images/sponsoring/01-dashboard.png)
 

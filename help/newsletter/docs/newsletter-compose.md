@@ -2,11 +2,11 @@
 
 Diese Anleitung führt vom leeren Entwurf bis zum abgeschickten Rundschreiben.
 
-> **Berechtigung:** Newsletter anlegen, bearbeiten und versenden darf nur, wessen Rolle das Recht **"Newsletter verwalten"** hat. Fehlt dir der Menüpunkt **Bereiche → Newsletter**, frag den Administrator nach diesem Recht.
+> **Berechtigung:** Newsletter anlegen, bearbeiten und versenden darf nur, wessen Rolle das Recht **"Newsletter verwalten"** hat. Fehlt dir der Menüpunkt **Kommunikation → Newsletter versenden**, frag den Administrator nach diesem Recht.
 
 ## 1. Entwurf anlegen
 
-Öffne **Bereiche → Newsletter**, stelle den Status auf **Entwürfe** und klicke oben rechts auf **Neuer Newsletter**. Der Dialog öffnet sich direkt über der Übersicht.
+Öffne **Kommunikation → Newsletter versenden**, stelle den Status auf **Entwürfe** und klicke oben rechts auf **Neuer Newsletter**. Der Dialog öffnet sich direkt über der Übersicht.
 
 ![Newsletter-Einstellungen im Dialog "Neuer Newsletter"](images/newsletter/03-create-modal-settings.png)
 
@@ -74,7 +74,7 @@ Beim Versand passiert Folgendes:
 
 1. Die Empfänger werden **neu aufgelöst** – maßgeblich ist der Stand von Projektmitgliedschaften, Rollen und aktiven Konten *im Moment des Versands*, nicht der beim letzten Speichern.
 2. Für jede Empfängerin und jeden Empfänger wird eine E-Mail in die Warteschlange gestellt und von dort im Hintergrund verschickt. Es kann also einen Moment dauern, bis die Mails ankommen.
-3. Der Newsletter wechselt in den Status **Versendet** und erscheint zusätzlich im persönlichen Archiv aller Empfänger unter **Bereiche → Meine Newsletter**.
+3. Der Newsletter wechselt in den Status **Versendet** und erscheint zusätzlich im persönlichen Archiv aller Empfänger unter **Kommunikation → Newsletter-Archiv**.
 
 ## 5. Gleichzeitiges Bearbeiten
 

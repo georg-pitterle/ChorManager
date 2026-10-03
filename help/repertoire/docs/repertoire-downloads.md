@@ -3,13 +3,13 @@
 Unter Downloads findest du als Mitglied die Noten, Aufnahmen und Links zu den Liedern
 deiner Projekte — zum Anhören direkt im Browser oder zum Herunterladen fürs Üben zu Hause.
 
-> **Berechtigung:** Der Menüpunkt **Bereiche → Downloads** braucht kein besonderes Recht,
+> **Berechtigung:** Der Menüpunkt **Noten & Dateien → Probenmaterial** braucht kein besonderes Recht,
 > jedes angemeldete Mitglied sieht ihn. Angezeigt werden allerdings nur die Projekte, in
 > denen du selbst Mitglied bist.
 
 ## 1. Projekt öffnen
 
-Klickpfad: **Bereiche → Downloads**.
+Klickpfad: **Noten & Dateien → Probenmaterial**.
 
 Jedes deiner Projekte steht als aufklappbarer Block, die Zahl daneben nennt die Anzahl der
 zugeordneten Lieder. Ein Klick öffnet das Projekt, ein weiterer schließt es wieder.

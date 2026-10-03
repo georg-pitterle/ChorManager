@@ -4,16 +4,16 @@ Termin-Typen sind die Kategorien, mit denen Termine eingeordnet werden — Probe
 Auftritt, Registerprobe, Sitzung. Jeder Typ hat eine Farbe; sie färbt den Termin in
 Liste und Kalender ein und macht auf einen Blick sichtbar, worum es geht.
 
-> **Berechtigung:** Der Menüpunkt **Verwaltung → Termin-Typen** erscheint nur, wenn deine
+> **Berechtigung:** Der Menüpunkt **Administration → Termin-Typen** erscheint nur, wenn deine
 > Rolle das Recht **"Termine verwalten"** hat. Wer Termine anlegen darf, darf also auch
 > die Typen pflegen. Alle anderen sehen die Typen nur als Farbe und Filter bei den
 > Terminen.
 >
-> Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Übersicht
 
-Klickpfad: **Verwaltung → Termin-Typen**.
+Klickpfad: **Administration → Termin-Typen**.
 
 Die Seite zeigt alle Typen als farbige Kacheln, jede mit einem Stift zum Bearbeiten und
 einem Papierkorb zum Löschen.

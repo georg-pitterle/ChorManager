@@ -7,11 +7,11 @@ Mit dem Newsletter-Modul verschickst du Rundschreiben an eine frei zusammengeste
 - wiederverwendbare Vorlagen für wiederkehrende Rundschreiben
 - dein persönliches Archiv aller Newsletter, die an dich verschickt wurden
 
-> **Berechtigung:** Newsletter erstellen, bearbeiten und versenden darf nur, wessen Rolle das Recht **"Newsletter verwalten"** hat. Siehst du den Menüpunkt "Newsletter" nicht, frag den Administrator, ob dieses Recht bei deiner Rolle unter **Verwaltung → Rollen** aktiviert ist. Zusätzlich muss das Newsletter-Modul in dieser Installation überhaupt aktiviert sein – ist es abgeschaltet, fehlen beide Menüpunkte für alle.
+> **Berechtigung:** Newsletter erstellen, bearbeiten und versenden darf nur, wessen Rolle das Recht **"Newsletter verwalten"** hat. Siehst du den Menüpunkt "Newsletter versenden" nicht, frag den Administrator, ob dieses Recht bei deiner Rolle unter **Administration → Rollen & Rechte** aktiviert ist. Zusätzlich muss das Newsletter-Modul in dieser Installation überhaupt aktiviert sein – ist es abgeschaltet, fehlen beide Menüpunkte für alle.
 
 ## 1. Einstieg: die Newsletter-Übersicht
 
-Klicke in der Navigation auf **Bereiche → Newsletter**. Dieser Menüpunkt erscheint nur, wenn deine Rolle das Recht **"Newsletter verwalten"** besitzt.
+Klicke in der Seitenleiste auf **Kommunikation → Newsletter versenden**. Dieser Menüpunkt erscheint nur, wenn deine Rolle das Recht **"Newsletter verwalten"** besitzt.
 
 ![Newsletter-Übersicht mit Entwürfen](images/newsletter/01-overview-drafts.png)
 
@@ -38,7 +38,7 @@ Versendete Newsletter lassen sich nicht mehr bearbeiten oder löschen – als Ak
 
 ## 3. Meine Newsletter (dein persönliches Archiv)
 
-Unter **Bereiche → Meine Newsletter** findest du alle Newsletter, die an dich versendet wurden. Dieser Menüpunkt ist für alle angemeldeten Personen sichtbar, sobald das Newsletter-Modul aktiviert ist – dafür brauchst du kein besonderes Recht.
+Unter **Kommunikation → Newsletter-Archiv** findest du alle Newsletter, die an dich versendet wurden. Dieser Menüpunkt ist für alle angemeldeten Personen sichtbar, sobald das Newsletter-Modul aktiviert ist – dafür brauchst du kein besonderes Recht.
 
 ![Meine Newsletter](images/newsletter/11-my-newsletters.png)
 

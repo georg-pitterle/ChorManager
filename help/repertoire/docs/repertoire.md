@@ -3,21 +3,21 @@
 Im Repertoire liegt der gesamte Liedbestand des Chors: Titel mit Komponist, Arrangeur und
 Verlag, dazu Kategorien, Notendateien, Übe-Links, Archivdaten und die Zuordnung zu
 Projekten. Was hier einem Projekt zugeordnet ist, sehen dessen Mitglieder unter
-**Downloads**.
+**Probenmaterial**.
 
-> **Berechtigung:** Der Menüpunkt **Bereiche → Repertoire** erscheint nur, wenn deine Rolle
+> **Berechtigung:** Der Menüpunkt **Noten & Dateien → Repertoire** erscheint nur, wenn deine Rolle
 > das Recht **"Repertoire verwalten"** hat. Der Abschnitt **Notenarchiv** auf der
 > Lied-Detailseite braucht zusätzlich das Recht **"Notenarchiv verwalten"** und muss in
 > dieser Installation freigeschaltet sein.
 >
-> **Downloads** braucht kein eigenes Recht — den Menüpunkt sieht jedes angemeldete
+> **Probenmaterial** braucht kein eigenes Recht — den Menüpunkt sieht jedes angemeldete
 > Mitglied.
 >
-> Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Repertoireübersicht
 
-Klickpfad: **Bereiche → Repertoire**.
+Klickpfad: **Noten & Dateien → Repertoire**.
 
 Die Tabelle zeigt Titel, Details (Komponist, Arrangeur, Verlag), die Kategorien sowie die
 Anzahl der hinterlegten **Dateien** und der **Projekte**, in denen das Lied vorkommt. Über

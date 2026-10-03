@@ -7,13 +7,13 @@ und zur Ablage kannst du ein Geschäftsjahr als PDF herunterladen.
 > **Berechtigung:** Dieses Modul ist nur sichtbar, wenn deine Rolle das Recht
 > **"Finanzen nur lesen"** (oder **"Finanzen lesen und schreiben"**) hat.
 > Siehst du den Menüpunkt **Kassa** nicht, frag den Administrator unter
-> **Verwaltung → Rollen**. Nur mit dem Recht **"Finanzen lesen und schreiben"**
+> **Administration → Rollen & Rechte**. Nur mit dem Recht **"Finanzen lesen und schreiben"**
 > kannst du Einträge anlegen, bearbeiten und stornieren; mit "Finanzen nur lesen"
 > siehst du das Kassabuch, aber ohne die Schaltflächen zum Ändern.
 
 ## 1. Einstieg
 
-Klickpfad: **Bereiche → Kassa**. Der Menüpunkt **Kassa** erscheint nur, wenn das
+Klickpfad: **Finanzen → Kassa**. Der Menüpunkt **Kassa** erscheint nur, wenn das
 Finanzmodul aktiv ist und deine Rolle das Recht "Finanzen nur lesen" oder
 "Finanzen lesen und schreiben" besitzt.
 
@@ -185,7 +185,7 @@ Buchungen am selben Tag bleiben davon unberührt und werden beide übernommen.
 ## 3. Auswertung des Geschäftsjahres
 
 Über **"Auswertung"** öffnest du die Jahresübersicht (Klickpfad:
-**Bereiche → Kassa → Auswertung**). Oben rechts wählst du im Feld
+**Finanzen → Kassa → Auswertung**). Oben rechts wählst du im Feld
 **Geschäftsjahr** das gewünschte Jahr. Die Auswertung zeigt Kennzahlen
 (Einnahmen, Ausgaben, Saldo), den **Kassabericht je Konto**, die Salden nach
 Zahlungsart und nach Gruppe sowie den vollständigen Verlauf aller Buchungen.

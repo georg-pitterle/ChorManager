@@ -4,7 +4,7 @@ Der Chor-Manager schickt dir eine E-Mail, wenn etwas passiert, das dich betrifft
 
 Zu Beginn ist alles eingeschaltet. Was du nicht bekommen willst, wählst du in deinem Profil ab – jeder Anlass einzeln.
 
-> **Berechtigung:** Den Reiter **Benachrichtigungen** im Profil hat jedes Mitglied. Die installationsweiten Schalter unter **Verwaltung → App-Einstellungen** sieht nur, wer das Recht **"Stammdaten verwalten"** hat. Siehst du den Menüpunkt nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> **Berechtigung:** Den Reiter **Benachrichtigungen** im Profil hat jedes Mitglied. Die installationsweiten Schalter unter **Administration → App-Einstellungen** sieht nur, wer das Recht **"Stammdaten verwalten"** hat. Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Die eigenen Benachrichtigungen einstellen
 
@@ -46,7 +46,7 @@ Eine **Serie** löst genau **eine** Mail je Empfänger aus, in der alle Termine 
 
 ## 4. Installationsweit steuern
 
-Unter **Verwaltung → App-Einstellungen** steht ein Abschnitt **Benachrichtigungen**. Was dort abgeschaltet ist, verschickt der Chor-Manager für niemanden – auch nicht für Mitglieder, die den Anlass in ihrem Profil angehakt haben.
+Unter **Administration → App-Einstellungen** steht ein Abschnitt **Benachrichtigungen**. Was dort abgeschaltet ist, verschickt der Chor-Manager für niemanden – auch nicht für Mitglieder, die den Anlass in ihrem Profil angehakt haben.
 
 ![Die installationsweiten Schalter in den App-Einstellungen](images/notifications/02-settings-notifications.png)
 

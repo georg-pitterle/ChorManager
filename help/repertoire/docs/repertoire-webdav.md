@@ -8,7 +8,7 @@ laden die Noten selbst — ohne Umweg über Browser, Dateimanager und "Teilen".
 Die Technik dahinter heißt **WebDAV**. Das ist kein Zusatzprogramm, sondern eine Sprache,
 die Betriebssysteme und Noten-Apps von Haus aus sprechen. Du brauchst nur drei Angaben.
 
-> **Berechtigung:** Der Menüpunkt **Bereiche → Downloads** braucht kein besonderes Recht,
+> **Berechtigung:** Der Menüpunkt **Noten & Dateien → Probenmaterial** braucht kein besonderes Recht,
 > jedes angemeldete Mitglied sieht ihn — und damit auch diesen Ordner. Er zeigt genau die
 > Projekte, in denen du selbst Mitglied bist. Fehlt dir ein Projekt, bist du ihm noch
 > nicht zugeordnet; das erledigt die Projektleitung.
@@ -42,7 +42,7 @@ Drei Dinge sind wichtig zu wissen:
 
 ## 1. Zugangsdaten holen
 
-Klickpfad: **Bereiche → Downloads**. Ganz oben steht der Abschnitt **Noten aufs Tablet**
+Klickpfad: **Noten & Dateien → Probenmaterial**. Ganz oben steht der Abschnitt **Noten aufs Tablet**
 mit drei Angaben:
 
 | Angabe | Was dort steht |

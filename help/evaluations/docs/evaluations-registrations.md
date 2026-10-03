@@ -5,14 +5,14 @@ Zusagen je Stimmgruppe vorliegen und wie viele der eingeladenen Mitglieder über
 geantwortet haben. Sie ist das Werkzeug für die Frage, ob die Besetzung für den Auftritt
 reicht.
 
-> **Berechtigung:** Der Menüpunkt **Auswertungen → Anmeldungen** erscheint nur, wenn das
+> **Berechtigung:** Der Menüpunkt **Termine → Anmelde-Auswertung** erscheint nur, wenn das
 > Anmelde-Modul in dieser Installation freigeschaltet ist. Ein eigenes Recht braucht er
 > nicht, der Umfang hängt aber am Recht **"Anwesenheit/Anmeldung verwalten (alle Mitglieder)"**: Damit siehst du
 > alle Termine mit Anmeldung, ohne es nur die, für die du selbst eingeladen bist.
 
 ## 1. Die Matrix
 
-Klickpfad: **Auswertungen → Anmeldungen**.
+Klickpfad: **Termine → Anmelde-Auswertung**.
 
 Jede Zeile ist ein Termin mit freigeschalteter Anmeldung, jede Stimmgruppen-Spalte zeigt
 die Zusagen. Die Zahl in Klammern dahinter sind die Vielleicht-Antworten — sie zählen

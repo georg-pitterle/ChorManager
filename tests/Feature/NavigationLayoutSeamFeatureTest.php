@@ -15,15 +15,13 @@ use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
 
 /**
- * Task 5 switched the live navbar to `navigation(activeNav)`, a Twig function
- * wired in src/Dependencies.php, and collapsed templates/layout.twig to
- * `{% set navigation = navigation(active_nav|default("")) %}` plus a single
- * include of partials/navigation/menu.twig. Nothing rendered the real
- * layout.twig end-to-end afterwards: NavigationMenuRenderFeatureTest renders
- * menu.twig standalone from a hand-built tree, and separately greps
- * layout.twig's source for the include substring. If the variable handed
- * from layout.twig to menu.twig were ever renamed, or the include dropped,
- * the navbar would render empty while the whole suite stayed green.
+ * templates/layout.twig builds the menu via `navigation(activeNav)`, a Twig
+ * function wired in src/Dependencies.php, and hands the result to
+ * partials/navigation/sidebar.twig; it also loads the sidebar scripts and the
+ * quick-search modal. NavigationMenuRenderFeatureTest renders sidebar.twig
+ * standalone from a built tree, so only a render of the real layout notices
+ * when the variable handed over is renamed or an include or script is dropped -
+ * the sidebar would render empty while the rest of the suite stayed green.
  *
  * This test renders a real controller response through the real layout.twig
  * (extended by dashboard/index.twig) with the `navigation` Twig function
@@ -64,6 +62,31 @@ class NavigationLayoutSeamFeatureTest extends TestCase
         $body = (string) $response->getBody();
 
         $this->assertStringContainsString('href="/registrations"', $body);
+        $this->assertStringContainsString('id="app-sidebar"', $body);
+        $this->assertStringContainsString('data-nav-toggle', $body);
+        $this->assertStringContainsString('class="app-shell app-shell--with-sidebar"', $body);
+        $this->assertMatchesRegularExpression(
+            '/<head>.*<script src="\/js\/navigation-state\.js"><\/script>.*<\/head>/s',
+            $body
+        );
+        $this->assertStringContainsString('<script src="/js/navigation.js"></script>', $body);
+        $this->assertStringContainsString('id="nav-search-modal"', $body);
+        $this->assertMatchesRegularExpression('/<button[^>]*data-nav-search-open[^>]*aria-controls="nav-search-modal"/', $body);
+        $this->assertMatchesRegularExpression(
+            '/<script src="\/js\/navigation-search-rank\.js"><\/script>\s*<script src="\/js\/navigation-search\.js"><\/script>/',
+            $body
+        );
+    }
+
+    public function testLoggedOutPagesRenderWithoutSidebar(): void
+    {
+        $_SESSION = [];
+        $twig = $this->createTwig([]);
+
+        $html = $twig->getEnvironment()->render('layout.twig', []);
+
+        $this->assertStringNotContainsString('id="app-sidebar"', $html);
+        $this->assertStringContainsString('<body class="app-shell">', $html);
     }
 
     /**

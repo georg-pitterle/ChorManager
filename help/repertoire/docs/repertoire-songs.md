@@ -3,13 +3,13 @@
 Die Detailseite eines Lieds bündelt alles, was zu diesem Titel gehört: Stammdaten,
 Kategorien, Dateien, Links und die Projekte, in denen das Lied gesungen wird.
 
-> **Berechtigung:** Die Detailseite erreichst du über **Bereiche → Repertoire**, also mit
+> **Berechtigung:** Die Detailseite erreichst du über **Noten & Dateien → Repertoire**, also mit
 > dem Recht **"Repertoire verwalten"**. Der zusätzliche Abschnitt **Notenarchiv** hängt am
 > Recht **"Notenarchiv verwalten"** — siehe [Notenarchiv](repertoire-sheet-archive).
 
 ## 1. Stammdaten
 
-Klickpfad: **Bereiche → Repertoire → Details** beim gewünschten Lied.
+Klickpfad: **Noten & Dateien → Repertoire → Details** beim gewünschten Lied.
 
 Oben stehen **Titel** (Pflicht), **Komponist**, **Arrangeur** und **Verlag**.
 **Speichern** übernimmt die Änderungen; **Zurück** führt in die Übersicht.

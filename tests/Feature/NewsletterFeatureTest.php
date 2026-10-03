@@ -168,12 +168,12 @@ class NewsletterFeatureTest extends TestCase
     /**
      * Test newsletter index only exposes supported statuses
      */
-    public function testNewsletterArchiveTemplateExistsAndMentionsMeineNewsletter(): void
+    public function testNewsletterArchiveTemplateExistsAndMentionsArchiveTitle(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/newsletters/archive.twig');
 
         $this->assertIsString($template);
-        $this->assertStringContainsString('Meine Newsletter', $template);
+        $this->assertStringContainsString('Newsletter-Archiv', $template);
         $this->assertStringContainsString('an dich versendet', $template);
     }
 
@@ -632,7 +632,10 @@ class NewsletterFeatureTest extends TestCase
 
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/NewsletterController.php');
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('public function releaseLock(Request $request, Response $response): Response', $controllerContent);
+        $this->assertStringContainsString(
+            'public function releaseLock(Request $request, Response $response): Response',
+            $controllerContent
+        );
         $this->assertStringContainsString('$this->lockingService->isLockedBy($newsletter, $userId)', $controllerContent);
 
         $editScriptContent = file_get_contents(dirname(__DIR__) . '/../public/js/newsletters-edit.js');

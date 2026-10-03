@@ -2,11 +2,11 @@
 
 Im Bereich **Projekte** bildest du die Vorhaben deines Chors ab – etwa ein Semester-, Konzert- oder Adventsprojekt. Ein Projekt bündelt alles, was dazugehört: die beteiligten Mitglieder, die Planung mit Aufgaben sowie – über die jeweiligen Module – Termine und Newsletter, die sich gezielt an ein Projekt richten.
 
-> **Berechtigung:** Projekte anlegen und bearbeiten darf nur, wer das Recht **"Stammdaten verwalten"** hat. Siehst du den Menüpunkt **Verwaltung → Projekte** nicht, frag den Administrator unter **Verwaltung → Rollen**. Für die Mitglieder- und Aufgabenverwaltung gelten eigene Rechte – siehe die Abschnitte weiter unten.
+> **Berechtigung:** Projekte anlegen und bearbeiten darf nur, wer das Recht **"Stammdaten verwalten"** hat. Siehst du den Menüpunkt **Mitglieder & Projekte → Projekte** nicht, frag den Administrator unter **Administration → Rollen & Rechte**. Für die Mitglieder- und Aufgabenverwaltung gelten eigene Rechte – siehe die Abschnitte weiter unten.
 
 ## 1. Projektübersicht
 
-Unter **Verwaltung → Projekte** siehst du alle angelegten Projekte mit Name, Beschreibung, Start- und Enddatum. Über die Suche und die Sortierung oben findest du auch bei vielen Projekten schnell das gesuchte.
+Unter **Mitglieder & Projekte → Projekte** siehst du alle angelegten Projekte mit Name, Beschreibung, Start- und Enddatum. Über die Suche und die Sortierung oben findest du auch bei vielen Projekten schnell das gesuchte.
 
 ![Projektübersicht mit Liste aller Projekte](images/projects/01-list.png)
 

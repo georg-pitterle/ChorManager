@@ -6,7 +6,7 @@ Nichts ist sofort weg: Gelöschte Dateien und Ordner landen im Papierkorb, und e
 
 ## 1. Papierkorb
 
-Klickpfad: **Verwaltung → Dateien → Papierkorb**.
+Klickpfad: **Noten & Dateien → Dateien → Papierkorb**.
 
 Hier stehen alle gelöschten Dateien und Ordner aus Ordnern, in denen du bearbeiten darfst, mit dem ursprünglichen Ort und dem Datum, ab dem sie endgültig gelöscht werden. Nach Ablauf der Frist (standardmäßig 30 Tage) räumt die Anwendung den Papierkorb selbst auf.
 

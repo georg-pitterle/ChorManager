@@ -2,7 +2,7 @@
 
 Im Bereich **Termine** planst du alle Proben, Auftritte, Sitzungen und sonstigen Ereignisse deines Chors. Du siehst Termine als Liste oder im Kalender, kannst wiederkehrende Serien anlegen, die Zielgruppe eines Termins einschränken und einen persönlichen Kalenderlink zum Abonnieren erzeugen.
 
-> **Berechtigung:** Termine ansehen kann jedes eingeloggte Mitglied. Termine anlegen, bearbeiten oder löschen sowie Termin-Typen verwalten darf nur, wer das Recht **"Termine verwalten"** hat. Siehst du die entsprechenden Buttons nicht, frag den Administrator unter **Verwaltung → Rollen**.
+> **Berechtigung:** Termine ansehen kann jedes eingeloggte Mitglied. Termine anlegen, bearbeiten oder löschen sowie Termin-Typen verwalten darf nur, wer das Recht **"Termine verwalten"** hat. Siehst du die entsprechenden Buttons nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
 ## 1. Terminliste
 
@@ -79,7 +79,7 @@ Aufgenommen werden nur Aufgaben, die dir zugewiesen sind, ein Fälligkeitsdatum 
 
 ## 7. Termin-Typen
 
-Jeder Termin trägt einen Typ – Probe, Auftritt, Sitzung –, und dieser Typ bestimmt die Farbe in Liste und Kalender sowie den Filter darüber. Gepflegt werden die Typen unter **Verwaltung → Termin-Typen**; der Menüpunkt braucht dasselbe Recht wie das Anlegen von Terminen.
+Jeder Termin trägt einen Typ – Probe, Auftritt, Sitzung –, und dieser Typ bestimmt die Farbe in Liste und Kalender sowie den Filter darüber. Gepflegt werden die Typen unter **Administration → Termin-Typen**; der Menüpunkt braucht dasselbe Recht wie das Anlegen von Terminen.
 
 ![Übersicht der Termin-Typen mit Farbcodierung](images/events/07-event-types.png)
 
