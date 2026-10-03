@@ -25,6 +25,7 @@ import {
     openItemDescriptions,
     readAccount,
     readAccountStatement,
+    readYearEndBalance,
     readFiscalWindow,
     reverseBooking,
     runningNumberOf,
@@ -104,7 +105,7 @@ test('Buchungen: Einnahme und Ausgabe verändern den Kontostand', async ({ page 
 
     const account = await readAccount(page, cash.name);
     expect(account.bookings).toBe(2);
-    expect(account.balance).toBeCloseTo(cash.openingBalanceValue + 340 - 87.5, 2);
+    expect(await readYearEndBalance(page, cash.name)).toBeCloseTo(cash.openingBalanceValue + 340 - 87.5, 2);
 
     // Laufende Nummern werden fortlaufend und aufsteigend vergeben.
     await page.goto('/finances');
@@ -133,8 +134,7 @@ test('Offene Posten: ohne Zahldatum kein Kassavorgang, nach Nachtragen im Jahr',
     ).toHaveCount(0);
 
     // (b) Ohne Zahlung bleibt der Bestand unberührt.
-    let state = await readAccount(page, account.name);
-    expect(state.balance).toBe(account.openingBalanceValue);
+    expect(await readYearEndBalance(page, account.name)).toBe(account.openingBalanceValue);
 
     // (c) Zahldatum nachtragen -> wandert ins Geschäftsjahr und mindert den Bestand.
     await page.goto('/finances');
@@ -146,8 +146,7 @@ test('Offene Posten: ohne Zahldatum kein Kassavorgang, nach Nachtragen im Jahr',
     await submitAndWait(page, modal.locator('button[type="submit"]'));
 
     expect(await openItemDescriptions(page)).not.toContain('Notenlieferung Musikverlag');
-    state = await readAccount(page, account.name);
-    expect(state.balance).toBeCloseTo(account.openingBalanceValue - 199, 2);
+    expect(await readYearEndBalance(page, account.name)).toBeCloseTo(account.openingBalanceValue - 199, 2);
 });
 
 // 4. Kontoauszug-Import inkl. Dublettenschutz beim zweiten Einlesen.
@@ -177,9 +176,8 @@ test('Import: Kontoauszug übernehmen, zweiter Lauf erkennt alle Zeilen als Dubl
         // (b) Buchungen sind da, Richtung stimmt, Bestand passt.
         const expected = account.openingBalanceValue
             + IMPORT_AMOUNTS.subsidy + IMPORT_AMOUNTS.rent + IMPORT_AMOUNTS.hosting;
-        const state = await readAccount(page, account.name);
-        expect(state.bookings).toBe(3);
-        expect(state.balance).toBeCloseTo(expected, 2);
+        expect((await readAccount(page, account.name)).bookings).toBe(3);
+        expect(await readYearEndBalance(page, account.name)).toBeCloseTo(expected, 2);
 
         // (c) Derselbe Auszug erneut: nichts ist mehr übernehmbar.
         const second = await uploadStatement(page, csvPath);
@@ -210,7 +208,7 @@ test('Storno: Gegenbuchung neutralisiert den Bestand, Original bleibt stehen', a
 
     await page.goto('/finances');
     const number = await runningNumberOf(page, 'Doppelt erfasste Saalmiete');
-    expect((await readAccount(page, account.name)).balance)
+    expect(await readYearEndBalance(page, account.name))
         .toBeCloseTo(account.openingBalanceValue - 300, 2);
 
     await reverseBooking(page, number);
@@ -224,7 +222,7 @@ test('Storno: Gegenbuchung neutralisiert den Bestand, Original bleibt stehen', a
     await expect(page.getByText(`Storno zu Nr. ${number}`, { exact: false }).first()).toBeVisible();
 
     // (c) In Summe heben sich beide auf.
-    expect((await readAccount(page, account.name)).balance).toBe(account.openingBalanceValue);
+    expect(await readYearEndBalance(page, account.name)).toBe(account.openingBalanceValue);
 
     // (d) Ein zweites Storno derselben Buchung bietet die UI nicht mehr an.
     expect(await canReverse(page, number)).toBe(false);
@@ -260,7 +258,7 @@ test('Jahressperre: abgeschlossener Zeitraum lehnt Änderungen ab', async ({ pag
         await submitAndWait(page, modal.locator('button[type="submit"]'));
 
         await expect(page.locator('.alert-danger')).toContainText('abgeschlossen');
-        expect((await readAccount(page, account.name)).balance)
+        expect(await readYearEndBalance(page, account.name))
             .toBeCloseTo(account.openingBalanceValue + 120, 2);
     } finally {
         // Sperre wieder aufheben, damit spätere Tests/Crawler-Läufe nicht darüber stolpern.

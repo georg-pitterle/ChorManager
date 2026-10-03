@@ -16,8 +16,8 @@ import {
 import {
     CONCERT_EVENT,
     CONCERT_EDITOR,
-    CONCERT_PRESENT,
-    CONCERT_EXCUSED,
+    CONCERT_AUDIENCE,
+    CONCERT_OUTSIDER,
     NEWSLETTER_EVENT_REPORT,
     REUSE_EDITOR,
     REUSE_RECIPIENT,
@@ -40,7 +40,7 @@ import {
 } from '../data/newsletters.mjs';
 import { createMember } from '../steps/members.mjs';
 import { createProject, addProjectMember } from '../steps/projects.mjs';
-import { createEvent, markAttendance } from '../steps/events.mjs';
+import { createEvent } from '../steps/events.mjs';
 import { login } from '../steps/auth.mjs';
 import { setMemberPassword, readRolePermissions } from '../steps/authz.mjs';
 import {
@@ -313,22 +313,21 @@ test('Newsletter-Sperre: zwei Redakteure am selben Entwurf', async ({ page, brow
     });
 });
 
-test('Nachbericht: nur wer beim Termin anwesend war, bekommt den Newsletter', async ({ page, browser }) => {
+test('Nachbericht: die Zielgruppe des Termins bekommt den Newsletter, sonst niemand', async ({ page, browser }) => {
     test.setTimeout(240_000);
 
     test.skip(!(await isNewsletterModuleEnabled(page)), 'Newsletter-Modul ist in dieser Umgebung aus.');
 
     // Praxisfall: Nach einem Auftritt geht ein Dankeschön an die Mitwirkenden - nicht an alle.
-    for (const person of [CONCERT_EDITOR, ...CONCERT_PRESENT, CONCERT_EXCUSED]) {
+    // Die Terminquelle meint die Zielgruppe des Termins (seit Review-Lauf 22), nicht die
+    // Anwesenheitsliste: Sonst bekäme ein Rundschreiben zu einem bevorstehenden Termin null
+    // Empfänger.
+    for (const person of [CONCERT_EDITOR, ...CONCERT_AUDIENCE, CONCERT_OUTSIDER]) {
         await createMember(page, person);
         setMemberPassword(person.email, NEWSLETTER_PASSWORD);
     }
 
     await createEvent(page, CONCERT_EVENT);
-    await markAttendance(page, CONCERT_EVENT.title, [
-        ...CONCERT_PRESENT.map((person) => ({ name: person.lastName, status: 'present' })),
-        { name: CONCERT_EXCUSED.lastName, status: 'excused' },
-    ]);
 
     await asUser(browser, CONCERT_EDITOR.email, async (editorPage) => {
         const newsletterId = await createNewsletterDraft(editorPage, {
@@ -338,33 +337,33 @@ test('Nachbericht: nur wer beim Termin anwesend war, bekommt den Newsletter', as
             sources: { event_attendees: [CONCERT_EVENT.title] },
         });
 
-        // Entschuldigte zählen nicht als Teilnehmende - nur die beiden Anwesenden.
+        // Wer nicht zur Zielgruppe gehört, zählt nicht - nur die beiden Mitwirkenden.
         expect(
             await readRecipientCount(editorPage),
-            'Die Terminquelle darf nur die anwesenden Personen auflösen'
-        ).toBe(CONCERT_PRESENT.length);
+            'Die Terminquelle muss genau die Zielgruppe des Termins auflösen'
+        ).toBe(CONCERT_AUDIENCE.length);
 
         await sendOpenNewsletter(editorPage);
 
-        // Bis zur fertigen Mail: Nur die Anwesenden dürfen eine bekommen.
+        // Bis zur fertigen Mail: Nur die Zielgruppe darf eine bekommen.
         deliverQueuedMails(NEWSLETTER_EVENT_REPORT.title);
         const delivered = await mailpitRecipientsForSubject(editorPage.request, NEWSLETTER_EVENT_REPORT.title);
-        expect(delivered.sort(), 'Zugestellt werden muss an genau die Anwesenden')
-            .toEqual(CONCERT_PRESENT.map((person) => person.email).sort());
-        expect(delivered, 'Die entschuldigte Person darf keine Mail bekommen')
-            .not.toContain(CONCERT_EXCUSED.email);
+        expect(delivered.sort(), 'Zugestellt werden muss an genau die Zielgruppe')
+            .toEqual(CONCERT_AUDIENCE.map((person) => person.email).sort());
+        expect(delivered, 'Wer nicht zur Zielgruppe gehört, darf keine Mail bekommen')
+            .not.toContain(CONCERT_OUTSIDER.email);
     });
 
-    await asUser(browser, CONCERT_PRESENT[0].email, async (presentPage) => {
-        await presentPage.goto('/newsletters/archive');
-        const archive = await presentPage.locator('#newsletterArchiveTable tbody').innerText();
-        expect(archive, 'Anwesende müssen den Nachbericht erhalten').toContain(NEWSLETTER_EVENT_REPORT.title);
+    await asUser(browser, CONCERT_AUDIENCE[0].email, async (audiencePage) => {
+        await audiencePage.goto('/newsletters/archive');
+        const archive = await audiencePage.locator('#newsletterArchiveTable tbody').innerText();
+        expect(archive, 'Die Zielgruppe muss den Nachbericht erhalten').toContain(NEWSLETTER_EVENT_REPORT.title);
     });
 
-    await asUser(browser, CONCERT_EXCUSED.email, async (excusedPage) => {
-        await excusedPage.goto('/newsletters/archive');
-        const archive = await excusedPage.locator('#newsletterArchiveTable tbody').innerText();
-        expect(archive, 'Entschuldigte dürfen den Nachbericht nicht erhalten')
+    await asUser(browser, CONCERT_OUTSIDER.email, async (outsiderPage) => {
+        await outsiderPage.goto('/newsletters/archive');
+        const archive = await outsiderPage.locator('#newsletterArchiveTable tbody').innerText();
+        expect(archive, 'Wer nicht zur Zielgruppe gehört, darf den Nachbericht nicht erhalten')
             .not.toContain(NEWSLETTER_EVENT_REPORT.title);
     });
 });
@@ -400,13 +399,19 @@ test('Wiederverwendung: bewährtes Rundschreiben als Vorlage sichern und erneut 
             'Die gesicherte Vorlage muss in der Verwaltung auftauchen'
         ).toContainText(SAVED_TEMPLATE.name);
 
-        // Und lässt sich in einen neuen Newsletter laden - der Inhalt kommt aus dem Original.
+        // Und lässt sich in einen neuen Newsletter laden - Inhalt und Empfängerkreis kommen aus
+        // dem Original: Beim Sichern übernimmt die Vorlage die Empfängerquellen, beim Laden
+        // belegt public/js/newsletters-create.js sie vor. Die Empfängerin wird deshalb nicht
+        // erneut gewählt - Tom Select blendet bereits Gewähltes in der Liste aus.
         await createNewsletterDraft(editorPage, {
             title: NEWSLETTER_REUSING_TEMPLATE.title,
             project: null,
             template: SAVED_TEMPLATE.name,
-            sources: { user: [REUSE_RECIPIENT.lastName] },
         });
+        expect(
+            await readRecipientCount(editorPage),
+            'Der Empfängerkreis muss aus der Vorlage übernommen werden'
+        ).toBe(1);
 
         const editorBody = editorPage.frameLocator('#newsletterActionContent .tox-edit-area iframe').locator('body');
         await expect(editorBody, 'Der Vorlageninhalt muss aus dem Original stammen')

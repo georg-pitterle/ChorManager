@@ -90,8 +90,10 @@ export const NEWSLETTER_LOCKED = {
     marker: 'Wird von zwei Personen gleichzeitig geöffnet.',
 };
 
-// --- Nachbericht an Veranstaltungsteilnehmer -------------------------------------------------
-// Praxisfall: Nach einem Auftritt geht ein Dankeschön nur an die, die tatsächlich da waren.
+// --- Newsletter an die Zielgruppe eines Termins ----------------------------------------------
+// Praxisfall: Ein Dankeschön zum Auftritt geht an die, für die der Termin galt - nicht an alle.
+// Die Quelle "Veranstaltungsteilnehmer" löst seit Review-Lauf 22 die Zielgruppe des Termins auf
+// (Event::eligibleUsersQuery), nicht die Anwesenheitsliste.
 
 export const CONCERT_EVENT = {
     title: 'E2E Herbstkonzert für den Nachbericht',
@@ -99,6 +101,8 @@ export const CONCERT_EVENT = {
     startTime: '19:00',
     endTime: '21:30',
     type: 'Auftritt',
+    // Zielgruppe: genau die beiden Mitwirkenden (Nachnamen, so wie Tom Select sie findet).
+    audienceUsers: ['Sängerin', 'Bühnenreif'],
 };
 
 export const CONCERT_EDITOR = {
@@ -110,14 +114,14 @@ export const CONCERT_EDITOR = {
     sub: 'Alt 1',
 };
 
-// Zwei Anwesende, eine Entschuldigte: Die Quelle "Veranstaltungsteilnehmer" darf nur die
-// beiden Anwesenden erfassen.
-export const CONCERT_PRESENT = [
+// Zwei Personen in der Zielgruppe, eine außerhalb: Die Quelle "Veranstaltungsteilnehmer" darf
+// nur die beiden aus der Zielgruppe erfassen.
+export const CONCERT_AUDIENCE = [
     { firstName: 'Hanna', lastName: 'Sängerin', email: 'nl.hanna.saengerin@chor.local', group: 'Sopran', sub: 'Sopran 1' },
     { firstName: 'Ulf', lastName: 'Bühnenreif', email: 'nl.ulf.buehnenreif@chor.local', group: 'Bass', sub: 'Bass 2' },
 ];
 
-export const CONCERT_EXCUSED = {
+export const CONCERT_OUTSIDER = {
     firstName: 'Elias',
     lastName: 'Krankgemeldet',
     email: 'nl.elias.krankgemeldet@chor.local',

@@ -5,8 +5,8 @@ import { expect } from '@playwright/test';
 //    starts_at (Datum), start_time / end_time (Uhrzeit), event_type_id (Select mit den
 //    geseedeten Typen Probe/Auftritt/Sondertermin) und der Checkbox attendance_required
 //    (standardmäßig aktiv). Absenden über den Button "Speichern".
-//  - Ohne gewählte Zielgruppe gilt der Termin für alle - genau das braucht die
-//    Anwesenheitserfassung im Newsletter-Szenario.
+//  - Ohne gewählte Zielgruppe gilt der Termin für alle. Optional lassen sich Einzelpersonen
+//    als Zielgruppe wählen (event.audienceUsers, siehe pickAudienceUsers).
 //  - Die Termin-ID wird über die Auswahlliste auf /attendance ermittelt, nicht über die
 //    Terminliste: dort trägt der Link auf /events/{id} den Text "Bemerkungen (x/y)".
 //  - Anwesenheit: /attendance/{id}, je Person eine Radiogruppe name="attendance[{userId}]".
@@ -24,9 +24,36 @@ export async function createEvent(page, event) {
     await modal.locator('input[name="end_time"]').fill(event.endTime);
     await modal.locator('select[name="event_type_id"]').selectOption({ label: event.type });
 
+    if (event.audienceUsers?.length) {
+        await pickAudienceUsers(modal, event.audienceUsers);
+    }
+
     await modal.locator('button[type="submit"]', { hasText: 'Speichern' }).click();
     await page.waitForURL('**/events**');
     await expect(page.locator('#eventsTable, table').filter({ hasText: event.title }).first()).toBeVisible();
+}
+
+/**
+ * Wählt Einzelpersonen als Zielgruppe des Termins.
+ *
+ * Selektoren aus templates/events/_audience_sources.twig: <select id="audience-users" multiple>,
+ * das Tom Select (public/js/tom-select-init.js) ersetzt. Dessen Suchfeld trägt die id
+ * "audience-users-ts-control", die Trefferliste "audience-users-ts-dropdown". Beim Speichern
+ * schreibt public/js/events-audience.js die Auswahl ins versteckte Feld sources_json.
+ *
+ * @param {string[]} labels Teilstrings der angezeigten Namen (z. B. der Nachname)
+ */
+async function pickAudienceUsers(modal, labels) {
+    const search = modal.locator('#audience-users-ts-control');
+    for (const label of labels) {
+        await search.click();
+        await search.fill('');
+        await search.pressSequentially(label);
+        await modal.locator('#audience-users-ts-dropdown .option', { hasText: label }).first().click();
+        await expect(modal.locator('.ts-control .item', { hasText: label })).toBeVisible();
+    }
+    // Liste über einen Klick auf den Titel schließen - Escape würde das ganze Modal schließen.
+    await modal.locator('.modal-title').first().click();
 }
 
 /**

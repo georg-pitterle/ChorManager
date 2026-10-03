@@ -283,6 +283,20 @@ export async function readAccountStatement(page, accountName) {
     };
 }
 
+/**
+ * Bestand eines Kontos nach allen Buchungen des laufenden Geschäftsjahres.
+ *
+ * Bewusst nicht der "Aktuelle Bestand" der Kontenliste: Der rechnet bis heute
+ * (FinanceAccountService::balanceAt mit dem Tagesdatum). Die Szenarien buchen
+ * relativ zum Beginn des Geschäftsjahres; in den ersten Wochen danach liegen diese
+ * Tage noch in der Zukunft und fehlten im aktuellen Bestand - die Szenarien waren
+ * dann jedes Jahr ab dem Stichtag gut zwei Wochen lang rot. Der Endbestand im
+ * Kassabericht rechnet bis zum Jahresende und hängt nicht vom Kalender ab.
+ */
+export async function readYearEndBalance(page, accountName) {
+    return (await readAccountStatement(page, accountName)).closing;
+}
+
 /** Rolle mit genau den übergebenen Rechten anlegen (Rechte = Namen der can_*-Felder). */
 export async function createRole(page, { name, level = 10, permissions = [] }) {
     await page.goto('/roles');

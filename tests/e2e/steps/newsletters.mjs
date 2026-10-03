@@ -383,7 +383,17 @@ export async function createNewsletterTemplate(page, template) {
 export async function insertPlaceholder(page, label) {
     // TinyMCE macht aus dem tooltip das aria-label ("Platzhalter einfügen"), und der
     // barrierefreie Name gewinnt gegen den sichtbaren Text - daher als Muster suchen.
-    await page.getByRole('button', { name: /Platzhalter/ }).first().click();
+    const button = page.getByRole('button', { name: /Platzhalter/ }).first();
+
+    // Am Handy reicht die Breite nicht für die ganze Leiste: TinyMCE schiebt die hinteren
+    // Knöpfe in eine Überlaufleiste hinter "Zusätzliche Elemente auf der Symbolleiste ein-
+    // oder ausblenden" (vendor/tinymce/langs/de.js). Erst warten, bis die Leiste steht -
+    // sonst wäre der Knopf nur "noch nicht" sichtbar, nicht "versteckt".
+    await page.locator('.tox-toolbar__primary').first().waitFor({ state: 'visible' });
+    if (!(await button.isVisible())) {
+        await page.getByRole('button', { name: /Zusätzliche Elemente/ }).first().click();
+    }
+    await button.click();
     await page.getByRole('menuitem', { name: new RegExp(label) }).click();
 }
 
