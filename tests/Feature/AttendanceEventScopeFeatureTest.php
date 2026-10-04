@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\RegistrationController;
 use App\Middleware\RoleMiddleware;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -33,6 +32,7 @@ use Tests\Unit\Bootstrap;
  */
 final class AttendanceEventScopeFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use EventScopeFixtures;
     use TwigViewStubs;
     use TestHttpHelpers;
@@ -82,9 +82,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
             'attendance_required' => true,
         ]);
 
-        (new EventAudienceService())->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $audienceUser->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $audienceUser->id]]);
 
         return $event->fresh();
     }

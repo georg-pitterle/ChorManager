@@ -22,6 +22,8 @@ Freiwillig sind:
 
 ## 2. Empfänger zusammenstellen
 
+> **Hinweis:** Die Auswahl der Zielgruppe hat sich geändert. Eine Zielgruppe besteht jetzt aus Zeilen mit den Feldern Rolle, Stimmgruppe, Untergruppe, Projekt und Mitglied: Mehrere Werte in einem Feld genügen einzeln, mehrere Felder müssen alle zutreffen (z. B. „Stimmgruppe Sopran“ **und** „Projekt Frühjahrskonzert“), mehrere Zeilen gelten nebeneinander. Die Zielgruppe eines Termins wählst du weiterhin in einem eigenen Feld darunter. Diese Seite wird noch überarbeitet.
+
 Die Empfänger stellst du nicht als feste Adressliste zusammen, sondern über **Empfängerquellen**. Vier Quellen stehen zur Verfügung und lassen sich beliebig kombinieren:
 
 | Quelle | Wer wird angeschrieben |

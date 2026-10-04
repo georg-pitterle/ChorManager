@@ -299,6 +299,14 @@ document.addEventListener('DOMContentLoaded', function () {
             contentElement.innerHTML = body ? body.innerHTML : html;
             executeInlineScripts(contentElement);
             await executeExternalScripts(contentElement);
+            // Bereits geladene Skripte laufen nicht erneut; die Zielgruppen-Zeilen des
+            // eingefügten Inhalts werden deshalb hier angebunden.
+            if (window.initTomSelects) {
+                window.initTomSelects(contentElement);
+            }
+            if (window.AudienceFilter) {
+                window.AudienceFilter.setupAll(contentElement);
+            }
             initTinymceInModal();
         } catch (error) {
             contentElement.innerHTML = '<div class="alert alert-danger m-3 mb-0">Inhalt konnte nicht geladen werden.</div>';
@@ -488,6 +496,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     contentElement.innerHTML = html;
                     executeInlineScripts(contentElement);
                     await executeExternalScripts(contentElement);
+                    if (window.initTomSelects) {
+                        window.initTomSelects(contentElement);
+                    }
+                    if (window.AudienceFilter) {
+                        window.AudienceFilter.setupAll(contentElement);
+                    }
                     initTinymceInModal();
                     return;
                 }

@@ -41,7 +41,7 @@ class RegistrationController
         // Only events the user is actually part of (audience scope) are
         // relevant for self-registration.
         //
-        // audienceSources wird mitgeladen, weil die Zielgruppe gleich für alle
+        // audienceFilters.conditions wird mitgeladen, weil die Zielgruppe gleich für alle
         // Termine auf einmal aufgelöst wird - ohne das Vorladen holte schon deren
         // Bestimmung je Termin eine eigene Abfrage.
         $events = $audienceService->visibleEventsQuery($userId)
@@ -49,7 +49,7 @@ class RegistrationController
             ->where('starts_at', '>', Carbon::now())
             ->orderBy('starts_at', 'asc')
             ->with([
-                'audienceSources',
+                'audienceFilters.conditions',
                 'registrations' => fn($q) => $q->where('user_id', $userId),
             ])
             ->get();

@@ -95,6 +95,7 @@ class ReviewAnswersRun21FeatureTest extends TestCase
             'title' => 'Antwort-Testtermin ' . bin2hex(random_bytes(4)),
             'starts_at' => '2027-03-01',
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time' => '21:00',
         ];
     }

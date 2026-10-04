@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\User;
 use App\Services\EventAudienceService;
 use App\Util\PasswordHasher;
@@ -15,6 +14,7 @@ use Tests\Unit\Bootstrap;
 
 class EventScopeVisibilityFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use EventScopeFixtures;
 
     protected function setUp(): void
@@ -50,9 +50,7 @@ class EventScopeVisibilityFeatureTest extends TestCase
         ]);
 
         $service = new EventAudienceService();
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $in->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $in->id]]);
 
         $this->assertTrue($service->isUserEligible($event->fresh(), (int) $in->id));
         $this->assertFalse($service->isUserEligible($event->fresh(), (int) $out->id));

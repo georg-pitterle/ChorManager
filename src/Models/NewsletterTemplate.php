@@ -36,6 +36,13 @@ class NewsletterTemplate extends Model
     /**
      * Empfängerquellen, die beim Laden der Vorlage in den Newsletter übernommen werden.
      */
+    /** Zielgruppen-Zeilen; dazu kommen die Termine aus recipientSources(). */
+    public function audienceFilters(): HasMany
+    {
+        return $this->hasMany(AudienceFilter::class, 'newsletter_template_id', 'id');
+    }
+
+    /** Nur noch "Zielgruppe eines Termins" (event_attendees). */
     public function recipientSources(): HasMany
     {
         return $this->hasMany(NewsletterTemplateRecipientSource::class, 'template_id');

@@ -102,11 +102,7 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
         ]);
 
         if ($project !== null) {
-            NewsletterRecipientSource::create([
-                'newsletter_id' => $newsletter->id,
-                'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-                'reference_id' => $project->id,
-            ]);
+            (new \App\Services\Audience\AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_id', (int) $newsletter->id);
         }
 
         return $newsletter;
@@ -646,11 +642,7 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
         $inactiveMember = $this->createUser(false);
         $inactiveMember->roles()->attach($role->id);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_ROLE,
-            'reference_id' => $role->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['role' => [(int) $role->id]], 'newsletter_id', (int) $newsletter->id);
 
         $_SESSION['user_id'] = (int) $manager->id;
         $_SESSION['can_manage_newsletters'] = true;
@@ -675,11 +667,7 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
         $newsletter = $this->createDraft(null, $manager);
 
         foreach ([$recipientA, $recipientB] as $recipient) {
-            NewsletterRecipientSource::create([
-                'newsletter_id' => $newsletter->id,
-                'source_type' => NewsletterRecipientSource::TYPE_USER,
-                'reference_id' => $recipient->id,
-            ]);
+            (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
         }
 
         $_SESSION['user_id'] = (int) $manager->id;

@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\NewsletterTemplateController;
 use App\Models\Event;
 use App\Models\NewsletterTemplate;
-use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -36,6 +35,7 @@ use Twig\TwigFunction;
  */
 final class NewsletterTemplateCreateSettingsFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -65,10 +65,10 @@ final class NewsletterTemplateCreateSettingsFeatureTest extends TestCase
 
         $html = $this->renderIndex();
 
-        $this->assertStringContainsString('name="source_project_members[]"', $html);
-        $this->assertStringContainsString('name="source_event_attendees[]"', $html);
-        $this->assertStringContainsString('name="source_role[]"', $html);
-        $this->assertStringContainsString('name="source_user[]"', $html);
+        foreach (['role', 'voice_group', 'sub_voice', 'project', 'user'] as $category) {
+            $this->assertStringContainsString('name="audience[__INDEX__][conditions][' . $category . '][]"', $html);
+        }
+        $this->assertStringContainsString('name="event_ids[]"', $html);
     }
 
     public function testCreateDialogListsTheSelectableEntries(): void
@@ -127,7 +127,8 @@ final class NewsletterTemplateCreateSettingsFeatureTest extends TestCase
         $this->assertStringContainsString('tom-select.bootstrap5.min.css', $index);
         $this->assertStringContainsString('tom-select.complete.min.js', $index);
         $this->assertStringContainsString('/js/tom-select-init.js', $index);
-        $this->assertStringContainsString('data-tom-select', $index);
+        $this->assertStringContainsString('newsletters/_audience.twig', $index);
+        $this->assertStringContainsString('/js/audience-filter.js', $index);
     }
 
     public function testCreatingATemplateWithSourcesPersistsThem(): void
@@ -144,8 +145,10 @@ final class NewsletterTemplateCreateSettingsFeatureTest extends TestCase
             'description' => 'Beschreibung',
             'default_title' => 'Titelvorschlag',
             'project_id' => (string) $project->id,
-            'source_project_members' => [(string) $project->id],
-            'source_role' => [(string) $role->id],
+            'audience' => [
+                ['conditions' => ['project' => [(string) $project->id]]],
+                ['conditions' => ['role' => [(string) $role->id]]],
+            ],
         ]);
 
         $response = $this->templateController()->store($request, $this->makeResponse());
@@ -153,16 +156,12 @@ final class NewsletterTemplateCreateSettingsFeatureTest extends TestCase
 
         $template = NewsletterTemplate::query()->where('name', 'Vorlage mit Quellen')->firstOrFail();
 
-        $keys = $template->recipientSources()
-            ->get()
-            ->map(static fn (NewsletterTemplateRecipientSource $s): string => $s->source_type . ':' . $s->reference_id)
-            ->sort()
-            ->values()
-            ->all();
+        $keys = $this->templateAudienceKeys($template);
+        sort($keys);
 
         $this->assertSame([
-            NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS . ':' . $project->id,
-            NewsletterTemplateRecipientSource::TYPE_ROLE . ':' . $role->id,
+            'project:' . $project->id,
+            'role:' . $role->id,
         ], $keys);
 
         $this->assertSame('Titelvorschlag', $template->default_title);

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controllers\Concerns;
 
 use App\Models\FileFolder;
+use App\Services\Audience\AudienceDescriber;
+use App\Services\Audience\AudienceFormInput;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileManagementException;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -100,53 +102,24 @@ trait FileControllerSupport
      */
     private static function parseShareRows(array $rows): array
     {
-        $shares = [];
-        foreach ($rows as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $conditions = [];
-            foreach (is_array($row['conditions'] ?? null) ? $row['conditions'] : [] as $category => $values) {
-                if (is_string($category) && is_array($values)) {
-                    $conditions[$category] = array_values(array_map('strval', array_filter($values, 'is_scalar')));
-                }
-            }
-            $shares[] = [
-                'level' => (int) ($row['level'] ?? 0),
-                'all' => !empty($row['all']),
-                'conditions' => $conditions,
-            ];
-        }
-
-        return $shares;
+        return AudienceFormInput::rows($rows);
     }
 
     /**
-     * Projekte, die in den beschriebenen Freigaben schon gewählt sind - sie
-     * bleiben in der Auswahl, auch wenn sie inzwischen beendet sind.
+     * Auswahllisten für die Freigabe-Zeilen. Schon gewählte Projekte und
+     * Mitglieder bleiben in der Auswahl, auch wenn sie beendet bzw. inaktiv sind.
      *
      * @param list<array{conditions: array<string, list<int>>}> $described
-     * @return list<int>
+     * @return array<string, mixed>
      */
-    private static function projectIdsOf(array $described): array
+    private static function shareOptions(AudienceDescriber $describer, array $described): array
     {
-        return self::selectedIdsOf($described, 'project');
-    }
+        $sets = array_map(static fn (array $share): array => $share['conditions'], $described);
 
-    /**
-     * @param list<array{conditions: array<string, list<int>>}> $described
-     * @return list<int>
-     */
-    private static function selectedIdsOf(array $described, string $category): array
-    {
-        $ids = [];
-        foreach ($described as $share) {
-            foreach ($share['conditions'][$category] ?? [] as $id) {
-                $ids[] = (int) $id;
-            }
-        }
-
-        return array_values(array_unique($ids));
+        return $describer->options(
+            AudienceDescriber::selectedIds($sets, 'project'),
+            AudienceDescriber::selectedIds($sets, 'user')
+        );
     }
 
     /**

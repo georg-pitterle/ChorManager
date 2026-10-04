@@ -91,11 +91,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
         ]);
 
         foreach ([$first, $second] as $recipient) {
-            NewsletterRecipientSource::create([
-                'newsletter_id' => $newsletter->id,
-                'source_type' => NewsletterRecipientSource::TYPE_USER,
-                'reference_id' => $recipient->id,
-            ]);
+            (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
         }
 
         $sentCount = $this->service()->send($newsletter, (int) $creator->id, 'https://chor.example');
@@ -131,11 +127,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         $this->service()->send($newsletter, (int) $creator->id, 'https://chor.example');
 
@@ -178,11 +170,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         $this->service()->send($newsletter, (int) $creator->id, 'https://chor.example');
 
@@ -218,11 +206,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
         ]);
 
         foreach ([$first, $second] as $recipient) {
-            NewsletterRecipientSource::create([
-                'newsletter_id' => $newsletter->id,
-                'source_type' => NewsletterRecipientSource::TYPE_USER,
-                'reference_id' => $recipient->id,
-            ]);
+            (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
         }
 
         $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
@@ -271,11 +255,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         $this->service()->send($newsletter, (int) $creator->id, 'https://chor.example');
 
@@ -308,11 +288,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         $this->service()->send($newsletter, (int) $creator->id, 'https://chor.example');
 
@@ -342,11 +318,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         $this->service()->send($newsletter, (int) $creator->id, 'https://chor.example');
 

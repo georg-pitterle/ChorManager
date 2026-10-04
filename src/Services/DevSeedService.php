@@ -10,6 +10,8 @@ use App\Models\FileFolderShare;
 use App\Models\FilePublicLink;
 use App\Models\FileShare;
 use App\Services\Audience\AudienceFilterService;
+use App\Services\NewsletterRecipientService;
+use App\Persistence\NewsletterTemplatePersistence;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileFolderService;
 use App\Services\Files\FileService;
@@ -24,7 +26,6 @@ use App\Models\BudgetItem;
 use App\Models\CalendarSubscriptionToken;
 use App\Models\Comment;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\EventSeries;
 use App\Models\EventType;
@@ -39,7 +40,6 @@ use App\Models\NewsletterTemplate;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
 use App\Models\NewsletterRecipientSource;
-use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Category;
 use App\Models\PasswordReset;
 use App\Models\Project;
@@ -182,7 +182,7 @@ class DevSeedService
                 'event_types' => 0,
                 'event_series' => 0,
                 'events' => 0,
-                'event_audience_sources' => 0,
+                'audience_filters_events' => 0,
                 'attendance' => 0,
                 'event_registrations' => 0,
                 'finance_accounts' => 0,
@@ -209,6 +209,8 @@ class DevSeedService
                 'newsletter_template_recipient_sources' => 0,
                 'newsletters' => 0,
                 'newsletter_recipient_sources' => 0,
+                'audience_filters_newsletters' => 0,
+                'audience_filters_newsletter_templates' => 0,
                 'newsletter_recipients' => 0,
                 'newsletter_archive' => 0,
                 'newsletter_attachments' => 0,
@@ -271,7 +273,7 @@ class DevSeedService
 
             $projectEvents = $this->seedProjectEvents($projects, $eventTypes);
             $this->seedGlobalEvents($projects, $eventTypes, 12);
-            $this->seedEventAudienceSources($projectEvents, $roles, $voiceData);
+            $this->seedEventAudience($projectEvents, $roles, $voiceData);
             $this->configureEventRegistrations($projectEvents);
             $this->seedEventNotes($users['active']);
 
@@ -376,7 +378,6 @@ class DevSeedService
             'project_users',
             'user_voice_groups',
             'user_roles',
-            'event_audience_sources',
             'events',
             'event_series',
             'finance_revisions',
@@ -1339,48 +1340,53 @@ class DevSeedService
         $this->report['counts']['oidc_access_tokens']++;
     }
 
-    private function seedEventAudienceSources(array $projectEvents, array $roles, array $voiceData): void
+    /**
+     * Zielgruppen der Termine. Jeder Projekttermin gilt für sein Projekt; jeder
+     * fünfte zusätzlich für eine Stimmgruppe, jeder siebte für eine Rolle (eigene
+     * Zeilen, also ODER). Jeder neunte ab dem fünften wird eine kombinierte
+     * Zeile "Sopran UND Projekt". Termine ohne Projekt gelten für alle.
+     */
+    private function seedEventAudience(array $projectEvents, array $roles, array $voiceData): void
     {
-        $voiceGroupIds = array_values(array_map(
-            static fn($group) => (int) $group->id,
-            $voiceData['groups'] ?? []
-        ));
-        $roleIds = array_values(array_map(
-            static fn($role) => (int) $role->id,
-            $roles
-        ));
+        $groups = array_values($voiceData['groups'] ?? []);
+        $voiceGroupIds = array_values(array_map(static fn($group) => (int) $group->id, $groups));
+        $roleIds = array_values(array_map(static fn($role) => (int) $role->id, $roles));
+        $soprano = null;
+        foreach ($groups as $group) {
+            if (str_starts_with((string) $group->name, 'Sopran')) {
+                $soprano = (int) $group->id;
+                break;
+            }
+        }
+        $filters = new AudienceFilterService();
 
         foreach ($projectEvents as $projectId => $events) {
             $index = 0;
             foreach ($events as $event) {
-                EventAudienceSource::create([
-                    'event_id' => (int) $event->id,
-                    'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-                    'reference_id' => (int) $projectId,
-                ]);
-                $this->report['counts']['event_audience_sources']++;
-
-                if ($index % 5 === 0 && $voiceGroupIds !== []) {
-                    EventAudienceSource::create([
-                        'event_id' => (int) $event->id,
-                        'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-                        'reference_id' => $voiceGroupIds[$index % count($voiceGroupIds)],
-                    ]);
-                    $this->report['counts']['event_audience_sources']++;
+                $sets = [['project' => [(int) $projectId]]];
+                if ($soprano !== null && $index % 9 === 4) {
+                    $sets = [['voice_group' => [$soprano], 'project' => [(int) $projectId]]];
                 }
-
+                if ($index % 5 === 0 && $voiceGroupIds !== []) {
+                    $sets[] = ['voice_group' => [$voiceGroupIds[$index % count($voiceGroupIds)]]];
+                }
                 if ($index % 7 === 0 && $roleIds !== []) {
-                    EventAudienceSource::create([
-                        'event_id' => (int) $event->id,
-                        'source_type' => EventAudienceSource::TYPE_ROLE,
-                        'reference_id' => $roleIds[$index % count($roleIds)],
-                    ]);
-                    $this->report['counts']['event_audience_sources']++;
+                    $sets[] = ['role' => [$roleIds[$index % count($roleIds)]]];
+                }
+                foreach ($sets as $conditions) {
+                    $filters->create($conditions, 'event_id', (int) $event->id);
                 }
 
                 $index++;
             }
         }
+
+        foreach (Event::query()->whereDoesntHave('audienceFilters')->pluck('id') as $eventId) {
+            $filters->create([], 'event_id', (int) $eventId);
+        }
+
+        $this->report['counts']['audience_filters_events'] = (int) Capsule::table('audience_filters')
+            ->whereNotNull('event_id')->count();
     }
 
     private function seedGlobalEvents(array $projects, array $eventTypes, int $count): void
@@ -2332,13 +2338,12 @@ class DevSeedService
                 $fileShares[] = [$contract, ['role' => [(int) $treasurerRole->id]], FileFolderShare::LEVEL_EDIT];
             }
             foreach ($fileShares as [$sharedFile, $conditions, $level]) {
-                $filter = (new AudienceFilterService())->create($conditions);
-                FileShare::create([
+                $createdShare = FileShare::create([
                     'file_id' => (int) $sharedFile->id,
-                    'audience_filter_id' => (int) $filter->id,
                     'level' => $level,
                     'created_by' => (int) $adminUser->id,
                 ]);
+                (new AudienceFilterService())->create($conditions, 'file_share_id', (int) $createdShare->id);
                 $this->report['counts']['file_shares']++;
             }
 
@@ -2394,16 +2399,15 @@ class DevSeedService
         $memberRole = $roles['Mitglied'] ?? null;
         $altPart = StoredFile::query()->where('name', 'Stimmauszug Alt - Ave verum.pdf')->first();
         if ($alt2 !== null && $memberRole !== null && $altPart !== null) {
-            $filter = (new AudienceFilterService())->create([
-                'role' => [(int) $memberRole->id],
-                'sub_voice' => [(int) $alt2->id],
-            ]);
-            FileShare::create([
+            $createdShare = FileShare::create([
                 'file_id' => (int) $altPart->id,
-                'audience_filter_id' => (int) $filter->id,
                 'level' => FileFolderShare::LEVEL_READ,
                 'created_by' => (int) $adminUser->id,
             ]);
+            (new AudienceFilterService())->create([
+                'role' => [(int) $memberRole->id],
+                'sub_voice' => [(int) $alt2->id],
+            ], 'file_share_id', (int) $createdShare->id);
             $this->report['counts']['file_shares']++;
         }
 
@@ -4238,13 +4242,13 @@ class DevSeedService
     }
 
     /**
-     * Empfängerquellen einer Vorlage. Sie werden beim Laden der Vorlage in den
-     * Newsletter übernommen, damit ein neuer Newsletter direkt seinen Verteiler hat.
+     * Zielgruppen-Zeilen und Termine einer Vorlage. Projekt und Rolle werden je
+     * eine eigene Zeile (wie früher je eine Quelle), Termine bleiben Termine.
      *
-     * @param array<int, string> $sourceTypes
+     * @param array<int, string> $sourceTypes 'project', 'role', 'event'
      * @param array<int, Project> $projects
      */
-    private function seedNewsletterTemplateRecipientSources(
+    private function seedNewsletterTemplateAudience(
         NewsletterTemplate $template,
         array $sourceTypes,
         array $projects
@@ -4253,31 +4257,48 @@ class DevSeedService
         $event = Event::query()->orderBy('starts_at', 'desc')->first();
         $role = Role::query()->orderBy('name')->first();
 
+        $sets = [];
+        $eventIds = [];
         foreach ($sourceTypes as $sourceType) {
-            $referenceId = match ($sourceType) {
-                NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS => $project?->id,
-                NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES => $event?->id,
-                NewsletterTemplateRecipientSource::TYPE_ROLE => $role?->id,
-                default => null,
-            };
-
-            if ($referenceId === null) {
-                continue;
-            }
-
-            $source = NewsletterTemplateRecipientSource::updateOrCreate(
-                [
-                    'template_id' => $template->id,
-                    'source_type' => $sourceType,
-                    'reference_id' => (int) $referenceId,
-                ],
-                []
-            );
-
-            if ($source->wasRecentlyCreated) {
-                $this->report['counts']['newsletter_template_recipient_sources']++;
+            if ($sourceType === 'project' && $project !== null) {
+                $sets[] = ['project' => [(int) $project->id]];
+            } elseif ($sourceType === 'role' && $role !== null) {
+                $sets[] = ['role' => [(int) $role->id]];
+            } elseif ($sourceType === 'event' && $event !== null) {
+                $eventIds[] = (int) $event->id;
             }
         }
+
+        (new NewsletterTemplatePersistence())->updateTemplate($template, [], ['sets' => $sets, 'event_ids' => $eventIds]);
+        $this->report['counts']['audience_filters_newsletter_templates'] += count($sets);
+        $this->report['counts']['newsletter_template_recipient_sources'] += count($eventIds);
+    }
+
+    /**
+     * Entwurf an eine ganze Stimmgruppe - eine Zielgruppe, die es vor den
+     * Zielgruppen-Filtern beim Newsletter nicht gab.
+     *
+     * @param array<int, User> $activeUsers
+     */
+    private function seedVoiceGroupNewsletter(array $activeUsers): void
+    {
+        $alto = VoiceGroup::query()->where('name', 'like', 'Alt%')->orderBy('id')->first();
+        $author = $activeUsers[0] ?? null;
+        if ($alto === null || $author === null) {
+            return;
+        }
+
+        $draft = Newsletter::create([
+            'project_id' => null,
+            'title' => 'Info an die Altstimmen',
+            'content_html' => '<p>Liebe Altstimmen, bitte bringt zur nächsten Probe eure Noten mit.</p>',
+            'status' => Newsletter::STATUS_DRAFT,
+            'created_by' => (int) $author->id,
+        ]);
+        $this->report['counts']['newsletters']++;
+
+        (new NewsletterRecipientService())->setAudience($draft, [['voice_group' => [(int) $alto->id]]], []);
+        $this->report['counts']['audience_filters_newsletters']++;
     }
 
     /**
@@ -4321,7 +4342,7 @@ class DevSeedService
                 'name' => 'Event-Ankündigung',
                 'category' => 'event',
                 'default_title' => 'Einladung zu unserem nächsten Konzert',
-                'source_types' => [NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES],
+                'source_types' => ['event'],
                 'content_html' => '<h2>Kommender Auftritt</h2>' .
                     '<p>Liebe Sängerinnen und Sänger,</p>' .
                     '<p>wir heißen euch herzlich zu unserem kommenden Konzert willkommen!</p>' .
@@ -4334,7 +4355,7 @@ class DevSeedService
                 'name' => 'Newsletter Standard',
                 'category' => 'general',
                 'default_title' => 'Neuigkeiten aus dem Chor',
-                'source_types' => [NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS],
+                'source_types' => ['project'],
                 'content_html' => '<h2>Newsletter</h2>' .
                     '<p>{{anrede}},</p>' .
                     '<p>hier sind die wichtigsten Neuigkeiten zu {{projekt}}:</p>' .
@@ -4347,8 +4368,8 @@ class DevSeedService
                 'category' => 'report',
                 'default_title' => 'Rückblick auf unser Konzert',
                 'source_types' => [
-                    NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
-                    NewsletterTemplateRecipientSource::TYPE_ROLE,
+                    'project',
+                    'role',
                 ],
                 'content_html' => '<h2>Ein großartiger Erfolg!</h2>' .
                     '<p>Unser Konzert war ein voller Erfolg. Vielen Dank an alle Beteiligten!</p>' .
@@ -4375,8 +4396,10 @@ class DevSeedService
                 $this->report['counts']['newsletter_templates']++;
             }
 
-            $this->seedNewsletterTemplateRecipientSources($template, $templateDef['source_types'], $projects);
+            $this->seedNewsletterTemplateAudience($template, $templateDef['source_types'], $projects);
         }
+
+        $this->seedVoiceGroupNewsletter($activeUsers);
 
         // Create sent newsletters for each project
         foreach ($projects as $project) {
@@ -4422,12 +4445,9 @@ class DevSeedService
                     $this->seedNewsletterAttachments($newsletter);
                 }
 
-                NewsletterRecipientSource::create([
-                    'newsletter_id' => $newsletter->id,
-                    'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-                    'reference_id' => $project->id,
-                ]);
-                $this->report['counts']['newsletter_recipient_sources']++;
+                (new AudienceFilterService())
+                    ->create(['project' => [(int) $project->id]], 'newsletter_id', (int) $newsletter->id);
+                $this->report['counts']['audience_filters_newsletters']++;
 
                 // Add recipients from project members
                 $recipients = $project->users()->pluck('user_id')->toArray();
@@ -4474,12 +4494,8 @@ class DevSeedService
 
             $this->seedNewsletterAttachments($draft);
 
-            NewsletterRecipientSource::create([
-                'newsletter_id' => $draft->id,
-                'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-                'reference_id' => $project->id,
-            ]);
-            $this->report['counts']['newsletter_recipient_sources']++;
+            (new AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_id', (int) $draft->id);
+            $this->report['counts']['audience_filters_newsletters']++;
 
             $recipients = $project->users()->pluck('user_id')->toArray();
             $draft->recipient_count = count($recipients);
@@ -4528,12 +4544,8 @@ class DevSeedService
         $this->report['counts']['newsletters']++;
 
         foreach ($singleRecipients as $recipient) {
-            NewsletterRecipientSource::create([
-                'newsletter_id' => $generalDraft->id,
-                'source_type' => NewsletterRecipientSource::TYPE_USER,
-                'reference_id' => $recipient->id,
-            ]);
-            $this->report['counts']['newsletter_recipient_sources']++;
+            (new AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $generalDraft->id);
+            $this->report['counts']['audience_filters_newsletters']++;
 
             NewsletterRecipient::create([
                 'newsletter_id' => $generalDraft->id,
@@ -4560,12 +4572,8 @@ class DevSeedService
             $this->report['counts']['users']++;
         }
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $generalDraft->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $fallbackMember->id,
-        ]);
-        $this->report['counts']['newsletter_recipient_sources']++;
+        (new AudienceFilterService())->create(['user' => [(int) $fallbackMember->id]], 'newsletter_id', (int) $generalDraft->id);
+        $this->report['counts']['audience_filters_newsletters']++;
 
         NewsletterRecipient::create([
             'newsletter_id' => $generalDraft->id,
@@ -4597,12 +4605,8 @@ class DevSeedService
         ]);
         $this->report['counts']['newsletters']++;
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $roleNewsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_ROLE,
-            'reference_id' => $boardRole->id,
-        ]);
-        $this->report['counts']['newsletter_recipient_sources']++;
+        (new AudienceFilterService())->create(['role' => [(int) $boardRole->id]], 'newsletter_id', (int) $roleNewsletter->id);
+        $this->report['counts']['audience_filters_newsletters']++;
 
         $roleUserIds = User::query()
             ->whereHas('roles', function ($query) use ($boardRole) {

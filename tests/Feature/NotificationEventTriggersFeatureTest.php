@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Controllers\EventController;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventSeries;
 use App\Models\MailQueue;
 use App\Models\User;
@@ -34,6 +33,7 @@ use App\Queries\ProjectQuery;
  */
 final class NotificationEventTriggersFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
 
     private EventController $controller;
@@ -252,11 +252,10 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             'title' => 'Hauptprobe ' . bin2hex(random_bytes(3)),
             'starts_at' => Carbon::now()->addDays(10)->format('Y-m-d'),
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time' => '21:00',
             'location' => 'Pfarrsaal Zentrum',
-            'audience_sources' => json_encode([
-                ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $this->singer->id],
-            ]),
+            'audience' => [['conditions' => ['user' => [(string) $this->singer->id]]]],
         ], $overrides);
     }
 
@@ -274,10 +273,8 @@ final class NotificationEventTriggersFeatureTest extends TestCase
 
         // Zielgruppe absichern: Ohne sie prüfte der Test nur, dass niemand
         // benachrichtigt wird.
-        if ($event->audienceSources()->count() === 0) {
-            (new EventAudienceService())->setSources($event, [
-                ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $this->singer->id],
-            ]);
+        if ($event->audienceFilters()->count() === 0) {
+            $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $this->singer->id]]);
         }
 
         return $event->fresh();
@@ -292,6 +289,7 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             'title' => $event->title,
             'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
             'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
+            'audience' => [['all' => '1']],
             'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
             'location' => (string) $event->location,
         ], $overrides));

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\User;
 use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
@@ -25,6 +24,7 @@ use Tests\Unit\Bootstrap;
  */
 final class CalendarFeedIcsEscapingFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     private const BASE_URL = 'https://chor.example';
 
     private CalendarFeedService $service;
@@ -165,9 +165,7 @@ final class CalendarFeedIcsEscapingFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        (new EventAudienceService())->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $this->user->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $this->user->id]]);
 
         return $event->fresh();
     }

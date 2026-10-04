@@ -9,14 +9,13 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Exceptions\NewsletterAttachmentsTooLargeException;
 use App\Exceptions\NewsletterWithoutRecipientsException;
+use App\Models\AudienceFilterCondition;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
-use App\Models\NewsletterRecipientSource;
 use App\Models\NewsletterTemplate;
 use App\Models\Project;
 use App\Models\Event;
-use App\Models\Role;
 use App\Models\User;
 use App\Policies\NewsletterPolicy;
 use App\Services\EntityAttachmentService;
@@ -26,6 +25,8 @@ use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
 use App\Services\NewsletterMailRenderer;
 use App\Services\NewsletterRecipientService;
+use App\Services\Audience\AudienceDescriber;
+use App\Services\Audience\InvalidAudienceFilterException;
 use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
@@ -84,18 +85,6 @@ class NewsletterController
         $this->entityAttachments = $entityAttachments;
         $this->newsletterAttachments = $newsletterAttachments;
         $this->cleanup = $cleanup ?? new EntityCleanupService($entityAttachments);
-    }
-
-    /**
-     * Active users ordered by the configured name display format.
-     */
-    private function activeUsersInNameOrder(): Collection
-    {
-        $query = User::query()->where('is_active', 1);
-
-        $this->nameFormatter->applyNameOrder($query);
-
-        return $query->get();
     }
 
     /**
@@ -282,38 +271,40 @@ class NewsletterController
     }
 
     /**
-     * Empfängerquellen sind beim Speichern freiwillig; erst der Versand verlangt
-     * mindestens eine aufgelöste Person.
+     * Empfänger sind beim Speichern freiwillig; erst der Versand verlangt
+     * mindestens eine aufgelöste Person. Abgelehnt wird nur eine Zeile, die so
+     * nicht gemeint sein kann (leer ohne "Alle Mitglieder", nur gelöschte Werte).
      *
      * @param array<string, mixed> $data
-     * @return array{ok:bool, message:?string, payload:array<string, mixed>}
+     * @return array{ok:bool, message:?string, payload:array{sets: list<array<string, list<int>>>, event_ids: list<int>}}
      */
     private function validateNewsletterSourcesInput(array $data): array
     {
-        return [
-            'ok' => true,
-            'message' => null,
-            'payload' => [
-                'sources' => $this->recipientService->normalizeSources($data['sources'] ?? null),
-            ],
-        ];
+        try {
+            return ['ok' => true, 'message' => null, 'payload' => $this->recipientService->readAudience($data)];
+        } catch (InvalidAudienceFilterException $exception) {
+            return ['ok' => false, 'message' => $exception->getMessage(), 'payload' => ['sets' => [], 'event_ids' => []]];
+        }
     }
 
     /**
-     * @param array<int, array{type:string, reference_id:int}> $sources
-     * @return Collection<int, NewsletterRecipientSource>
+     * Zeilen und Auswahllisten für die Empfänger im Newsletter-Formular.
+     *
+     * @param array{sets: list<array<string, list<int>>>, event_ids: list<int>} $audience
+     * @return array<string, mixed>
      */
-    private function buildSourceCollection(array $sources): Collection
+    private function audienceView(array $audience): array
     {
-        $items = [];
-        foreach ($sources as $source) {
-            $items[] = new NewsletterRecipientSource([
-                'source_type' => (string) $source['type'],
-                'reference_id' => (int) $source['reference_id'],
-            ]);
-        }
+        $describer = new AudienceDescriber($this->nameFormatter);
 
-        return new Collection($items);
+        return [
+            'audience_rows' => $describer->describeSets($audience['sets']),
+            'audience_options' => $describer->options(
+                AudienceDescriber::selectedIds($audience['sets'], 'project'),
+                AudienceDescriber::selectedIds($audience['sets'], 'user')
+            ),
+            'selected_event_ids' => $audience['event_ids'],
+        ];
     }
 
     public function index(Request $request, Response $response): Response
@@ -332,12 +323,9 @@ class NewsletterController
         }
 
         $recipientType = trim(InputValidator::asString($queryParams['recipient_type'] ?? null));
-        $allowedRecipientTypes = [
-            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
-            NewsletterRecipientSource::TYPE_ROLE,
-            NewsletterRecipientSource::TYPE_USER,
-        ];
+        // Filter nach Art der Empfänger: eine Kategorie der Zielgruppen-Zeilen oder
+        // "event" für die Zielgruppe eines Termins.
+        $allowedRecipientTypes = [...AudienceFilterCondition::CATEGORIES, 'event'];
         if (!in_array($recipientType, $allowedRecipientTypes, true)) {
             $recipientType = '';
         }
@@ -366,9 +354,13 @@ class NewsletterController
         }
 
         if ($recipientType !== '') {
-            $query->whereHas('recipientSources', function ($sourceQuery) use ($recipientType) {
-                $sourceQuery->where('source_type', $recipientType);
-            });
+            if ($recipientType === 'event') {
+                $query->whereHas('recipientSources');
+            } else {
+                $query->whereHas('audienceFilters.conditions', static function ($condition) use ($recipientType): void {
+                    $condition->where('category', $recipientType);
+                });
+            }
         }
 
         if ($status === Newsletter::STATUS_SENT) {
@@ -443,21 +435,15 @@ class NewsletterController
         $events = Event::query()
             ->orderBy('starts_at', 'desc')
             ->get();
-        $roles = Role::query()->orderBy('name')->get();
-        $users = $this->activeUsersInNameOrder();
-
         return $this->view->render($response, 'newsletters/create.twig', [
             'project' => $project,
             'projects' => $projects,
             'events' => $events,
-            'roles' => $roles,
-            'users' => $users,
-            'recipient_sources' => $project === null ? [] : [
-                [
-                    'type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-                    'reference_id' => (int) $project->id,
-                ],
-            ],
+        ] + $this->audienceView([
+            // Ein gewähltes Projekt belegt eine Zeile "Projekt: X" vor.
+            'sets' => $project === null ? [] : [['project' => [(int) $project->id]]],
+            'event_ids' => [],
+        ]) + [
             'template_groups' => $this->groupedTemplates(),
             'is_modal' => $isModal,
         ]);
@@ -535,7 +521,11 @@ class NewsletterController
             'created_by' => $userId,
         ]);
 
-        $this->recipientService->setSources($newsletter, $sourceValidation['payload']['sources']);
+        $this->recipientService->setAudience(
+            $newsletter,
+            $sourceValidation['payload']['sets'],
+            $sourceValidation['payload']['event_ids']
+        );
 
         $warnings = $this->placeholderWarnings(
             (string) $validation['payload']['title'],
@@ -588,9 +578,6 @@ class NewsletterController
         $events = Event::query()
             ->orderBy('starts_at', 'desc')
             ->get();
-        $roles = Role::query()->orderBy('name')->get();
-        $users = $this->activeUsersInNameOrder();
-        $sources = $this->recipientService->getSources($newsletter);
         $previewRecipients = $this->previewRecipientsInNameOrder($newsletter);
 
         return $this->view->render($response, 'newsletters/edit.twig', [
@@ -598,10 +585,8 @@ class NewsletterController
             'project' => $project,
             'projects' => $projects,
             'events' => $events,
-            'roles' => $roles,
-            'users' => $users,
             'preview_recipients' => $previewRecipients,
-            'recipient_sources' => $sources,
+        ] + $this->audienceView($this->recipientService->audienceOf($newsletter)) + [
             'attachments' => $this->newsletterAttachments->metadataFor((int) $newsletter->id),
             'attached_total' => $this->newsletterAttachments->attachedTotalBytes((int) $newsletter->id),
             'max_attached_total' => NewsletterAttachmentService::MAX_ATTACHED_TOTAL,
@@ -652,7 +637,11 @@ class NewsletterController
             'content_html' => $validation['payload']['content_html'],
         ]);
 
-        $this->recipientService->setSources($newsletter, $sourceValidation['payload']['sources']);
+        $this->recipientService->setAudience(
+            $newsletter,
+            $sourceValidation['payload']['sets'],
+            $sourceValidation['payload']['event_ids']
+        );
 
         $warnings = $this->placeholderWarnings(
             (string) $validation['payload']['title'],
@@ -692,9 +681,9 @@ class NewsletterController
             ], 422);
         }
 
-        $newsletter = new Newsletter();
-        $newsletter->setRelation('recipientSources', $this->buildSourceCollection($validation['payload']['sources']));
-        $count = $this->recipientService->resolveRecipients($newsletter)->count();
+        $count = $this->recipientService
+            ->resolveFor($validation['payload']['sets'], $validation['payload']['event_ids'])
+            ->count();
 
         return $this->jsonResponse($response, ['count' => $count]);
     }
@@ -787,71 +776,28 @@ class NewsletterController
      */
     private function describeRecipientSources(Newsletter $newsletter): array
     {
-        $referenceIdsByType = [];
-        foreach ($this->recipientService->getSources($newsletter) as $source) {
-            $referenceIdsByType[$source['type']][] = (int) $source['reference_id'];
-        }
-
-        $labels = [
-            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS => 'Projektmitglieder',
-            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES => 'Zielgruppe eines Termins',
-            NewsletterRecipientSource::TYPE_ROLE => 'Rollen',
-            NewsletterRecipientSource::TYPE_USER => 'Einzelne Mitglieder',
-        ];
-
+        $audience = $this->recipientService->audienceOf($newsletter);
         $groups = [];
-        foreach ($labels as $type => $label) {
-            $referenceIds = $referenceIdsByType[$type] ?? [];
-            if ($referenceIds === []) {
-                continue;
-            }
 
+        if ($audience['sets'] !== []) {
+            $describer = new AudienceDescriber($this->nameFormatter);
             $groups[] = [
-                'label' => $label,
-                'names' => $this->recipientSourceNames($type, $referenceIds),
+                'label' => 'Zielgruppen',
+                'names' => array_map(static fn (array $set): string => $describer->summarize($set), $audience['sets']),
             ];
         }
 
-        return $groups;
-    }
-
-    /**
-     * @param array<int, int> $referenceIds
-     * @return array<int, string>
-     */
-    private function recipientSourceNames(string $type, array $referenceIds): array
-    {
-        $namesById = match ($type) {
-            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS => Project::query()
-                ->whereIn('id', $referenceIds)
-                ->pluck('name', 'id')
-                ->all(),
-            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES => Event::query()
-                ->whereIn('id', $referenceIds)
-                ->pluck('title', 'id')
-                ->all(),
-            NewsletterRecipientSource::TYPE_ROLE => Role::query()
-                ->whereIn('id', $referenceIds)
-                ->pluck('name', 'id')
-                ->all(),
-            NewsletterRecipientSource::TYPE_USER => User::query()
-                ->whereIn('id', $referenceIds)
-                ->get()
-                ->mapWithKeys(fn (User $user): array => [
-                    (int) $user->id => $this->nameFormatter->formatPerson($user),
-                ])
-                ->all(),
-            default => [],
-        };
-
-        $names = [];
-        foreach ($referenceIds as $referenceId) {
-            $names[] = (string) ($namesById[$referenceId] ?? 'Nicht mehr vorhanden (#' . $referenceId . ')');
+        if ($audience['event_ids'] !== []) {
+            $titles = Event::query()->whereIn('id', $audience['event_ids'])->pluck('title', 'id')->all();
+            $names = [];
+            foreach ($audience['event_ids'] as $eventId) {
+                $names[] = (string) ($titles[$eventId] ?? 'Nicht mehr vorhanden (#' . $eventId . ')');
+            }
+            sort($names);
+            $groups[] = ['label' => 'Zielgruppe eines Termins', 'names' => $names];
         }
 
-        sort($names);
-
-        return $names;
+        return $groups;
     }
 
     /**

@@ -223,6 +223,7 @@ class EventSeriesRecurrenceValidationFeatureTest extends TestCase
             'title' => $title,
             'starts_at' => $start->format('Y-m-d'),
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time' => '21:00',
             'repeat' => '1',
             'series_end_date' => $start->copy()->addDays(21)->format('Y-m-d'),

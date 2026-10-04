@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Audience\AudienceFilterService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
@@ -52,9 +54,34 @@ class Event extends Model
         return $this->hasMany(Attendance::class, 'event_id', 'id');
     }
 
-    public function audienceSources()
+    public function audienceFilters(): HasMany
     {
-        return $this->hasMany(EventAudienceSource::class, 'event_id', 'id');
+        return $this->hasMany(AudienceFilter::class, 'event_id', 'id');
+    }
+
+    /**
+     * Bedingungsmengen der Zielgruppe, eine je Zeile. Nutzt eine vorab geladene
+     * Beziehung (`with('audienceFilters.conditions')`).
+     *
+     * @return list<array<string, list<int>>>
+     */
+    public function audienceConditionSets(): array
+    {
+        $filters = $this->relationLoaded('audienceFilters')
+            ? $this->audienceFilters
+            : $this->audienceFilters()->with('conditions')->orderBy('id')->get();
+
+        return $filters->map(static fn (AudienceFilter $filter): array => $filter->conditionSet())->values()->all();
+    }
+
+    /**
+     * Termine, deren Zielgruppe in mindestens einer Zeile das Projekt nennt.
+     */
+    public function scopeForProject(Builder $query, int $projectId): Builder
+    {
+        return $query->whereHas('audienceFilters.conditions', static function ($condition) use ($projectId): void {
+            $condition->where('category', AudienceFilterCondition::CATEGORY_PROJECT)->where('reference_id', $projectId);
+        });
     }
 
     public function registrations()
@@ -102,12 +129,12 @@ class Event extends Model
 
     /**
      * Query for users eligible to register for / be counted for this event:
-     * active users, restricted to the configured audience sources (union of
-     * project members, roles, voice groups and single users). An event without
-     * any source counts for all active users. This is the single source of
-     * truth for event eligibility — every caller that needs to know "who counts
-     * for this event" must build on this query rather than re-deriving the
-     * predicate.
+     * active users that at least one row of the audience matches (within a
+     * row: OR inside a category, AND across categories). An event without any
+     * row matches nobody - "all members" is a row without conditions. This is
+     * the single source of truth for event eligibility — every caller that needs
+     * to know "who counts for this event" must build on this query rather than
+     * re-deriving the predicate.
      *
      * Geladen werden nur User::LIST_COLUMNS. Die Aufrufer reichen die Modelle
      * unverändert an Templates und Mail-Erzeugung weiter; der Passwort-Hash hat
@@ -117,66 +144,8 @@ class Event extends Model
      */
     public function eligibleUsersQuery(): Builder
     {
-        $query = User::select(User::LIST_COLUMNS)->where('is_active', 1);
-
-        $sources = $this->relationLoaded('audienceSources')
-            ? $this->audienceSources
-            : $this->audienceSources()->get();
-
-        if ($sources->isEmpty()) {
-            return $query;
-        }
-
-        $projectIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_PROJECT_MEMBERS);
-        $roleIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_ROLE);
-        $voiceGroupIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_VOICE_GROUP);
-        $userIds = $this->referenceIdsFor($sources, EventAudienceSource::TYPE_USER);
-
-        // Quellen sind hinterlegt, aber keine davon ist auswertbar - etwa weil
-        // source_type leer ist oder einen hier unbekannten Typ trägt. Eine leere
-        // Bedingungsgruppe würde die Einschränkung stillschweigend aufheben und
-        // den Termin für alle aktiven Mitglieder öffnen. Eine Zielgruppe, die
-        // sich nicht auflösen lässt, umfasst niemanden.
-        if ($projectIds === [] && $roleIds === [] && $voiceGroupIds === [] && $userIds === []) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        $query->where(function ($grouped) use ($projectIds, $roleIds, $voiceGroupIds, $userIds) {
-            if ($projectIds !== []) {
-                $grouped->orWhereHas('projects', function ($q) use ($projectIds) {
-                    $q->whereIn('project_id', $projectIds);
-                });
-            }
-            if ($roleIds !== []) {
-                $grouped->orWhereHas('roles', function ($q) use ($roleIds) {
-                    $q->whereIn('role_id', $roleIds);
-                });
-            }
-            if ($voiceGroupIds !== []) {
-                $grouped->orWhereHas('voiceGroups', function ($q) use ($voiceGroupIds) {
-                    $q->whereIn('voice_group_id', $voiceGroupIds);
-                });
-            }
-            if ($userIds !== []) {
-                $grouped->orWhereIn('users.id', $userIds);
-            }
-        });
-
-        return $query;
-    }
-
-    /**
-     * @param \Illuminate\Support\Collection<int, EventAudienceSource> $sources
-     * @return array<int, int>
-     */
-    private function referenceIdsFor($sources, string $type): array
-    {
-        return $sources
-            ->where('source_type', $type)
-            ->pluck('reference_id')
-            ->map(static fn ($id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        return (new AudienceFilterService())
+            ->membersQueryForSets($this->audienceConditionSets())
+            ->select(array_map(static fn (string $column): string => 'users.' . $column, User::LIST_COLUMNS));
     }
 }

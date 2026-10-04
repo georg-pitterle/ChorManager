@@ -67,11 +67,11 @@ final class SchemaConstraintFeatureTest extends TestCase
         );
     }
 
-    public function testEventAudienceSourcesRejectDuplicates(): void
+    public function testAudienceFilterConditionsRejectDuplicates(): void
     {
         $this->assertTrue(
-            $this->hasUniqueIndex('event_audience_sources', ['event_id', 'source_type', 'reference_id']),
-            'Dieselbe Zielgruppe darf an einem Termin nur einmal hängen.'
+            $this->hasUniqueIndex('audience_filter_conditions', ['audience_filter_id', 'category', 'reference_id']),
+            'Derselbe Wert darf in einer Zielgruppen-Zeile nur einmal stehen.'
         );
     }
 

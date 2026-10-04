@@ -19,7 +19,9 @@ final class NameSortOrderFeatureTest extends TestCase
             ['src/Queries/ProjectQuery.php'],
             ['src/Controllers/AttendanceController.php'],
             ['src/Controllers/EvaluationController.php'],
-            ['src/Controllers/EventController.php'],
+            // Die Personenauswahl der Zielgruppen (Termine, Newsletter, Freigaben)
+            // sortiert der gemeinsame Describer.
+            ['src/Services/Audience/AudienceDescriber.php'],
             ['src/Controllers/NewsletterController.php'],
             ['src/Controllers/RegistrationController.php'],
             ['src/Controllers/TaskController.php'],

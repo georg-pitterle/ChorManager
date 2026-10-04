@@ -2176,13 +2176,13 @@ a:hover {
     padding-right: 0;
 }
 
-/* Freigabe-Zeile, die derzeit niemanden trifft. */
-.files-share-row--empty {
+/* Zielgruppen-Zeile, die derzeit niemanden trifft. */
+.audience-row--empty {
     border-color: var(--bs-warning);
     background: rgba(var(--bs-warning-rgb), 0.08);
 }
 
-.files-share-summary {
+.audience-summary {
     color: var(--theme-text);
     text-decoration: none;
 }

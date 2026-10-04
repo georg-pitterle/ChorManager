@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Controllers\EventController;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventSeries;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -104,6 +103,7 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
             'title' => 'Wochenprobe',
             'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time' => '21:00',
             'location' => 'Pfarrsaal',
             'update_series' => '1',
@@ -151,18 +151,18 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
     public function testSeriesUpdateLeavesTheAudienceAloneWhenItIsNotSelected(): void
     {
         $voiceGroup = VoiceGroup::create(['name' => 'Serientest ' . bin2hex(random_bytes(4))]);
-        (new EventAudienceService())->setSources($this->events[2], [
-            ['type' => EventAudienceSource::TYPE_VOICE_GROUP, 'reference_id' => (int) $voiceGroup->id],
-        ]);
+        (new EventAudienceService())->setAudience($this->events[2], [['voice_group' => [(int) $voiceGroup->id]]]);
 
         $this->updateSeries($this->events[1], [
             'location' => 'Kirche',
             'series_fields' => ['location'],
         ]);
 
-        $sources = EventAudienceSource::where('event_id', $this->events[2]->id)->get();
-        $this->assertCount(1, $sources, 'Die Zielgruppe eines Folgetermins darf nicht verschwinden.');
-        $this->assertSame((int) $voiceGroup->id, (int) $sources->first()->reference_id);
+        $this->assertSame(
+            [['voice_group' => [(int) $voiceGroup->id]]],
+            $this->events[2]->fresh()->audienceConditionSets(),
+            'Die Zielgruppe eines Folgetermins darf nicht verschwinden.'
+        );
     }
 
     public function testDeletingASeriesFromAPastEventReportsTheActualScope(): void
@@ -194,12 +194,14 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
         ]);
 
         $audienceService = new EventAudienceService();
-        $audienceService->setSources($this->events[1], [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $member->id],
-        ]);
+        $sets = $audienceService->readRows(['audience' => [['conditions' => ['user' => [(string) $member->id]]]]]);
+        $audienceService->setAudience($this->events[1], $sets);
 
-        $sources = EventAudienceSource::where('event_id', $this->events[1]->id)->get();
-        $this->assertCount(1, $sources, 'Eine namentliche Zielgruppe darf ein archiviertes Mitglied nicht verlieren.');
+        $this->assertSame(
+            [['user' => [(int) $member->id]]],
+            $this->events[1]->fresh()->audienceConditionSets(),
+            'Eine namentliche Zielgruppe darf ein archiviertes Mitglied nicht verlieren.'
+        );
 
         // Gezählt wird es trotzdem nicht - dafür sorgt der is_active-Filter der Auflösung.
         $this->assertCount(0, $this->events[1]->fresh()->eligibleUsersQuery()->get());

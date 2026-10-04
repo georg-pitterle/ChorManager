@@ -1,0 +1,26 @@
+{# Empfänger eines Newsletters bzw. einer Vorlage: Zielgruppen-Zeilen und die
+   Zielgruppe einzelner Termine. Beides zusammen ODER-verknüpft.
+   Parameter: id_prefix, audience_rows, audience_options, events,
+   selected_event_ids. #}
+{{ include("partials/audience/filter_rows.twig", {
+    prefix: "audience",
+    rows: audience_rows,
+    options: audience_options,
+    empty_hint: "Noch keine Zielgruppe gewählt.",
+}) }}
+<div class="mt-3">
+    <label class="form-label" for="{{ id_prefix }}-event-ids">Zielgruppe eines Termins</label>
+    <select id="{{ id_prefix }}-event-ids"
+            name="event_ids[]"
+            class="form-select"
+            data-tom-select
+            data-newsletter-event-ids
+            data-placeholder="Termine wählen …"
+            multiple>
+        {% for event in events %}
+            <option value="{{ event.id }}" {{ event.id in selected_event_ids|default([]) ? "selected" : "" }}>
+                {{ event.title }} ({{ event.starts_at|date("d.m.Y") }})
+            </option>
+        {% endfor %}
+    </select>
+</div>

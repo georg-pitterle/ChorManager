@@ -5,19 +5,31 @@ declare(strict_types=1);
 namespace App\Persistence;
 
 use App\Models\NewsletterTemplate;
+use App\Models\NewsletterTemplateRecipientSource;
+use App\Services\Audience\AudienceFilterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class NewsletterTemplatePersistence
 {
+    public const OWNER = 'newsletter_template_id';
+
+    /** Leere Empfängerauswahl: keine Zielgruppen-Zeile, kein Termin. */
+    public const NO_AUDIENCE = ['sets' => [], 'event_ids' => []];
+
+    public function __construct(
+        private readonly AudienceFilterService $filters = new AudienceFilterService()
+    ) {
+    }
+
     /**
      * @param array<string, mixed> $data
-     * @param array<int, array{type:string, reference_id:int}> $recipientSources
+     * @param array{sets: list<array<string, list<int>>>, event_ids: list<int>} $audience
      */
     public function createTemplate(
         array $data,
         int $createdBy,
         ?int $projectId,
-        array $recipientSources = []
+        array $audience = self::NO_AUDIENCE
     ): NewsletterTemplate {
         $template = NewsletterTemplate::create([
             'name' => $data['name'],
@@ -28,25 +40,25 @@ class NewsletterTemplatePersistence
             'created_by' => $createdBy,
         ]);
 
-        $this->setRecipientSources($template, $recipientSources);
+        $this->setAudience($template, $audience);
 
         return $template;
     }
 
     /**
      * @param array<string, mixed> $data
-     * @param array<int, array{type:string, reference_id:int}>|null $recipientSources
-     *        null lässt die gespeicherten Quellen unangetastet.
+     * @param array{sets: list<array<string, list<int>>>, event_ids: list<int>}|null $audience
+     *        null lässt die gespeicherte Empfängerauswahl unangetastet.
      */
     public function updateTemplate(
         NewsletterTemplate $template,
         array $data,
-        ?array $recipientSources = null
+        ?array $audience = null
     ): void {
         $template->update($data);
 
-        if ($recipientSources !== null) {
-            $this->setRecipientSources($template, $recipientSources);
+        if ($audience !== null) {
+            $this->setAudience($template, $audience);
         }
     }
 
@@ -61,46 +73,43 @@ class NewsletterTemplatePersistence
             ],
             $createdBy,
             $source->project_id === null ? null : (int) $source->project_id,
-            $this->getRecipientSources($source)
+            $this->audienceOf($source)
         );
     }
 
     /**
-     * @return array<int, array{type:string, reference_id:int}>
+     * @return array{sets: list<array<string, list<int>>>, event_ids: list<int>}
      */
-    public function getRecipientSources(NewsletterTemplate $template): array
+    public function audienceOf(NewsletterTemplate $template): array
     {
-        return $template->recipientSources()
-            ->orderBy('id')
-            ->get()
-            ->map(static fn ($source): array => [
-                'type' => (string) $source->source_type,
-                'reference_id' => (int) $source->reference_id,
-            ])
-            ->all();
+        $id = (int) $template->id;
+
+        return [
+            'sets' => $this->filters->conditionSetsForOwners(self::OWNER, [$id])[$id],
+            'event_ids' => $template->recipientSources()
+                ->orderBy('id')
+                ->pluck('reference_id')
+                ->map(static fn ($referenceId): int => (int) $referenceId)
+                ->all(),
+        ];
     }
 
     /**
-     * Löschen und Neuanlegen gehören zusammen: Bricht der Austausch in der Mitte
-     * ab, stünde die Vorlage mit einer halben Empfängerauswahl da.
+     * Zielgruppen-Zeilen und Termine gehören zusammen: Bricht der Austausch in
+     * der Mitte ab, stünde die Vorlage mit einer halben Empfängerauswahl da.
      *
-     * @param array<int, array{type:string, reference_id:int}> $recipientSources
+     * @param array{sets: list<array<string, list<int>>>, event_ids: list<int>} $audience
      */
-    private function setRecipientSources(NewsletterTemplate $template, array $recipientSources): void
+    private function setAudience(NewsletterTemplate $template, array $audience): void
     {
-        Capsule::connection()->transaction(function () use ($template, $recipientSources): void {
+        Capsule::connection()->transaction(function () use ($template, $audience): void {
+            $this->filters->replaceForOwner(self::OWNER, (int) $template->id, $audience['sets']);
             $template->recipientSources()->delete();
 
-            foreach ($recipientSources as $source) {
-                $type = (string) ($source['type'] ?? '');
-                $referenceId = (int) ($source['reference_id'] ?? 0);
-                if ($type === '' || $referenceId <= 0) {
-                    continue;
-                }
-
+            foreach ($audience['event_ids'] as $eventId) {
                 $template->recipientSources()->create([
-                    'source_type' => $type,
-                    'reference_id' => $referenceId,
+                    'source_type' => NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES,
+                    'reference_id' => (int) $eventId,
                 ]);
             }
         });

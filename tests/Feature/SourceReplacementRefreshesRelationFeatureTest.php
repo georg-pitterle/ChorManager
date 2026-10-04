@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Newsletter;
-use App\Models\NewsletterRecipientSource;
 use App\Models\User;
 use App\Services\EventAudienceService;
 use App\Services\NewsletterRecipientService;
@@ -28,6 +26,7 @@ use Tests\Unit\Bootstrap;
  */
 final class SourceReplacementRefreshesRelationFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     private User $first;
     private User $second;
 
@@ -61,22 +60,14 @@ final class SourceReplacementRefreshesRelationFeatureTest extends TestCase
         ]);
 
         $service = new EventAudienceService();
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $this->first->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $this->first->id]]);
 
         // So kommt der Termin aus einer Übersicht: mit vorab geladener Zielgruppe.
-        $loaded = Event::query()->with('audienceSources')->findOrFail($event->id);
+        $loaded = Event::query()->with('audienceFilters.conditions')->findOrFail($event->id);
 
-        $service->setSources($loaded, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $this->second->id],
-        ]);
+        $service->setAudience($loaded, [['user' => [(int) $this->second->id]]]);
 
-        $referenceIds = $loaded->audienceSources
-            ->map(static fn ($source): int => (int) $source->reference_id)
-            ->all();
-
-        $this->assertSame([(int) $this->second->id], $referenceIds);
+        $this->assertSame([['user' => [(int) $this->second->id]]], $loaded->audienceConditionSets());
         $this->assertSame(
             [(int) $this->second->id],
             $service->eligibleUserIdsForEvents([$loaded])[(int) $loaded->id]
@@ -93,15 +84,11 @@ final class SourceReplacementRefreshesRelationFeatureTest extends TestCase
         ]);
 
         $service = new NewsletterRecipientService();
-        $service->setSources($newsletter, [
-            ['type' => NewsletterRecipientSource::TYPE_USER, 'reference_id' => (int) $this->first->id],
-        ]);
+        $service->setAudience($newsletter, [['user' => [(int) $this->first->id]]], []);
 
-        $loaded = Newsletter::query()->with('recipientSources')->findOrFail($newsletter->id);
+        $loaded = Newsletter::query()->with(['recipientSources', 'audienceFilters.conditions'])->findOrFail($newsletter->id);
 
-        $service->setSources($loaded, [
-            ['type' => NewsletterRecipientSource::TYPE_USER, 'reference_id' => (int) $this->second->id],
-        ]);
+        $service->setAudience($loaded, [['user' => [(int) $this->second->id]]], []);
 
         $storedRecipients = $service->getRecipients((int) $loaded->id)
             ->map(static fn ($recipient): int => (int) $recipient->user_id)

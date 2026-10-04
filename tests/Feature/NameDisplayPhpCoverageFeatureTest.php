@@ -23,10 +23,9 @@ final class NameDisplayPhpCoverageFeatureTest extends TestCase
             ['src/Controllers/NewsletterController.php'],
             ['src/Controllers/RegistrationController.php'],
             ['src/Controllers/SponsoringDashboardController.php'],
-            // Der EventController formatiert seit dem Auszug des Kalender-Aufbaus
-            // keine Personennamen mehr - die Zielgruppen-Beschriftung steht jetzt im
-            // Feed-Dienst.
-            ['src/Services/CalendarFeedService.php'],
+            // Die Zielgruppen-Beschriftung (auch im Kalender-Feed) formatiert ihre
+            // Personennamen im gemeinsamen Describer.
+            ['src/Services/Audience/AudienceDescriber.php'],
         ];
     }
 

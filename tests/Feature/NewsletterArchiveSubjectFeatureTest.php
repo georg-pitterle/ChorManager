@@ -65,11 +65,7 @@ final class NewsletterArchiveSubjectFeatureTest extends TestCase
             'sent_at' => '2026-09-12 18:30:00',
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         NewsletterArchive::create([
             'newsletter_id' => $newsletter->id,

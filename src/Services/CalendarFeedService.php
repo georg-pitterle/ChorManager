@@ -6,11 +6,9 @@ namespace App\Services;
 
 use App\Models\AppSetting;
 use App\Models\Event;
-use App\Models\Project;
-use App\Models\Role;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\VoiceGroup;
+use App\Services\Audience\AudienceDescriber;
 use App\Util\DownloadFileName;
 use App\Util\MailBranding;
 use App\Util\Timezone;
@@ -48,24 +46,21 @@ class CalendarFeedService
      */
     private const MAX_LINE_OCTETS = 75;
 
-    private NameFormatterService $nameFormatter;
     private EventAudienceService $audienceService;
 
     /**
-     * Namen der Zielgruppen-Bezüge, einmal je Feed nachgeschlagen. Eine Serie
-     * teilt sich ihre Zielgruppe; ohne den Zwischenspeicher fragt jeder Termin
-     * dieselben Projekte, Rollen und Stimmgruppen erneut ab.
-     *
-     * @var array<string, string>
+     * Beschriftet die Zielgruppen; schlägt Namen je Feed nur einmal nach. Eine
+     * Serie teilt sich ihre Zielgruppe, ohne den Zwischenspeicher fragte jeder
+     * Termin dieselben Projekte, Rollen und Stimmgruppen erneut ab.
      */
-    private array $audienceNameCache = [];
+    private AudienceDescriber $describer;
 
     public function __construct(
         NameFormatterService $nameFormatter,
         ?EventAudienceService $audienceService = null
     ) {
-        $this->nameFormatter = $nameFormatter;
         $this->audienceService = $audienceService ?? new EventAudienceService();
+        $this->describer = new AudienceDescriber($nameFormatter);
     }
 
     /**
@@ -176,7 +171,7 @@ class CalendarFeedService
             ->visibleEventsQuery($userId)
             // Die Zielgruppe steht in der Beschreibung jedes Termins. Ohne das
             // Vorabladen stellt sie je Termin eine eigene Abfrage.
-            ->with('audienceSources')
+            ->with('audienceFilters.conditions')
             ->orderBy('starts_at')
             ->get();
     }
@@ -395,48 +390,7 @@ class CalendarFeedService
 
     private function buildAudienceLabel(Event $event): string
     {
-        $sources = $event->relationLoaded('audienceSources')
-            ? $event->audienceSources
-            : $event->audienceSources()->get();
-
-        if ($sources->isEmpty()) {
-            return 'Alle Mitglieder';
-        }
-
-        $labels = [];
-        foreach ($sources as $source) {
-            $refId = (int) $source->reference_id;
-            $labels[] = match ((string) $source->source_type) {
-                'project_members' => 'Projekt: ' . $this->audienceName('project', $refId),
-                'role' => 'Rolle: ' . $this->audienceName('role', $refId),
-                'voice_group' => 'Stimmgruppe: ' . $this->audienceName('voice_group', $refId),
-                'user' => 'Person: ' . $this->audienceName('user', $refId),
-                default => '',
-            };
-        }
-
-        return implode(', ', array_filter($labels));
-    }
-
-    /**
-     * Name eines Zielgruppen-Bezugs, je Feed nur einmal nachgeschlagen.
-     */
-    private function audienceName(string $type, int $referenceId): string
-    {
-        $cacheKey = $type . ':' . $referenceId;
-        if (array_key_exists($cacheKey, $this->audienceNameCache)) {
-            return $this->audienceNameCache[$cacheKey];
-        }
-
-        $name = match ($type) {
-            'project' => (string) (Project::find($referenceId)?->name ?? '—'),
-            'role' => (string) (Role::find($referenceId)?->name ?? '—'),
-            'voice_group' => (string) (VoiceGroup::find($referenceId)?->name ?? '—'),
-            'user' => $this->nameFormatter->formatPerson(User::find($referenceId)),
-            default => '—',
-        };
-
-        return $this->audienceNameCache[$cacheKey] = $name;
+        return $this->describer->summarizeSets($event->audienceConditionSets());
     }
 
     /**

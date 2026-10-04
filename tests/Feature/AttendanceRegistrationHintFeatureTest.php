@@ -30,6 +30,7 @@ use Twig\TwigFunction;
  */
 class AttendanceRegistrationHintFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -198,6 +199,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
             'attendance_required' => true,
             'registration_enabled' => $eventRegistrationEnabled,
         ]);
+        $this->openToEveryone($event);
 
         $member = User::create([
             'first_name' => 'Regina',

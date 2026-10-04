@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Files;
+namespace App\Services\Audience;
 
 use App\Models\AudienceFilterCondition as C;
 use App\Models\FileFolderShare;
@@ -12,16 +12,18 @@ use App\Models\Role;
 use App\Models\SubVoice;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Services\Audience\AudienceFilterService;
 use App\Services\NameFormatterService;
 
 /**
- * Beschriftet Freigaben für die Oberfläche ("Stimmgruppe: Sopran, Alt ·
+ * Beschriftet Zielgruppen für die Oberfläche ("Stimmgruppe: Sopran, Alt ·
  * Projekt: Frühjahrskonzert") und liefert die Auswahl möglicher Werte je
- * Kategorie. Gemeinsam für Ordner- und Dateifreigaben.
+ * Kategorie. Gemeinsam für Freigaben, Termine, Newsletter und Vorlagen.
  */
-final class FileShareDescriber
+final class AudienceDescriber
 {
+    /** @var array<string, array<int, string>> gefundene Namen je Kategorie und Kennungsmenge */
+    private array $nameCache = [];
+
     private const CATEGORY_LABELS = [
         C::CATEGORY_ROLE => 'Rolle',
         C::CATEGORY_VOICE_GROUP => 'Stimmgruppe',
@@ -38,33 +40,85 @@ final class FileShareDescriber
 
     /**
      * @param iterable<FileFolderShare|FileShare> $shares
-     * @return list<array{filter_id: int, level: int, label: string, conditions: array<string, list<int>>,
+     * @return list<array{level: int, label: string, conditions: array<string, list<int>>,
      *                    all: bool, missing: array<string, list<int>>}>
      */
     public function label(iterable $shares): array
     {
         $shares = is_array($shares) ? array_values($shares) : iterator_to_array($shares, false);
-        $conditions = $this->filters->conditionsOf(
-            array_map(static fn ($share): int => (int) $share->audience_filter_id, $shares)
-        );
+        $folderShareIds = [];
+        $fileShareIds = [];
+        foreach ($shares as $share) {
+            if ($share instanceof FileFolderShare) {
+                $folderShareIds[] = (int) $share->id;
+            } else {
+                $fileShareIds[] = (int) $share->id;
+            }
+        }
+        $folderSets = $this->filters->conditionSetsForOwners('file_folder_share_id', $folderShareIds);
+        $fileSets = $this->filters->conditionSetsForOwners('file_share_id', $fileShareIds);
 
         $described = [];
         foreach ($shares as $share) {
-            $set = $conditions[(int) $share->audience_filter_id] ?? [];
-            $described[] = [
-                'filter_id' => (int) $share->audience_filter_id,
-                'level' => (int) $share->level,
-                'label' => $this->summarize($set),
-                'conditions' => $set,
-                'all' => $set === [],
-                // Gespeicherte Werte, die es nicht mehr gibt: Das Formular muss sie
-                // zeigen, sonst fallen sie beim nächsten Speichern still weg.
-                'missing' => $this->missingOf($set),
-            ];
+            // Eine Freigabe besitzt genau einen Filter.
+            $sets = $share instanceof FileFolderShare ? $folderSets : $fileSets;
+            $described[] = ['level' => (int) $share->level] + $this->describeSets([$sets[(int) $share->id][0] ?? []])[0];
         }
         usort($described, static fn (array $a, array $b): int => strcasecmp($a['label'], $b['label']));
 
         return $described;
+    }
+
+    /**
+     * Zeilen für das Formular: Zusammenfassung, gewählte Werte und gespeicherte
+     * Werte, die es nicht mehr gibt - die muss das Formular zeigen, sonst fallen
+     * sie beim nächsten Speichern still weg.
+     *
+     * @param list<array<string, list<int>>> $sets
+     * @return list<array{label: string, conditions: array<string, list<int>>, all: bool,
+     *                    missing: array<string, list<int>>}>
+     */
+    public function describeSets(array $sets): array
+    {
+        return array_map(fn (array $set): array => [
+            'label' => $this->summarize($set),
+            'conditions' => $set,
+            'all' => $set === [],
+            'missing' => $this->missingOf($set),
+        ], array_values($sets));
+    }
+
+    /**
+     * Eine Zeile je Filter, getrennt mit " / ".
+     *
+     * @param list<array<string, list<int>>> $sets
+     */
+    public function summarizeSets(array $sets): string
+    {
+        if ($sets === []) {
+            return 'Keine Zielgruppe';
+        }
+
+        return implode(' / ', array_map(fn (array $set): string => $this->summarize($set), $sets));
+    }
+
+    /**
+     * Alle Kennungen einer Kategorie über mehrere Bedingungsmengen hinweg -
+     * etwa, damit gewählte beendete Projekte in der Auswahl bleiben.
+     *
+     * @param list<array<string, list<int>>> $sets
+     * @return list<int>
+     */
+    public static function selectedIds(array $sets, string $category): array
+    {
+        $ids = [];
+        foreach ($sets as $set) {
+            foreach ($set[$category] ?? [] as $id) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -172,6 +226,21 @@ final class FileShareDescriber
      * @return array<int, string>
      */
     private function found(string $category, array $ids): array
+    {
+        // Je Instanz nur einmal nachschlagen: Ein Kalender-Feed beschriftet eine
+        // Serie mit lauter gleichen Zielgruppen.
+        $sorted = $ids;
+        sort($sorted);
+        $key = $category . ':' . implode(',', $sorted);
+
+        return $this->nameCache[$key] ??= $this->lookup($category, $ids);
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array<int, string>
+     */
+    private function lookup(string $category, array $ids): array
     {
         return match ($category) {
             C::CATEGORY_ROLE => Role::query()->whereIn('id', $ids)->orderBy('name')->pluck('name', 'id')->all(),

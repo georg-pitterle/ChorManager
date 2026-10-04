@@ -7,6 +7,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Controllers\AttachmentController;
+use App\Controllers\AudiencePreviewController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\UserController;
@@ -51,7 +52,6 @@ use App\Controllers\FileController;
 use App\Controllers\FileFolderController;
 use App\Controllers\FileTrashController;
 use App\Controllers\FileDetailController;
-use App\Controllers\FileAudienceController;
 use App\Controllers\PublicFileLinkController;
 use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
@@ -219,6 +219,9 @@ return function (App $app) {
                 }
             )->add(new RoleMiddleware(allowVoiceGroupReps: true)); // allow manage_users OR can_manage_own_voice_group
 
+            // Trefferzahl einer Zielgruppen-Zeile; wer sie abfragen darf, prüft der Controller.
+            $group->post('/audience-preview', [AudiencePreviewController::class, 'preview']);
+
             // Here we'll add /attendance, etc.
             $group->get('/events', [EventController::class, 'index']);
             $group->post('/events/calendar-subscription', [EventController::class, 'createSubscription']);
@@ -265,7 +268,6 @@ return function (App $app) {
                     function (RouteCollectorProxy $files) {
                         $files->get('', [FileBrowserController::class, 'index']);
                         $files->get('/search', [FileBrowserController::class, 'search']);
-                        $files->post('/audience-preview', [FileAudienceController::class, 'preview']);
                         $files->get('/folders/{id:[0-9]+}', [FileBrowserController::class, 'folder']);
                         $files->post('/folders/{id:[0-9]+}/upload', [FileController::class, 'upload']);
                         $files->post('/folders/{id:[0-9]+}/folders', [FileFolderController::class, 'create']);

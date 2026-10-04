@@ -14,84 +14,25 @@ function initNewsletterCreate() {
     const titleInput = document.getElementById("title");
     const recipientCountBadge = document.getElementById("recipient-count-badge");
     const recipientCountStatus = document.getElementById("recipient-count-status");
-    const sourceProjectMembersCount = document.getElementById("source-project-members-count");
-    const sourceEventAttendeesCount = document.getElementById("source-event-attendees-count");
-    const sourceRolesCount = document.getElementById("source-roles-count");
-    const sourceUsersCount = document.getElementById("source-users-count");
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
     const isModal = form.getAttribute("data-is-modal") === "1";
-    const sourceBadgeMap = {
-        project_members: sourceProjectMembersCount,
-        event_attendees: sourceEventAttendeesCount,
-        role: sourceRolesCount,
-        user: sourceUsersCount,
-    };
-    const sourceTypes = Object.keys(sourceBadgeMap);
+    const audienceRows = form.querySelector("[data-audience-rows]");
+    const eventSelect = form.querySelector("[data-newsletter-event-ids]");
 
-    function getSourceSelect(type) {
-        return form.querySelector(`select.newsletter-source-select[data-source-type="${type}"]`);
-    }
-
-    function getSelectedReferenceIds(type) {
-        const select = getSourceSelect(type);
-        if (!select) {
-            return [];
-        }
-
-        return Array.from(select.selectedOptions)
-            .map(option => Number(option.value))
-            .filter(referenceId => Number.isInteger(referenceId) && referenceId > 0);
-    }
-
-    function buildRecipientSourcesPayload() {
-        const payload = [];
-        sourceTypes.forEach(type => {
-            getSelectedReferenceIds(type).forEach(referenceId => {
-                payload.push({ type, reference_id: referenceId });
-            });
-        });
-
-        return payload;
-    }
-
-    function refreshSourceSelectionCounts() {
-        sourceTypes.forEach(type => {
-            const badge = sourceBadgeMap[type];
-            if (!badge) {
-                return;
+    /**
+     * Die Empfängerauswahl steht in echten Formularfeldern (Zielgruppen-Zeilen
+     * audience[...] und event_ids[]); für die Vorschau werden genau diese Felder
+     * aus dem Formular gelesen.
+     */
+    function audiencePayload() {
+        const entries = [];
+        new FormData(form).forEach((value, key) => {
+            if (key.startsWith("audience[") || key === "event_ids[]") {
+                entries.push([key, String(value)]);
             }
-
-            badge.textContent = String(getSelectedReferenceIds(type).length);
-        });
-    }
-
-    function syncSourcesHiddenInputs() {
-        let hiddenContainer = document.getElementById("sources-hidden-inputs");
-        if (!hiddenContainer) {
-            hiddenContainer = document.createElement("div");
-            hiddenContainer.id = "sources-hidden-inputs";
-            hiddenContainer.className = "d-none";
-            form.appendChild(hiddenContainer);
-        }
-
-        hiddenContainer.innerHTML = "";
-        const payload = buildRecipientSourcesPayload();
-        payload.forEach((source, index) => {
-            const inputType = document.createElement("input");
-            inputType.type = "hidden";
-            inputType.name = `sources[${index}][type]`;
-            inputType.value = source.type;
-
-            const inputReference = document.createElement("input");
-            inputReference.type = "hidden";
-            inputReference.name = `sources[${index}][reference_id]`;
-            inputReference.value = String(source.reference_id);
-
-            hiddenContainer.appendChild(inputType);
-            hiddenContainer.appendChild(inputReference);
         });
 
-        return payload;
+        return entries;
     }
 
     function debounce(fn, delayMs) {
@@ -113,7 +54,7 @@ function initNewsletterCreate() {
             return;
         }
 
-        const payload = syncSourcesHiddenInputs();
+        const payload = audiencePayload();
         if (payload.length === 0) {
             recipientCountBadge.textContent = "0";
             if (recipientCountStatus) {
@@ -127,10 +68,7 @@ function initNewsletterCreate() {
         }
 
         const requestData = new FormData();
-        payload.forEach((source, index) => {
-            requestData.append(`sources[${index}][type]`, source.type);
-            requestData.append(`sources[${index}][reference_id]`, String(source.reference_id));
-        });
+        payload.forEach(([key, value]) => requestData.append(key, value));
         if (projectSelect && projectSelect.value) {
             requestData.append("project_id", projectSelect.value);
         }
@@ -171,71 +109,18 @@ function initNewsletterCreate() {
 
     const refreshRecipientPreviewDebounced = debounce(refreshRecipientPreview, 300);
 
-    function isSourceOptionTarget(target) {
-        return !!(
-            target
-            && typeof target === "object"
-            && target.classList
-            && typeof target.classList.contains === "function"
-            && target.classList.contains("newsletter-source-select")
-        );
-    }
-
-    // Die versteckten Felder werden bei jeder Auswahl SOFORT nachgezogen. Im Modal baut
-    // newsletters.js das FormData direkt aus dem Formular; liefe der Abgleich nur über die
-    // entprellte Empfängervorschau, ginge eine Auswahl verloren, die kurz vor dem Absenden
-    // getroffen wurde - der Newsletter käme dann ohne Empfängerquellen an.
-    form.addEventListener("change", function (event) {
-        if (!isSourceOptionTarget(event.target)) {
-            return;
-        }
-
-        syncSourcesHiddenInputs();
-        refreshSourceSelectionCounts();
-        refreshRecipientPreviewDebounced();
-    });
-
-    form.addEventListener("input", function (event) {
-        if (!isSourceOptionTarget(event.target)) {
-            return;
-        }
-
-        syncSourcesHiddenInputs();
-        refreshSourceSelectionCounts();
-        refreshRecipientPreviewDebounced();
-    });
-
-    if (projectSelect) {
-        projectSelect.addEventListener("change", function () {
-            refreshSourceSelectionCounts();
-            refreshRecipientPreviewDebounced();
-        });
-    }
-
-    function setSourceSelection(type, referenceIds) {
-        const select = getSourceSelect(type);
-        if (!select) {
-            return;
-        }
-
-        const wanted = referenceIds.map(referenceId => String(referenceId));
-        Array.from(select.options).forEach(option => {
-            option.selected = wanted.indexOf(option.value) !== -1;
-        });
-
-        // TomSelect rendert aus seinem eigenen Zustand; ohne sync bliebe die
-        // sichtbare Auswahl auf dem Stand vor dem Laden der Vorlage.
-        if (select.tomselect) {
-            select.tomselect.setValue(wanted, true);
-        }
+    // Jede Änderung an Zeilen oder Terminen zieht die Gesamtzahl nach.
+    form.addEventListener("audience:change", refreshRecipientPreviewDebounced);
+    if (eventSelect) {
+        eventSelect.addEventListener("change", refreshRecipientPreviewDebounced);
     }
 
     // Eine Vorlage bringt die kompletten Newsletter-Einstellungen mit: Kontext,
-    // Titelvorschlag und Empfängerquellen ersetzen die bisherige Auswahl.
+    // Titelvorschlag und Empfänger ersetzen die bisherige Auswahl.
     //
     // Ersetzt wird nur, was die Vorlage auch festlegt: Eine globale Vorlage (ohne
-    // Projekt) und eine Vorlage ohne Empfängerquellen sagen nichts über den Kontext
-    // bzw. den Verteiler aus - sie würden eine bewusste Auswahl sonst wegräumen.
+    // Projekt) und eine Vorlage ohne Empfänger sagen nichts über den Kontext bzw.
+    // den Verteiler aus - sie würden eine bewusste Auswahl sonst wegräumen.
     function applyTemplateSettings(data) {
         if (titleInput) {
             titleInput.value = data.default_title || data.name || "";
@@ -248,28 +133,29 @@ function initNewsletterCreate() {
             projectSelect.value = templateProjectId;
         }
 
-        const sources = Array.isArray(data.recipient_sources) ? data.recipient_sources : [];
-        if (sources.length === 0) {
-            syncSourcesHiddenInputs();
-            refreshSourceSelectionCounts();
+        const sets = Array.isArray(data.audience) ? data.audience : [];
+        const eventIds = Array.isArray(data.event_ids) ? data.event_ids.map(String) : [];
+        if (sets.length === 0 && eventIds.length === 0) {
             refreshRecipientPreviewDebounced();
             return;
         }
 
-        sourceTypes.forEach(type => {
-            const referenceIds = sources
-                .filter(source => source && source.type === type)
-                .map(source => Number(source.reference_id))
-                .filter(referenceId => Number.isInteger(referenceId) && referenceId > 0);
+        if (audienceRows && window.AudienceFilter) {
+            window.AudienceFilter.setRows(audienceRows, sets);
+        }
+        if (eventSelect) {
+            Array.from(eventSelect.options).forEach(option => {
+                option.selected = eventIds.indexOf(option.value) !== -1;
+            });
+            // TomSelect rendert aus seinem eigenen Zustand; ohne setValue bliebe
+            // die sichtbare Auswahl auf dem Stand vor dem Laden der Vorlage.
+            if (eventSelect.tomselect) {
+                eventSelect.tomselect.setValue(eventIds, true);
+            }
+        }
 
-            setSourceSelection(type, referenceIds);
-        });
-
-        syncSourcesHiddenInputs();
-        refreshSourceSelectionCounts();
         refreshRecipientPreviewDebounced();
     }
-
     if (templateSelect) {
         templateSelect.addEventListener("change", async function () {
             if (!templateSelect.value) {
@@ -302,7 +188,6 @@ function initNewsletterCreate() {
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
 
-            syncSourcesHiddenInputs();
             const formData = new FormData(form);
             const editor = typeof tinymce !== 'undefined' ? tinymce.get("content_html") : null;
             formData.set("content_html", editor ? editor.getContent() : "");
@@ -331,8 +216,6 @@ function initNewsletterCreate() {
         });
     }
 
-    syncSourcesHiddenInputs();
-    refreshSourceSelectionCounts();
     refreshRecipientPreviewDebounced();
 }
 

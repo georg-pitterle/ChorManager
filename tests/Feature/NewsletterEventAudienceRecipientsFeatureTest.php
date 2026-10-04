@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Newsletter;
 use App\Models\NewsletterRecipientSource;
 use App\Models\User;
@@ -34,6 +33,7 @@ use Tests\Unit\Bootstrap;
  */
 final class NewsletterEventAudienceRecipientsFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use EventScopeFixtures;
 
     protected function setUp(): void
@@ -69,11 +69,7 @@ final class NewsletterEventAudienceRecipientsFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => $voiceGroup->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $voiceGroup->id]]);
 
         return $event;
     }

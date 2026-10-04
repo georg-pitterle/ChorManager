@@ -9,11 +9,11 @@ use App\Models\FileFolderShare;
 use App\Models\FilePublicLink;
 use App\Models\FileShare;
 use App\Models\FileVersion;
+use App\Services\Audience\AudienceDescriber;
 use App\Services\Files\FileAccessService;
 use App\Services\Files\FileFavoriteService;
 use App\Services\Files\FileManagementException;
 use App\Services\Files\FileService;
-use App\Services\Files\FileShareDescriber;
 use App\Services\Files\FileShareService;
 use App\Util\AppUrlResolver;
 use Carbon\Carbon;
@@ -38,7 +38,7 @@ final class FileDetailController
         private readonly FileService $files,
         private readonly FileAccessService $access,
         private readonly FileShareService $shares,
-        private readonly FileShareDescriber $describer,
+        private readonly AudienceDescriber $describer,
         private readonly FileFavoriteService $favorites
     ) {
     }
@@ -82,9 +82,7 @@ final class FileDetailController
             'is_favorite' => in_array((int) $file->id, $this->favorites->favoriteIds($actor, 'file'), true),
             'max_upload_bytes' => $this->files->maxUploadBytes(),
             'shares' => $shares,
-            'share_options' => $canManage
-                ? $this->describer->options(self::projectIdsOf($shares), self::selectedIdsOf($shares, 'user'))
-                : null,
+            'share_options' => $canManage ? self::shareOptions($this->describer, $shares) : null,
             'links' => $canManage
                 ? FilePublicLink::query()->where('file_id', $file->id)->orderByDesc('created_at')->get()
                 : [],

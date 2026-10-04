@@ -84,6 +84,27 @@ final class AudienceFilterNormalizer
     }
 
     /**
+     * Mehrere Zeilen eines Formulars. Gleiche Bedingungsmengen werden zu einer
+     * zusammengelegt; eine ungültige Zeile lehnt das ganze Formular ab.
+     *
+     * @param array<int, mixed> $rows
+     * @return list<array<string, list<int>>>
+     */
+    public function normalizeRows(array $rows): array
+    {
+        $bySignature = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $conditions = $this->normalize($row);
+            $bySignature[$this->signature($conditions)] ??= $conditions;
+        }
+
+        return array_values($bySignature);
+    }
+
+    /**
      * Gleiche Bedingungsmengen ergeben dieselbe Signatur, unabhängig von der
      * Reihenfolge.
      *

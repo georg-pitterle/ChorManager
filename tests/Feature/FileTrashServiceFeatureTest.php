@@ -142,7 +142,7 @@ class FileTrashServiceFeatureTest extends TestCase
 
         $this->trash->purgeFolder($manager, (int) $child->id);
 
-        $this->assertNull(\App\Models\AudienceFilter::find($childShare->audience_filter_id));
+        $this->assertSame(0, \App\Models\AudienceFilter::query()->where('file_folder_share_id', $childShare->id)->count());
     }
 
     public function testPurgeRefusesLiveItems(): void

@@ -17,6 +17,7 @@ use App\Queries\ProjectQuery;
 
 class EventRegistrationSettingsFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
 
     public function testEventControllerHandlesRegistrationFields(): void
@@ -80,6 +81,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             'registration_deadline' => $deadline,
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($event);
 
         try {
             // Simulates: registration flag OFF, template renders hidden inputs sourced from
@@ -89,6 +91,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
                 'title' => 'Konzertprobe (umbenannt)',
                 'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
                 'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
+                'audience' => [['all' => '1']],
                 'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
                 'registration_enabled' => '1',
                 'registration_deadline' => $deadline->format('Y-m-d\TH:i'),
@@ -136,12 +139,14 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             'registration_deadline' => $deadline,
             'attendance_required' => true,
         ]);
+        $this->openToEveryone($event);
 
         try {
             $request = $this->makeRequest('POST', '/events/' . $event->id, [
                 'title' => 'Konzertprobe Absicherung (umbenannt)',
                 'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
                 'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
+                'audience' => [['all' => '1']],
                 'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
                 // registration_enabled / registration_deadline / attendance_required intentionally absent
             ]);
@@ -190,6 +195,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             'registration_deadline' => Carbon::now()->subDays(11),
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($past);
 
         $current = Event::create([
             'title' => 'Serie Probe (aktuell)',
@@ -201,6 +207,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             'registration_deadline' => Carbon::now()->addDays(2),
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($current);
 
         $future = Event::create([
             'title' => 'Serie Probe (zukuenftig)',
@@ -212,6 +219,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             'registration_deadline' => Carbon::now()->addDays(9),
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($future);
 
         $pastDeadline = Carbon::parse($past->registration_deadline)->format('Y-m-d H:i');
         $currentDeadline = Carbon::parse($current->registration_deadline)->format('Y-m-d H:i');
@@ -222,6 +230,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
                 'title' => $current->title,
                 'starts_at' => Carbon::parse($current->starts_at)->format('Y-m-d'),
                 'start_time' => Carbon::parse($current->starts_at)->format('H:i'),
+                'audience' => [['all' => '1']],
                 'end_time' => Carbon::parse($current->ends_at)->format('H:i'),
                 'update_series' => '1',
                 'registration_enabled' => '1',

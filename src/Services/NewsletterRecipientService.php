@@ -6,80 +6,136 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\Newsletter;
-use App\Models\NewsletterRecipientSource;
 use App\Models\NewsletterRecipient;
-use App\Models\Project;
-use App\Models\Role;
+use App\Models\NewsletterRecipientSource;
 use App\Models\User;
+use App\Services\Audience\AudienceFilterNormalizer;
+use App\Services\Audience\AudienceFilterService;
+use App\Services\Audience\AudienceFormInput;
+use App\Services\Audience\InvalidAudienceFilterException;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Collection;
 
+/**
+ * Empfänger eines Newsletters: Mitglieder der Zielgruppen-Zeilen ODER der
+ * Zielgruppen der gewählten Termine. Ohne Zeile und ohne Termin gibt es keine
+ * Empfänger; gespeichert werden darf trotzdem, erst der Versand verlangt welche.
+ */
 class NewsletterRecipientService
 {
+    public const OWNER = 'newsletter_id';
+
+    public function __construct(
+        private readonly AudienceFilterService $filters = new AudienceFilterService(),
+        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer()
+    ) {
+    }
+
     /**
-     * Resolve recipients for a newsletter based on configured sources.
+     * Zielgruppe aus dem Formular: Zielgruppen-Zeilen (freiwillig) und Termine,
+     * deren Zielgruppe mit angeschrieben wird. Newsletter und Vorlage teilen
+     * sich diese Prüfung, damit beide dieselbe Auswahl akzeptieren.
      *
+     * @param array<string, mixed> $data
+     * @return array{sets: list<array<string, list<int>>>, event_ids: list<int>}
+     * @throws InvalidAudienceFilterException
+     */
+    public function readAudience(array $data): array
+    {
+        $sets = $this->normalizer->normalizeRows(AudienceFormInput::rows($data['audience'] ?? []));
+
+        $ids = [];
+        foreach (is_array($data['event_ids'] ?? null) ? $data['event_ids'] : [] as $value) {
+            if (is_scalar($value) && ctype_digit((string) $value) && (int) $value > 0) {
+                $ids[] = (int) $value;
+            }
+        }
+        $eventIds = $ids === [] ? [] : Event::query()->whereIn('id', array_values(array_unique($ids)))
+            ->orderBy('id')->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+
+        return ['sets' => $sets, 'event_ids' => $eventIds];
+    }
+
+    /**
+     * Ersetzt Zielgruppen-Zeilen und Termine und löst die Empfänger neu auf.
+     *
+     * @param list<array<string, list<int>>> $sets
+     * @param list<int> $eventIds
+     */
+    public function setAudience(Newsletter $newsletter, array $sets, array $eventIds): void
+    {
+        Capsule::connection()->transaction(function () use ($newsletter, $sets, $eventIds): void {
+            $this->filters->replaceForOwner(self::OWNER, (int) $newsletter->id, $sets);
+            $newsletter->recipientSources()->delete();
+            foreach ($eventIds as $eventId) {
+                $newsletter->recipientSources()->create([
+                    'source_type' => NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
+                    'reference_id' => $eventId,
+                ]);
+            }
+        });
+
+        // Ohne dieses Verwerfen läse resolveRecipients() die vorab geladene und
+        // eben gelöschte Auswahl weiter - der Newsletter ginge an die vorherige
+        // Zielgruppe statt an die gerade gespeicherte.
+        $newsletter->unsetRelation('recipientSources');
+        $newsletter->unsetRelation('audienceFilters');
+
+        $this->setRecipients(
+            $newsletter,
+            $this->resolveRecipients($newsletter)->pluck('id')->map(static fn ($id): int => (int) $id)->all()
+        );
+    }
+
+    /**
+     * @return array{sets: list<array<string, list<int>>>, event_ids: list<int>}
+     */
+    public function audienceOf(Newsletter $newsletter): array
+    {
+        $filters = $newsletter->relationLoaded('audienceFilters')
+            ? $newsletter->audienceFilters
+            : $newsletter->audienceFilters()->with('conditions')->orderBy('id')->get();
+        $sources = $newsletter->relationLoaded('recipientSources')
+            ? $newsletter->recipientSources
+            : $newsletter->recipientSources()->orderBy('id')->get();
+
+        return [
+            'sets' => $filters->map(static fn ($filter): array => $filter->conditionSet())->values()->all(),
+            'event_ids' => $sources->pluck('reference_id')->map(static fn ($id): int => (int) $id)->values()->all(),
+        ];
+    }
+
+    /**
      * @return Collection<int, User>
      */
     public function resolveRecipients(Newsletter $newsletter): Collection
     {
-        $sources = $newsletter->relationLoaded('recipientSources')
-            ? $newsletter->recipientSources
-            : $newsletter->recipientSources()->get();
-        if ($sources->isEmpty()) {
-            return new Collection();
+        $audience = $this->audienceOf($newsletter);
+
+        return $this->resolveFor($audience['sets'], $audience['event_ids']);
+    }
+
+    /**
+     * Aktive Mitglieder der Zielgruppen-Zeilen ODER der Zielgruppen der Termine.
+     *
+     * @param list<array<string, list<int>>> $sets
+     * @param list<int> $eventIds
+     * @return Collection<int, User>
+     */
+    public function resolveFor(array $sets, array $eventIds): Collection
+    {
+        $ids = $this->filters->membersQueryForSets($sets)->pluck('users.id')->all();
+        foreach ($eventIds as $eventId) {
+            $ids = array_merge($ids, $this->getEventAudience($eventId)->pluck('id')->all());
         }
 
-        $userIds = [];
-
-        foreach ($sources as $source) {
-            $referenceId = (int) $source->reference_id;
-            if ($referenceId <= 0) {
-                continue;
-            }
-
-            if ($source->source_type === NewsletterRecipientSource::TYPE_PROJECT_MEMBERS) {
-                $userIds = array_merge($userIds, $this->getProjectMembers($referenceId)->pluck('id')->all());
-                continue;
-            }
-
-            if ($source->source_type === NewsletterRecipientSource::TYPE_EVENT_ATTENDEES) {
-                $userIds = array_merge($userIds, $this->getEventAudience($referenceId)->pluck('id')->all());
-                continue;
-            }
-
-            if ($source->source_type === NewsletterRecipientSource::TYPE_ROLE) {
-                $userIds = array_merge($userIds, $this->getUsersByRole($referenceId)->pluck('id')->all());
-                continue;
-            }
-
-            if ($source->source_type === NewsletterRecipientSource::TYPE_USER) {
-                $userIds = array_merge($userIds, $this->getActiveUser($referenceId)->pluck('id')->all());
-            }
-        }
-
-        $uniqueIds = array_values(array_unique(array_map(static fn($id) => (int) $id, $userIds)));
+        $uniqueIds = array_values(array_unique(array_map(static fn ($id): int => (int) $id, $ids)));
         if ($uniqueIds === []) {
             return new Collection();
         }
 
         return User::query()
             ->whereIn('id', $uniqueIds)
-            ->where('is_active', 1)
-            ->get();
-    }
-
-    /**
-     * Get all active members of a project
-     *
-     * @param int $projectId
-     * @return Collection<int, User>
-     */
-    public function getProjectMembers(int $projectId): Collection
-    {
-        return User::query()
-            ->whereHas('projects', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            })
             ->where('is_active', 1)
             ->get();
     }
@@ -97,8 +153,7 @@ class NewsletterRecipientService
      *
      * Massgeblich ist deshalb dieselbe Zielgruppe, über die auch Einladung und
      * Anwesenheitsliste laufen. `eligibleUsersQuery()` filtert `is_active`
-     * bereits selbst und behandelt einen Termin ohne hinterlegte Quellen als
-     * "alle aktiven Mitglieder".
+     * bereits selbst.
      *
      * @param int $eventId
      * @return Collection<int, User>
@@ -111,36 +166,6 @@ class NewsletterRecipientService
         }
 
         return $event->eligibleUsersQuery()->get();
-    }
-
-    /**
-     * Get all active users assigned to a role.
-     *
-     * @param int $roleId
-     * @return Collection<int, User>
-     */
-    public function getUsersByRole(int $roleId): Collection
-    {
-        return User::query()
-            ->whereHas('roles', function ($query) use ($roleId) {
-                $query->where('role_id', $roleId);
-            })
-            ->where('is_active', 1)
-            ->get();
-    }
-
-    /**
-     * Get one active user by id.
-     *
-     * @param int $userId
-     * @return Collection<int, User>
-     */
-    public function getActiveUser(int $userId): Collection
-    {
-        return User::query()
-            ->where('id', $userId)
-            ->where('is_active', 1)
-            ->get();
     }
 
     /**
@@ -186,135 +211,5 @@ class NewsletterRecipientService
 
         $newsletter->recipient_count = count($uniqueUserIds);
         $newsletter->save();
-    }
-
-    /**
-     * Prüft eine rohe Quellenauswahl gegen die erlaubten Typen und die tatsächlich
-     * vorhandenen Datensätze. Unbekannte Typen, gelöschte Bezüge und Doppelungen
-     * fallen heraus. Newsletter und Vorlage teilen sich diese Prüfung, damit beide
-     * dieselbe Auswahl akzeptieren.
-     *
-     * @param mixed $sources
-     * @return array<int, array{type:string, reference_id:int}>
-     */
-    public function normalizeSources(mixed $sources): array
-    {
-        if (!is_array($sources)) {
-            return [];
-        }
-
-        $allowedTypes = [
-            NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-            NewsletterRecipientSource::TYPE_EVENT_ATTENDEES,
-            NewsletterRecipientSource::TYPE_ROLE,
-            NewsletterRecipientSource::TYPE_USER,
-        ];
-
-        $normalized = [];
-        $seen = [];
-
-        foreach ($sources as $source) {
-            if (!is_array($source)) {
-                continue;
-            }
-
-            $type = trim((string) ($source['type'] ?? ''));
-            $referenceId = (int) ($source['reference_id'] ?? 0);
-
-            if (!in_array($type, $allowedTypes, true) || $referenceId <= 0) {
-                continue;
-            }
-
-            if (!$this->referenceExists($type, $referenceId)) {
-                continue;
-            }
-
-            $dedupeKey = $type . ':' . $referenceId;
-            if (isset($seen[$dedupeKey])) {
-                continue;
-            }
-
-            $seen[$dedupeKey] = true;
-            $normalized[] = [
-                'type' => $type,
-                'reference_id' => $referenceId,
-            ];
-        }
-
-        return $normalized;
-    }
-
-    private function referenceExists(string $type, int $referenceId): bool
-    {
-        if ($type === NewsletterRecipientSource::TYPE_PROJECT_MEMBERS) {
-            return Project::query()->where('id', $referenceId)->exists();
-        }
-
-        if ($type === NewsletterRecipientSource::TYPE_EVENT_ATTENDEES) {
-            return Event::query()->where('id', $referenceId)->exists();
-        }
-
-        if ($type === NewsletterRecipientSource::TYPE_ROLE) {
-            return Role::query()->where('id', $referenceId)->exists();
-        }
-
-        return User::query()->where('id', $referenceId)->where('is_active', 1)->exists();
-    }
-
-    /**
-     * Replace recipient sources and refresh resolved recipients.
-     *
-     * @param Newsletter $newsletter
-     * @param array<int, array{type:string, reference_id:int}> $sources
-     * @return void
-     */
-    public function setSources(Newsletter $newsletter, array $sources): void
-    {
-        $newsletter->recipientSources()->delete();
-
-        foreach ($sources as $source) {
-            $type = (string) ($source['type'] ?? '');
-            $referenceId = (int) ($source['reference_id'] ?? 0);
-            if ($type === '' || $referenceId <= 0) {
-                continue;
-            }
-
-            $newsletter->recipientSources()->create([
-                'source_type' => $type,
-                'reference_id' => $referenceId,
-            ]);
-        }
-
-        // Ohne dieses Verwerfen liest resolveRecipients() die vorab geladene und
-        // eben gelöschte Quellenliste weiter - der Newsletter ginge an die
-        // vorherige Zielgruppe statt an die gerade gespeicherte.
-        $newsletter->unsetRelation('recipientSources');
-
-        $resolved = $this->resolveRecipients($newsletter)
-            ->pluck('id')
-            ->map(static fn($id): int => (int) $id)
-            ->all();
-
-        $this->setRecipients($newsletter, $resolved);
-    }
-
-    /**
-     * Return configured sources in normalized array format.
-     *
-     * @param Newsletter $newsletter
-     * @return array<int, array{type:string, reference_id:int}>
-     */
-    public function getSources(Newsletter $newsletter): array
-    {
-        return $newsletter->recipientSources()
-            ->orderBy('id')
-            ->get()
-            ->map(static function ($source): array {
-                return [
-                    'type' => (string) $source->source_type,
-                    'reference_id' => (int) $source->reference_id,
-                ];
-            })
-            ->all();
     }
 }

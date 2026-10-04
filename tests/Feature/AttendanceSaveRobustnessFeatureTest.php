@@ -29,6 +29,7 @@ use Twig\TwigFunction;
  */
 final class AttendanceSaveRobustnessFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -49,6 +50,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
             'type' => 'Probe',
             'attendance_required' => true,
         ]);
+        $this->openToEveryone($this->event);
 
         $suffix = uniqid();
         $this->members = [];
@@ -305,6 +307,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
             'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($noListEvent);
 
         $response = $this->controller()->save(
             $this->makeRequest('POST', '/attendance/' . $noListEvent->id, [
@@ -341,6 +344,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
             'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($noListEvent);
 
         $this->controller($logger)->save(
             $this->makeRequest('POST', '/attendance/' . $noListEvent->id, [

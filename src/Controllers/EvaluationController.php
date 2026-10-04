@@ -9,7 +9,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Attendance;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
@@ -103,10 +102,22 @@ class EvaluationController
                     $_SESSION['last_project_id'] = $projectId;
                 }
 
-                $totalEvents = $selectedProject->events()
+                $projectEvents = $selectedProject->events()
                     ->where('attendance_required', true)
                     ->where('starts_at', '<=', Carbon::now())
-                    ->count();
+                    ->with('audienceFilters.conditions')
+                    ->get();
+                $totalEvents = $projectEvents->count();
+
+                // Ein Termin "Sopran UND Projekt" gehört zum Projekt, gilt aber nicht für
+                // die Alt-Stimmen darin. Nenner und Zählung laufen deshalb je Mitglied
+                // über die Termine, deren Zielgruppe es trifft.
+                $eventIdsByUser = [];
+                foreach ((new EventAudienceService())->eligibleUserIdsForEvents($projectEvents) as $eventId => $memberIds) {
+                    foreach ($memberIds as $memberId) {
+                        $eventIdsByUser[$memberId][$eventId] = true;
+                    }
+                }
 
                 if ($totalEvents > 0) {
                     // Get all active users, eager load their attendances for this specific project's events
@@ -118,10 +129,7 @@ class EvaluationController
                             $q->whereHas('event', function ($sq) use ($projectId) {
                                 $sq->where('attendance_required', true)
                                     ->where('starts_at', '<=', Carbon::now())
-                                    ->whereHas('audienceSources', function ($asq) use ($projectId) {
-                                        $asq->where('source_type', EventAudienceSource::TYPE_PROJECT_MEMBERS)
-                                            ->where('reference_id', $projectId);
-                                    });
+                                    ->forProject((int) $projectId);
                             });
                         }]);
 
@@ -131,12 +139,16 @@ class EvaluationController
 
                     foreach ($users as $user) {
                         $vgName = $user->voiceGroups->pluck('name')->implode(', ');
+                        $ownEvents = $eventIdsByUser[(int) $user->id] ?? [];
+                        $ownTotal = count($ownEvents);
+                        $attendances = $user->attendances
+                            ->filter(static fn ($attendance): bool => isset($ownEvents[(int) $attendance->event_id]));
 
-                        $present = $user->attendances->where('status', Attendance::STATUS_PRESENT)->count();
-                        $excused = $user->attendances->where('status', Attendance::STATUS_EXCUSED)->count();
-                        $unexcused = $user->attendances->where('status', Attendance::STATUS_UNEXCUSED)->count();
+                        $present = $attendances->where('status', Attendance::STATUS_PRESENT)->count();
+                        $excused = $attendances->where('status', Attendance::STATUS_EXCUSED)->count();
+                        $unexcused = $attendances->where('status', Attendance::STATUS_UNEXCUSED)->count();
                         // Offene Einträge tragen nur eine Notiz und sind keine Erfassung.
-                        $totalRecorded = $user->attendances
+                        $totalRecorded = $attendances
                             ->whereIn('status', Attendance::RECORDED_STATUSES)
                             ->count();
 
@@ -145,7 +157,7 @@ class EvaluationController
                         // Abwesenheit - sie darf die Quote der übrigen aber auch nicht
                         // schönrechnen. Wie viele Termine tatsächlich erfasst wurden, steht
                         // daneben in der Spalte "Erfasst" und macht den Unterschied sichtbar.
-                        $percentage = $totalEvents > 0 ? round(($present / $totalEvents) * 100, 1) : 0;
+                        $percentage = $ownTotal > 0 ? round(($present / $ownTotal) * 100, 1) : 0;
 
                         $stats[] = [
                             'user_id' => (int) $user->id,
@@ -156,6 +168,7 @@ class EvaluationController
                             'excused_count' => $excused,
                             'unexcused_count' => $unexcused,
                             'total_recorded' => $totalRecorded,
+                            'total_events' => $ownTotal,
                             'percentage' => $percentage
                         ];
                     }
@@ -234,9 +247,9 @@ class EvaluationController
         if (!$includePast) {
             $query->where('starts_at', '>', Carbon::now());
         }
-        // audienceSources vorladen: Ohne das holte die Zielgruppen-Auflösung je
+        // audienceFilters.conditions vorladen: Ohne das holte die Zielgruppen-Auflösung je
         // Termin eine eigene Abfrage, noch vor allem Weiteren.
-        $events = $query->with('audienceSources')->get();
+        $events = $query->with('audienceFilters.conditions')->get();
 
         $voiceGroupNames = VoiceGroup::orderBy('id')->pluck('name')->all();
         $voiceGroupNames[] = 'Ohne Stimmgruppe';

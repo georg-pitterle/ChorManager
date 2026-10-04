@@ -285,7 +285,7 @@
              aria-labelledby="addEventModalLabel"
              aria-hidden="true">
             <div class="modal-dialog">
-                <form action="/events" method="post" class="modal-content event-audience-form">
+                <form action="/events" method="post" class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="addEventModalLabel">Neuen Termin anlegen</h5>
                         <button type="button"
@@ -359,7 +359,14 @@
                                    value="{{ create_form.form.location|default('') }}">
                         </div>
 
-                        {% include "events/_audience_sources.twig" with {"audience_sources": []} %}
+                        <div class="mb-3">
+                            <label class="form-label">Zielgruppe</label>
+                            {{ include("partials/audience/filter_rows.twig", {
+                                prefix: "audience",
+                                rows: audience_rows,
+                                options: audience_options,
+                            }) }}
+                        </div>
 
 {% set _notify_default_checked = create_form.form.notify_members is not defined %}
                         {# Das versteckte Feld sagt dem Server, dass dieses Formular
@@ -511,7 +518,7 @@
     <script src="/js/events.js"></script>
     <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
     <script src="/js/tom-select-init.js"></script>
-    <script src="/js/events-audience.js"></script>
+    <script src="/js/audience-filter.js"></script>
     {% if view_mode == 'calendar' %}
         <script src="/vendor/temporal-polyfill/global.js"></script>
         <script src="/vendor/fullcalendar/fullcalendar.global.js"></script>

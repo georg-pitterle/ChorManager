@@ -1,0 +1,90 @@
+{# Eine Zielgruppen-Zeile. Mehrere Werte in einem Feld genügen einzeln,
+   mehrere Felder müssen alle zutreffen.
+   Parameter: prefix (Feldname, z. B. "audience" oder "shares"), index,
+   row (Eintrag aus AudienceDescriber::describeSets bzw. ::label oder null),
+   options (AudienceDescriber::options), level_labels (optional, nur Freigaben). #}
+{% set _conditions = row.conditions|default({}) %}
+{% set _all = row.all|default(false) %}
+{% set _missing = row.missing|default({}) %}
+{% set _summary = row.label|default("Neue Zielgruppe") %}
+{% set _level = row.level|default(1) %}
+{% set _id = "audience-" ~ prefix ~ "-" ~ index %}
+<div class="audience-row card mb-2" data-audience-row>
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button type="button"
+                    class="btn btn-link p-0 text-start flex-grow-1 audience-summary"
+                    data-audience-toggle
+                    aria-expanded="{{ row ? "false" : "true" }}">
+                <i class="bi bi-people me-1" aria-hidden="true"></i><span data-audience-summary-text>{{ _summary }}</span>
+            </button>
+            <span class="small text-muted" data-audience-count></span>
+            {% if level_labels|default(null) %}
+                <select class="form-select form-select-sm w-auto" name="{{ prefix }}[{{ index }}][level]" aria-label="Stufe">
+                    {% for value, label in level_labels %}
+                        <option value="{{ value }}" {{ _level == value ? "selected" : "" }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
+            <button type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    data-audience-remove
+                    aria-label="Zielgruppe entfernen">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="audience-editor mt-2" data-audience-editor {{ row ? "hidden" : "" }}>
+            <div class="form-check mb-2">
+                <input class="form-check-input"
+                       type="checkbox"
+                       value="1"
+                       id="{{ _id }}-all"
+                       name="{{ prefix }}[{{ index }}][all]"
+                       data-audience-all
+                       {{ _all ? "checked" : "" }}>
+                <label class="form-check-label" for="{{ _id }}-all">Alle Mitglieder</label>
+            </div>
+            <div class="row g-2">
+                {{ include("partials/audience/condition_select.twig", {
+                    category: "role",
+                    label: "Rolle",
+                    items: options.roles,
+                    selected: _conditions.role|default([]),
+                    missing: _missing.role|default([]),
+                }) }}
+                {{ include("partials/audience/condition_select.twig", {
+                    category: "voice_group",
+                    label: "Stimmgruppe",
+                    items: options.voice_groups,
+                    selected: _conditions.voice_group|default([]),
+                    missing: _missing.voice_group|default([]),
+                }) }}
+                {{ include("partials/audience/condition_select.twig", {
+                    category: "sub_voice",
+                    label: "Untergruppe",
+                    grouped: options.sub_voices,
+                    selected: _conditions.sub_voice|default([]),
+                    missing: _missing.sub_voice|default([]),
+                }) }}
+                {{ include("partials/audience/condition_select.twig", {
+                    category: "project",
+                    label: "Projekt",
+                    items: options.projects,
+                    selected: _conditions.project|default([]),
+                    missing: _missing.project|default([]),
+                }) }}
+                {{ include("partials/audience/condition_select.twig", {
+                    category: "user",
+                    label: "Mitglied",
+                    items: options.users,
+                    person: true,
+                    selected: _conditions.user|default([]),
+                    missing: _missing.user|default([]),
+                }) }}
+            </div>
+            <p class="form-text mb-0">
+                Mehrere Werte in einem Feld: eines davon genügt. Mehrere Felder: alle müssen zutreffen.
+            </p>
+        </div>
+    </div>
+</div>

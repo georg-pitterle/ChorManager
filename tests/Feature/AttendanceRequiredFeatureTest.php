@@ -8,7 +8,6 @@ use App\Controllers\AttendanceController;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -36,6 +35,7 @@ use Twig\TwigFunction;
  */
 class AttendanceRequiredFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -100,8 +100,9 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($event);
 
-        $_SESSION['user_id'] = 1;
+        $_SESSION['user_id'] = $this->sessionMemberId();
         $_SESSION['can_manage_users'] = true;
 
         $controller = new AttendanceController(
@@ -135,6 +136,7 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Probe',
             'attendance_required' => true,
         ]);
+        $this->openToEveryone($requiredEvent);
 
         $notRequiredEvent = Event::create([
             'title' => 'Fest ohne Anwesenheitspflicht Task9',
@@ -143,8 +145,9 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($notRequiredEvent);
 
-        $_SESSION['user_id'] = 1;
+        $_SESSION['user_id'] = $this->sessionMemberId();
         $_SESSION['can_manage_users'] = true;
 
         $controller = new AttendanceController(
@@ -208,11 +211,7 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Probe',
             'attendance_required' => true,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => (int) $inGroup->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $inGroup->id]]);
 
         return ['event' => $event, 'inScope' => $inScope, 'outScope' => $outScope, 'voiceGroup' => $inGroup];
     }
@@ -337,11 +336,7 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Probe',
             'attendance_required' => true,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $requiredEvent->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $requiredEvent->id, ['project' => [(int) $project->id]]);
 
         $notRequiredEvent = Event::create([
             'title' => 'Projektfest ohne Anwesenheitspflicht Task9',
@@ -350,11 +345,7 @@ class AttendanceRequiredFeatureTest extends TestCase
             'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $notRequiredEvent->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $notRequiredEvent->id, ['project' => [(int) $project->id]]);
 
         Attendance::create([
             'event_id' => $requiredEvent->id,
@@ -413,6 +404,21 @@ class AttendanceRequiredFeatureTest extends TestCase
         preg_match($pattern, $body, $matches);
 
         return [(int) $matches[1], (float) $matches[2]];
+    }
+
+    /**
+     * Angemeldetes Mitglied, das es wirklich gibt: Die Zielgruppe "Alle
+     * Mitglieder" trifft nur vorhandene, aktive Personen.
+     */
+    private function sessionMemberId(): int
+    {
+        return (int) User::create([
+            'first_name' => 'Sitzung',
+            'last_name' => 'Task9 ' . bin2hex(random_bytes(3)),
+            'email' => 'task9-session-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => \App\Util\PasswordHasher::hash('irrelevant'),
+            'is_active' => 1,
+        ])->id;
     }
 
     private function createTwig(): Twig

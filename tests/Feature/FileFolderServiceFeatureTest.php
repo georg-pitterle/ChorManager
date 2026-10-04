@@ -230,7 +230,7 @@ class FileFolderServiceFeatureTest extends TestCase
             ['level' => Share::LEVEL_MANAGE, 'conditions' => ['user' => [(int) $manager->id]]],
         ]);
 
-        $this->assertNull(\App\Models\AudienceFilter::find($old->audience_filter_id));
+        $this->assertSame(0, \App\Models\AudienceFilter::query()->where('file_folder_share_id', $old->id)->count());
     }
 
     public function testManagerCannotLockThemselvesOutWithAFilter(): void

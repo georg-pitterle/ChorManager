@@ -130,13 +130,13 @@ trait FileFixtures
      */
     protected function shareWith(FileFolder $folder, array $conditions, int $level): FileFolderShare
     {
-        $filter = (new AudienceFilterService())->create($conditions);
-
-        return FileFolderShare::create([
+        $share = FileFolderShare::create([
             'folder_id' => $folder->id,
-            'audience_filter_id' => (int) $filter->id,
             'level' => $level,
         ]);
+        (new AudienceFilterService())->create($conditions, 'file_folder_share_id', (int) $share->id);
+
+        return $share;
     }
 
     /**
@@ -144,13 +144,13 @@ trait FileFixtures
      */
     protected function shareFileWith(StoredFile $file, array $conditions, int $level): FileShare
     {
-        $filter = (new AudienceFilterService())->create($conditions);
-
-        return FileShare::create([
+        $share = FileShare::create([
             'file_id' => $file->id,
-            'audience_filter_id' => (int) $filter->id,
             'level' => $level,
         ]);
+        (new AudienceFilterService())->create($conditions, 'file_share_id', (int) $share->id);
+
+        return $share;
     }
 
     /**

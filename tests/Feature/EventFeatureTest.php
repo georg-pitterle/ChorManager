@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Comment;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
@@ -28,6 +27,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class EventFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -107,6 +107,30 @@ class EventFeatureTest extends TestCase
 
         $this->assertStringContainsString('Recent Event', $body);
         $this->assertStringNotContainsString('Old Event', $body);
+    }
+
+    public function testListNamesTheAudienceOfEachEvent(): void
+    {
+        $project = Project::create(['name' => 'Listenprojekt ' . bin2hex(random_bytes(3))]);
+        $soprano = \App\Models\VoiceGroup::create(['name' => 'Listensopran ' . bin2hex(random_bytes(3))]);
+        $this->sessionUser->voiceGroups()->attach($soprano->id);
+        $this->sessionUser->projects()->attach($project->id);
+        $event = Event::create([
+            'title' => 'Kombinierte Probe',
+            'starts_at' => Carbon::now()->addDays(2)->format('Y-m-d') . ' 19:00:00',
+            'ends_at' => Carbon::now()->addDays(2)->format('Y-m-d') . ' 21:00:00',
+            'type' => 'Probe',
+        ]);
+        $this->giveAudience('event_id', (int) $event->id, [
+            'voice_group' => [(int) $soprano->id],
+            'project' => [(int) $project->id],
+        ]);
+        $this->createEvent('Offene Probe', '+3 days');
+
+        $body = $this->renderEventsIndex(['view' => 'list']);
+
+        $this->assertStringContainsString('Stimmgruppe: ' . $soprano->name . ' · Projekt: ' . $project->name, $body);
+        $this->assertStringContainsString('Alle Mitglieder', $body);
     }
 
     public function testOldEventsShownWhenParameterActive(): void
@@ -201,6 +225,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
             'location' => null,
         ]);
+        $this->openToEveryone($oldEvent);
 
         $controller = new EventController(
             $this->createTwig(),
@@ -241,11 +266,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
             'location' => null,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $oldEventInProject->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $oldEventInProject->id, ['project' => [(int) $project->id]]);
 
         $oldEventOtherProject = Event::create([
             'title' => 'Old Event Other Project',
@@ -255,6 +276,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
             'location' => null,
         ]);
+        $this->openToEveryone($oldEventOtherProject);
 
         $controller = new EventController(
             $this->createTwig(),
@@ -341,6 +363,7 @@ class EventFeatureTest extends TestCase
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Missing Time',
             'starts_at' => '2026-05-01',
+            'audience' => [['all' => '1']],
             // start_time and end_time intentionally omitted
         ]);
         $response = $this->makeResponse();
@@ -363,6 +386,7 @@ class EventFeatureTest extends TestCase
             'title' => 'Bad Times',
             'starts_at' => '2026-05-01',
             'start_time' => '21:00',
+            'audience' => [['all' => '1']],
             'end_time'   => '19:00',
         ]);
         $response = $this->makeResponse();
@@ -384,6 +408,7 @@ class EventFeatureTest extends TestCase
             'title' => 'Probe Dienstag',
             'starts_at' => '2026-06-10',
             'start_time' => '21:00',
+            'audience' => [['all' => '1']],
             'end_time' => '19:00',
             'location' => 'Gemeindehaus',
             'repeat' => '1',
@@ -423,6 +448,7 @@ class EventFeatureTest extends TestCase
             'title' => 'Probe Montag',
             'starts_at' => '2026-05-01',
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time'   => '21:00',
         ]);
         $response = $this->makeResponse();
@@ -442,6 +468,7 @@ class EventFeatureTest extends TestCase
             'ends_at'   => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $controller = new EventController(
             $this->createTwig(),
@@ -453,6 +480,7 @@ class EventFeatureTest extends TestCase
             'title' => 'New Probe',
             'starts_at' => '2026-05-08',
             'start_time' => '18:00',
+            'audience' => [['all' => '1']],
             'end_time'   => '20:00',
         ]);
         $response = $this->makeResponse();
@@ -472,6 +500,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
             'location' => 'Saal',
         ]);
+        $this->openToEveryone($event);
 
         $controller = new EventController(
             $this->createTwig(),
@@ -483,6 +512,7 @@ class EventFeatureTest extends TestCase
             'title' => 'Neue Probe',
             'starts_at' => '2026-06-10',
             'start_time' => '20:30',
+            'audience' => [['all' => '1']],
             'end_time' => '19:00',
             'location' => 'Aula',
             'update_series' => '1',
@@ -524,6 +554,7 @@ class EventFeatureTest extends TestCase
             'series_id' => $series->id,
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event1);
         $event2 = Event::create([
             'title' => 'Probe',
             'starts_at' => '2026-05-12 19:00:00',
@@ -531,6 +562,7 @@ class EventFeatureTest extends TestCase
             'series_id' => $series->id,
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event2);
         $event3 = Event::create([
             'title' => 'Probe',
             'starts_at' => '2026-05-19 19:00:00',
@@ -538,6 +570,7 @@ class EventFeatureTest extends TestCase
             'series_id' => $series->id,
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event3);
 
         $controller = new EventController(
             $this->createTwig(),
@@ -549,6 +582,7 @@ class EventFeatureTest extends TestCase
             'title' => 'Probe',
             'starts_at' => '2026-05-05',
             'start_time' => '18:30',
+            'audience' => [['all' => '1']],
             'end_time'   => '20:30',
             'update_series' => '1',
         ]);
@@ -594,6 +628,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $creator = $this->createUser('creator');
         $otherUser = $this->createUser('other');
@@ -664,6 +699,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $author = $this->createUser('relation-author');
         Comment::create([
@@ -694,6 +730,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         // Terminverwaltung haengt am Einzelrecht, nicht an der Mitgliederverwaltung.
         $_SESSION['can_manage_users'] = false;
@@ -714,6 +751,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
@@ -736,6 +774,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
@@ -805,6 +844,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
@@ -825,6 +865,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Probe',
             'attendance_required' => true,
         ]);
+        $this->openToEveryone($event);
 
         $_SESSION['can_manage_own_voice_group'] = true;
 
@@ -844,6 +885,7 @@ class EventFeatureTest extends TestCase
             'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($event);
 
         $_SESSION['can_manage_users'] = true;
 
@@ -861,6 +903,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $user = $this->createUser('note-author');
         $_SESSION['user_id'] = (int) $user->id;
@@ -906,6 +949,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $note = Comment::create([
             'entity_type' => 'event',
@@ -960,6 +1004,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $note = Comment::create([
             'entity_type' => 'event',
@@ -1017,6 +1062,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $note = Comment::create([
             'entity_type' => 'event',
@@ -1068,6 +1114,7 @@ class EventFeatureTest extends TestCase
             'ends_at' => '2026-05-01 21:00:00',
             'type' => 'Probe',
         ]);
+        $this->openToEveryone($event);
 
         $note = Comment::create([
             'entity_type' => 'event',
@@ -1148,11 +1195,9 @@ class EventFeatureTest extends TestCase
         ]);
 
         if ($projectId !== null) {
-            EventAudienceSource::create([
-                'event_id' => $event->id,
-                'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-                'reference_id' => (int) $projectId,
-            ]);
+            $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $projectId]]);
+        } else {
+            $this->openToEveryone($event);
         }
 
         return $event;

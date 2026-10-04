@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\AudienceFilterCondition as C;
+use App\Models\Event;
 use App\Models\SubVoice;
 use App\Services\Audience\AudienceFilterService;
 use PHPUnit\Framework\TestCase;
@@ -36,11 +37,22 @@ class AudienceFilterServiceFeatureTest extends TestCase
      */
     private function filterMatches(int $userId, array $conditions): bool
     {
-        $filter = $this->filters->create($conditions);
+        $filter = $this->filters->create($conditions, 'event_id', $this->ownerEventId());
         $profile = $this->filters->profileOf($userId);
         $this->assertNotNull($profile);
 
         return $this->filters->matchingFilterIds($profile, [(int) $filter->id]) === [(int) $filter->id];
+    }
+
+    /** Ein Filter braucht einen Besitzer; ein Termin ist der einfachste. */
+    private function ownerEventId(): int
+    {
+        return (int) Event::create([
+            'title' => 'Besitzer',
+            'starts_at' => '2030-01-01 19:00:00',
+            'ends_at' => '2030-01-01 21:00:00',
+            'type' => 'Probe',
+        ])->id;
     }
 
     public function testEmptyFilterMatchesEveryone(): void
@@ -116,17 +128,17 @@ class AudienceFilterServiceFeatureTest extends TestCase
         $inactive->is_active = 0;
         $inactive->save();
 
-        $filter = $this->filters->create([C::CATEGORY_ROLE => [(int) $role->id]]);
-        $ids = $this->filters->membersQuery((int) $filter->id)->pluck('users.id')
+        $ids = $this->filters->membersQueryForSets([[C::CATEGORY_ROLE => [(int) $role->id]]])->pluck('users.id')
             ->map(fn ($id): int => (int) $id)->all();
 
         $this->assertSame([(int) $active->id], $ids);
     }
 
-    public function testConditionsOfAndDelete(): void
+    public function testConditionsOfAndDeletingTheOwner(): void
     {
-        $filter = $this->filters->create([C::CATEGORY_PROJECT => [7, 3], C::CATEGORY_ROLE => [2]]);
-        $empty = $this->filters->create([]);
+        $owner = $this->ownerEventId();
+        $filter = $this->filters->create([C::CATEGORY_PROJECT => [7, 3], C::CATEGORY_ROLE => [2]], 'event_id', $owner);
+        $empty = $this->filters->create([], 'event_id', $this->ownerEventId());
         $ids = [(int) $filter->id, (int) $empty->id];
 
         $this->assertSame(
@@ -134,7 +146,7 @@ class AudienceFilterServiceFeatureTest extends TestCase
             $this->filters->conditionsOf($ids)
         );
 
-        $this->filters->delete([(int) $filter->id]);
+        Event::query()->whereKey($owner)->delete();
         $this->assertSame([(int) $empty->id => []], $this->filters->conditionsOf($ids));
     }
 }

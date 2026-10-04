@@ -169,19 +169,16 @@ final class FileFolderService
         $shares = $this->normalizeShares($rawShares, array_keys(FileFolderShare::LEVEL_LABELS));
 
         DB::connection()->transaction(function () use ($actor, $folder, $shares): void {
-            $old = FileFolderShare::query()->where('folder_id', $folder->id)->pluck('audience_filter_id')
-                ->map(fn ($id): int => (int) $id)->all();
+            // Die Filter der alten Freigaben räumt der Fremdschlüssel mit ab.
             FileFolderShare::query()->where('folder_id', $folder->id)->delete();
-            $this->filters->delete($old);
 
             foreach ($shares as $share) {
-                $filter = $this->filters->create($share['conditions']);
-                FileFolderShare::create([
+                $row = FileFolderShare::create([
                     'folder_id' => (int) $folder->id,
-                    'audience_filter_id' => (int) $filter->id,
                     'level' => $share['level'],
                     'created_by' => $actor->userId,
                 ]);
+                $this->filters->create($share['conditions'], 'file_folder_share_id', (int) $row->id);
             }
 
             // Wer hier verwaltet, soll sich nicht versehentlich selbst aussperren -

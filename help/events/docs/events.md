@@ -29,6 +29,8 @@ Ein Klick auf einen Termin im Kalender öffnet dessen Detailseite. Mit dem Recht
 Zusätzlich kannst du festlegen:
 
 - **Zielgruppe**: Ohne Auswahl gilt der Termin für alle aktiven Mitglieder. Du kannst ihn stattdessen auf bestimmte Projektmitglieder, Rollen, Stimmgruppen oder einzelne Personen einschränken. Diese Zielgruppe bestimmt, wer in der Anwesenheitsliste, bei der Anmeldung und im persönlichen Kalenderabo erscheint.
+
+> **Hinweis:** Die Auswahl der Zielgruppe hat sich geändert. Eine Zielgruppe besteht jetzt aus Zeilen mit den Feldern Rolle, Stimmgruppe, Untergruppe, Projekt und Mitglied: Mehrere Werte in einem Feld genügen einzeln, mehrere Felder müssen alle zutreffen (z. B. „Stimmgruppe Sopran“ **und** „Projekt Frühjahrskonzert“), mehrere Zeilen gelten nebeneinander. Für alle Mitglieder gilt ein Termin nur noch mit dem Häkchen „Alle Mitglieder“; ein neuer Termin startet damit. Diese Seite wird noch überarbeitet.
 - **Anwesenheitsliste führen**: Aktiviert die Anwesenheitserfassung für diesen Termin (siehe [Anwesenheit erfassen](events-attendance)).
 - **Anmeldung freischalten** (wenn das Anmeldungsmodul aktiv ist): Mitglieder können zu-/absagen (siehe [Anmeldungen](events-registrations)). Der Anmeldeschluss ist frei wählbar, sonst gilt der Terminbeginn.
 - **Termin wiederholen**: Legt eine Serie an – Intervall (täglich/wöchentlich/monatlich/jährlich), bei wöchentlicher Wiederholung zusätzlich die Wochentage, sowie ein Enddatum der Serie.

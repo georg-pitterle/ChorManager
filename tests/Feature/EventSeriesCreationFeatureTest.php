@@ -73,6 +73,7 @@ final class EventSeriesCreationFeatureTest extends TestCase
         $body = array_merge([
             'title' => 'Serientest ' . bin2hex(random_bytes(3)),
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time' => '21:00',
             'repeat' => '1',
             'frequency' => 'weekly',
@@ -143,6 +144,7 @@ final class EventSeriesCreationFeatureTest extends TestCase
                 'title' => 'Monatstermin',
                 'starts_at' => '2026-01-15',
                 'start_time' => '19:00',
+                'audience' => [['all' => '1']],
                 'end_time' => '21:00',
                 'repeat' => '1',
                 'frequency' => 'monthly',

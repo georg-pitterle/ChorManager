@@ -8,7 +8,6 @@ use App\Controllers\NewsletterTemplateController;
 use App\Models\Newsletter;
 use App\Models\NewsletterRecipientSource;
 use App\Models\NewsletterTemplate;
-use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -30,6 +29,7 @@ use Twig\TwigFunction;
  */
 final class NewsletterSentDetailsFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use NewsletterControllerTestScaffold;
 
     public function testDetailsShowSettingsOfSentNewsletter(): void
@@ -43,11 +43,7 @@ final class NewsletterSentDetailsFeatureTest extends TestCase
         $newsletter->project_id = $project->id;
         $newsletter->save();
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_ROLE,
-            'reference_id' => $role->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['role' => [(int) $role->id]], 'newsletter_id', (int) $newsletter->id);
 
         $_SESSION['user_id'] = (int) $manager->id;
         $_SESSION['can_manage_newsletters'] = true;
@@ -139,13 +135,10 @@ final class NewsletterSentDetailsFeatureTest extends TestCase
         $template = NewsletterTemplate::query()->where('name', 'Aus Versand')->firstOrFail();
         $this->assertSame('Probenplan', $template->default_title);
 
-        $sources = $template->recipientSources()
-            ->get()
-            ->map(static fn (NewsletterTemplateRecipientSource $s): string => $s->source_type . ':' . $s->reference_id)
-            ->all();
+        $sources = $this->templateAudienceKeys($template);
 
         $this->assertSame(
-            [NewsletterTemplateRecipientSource::TYPE_USER . ':' . $recipient->id],
+            ['user:' . $recipient->id],
             $sources
         );
     }

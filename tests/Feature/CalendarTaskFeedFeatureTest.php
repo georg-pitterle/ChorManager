@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\TaskController;
 use App\Models\AppSetting;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -35,6 +34,7 @@ use Tests\Unit\Bootstrap;
  */
 final class CalendarTaskFeedFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
 
     private const BASE_URL = 'https://chor.example';
@@ -351,9 +351,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        (new EventAudienceService())->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $audienceUser->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $audienceUser->id]]);
 
         return $event->fresh();
     }

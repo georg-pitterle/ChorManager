@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Models\AppSetting;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\MailQueue;
 use App\Models\Project;
@@ -23,6 +22,7 @@ use Tests\Unit\Bootstrap;
 
 class RegistrationReminderServiceFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     private Event $event;
     private User $attendee;
 
@@ -43,6 +43,7 @@ class RegistrationReminderServiceFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => true,
         ]);
+        $this->openToEveryone($this->event);
 
         // Mindestens eine aktive, unregistrierte Person, damit processDue() in
         // jedem Testfall tatsächlich jemanden anzuschreiben hat - sonst würden
@@ -187,11 +188,7 @@ class RegistrationReminderServiceFeatureTest extends TestCase
 
         // Die Bindung an das Projekt läuft allein über die Zielgruppen-Quelle unten.
         // `events.project_id` ist mit 20260722130000 entfallen.
-        EventAudienceSource::create([
-            'event_id' => $this->event->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        (new \App\Services\EventAudienceService())->setAudience($this->event, [['project' => [(int) $project->id]]]);
 
         $this->service()->processDue('https://chor.example');
 

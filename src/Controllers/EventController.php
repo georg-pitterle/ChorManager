@@ -10,17 +10,17 @@ use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
-use App\Exceptions\InvalidAudienceSourcesException;
+use App\Models\AudienceFilterCondition;
 use App\Models\Comment;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventSeries;
 use App\Models\EventType;
 use App\Models\Project;
-use App\Models\Role;
 use App\Models\User;
-use App\Models\VoiceGroup;
 use App\Queries\ProjectQuery;
+use App\Services\Audience\AudienceDescriber;
+use App\Services\Audience\AudienceFormInput;
+use App\Services\Audience\InvalidAudienceFilterException;
 use App\Services\CalendarSubscriptionService;
 use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
@@ -360,10 +360,7 @@ class EventController
         }
 
         if ($projectId) {
-            $query->whereHas('audienceSources', function ($sourceQuery) use ($projectId) {
-                $sourceQuery->where('source_type', 'project_members')
-                    ->where('reference_id', $projectId);
-            });
+            $query->forProject((int) $projectId);
         }
         if ($eventTypeId) {
             $query->where('event_type_id', $eventTypeId);
@@ -399,14 +396,12 @@ class EventController
         $eventTypesMap = EventType::whereIn('id', $eventTypeIds)->get()->keyBy('id');
         $seriesMap = EventSeries::whereIn('id', $seriesIds)->get()->keyBy('id');
 
-        $scopedEventIds = EventAudienceSource::query()
-            ->whereIn('event_id', $events->pluck('id')->map(static fn($id) => (int) $id)->all())
-            ->pluck('event_id')
-            ->map(static fn($id) => (int) $id)
-            ->unique()
-            ->flip();
+        // Die Spalte "Zielgruppe" fasst jede Zeile zusammen; vorladen, sonst fragt
+        // jeder Termin seine Filter einzeln ab.
+        $events->load('audienceFilters.conditions');
+        $audienceDescriber = new AudienceDescriber($this->nameFormatter);
 
-        $events->map(function ($event) use ($eventTypesMap, $seriesMap, $scopedEventIds) {
+        $events->map(function ($event) use ($eventTypesMap, $seriesMap, $audienceDescriber) {
             $eventType = !is_null($event->event_type_id) ? $eventTypesMap->get($event->event_type_id) : null;
             $series = !is_null($event->series_id) ? $seriesMap->get($event->series_id) : null;
 
@@ -416,7 +411,7 @@ class EventController
             // For template compatibility
             $event->type_name = $eventType ? $eventType->name : $event->type;
             $event->type_color = $eventType ? $eventType->color : 'info';
-            $event->audience_label = $scopedEventIds->has((int) $event->id) ? 'Ausgewählt' : 'Alle';
+            $event->audience_label = $audienceDescriber->summarizeSets($event->audienceConditionSets());
 
             return $event;
         });
@@ -452,18 +447,15 @@ class EventController
 
         $projects = $accessibleProjects;
         $eventTypes = EventType::orderBy('name')->get();
-        $roles = Role::query()->orderBy('name')->get();
-        $voiceGroups = VoiceGroup::query()->orderBy('id')->get();
-        $audienceUsersQuery = User::query()->where('is_active', 1);
-        $this->nameFormatter->applyNameOrder($audienceUsersQuery);
-        $audienceUsers = $audienceUsersQuery->get();
-
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
         $createService = new ModalFormService('event_create');
         $createState = $createService->getState();
         $createService->clear();
+        // Ein neuer Termin startet mit einer Zeile "Alle Mitglieder"; nach einem
+        // Fehler stehen die eingegebenen Zeilen wieder da.
+        $createAudience = $this->audienceView($createState['form']['audience'] ?? null, [[]]);
 
         $calendarSubscription = $this->calendarSubscriptionState($request, $userId);
 
@@ -484,9 +476,8 @@ class EventController
             'view_mode' => $viewMode,
             'calendar_events' => $calendarEventsJson,
             'calendar_subscription' => $calendarSubscription,
-            'roles' => $roles,
-            'voice_groups' => $voiceGroups,
-            'audience_users' => $audienceUsers,
+            'audience_rows' => $createAudience['rows'],
+            'audience_options' => $createAudience['options'],
         ]);
     }
 
@@ -674,29 +665,55 @@ class EventController
     }
 
     /**
-     * Extract audience sources from a submitted event form. Prefers the
-     * JSON payload built client-side, falling back to a plain sources array.
+     * Zeilen und Auswahllisten für das Zielgruppen-Formular. Nach einem Fehler
+     * kommen die eingegebenen Zeilen ungeprüft zurück, sonst die gespeicherten.
      *
-     * @param array<string, mixed> $data
-     * @return array<int, array{type:string, reference_id:int}>
+     * @param mixed $submittedRows Zeilen aus ModalFormService oder null
+     * @param list<array<string, list<int>>> $storedSets
+     * @return array{rows: list<array<string, mixed>>, options: array<string, mixed>}
      */
-    private function readAudienceSources(array $data): array
+    private function audienceView(mixed $submittedRows, array $storedSets): array
     {
-        $sourcesJson = trim(InputValidator::asString($data['sources_json'] ?? null));
-        if ($sourcesJson !== '') {
-            $decoded = json_decode($sourcesJson, true);
-            if (is_array($decoded)) {
-                return $decoded;
+        $describer = new AudienceDescriber($this->nameFormatter);
+        $rows = is_array($submittedRows)
+            ? $this->rowsForRedisplay(AudienceFormInput::rows($submittedRows), $describer)
+            : $describer->describeSets($storedSets);
+        $sets = array_map(static fn (array $row): array => $row['conditions'], $rows);
+
+        return [
+            'rows' => $rows,
+            'options' => $describer->options(
+                AudienceDescriber::selectedIds($sets, 'project'),
+                AudienceDescriber::selectedIds($sets, 'user')
+            ),
+        ];
+    }
+
+    /**
+     * Formularzeilen nach einem Fehler wieder anzeigen, ohne sie zu prüfen.
+     *
+     * @param list<array{level: int, all: bool, conditions: array<string, list<string>>}> $rows
+     * @return list<array<string, mixed>>
+     */
+    private function rowsForRedisplay(array $rows, AudienceDescriber $describer): array
+    {
+        return array_map(static function (array $row) use ($describer): array {
+            $conditions = [];
+            foreach ($row['conditions'] as $category => $ids) {
+                $ids = array_values(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0));
+                if ($ids !== [] && in_array($category, AudienceFilterCondition::CATEGORIES, true)) {
+                    $conditions[$category] = $ids;
+                }
             }
+            $label = $conditions === [] ? 'Neue Zielgruppe' : $describer->summarize($conditions);
 
-            return [];
-        }
-
-        if (isset($data['sources']) && is_array($data['sources'])) {
-            return $data['sources'];
-        }
-
-        return [];
+            return [
+                'label' => $row['all'] ? 'Alle Mitglieder' : $label,
+                'conditions' => $conditions,
+                'all' => $row['all'],
+                'missing' => [],
+            ];
+        }, $rows);
     }
 
     public function addNote(Request $request, Response $response, array $args): Response
@@ -890,15 +907,12 @@ class EventController
         ];
 
         $audienceService = new EventAudienceService();
-        $rawSources = $this->readAudienceSources($data);
-        $sources = $audienceService->normalizeSources($rawSources);
-
-        // Ein Termin ohne Quellen gilt für alle Mitglieder. Bleibt von einer
-        // angegebenen Zielgruppe nichts übrig, wäre das Speichern also eine
-        // stillschweigende Verbreiterung - dann lieber gar nicht speichern.
-        if ($rawSources !== [] && $sources === []) {
+        $formData['audience'] = AudienceFormInput::rows($data['audience'] ?? []);
+        try {
+            $audienceSets = $audienceService->readRows($data);
+        } catch (InvalidAudienceFilterException $exception) {
             $createService = new ModalFormService('event_create');
-            $createService->setError(InvalidAudienceSourcesException::MESSAGE, $formData);
+            $createService->setError($exception->getMessage(), $formData);
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
 
@@ -1000,7 +1014,7 @@ class EventController
                     'registration_deadline' => $registrationDeadline,
                     'attendance_required' => $attendanceRequired,
                 ]);
-                $audienceService->setSources($event, $sources);
+                $audienceService->setAudience($event, $audienceSets);
 
                 if ($this->shouldNotifyMembers($data)) {
                     $this->notifyAudience(
@@ -1064,7 +1078,7 @@ class EventController
                             : $occurrenceStart->copy()->addSeconds($deadlineLeadSeconds)->format('Y-m-d H:i:s'),
                         'attendance_required' => $attendanceRequired,
                     ]);
-                    $audienceService->setSources($seriesEvent, $sources);
+                    $audienceService->setAudience($seriesEvent, $audienceSets);
                     $createdEvents[] = $seriesEvent->fresh();
                     $count++;
                 }
@@ -1118,12 +1132,6 @@ class EventController
         $seesAllEvents = $this->canManageEvents();
         $projects = $this->getAccessibleProjects($userId, $seesAllEvents);
         $eventTypes = EventType::orderBy('name')->get();
-        $roles = Role::query()->orderBy('name')->get();
-        $voiceGroups = VoiceGroup::query()->orderBy('id')->get();
-        $usersQuery = User::query()->where('is_active', 1);
-        $this->nameFormatter->applyNameOrder($usersQuery);
-        $users = $usersQuery->get();
-        $audienceSources = (new EventAudienceService())->getSources($event);
 
         // Get error and form data from ModalFormService
         $editService = new ModalFormService('event_edit');
@@ -1132,6 +1140,7 @@ class EventController
         unset($_SESSION['error']);
         $editForm = $state['form'] ?? [];
         $editService->clear();
+        $audience = $this->audienceView($editForm['audience'] ?? null, $event->audienceConditionSets());
 
         // If no form data from service, build from event
         if (empty($editForm)) {
@@ -1155,10 +1164,8 @@ class EventController
             'event' => $event,
             'projects' => $projects,
             'event_types' => $eventTypes,
-            'roles' => $roles,
-            'voice_groups' => $voiceGroups,
-            'users' => $users,
-            'audience_sources' => $audienceSources,
+            'audience_rows' => $audience['rows'],
+            'audience_options' => $audience['options'],
             'error' => $error,
             'edit_form' => $editForm,
             'series_field_groups' => self::seriesFieldGroupOptions(),
@@ -1218,14 +1225,12 @@ class EventController
         ];
 
         $audienceService = new EventAudienceService();
-        $rawSources = $this->readAudienceSources($data);
-        $sources = $audienceService->normalizeSources($rawSources);
-
-        // Siehe save(): Eine verworfene Zielgruppe würde den Termin auf alle
-        // Mitglieder ausweiten, statt die Änderung zu verweigern.
-        if ($rawSources !== [] && $sources === []) {
+        $formData['audience'] = AudienceFormInput::rows($data['audience'] ?? []);
+        try {
+            $audienceSets = $audienceService->readRows($data);
+        } catch (InvalidAudienceFilterException $exception) {
             $editService = new ModalFormService('event_edit');
-            $editService->setError(InvalidAudienceSourcesException::MESSAGE, $formData);
+            $editService->setError($exception->getMessage(), $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
 
@@ -1360,7 +1365,7 @@ class EventController
                     }
 
                     if (in_array('audience', $seriesFields, true)) {
-                        $audienceService->setSources($eventInSeries, $sources);
+                        $audienceService->setAudience($eventInSeries, $audienceSets);
                     }
                 }
 
@@ -1374,7 +1379,7 @@ class EventController
                 $changes = $this->describeScheduleChanges($event, $startsAt, $endsAt, $updateData['location'] ?? null);
 
                 $event->update($updateData);
-                $audienceService->setSources($event, $sources);
+                $audienceService->setAudience($event, $audienceSets);
 
                 if ($changes !== [] && $this->shouldNotifyMembers($data)) {
                     $this->notifyAudience(

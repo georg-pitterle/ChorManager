@@ -93,7 +93,7 @@ final class FileAccessService
      */
     public function directFileLevels(FileActor $actor): array
     {
-        return $this->matchingLevels($actor, FileShare::query(), 'file_id');
+        return $this->matchingLevels($actor, FileShare::query(), 'file_id', 'file_share_id');
     }
 
     public function can(FileActor $actor, FileFolder|int $folder, int $requiredLevel): bool
@@ -309,7 +309,7 @@ final class FileAccessService
      */
     private function matchingShareLevels(FileActor $actor): array
     {
-        return $this->matchingLevels($actor, FileFolderShare::query(), 'folder_id');
+        return $this->matchingLevels($actor, FileFolderShare::query(), 'folder_id', 'file_folder_share_id');
     }
 
     /**
@@ -319,22 +319,22 @@ final class FileAccessService
      * @param Builder<FileFolderShare>|Builder<FileShare> $query
      * @return array<int, int> Kennung => höchste Stufe
      */
-    private function matchingLevels(FileActor $actor, Builder $query, string $keyColumn): array
+    private function matchingLevels(FileActor $actor, Builder $query, string $keyColumn, string $ownerColumn): array
     {
         $profile = $this->filters->profileOf($actor->userId);
         if ($profile === null) {
             return [];
         }
 
-        $rows = $query->toBase()->get([$keyColumn . ' AS target_id', 'level', 'audience_filter_id']);
-        $matching = array_flip($this->filters->matchingFilterIds(
-            $profile,
-            $rows->pluck('audience_filter_id')->map(fn ($id): int => (int) $id)->all()
-        ));
+        $rows = $query->toBase()->get(['id', $keyColumn . ' AS target_id', 'level']);
+        $sets = $this->filters->conditionSetsForOwners(
+            $ownerColumn,
+            $rows->pluck('id')->map(fn ($id): int => (int) $id)->all()
+        );
 
         $levels = [];
         foreach ($rows as $row) {
-            if (!isset($matching[(int) $row->audience_filter_id])) {
+            if (!$this->filters->fitsAny($profile, $sets[(int) $row->id] ?? [])) {
                 continue;
             }
             $target = (int) $row->target_id;

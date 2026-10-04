@@ -47,18 +47,15 @@ final class FileShareService
         $shares = $this->folders->normalizeShares($rawShares, array_keys(FileShare::LEVELS));
 
         DB::connection()->transaction(function () use ($actor, $file, $shares): void {
-            $old = FileShare::query()->where('file_id', $file->id)->pluck('audience_filter_id')
-                ->map(fn ($id): int => (int) $id)->all();
+            // Die Filter der alten Freigaben räumt der Fremdschlüssel mit ab.
             FileShare::query()->where('file_id', $file->id)->delete();
-            $this->filters->delete($old);
             foreach ($shares as $share) {
-                $filter = $this->filters->create($share['conditions']);
-                FileShare::create([
+                $row = FileShare::create([
                     'file_id' => (int) $file->id,
-                    'audience_filter_id' => (int) $filter->id,
                     'level' => $share['level'],
                     'created_by' => $actor->userId,
                 ]);
+                $this->filters->create($share['conditions'], 'file_share_id', (int) $row->id);
             }
         });
 

@@ -8,13 +8,13 @@ use App\Controllers\Concerns\FileControllerSupport;
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
 use App\Models\StoredFile;
+use App\Services\Audience\AudienceDescriber;
 use App\Services\Files\FileAccessService;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileFavoriteService;
 use App\Services\Files\FileQuotaService;
 use App\Services\Files\FileSearchService;
 use App\Services\Files\FileService;
-use App\Services\Files\FileShareDescriber;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -33,7 +33,7 @@ final class FileBrowserController
         private readonly FileQuotaService $quota,
         private readonly FileSearchService $search,
         private readonly FileService $files,
-        private readonly FileShareDescriber $describer
+        private readonly AudienceDescriber $describer
     ) {
     }
 
@@ -111,9 +111,7 @@ final class FileBrowserController
             'move_targets' => $level >= FileFolderShare::LEVEL_EDIT ? $this->moveTargets($actor, $levels) : [],
             'shares' => $shares,
             'inherited_shares' => $canManage ? $this->inheritedShares($path) : [],
-            'share_options' => $canManage
-                ? $this->describer->options(self::projectIdsOf($shares), self::selectedIdsOf($shares, 'user'))
-                : null,
+            'share_options' => $canManage ? self::shareOptions($this->describer, $shares) : null,
         ]);
     }
 

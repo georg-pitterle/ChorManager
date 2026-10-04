@@ -8,7 +8,6 @@ use App\Controllers\EvaluationController;
 use App\Controllers\EventController;
 use App\Controllers\RegistrationController;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -32,6 +31,7 @@ use Tests\Unit\Bootstrap;
  */
 class ForbiddenResponseRendersReasonFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -188,11 +188,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
 
         $group = VoiceGroup::create(['name' => 'Fremdgruppe ' . bin2hex(random_bytes(4))]);
         $this->createdVoiceGroupIds[] = (int) $group->id;
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => (int) $group->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $group->id]]);
 
         return $event;
     }

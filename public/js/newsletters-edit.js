@@ -43,10 +43,7 @@ function initNewsletterEdit() {
     const titleInput = document.getElementById("title");
     const recipientCountBadge = document.getElementById("recipient-count-badge");
     const recipientCountStatus = document.getElementById("recipient-count-status");
-    const sourceProjectMembersCount = document.getElementById("source-project-members-count");
-    const sourceEventAttendeesCount = document.getElementById("source-event-attendees-count");
-    const sourceRolesCount = document.getElementById("source-roles-count");
-    const sourceUsersCount = document.getElementById("source-users-count");
+    const eventSelect = editForm.querySelector("[data-newsletter-event-ids]");
     const saveDraftButton = document.getElementById("save-draft-btn");
     const previewButton = document.getElementById("preview-btn");
     const sendButton = document.getElementById("send-newsletter-btn");
@@ -68,29 +65,6 @@ function initNewsletterEdit() {
         const hasRecipients = Number(count) > 0;
         sendButton.disabled = !hasRecipients;
         sendButton.title = hasRecipients ? "" : "Kein Empfänger ausgewählt";
-    }
-
-    const sourceBadgeMap = {
-        project_members: sourceProjectMembersCount,
-        event_attendees: sourceEventAttendeesCount,
-        role: sourceRolesCount,
-        user: sourceUsersCount,
-    };
-    const sourceTypes = Object.keys(sourceBadgeMap);
-
-    function getSourceSelect(type) {
-        return editForm.querySelector(`select.newsletter-source-select[data-source-type="${type}"]`);
-    }
-
-    function getSelectedReferenceIds(type) {
-        const select = getSourceSelect(type);
-        if (!select) {
-            return [];
-        }
-
-        return Array.from(select.selectedOptions)
-            .map(option => Number(option.value))
-            .filter(referenceId => Number.isInteger(referenceId) && referenceId > 0);
     }
 
     let lastSavedSnapshot = null;
@@ -134,55 +108,20 @@ function initNewsletterEdit() {
     // gemacht.
     window.newsletterEditShowAlert = showEditAlert;
 
-    function buildRecipientSourcesPayload() {
-        const payload = [];
-        sourceTypes.forEach(type => {
-            getSelectedReferenceIds(type).forEach(referenceId => {
-                payload.push({ type, reference_id: referenceId });
-            });
-        });
-
-        return payload;
-    }
-
-    function refreshSourceSelectionCounts() {
-        sourceTypes.forEach(type => {
-            const badge = sourceBadgeMap[type];
-            if (!badge) {
-                return;
+    /**
+     * Die Empfängerauswahl steht in echten Formularfeldern (Zielgruppen-Zeilen
+     * audience[...] und event_ids[]); Vorschau und Schnappschuss lesen genau
+     * diese Felder aus dem Formular.
+     */
+    function audiencePayload() {
+        const entries = [];
+        new FormData(editForm).forEach((value, key) => {
+            if (key.startsWith("audience[") || key === "event_ids[]") {
+                entries.push([key, String(value)]);
             }
-
-            badge.textContent = String(getSelectedReferenceIds(type).length);
-        });
-    }
-
-    function syncSourcesHiddenInputs() {
-        let hiddenContainer = document.getElementById("sources-hidden-inputs");
-        if (!hiddenContainer) {
-            hiddenContainer = document.createElement("div");
-            hiddenContainer.id = "sources-hidden-inputs";
-            hiddenContainer.className = "d-none";
-            editForm.appendChild(hiddenContainer);
-        }
-
-        hiddenContainer.innerHTML = "";
-        const payload = buildRecipientSourcesPayload();
-        payload.forEach((source, index) => {
-            const inputType = document.createElement("input");
-            inputType.type = "hidden";
-            inputType.name = `sources[${index}][type]`;
-            inputType.value = source.type;
-
-            const inputReference = document.createElement("input");
-            inputReference.type = "hidden";
-            inputReference.name = `sources[${index}][reference_id]`;
-            inputReference.value = String(source.reference_id);
-
-            hiddenContainer.appendChild(inputType);
-            hiddenContainer.appendChild(inputReference);
         });
 
-        return payload;
+        return entries;
     }
 
     function debounce(fn, delayMs) {
@@ -209,7 +148,7 @@ function initNewsletterEdit() {
             return;
         }
 
-        const payload = syncSourcesHiddenInputs();
+        const payload = audiencePayload();
         const requestId = ++recipientPreviewRequestId;
 
         if (payload.length === 0) {
@@ -225,10 +164,7 @@ function initNewsletterEdit() {
         }
 
         const requestData = new FormData();
-        payload.forEach((source, index) => {
-            requestData.append(`sources[${index}][type]`, source.type);
-            requestData.append(`sources[${index}][reference_id]`, String(source.reference_id));
-        });
+        payload.forEach(([key, value]) => requestData.append(key, value));
         if (projectSelect && projectSelect.value) {
             requestData.append("project_id", projectSelect.value);
         }
@@ -294,12 +230,12 @@ function initNewsletterEdit() {
         const title = titleInput ? titleInput.value : "";
         const editor = tinymce.get("content_html");
         const contentHtml = editor ? editor.getContent() : "";
-        const sources = buildRecipientSourcesPayload();
+        const audience = audiencePayload();
 
         return JSON.stringify({
             project_id: projectId,
             title: title,
-            sources: sources,
+            audience: audience,
             content_html: contentHtml,
         });
     }
@@ -315,7 +251,6 @@ function initNewsletterEdit() {
         }
 
         saveInProgress = true;
-        syncSourcesHiddenInputs();
         const formData = new FormData(editForm);
         const editor = tinymce.get("content_html");
         formData.set("content_html", editor ? editor.getContent() : "");
@@ -384,39 +319,10 @@ function initNewsletterEdit() {
         saveNewsletter(true);
     });
 
-    function isSourceOptionTarget(target) {
-        return !!(
-            target
-            && typeof target === "object"
-            && target.classList
-            && typeof target.classList.contains === "function"
-            && target.classList.contains("newsletter-source-select")
-        );
-    }
-
-    editForm.addEventListener("change", function (event) {
-        if (!isSourceOptionTarget(event.target)) {
-            return;
-        }
-
-        refreshSourceSelectionCounts();
-        refreshRecipientPreviewDebounced();
-    });
-
-    editForm.addEventListener("input", function (event) {
-        if (!isSourceOptionTarget(event.target)) {
-            return;
-        }
-
-        refreshSourceSelectionCounts();
-        refreshRecipientPreviewDebounced();
-    });
-
-    if (projectSelect) {
-        projectSelect.addEventListener("change", function () {
-            refreshSourceSelectionCounts();
-            refreshRecipientPreviewDebounced();
-        });
+    // Jede Änderung an Zeilen oder Terminen zieht die Gesamtzahl nach.
+    editForm.addEventListener("audience:change", refreshRecipientPreviewDebounced);
+    if (eventSelect) {
+        eventSelect.addEventListener("change", refreshRecipientPreviewDebounced);
     }
 
     if (saveDraftButton) {
@@ -688,8 +594,6 @@ function initNewsletterEdit() {
         }
         initialSyncDone = true;
 
-        syncSourcesHiddenInputs();
-        refreshSourceSelectionCounts();
         applyRecipientCount(Number(recipientCountBadge ? recipientCountBadge.textContent : 0));
         refreshRecipientPreviewDebounced();
         lastSavedSnapshot = createSnapshot();

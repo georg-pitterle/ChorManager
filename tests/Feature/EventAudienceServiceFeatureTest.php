@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Exceptions\InvalidAudienceSourcesException;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\Audience\InvalidAudienceFilterException;
 use App\Services\EventAudienceService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
@@ -21,6 +20,7 @@ use Tests\Unit\Bootstrap;
  */
 class EventAudienceServiceFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use EventScopeFixtures;
 
     protected function setUp(): void
@@ -35,80 +35,70 @@ class EventAudienceServiceFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testSetAndGetSourcesRoundTrip(): void
+    public function testSetAndReadAudienceRoundTrip(): void
     {
         $project = $this->createProject();
         $event = $this->createEvent();
         $service = new EventAudienceService();
 
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
-        ]);
+        $service->setAudience($event, [['project' => [(int) $project->id]]]);
 
-        $sources = $service->getSources($event->fresh());
-        $this->assertSame(
-            [['type' => 'project_members', 'reference_id' => (int) $project->id]],
-            $sources
-        );
+        $this->assertSame([['project' => [(int) $project->id]]], $service->conditionSets($event->fresh()));
     }
 
-    public function testSetSourcesReplacesPrevious(): void
+    public function testSetAudienceReplacesPrevious(): void
     {
         $project = $this->createProject();
         $user = $this->createUser();
         $event = $this->createEvent();
         $service = new EventAudienceService();
 
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
-        ]);
-        $service->setSources($event->fresh(), [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $user->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
+        $service->setAudience($event->fresh(), [['user' => [(int) $user->id]]]);
 
-        $sources = $service->getSources($event->fresh());
-        $this->assertSame(
-            [['type' => 'user', 'reference_id' => (int) $user->id]],
-            $sources
-        );
+        $this->assertSame([['user' => [(int) $user->id]]], $service->conditionSets($event->fresh()));
     }
 
-    public function testNormalizeRejectsUnknownTypeAndMissingReference(): void
+    public function testReadRowsRejectsACategoryWhoseValuesAreAllGone(): void
     {
-        $service = new EventAudienceService();
-        $normalized = $service->normalizeSources([
-            ['type' => 'nonsense', 'reference_id' => 5],
-            ['type' => 'project_members', 'reference_id' => 0],
-            ['type' => 'project_members', 'reference_id' => 999999],
+        $this->expectException(InvalidAudienceFilterException::class);
+        (new EventAudienceService())->readRows([
+            'audience' => [['conditions' => ['project' => ['999999999']]]],
         ]);
-
-        $this->assertSame([], $normalized);
     }
 
-    public function testNormalizeDeduplicates(): void
+    public function testReadRowsMergesEqualRows(): void
     {
         $project = $this->createProject();
-        $service = new EventAudienceService();
-        $normalized = $service->normalizeSources([
-            ['type' => 'project_members', 'reference_id' => (int) $project->id],
-            ['type' => 'project_members', 'reference_id' => (int) $project->id],
+        $rows = (new EventAudienceService())->readRows([
+            'audience' => [
+                ['conditions' => ['project' => [(string) $project->id]]],
+                ['conditions' => ['project' => [(string) $project->id]]],
+            ],
         ]);
 
-        $this->assertCount(1, $normalized);
+        $this->assertCount(1, $rows);
     }
 
-    public function testIsUserEligibleForEmptyScopeIsTrue(): void
+    public function testEveryoneRowMakesEveryActiveMemberEligible(): void
+    {
+        $event = $this->openToEveryone($this->createEvent());
+        $user = $this->createUser();
+
+        $this->assertTrue((new EventAudienceService())->isUserEligible($event, (int) $user->id));
+    }
+
+    public function testEventWithoutAnyRowMatchesNobody(): void
     {
         $event = $this->createEvent();
         $user = $this->createUser();
-        $service = new EventAudienceService();
 
-        $this->assertTrue($service->isUserEligible($event, (int) $user->id));
+        $this->assertFalse((new EventAudienceService())->isUserEligible($event, (int) $user->id));
     }
 
-    public function testVisibleEventsQueryIncludesEmptyScopeEvent(): void
+    public function testVisibleEventsQueryIncludesEveryoneEvent(): void
     {
-        $event = $this->createEvent();
+        $event = $this->openToEveryone($this->createEvent());
         $user = $this->createUser();
         $service = new EventAudienceService();
 
@@ -125,9 +115,7 @@ class EventAudienceServiceFeatureTest extends TestCase
 
         $event = $this->createEvent();
         $service = new EventAudienceService();
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_USER, 'reference_id' => (int) $inScope->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $inScope->id]]);
 
         $visibleForOut = $service->visibleEventsQuery((int) $outScope->id)->pluck('id')
             ->map(fn ($id) => (int) $id)->all();
@@ -136,53 +124,6 @@ class EventAudienceServiceFeatureTest extends TestCase
 
         $this->assertNotContains((int) $event->id, $visibleForOut);
         $this->assertContains((int) $event->id, $visibleForIn);
-    }
-
-    /**
-     * Ein Termin ohne Quellen gilt für alle Mitglieder. Werden beim Speichern
-     * alle angegebenen Quellen verworfen (z. B. weil das Projekt gelöscht
-     * wurde), dürfen die bisherigen Quellen nicht stillschweigend zu
-     * "alle Mitglieder" werden.
-     */
-    public function testSetSourcesRefusesAnAudienceThatWouldSilentlyWidenToEveryone(): void
-    {
-        $project = $this->createProject();
-        $event = $this->createEvent();
-        $service = new EventAudienceService();
-
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
-        ]);
-
-        $this->expectException(InvalidAudienceSourcesException::class);
-
-        try {
-            $service->setSources($event->fresh(), [
-                ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => 999999],
-            ]);
-        } finally {
-            $this->assertSame(
-                [['type' => 'project_members', 'reference_id' => (int) $project->id]],
-                $service->getSources($event->fresh()),
-                'Die bisherige Zielgruppe muss unverändert bestehen bleiben.'
-            );
-        }
-    }
-
-    public function testSetSourcesStillAcceptsAnEmptyAudienceOnPurpose(): void
-    {
-        $project = $this->createProject();
-        $event = $this->createEvent();
-        $service = new EventAudienceService();
-
-        $service->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
-        ]);
-
-        // Leere Eingabe heißt ausdrücklich "alle Mitglieder" und bleibt erlaubt.
-        $service->setSources($event->fresh(), []);
-
-        $this->assertSame([], $service->getSources($event->fresh()));
     }
 
     private function createProject(): Project

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\User;
-use Illuminate\Database\Capsule\Manager as Capsule;
+use App\Services\Audience\AudienceFilterService;
+use App\Services\Audience\MemberProfile;
 
 /**
  * Session-based scope: which users may the current user manage
@@ -19,8 +19,10 @@ class AttendanceScopeService
     /** @var array<int>|null */
     private ?array $manageableUserIdsCache = null;
 
-    /** @var array<string, array<int>>|null */
-    private ?array $audienceSetsCache = null;
+    /** @var array<int, MemberProfile>|null */
+    private ?array $profilesCache = null;
+
+    private ?AudienceFilterService $filters = null;
 
     /**
      * Beide Rechte dürfen für andere eintragen, sie unterscheiden sich nur im Umfang:
@@ -98,28 +100,9 @@ class AttendanceScopeService
             return true;
         }
 
-        $sources = $event->relationLoaded('audienceSources')
-            ? $event->audienceSources
-            : $event->audienceSources()->get();
-
-        // Ohne Zielgruppen-Quelle gilt der Termin für alle aktiven Mitglieder.
-        if ($sources->isEmpty()) {
-            return true;
-        }
-
-        $sets = $this->accessibleAudienceSets();
-
-        foreach ($sources as $source) {
-            $referenceId = (int) $source->reference_id;
-            $matches = match ((string) $source->source_type) {
-                EventAudienceSource::TYPE_USER => in_array($referenceId, $sets['users'], true),
-                EventAudienceSource::TYPE_VOICE_GROUP => in_array($referenceId, $sets['voice_groups'], true),
-                EventAudienceSource::TYPE_PROJECT_MEMBERS => in_array($referenceId, $sets['projects'], true),
-                EventAudienceSource::TYPE_ROLE => in_array($referenceId, $sets['roles'], true),
-                default => false,
-            };
-
-            if ($matches) {
+        $sets = $event->audienceConditionSets();
+        foreach ($this->accessibleProfiles() as $profile) {
+            if ($this->filters()->fitsAny($profile, $sets)) {
                 return true;
             }
         }
@@ -128,15 +111,17 @@ class AttendanceScopeService
     }
 
     /**
-     * Zielgruppen-Merkmale, über die der aktuelle Nutzer Zugriff auf einen Termin bekommt:
-     * seine eigenen und - sofern er für andere eintragen darf - die der verwaltbaren Mitglieder.
+     * Eigenes Profil und - wer für andere eintragen darf - die Profile der
+     * verwaltbaren Mitglieder, jedes für sich. Gemischt werden die Merkmale nicht:
+     * Bei UND-Bedingungen ergäbe Sopran von einem und Projekt vom anderen einen
+     * Zugriff, den keiner der beiden hat.
      *
-     * @return array<string, array<int>>
+     * @return array<int, MemberProfile>
      */
-    private function accessibleAudienceSets(): array
+    private function accessibleProfiles(): array
     {
-        if ($this->audienceSetsCache !== null) {
-            return $this->audienceSetsCache;
+        if ($this->profilesCache !== null) {
+            return $this->profilesCache;
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
@@ -146,34 +131,11 @@ class AttendanceScopeService
             $userIds = array_values(array_unique(array_merge($userIds, $this->getManageableUserIds())));
         }
 
-        if ($userIds === []) {
-            return $this->audienceSetsCache = [
-                'users' => [],
-                'voice_groups' => [],
-                'projects' => [],
-                'roles' => [],
-            ];
-        }
-
-        return $this->audienceSetsCache = [
-            'users' => $userIds,
-            'voice_groups' => $this->pivotReferenceIds('user_voice_groups', 'voice_group_id', $userIds),
-            'projects' => $this->pivotReferenceIds('project_users', 'project_id', $userIds),
-            'roles' => $this->pivotReferenceIds('user_roles', 'role_id', $userIds),
-        ];
+        return $this->profilesCache = $userIds === [] ? [] : $this->filters()->profilesOf($userIds);
     }
 
-    /**
-     * @param array<int> $userIds
-     * @return array<int>
-     */
-    private function pivotReferenceIds(string $table, string $column, array $userIds): array
+    private function filters(): AudienceFilterService
     {
-        return Capsule::table($table)
-            ->whereIn('user_id', $userIds)
-            ->distinct()
-            ->pluck($column)
-            ->map(static fn($id): int => (int) $id)
-            ->all();
+        return $this->filters ??= new AudienceFilterService();
     }
 }

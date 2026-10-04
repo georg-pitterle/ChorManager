@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Freigabe eines Ordners an eine Zielgruppe mit einer Stufe. Unterordner erben
@@ -33,21 +34,19 @@ class FileFolderShare extends Model
 
     protected $fillable = [
         'folder_id',
-        'audience_filter_id',
         'level',
         'created_by',
     ];
 
     protected $casts = [
         'folder_id' => 'integer',
-        'audience_filter_id' => 'integer',
         'level' => 'integer',
         'created_by' => 'integer',
     ];
 
-    public function filter(): BelongsTo
+    public function filter(): HasOne
     {
-        return $this->belongsTo(AudienceFilter::class, 'audience_filter_id');
+        return $this->hasOne(AudienceFilter::class, 'file_folder_share_id');
     }
 
     public function folder(): BelongsTo

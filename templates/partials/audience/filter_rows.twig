@@ -1,0 +1,32 @@
+{# Liste von Zielgruppen-Zeilen. Mehrere Zeilen: eine genügt.
+   Parameter: prefix (Feldname, z. B. "audience" oder "shares"), rows (aus
+   AudienceDescriber::describeSets bzw. ::label), options, add_label,
+   empty_hint (optional), level_labels (optional, nur Freigaben). #}
+<div class="audience-rows" data-audience-rows data-audience-prefix="{{ prefix }}">
+    <div data-audience-row-list>
+        {% for row in rows %}
+            {{ include("partials/audience/filter_row.twig", {
+                prefix: prefix,
+                index: loop.index0,
+                row: row,
+                options: options,
+                level_labels: level_labels|default(null),
+            }) }}
+        {% endfor %}
+    </div>
+    {% if empty_hint|default("") %}
+        <p class="form-text" data-audience-empty-hint {{ rows|length > 0 ? "hidden" : "" }}>{{ empty_hint }}</p>
+    {% endif %}
+    <button type="button" class="btn btn-outline-primary btn-sm" data-audience-add>
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> {{ add_label|default("Zielgruppe hinzufügen") }}
+    </button>
+    <template data-audience-row-template>
+        {{ include("partials/audience/filter_row.twig", {
+            prefix: prefix,
+            index: "__INDEX__",
+            row: null,
+            options: options,
+            level_labels: level_labels|default(null),
+        }) }}
+    </template>
+</div>

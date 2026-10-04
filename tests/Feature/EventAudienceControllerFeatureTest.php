@@ -6,9 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\EventController;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
-use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use Psr\Log\NullLogger;
@@ -24,6 +22,7 @@ use App\Queries\ProjectQuery;
  */
 final class EventAudienceControllerFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use EventScopeFixtures;
 
@@ -63,9 +62,7 @@ final class EventAudienceControllerFeatureTest extends TestCase
             'type' => 'Probe',
         ]);
 
-        (new EventAudienceService())->setSources($event, [
-            ['type' => EventAudienceSource::TYPE_PROJECT_MEMBERS, 'reference_id' => (int) $project->id],
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
 
         return $event;
     }
@@ -82,36 +79,29 @@ final class EventAudienceControllerFeatureTest extends TestCase
         ], $overrides);
     }
 
-    public function testUpdateWithOnlyDeletedAudienceSourcesKeepsThePreviousAudience(): void
+    public function testUpdateWithOnlyDeletedAudienceValuesKeepsThePreviousAudience(): void
     {
         $project = Project::create(['name' => 'Zielgruppen-Projekt ' . bin2hex(random_bytes(4))]);
         $event = $this->createEventWithProjectAudience($project);
-        $audienceService = new EventAudienceService();
 
         $deletedProjectId = (int) $project->id + 999000;
 
         $response = $this->controller()->update(
             $this->makeRequest('POST', '/events/' . $event->id, $this->updateBody($event, [
                 'title' => 'Umbenannt trotz kaputter Zielgruppe',
-                'sources_json' => json_encode([
-                    ['type' => 'project_members', 'reference_id' => $deletedProjectId],
-                ]),
+                'audience' => [['conditions' => ['project' => [(string) $deletedProjectId]]]],
             ])),
             $this->makeResponse(),
             ['id' => (string) $event->id]
         );
 
         $this->assertSame(302, $response->getStatusCode());
-
         $this->assertSame(
-            [['type' => 'project_members', 'reference_id' => (int) $project->id]],
-            $audienceService->getSources($event->fresh()),
+            [['project' => [(int) $project->id]]],
+            $event->fresh()->audienceConditionSets(),
             'Die bisherige Zielgruppe muss erhalten bleiben.'
         );
-
-        $this->assertNotEmpty($_SESSION['error'] ?? null);
-        $this->assertStringContainsString('Zielgruppe', (string) $_SESSION['error']);
-
+        $this->assertStringContainsString('gibt es nicht mehr', (string) ($_SESSION['error'] ?? ''));
         $this->assertSame(
             $event->title,
             (string) Event::findOrFail($event->id)->title,
@@ -128,38 +118,60 @@ final class EventAudienceControllerFeatureTest extends TestCase
         $this->controller()->update(
             $this->makeRequest('POST', '/events/' . $event->id, $this->updateBody($event, [
                 'title' => 'Neue Zielgruppe',
-                'sources_json' => json_encode([
-                    ['type' => 'project_members', 'reference_id' => (int) $other->id],
-                ]),
+                'audience' => [['conditions' => ['project' => [(string) $other->id]]]],
             ])),
             $this->makeResponse(),
             ['id' => (string) $event->id]
         );
 
-        $this->assertSame(
-            [['type' => 'project_members', 'reference_id' => (int) $other->id]],
-            (new EventAudienceService())->getSources($event->fresh())
-        );
+        $this->assertSame([['project' => [(int) $other->id]]], $event->fresh()->audienceConditionSets());
         $this->assertSame('Neue Zielgruppe', (string) Event::findOrFail($event->id)->title);
     }
 
-    public function testUpdateWithoutAnyAudienceStillMeansEveryone(): void
+    public function testUpdateWithEveryoneRowOpensTheEventForAll(): void
     {
         $project = Project::create(['name' => 'Zielgruppen-Projekt ' . bin2hex(random_bytes(4))]);
         $event = $this->createEventWithProjectAudience($project);
 
         $this->controller()->update(
             $this->makeRequest('POST', '/events/' . $event->id, $this->updateBody($event, [
-                'sources_json' => json_encode([]),
+                'audience' => [['all' => '1']],
             ])),
             $this->makeResponse(),
             ['id' => (string) $event->id]
         );
 
-        $this->assertSame(
-            [],
-            (new EventAudienceService())->getSources($event->fresh()),
-            'Eine bewusst leere Zielgruppe bleibt erlaubt.'
-        );
+        $this->assertSame([[]], $event->fresh()->audienceConditionSets());
+    }
+
+    /**
+     * Eine leere Zielgruppe hieß früher "alle Mitglieder". Jetzt ist "alle" eine
+     * Zeile mit Häkchen - ein leeres oder halb ausgefülltes Formular wird
+     * abgelehnt, statt den Termin für alle zu öffnen.
+     */
+    public function testUpdateWithoutAnyRowOrWithHalfFilledRowIsRejected(): void
+    {
+        $project = Project::create(['name' => 'Zielgruppen-Projekt ' . bin2hex(random_bytes(4))]);
+        $event = $this->createEventWithProjectAudience($project);
+
+        foreach ([[], [['conditions' => []]]] as $audience) {
+            $_SESSION = array_diff_key($_SESSION, ['error' => true]);
+            $this->controller()->update(
+                $this->makeRequest('POST', '/events/' . $event->id, $this->updateBody($event, [
+                    'title' => 'Darf nicht gespeichert werden',
+                    'audience' => $audience,
+                ])),
+                $this->makeResponse(),
+                ['id' => (string) $event->id]
+            );
+
+            $this->assertNotSame('', (string) ($_SESSION['error'] ?? ''));
+            $this->assertSame([['project' => [(int) $project->id]]], $event->fresh()->audienceConditionSets());
+            $this->assertSame($event->title, (string) Event::findOrFail($event->id)->title);
+        }
+
+        $state = (new \App\Services\ModalFormService('event_edit'))->getState();
+        $this->assertSame('Darf nicht gespeichert werden', $state['form']['title'] ?? null, 'Eingaben bleiben erhalten.');
+        $this->assertCount(1, $state['form']['audience'] ?? [], 'Die halb ausgefüllte Zeile bleibt stehen.');
     }
 }

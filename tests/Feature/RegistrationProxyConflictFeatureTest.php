@@ -25,6 +25,7 @@ use Tests\Unit\Bootstrap;
  */
 final class RegistrationProxyConflictFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -45,6 +46,7 @@ final class RegistrationProxyConflictFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => true,
         ]);
+        $this->openToEveryone($this->event);
 
         $this->manager = $this->createUser();
         $this->member = $this->createUser();

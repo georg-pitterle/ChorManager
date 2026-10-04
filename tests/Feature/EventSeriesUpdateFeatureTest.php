@@ -26,6 +26,7 @@ use App\Queries\ProjectQuery;
  */
 final class EventSeriesUpdateFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
 
     private EventController $controller;
@@ -94,6 +95,7 @@ final class EventSeriesUpdateFeatureTest extends TestCase
             'title' => 'Wochenprobe',
             'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
             'start_time' => '19:00',
+            'audience' => [['all' => '1']],
             'end_time' => '21:00',
             'location' => '',
             'registration_enabled' => '1',
@@ -201,6 +203,7 @@ final class EventSeriesUpdateFeatureTest extends TestCase
             'registration_enabled' => false,
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($single);
         $newDate = Carbon::now()->addDays(6)->format('Y-m-d');
 
         $this->controller->update(
@@ -208,6 +211,7 @@ final class EventSeriesUpdateFeatureTest extends TestCase
                 'title' => 'Einzeltermin',
                 'starts_at' => $newDate,
                 'start_time' => '19:00',
+                'audience' => [['all' => '1']],
                 'end_time' => '21:00',
                 'location' => '',
             ]),

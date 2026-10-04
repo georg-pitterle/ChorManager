@@ -1,15 +1,15 @@
-{# Mehrfachauswahl einer Kategorie in einer Freigabe-Zeile.
-   Parameter: index, category, label, selected, dazu entweder items (Liste mit
-   id/name, optional ended) oder grouped (Liste mit group/items); person: true
-   formatiert Mitgliedernamen; missing sind gespeicherte, inzwischen gelöschte
-   Kennungen. #}
+{# Mehrfachauswahl einer Kategorie in einer Zielgruppen-Zeile.
+   Parameter: prefix, index, category, label, selected, dazu entweder items
+   (Liste mit id/name, optional ended) oder grouped (Liste mit group/items);
+   person: true formatiert Mitgliedernamen; missing sind gespeicherte,
+   inzwischen gelöschte Kennungen. #}
 <div class="col-12 col-md-6">
-    <label class="form-label small mb-1" for="share-{{ index }}-{{ category }}">{{ label }}</label>
+    <label class="form-label small mb-1" for="audience-{{ prefix }}-{{ index }}-{{ category }}">{{ label }}</label>
     <select class="form-select form-select-sm"
-            id="share-{{ index }}-{{ category }}"
-            name="shares[{{ index }}][conditions][{{ category }}][]"
+            id="audience-{{ prefix }}-{{ index }}-{{ category }}"
+            name="{{ prefix }}[{{ index }}][conditions][{{ category }}][]"
             data-tom-select
-            data-files-share-condition
+            data-audience-condition="{{ category }}"
             data-placeholder="{{ label }} wählen …"
             multiple>
         {# Gespeicherte Werte, die es nicht mehr gibt: sichtbar und gewählt, damit

@@ -48,7 +48,7 @@ class AttendanceController
         // Nur Termine, zu denen der Nutzer selbst gehört oder in denen er mindestens ein
         // verwaltbares Mitglied betreut - "alle Mitglieder verwalten" sieht jeden Termin.
         $events = Event::where('attendance_required', true)
-            ->with('audienceSources')
+            ->with('audienceFilters.conditions')
             ->orderBy('starts_at', 'asc')
             ->get()
             ->filter(fn(Event $event): bool => $this->scopeService->canAccessEvent($event))

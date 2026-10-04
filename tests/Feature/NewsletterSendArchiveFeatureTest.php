@@ -133,11 +133,7 @@ final class NewsletterSendArchiveFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => $project->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_id', (int) $newsletter->id);
 
         return $newsletter;
     }

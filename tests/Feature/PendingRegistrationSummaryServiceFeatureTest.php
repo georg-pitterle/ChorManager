@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -18,6 +17,7 @@ use PHPUnit\Framework\TestCase;
 
 class PendingRegistrationSummaryServiceFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     private static ?Capsule $capsule = null;
 
     public static function setUpBeforeClass(): void
@@ -91,11 +91,7 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'registration_enabled' => true,
             'registration_deadline' => Carbon::now()->addDays(9),
         ]);
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => (int) $group->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $group->id]]);
 
         return $event;
     }
@@ -158,11 +154,7 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => false,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $disabled->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => (int) $group->id,
-        ]);
+        $this->giveAudience('event_id', (int) $disabled->id, ['voice_group' => [(int) $group->id]]);
 
         // Deadline already passed -> not "open" -> not counted.
         $pastDeadline = Event::create([
@@ -173,11 +165,7 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'registration_enabled' => true,
             'registration_deadline' => Carbon::now()->subDay(),
         ]);
-        EventAudienceSource::create([
-            'event_id' => $pastDeadline->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => (int) $group->id,
-        ]);
+        $this->giveAudience('event_id', (int) $pastDeadline->id, ['voice_group' => [(int) $group->id]]);
 
         $summary = $service->forUser((int) $user->id)
             ?? ['total' => 0, 'pending' => 0, 'yes' => 0, 'no' => 0, 'maybe' => 0];

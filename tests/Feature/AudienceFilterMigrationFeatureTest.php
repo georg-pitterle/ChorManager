@@ -36,8 +36,35 @@ class AudienceFilterMigrationFeatureTest extends TestCase
             }
             $this->assertArrayNotHasKey('target_type', $columns, $table);
             $this->assertArrayNotHasKey('reference_id', $columns, $table);
-            $this->assertSame('NO', $columns['audience_filter_id'] ?? null, $table);
+            // Seit 20261004090100 zeigt der Filter auf die Freigabe, nicht umgekehrt.
+            $this->assertArrayNotHasKey('audience_filter_id', $columns, $table);
         }
+    }
+
+    public function testEveryShareOwnsExactlyOneFilter(): void
+    {
+        Bootstrap::setupTestDatabase();
+        foreach (['file_folder_shares' => 'file_folder_share_id', 'file_shares' => 'file_share_id'] as $table => $column) {
+            $broken = DB::selectOne(
+                "SELECT COUNT(*) AS n FROM {$table} s
+                 WHERE (SELECT COUNT(*) FROM audience_filters f WHERE f.{$column} = s.id) <> 1"
+            );
+            $this->assertSame(0, (int) $broken->n, $table);
+        }
+    }
+
+    public function testShareMigrationChecksBeforeDroppingTheOldColumn(): void
+    {
+        $content = (string) file_get_contents(
+            dirname(__DIR__, 2) . '/db/migrations/20261004090100_attach_share_filters_to_shares.php'
+        );
+        $upStart = (int) strpos($content, 'function up()');
+        $up = substr($content, $upStart, (int) strpos($content, 'function down()') - $upStart);
+        $guard = strpos($up, 'throw new RuntimeException');
+        $drop = strpos($up, "removeColumn('audience_filter_id')");
+        $this->assertIsInt($guard, 'Prüfung fehlt');
+        $this->assertIsInt($drop, 'destruktiver Schritt nicht gefunden');
+        $this->assertLessThan($drop, $guard);
     }
 
     public function testMappingCoversAllOldTargetTypes(): void

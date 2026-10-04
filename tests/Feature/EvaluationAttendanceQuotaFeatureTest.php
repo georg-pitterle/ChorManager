@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\User;
 use App\Queries\ProjectQuery;
@@ -29,6 +28,7 @@ use Tests\Unit\Bootstrap;
  */
 final class EvaluationAttendanceQuotaFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
 
     private EvaluationController $controller;
@@ -40,6 +40,9 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
         parent::setUp();
         Bootstrap::setupTestDatabase();
         Capsule::connection()->beginTransaction();
+        // Der Controller liest die Sitzung schon im Konstruktor; einzeln
+        // gestartet gäbe es sie sonst noch gar nicht.
+        $_SESSION = [];
 
         $this->renderCalls = [];
         $twig = $this->createStub(Twig::class);
@@ -119,11 +122,7 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             'registration_enabled' => false,
             'attendance_required' => $attendanceRequired,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
 
         return $event;
     }
@@ -222,6 +221,38 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
         $this->assertSame(4, $data['total_events']);
         $this->assertSame(2, $stat['total_recorded'], 'Erfasst wurden nur zwei Termine.');
         $this->assertSame(50.0, $stat['percentage'], 'Die Quote rechnet gegen alle vier Termine.');
+    }
+
+    /**
+     * Ein Termin "Sopran UND Projekt" gehört zum Projekt, gilt aber nicht für
+     * die Alt-Stimmen darin. Er darf ihre Quote nicht drücken.
+     */
+    public function testQuotaCountsOnlyEventsTheMemberBelongsTo(): void
+    {
+        $suffix = uniqid();
+        ['project' => $project, 'member' => $alto] = $this->projectWithOneMember($suffix);
+        $soprano = \App\Models\VoiceGroup::create(['name' => 'Quotensopran ' . $suffix]);
+
+        $forAll = $this->projectEvent($project, Carbon::now()->subDays(4));
+        Attendance::create(['event_id' => $forAll->id, 'user_id' => $alto->id, 'status' => 'present']);
+
+        $sopranoOnly = Event::create([
+            'title' => 'Stimmprobe Sopran ' . $suffix,
+            'starts_at' => Carbon::now()->subDays(2),
+            'ends_at' => Carbon::now()->subDays(2)->addHours(2),
+            'type' => 'Probe',
+            'registration_enabled' => false,
+            'attendance_required' => true,
+        ]);
+        $this->giveAudience('event_id', (int) $sopranoOnly->id, [
+            'voice_group' => [(int) $soprano->id],
+            'project' => [(int) $project->id],
+        ]);
+
+        $stat = $this->statFor($this->renderIndex((int) $project->id), (int) $alto->id);
+
+        $this->assertSame(1, $stat['total_events'] ?? null, 'Nur der Termin, der für die Alt-Stimme gilt, zählt.');
+        $this->assertSame(100.0, $stat['percentage']);
     }
 
     public function testQuotaStaysZeroWhileNoEventHasHappenedYet(): void

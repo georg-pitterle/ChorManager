@@ -19,6 +19,7 @@ use Tests\Unit\Bootstrap;
 
 class RegistrationProxyFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -37,6 +38,7 @@ class RegistrationProxyFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => true,
         ]);
+        $this->openToEveryone($this->event);
     }
 
     protected function tearDown(): void

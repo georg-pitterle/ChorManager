@@ -78,16 +78,12 @@
                                     name="recipient_type"
                                     class="form-select onchange-submit">
                                 <option value="" {% if not recipient_type %}selected{% endif %}>Alle</option>
-                                <option value="project_members"
-                                        {% if recipient_type == "project_members" %}selected{% endif %}>
-                                    Projektmitglieder
-                                </option>
-                                <option value="event_attendees"
-                                        {% if recipient_type == "event_attendees" %}selected{% endif %}>
-                                    Zielgruppe eines Termins
-                                </option>
-                                <option value="role" {% if recipient_type == "role" %}selected{% endif %}>Rollen</option>
-                                <option value="user" {% if recipient_type == "user" %}selected{% endif %}>Einzelne Mitglieder</option>
+                                <option value="role" {% if recipient_type == "role" %}selected{% endif %}>Rolle</option>
+                                <option value="voice_group" {% if recipient_type == "voice_group" %}selected{% endif %}>Stimmgruppe</option>
+                                <option value="sub_voice" {% if recipient_type == "sub_voice" %}selected{% endif %}>Untergruppe</option>
+                                <option value="project" {% if recipient_type == "project" %}selected{% endif %}>Projekt</option>
+                                <option value="user" {% if recipient_type == "user" %}selected{% endif %}>Mitglied</option>
+                                <option value="event" {% if recipient_type == "event" %}selected{% endif %}>Zielgruppe eines Termins</option>
                             </select>
                         </div>
 

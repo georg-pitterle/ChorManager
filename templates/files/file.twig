@@ -142,30 +142,16 @@
                             Bearbeiten: zusätzlich neue Versionen hochladen.
                             Wer nur die Datei freigegeben hat, sieht den Ordner nicht.
                         </p>
-                        <form method="post" action="/files/{{ file.id }}/shares" data-files-shares-form>
+                        <form method="post" action="/files/{{ file.id }}/shares">
                             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                            <div data-files-share-rows>
-                                {% for share in shares %}
-                                    {{ include("files/partials/share_row.twig", {
-                                        index: loop.index0,
-                                        share: share,
-                                        level_labels: file_level_labels,
-                                    }) }}
-                                {% endfor %}
-                            </div>
-                            <template data-files-share-template>
-                                {{ include("files/partials/share_row.twig", {
-                                    index: "__INDEX__",
-                                    share: null,
-                                    level_labels: file_level_labels,
-                                }) }}
-                            </template>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-outline-primary btn-sm" data-files-share-add>
-                                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Freigabe hinzufügen
-                                </button>
-                                <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
-                            </div>
+                            {{ include("partials/audience/filter_rows.twig", {
+                                prefix: "shares",
+                                rows: shares,
+                                options: share_options,
+                                level_labels: file_level_labels,
+                                add_label: "Freigabe hinzufügen",
+                            }) }}
+                            <button type="submit" class="btn btn-primary btn-sm mt-2">Speichern</button>
                         </form>
                     </div>
                 </section>
@@ -261,6 +247,6 @@
 {% block scripts %}
     <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
     <script src="{{ asset_path("/js/tom-select-init.js") }}"></script>
-    <script src="{{ asset_path("/js/file-audience.js") }}"></script>
+    <script src="{{ asset_path("/js/audience-filter.js") }}"></script>
     <script src="{{ asset_path("/js/file-manager.js") }}"></script>
 {% endblock scripts %}

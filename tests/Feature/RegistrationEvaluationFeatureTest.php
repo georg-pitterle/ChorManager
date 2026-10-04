@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
@@ -38,6 +37,7 @@ use Twig\TwigFunction;
  */
 class RegistrationEvaluationFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -227,6 +227,8 @@ class RegistrationEvaluationFeatureTest extends TestCase
 
     public function testIncludePastQueryParamTogglesPastEventsVisibility(): void
     {
+        // "Alle Mitglieder" trifft nur vorhandene Personen - ohne Anmeldung sieht man nichts.
+        $_SESSION['user_id'] = (int) $this->createUser('task11-session-0', 'Sitzung')->id;
         $pastEvent = Event::create([
             'title' => 'Vergangener Anmeldetermin Task11',
             'starts_at' => Carbon::now()->subDays(5),
@@ -235,6 +237,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($pastEvent);
 
         $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
 
@@ -272,11 +275,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $restricted->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $closedProject->id,
-        ]);
+        $this->giveAudience('event_id', (int) $restricted->id, ['project' => [(int) $closedProject->id]]);
 
         // Ohne Zielgruppen-Quelle gilt ein Termin für alle - der muss sichtbar bleiben.
         $open = Event::create([
@@ -287,6 +286,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($open);
 
         $controller = new EvaluationController(
             $this->createTwig(),
@@ -331,11 +331,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
-        EventAudienceSource::create([
-            'event_id' => $restricted->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $closedProject->id,
-        ]);
+        $this->giveAudience('event_id', (int) $restricted->id, ['project' => [(int) $closedProject->id]]);
 
         $_SESSION['user_id'] = (int) $outsider->id;
         $_SESSION['can_manage_attendance_all'] = false;
@@ -355,6 +351,8 @@ class RegistrationEvaluationFeatureTest extends TestCase
 
     public function testAttendanceComparisonOnlyAppearsForPastAttendanceRequiredEvents(): void
     {
+        // "Alle Mitglieder" trifft nur vorhandene Personen - ohne Anmeldung sieht man nichts.
+        $_SESSION['user_id'] = (int) $this->createUser('task11-session-1', 'Sitzung')->id;
         $suffix = uniqid();
         $attendee1 = $this->createUser('reg-eval-att1-' . $suffix, 'Auswertung-Anwesend-Eins');
         $attendee2 = $this->createUser('reg-eval-att2-' . $suffix, 'Auswertung-Anwesend-Zwei');
@@ -368,6 +366,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => true,
         ]);
+        $this->openToEveryone($pastRequired);
         Attendance::create(['event_id' => $pastRequired->id, 'user_id' => $attendee1->id, 'status' => 'present']);
         Attendance::create(['event_id' => $pastRequired->id, 'user_id' => $attendee2->id, 'status' => 'present']);
         Attendance::create(['event_id' => $pastRequired->id, 'user_id' => $attendee3->id, 'status' => 'excused']);
@@ -380,6 +379,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
+        $this->openToEveryone($pastNotRequired);
 
         $futureRequired = Event::create([
             'title' => 'Kommende Probe mit Anwesenheitspflicht Task11',
@@ -389,6 +389,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'registration_enabled' => true,
             'attendance_required' => true,
         ]);
+        $this->openToEveryone($futureRequired);
 
         $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
         $response = $controller->registrations(
@@ -468,11 +469,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'attendance_required' => false,
         ]);
 
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
 
         EventRegistration::create([
             'event_id' => $event->id,

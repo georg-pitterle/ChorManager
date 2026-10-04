@@ -41,6 +41,8 @@ In der Übersicht öffnest du eine Vorlage über **Bearbeiten**. Neben Name, Bes
 - **Titelvorschlag** – der Titel, den ein Newsletter aus dieser Vorlage erhält.
 - **Empfängerquellen** – Projektmitglieder, Zielgruppe eines Termins, Rollen und einzelne Mitglieder. Genau diese Auswahl steht später im neuen Newsletter.
 
+> **Hinweis:** Die Auswahl der Zielgruppe hat sich geändert. Eine Zielgruppe besteht jetzt aus Zeilen mit den Feldern Rolle, Stimmgruppe, Untergruppe, Projekt und Mitglied: Mehrere Werte in einem Feld genügen einzeln, mehrere Felder müssen alle zutreffen (z. B. „Stimmgruppe Sopran“ **und** „Projekt Frühjahrskonzert“), mehrere Zeilen gelten nebeneinander. Vorlagen speichern die Empfänger in derselben Form wie ein Newsletter. Diese Seite wird noch überarbeitet.
+
 ![Dialog "Vorlage bearbeiten"](images/newsletter/10-template-edit-modal.png)
 
 Über den kleinen Pfeil neben **Bearbeiten** erreichst du **Klonen**: Damit entsteht eine Kopie der Vorlage, die du unabhängig vom Original weiterbearbeiten kannst. Das ist der bequemste Weg für Varianten – etwa eine Ankündigung für Proben und eine für Konzerte.

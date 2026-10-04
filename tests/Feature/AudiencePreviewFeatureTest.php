@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\FileAudienceController;
+use App\Controllers\AudiencePreviewController;
 use App\Models\AudienceFilter;
 use App\Models\FileFolderShare as Share;
 use DI\ContainerBuilder;
@@ -13,15 +13,15 @@ use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
 /**
- * Trefferzahl einer Freigabe-Zeile: nur die Zahl, nur für Verwaltende, ohne
- * Spuren in der Datenbank.
+ * Trefferzahl einer Zielgruppen-Zeile: nur die Zahl, nur für Personen, die
+ * irgendwo Zielgruppen festlegen, ohne Spuren in der Datenbank.
  */
-class FileAudienceFeatureTest extends TestCase
+class AudiencePreviewFeatureTest extends TestCase
 {
     use FileFixtures;
     use TestHttpHelpers;
 
-    private FileAudienceController $controller;
+    private AudiencePreviewController $controller;
 
     protected function setUp(): void
     {
@@ -31,7 +31,7 @@ class FileAudienceFeatureTest extends TestCase
         (require dirname(__DIR__, 2) . '/src/Dependencies.php')($builder);
         $container = $builder->build();
         $container->set(Capsule::class, Bootstrap::getCapsule());
-        $this->controller = $container->get(FileAudienceController::class);
+        $this->controller = $container->get(AudiencePreviewController::class);
     }
 
     protected function tearDown(): void
@@ -46,7 +46,7 @@ class FileAudienceFeatureTest extends TestCase
     private function preview(array $body): array
     {
         $response = $this->controller->preview(
-            $this->makeRequest('POST', '/files/audience-preview', $body, [], ['Accept' => 'application/json']),
+            $this->makeRequest('POST', '/audience-preview', $body, [], ['Accept' => 'application/json']),
             $this->makeResponse()
         );
 
@@ -89,6 +89,35 @@ class FileAudienceFeatureTest extends TestCase
 
         $this->assertSame(422, $status);
         $this->assertFalse($payload['ok']);
+    }
+
+    public function testEventManagerWithoutFileRightsGetsCount(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createMember()->id, 'can_manage_events' => true];
+
+        [$status, $payload] = $this->preview(['all' => '1']);
+
+        $this->assertSame(200, $status);
+        $this->assertArrayHasKey('count', $payload);
+    }
+
+    public function testNewsletterManagerWithoutFileRightsGetsCount(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createMember()->id, 'can_manage_newsletters' => true];
+
+        [$status] = $this->preview(['all' => '1']);
+
+        $this->assertSame(200, $status);
+    }
+
+    public function testMemberWithoutAnyOfTheRightsIsRejected(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createMember()->id];
+
+        [$status, $payload] = $this->preview(['all' => '1']);
+
+        $this->assertSame(403, $status);
+        $this->assertArrayNotHasKey('count', $payload);
     }
 
     public function testPreviewLeavesNoFilterBehind(): void

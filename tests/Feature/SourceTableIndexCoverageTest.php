@@ -27,11 +27,6 @@ final class SourceTableIndexCoverageTest extends TestCase
     public static function sourceTableProvider(): array
     {
         return [
-            'Termin-Zielgruppen' => [
-                'event_audience_sources',
-                'event_id',
-                'uq_event_audience_source',
-            ],
             'Newsletter-Empfänger' => [
                 'newsletter_recipient_sources',
                 'newsletter_id',

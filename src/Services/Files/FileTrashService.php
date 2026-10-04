@@ -6,12 +6,9 @@ namespace App\Services\Files;
 
 use App\Models\FileFolder;
 use App\Models\FileFolderShare;
-use App\Models\FileShare;
 use App\Models\FileVersion;
 use App\Models\StoredFile;
-use App\Services\Audience\AudienceFilterService;
 use Carbon\Carbon;
-use Illuminate\Database\Capsule\Manager as DB;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -31,8 +28,7 @@ final class FileTrashService
         private readonly FileService $files,
         private readonly FileStorageRegistry $storages,
         private readonly LoggerInterface $logger,
-        private readonly int $trashDays,
-        private readonly AudienceFilterService $filters = new AudienceFilterService()
+        private readonly int $trashDays
     ) {
     }
 
@@ -229,15 +225,9 @@ final class FileTrashService
             FileVersion::query()->whereIn('file_id', StoredFile::withTrashed()->whereIn('folder_id', $folderIds)->select('id'))
         );
 
-        $fileIds = StoredFile::withTrashed()->whereIn('folder_id', $folderIds)->pluck('id')->all();
-        $filterIds = $this->shareFilterIds($folderIds, $fileIds);
-
-        // Die Fremdschlüssel räumen Unterordner, Dateien, Versionen, Freigaben und
-        // Favoriten mit ab - die Filter der Freigaben nicht, die zeigen nicht zurück.
-        DB::connection()->transaction(function () use ($folderId, $filterIds): void {
-            FileFolder::withTrashed()->whereKey($folderId)->forceDelete();
-            $this->filters->delete($filterIds);
-        });
+        // Die Fremdschlüssel räumen Unterordner, Dateien, Versionen, Freigaben samt
+        // ihren Zielgruppen-Filtern und Favoriten mit ab.
+        FileFolder::withTrashed()->whereKey($folderId)->forceDelete();
 
         $this->files->deleteUnreferencedStorage($candidates);
     }
@@ -249,29 +239,10 @@ final class FileTrashService
     {
         $candidates = $this->storageCandidates(FileVersion::query()->whereIn('file_id', $fileIds));
 
-        $filterIds = $this->shareFilterIds([], $fileIds);
-
-        DB::connection()->transaction(function () use ($fileIds, $filterIds): void {
-            StoredFile::withTrashed()->whereIn('id', $fileIds)->forceDelete();
-            $this->filters->delete($filterIds);
-        });
+        // Freigaben samt Filtern gehen über die Fremdschlüssel mit.
+        StoredFile::withTrashed()->whereIn('id', $fileIds)->forceDelete();
 
         $this->files->deleteUnreferencedStorage($candidates);
-    }
-
-    /**
-     * Filter der Freigaben auf diese Ordner und Dateien.
-     *
-     * @param list<int> $folderIds
-     * @param list<int|string> $fileIds
-     * @return list<int>
-     */
-    private function shareFilterIds(array $folderIds, array $fileIds): array
-    {
-        $folderFilters = FileFolderShare::query()->whereIn('folder_id', $folderIds ?: [0])->pluck('audience_filter_id');
-        $fileFilters = FileShare::query()->whereIn('file_id', $fileIds ?: [0])->pluck('audience_filter_id');
-
-        return $folderFilters->merge($fileFilters)->map(fn ($id): int => (int) $id)->unique()->values()->all();
     }
 
     /**

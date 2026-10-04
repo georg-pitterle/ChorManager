@@ -64,88 +64,11 @@
                                        required>
                             </div>
 
-                            {% set default_project_source_id = project ? project.id : null %}
                             <section class="mb-3"
                                      id="recipient-sources"
                                      aria-labelledby="recipient-sources-title">
-                                <h3 class="h6" id="recipient-sources-title">Empfängerquellen</h3>
-
-                                <div class="mb-3" data-source-type="project_members">
-                                    <label class="form-label d-flex justify-content-between align-items-center"
-                                           for="create-source-project_members">
-                                        <span>Projektmitglieder</span>
-                                        <span class="badge bg-secondary" id="source-project-members-count">1</span>
-                                    </label>
-                                    <select id="create-source-project_members"
-                                            class="form-select newsletter-source-select"
-                                            data-tom-select
-                                            data-source-type="project_members"
-                                            data-placeholder="Projekte auswählen …"
-                                            multiple>
-                                        {% for selectable_project in projects %}
-                                            <option value="{{ selectable_project.id }}"
-                                                    {% if selectable_project.id == default_project_source_id %}selected{% endif %}>
-                                                {{ selectable_project.name }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div class="mb-3" data-source-type="event_attendees">
-                                    <label class="form-label d-flex justify-content-between align-items-center"
-                                           for="create-source-event_attendees">
-                                        <span>Zielgruppe eines Termins</span>
-                                        <span class="badge bg-secondary" id="source-event-attendees-count">0</span>
-                                    </label>
-                                    <select id="create-source-event_attendees"
-                                            class="form-select newsletter-source-select"
-                                            data-tom-select
-                                            data-source-type="event_attendees"
-                                            data-placeholder="Veranstaltungen auswählen …"
-                                            multiple>
-                                        {% for event in events %}
-                                            <option value="{{ event.id }}">
-                                                {{ event.title }} ({{ event.starts_at|date('d.m.Y') }})
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div class="mb-3" data-source-type="role">
-                                    <label class="form-label d-flex justify-content-between align-items-center"
-                                           for="create-source-role">
-                                        <span>Rollen</span>
-                                        <span class="badge bg-secondary" id="source-roles-count">0</span>
-                                    </label>
-                                    <select id="create-source-role"
-                                            class="form-select newsletter-source-select"
-                                            data-tom-select
-                                            data-source-type="role"
-                                            data-placeholder="Rollen auswählen …"
-                                            multiple>
-                                        {% for role in roles %}
-                                            <option value="{{ role.id }}">{{ role.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div class="mb-3" data-source-type="user">
-                                    <label class="form-label d-flex justify-content-between align-items-center"
-                                           for="create-source-user">
-                                        <span>Einzelne Mitglieder</span>
-                                        <span class="badge bg-secondary" id="source-users-count">0</span>
-                                    </label>
-                                    <select id="create-source-user"
-                                            class="form-select newsletter-source-select"
-                                            data-tom-select
-                                            data-source-type="user"
-                                            data-placeholder="Mitglieder auswählen …"
-                                            multiple>
-                                        {% for member in users %}
-                                            <option value="{{ member.id }}">{{ member|person_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                                <h3 class="h6" id="recipient-sources-title">Empfänger</h3>
+                                {{ include("newsletters/_audience.twig", {id_prefix: "create"}) }}
 
                                 <div class="alert alert-info mb-0">
                                     <strong>Empfänger:</strong>
@@ -209,5 +132,6 @@
 {% block scripts %}
     <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
     <script src="{{ asset_path('/js/tom-select-init.js') }}"></script>
+    <script src="{{ asset_path('/js/audience-filter.js') }}"></script>
     <script src="{{ asset_path('/js/newsletters-create.js') }}"></script>
 {% endblock scripts %}

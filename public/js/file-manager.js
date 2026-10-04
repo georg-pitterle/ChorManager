@@ -289,41 +289,6 @@
         });
     }
 
-    function setupShares() {
-        const form = document.querySelector('[data-files-shares-form]');
-        if (!form) {
-            return;
-        }
-        const rows = form.querySelector('[data-files-share-rows]');
-        const template = form.querySelector('[data-files-share-template]');
-        let counter = rows.querySelectorAll('[data-files-share-row]').length;
-
-        form.querySelector('[data-files-share-add]').addEventListener('click', function () {
-            const row = template.content.firstElementChild.cloneNode(true);
-            const index = 'n' + counter;
-            counter += 1;
-            ['name', 'id', 'for'].forEach(function (attribute) {
-                row.querySelectorAll('[' + attribute + ']').forEach(function (field) {
-                    field.setAttribute(attribute, field.getAttribute(attribute).split('__INDEX__').join(index));
-                });
-            });
-            rows.appendChild(row);
-            if (window.initTomSelects) {
-                window.initTomSelects(row);
-            }
-            if (window.fileAudience) {
-                window.fileAudience.bind(row);
-            }
-        });
-
-        rows.addEventListener('click', function (event) {
-            const remove = event.target.closest('[data-files-share-remove]');
-            if (remove) {
-                remove.closest('[data-files-share-row]').remove();
-            }
-        });
-    }
-
     /**
      * Die Tabelle steckt in .table-responsive, das per overflow abschneidet - das
      * Aktionsmenü der letzten Zeilen verschwand darunter. Mit der Strategie
@@ -380,6 +345,5 @@
         setupUpload();
         setupSharedModals();
         setupVersions();
-        setupShares();
     });
 })();

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -22,6 +21,7 @@ use Tests\Unit\Bootstrap;
  */
 class EventEligibleUsersScopeFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use EventScopeFixtures;
 
     protected function setUp(): void
@@ -36,10 +36,10 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testEmptySourcesMeansAllActiveUsers(): void
+    public function testEveryoneRowMeansAllActiveUsers(): void
     {
         $this->createUser();
-        $event = $this->createEvent();
+        $event = $this->openToEveryone($this->createEvent());
 
         $this->assertSame(
             (int) User::where('is_active', 1)->count(),
@@ -61,11 +61,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         $this->createUser();
 
         $event = $this->createEvent();
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
 
         $this->assertSame($this->sortedIds($members), $this->eligibleIds($event));
     }
@@ -83,11 +79,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         $this->createUser();
 
         $event = $this->createEvent();
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_ROLE,
-            'reference_id' => (int) $role->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['role' => [(int) $role->id]]);
 
         $this->assertSame($this->sortedIds($members), $this->eligibleIds($event));
     }
@@ -102,11 +94,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         $this->createUser();
 
         $event = $this->createEvent();
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_VOICE_GROUP,
-            'reference_id' => (int) $voiceGroup->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $voiceGroup->id]]);
 
         $this->assertSame($this->sortedIds($members), $this->eligibleIds($event));
     }
@@ -117,11 +105,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         $this->createUser();
 
         $event = $this->createEvent();
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_USER,
-            'reference_id' => (int) $user->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $user->id]]);
 
         $this->assertSame([(int) $user->id], $this->eligibleIds($event));
     }
@@ -140,16 +124,8 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         $bothMember->roles()->attach($role->id);
 
         $event = $this->createEvent();
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_ROLE,
-            'reference_id' => (int) $role->id,
-        ]);
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_USER,
-            'reference_id' => (int) $bothMember->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['role' => [(int) $role->id]]);
+        $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $bothMember->id]]);
 
         $ids = $this->eligibleIds($event);
 
@@ -158,20 +134,14 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
     }
 
     /**
-     * Die Spalte source_type ist nullable, und die Auswertung kennt nur vier
-     * Typen. Eine Quelle außerhalb davon liess alle vier Listen leer, die
-     * Bedingungsgruppe blieb leer - und der eingeschraenkte Termin galt
-     * stillschweigend wieder fuer alle aktiven Mitglieder.
+     * Früher galt ein Termin ohne Zielgruppe für alle. Seit den Zielgruppen-
+     * Filtern ist "alle" eine eigene Zeile; ein Termin ganz ohne Zeile trifft
+     * niemanden, statt sich stillschweigend für alle zu öffnen.
      */
-    public function testAnUnknownSourceTypeDoesNotOpenTheEventForEveryone(): void
+    public function testAnEventWithoutAnyRowDoesNotOpenForEveryone(): void
     {
         $this->createUser();
         $event = $this->createEvent();
-        Capsule::connection()->table('event_audience_sources')->insert([
-            'event_id' => (int) $event->id,
-            'source_type' => null,
-            'reference_id' => 0,
-        ]);
 
         $this->assertSame([], $this->eligibleIds($event));
     }
@@ -184,7 +154,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
     public function testOnlyTheListColumnsAreLoaded(): void
     {
         $this->createUser();
-        $event = $this->createEvent();
+        $event = $this->openToEveryone($this->createEvent());
 
         $user = $event->eligibleUsersQuery()->first();
 

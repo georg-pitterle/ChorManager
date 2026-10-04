@@ -161,11 +161,7 @@ trait NewsletterControllerTestScaffold
             'created_by' => $creator->id,
         ]);
 
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_USER,
-            'reference_id' => $recipient->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['user' => [(int) $recipient->id]], 'newsletter_id', (int) $newsletter->id);
 
         return $newsletter;
     }

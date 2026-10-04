@@ -4,82 +4,68 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Exceptions\InvalidAudienceSourcesException;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
-use App\Models\Project;
-use App\Models\Role;
 use App\Models\User;
-use App\Models\VoiceGroup;
-use Illuminate\Database\Capsule\Manager as Capsule;
+use App\Services\Audience\AudienceFilterNormalizer;
+use App\Services\Audience\AudienceFilterService;
+use App\Services\Audience\AudienceFormInput;
+use App\Services\Audience\InvalidAudienceFilterException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Verwaltet Zielgruppen-Quellen von Terminen: Persistenz, Auflösung
- * berechtigter Nutzer und Sichtbarkeits-Query.
+ * Zielgruppen von Terminen: Formular lesen, Filter speichern, berechtigte
+ * Mitglieder auflösen und sichtbare Termine finden. Die Regel selbst steht in
+ * AudienceFilterService.
  */
 class EventAudienceService
 {
-    private const ALLOWED_TYPES = [
-        EventAudienceSource::TYPE_PROJECT_MEMBERS,
-        EventAudienceSource::TYPE_ROLE,
-        EventAudienceSource::TYPE_USER,
-        EventAudienceSource::TYPE_VOICE_GROUP,
-    ];
+    public const OWNER = 'event_id';
 
-    /**
-     * @return array<int, array{type:string, reference_id:int}>
-     */
-    public function getSources(Event $event): array
-    {
-        return $event->audienceSources()
-            ->orderBy('id')
-            ->get()
-            ->map(static function (EventAudienceSource $source): array {
-                return [
-                    'type' => (string) $source->source_type,
-                    'reference_id' => (int) $source->reference_id,
-                ];
-            })
-            ->all();
+    public function __construct(
+        private readonly AudienceFilterService $filters = new AudienceFilterService(),
+        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer()
+    ) {
     }
 
     /**
-     * @param array<int, array{type:string, reference_id:int}> $sources
-     * @throws InvalidAudienceSourcesException wenn keine der angegebenen Quellen mehr existiert
+     * Zielgruppe aus dem Formular. Ein Termin braucht mindestens eine Zeile;
+     * "alle Mitglieder" ist eine Zeile mit Häkchen, kein leeres Formular - sonst
+     * gäbe ein versehentlich geleertes Formular den Termin für alle frei.
+     *
+     * @param array<string, mixed> $data
+     * @return list<array<string, list<int>>>
+     * @throws InvalidAudienceFilterException
      */
-    public function setSources(Event $event, array $sources): void
+    public function readRows(array $data): array
     {
-        $normalized = $this->normalizeSources($sources);
-
-        // Eine leere Eingabe heißt ausdrücklich "alle Mitglieder" und ist
-        // erlaubt. Bleibt dagegen von einer angegebenen Zielgruppe nichts übrig,
-        // würde sie sich stillschweigend auf alle verbreitern - das ist ein
-        // Fehler, kein Standardfall.
-        if ($sources !== [] && $normalized === []) {
-            throw new InvalidAudienceSourcesException();
+        $sets = $this->normalizer->normalizeRows(AudienceFormInput::rows($data['audience'] ?? []));
+        if ($sets === []) {
+            throw new InvalidAudienceFilterException('Bitte mindestens eine Zielgruppe angeben.');
         }
 
-        // Löschen und Neuanlegen gehören zusammen: Bricht das Schreiben mitten
-        // im Austausch ab, stünde der Termin ohne Quellen da - und ein Termin
-        // ohne Quellen gilt für alle Mitglieder.
-        Capsule::connection()->transaction(function () use ($event, $normalized): void {
-            $event->audienceSources()->delete();
+        return $sets;
+    }
 
-            foreach ($normalized as $source) {
-                $event->audienceSources()->create([
-                    'source_type' => $source['type'],
-                    'reference_id' => $source['reference_id'],
-                ]);
-            }
-        });
+    /**
+     * @param list<array<string, list<int>>> $conditionSets
+     */
+    public function setAudience(Event $event, array $conditionSets): void
+    {
+        $this->filters->replaceForOwner(self::OWNER, (int) $event->id, $conditionSets);
 
-        // Eine vorab geladene Beziehung (`with('audienceSources')`) trägt noch
-        // die eben gelöschten Zeilen. Jede Auswertung, die den geladenen Stand
-        // bevorzugt - canAccessEvent(), audienceSignature() -, arbeitete danach
-        // mit der alten Zielgruppe.
-        $event->unsetRelation('audienceSources');
+        // Eine vorab geladene Beziehung (`with('audienceFilters.conditions')`)
+        // trägt noch die eben gelöschten Filter. Jede Auswertung, die den
+        // geladenen Stand bevorzugt, arbeitete danach mit der alten Zielgruppe.
+        $event->unsetRelation('audienceFilters');
+    }
+
+    /**
+     * @return list<array<string, list<int>>>
+     */
+    public function conditionSets(Event $event): array
+    {
+        return $event->audienceConditionSets();
     }
 
     /**
@@ -93,15 +79,15 @@ class EventAudienceService
     /**
      * Berechtigte Mitglieder für mehrere Termine auf einmal.
      *
-     * eligibleUsersQuery() hängt allein an den Zielgruppen-Quellen des Termins.
-     * Termine mit derselben Quellenmenge liefern deshalb zwangsläufig dieselben
+     * eligibleUsersQuery() hängt allein an den Bedingungsmengen des Termins.
+     * Termine mit derselben Zielgruppe liefern deshalb zwangsläufig dieselben
      * Mitglieder - bei einer Serie sind das alle Termine. Statt je Termin eine
-     * eigene Abfrage zu stellen, wird das Ergebnis über die Quellen-Signatur
-     * wiederverwendet: Die Zahl der Abfragen hängt danach an der Zahl der
-     * verschiedenen Zielgruppen, nicht mehr an der Zahl der Termine.
+     * eigene Abfrage zu stellen, wird das Ergebnis über die Signatur der
+     * Zielgruppe wiederverwendet: Die Zahl der Abfragen hängt danach an der Zahl
+     * der verschiedenen Zielgruppen, nicht mehr an der Zahl der Termine.
      *
-     * Die Quellen sollten vorab geladen sein (`with('audienceSources')`), sonst
-     * holt schon die Signatur je Termin eine eigene Abfrage.
+     * Die Filter sollten vorab geladen sein (`with('audienceFilters.conditions')`),
+     * sonst holt schon die Signatur je Termin eine eigene Abfrage.
      *
      * @param iterable<Event> $events
      * @return array<int, list<int>> Termin-Kennung => Kennungen der berechtigten Mitglieder
@@ -112,11 +98,12 @@ class EventAudienceService
         $idsBySignature = [];
 
         foreach ($events as $event) {
-            $signature = $this->audienceSignature($event);
+            $sets = $event->audienceConditionSets();
+            $signature = $this->signature($sets);
 
             if (!array_key_exists($signature, $idsBySignature)) {
-                $idsBySignature[$signature] = $event->eligibleUsersQuery()
-                    ->pluck('id')
+                $idsBySignature[$signature] = $this->filters->membersQueryForSets($sets)
+                    ->pluck('users.id')
                     ->map(static fn ($id): int => (int) $id)
                     ->all();
             }
@@ -127,26 +114,6 @@ class EventAudienceService
         return $idsByEvent;
     }
 
-    /**
-     * Stabiler Fingerabdruck der Zielgruppen-Quellen eines Termins. Die Reihenfolge
-     * der Quellen darf keine Rolle spielen, deshalb wird sortiert.
-     */
-    private function audienceSignature(Event $event): string
-    {
-        $sources = $event->relationLoaded('audienceSources')
-            ? $event->audienceSources
-            : $event->audienceSources()->get();
-
-        $parts = [];
-        foreach ($sources as $source) {
-            $parts[] = (string) $source->source_type . ':' . (int) $source->reference_id;
-        }
-
-        sort($parts);
-
-        return implode('|', $parts);
-    }
-
     public function isUserEligible(Event $event, int $userId): bool
     {
         return $event->eligibleUsersQuery()
@@ -155,117 +122,27 @@ class EventAudienceService
     }
 
     /**
-     * Events, für die der Nutzer betroffen ist: ohne Quellen (=alle) oder
-     * mit passender Quelle (Projekt-/Rollen-/Stimmgruppen-Zugehörigkeit oder
-     * direkte User-Quelle).
+     * Termine, deren Zielgruppe das Mitglied in mindestens einer Zeile trifft.
      */
     public function visibleEventsQuery(int $userId): Builder
     {
-        // Das Mitglied einmal laden, nicht je Zugehörigkeit erneut: Die drei
-        // Abfragen unten hängen alle am selben Datensatz.
-        $user = User::find($userId);
+        $profile = $this->filters->profileOf($userId);
+        $ids = $profile === null ? [] : $this->filters->matchingOwnerIds($profile, self::OWNER);
 
-        $projectIds = $this->userReferenceIds($user, 'projects', 'project_id');
-        $roleIds = $this->userReferenceIds($user, 'roles', 'role_id');
-        $voiceGroupIds = $this->userReferenceIds($user, 'voiceGroups', 'voice_group_id');
-
-        return Event::query()->where(function ($query) use ($projectIds, $roleIds, $voiceGroupIds, $userId) {
-            $query->whereDoesntHave('audienceSources')
-                ->orWhereHas('audienceSources', function ($sourceQuery) use (
-                    $projectIds,
-                    $roleIds,
-                    $voiceGroupIds,
-                    $userId
-                ) {
-                    $sourceQuery->where(function ($match) use ($projectIds, $roleIds, $voiceGroupIds, $userId) {
-                        $match->where(function ($q) use ($projectIds) {
-                            $q->where('source_type', EventAudienceSource::TYPE_PROJECT_MEMBERS)
-                                ->whereIn('reference_id', $projectIds === [] ? [0] : $projectIds);
-                        })
-                        ->orWhere(function ($q) use ($roleIds) {
-                            $q->where('source_type', EventAudienceSource::TYPE_ROLE)
-                                ->whereIn('reference_id', $roleIds === [] ? [0] : $roleIds);
-                        })
-                        ->orWhere(function ($q) use ($voiceGroupIds) {
-                            $q->where('source_type', EventAudienceSource::TYPE_VOICE_GROUP)
-                                ->whereIn('reference_id', $voiceGroupIds === [] ? [0] : $voiceGroupIds);
-                        })
-                        ->orWhere(function ($q) use ($userId) {
-                            $q->where('source_type', EventAudienceSource::TYPE_USER)
-                                ->where('reference_id', $userId);
-                        });
-                    });
-                });
-        });
+        return Event::query()->whereIn('events.id', $ids === [] ? [0] : $ids);
     }
 
     /**
-     * @param array<int, mixed> $raw
-     * @return array<int, array{type:string, reference_id:int}>
+     * Stabiler Fingerabdruck einer Zielgruppe; die Reihenfolge der Zeilen spielt
+     * keine Rolle.
+     *
+     * @param list<array<string, list<int>>> $sets
      */
-    public function normalizeSources(array $raw): array
+    private function signature(array $sets): string
     {
-        $normalized = [];
-        $seen = [];
+        $parts = array_map(fn (array $set): string => '[' . $this->normalizer->signature($set) . ']', $sets);
+        sort($parts);
 
-        foreach ($raw as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-
-            $type = trim((string) ($item['type'] ?? ''));
-            $referenceId = (int) ($item['reference_id'] ?? 0);
-
-            if (!in_array($type, self::ALLOWED_TYPES, true) || $referenceId <= 0) {
-                continue;
-            }
-
-            if (!$this->referenceExists($type, $referenceId)) {
-                continue;
-            }
-
-            $key = $type . ':' . $referenceId;
-            if (isset($seen[$key])) {
-                continue;
-            }
-
-            $seen[$key] = true;
-            $normalized[] = ['type' => $type, 'reference_id' => $referenceId];
-        }
-
-        return $normalized;
-    }
-
-    private function referenceExists(string $type, int $referenceId): bool
-    {
-        return match ($type) {
-            EventAudienceSource::TYPE_PROJECT_MEMBERS => Project::query()->whereKey($referenceId)->exists(),
-            EventAudienceSource::TYPE_ROLE => Role::query()->whereKey($referenceId)->exists(),
-            EventAudienceSource::TYPE_VOICE_GROUP => VoiceGroup::query()->whereKey($referenceId)->exists(),
-            // Bewusst ohne is_active-Filter: Ein archiviertes Mitglied würde sonst
-            // beim nächsten Speichern still aus einer namentlichen Zielgruppe
-            // fallen und auch nach der Reaktivierung nicht zurückkehren. Ob es
-            // mitzählt, entscheidet die Auflösung in Event::eligibleUsersQuery(),
-            // und die filtert is_active weiterhin.
-            EventAudienceSource::TYPE_USER => User::query()->whereKey($referenceId)->exists(),
-            default => false,
-        };
-    }
-
-    /**
-     * @return array<int, int>
-     */
-    private function userReferenceIds(?User $user, string $relation, string $pivotColumn): array
-    {
-        if ($user === null) {
-            return [];
-        }
-
-        return $user->{$relation}()
-            ->pluck($pivotColumn)
-            ->map(static fn ($id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        return implode('|', $parts);
     }
 }

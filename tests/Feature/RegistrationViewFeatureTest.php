@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Controllers\RegistrationController;
 use App\Models\Event;
-use App\Models\EventAudienceSource;
 use App\Models\EventRegistration;
 use App\Models\Project;
 use App\Models\User;
@@ -33,6 +32,7 @@ use Twig\TwigFunction;
  */
 class RegistrationViewFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -233,6 +233,7 @@ class RegistrationViewFeatureTest extends TestCase
             'type' => 'Probe',
             'registration_enabled' => true,
         ]);
+        $this->openToEveryone($generalEvent);
 
         $_SESSION['user_id'] = (int) $fixture['yes']->id;
         $_SESSION['can_manage_users'] = false;
@@ -312,11 +313,7 @@ class RegistrationViewFeatureTest extends TestCase
             'registration_enabled' => true,
         ]);
 
-        EventAudienceSource::create([
-            'event_id' => $event->id,
-            'source_type' => EventAudienceSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => (int) $project->id,
-        ]);
+        $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
 
         EventRegistration::create([
             'event_id' => $event->id,

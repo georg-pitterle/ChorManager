@@ -8,7 +8,6 @@ use App\Controllers\NewsletterTemplateController;
 use App\Models\Newsletter;
 use App\Models\NewsletterRecipientSource;
 use App\Models\NewsletterTemplate;
-use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -33,6 +32,7 @@ use Twig\TwigFunction;
  */
 final class NewsletterTemplateSettingsFeatureTest extends TestCase
 {
+    use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
 
@@ -69,16 +69,8 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
             'status' => Newsletter::STATUS_DRAFT,
             'created_by' => $creator->id,
         ]);
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => $project->id,
-        ]);
-        NewsletterRecipientSource::create([
-            'newsletter_id' => $newsletter->id,
-            'source_type' => NewsletterRecipientSource::TYPE_ROLE,
-            'reference_id' => $role->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_id', (int) $newsletter->id);
+        (new \App\Services\Audience\AudienceFilterService())->create(['role' => [(int) $role->id]], 'newsletter_id', (int) $newsletter->id);
 
         $request = $this->makeRequest(
             'POST',
@@ -99,8 +91,8 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         $this->assertSame($project->id, $template->project_id);
         $this->assertEqualsCanonicalizing(
             [
-                NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS . ':' . $project->id,
-                NewsletterTemplateRecipientSource::TYPE_ROLE . ':' . $role->id,
+                'project:' . $project->id,
+                'role:' . $role->id,
             ],
             $this->sourceKeys($template)
         );
@@ -221,8 +213,10 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
             'default_title' => 'Newsletter im Advent',
             'content_html' => '<p>Inhalt</p>',
             'project_id' => (string) $project->id,
-            'source_project_members' => [(string) $project->id],
-            'source_role' => [(string) $role->id],
+            'audience' => [
+                ['conditions' => ['project' => [(string) $project->id]]],
+                ['conditions' => ['role' => [(string) $role->id]]],
+            ],
         ])->withAttribute('id', (string) $template->id);
 
         $response = $this->templateController()->update($request, $this->makeResponse());
@@ -233,8 +227,8 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         $this->assertSame($project->id, $template->project_id);
         $this->assertEqualsCanonicalizing(
             [
-                NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS . ':' . $project->id,
-                NewsletterTemplateRecipientSource::TYPE_ROLE . ':' . $role->id,
+                'project:' . $project->id,
+                'role:' . $role->id,
             ],
             $this->sourceKeys($template)
         );
@@ -247,11 +241,7 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         $_SESSION['user_id'] = $creator->id;
 
         $template = $this->createTemplate($creator);
-        NewsletterTemplateRecipientSource::create([
-            'template_id' => $template->id,
-            'source_type' => NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => $project->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_template_id', (int) $template->id);
 
         $request = $this->makeRequest('POST', '/newsletters/templates/' . $template->id, [
             'name' => $template->name,
@@ -273,11 +263,7 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
 
         $template = $this->createTemplate($creator);
         $template->update(['default_title' => 'Titel aus Vorlage', 'project_id' => $project->id]);
-        NewsletterTemplateRecipientSource::create([
-            'template_id' => $template->id,
-            'source_type' => NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => $project->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_template_id', (int) $template->id);
 
         $request = $this->makeRequest('GET', '/newsletters/template/' . $template->id)
             ->withAttribute('id', (string) $template->id);
@@ -288,8 +274,8 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         $this->assertSame('Titel aus Vorlage', $payload['default_title']);
         $this->assertSame($project->id, $payload['project_id']);
         $this->assertSame(
-            [['type' => NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS, 'reference_id' => $project->id]],
-            $payload['recipient_sources']
+            [['project' => [(int) $project->id]]],
+            $payload['audience']
         );
     }
 
@@ -301,11 +287,7 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
 
         $template = $this->createTemplate($creator);
         $template->update(['default_title' => 'Titelvorschlag', 'project_id' => $project->id]);
-        NewsletterTemplateRecipientSource::create([
-            'template_id' => $template->id,
-            'source_type' => NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
-            'reference_id' => $project->id,
-        ]);
+        (new \App\Services\Audience\AudienceFilterService())->create(['project' => [(int) $project->id]], 'newsletter_template_id', (int) $template->id);
 
         $request = $this->makeRequest('POST', '/newsletters/templates/' . $template->id . '/clone')
             ->withAttribute('id', (string) $template->id);
@@ -320,7 +302,7 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         $this->assertSame('Titelvorschlag', $clone->default_title);
         $this->assertSame($project->id, $clone->project_id);
         $this->assertSame(
-            [NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS . ':' . $project->id],
+            ['project:' . $project->id],
             $this->sourceKeys($clone)
         );
     }
@@ -339,10 +321,10 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
 
         $this->assertStringContainsString('name="default_title"', $html);
         $this->assertStringContainsString('name="project_id"', $html);
-        $this->assertStringContainsString('name="source_project_members[]"', $html);
-        $this->assertStringContainsString('name="source_event_attendees[]"', $html);
-        $this->assertStringContainsString('name="source_role[]"', $html);
-        $this->assertStringContainsString('name="source_user[]"', $html);
+        foreach (['role', 'voice_group', 'sub_voice', 'project', 'user'] as $category) {
+            $this->assertStringContainsString('name="audience[__INDEX__][conditions][' . $category . '][]"', $html);
+        }
+        $this->assertStringContainsString('name="event_ids[]"', $html);
     }
 
     public function testCreateScriptAppliesTemplateSettings(): void
@@ -350,7 +332,8 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         $script = file_get_contents(dirname(__DIR__, 2) . '/public/js/newsletters-create.js');
 
         $this->assertIsString($script);
-        $this->assertStringContainsString('recipient_sources', $script);
+        $this->assertStringContainsString('data.audience', $script);
+        $this->assertStringContainsString('data.event_ids', $script);
         $this->assertStringContainsString('default_title', $script);
         $this->assertStringContainsString('applyTemplateSettings', $script);
     }
@@ -360,14 +343,7 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
      */
     private function sourceKeys(NewsletterTemplate $template): array
     {
-        return $template->recipientSources()
-            ->get()
-            ->map(static fn (NewsletterTemplateRecipientSource $source): string => sprintf(
-                '%s:%d',
-                (string) $source->source_type,
-                (int) $source->reference_id
-            ))
-            ->all();
+        return $this->templateAudienceKeys($template);
     }
 
     private function createUser(): User

@@ -135,7 +135,8 @@ class NewsletterFeatureTest extends TestCase
     public function testRecipientServiceHasRequiredMethods(): void
     {
         $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'resolveRecipients'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'getProjectMembers'));
+        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'setAudience'));
+        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'readAudience'));
         $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'getRecipients'));
         $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'setRecipients'));
     }
@@ -540,7 +541,7 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString('validateNewsletterSourcesInput', $controllerContent);
         $this->assertStringContainsString('resolveRecipientsPreview', $controllerContent);
-        $this->assertStringContainsString('recipientService->setSources', $controllerContent);
+        $this->assertStringContainsString('recipientService->setAudience', $controllerContent);
         $this->assertStringContainsString("'recipient_type'", $controllerContent);
         $this->assertStringContainsString("'project_id'", $controllerContent);
         $this->assertStringContainsString('Zugriff verweigert.', $controllerContent);
@@ -565,10 +566,11 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($indexTemplate);
 
         $this->assertStringContainsString('id="recipient-sources"', $createTemplate);
-        $this->assertStringContainsString('data-source-type="project_members"', $createTemplate);
-        $this->assertStringContainsString('data-source-type="event_attendees"', $createTemplate);
-        $this->assertStringContainsString('data-source-type="role"', $createTemplate);
-        $this->assertStringContainsString('data-source-type="user"', $createTemplate);
+        $this->assertStringContainsString('newsletters/_audience.twig', $createTemplate);
+        $this->assertStringContainsString('newsletters/_audience.twig', $editTemplate);
+        $partial = (string) file_get_contents(dirname(__DIR__) . '/../templates/newsletters/_audience.twig');
+        $this->assertStringContainsString('partials/audience/filter_rows.twig', $partial);
+        $this->assertStringContainsString('name="event_ids[]"', $partial);
 
         $this->assertStringContainsString('id="recipient-count-badge"', $editTemplate);
         $this->assertStringContainsString('name="recipient_type"', $indexTemplate);
@@ -582,11 +584,11 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($createScriptContent);
         $this->assertIsString($editScriptContent);
 
-        $this->assertStringContainsString('buildRecipientSourcesPayload', $createScriptContent);
+        $this->assertStringContainsString('audiencePayload', $createScriptContent);
         $this->assertStringContainsString('/newsletters/resolve-recipients-preview', $createScriptContent);
         $this->assertStringContainsString('recipient-count-badge', $createScriptContent);
 
-        $this->assertStringContainsString('buildRecipientSourcesPayload', $editScriptContent);
+        $this->assertStringContainsString('audiencePayload', $editScriptContent);
         $this->assertStringContainsString('/newsletters/resolve-recipients-preview', $editScriptContent);
         $this->assertStringContainsString('recipient-count-badge', $editScriptContent);
     }

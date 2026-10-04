@@ -170,8 +170,8 @@ class FileControllerFeatureTest extends TestCase
 
         $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
 
-        // file-audience.js schreibt den Text bei jeder Änderung neu - das Symbol davor bleibt stehen.
-        $this->assertMatchesRegularExpression('#<span data-files-share-summary-text>\s*Mitglied: #', $html);
+        // audience-filter.js schreibt den Text bei jeder Änderung neu - das Symbol davor bleibt stehen.
+        $this->assertMatchesRegularExpression('#<span data-audience-summary-text>\s*Mitglied: #', $html);
     }
 
     public function testFilesUseTableEngineWhileFoldersStayOutside(): void

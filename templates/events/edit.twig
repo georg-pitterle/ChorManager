@@ -34,7 +34,7 @@
         <div class="col-md-8 mx-auto">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <form action="/events/{{ event.id }}/update" method="post" class="event-audience-form">
+                    <form action="/events/{{ event.id }}/update" method="post">
                         <div class="mb-3">
                             <label for="title" class="form-label">Titel *</label>
                             <input type="text"
@@ -160,7 +160,14 @@
                             {% endif %}
                         {% endif %}
 
-                        {% include "events/_audience_sources.twig" %}
+                        <div class="mb-3">
+                            <label class="form-label">Zielgruppe</label>
+                            {{ include("partials/audience/filter_rows.twig", {
+                                prefix: "audience",
+                                rows: audience_rows,
+                                options: audience_options,
+                            }) }}
+                        </div>
 
                         {% if event.series_id %}
                             {% set series_fields = form.series_fields|default(["title", "location", "time", "registration", "attendance", "audience"]) %}
@@ -212,5 +219,5 @@
     {{ parent() }}
     <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
     <script src="/js/tom-select-init.js"></script>
-    <script src="/js/events-audience.js"></script>
+    <script src="/js/audience-filter.js"></script>
 {% endblock scripts %}

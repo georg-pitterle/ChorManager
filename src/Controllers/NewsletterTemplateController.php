@@ -7,18 +7,16 @@ namespace App\Controllers;
 use App\Models\Event;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
-use App\Models\NewsletterTemplateRecipientSource;
 use App\Models\Project;
-use App\Models\Role;
-use App\Models\User;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Queries\NewsletterTemplateQuery;
+use App\Services\Audience\AudienceDescriber;
+use App\Services\Audience\InvalidAudienceFilterException;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
 use App\Util\RequestFormat;
 use App\Util\InputValidator;
-use Illuminate\Database\Eloquent\Collection;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -32,17 +30,6 @@ use Slim\Views\Twig;
  */
 class NewsletterTemplateController
 {
-    /**
-     * Formularfeld je Quellentyp. Die Mehrfachauswahl im Vorlagenformular
-     * liefert je Typ eine flache Liste von Referenz-IDs.
-     */
-    private const SOURCE_FIELDS = [
-        'source_project_members' => NewsletterTemplateRecipientSource::TYPE_PROJECT_MEMBERS,
-        'source_event_attendees' => NewsletterTemplateRecipientSource::TYPE_EVENT_ATTENDEES,
-        'source_role' => NewsletterTemplateRecipientSource::TYPE_ROLE,
-        'source_user' => NewsletterTemplateRecipientSource::TYPE_USER,
-    ];
-
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
     private NewsletterTemplateQuery $templateQuery;
@@ -109,29 +96,54 @@ class NewsletterTemplateController
     }
 
     /**
-     * Baut die Empfängerquellen aus dem Vorlagenformular. Ein leeres Formularfeld
-     * heißt "keine Quelle dieses Typs" - deshalb ist das Fehlen eines Feldes kein
-     * Grund, die gespeicherte Auswahl stehen zu lassen.
+     * Empfängerauswahl aus dem Vorlagenformular, dieselbe Prüfung wie beim
+     * Newsletter. Ein fehlendes Feld heißt "keine Auswahl" - deshalb ist das
+     * Fehlen kein Grund, die gespeicherte Auswahl stehen zu lassen.
      *
      * @param array<string, mixed> $data
-     * @return array<int, array{type:string, reference_id:int}>
+     * @return array{sets: list<array<string, list<int>>>, event_ids: list<int>}
+     * @throws InvalidAudienceFilterException
      */
-    private function recipientSourcesFromInput(array $data): array
+    private function audienceFromInput(array $data): array
     {
-        $raw = [];
+        return $this->recipientService->readAudience($data);
+    }
 
-        foreach (self::SOURCE_FIELDS as $field => $type) {
-            $values = $data[$field] ?? [];
-            if (!is_array($values)) {
-                $values = [$values];
-            }
+    /**
+     * Zeilen und Auswahllisten für die Empfänger einer Vorlage.
+     *
+     * @param array{sets: list<array<string, list<int>>>, event_ids: list<int>} $audience
+     * @return array<string, mixed>
+     */
+    private function audienceView(array $audience): array
+    {
+        $describer = new AudienceDescriber($this->nameFormatter);
 
-            foreach ($values as $value) {
-                $raw[] = ['type' => $type, 'reference_id' => (int) $value];
-            }
-        }
+        return [
+            'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
+            'audience_rows' => $describer->describeSets($audience['sets']),
+            'audience_options' => $describer->options(
+                AudienceDescriber::selectedIds($audience['sets'], 'project'),
+                AudienceDescriber::selectedIds($audience['sets'], 'user')
+            ),
+            'selected_event_ids' => $audience['event_ids'],
+        ];
+    }
 
-        return $this->recipientService->normalizeSources($raw);
+    /**
+     * Empfängerauswahl einer Vorlage für das Newsletter-Formular, das sie beim
+     * Übernehmen in Zeilen umsetzt.
+     *
+     * @param array{sets: list<array<string, list<int>>>, event_ids: list<int>} $audience
+     * @return array{audience: list<array<string, list<int>>>, event_ids: list<int>}
+     */
+    private function jsonAudience(array $audience): array
+    {
+        // Leere Bedingungsmengen ({}) sollen im JavaScript als Objekt ankommen.
+        return [
+            'audience' => array_map(static fn (array $set): object => (object) $set, $audience['sets']),
+            'event_ids' => $audience['event_ids'],
+        ];
     }
 
     /**
@@ -146,18 +158,6 @@ class NewsletterTemplateController
         return (int) $data['project_id'];
     }
 
-    /**
-     * @return Collection<int, User>
-     */
-    private function activeUsersInNameOrder(): Collection
-    {
-        $query = User::query()->where('is_active', 1);
-
-        $this->nameFormatter->applyNameOrder($query);
-
-        return $query->get();
-    }
-
     public function index(Request $request, Response $response): Response
     {
         $success = $_SESSION['success'] ?? null;
@@ -170,9 +170,7 @@ class NewsletterTemplateController
         return $this->view->render($response, 'newsletters/templates_index.twig', [
             'projects' => Project::query()->chronological()->get(),
             'templates' => NewsletterTemplate::query()->orderBy('name')->get(),
-            'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
-            'roles' => Role::query()->orderBy('name')->get(),
-            'users' => $this->activeUsersInNameOrder(),
+        ] + $this->audienceView(NewsletterTemplatePersistence::NO_AUDIENCE) + [
             'success' => $success,
             'error' => $error,
         ]);
@@ -208,12 +206,18 @@ class NewsletterTemplateController
             return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
-        $template = $this->templatePersistence->createTemplate(
-            $validation['payload'],
-            $userId,
-            $projectId,
-            $this->recipientSourcesFromInput($data)
-        );
+        try {
+            $audience = $this->audienceFromInput($data);
+        } catch (InvalidAudienceFilterException $exception) {
+            if (!RequestFormat::expectsJson($request)) {
+                $_SESSION['error'] = $exception->getMessage();
+                return $response->withHeader('Location', '/newsletters/templates')->withStatus(302);
+            }
+
+            return $this->jsonResponse($response, ['error' => $exception->getMessage()], 422);
+        }
+
+        $template = $this->templatePersistence->createTemplate($validation['payload'], $userId, $projectId, $audience);
 
         if (!RequestFormat::expectsJson($request)) {
             $_SESSION['success'] = 'Vorlage erstellt';
@@ -243,10 +247,7 @@ class NewsletterTemplateController
         return $this->view->render($response, 'newsletters/templates_edit.twig', [
             'template' => $template,
             'projects' => Project::query()->chronological()->get(),
-            'events' => Event::query()->orderBy('starts_at', 'desc')->get(),
-            'roles' => Role::query()->orderBy('name')->get(),
-            'users' => $this->activeUsersInNameOrder(),
-            'recipient_sources' => $this->templatePersistence->getRecipientSources($template),
+        ] + $this->audienceView($this->templatePersistence->audienceOf($template)) + [
             'is_modal' => $isModal,
         ]);
     }
@@ -293,11 +294,20 @@ class NewsletterTemplateController
             $payload['project_id'] = $projectId;
         }
 
-        $this->templatePersistence->updateTemplate(
-            $template,
-            $payload,
-            $this->recipientSourcesFromInput($data)
-        );
+        try {
+            $audience = $this->audienceFromInput($data);
+        } catch (InvalidAudienceFilterException $exception) {
+            if (!RequestFormat::expectsJson($request)) {
+                $_SESSION['error'] = $exception->getMessage();
+                return $response
+                    ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
+                    ->withStatus(302);
+            }
+
+            return $this->jsonResponse($response, ['error' => $exception->getMessage()], 422);
+        }
+
+        $this->templatePersistence->updateTemplate($template, $payload, $audience);
         $_SESSION['success'] = 'Vorlage gespeichert';
 
         if (!RequestFormat::expectsJson($request)) {
@@ -354,8 +364,7 @@ class NewsletterTemplateController
             'default_title' => $template->default_title,
             'project_id' => $template->project_id === null ? null : (int) $template->project_id,
             'content_html' => $template->content_html,
-            'recipient_sources' => $this->templatePersistence->getRecipientSources($template),
-        ]);
+        ] + $this->jsonAudience($this->templatePersistence->audienceOf($template)));
     }
 
     public function storeFromNewsletter(Request $request, Response $response): Response
@@ -397,7 +406,7 @@ class NewsletterTemplateController
             ],
             $userId,
             $newsletter->project_id === null ? null : (int) $newsletter->project_id,
-            $this->recipientService->getSources($newsletter)
+            $this->recipientService->audienceOf($newsletter)
         );
 
         if (!RequestFormat::expectsJson($request)) {

@@ -63,6 +63,13 @@ class Newsletter extends Model
         return $this->hasMany(NewsletterRecipient::class, 'newsletter_id');
     }
 
+    /** Zielgruppen-Zeilen; dazu kommen die Termine aus recipientSources(). */
+    public function audienceFilters(): HasMany
+    {
+        return $this->hasMany(AudienceFilter::class, 'newsletter_id', 'id');
+    }
+
+    /** Nur noch "Zielgruppe eines Termins" (event_attendees). */
     public function recipientSources(): HasMany
     {
         return $this->hasMany(NewsletterRecipientSource::class, 'newsletter_id');

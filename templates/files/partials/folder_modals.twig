@@ -89,7 +89,7 @@
 {% if can_manage %}
     <div class="modal fade" id="filesSharesModal" tabindex="-1" aria-labelledby="filesSharesTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg">
-            <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/shares" data-files-shares-form>
+            <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/shares">
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <div class="modal-header">
                     <h2 class="modal-title h5" id="filesSharesTitle">Freigaben für „{{ folder.name }}“</h2>
@@ -115,17 +115,13 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-                    <div data-files-share-rows>
-                        {% for share in shares %}
-                            {{ include("files/partials/share_row.twig", {index: loop.index0, share: share}) }}
-                        {% endfor %}
-                    </div>
-                    <template data-files-share-template>
-                        {{ include("files/partials/share_row.twig", {index: "__INDEX__", share: null}) }}
-                    </template>
-                    <button type="button" class="btn btn-outline-primary btn-sm" data-files-share-add>
-                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Freigabe hinzufügen
-                    </button>
+                    {{ include("partials/audience/filter_rows.twig", {
+                        prefix: "shares",
+                        rows: shares,
+                        options: share_options,
+                        level_labels: level_labels,
+                        add_label: "Freigabe hinzufügen",
+                    }) }}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
