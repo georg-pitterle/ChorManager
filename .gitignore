@@ -13,3 +13,4 @@ var/
 ship.ps1
 test-results/
 playwright-report/
+.claude/worktrees/
