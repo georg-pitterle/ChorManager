@@ -18,6 +18,16 @@ class AccessTokenService
 {
     public const TOKEN_TTL_SECONDS = 300;
 
+    /**
+     * Der Client-Dienst kommt mit einer Vorgabe, weil der Token-Dienst an
+     * mehreren Stellen ohne Container gebaut wird (Tests, CLI). Über den
+     * Container bekommt er die registrierte Instanz.
+     */
+    public function __construct(
+        private readonly OidcClientService $clients = new OidcClientService()
+    ) {
+    }
+
     public static function hashToken(string $token): string
     {
         return hash('sha256', $token);
@@ -45,7 +55,8 @@ class AccessTokenService
     }
 
     /**
-     * Löst ein Bearer-Token auf. Abgelaufen oder widerrufen heißt: kein Treffer.
+     * Löst ein Bearer-Token auf. Abgelaufen, widerrufen oder von einem
+     * abgeschalteten Client heißt: kein Treffer.
      */
     public function resolve(string $token): ?OidcAccessToken
     {
@@ -63,6 +74,14 @@ class AccessTokenService
         }
 
         if (strtotime((string) $stored->expires_at) < time()) {
+            return null;
+        }
+
+        // Der Client muss es noch geben und aktiv sein. Ohne diese Prüfung
+        // wirkte das Abschalten einer angeschlossenen Anwendung erst, wenn ihre
+        // bereits ausgestellten Token abgelaufen waren - bis zu fünf Minuten
+        // später. Ein Notaus, der fünf Minuten braucht, ist keiner.
+        if ($this->clients->findActiveClient((string) $stored->client_id) === null) {
             return null;
         }
 

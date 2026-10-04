@@ -84,6 +84,21 @@ final class OidcSchemaFeatureTest extends TestCase
         }
     }
 
+    /**
+     * Ohne Index beantwortet "alle Token dieses Clients" nur ein voller
+     * Tabellenlauf - und genau das ist die Abfrage, die beim Abschalten oder
+     * Aufräumen eines Clients ansteht.
+     */
+    public function testCodesAndTokensAreSearchableByTheirClient(): void
+    {
+        foreach (['oidc_auth_codes', 'oidc_access_tokens'] as $table) {
+            $this->assertTrue(
+                $this->hasIndexLedBy($table, 'client_id'),
+                $table . '.client_id braucht einen Index, der die Spalte an erster Stelle führt.'
+            );
+        }
+    }
+
     public function testUsersCarryAnExternalUidAndRolesAnExternalGroup(): void
     {
         $this->assertContains('external_uid', $this->columnsOf('users'));
@@ -115,6 +130,23 @@ final class OidcSchemaFeatureTest extends TestCase
             'SELECT INDEX_NAME FROM information_schema.STATISTICS '
                 . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? '
                 . 'AND NON_UNIQUE = 0 AND SEQ_IN_INDEX = 1',
+            [$table, $column]
+        );
+
+        return $rows !== [];
+    }
+
+    /**
+     * Ein Index, der die Spalte an erster Stelle führt - nur dann trägt er eine
+     * Abfrage, die allein nach dieser Spalte sucht. Eindeutig oder nicht ist
+     * dabei gleichgültig.
+     */
+    private function hasIndexLedBy(string $table, string $column): bool
+    {
+        $rows = Capsule::connection()->select(
+            'SELECT INDEX_NAME FROM information_schema.STATISTICS '
+                . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? '
+                . 'AND SEQ_IN_INDEX = 1',
             [$table, $column]
         );
 

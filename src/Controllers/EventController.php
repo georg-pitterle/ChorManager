@@ -28,6 +28,7 @@ use App\Services\EventRecurrenceService;
 use App\Services\NotificationService;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
+use App\Services\EntityCleanupService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Util\InputValidator;
@@ -80,6 +81,7 @@ class EventController
     private ProjectQuery $projectQuery;
 
     private ?NotificationService $notificationService;
+    private EntityCleanupService $cleanup;
 
     /**
      * `$notificationService` steht am Ende und ist optional: Zahlreiche Tests
@@ -94,13 +96,15 @@ class EventController
         NameFormatterService $nameFormatter,
         LoggerInterface $logger,
         ProjectQuery $projectQuery,
-        ?NotificationService $notificationService = null
+        ?NotificationService $notificationService = null,
+        ?EntityCleanupService $cleanup = null
     ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
         $this->projectQuery = $projectQuery;
         $this->notificationService = $notificationService;
+        $this->cleanup = $cleanup ?? new EntityCleanupService();
     }
 
     /**
@@ -1414,6 +1418,9 @@ class EventController
             $cancelled->id = $event->id;
             $recipients = $this->audienceUsersFor([$event]);
 
+            // Die Notizen am Termin hängen über entity_type/entity_id und
+            // tragen keinen Fremdschlüssel - die Kaskade nimmt sie nicht mit.
+            $this->cleanup->purgeForEntity('event', (int) $event->id);
             $event->delete();
 
             $this->notifyResolvedAudience(
@@ -1489,7 +1496,9 @@ class EventController
                 ->all();
             $recipients = $this->audienceUsersFor($eventsToDelete->all());
 
-            Event::whereIn('id', $eventsToDelete->pluck('id')->all())->delete();
+            $deletedIds = array_map('intval', $eventsToDelete->pluck('id')->all());
+            $this->cleanup->purgeForEntities('event', $deletedIds);
+            Event::whereIn('id', $deletedIds)->delete();
 
             $this->notifyResolvedAudience(
                 $request,

@@ -121,6 +121,7 @@ use App\Policies\SponsoringPolicy;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\AttachmentResponseFactory;
 use App\Services\EntityAttachmentService;
+use App\Services\EntityCleanupService;
 use App\Policies\TaskPolicy;
 use App\Policies\UserEditPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -265,7 +266,12 @@ return function (ContainerBuilder $containerBuilder) {
         AuthorizationCodeService::class => function (ContainerInterface $c): AuthorizationCodeService {
             return new AuthorizationCodeService($c->get(LoggerInterface::class));
         },
-        AccessTokenService::class => \DI\autowire(),
+        // Nicht autowire(): Der Client-Dienst steht als optionaler Parameter mit
+        // Vorgabe, und PHP-DI überspringt optionale Parameter. Der Token-Dienst
+        // bekäme sonst einen zweiten OidcClientService statt des registrierten.
+        AccessTokenService::class => function (ContainerInterface $c): AccessTokenService {
+            return new AccessTokenService($c->get(OidcClientService::class));
+        },
         OidcClaimsBuilder::class => \DI\autowire(),
         OidcAdminService::class => \DI\autowire(),
         DiscoveryController::class => \DI\autowire(),
@@ -321,7 +327,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(NameFormatterService::class),
                 $c->get(LoggerInterface::class),
                 $c->get(NotificationService::class),
-                $c->get(EntityAttachmentService::class)
+                $c->get(EntityAttachmentService::class),
+                $c->get(EntityCleanupService::class)
             );
         },
         AppSettingController::class => function (ContainerInterface $c): AppSettingController {
@@ -348,7 +355,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(NameFormatterService::class),
                 $c->get(LoggerInterface::class),
                 $c->get(ProjectQuery::class),
-                $c->get(NotificationService::class)
+                $c->get(NotificationService::class),
+                $c->get(EntityCleanupService::class)
             );
         },
         ProjectController::class => function (ContainerInterface $c): ProjectController {
@@ -434,7 +442,8 @@ return function (ContainerBuilder $containerBuilder) {
             return new SongLibraryController(
                 $c->get(Twig::class),
                 $c->get(LoggerInterface::class),
-                $c->get(EntityAttachmentService::class)
+                $c->get(EntityAttachmentService::class),
+                $c->get(EntityCleanupService::class)
             );
         },
         // Derselbe Fall wie bei SongLibraryController: der optionale Logger-Parameter wird von
@@ -663,6 +672,7 @@ return function (ContainerBuilder $containerBuilder) {
         ProjectMemberPolicy::class => static fn (): ProjectMemberPolicy => new ProjectMemberPolicy($_SESSION),
         SponsoringPolicy::class => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
         EntityAttachmentService::class => \DI\autowire(),
+        EntityCleanupService::class => \DI\autowire(),
         TaskPolicy::class => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
 
         NewsletterPolicy::class => static fn (): NewsletterPolicy => new NewsletterPolicy($_SESSION),

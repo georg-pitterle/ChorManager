@@ -20,6 +20,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Policies\NewsletterPolicy;
 use App\Services\EntityAttachmentService;
+use App\Services\EntityCleanupService;
 use App\Services\NewsletterAttachmentService;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
@@ -51,6 +52,7 @@ class NewsletterController
     private NewsletterPolicy $newsletterPolicy;
     private EntityAttachmentService $entityAttachments;
     private NewsletterAttachmentService $newsletterAttachments;
+    private EntityCleanupService $cleanup;
 
     public function __construct(
         Twig $view,
@@ -65,7 +67,8 @@ class NewsletterController
         NewsletterMailRenderer $mailRenderer,
         NewsletterPolicy $newsletterPolicy,
         EntityAttachmentService $entityAttachments,
-        NewsletterAttachmentService $newsletterAttachments
+        NewsletterAttachmentService $newsletterAttachments,
+        ?EntityCleanupService $cleanup = null
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -80,6 +83,7 @@ class NewsletterController
         $this->newsletterPolicy = $newsletterPolicy;
         $this->entityAttachments = $entityAttachments;
         $this->newsletterAttachments = $newsletterAttachments;
+        $this->cleanup = $cleanup ?? new EntityCleanupService($entityAttachments);
     }
 
     /**
@@ -1315,6 +1319,10 @@ class NewsletterController
                 ->withStatus(302);
         }
 
+        // Die Dateien des Entwurfs hängen über entity_type/entity_id und
+        // tragen keinen Fremdschlüssel - ohne diese Zeile blieben sie als
+        // unerreichbare BLOB-Zeilen liegen.
+        $this->cleanup->purgeForEntity(NewsletterAttachmentService::ENTITY_TYPE, (int) $newsletter->id);
         NewsletterRecipient::where('newsletter_id', $newsletter->id)->delete();
         $newsletter->delete();
         $_SESSION['success'] = 'Newsletter-Entwurf gelöscht';

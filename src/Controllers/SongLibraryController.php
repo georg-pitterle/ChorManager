@@ -10,6 +10,7 @@ use App\Models\Song;
 use App\Models\Attachment;
 use App\Models\SongResource;
 use App\Services\EntityAttachmentService;
+use App\Services\EntityCleanupService;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -25,6 +26,7 @@ class SongLibraryController
     private Twig $view;
     private LoggerInterface $logger;
     private EntityAttachmentService $attachments;
+    private EntityCleanupService $cleanup;
 
     /**
      * `$attachments` steht am Ende und optional, weil mehrere Tests diesen
@@ -34,11 +36,13 @@ class SongLibraryController
     public function __construct(
         Twig $view,
         LoggerInterface $logger = new NullLogger(),
-        ?EntityAttachmentService $attachments = null
+        ?EntityAttachmentService $attachments = null,
+        ?EntityCleanupService $cleanup = null
     ) {
         $this->view = $view;
         $this->logger = $logger;
         $this->attachments = $attachments ?? new EntityAttachmentService($logger);
+        $this->cleanup = $cleanup ?? new EntityCleanupService($this->attachments);
     }
 
     public function index(Request $request, Response $response): Response
@@ -246,9 +250,7 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library')->withStatus(302);
         }
 
-        Attachment::where('entity_type', self::ENTITY_TYPE)
-            ->where('entity_id', $songId)
-            ->delete();
+        $this->cleanup->purgeForEntity(self::ENTITY_TYPE, $songId);
         $song->delete();
         $_SESSION['success'] = 'Lied erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library')->withStatus(302);

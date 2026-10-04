@@ -15,6 +15,7 @@ use App\Services\CalendarSubscriptionService;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\EntityAttachmentService;
+use App\Services\EntityCleanupService;
 use App\Services\NotificationService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
@@ -39,6 +40,7 @@ class TaskController
     private LoggerInterface $logger;
     private ?NotificationService $notificationService;
     private EntityAttachmentService $attachments;
+    private EntityCleanupService $cleanup;
 
     /**
      * `$notificationService` steht am Ende und ist optional, weil zahlreiche
@@ -64,7 +66,8 @@ class TaskController
         NameFormatterService $nameFormatter,
         LoggerInterface $logger,
         ?NotificationService $notificationService = null,
-        ?EntityAttachmentService $attachments = null
+        ?EntityAttachmentService $attachments = null,
+        ?EntityCleanupService $cleanup = null
     ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
@@ -73,6 +76,7 @@ class TaskController
         $this->logger = $logger;
         $this->notificationService = $notificationService;
         $this->attachments = $attachments ?? new EntityAttachmentService($logger);
+        $this->cleanup = $cleanup ?? new EntityCleanupService($this->attachments);
     }
 
     /**
@@ -612,9 +616,11 @@ class TaskController
         }
 
         $projectId = $task->project_id;
-        Attachment::where('entity_type', self::ENTITY_TYPE)
-            ->where('entity_id', $taskId)
-            ->delete();
+
+        // Anhänge, Notizen und Verlauf hängen über entity_type/entity_id an der
+        // Aufgabe und tragen keinen Fremdschlüssel - ohne diese Zeile bleiben
+        // sie unerreichbar liegen.
+        $this->cleanup->purgeForEntity(self::ENTITY_TYPE, $taskId);
         $task->delete();
 
         $_SESSION['success'] = 'Aufgabe erfolgreich gelöscht.';
