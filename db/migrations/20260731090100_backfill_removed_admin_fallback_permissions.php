@@ -7,7 +7,7 @@ use Phinx\Migration\AbstractMigration;
 /**
  * Bis zur Aufteilung der Anwesenheitsrechte war can_manage_users in fast jedem
  * RoleMiddleware-Gate als Fallback verdrahtet ("... || $canManageUsers"). Mit dem
- * Wegfall dieser Fallbacks verlieren Bestandsrollen still ihre bisherigen Zugaenge.
+ * Wegfall dieser Fallbacks verlieren Bestandsrollen still ihre bisherigen Zugänge.
  * Der Backfill schreibt genau die Rechte fest, die diese Rollen faktisch schon hatten,
  * damit sie danach in der Rollenmatrix sichtbar und einzeln entziehbar sind.
  *
@@ -42,7 +42,7 @@ final class BackfillRemovedAdminFallbackPermissions extends AbstractMigration
 
     public function down(): void
     {
-        // Die Rechte sind nach dem Backfill regulaer gepflegte Einzelrechte - ein
+        // Die Rechte sind nach dem Backfill regulär gepflegte Einzelrechte - ein
         // pauschaler Entzug würde auch manuell vergebene Rechte löschen.
     }
 }
