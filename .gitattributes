@@ -28,6 +28,12 @@
 *.ico binary
 *.pdf binary
 *.zip binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.odt binary
+*.ods binary
+*.odp binary
 *.woff binary
 *.woff2 binary
 *.ttf binary

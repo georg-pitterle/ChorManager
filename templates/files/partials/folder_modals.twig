@@ -21,6 +21,50 @@
             </form>
         </div>
     </div>
+
+    {% set _document_types = office_document_types() %}
+    {% if _document_types is not empty %}
+        <div class="modal fade"
+             id="filesNewDocumentModal"
+             tabindex="-1"
+             aria-labelledby="filesNewDocumentTitle"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/office-documents">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <div class="modal-header">
+                        <h2 class="modal-title h5" id="filesNewDocumentTitle">Neues Dokument</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <fieldset class="mb-3">
+                            <legend class="form-label">Art</legend>
+                            {% for type, definition in _document_types %}
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="radio"
+                                           name="type"
+                                           id="filesNewDocumentType{{ loop.index }}"
+                                           value="{{ type }}"
+                                           {{ loop.first ? "checked" : "" }}>
+                                    <label class="form-check-label" for="filesNewDocumentType{{ loop.index }}">
+                                        {{ definition.label }} (.{{ definition.extension }})
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </fieldset>
+                        <label class="form-label" for="filesNewDocumentName">Name</label>
+                        <input class="form-control" id="filesNewDocumentName" name="name" maxlength="240" required>
+                        <div class="form-text">Die Endung wird ergänzt. Das Dokument öffnet sich danach im Editor.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Anlegen und öffnen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
 {% endif %}
 
 {% if can_edit %}

@@ -8,7 +8,9 @@ use App\Models\FileFolder;
 use App\Models\FileFolderShare;
 use App\Models\FileVersion;
 use App\Models\StoredFile;
+use App\Services\Office\WopiTimestamp;
 use App\Util\UploadValidator;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as DB;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Log\LoggerInterface;
@@ -45,6 +47,9 @@ final class FileService
         'text/x-shellscript',
         'application/x-sh',
     ];
+
+    /** Ab so vielen Minuten ohne Speichern beginnt eine Office-Sitzung eine neue Version. */
+    public const OFFICE_SESSION_IDLE_MINUTES = 60;
 
     public function __construct(
         private readonly FileAccessService $access,
@@ -116,9 +121,172 @@ final class FileService
         string $name,
         ?StoredFile $existing
     ): UploadResult {
+        ['storage' => $storage, 'attributes' => $attributes] = $this->storeContent(
+            $actor,
+            $folder,
+            $upload,
+            static fn (int $size): int => $size
+        );
+
+        try {
+            $file = DB::connection()->transaction(function () use (
+                $actor,
+                $folder,
+                $existing,
+                $name,
+                $attributes
+            ): StoredFile {
+                $file = $existing ?? StoredFile::create([
+                    'folder_id' => (int) $folder->id,
+                    'name' => $name,
+                    'size' => $attributes['size'],
+                    'mime_type' => $attributes['mime_type'],
+                    'created_by' => $actor->userId,
+                    'updated_by' => $actor->userId,
+                ]);
+
+                $this->addVersion($file, $actor, $attributes);
+
+                return $file;
+            });
+        } catch (\Throwable $exception) {
+            // Ohne Datenbankzeile gehört die Datei niemandem - gleich wieder weg.
+            $storage->delete($attributes['storage_path']);
+            throw $exception;
+        }
+
+        $this->pruneVersions($file);
+
+        $this->logger->info($existing !== null ? 'File version created.' : 'File uploaded.', [
+            'event' => $existing !== null ? 'files.version_created' : 'files.uploaded',
+            'file_id' => (int) $file->id,
+            'folder_id' => (int) $folder->id,
+            'size' => $attributes['size'],
+            'user_id' => $actor->userId,
+        ]);
+
+        return new UploadResult($file->fresh(['currentVersion']) ?? $file, $existing !== null);
+    }
+
+    /**
+     * Speichern aus dem Office-Editor. Eine Bearbeitungssitzung ergibt eine Version:
+     * Das erste Speichern legt sie an, jedes weitere ersetzt ihren Inhalt - unter
+     * neuem Pfad, denn gespeicherte Inhalte sind unveränderlich. `$endsSession`
+     * schließt die Sitzung (Collabora: X-COOL-WOPI-IsExitSave).
+     *
+     * Version und Zeitstempel werden unter der Sperre der Dateizeile erneut geprüft:
+     * Hat die Ablage inzwischen eine neue Fassung angelegt oder weicht
+     * `$expectedTimestamp` (X-COOL-WOPI-Timestamp) ab, endet das Speichern mit 409,
+     * statt eine nicht mehr aktuelle Version zu überschreiben.
+     */
+    public function saveFromOffice(
+        FileActor $actor,
+        int $fileId,
+        UploadedFileInterface $upload,
+        bool $endsSession,
+        ?string $expectedTimestamp = null
+    ): FileVersion {
+        $file = $this->findWithFileLevel($actor, $fileId, FileFolderShare::LEVEL_EDIT);
+        $current = $file->currentVersion;
+        $reuse = $current !== null && self::isOpenOfficeSession($current);
+        $replacedBytes = $reuse ? (int) $current->size : 0;
+
+        ['storage' => $storage, 'attributes' => $attributes] = $this->storeContent(
+            $actor,
+            $file->folder,
+            $upload,
+            static fn (int $size): int => max(0, $size - $replacedBytes),
+            false
+        );
+        $officeState = ['office_session_open' => !$endsSession, 'office_saved_at' => Carbon::now()];
+
+        try {
+            [$version, $replaced] = DB::connection()->transaction(
+                function () use ($actor, $file, $current, $reuse, $attributes, $officeState, $expectedTimestamp): array {
+                    $locked = StoredFile::query()->whereKey($file->id)->lockForUpdate()->first();
+                    $lockedVersionId = $locked === null ? null : (int) $locked->current_version_id;
+                    if ($lockedVersionId !== ($current === null ? null : (int) $current->id)) {
+                        throw new FileManagementException('Die Datei wurde inzwischen geändert.', 409);
+                    }
+                    if ($current !== null) {
+                        $current->refresh();
+                    }
+                    if ($expectedTimestamp !== null && $expectedTimestamp !== WopiTimestamp::of($current)) {
+                        throw new FileManagementException('Die Datei wurde inzwischen geändert.', 409);
+                    }
+
+                    if ($reuse && $current !== null) {
+                        $replaced = [
+                            'storage_driver' => (string) $current->storage_driver,
+                            'storage_path' => (string) $current->storage_path,
+                        ];
+                        $current->fill($attributes + $officeState + ['uploaded_by' => $actor->userId])->save();
+                        $file->size = $attributes['size'];
+                        $file->mime_type = $attributes['mime_type'];
+                        $file->updated_by = $actor->userId;
+                        $file->save();
+
+                        return [$current, $replaced];
+                    }
+
+                    $version = $this->addVersion($file, $actor, $attributes);
+                    $version->fill($officeState)->save();
+
+                    return [$version, null];
+                }
+            );
+        } catch (\Throwable $exception) {
+            $storage->delete($attributes['storage_path']);
+            throw $exception;
+        }
+
+        if ($replaced !== null) {
+            $this->deleteUnreferencedStorage([$replaced]);
+        } else {
+            $this->pruneVersions($file);
+        }
+
+        $this->logger->info('File saved from office editor.', [
+            'event' => 'office.file_saved',
+            'file_id' => (int) $file->id,
+            'version_id' => (int) $version->id,
+            'replaced' => $replaced !== null,
+            'session_closed' => $endsSession,
+            'user_id' => $actor->userId,
+        ]);
+
+        return $version->fresh() ?? $version;
+    }
+
+    private static function isOpenOfficeSession(FileVersion $version): bool
+    {
+        return (bool) $version->office_session_open
+            && $version->office_saved_at !== null
+            && $version->office_saved_at->gt(Carbon::now()->subMinutes(self::OFFICE_SESSION_IDLE_MINUTES));
+    }
+
+    /**
+     * Prüft Größe, Typ und Kontingent und legt den Inhalt unter einem neuen Pfad ab.
+     *
+     * @param \Closure(int): int $quotaBytes Zuwachs fürs Kontingent bei gegebener Größe
+     * @return array{
+     *     storage: FileStorage,
+     *     attributes: array{storage_driver: string, storage_path: string, size: int, mime_type: string, sha256: string}
+     * }
+     */
+    private function storeContent(
+        FileActor $actor,
+        FileFolder $folder,
+        UploadedFileInterface $upload,
+        \Closure $quotaBytes,
+        bool $allowEmpty = true
+    ): array {
         [$sourcePath, $isTemporary] = $this->localSource($upload);
         try {
             $size = (int) filesize($sourcePath);
+            if ($size === 0 && !$allowEmpty) {
+                throw new FileManagementException('Die Datei ist leer.', 400);
+            }
             if ($size > $this->maxUploadBytes) {
                 throw new FileManagementException(sprintf(
                     'Die Datei ist zu groß (höchstens %d MB).',
@@ -137,7 +305,7 @@ final class FileService
                 throw new FileManagementException('Dieser Dateityp ist nicht erlaubt.', 422);
             }
 
-            $this->assertQuota($folder, $size);
+            $this->assertQuota($folder, $quotaBytes($size));
 
             $sha256 = (string) hash_file('sha256', $sourcePath);
             $storage = $this->storages->default();
@@ -148,54 +316,13 @@ final class FileService
             }
         }
 
-        try {
-            $file = DB::connection()->transaction(function () use (
-                $actor,
-                $folder,
-                $existing,
-                $name,
-                $size,
-                $mimeType,
-                $sha256,
-                $storage,
-                $storagePath
-            ): StoredFile {
-                $file = $existing ?? StoredFile::create([
-                    'folder_id' => (int) $folder->id,
-                    'name' => $name,
-                    'size' => $size,
-                    'mime_type' => $mimeType,
-                    'created_by' => $actor->userId,
-                    'updated_by' => $actor->userId,
-                ]);
-
-                $this->addVersion($file, $actor, [
-                    'storage_driver' => $storage->name(),
-                    'storage_path' => $storagePath,
-                    'size' => $size,
-                    'mime_type' => $mimeType,
-                    'sha256' => $sha256,
-                ]);
-
-                return $file;
-            });
-        } catch (\Throwable $exception) {
-            // Ohne Datenbankzeile gehört die Datei niemandem - gleich wieder weg.
-            $storage->delete($storagePath);
-            throw $exception;
-        }
-
-        $this->pruneVersions($file);
-
-        $this->logger->info($existing !== null ? 'File version created.' : 'File uploaded.', [
-            'event' => $existing !== null ? 'files.version_created' : 'files.uploaded',
-            'file_id' => (int) $file->id,
-            'folder_id' => (int) $folder->id,
+        return ['storage' => $storage, 'attributes' => [
+            'storage_driver' => $storage->name(),
+            'storage_path' => $storagePath,
             'size' => $size,
-            'user_id' => $actor->userId,
-        ]);
-
-        return new UploadResult($file->fresh(['currentVersion']) ?? $file, $existing !== null);
+            'mime_type' => $mimeType,
+            'sha256' => $sha256,
+        ]];
     }
 
     public function restoreVersion(FileActor $actor, FileVersion $version): StoredFile

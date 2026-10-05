@@ -54,10 +54,14 @@ class CsrfMiddleware implements MiddlewareInterface
      * Dateinamen bestehen. Schützenswert ist dort nichts - WebdavController
      * wertet ausschließlich den Basic-Auth-Nachweis aus und nie die Sitzung.
      *
+     * `/wopi`: Collabora speichert von Server zu Server und hat weder Sitzung
+     * noch CSRF-Token. WopiController weist es über das Zugangstoken aus.
+     *
      * @var list<string>
      */
     private const EXEMPT_PREFIXES = [
         '/webdav',
+        '/wopi',
     ];
 
     private LoggerInterface $logger;

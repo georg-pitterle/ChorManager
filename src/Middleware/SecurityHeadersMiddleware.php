@@ -12,13 +12,17 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 class SecurityHeadersMiddleware implements MiddlewareInterface
 {
+    public function __construct(private readonly string $officeOrigin = '')
+    {
+    }
+
     public function process(Request $request, RequestHandler $handler): Response
     {
         $response = $handler->handle($request);
         $allowsSelfFraming = $this->allowsSelfFraming($request);
 
         $response = $response
-            ->withHeader('Content-Security-Policy', $this->buildCsp($allowsSelfFraming))
+            ->withHeader('Content-Security-Policy', $this->buildCsp($allowsSelfFraming, $this->embedsOffice($request)))
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', $allowsSelfFraming ? 'SAMEORIGIN' : 'DENY')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -71,14 +75,25 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         return (bool) preg_match('#^/newsletters/\d+/preview-frame$#', $request->getUri()->getPath());
     }
 
-    private function buildCsp(bool $allowsSelfFraming): string
+    /**
+     * Die Editor-Seite der Dateiablage bettet Collabora ein: Ihr Formular schickt das
+     * Zugangstoken per POST in den Rahmen. Nur dort und nur für genau den Ursprung aus
+     * OFFICE_SERVER_URL öffnen sich frame-src und form-action.
+     */
+    private function embedsOffice(Request $request): bool
     {
-        return implode('; ', [
+        return $this->officeOrigin !== ''
+            && (bool) preg_match('#^/files/\d+/edit$#', $request->getUri()->getPath());
+    }
+
+    private function buildCsp(bool $allowsSelfFraming, bool $embedsOffice): string
+    {
+        $directives = [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
             $allowsSelfFraming ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
-            "form-action 'self'",
+            $embedsOffice ? "form-action 'self' " . $this->officeOrigin : "form-action 'self'",
             // 'wasm-unsafe-eval' erlaubt pdf.js das Übersetzen seiner JBIG2-/JPEG2000-Module.
             // Es erlaubt kein eval() für JavaScript, und woher die Bytes stammen dürfen, regeln
             // weiterhin default-src/connect-src 'self' - also nur die eigene Herkunft.
@@ -89,7 +104,12 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             "connect-src 'self'",
             "worker-src 'self' blob:",
             "media-src 'self' blob:",
-        ]);
+        ];
+        if ($embedsOffice) {
+            $directives[] = 'frame-src ' . $this->officeOrigin;
+        }
+
+        return implode('; ', $directives);
     }
 
     private function isHttpsRequest(Request $request): bool

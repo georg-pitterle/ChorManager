@@ -1,0 +1,39 @@
+# Collabora Online (CODE) für die Bearbeitung von Office-Dokumenten der Dateiablage.
+#
+# Optional: Der Dienst hängt am Compose-Profil "collabora" und startet nur mit
+#   ddev start --profiles=collabora
+# Ein laufendes Projekt vorher mit `ddev stop` anhalten - `ddev restart` kennt
+# keine Profile. Die Tests brauchen den Dienst nicht.
+#
+# Adressen (in .env des Projekts, nicht in .ddev/.env*):
+#   FEATURE_OFFICE=true
+#   OFFICE_SERVER_URL=https://chormanager.ddev.site:9980   # Browser -> Collabora über den DDEV-Router
+#   OFFICE_SERVER_INTERNAL_URL=http://collabora:9980       # ChorManager -> Collabora (Discovery)
+#   OFFICE_WOPI_BASE_URL=http://web                        # Collabora -> ChorManager (WOPI)
+#
+# aliasgroup1 erlaubt genau einen WOPI-Host: den Web-Container. TLS endet am
+# DDEV-Router, deshalb ssl.enable=false und ssl.termination=true. frame_ancestors
+# erlaubt das Einbetten nur in die DDEV-Seite.
+# Das Image-Tag ist fest eingetragen (Stand 2026-09-24) - "latest" wechselt still
+# unter den Füßen. Beim Aktualisieren auf hub.docker.com/r/collabora/code prüfen.
+services:
+  collabora:
+    image: collabora/code:26.04.4.2.1
+    container_name: ddev-${DDEV_SITENAME}-collabora
+    profiles: ["collabora"]
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    cap_add:
+      - MKNOD
+    expose:
+      - "9980"
+    environment:
+      - aliasgroup1=http://web
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:net.frame_ancestors=https://${DDEV_HOSTNAME}
+      - username=admin
+      - password=admin
+      - VIRTUAL_HOST=${DDEV_HOSTNAME}
+      - HTTP_EXPOSE=9979:9980
+      - HTTPS_EXPOSE=9980:9980

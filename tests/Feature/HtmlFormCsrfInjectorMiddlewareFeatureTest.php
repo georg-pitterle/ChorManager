@@ -39,6 +39,36 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
         $this->assertStringContainsString((string) $_SESSION[Csrf::SESSION_KEY], $body);
     }
 
+    /**
+     * Das Editor-Formular geht an den Office-Server. Unser CSRF-Token hat dort nichts
+     * verloren - Formulare mit absoluter Adresse bleiben unangetastet.
+     */
+    public function testDoesNotSendTokenToFormsWithAbsoluteAction(): void
+    {
+        $_SESSION = [];
+
+        $middleware = new HtmlFormCsrfInjectorMiddleware();
+        $request = $this->createStub(ServerRequestInterface::class);
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $response = new Response();
+                $response->getBody()->write(
+                    '<form action="https://office.example.test/cool.html?WOPISrc=x" method="post"></form>'
+                    . '<form action="//office.example.test/x" method="post"></form>'
+                    . '<form action="/profile" method="post"></form>'
+                );
+
+                return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+            }
+        };
+
+        $body = (string) $middleware->process($request, $handler)->getBody();
+
+        $this->assertSame(1, substr_count($body, 'name="_csrf"'), 'Nur das eigene Formular bekommt das Token.');
+        $this->assertStringContainsString('<form action="/profile" method="post"><input type="hidden" name="_csrf"', $body);
+    }
+
     public function testSkipsResponsesWithoutContentTypeInsteadOfBufferingThem(): void
     {
         $_SESSION = [];

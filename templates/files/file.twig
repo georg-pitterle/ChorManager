@@ -42,6 +42,16 @@
                     <i class="bi bi-eye me-1" aria-hidden="true"></i> Vorschau
                 </button>
             {% endif %}
+            {% set _office_mode = office_mode(file.name, level) %}
+            {% if _office_mode %}
+                <a class="btn btn-outline-primary btn-sm" href="/files/{{ file.id }}/edit">
+                    {% if _office_mode == "edit" %}
+                        <i class="bi bi-pencil-square me-1" aria-hidden="true"></i> Im Browser bearbeiten
+                    {% else %}
+                        <i class="bi bi-eye me-1" aria-hidden="true"></i> Im Browser ansehen
+                    {% endif %}
+                </a>
+            {% endif %}
             <a class="btn btn-primary btn-sm" href="/files/{{ file.id }}/download">
                 <i class="bi bi-download me-1" aria-hidden="true"></i> Herunterladen
             </a>

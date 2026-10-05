@@ -45,6 +45,14 @@
                         data-bs-target="#filesNewFolderModal">
                     <i class="bi bi-folder-plus me-1" aria-hidden="true"></i> Neuer Ordner
                 </button>
+                {% if office_document_types() is not empty %}
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#filesNewDocumentModal">
+                        <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i> Neues Dokument
+                    </button>
+                {% endif %}
             {% endif %}
             <div class="dropdown">
                 <button class="btn btn-outline-secondary btn-sm dropdown-toggle"
@@ -221,13 +229,25 @@
                                         {% endif %}
                                     </td>
                                     <td data-label="Aktionen" class="text-end">
-                                        <div class="dropdown">
+                                        {# Wie bei den Projekten: die Hauptaktion als eigener Knopf neben dem Menü. #}
+                                        {% set _office_mode = office_mode(file.name, level) %}
+                                        <div class="btn-group" role="group" aria-label="Aktionen für {{ file.name }}">
+                                            {% if _office_mode %}
+                                                <a class="btn btn-sm btn-outline-primary"
+                                                   href="/files/{{ file.id }}/edit?from=folder">
+                                                    {% if _office_mode == "edit" %}
+                                                        <i class="bi bi-pencil" aria-hidden="true"></i> Bearbeiten
+                                                    {% else %}
+                                                        <i class="bi bi-eye" aria-hidden="true"></i> Ansehen
+                                                    {% endif %}
+                                                </a>
+                                            {% endif %}
                                             <button class="btn btn-sm btn-outline-secondary"
                                                     type="button"
                                                     data-bs-toggle="dropdown"
                                                     data-files-row-menu
                                                     aria-expanded="false"
-                                                    aria-label="Aktionen für {{ file.name }}">
+                                                    aria-label="Weitere Aktionen für {{ file.name }}">
                                                 <i class="bi bi-three-dots" aria-hidden="true"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end">

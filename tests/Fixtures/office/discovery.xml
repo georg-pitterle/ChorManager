@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wopi-discovery>
+  <net-zone name="external-http">
+    <app name="writer">
+      <action default="true" ext="odt" name="edit" urlsrc="http://collabora:9980/browser/abc123/cool.html?"/>
+      <action default="true" ext="docx" name="edit" urlsrc="http://collabora:9980/browser/abc123/cool.html?"/>
+    </app>
+    <app name="calc">
+      <action default="true" ext="xlsx" name="view" urlsrc="http://collabora:9980/browser/abc123/cool.html?"/>
+      <action default="true" ext="xlsx" name="edit" urlsrc="http://collabora:9980/browser/abc123/cool.html?"/>
+      <action default="true" ext="ods" name="edit" urlsrc="http://collabora:9980/browser/abc123/cool.html?&lt;ui=UI_LLCC&amp;&gt;"/>
+    </app>
+    <app name="draw">
+      <action default="true" ext="pdf" name="view" urlsrc="http://collabora:9980/browser/abc123/cool.html?"/>
+    </app>
+    <app name="application/vnd.oasis.opendocument.text">
+      <action default="true" ext="" name="edit" urlsrc="http://collabora:9980/browser/abc123/cool.html?"/>
+    </app>
+  </net-zone>
+</wopi-discovery>

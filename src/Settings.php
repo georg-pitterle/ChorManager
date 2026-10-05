@@ -57,6 +57,11 @@ return function (ContainerBuilder $containerBuilder) {
                 // genützt und stünde offen im Netz.
                 'oidc'          => EnvHelper::read('FEATURE_OIDC', 'false') === 'true',
                 'files'         => EnvHelper::read('FEATURE_FILES', 'false') === 'true',
+                // Office-Dokumente im Browser (Collabora, WOPI). Ohne Dateiablage
+                // gibt es nichts zu bearbeiten, ohne Server-Adresse keinen Editor.
+                'office'        => EnvHelper::read('FEATURE_OFFICE', 'false') === 'true'
+                    && EnvHelper::read('FEATURE_FILES', 'false') === 'true'
+                    && trim((string) EnvHelper::read('OFFICE_SERVER_URL', '')) !== '',
             ],
             // Dateiverwaltung: Die Dateien liegen auf der Platte, nicht in der
             // Datenbank. Das Verzeichnis muss im Betrieb persistent sein.
@@ -68,6 +73,14 @@ return function (ContainerBuilder $containerBuilder) {
                 // 0 heißt: kein Gesamtlimit, nur die Kontingente der Teamordner.
                 'total_quota_bytes' => (int) EnvHelper::read('FILES_TOTAL_QUOTA_MB', '0') * 1024 * 1024,
                 'max_zip_bytes' => (int) EnvHelper::read('FILES_MAX_ZIP_MB', '500') * 1024 * 1024,
+            ],
+            // Office-Anbindung: drei Adressen, weil Browser, ChorManager und
+            // Collabora einander je nach Betrieb unterschiedlich erreichen.
+            'office' => [
+                'server_url' => EnvHelper::read('OFFICE_SERVER_URL', ''),
+                'internal_url' => EnvHelper::read('OFFICE_SERVER_INTERNAL_URL', ''),
+                'wopi_base_url' => EnvHelper::read('OFFICE_WOPI_BASE_URL', ''),
+                'discovery_cache' => __DIR__ . '/../var/cache/office-discovery.json',
             ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),

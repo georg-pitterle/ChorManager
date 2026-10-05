@@ -328,6 +328,7 @@ class DevSeedService
         $connection->statement('SET FOREIGN_KEY_CHECKS=0');
 
         $tables = [
+            'office_access_tokens',
             'file_favorites',
             'audience_filter_conditions',
             'audience_filters',
@@ -2325,6 +2326,13 @@ class DevSeedService
             // Dateifreigaben: eine Einladung an alle, ohne den Vorstandsordner zu
             // öffnen; der Mietvertrag für die Kassaführung zum Bearbeiten.
             $upload($board, 'Einladung Jahreshauptversammlung.pdf', $pdf('Einladung Jahreshauptversammlung'));
+            // Office-Dokumente, damit sich die Bearbeitung im Browser lokal ausprobieren lässt.
+            $upload(
+                $board,
+                'Protokoll-Vorlage Vorstandssitzung.odt',
+                DevSeedAttachmentFixtures::odt('Protokoll der Vorstandssitzung')
+            );
+            $upload($board, 'Probenplan Herbst.docx', DevSeedAttachmentFixtures::docx('Probenplan Herbst'));
             $invitation = StoredFile::query()->where('folder_id', $board->id)
                 ->where('name', 'Einladung Jahreshauptversammlung.pdf')->first();
             $contract = StoredFile::query()->where('folder_id', $contracts->id)

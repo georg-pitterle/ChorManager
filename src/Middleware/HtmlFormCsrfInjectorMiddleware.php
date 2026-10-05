@@ -62,6 +62,13 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
                     return $matches[0];
                 }
 
+                // Formulare an eine fremde Adresse bekommen kein Token: Der Editor der
+                // Dateiablage schickt sein Formular an den Office-Server, und unser
+                // CSRF-Token hat dort nichts verloren. Eigene Formulare nutzen relative Pfade.
+                if (preg_match('/\saction\s*=\s*(["\'])\s*(?:[a-z][a-z0-9+.\-]*:|\/\/)/i', $openingTag)) {
+                    return $matches[0];
+                }
+
                 if (preg_match('/\sname\s*=\s*(["\'])_csrf\1/i', $formContent)) {
                     return $matches[0];
                 }

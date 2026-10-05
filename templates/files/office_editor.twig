@@ -1,0 +1,39 @@
+{#
+    Collabora auf der ganzen Seite, wie in Nextcloud: kein App-Layout, keine
+    Seitenleiste. Zurück geht es über den Schließen-Knopf von Collabora, den
+    office-editor.js per PostMessage auf die Detailseite der Datei lenkt.
+#}
+<!DOCTYPE html>
+<html lang="de" data-bs-theme="light">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{ file.name }} - {{ app_settings.app_name|default("Chor-Manager") }}</title>
+        <link rel="icon" href="/favicon.ico" sizes="any">
+        <link rel="stylesheet" href="{{ asset_path("/css/style.css") }}">
+    </head>
+    <body class="office-editor-page">
+        <form id="officeEditorForm"
+              class="d-none"
+              method="post"
+              action="{{ editor_url }}"
+              target="officeEditorFrame"
+              data-office-origin="{{ office_origin }}"
+              data-back-url="{{ back_url }}">
+            <input type="hidden" name="access_token" value="{{ access_token }}">
+            <input type="hidden" name="access_token_ttl" value="{{ access_token_ttl }}">
+        </form>
+        <iframe id="officeEditorFrame"
+                name="officeEditorFrame"
+                class="office-editor-frame"
+                title="{{ can_edit ? "Dokument bearbeiten" : "Dokument ansehen" }}: {{ file.name }}"
+                allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+        <noscript>
+            <p class="office-editor-noscript">
+                Der Editor braucht JavaScript. <a href="{{ back_url }}">Zurück zur Datei</a>
+            </p>
+        </noscript>
+        <script src="{{ asset_path("/js/office-editor-messages.js") }}"></script>
+        <script src="{{ asset_path("/js/office-editor.js") }}"></script>
+    </body>
+</html>

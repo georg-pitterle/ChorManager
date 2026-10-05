@@ -26,6 +26,8 @@ class FileVersion extends Model
         'mime_type',
         'sha256',
         'uploaded_by',
+        'office_session_open',
+        'office_saved_at',
     ];
 
     protected $casts = [
@@ -33,6 +35,8 @@ class FileVersion extends Model
         'version_number' => 'integer',
         'size' => 'integer',
         'uploaded_by' => 'integer',
+        'office_session_open' => 'boolean',
+        'office_saved_at' => 'datetime',
     ];
 
     public function file(): BelongsTo

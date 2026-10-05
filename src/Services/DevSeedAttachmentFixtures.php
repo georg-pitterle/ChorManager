@@ -48,6 +48,101 @@ final class DevSeedAttachmentFixtures
     }
 
     /**
+     * Minimales Textdokument (ODF), das Collabora öffnet.
+     *
+     * @return array{mime_type: string, extension: string, content: string}
+     */
+    public static function odt(string $text): array
+    {
+        $mimeType = 'application/vnd.oasis.opendocument.text';
+
+        return [
+            'mime_type' => $mimeType,
+            'extension' => 'odt',
+            'content' => self::zip([
+                'mimetype' => $mimeType,
+                'META-INF/manifest.xml' => '<?xml version="1.0" encoding="UTF-8"?>'
+                    . '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"'
+                    . ' manifest:version="1.2">'
+                    . '<manifest:file-entry manifest:full-path="/" manifest:media-type="' . $mimeType . '"/>'
+                    . '<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>'
+                    . '</manifest:manifest>',
+                'content.xml' => '<?xml version="1.0" encoding="UTF-8"?>'
+                    . '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+                    . ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2">'
+                    . '<office:body><office:text><text:p>' . htmlspecialchars($text, ENT_XML1) . '</text:p>'
+                    . '</office:text></office:body></office:document-content>',
+            ]),
+        ];
+    }
+
+    /**
+     * Minimales Word-Dokument (OOXML), das Collabora öffnet.
+     *
+     * @return array{mime_type: string, extension: string, content: string}
+     */
+    public static function docx(string $text): array
+    {
+        return [
+            'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'extension' => 'docx',
+            'content' => self::zip([
+                '[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                    . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+                    . '<Default Extension="xml" ContentType="application/xml"/>'
+                    . '<Override PartName="/word/document.xml"'
+                    . ' ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+                    . '</Types>',
+                '_rels/.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    . '<Relationship Id="rId1"'
+                    . ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"'
+                    . ' Target="word/document.xml"/>'
+                    . '</Relationships>',
+                'word/document.xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                    . '<w:body><w:p><w:r><w:t>' . htmlspecialchars($text, ENT_XML1) . '</w:t></w:r></w:p></w:body>'
+                    . '</w:document>',
+            ]),
+        ];
+    }
+
+    /**
+     * Packt Einträge in ein ZIP. Der erste bleibt unkomprimiert - ODF verlangt das
+     * für `mimetype`, OOXML stört es nicht.
+     *
+     * @param array<string, string> $entries
+     */
+    private static function zip(array $entries): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'seedzip');
+        if ($path === false) {
+            throw new \RuntimeException('Could not create temporary file.');
+        }
+
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($path, \ZipArchive::OVERWRITE) !== true) {
+                throw new \RuntimeException('Could not create zip archive.');
+            }
+            $first = true;
+            foreach ($entries as $name => $content) {
+                $zip->addFromString($name, $content);
+                if ($first) {
+                    $zip->setCompressionName($name, \ZipArchive::CM_STORE);
+                    $first = false;
+                }
+            }
+            $zip->close();
+
+            return (string) file_get_contents($path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
      * Ein 1x1 Pixel großes PNG, base64-kodiert abgelegt. Kleiner geht ein
      * gültiges PNG nicht.
      *

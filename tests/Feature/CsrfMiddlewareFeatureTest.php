@@ -143,6 +143,30 @@ class CsrfMiddlewareFeatureTest extends TestCase
         }
     }
 
+    public function testWopiEndpointsPassWithoutCsrfTokenButNeighboursDoNot(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        // Collabora speichert von Server zu Server: keine Sitzung, kein CSRF-Token.
+        // Ausgewiesen wird sich mit dem Zugangstoken, das WopiController prüft.
+        $passed = $middleware->process($this->makeRequest('POST', '/wopi/files/5/contents'), $handler);
+        $this->assertSame(200, $passed->getStatusCode());
+
+        foreach (['/wopifoo', '/files/5/edit', '/files/5/replace'] as $path) {
+            $blocked = $middleware->process($this->makeRequest('POST', $path), $handler);
+            $this->assertSame(403, $blocked->getStatusCode(), $path);
+        }
+    }
+
     public function testPathBelowAnIngestEndpointStaysCsrfProtected(): void
     {
         $middleware = new CsrfMiddleware();

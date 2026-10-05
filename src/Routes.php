@@ -53,6 +53,8 @@ use App\Controllers\FileFolderController;
 use App\Controllers\FileTrashController;
 use App\Controllers\FileDetailController;
 use App\Controllers\PublicFileLinkController;
+use App\Controllers\WopiController;
+use App\Controllers\OfficeEditorController;
 use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
 use App\Controllers\Oidc\TokenController;
@@ -154,6 +156,14 @@ return function (App $app) {
         $app->post('/s/' . $publicLinkToken, [PublicFileLinkController::class, 'unlock']);
         $app->get('/s/' . $publicLinkToken . '/download', [PublicFileLinkController::class, 'download']);
         $app->get('/s/' . $publicLinkToken . '/view', [PublicFileLinkController::class, 'view']);
+    }
+
+    // WOPI-Endpunkte für Collabora: ohne Anmeldung, das Zugangstoken aus der
+    // Editor-Seite ist die Berechtigung. WopiController prüft Token und Rechte.
+    if ($settings['modules']['office'] ?? false) {
+        $app->get('/wopi/files/{id:[0-9]+}', [WopiController::class, 'checkFileInfo']);
+        $app->get('/wopi/files/{id:[0-9]+}/contents', [WopiController::class, 'getFile']);
+        $app->post('/wopi/files/{id:[0-9]+}/contents', [WopiController::class, 'putFile']);
     }
 
     // Provider feedback ingest endpoints (public, verified/trusted channels)
@@ -265,7 +275,7 @@ return function (App $app) {
             if ($settings['modules']['files'] ?? false) {
                 $group->group(
                     '/files',
-                    function (RouteCollectorProxy $files) {
+                    function (RouteCollectorProxy $files) use ($settings) {
                         $files->get('', [FileBrowserController::class, 'index']);
                         $files->get('/search', [FileBrowserController::class, 'search']);
                         $files->get('/folders/{id:[0-9]+}', [FileBrowserController::class, 'folder']);
@@ -285,6 +295,13 @@ return function (App $app) {
                         $files->get('/versions/{id:[0-9]+}/download', [FileController::class, 'downloadVersion']);
                         $files->post('/versions/{id:[0-9]+}/restore', [FileController::class, 'restoreVersion']);
                         $files->get('/{id:[0-9]+}', [FileDetailController::class, 'show']);
+                        if ($settings['modules']['office'] ?? false) {
+                            $files->get('/{id:[0-9]+}/edit', [OfficeEditorController::class, 'edit']);
+                            $files->post(
+                                '/folders/{id:[0-9]+}/office-documents',
+                                [OfficeEditorController::class, 'create']
+                            );
+                        }
                         $files->post('/{id:[0-9]+}/replace', [FileDetailController::class, 'replace']);
                         $files->post('/{id:[0-9]+}/shares', [FileDetailController::class, 'saveShares']);
                         $files->post('/{id:[0-9]+}/links', [FileDetailController::class, 'createLink']);

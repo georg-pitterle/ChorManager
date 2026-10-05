@@ -14,6 +14,38 @@ use Psr\Http\Message\ResponseInterface;
 
 class SecurityHeadersMiddlewareFeatureTest extends TestCase
 {
+    private function cspFor(SecurityHeadersMiddleware $middleware, string $path): string
+    {
+        $request = (new ServerRequestFactory())->createServerRequest('GET', 'http://localhost' . $path);
+        $response = $middleware->process($request, new class () implements RequestHandlerInterface {
+            public function handle(Request $request): ResponseInterface
+            {
+                return new Response();
+            }
+        });
+
+        return $response->getHeaderLine('Content-Security-Policy');
+    }
+
+    /**
+     * Die Editor-Seite der Dateiablage schickt das Zugangstoken per Formular in einen
+     * Collabora-Rahmen. Nur dort und nur für genau diesen Ursprung öffnet sich die CSP.
+     */
+    public function testOfficeEditorPageMayFrameAndPostToOfficeServerOnly(): void
+    {
+        $middleware = new SecurityHeadersMiddleware('https://office.example.test');
+
+        $csp = $this->cspFor($middleware, '/files/12/edit');
+        $this->assertStringContainsString('frame-src https://office.example.test', $csp);
+        $this->assertStringContainsString("form-action 'self' https://office.example.test", $csp);
+        $this->assertStringContainsString("frame-ancestors 'none'", $csp);
+
+        foreach (['/files/12', '/files/12/edit/x', '/files/folders/3', '/dashboard'] as $path) {
+            $this->assertStringNotContainsString('office.example.test', $this->cspFor($middleware, $path), $path);
+        }
+        $this->assertStringNotContainsString('frame-src', $this->cspFor(new SecurityHeadersMiddleware(), '/files/12/edit'));
+    }
+
     public function testAddsSecurityHeadersToResponse(): void
     {
         $middleware = new SecurityHeadersMiddleware();

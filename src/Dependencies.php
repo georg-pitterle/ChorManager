@@ -98,6 +98,13 @@ use App\Services\Files\FileStorageRegistry;
 use App\Services\Files\FileTrashService;
 use App\Services\Files\FileZipService;
 use App\Services\Files\LocalFileStorage;
+use App\Services\Office\OfficeDiscovery;
+use App\Services\Office\OfficeDocumentCreator;
+use App\Services\Office\OfficeSettings;
+use App\Services\Office\OfficeTokenService;
+use App\Controllers\WopiController;
+use App\Controllers\OfficeEditorController;
+use App\Middleware\SecurityHeadersMiddleware;
 use App\Services\DumpRunnerInterface;
 use App\Services\FlashMessageService;
 use App\Services\MysqldumpRunner;
@@ -111,6 +118,7 @@ use App\Middleware\NotificationReminderMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Util\AppUrlResolver;
 use App\Util\AttachmentPreview;
 use App\Util\EnvHelper;
 use App\Policies\NewsletterPolicy;
@@ -614,6 +622,38 @@ return function (ContainerBuilder $containerBuilder) {
                 (bool) ($c->get('settings')['modules']['files'] ?? false)
             );
         },
+        // Office-Anbindung. Die App-Adresse kommt aus APP_URL bzw. DDEV - nie aus
+        // dem Host-Kopf einer Anfrage, die Collabora schickt.
+        OfficeSettings::class => function (ContainerInterface $c): OfficeSettings {
+            return OfficeSettings::fromArray(
+                $c->get('settings')['office'],
+                (string) (AppUrlResolver::configuredBaseUrl() ?? '')
+            );
+        },
+        OfficeDiscovery::class => function (ContainerInterface $c): OfficeDiscovery {
+            return new OfficeDiscovery(
+                $c->get(OfficeSettings::class),
+                OfficeDiscovery::httpFetcher(),
+                $c->get('settings')['office']['discovery_cache'],
+                $c->get(LoggerInterface::class)
+            );
+        },
+        OfficeTokenService::class => \DI\autowire(),
+        WopiController::class => \DI\autowire(),
+        OfficeEditorController::class => \DI\autowire(),
+        OfficeDocumentCreator::class => function (ContainerInterface $c): OfficeDocumentCreator {
+            return new OfficeDocumentCreator(
+                $c->get(FileService::class),
+                $c->get(OfficeDiscovery::class),
+                dirname(__DIR__) . '/assets/office-templates',
+                $c->get(LoggerInterface::class)
+            );
+        },
+        SecurityHeadersMiddleware::class => function (ContainerInterface $c): SecurityHeadersMiddleware {
+            $officeEnabled = (bool) ($c->get('settings')['modules']['office'] ?? false);
+
+            return new SecurityHeadersMiddleware($officeEnabled ? $c->get(OfficeSettings::class)->serverOrigin() : '');
+        },
         CreateBackupCommand::class => \DI\autowire(),
         SheetArchiveService::class => function (ContainerInterface $c) {
             return new SheetArchiveService();
@@ -803,6 +843,26 @@ return function (ContainerBuilder $containerBuilder) {
             $environment->addFunction(new TwigFunction(
                 'attachment_previewable',
                 static fn (?string $mimeType): bool => AttachmentPreview::isModalPreviewable((string) $mimeType)
+            ));
+
+            // Ob eine Datei "Im Browser bearbeiten/ansehen" anbietet. Die Discovery
+            // wird erst beim ersten Aufruf geladen - Seiten ohne Dateien zahlen nichts.
+            $officeEnabled = (bool) ($allSettings['modules']['office'] ?? false);
+            $environment->addFunction(new TwigFunction(
+                'office_mode',
+                static function (string $fileName, int $level) use ($c, $officeEnabled): ?string {
+                    if (!$officeEnabled) {
+                        return null;
+                    }
+
+                    return $c->get(OfficeDiscovery::class)->actionFor($fileName)?->modeFor($level);
+                }
+            ));
+            // Welche neuen Dokumente "Neues Dokument" anbietet - leer ohne Modul
+            // oder wenn der Office-Server nicht erreichbar ist.
+            $environment->addFunction(new TwigFunction(
+                'office_document_types',
+                static fn (): array => $officeEnabled ? $c->get(OfficeDocumentCreator::class)->availableTypes() : []
             ));
 
             $nameFormatter = $c->get(NameFormatterService::class);
