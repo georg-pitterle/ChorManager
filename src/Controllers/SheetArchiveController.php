@@ -74,8 +74,15 @@ class SheetArchiveController
             }
 
             // Extract and validate input
-            $archiveNumber = $data['archive_number'] ?? null;
-            $location = $data['location'] ?? null;
+            //
+            // Als Text oder `null`, nicht roh: Der Endpunkt nimmt auch JSON an, und
+            // `{"archive_number": 12}` reichte eine Zahl an
+            // SheetArchiveService::saveArchiveData(?string, ?string) weiter. Das ist
+            // unter `strict_types` ein TypeError - und ein TypeError ist ein `Error`,
+            // den das `catch (\Exception)` unten nicht fängt: 500 ohne JSON-Antwort,
+            // obwohl die aufrufende Seite eine erwartet.
+            $archiveNumber = self::optionalText($data['archive_number'] ?? null);
+            $location = self::optionalText($data['location'] ?? null);
             $lineItems = $data['line_items'] ?? [];
 
             if (!is_array($lineItems)) {
@@ -131,6 +138,27 @@ class SheetArchiveController
                 ->withStatus(500)
                 ->withHeader('Content-Type', 'application/json');
         }
+    }
+
+    /**
+     * Ein Freitextfeld aus Formular oder JSON als Text, oder `null`, wenn nichts
+     * Brauchbares ankam. Eine Zahl wird übernommen - eine Archivnummer als `12`
+     * statt `"12"` ist dieselbe Angabe -, alles andere (Array, Objekt) gilt als
+     * nicht gesetzt.
+     */
+    private static function optionalText(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+
+            return $trimmed === '' ? null : $trimmed;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        return null;
     }
 
     /**

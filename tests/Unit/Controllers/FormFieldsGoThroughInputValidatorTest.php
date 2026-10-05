@@ -66,6 +66,40 @@ final class FormFieldsGoThroughInputValidatorTest extends TestCase
     }
 
     /**
+     * Die dritte Gestalt desselben Fehlers: Das Feld wird gar nicht angefasst,
+     * sondern roh in eine Variable gelegt - und erst ein paar Zeilen weiter an
+     * etwas mit Typangabe weitergegeben.
+     *
+     * Gefunden im Review-Lauf 35 an fünf Stellen. Die härteste war
+     * `ProfileController::updatePassword()`: `$newPassword = $data['new_password'] ?? ''`
+     * lief über drei Prüfungen hinweg bis in
+     * `PasswordPolicyService::validate(string)`. Mit `new_password[]=x` warf das
+     * dort einen TypeError - eine 500-Seite, die jedes angemeldete Mitglied
+     * auslösen konnte. `ProjectController` gab `start_date` so an den
+     * Eloquent-Cast `date` weiter, wo schon ein Tippfehler im Datum als
+     * `InvalidFormatException` endete.
+     *
+     * Erkannt wird nur die Vorgabe `?? ''` und `?? null`: Sie sagt, dass die
+     * Stelle einen einzelnen Textwert erwartet. `?? []` bleibt zulässig - dort
+     * wird ein Array wirklich erwartet (Rollen, Stimmgruppen, Zielgruppen-Zeilen)
+     * und die Auswertung filtert es selbst.
+     */
+    public function testNoControllerAssignsARequestFieldUnchecked(): void
+    {
+        $offenders = $this->linesMatching(
+            '/=\s*\$(?:data|queryParams|params)\[[^\]]+\]\s*\?\?\s*(?:\'\'|""|null)\s*;/'
+        );
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "Diese Stellen legen ein Formularfeld ungeprüft in eine Variable. Ein Feld-Array\n"
+                . "läuft von dort in die erste Funktion mit Typangabe. Nutze InputValidator::asString():\n"
+                . implode("\n", $offenders)
+        );
+    }
+
+    /**
      * @return list<string>
      */
     private function linesMatching(string $pattern): array
@@ -104,6 +138,27 @@ final class FormFieldsGoThroughInputValidatorTest extends TestCase
                 '/\(string\) \(\$(?:data|queryParams|params)\[/',
                 "        \$name = trim((string) (\$data['name'] ?? ''));"
             )
+        );
+
+        $uncheckedPattern = '/=\s*\$(?:data|queryParams|params)\[[^\]]+\]\s*\?\?\s*(?:\'\'|""|null)\s*;/';
+        $this->assertSame(
+            1,
+            preg_match($uncheckedPattern, "        \$newPassword = \$data['new_password'] ?? '';")
+        );
+        $this->assertSame(
+            1,
+            preg_match($uncheckedPattern, "        \$raw = \$data[\$key] ?? null;")
+        );
+
+        // Ein erwartetes Array darf der Wächter nicht melden, sonst stünde er
+        // jeder Mehrfachauswahl im Weg.
+        $this->assertSame(
+            0,
+            preg_match($uncheckedPattern, "        \$roleIds = \$data['roles'] ?? [];")
+        );
+        $this->assertSame(
+            0,
+            preg_match($uncheckedPattern, "        \$name = InputValidator::asString(\$data['name'] ?? null);")
         );
     }
 }

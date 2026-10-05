@@ -21,6 +21,8 @@ use App\Util\InputValidator;
 
 class ProjectController
 {
+    private const INVALID_DATE_MESSAGE = 'Beginn und Ende müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
+
     private Twig $view;
     private ProjectQuery $projectQuery;
     private ProjectPersistence $projectPersistence;
@@ -70,6 +72,43 @@ class ProjectController
         ]);
     }
 
+    /**
+     * Beginn und Ende eines Projekts aus dem Formular: `null` für "nicht
+     * angegeben", `false` für "kein Datum".
+     *
+     * Vorher ging der Wert ungeprüft in `$project->start_date`, und die Spalte
+     * trägt den Eloquent-Cast `date`. Ein Wert, den Carbon nicht lesen kann,
+     * endete damit als `InvalidFormatException` aus dem Setzen der Eigenschaft -
+     * ungefangen, also 500 statt Formularhinweis. Ein Array (`start_date[]=x`)
+     * brach schon vorher mit einem TypeError aus `preg_match()` ab. Und
+     * `2026-13-45` kam durch: Carbon rechnet den Überlauf weiter und speicherte
+     * stillschweigend den 14.02.2027 - ein Datum, das niemand eingegeben hat.
+     *
+     * Deshalb `createFromFormat('!Y-m-d')` mit Prüfung der Warnungen: Das `!`
+     * setzt die Uhrzeit auf 00:00, und die Warnungen sind es, die den Überlauf
+     * als Fehler kenntlich machen - ohne sie nimmt auch diese Fassung den
+     * 13. Monat an. Das Formular liefert `type="date"`, also genau dieses
+     * Format; alles andere stammt nicht aus der Oberfläche.
+     */
+    private static function normalizeProjectDate(mixed $value): string|false|null
+    {
+        $raw = trim(InputValidator::asString($value));
+        if ($raw === '') {
+            return null;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
+        $errors = \DateTimeImmutable::getLastErrors();
+        $hasComplaint = is_array($errors)
+            && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0);
+
+        if ($parsed === false || $hasComplaint) {
+            return false;
+        }
+
+        return $parsed->format('Y-m-d');
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $projects = $this->projectQuery->getAllProjects();
@@ -94,19 +133,24 @@ class ProjectController
         $data = (array) $request->getParsedBody();
         $name = trim(InputValidator::asString($data['name'] ?? null));
         $description = trim(InputValidator::asString($data['description'] ?? null));
-        $startDate = $data['start_date'] ?? null;
-        $endDate = $data['end_date'] ?? null;
+        $startDate = self::normalizeProjectDate($data['start_date'] ?? null);
+        $endDate = self::normalizeProjectDate($data['end_date'] ?? null);
 
         if (!$name) {
             $_SESSION['error'] = 'Geben Sie einen Namen für das Projekt ein.';
             return $response->withHeader('Location', '/projects')->withStatus(302);
         }
 
+        if ($startDate === false || $endDate === false) {
+            $_SESSION['error'] = self::INVALID_DATE_MESSAGE;
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
         $project = new Project();
         $project->name = $name;
         $project->description = $description;
-        $project->start_date = $startDate ?: null;
-        $project->end_date = $endDate ?: null;
+        $project->start_date = $startDate;
+        $project->end_date = $endDate;
         $project->save();
 
         $_SESSION['success'] = 'Projekt erfolgreich angelegt.';
@@ -119,11 +163,16 @@ class ProjectController
         $data = (array) $request->getParsedBody();
         $name = trim(InputValidator::asString($data['name'] ?? null));
         $description = trim(InputValidator::asString($data['description'] ?? null));
-        $startDate = $data['start_date'] ?? null;
-        $endDate = $data['end_date'] ?? null;
+        $startDate = self::normalizeProjectDate($data['start_date'] ?? null);
+        $endDate = self::normalizeProjectDate($data['end_date'] ?? null);
 
         if (!$name) {
             $_SESSION['error'] = 'Geben Sie einen Namen für das Projekt ein.';
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
+        if ($startDate === false || $endDate === false) {
+            $_SESSION['error'] = self::INVALID_DATE_MESSAGE;
             return $response->withHeader('Location', '/projects')->withStatus(302);
         }
 
@@ -136,8 +185,8 @@ class ProjectController
 
         $project->name = $name;
         $project->description = $description;
-        $project->start_date = $startDate ?: null;
-        $project->end_date = $endDate ?: null;
+        $project->start_date = $startDate;
+        $project->end_date = $endDate;
         $project->save();
 
         $_SESSION['success'] = 'Projekt erfolgreich aktualisiert.';

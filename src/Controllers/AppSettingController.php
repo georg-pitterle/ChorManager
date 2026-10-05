@@ -214,8 +214,12 @@ class AppSettingController
                 }
 
                 foreach (self::NOTIFICATION_DAY_SETTINGS as $key => $fallback) {
-                    $raw = $data[$key] ?? null;
-                    $days = $raw === null || $raw === '' ? $fallback : max(0, min(30, (int) $raw));
+                    // Über InputValidator::asString(): `$key[]=x` ergäbe als Array
+                    // bei `(int)` die 1 - eine Zahl, die niemand eingetragen hat.
+                    // Leer heißt weiterhin "Vorgabe"; die frühere Prüfung auf null
+                    // entfällt, asString() liefert immer eine Zeichenkette.
+                    $raw = InputValidator::asString($data[$key] ?? null);
+                    $days = $raw === '' ? $fallback : max(0, min(30, (int) $raw));
 
                     AppSetting::updateOrCreate(
                         ['setting_key' => $key],

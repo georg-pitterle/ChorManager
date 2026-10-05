@@ -333,9 +333,14 @@ class ProfileController
         $userId = (int)$_SESSION['user_id'];
         $data = (array)$request->getParsedBody();
 
-        $oldPassword = $data['old_password'] ?? '';
-        $newPassword = $data['new_password'] ?? '';
-        $newPasswordConfirm = $data['new_password_confirm'] ?? '';
+        // Über InputValidator::asString(), nicht roh aus dem Rumpf: `new_password[]=x`
+        // kommt als Array an, und ein Array überlebte die drei Prüfungen darunter
+        // (nicht leer, gleich der Bestätigung) bis in
+        // PasswordPolicyService::validate(string) - dort endete es als TypeError und
+        // damit als 500 samt Stapelverlauf statt als Formularhinweis.
+        $oldPassword = InputValidator::asString($data['old_password'] ?? null);
+        $newPassword = InputValidator::asString($data['new_password'] ?? null);
+        $newPasswordConfirm = InputValidator::asString($data['new_password_confirm'] ?? null);
 
         if (!$oldPassword || !$newPassword || !$newPasswordConfirm) {
             $_SESSION['error'] = 'Bitte füllen Sie alle Felder aus.';

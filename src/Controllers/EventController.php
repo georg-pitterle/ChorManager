@@ -872,9 +872,14 @@ class EventController
     {
         $data = (array)$request->getParsedBody();
         $title = trim(InputValidator::asString($data['title'] ?? null));
-        $startsAtDate = $data['starts_at'] ?? '';
-        $startTime = $data['start_time'] ?? '';
-        $endTime = $data['end_time'] ?? '';
+        // Über InputValidator::asString() wie jedes andere Feld dieser Maske:
+        // `starts_at[]=x` kam zuvor als Array durch, galt als ausgefüllt, löste
+        // beim Zusammensetzen der Zeitangabe eine "Array to string"-Warnung aus
+        // und landete als Array in $formData - von wo das Formular es wieder
+        // ausgeben sollte. Jetzt ist es leer und die Pflichtfeldprüfung greift.
+        $startsAtDate = InputValidator::asString($data['starts_at'] ?? null);
+        $startTime = InputValidator::asString($data['start_time'] ?? null);
+        $endTime = InputValidator::asString($data['end_time'] ?? null);
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $repeat = !empty($data['repeat']);
         $registrationEnabled = !empty($data['registration_enabled']);
@@ -1192,9 +1197,9 @@ class EventController
 
         $data = (array)$request->getParsedBody();
         $title = trim(InputValidator::asString($data['title'] ?? null));
-        $startsAtDate = $data['starts_at'] ?? '';
-        $startTime = $data['start_time'] ?? '';
-        $endTime = $data['end_time'] ?? '';
+        $startsAtDate = InputValidator::asString($data['starts_at'] ?? null);
+        $startTime = InputValidator::asString($data['start_time'] ?? null);
+        $endTime = InputValidator::asString($data['end_time'] ?? null);
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $updateSeries = !empty($data['update_series']);
         $seriesFields = self::normalizeSeriesFieldGroups($data['series_fields'] ?? null);

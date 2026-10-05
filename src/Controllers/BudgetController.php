@@ -60,7 +60,7 @@ class BudgetController
     {
         $data = (array) $request->getParsedBody();
         $fiscalYear = (int) ($data['fiscal_year_start'] ?? 0);
-        $type = $data['type'] ?? '';
+        $type = InputValidator::asString($data['type'] ?? null);
         $financeGroupId = $this->resolveFinanceGroupId($data);
 
         if (

@@ -1,9 +1,9 @@
 {
-    "runNumber": 35,
+    "runNumber": 36,
     "lastRun": {
-        "runNumber": 34,
-        "sectionIndex": 6,
-        "section": "db/migrations"
+        "runNumber": 35,
+        "sectionIndex": 0,
+        "section": "src/Controllers"
     },
     "sections": [
         "src/Controllers",
