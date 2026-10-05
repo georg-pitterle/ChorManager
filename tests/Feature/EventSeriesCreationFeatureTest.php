@@ -111,12 +111,33 @@ final class EventSeriesCreationFeatureTest extends TestCase
                 $event->registration_deadline,
                 'Jeder Serientermin braucht seinen eigenen Anmeldeschluss.'
             );
+            // Verglichen wird nach der Uhr, nicht nach verstrichenen Minuten: über
+            // die Zeitumstellung liegen zwischen "Montag 19:00" und "Samstag
+            // 19:00" 47 oder 49 Stunden.
             $this->assertSame(
-                2 * 24 * 60,
-                (int) Carbon::parse($event->registration_deadline)->diffInMinutes(Carbon::parse($event->starts_at)),
+                Carbon::parse($event->starts_at)->subDays(2)->format('Y-m-d H:i'),
+                Carbon::parse($event->registration_deadline)->format('Y-m-d H:i'),
                 'Der Vorlauf muss bei jedem Termin derselbe sein.'
             );
         }
+    }
+
+    public function testSeriesCreationKeepsTheDeadlineTimeOfDayAcrossTheClockChange(): void
+    {
+        // Feste Daten um die Umstellung am 27.10.2030.
+        $events = $this->createSeries([
+            'starts_at' => '2030-10-21',
+            'series_end_date' => '2030-11-04',
+            'registration_enabled' => '1',
+            'registration_deadline' => '2030-10-19T19:00',
+        ]);
+
+        $this->assertSame(
+            ['2030-10-19 19:00', '2030-10-26 19:00', '2030-11-02 19:00'],
+            $events->map(
+                static fn (Event $event): string => Carbon::parse($event->registration_deadline)->format('Y-m-d H:i')
+            )->all()
+        );
     }
 
     public function testMonthlySeriesOnTheLastDayDoesNotDriftAcrossMonths(): void

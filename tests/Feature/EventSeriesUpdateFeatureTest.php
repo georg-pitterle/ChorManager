@@ -174,6 +174,42 @@ final class EventSeriesUpdateFeatureTest extends TestCase
         );
     }
 
+    public function testDeadlineLeadTimeKeepsTheTimeOfDayAcrossTheClockChange(): void
+    {
+        // Feste Daten um die Umstellung am 27.10.2030, damit der Test nicht nur
+        // zweimal im Jahr anschlägt.
+        $series = EventSeries::create([
+            'frequency' => 'weekly',
+            'recurrence_interval' => 1,
+            'weekdays' => '1',
+            'end_date' => '2030-11-04',
+        ]);
+        $events = [];
+        foreach (['2030-10-21', '2030-10-28', '2030-11-04'] as $day) {
+            $events[] = Event::create([
+                'title' => 'Wochenprobe',
+                'starts_at' => $day . ' 19:00:00',
+                'ends_at' => $day . ' 21:00:00',
+                'type' => 'Probe',
+                'series_id' => $series->id,
+                'registration_enabled' => true,
+                'attendance_required' => true,
+            ]);
+        }
+
+        $this->update($events[0], ['registration_deadline' => '2030-10-19T19:00']);
+
+        $this->assertSame(
+            ['2030-10-19 19:00', '2030-10-26 19:00', '2030-11-02 19:00'],
+            array_map(
+                static fn (Event $event): string => Carbon::parse($event->refresh()->registration_deadline)
+                    ->format('Y-m-d H:i'),
+                $events
+            ),
+            'Zwei Tage vorher, 19:00 - auch für den Termin nach der Zeitumstellung.'
+        );
+    }
+
     public function testClearingTheDeadlineClearsItForTheWholeSeries(): void
     {
         $first = $this->events[0];

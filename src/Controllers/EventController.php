@@ -32,6 +32,7 @@ use App\Services\EntityCleanupService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Util\InputValidator;
+use App\Util\WallClockOffset;
 use App\Util\SafeRedirect;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Psr\Log\LoggerInterface;
@@ -1059,8 +1060,7 @@ class EventController
                 // Formular kommentarlos verschwinden.
                 $deadlineLeadSeconds = null;
                 if ($registrationEnabled && $registrationDeadline !== null) {
-                    $deadlineLeadSeconds = Carbon::parse($registrationDeadline)->getTimestamp()
-                        - Carbon::parse($startsAt)->getTimestamp();
+                    $deadlineLeadSeconds = WallClockOffset::seconds($startsAt, $registrationDeadline);
                 }
 
                 $count = 0;
@@ -1080,7 +1080,7 @@ class EventController
                         'registration_enabled' => $registrationEnabled,
                         'registration_deadline' => $deadlineLeadSeconds === null
                             ? null
-                            : $occurrenceStart->copy()->addSeconds($deadlineLeadSeconds)->format('Y-m-d H:i:s'),
+                            : WallClockOffset::shift($occurrenceStart, $deadlineLeadSeconds)->format('Y-m-d H:i:s'),
                         'attendance_required' => $attendanceRequired,
                     ]);
                     $audienceService->setAudience($seriesEvent, $audienceSets);
@@ -1321,8 +1321,7 @@ class EventController
                 // Übernommen wird daher der Vorlauf zum jeweiligen Terminbeginn.
                 $deadlineLeadSeconds = null;
                 if ($registrationEnabled && $registrationDeadline !== null) {
-                    $deadlineLeadSeconds = Carbon::parse($registrationDeadline)->getTimestamp()
-                        - Carbon::parse($startsAt)->getTimestamp();
+                    $deadlineLeadSeconds = WallClockOffset::seconds($startsAt, $registrationDeadline);
                 }
 
                 // Nur die gewählten Feldgruppen wandern auf die Folgetermine. Wer
@@ -1362,7 +1361,7 @@ class EventController
                             : Carbon::parse($eventInSeries->starts_at);
                         $seriesUpdate['registration_deadline'] = $deadlineLeadSeconds === null
                             ? null
-                            : (clone $deadlineBase)->addSeconds($deadlineLeadSeconds);
+                            : WallClockOffset::shift($deadlineBase, $deadlineLeadSeconds);
                     }
 
                     if ($seriesUpdate !== []) {
