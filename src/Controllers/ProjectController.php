@@ -23,6 +23,8 @@ class ProjectController
 {
     private const INVALID_DATE_MESSAGE = 'Beginn und Ende müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
 
+    private const REVERSED_PERIOD_MESSAGE = 'Das Ende des Projekts darf nicht vor seinem Beginn liegen.';
+
     private Twig $view;
     private ProjectQuery $projectQuery;
     private ProjectPersistence $projectPersistence;
@@ -109,6 +111,27 @@ class ProjectController
         return $parsed->format('Y-m-d');
     }
 
+    /**
+     * Liegt das Ende nicht vor dem Beginn?
+     *
+     * Fehlt eine der beiden Angaben, ist nichts zu vergleichen - ein Projekt
+     * ohne Ende ist erlaubt und bleibt es. Verglichen werden Zeichenketten in
+     * `Y-m-d`, und genau dieses Format liefert normalizeProjectDate(): Dort
+     * sortiert der Text wie das Datum, ein zweites Parsen wäre nur eine weitere
+     * Stelle, an der etwas schiefgehen kann.
+     *
+     * Gleicher Tag für Beginn und Ende bleibt zulässig - ein Projekt, das an
+     * einem einzigen Tag stattfindet, ist ein Projekt.
+     */
+    private static function periodIsOrdered(?string $startDate, ?string $endDate): bool
+    {
+        if ($startDate === null || $endDate === null) {
+            return true;
+        }
+
+        return $endDate >= $startDate;
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $projects = $this->projectQuery->getAllProjects();
@@ -146,6 +169,11 @@ class ProjectController
             return $response->withHeader('Location', '/projects')->withStatus(302);
         }
 
+        if (!self::periodIsOrdered($startDate, $endDate)) {
+            $_SESSION['error'] = self::REVERSED_PERIOD_MESSAGE;
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
         $project = new Project();
         $project->name = $name;
         $project->description = $description;
@@ -173,6 +201,11 @@ class ProjectController
 
         if ($startDate === false || $endDate === false) {
             $_SESSION['error'] = self::INVALID_DATE_MESSAGE;
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
+        if (!self::periodIsOrdered($startDate, $endDate)) {
+            $_SESSION['error'] = self::REVERSED_PERIOD_MESSAGE;
             return $response->withHeader('Location', '/projects')->withStatus(302);
         }
 

@@ -62,6 +62,38 @@ class EvaluationController
         ]);
     }
 
+    /**
+     * Merkt das gewählte Projekt für den nächsten Besuch.
+     *
+     * Geschrieben wird nur, wenn sich der Wert tatsächlich ändert. Beide
+     * Auswertungsseiten sind GET-Aufrufe, und jeder einzelne setzte bisher ein
+     * UPDATE auf `users` ab - auch der zehnte Aufruf derselben Seite mit
+     * derselben Auswahl. Nebenbei verschob ein fremdes
+     * `<img src="/evaluations?project_id=5">` die gemerkte Auswahl der lesenden
+     * Person. Ganz ausschließen lässt sich das hier nicht, ohne das Merken an
+     * ein POST zu binden; es greift jetzt aber nur noch im Fall "diese Person
+     * hatte Projekt 5 noch nie gewählt", und ein zugängliches Projekt muss es
+     * ohnehin sein - die Aufrufer prüfen das vor dem Aufruf.
+     *
+     * Stand zuvor zweimal wortgleich in index() und projectMembers().
+     */
+    private function rememberSelectedProject(int $userId, int $projectId): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+
+        $_SESSION['last_project_id'] = $projectId;
+
+        $user = User::find($userId);
+        if ($user === null || (int) $user->last_project_id === $projectId) {
+            return;
+        }
+
+        $user->last_project_id = $projectId;
+        $user->save();
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $params = $request->getQueryParams();
@@ -93,14 +125,7 @@ class EvaluationController
             $selectedProject = Project::find($projectId);
 
             if ($selectedProject) {
-                if ($userId > 0) {
-                    $user = User::find($userId);
-                    if ($user) {
-                        $user->last_project_id = $projectId;
-                        $user->save();
-                    }
-                    $_SESSION['last_project_id'] = $projectId;
-                }
+                $this->rememberSelectedProject($userId, $projectId);
 
                 $projectEvents = $selectedProject->events()
                     ->where('attendance_required', true)
@@ -212,14 +237,7 @@ class EvaluationController
                 $groupedMembers = $this->projectQuery
                     ->getProjectMembersGroupedByVoice($projectId);
 
-                if ($userId > 0) {
-                    $user = User::find($userId);
-                    if ($user) {
-                        $user->last_project_id = $projectId;
-                        $user->save();
-                    }
-                    $_SESSION['last_project_id'] = $projectId;
-                }
+                $this->rememberSelectedProject($userId, $projectId);
             }
         }
 

@@ -11,12 +11,24 @@ use Slim\Views\Twig;
 
 class HelpController
 {
+    /**
+     * Was die Hilfe als Bild ausliefert - und zwar inline, damit es im Text der
+     * Seite erscheint.
+     *
+     * Ohne `svg`, bewusst: Ein SVG ist ein XML-Dokument, das Skript enthalten
+     * darf, und `image/svg+xml` inline ausgeliefert führt dieses Skript auf
+     * unserer eigenen Herkunft aus - mit der Sitzung der lesenden Person. Die
+     * Dateien unter `help/<thema>/screenshots/` liegen im Repository und sind
+     * damit heute vertrauenswürdig; eine Grafik, die einmal von außen dazukommt,
+     * wäre es nicht, und dann hinge die Lücke an der Herkunft der Datei statt
+     * an dieser Liste. Screenshots sind ohnehin PNG (siehe die
+     * `create-help-topic`-Anleitung), es geht also kein Format verloren.
+     */
     private const IMAGE_MIME_TYPES = [
         'png'  => 'image/png',
         'jpg'  => 'image/jpeg',
         'jpeg' => 'image/jpeg',
         'gif'  => 'image/gif',
-        'svg'  => 'image/svg+xml',
         'webp' => 'image/webp',
     ];
 

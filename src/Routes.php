@@ -314,7 +314,8 @@ return function (App $app) {
             // independent of tenant modules/roles.
             $group->get('/help', [HelpController::class, 'index']);
             $group->get(
-                '/help/images/{file:[A-Za-z0-9_\-\/]+\.(?:png|jpg|jpeg|gif|svg|webp)}',
+                // Ohne svg - die Begründung steht an HelpController::IMAGE_MIME_TYPES.
+                '/help/images/{file:[A-Za-z0-9_\-\/]+\.(?:png|jpg|jpeg|gif|webp)}',
                 [HelpController::class, 'image']
             );
             $group->get('/help/{slug:[a-z0-9\-]+}', [HelpController::class, 'show']);

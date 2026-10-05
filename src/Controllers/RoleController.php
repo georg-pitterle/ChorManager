@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Role;
+use App\Models\User;
 use App\Util\InputValidator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -42,6 +43,14 @@ class RoleController
      * Stufe gilt.
      */
     private const UNRESTRICTED_LEVEL = 100;
+
+    /**
+     * Wie UserController::LAST_MANAGER_MESSAGE, nur aus Sicht der Rolle: Dort
+     * verliert ein Mitglied seine Rolle, hier verliert die Rolle ihr Recht. Das
+     * Ergebnis wäre dasselbe.
+     */
+    private const LAST_USER_MANAGEMENT_MESSAGE = 'Das ist die letzte Rolle, über die ein aktives Mitglied die '
+        . 'Mitgliederverwaltung hält. Vergib das Recht zuerst an eine andere Rolle.';
 
     private Twig $view;
     private array $settings;
@@ -230,6 +239,72 @@ class RoleController
     }
 
     /**
+     * Nimmt dieser Rollensatz der letzten Rolle das Recht "Mitglieder
+     * verwalten"?
+     *
+     * UserController verhindert denselben Ausgang von der anderen Seite: Dort
+     * darf dem letzten Mitglied mit Mitgliederverwaltung die Rolle nicht
+     * entzogen werden (`wouldDropLastUserManager()`). Über die Rollenmaske fehlte
+     * die Sperre - und sie ist der kürzere Weg hinaus: Die Rechte werden bei
+     * jedem Request neu aus der Rolle gelesen (AuthMiddleware), die handelnde
+     * Person verliert das Recht also mit dem nächsten Klick. Zurückvergeben darf
+     * sie es dann nicht mehr, denn `permissionsBeyondActor()` lässt nur Rechte
+     * durch, die sie selbst hält. Einzige Ausnahme wäre eine Rolle auf
+     * UNRESTRICTED_LEVEL - darauf darf die Mitgliederverwaltung einer
+     * Installation nicht angewiesen sein.
+     *
+     * Gezählt werden nur aktive Mitglieder, wie in
+     * UserController::otherActiveUserManagerExists(): Ein archiviertes Konto
+     * kommt nicht herein und kann das Recht nicht ausüben.
+     *
+     * @param array<string,int> $permissions Stand nach dem Kappen
+     */
+    private function wouldOrphanUserManagement(Role $role, array $permissions): bool
+    {
+        // Eine Rolle, die das Recht nicht trägt, kann es auch nicht entziehen.
+        if (!(bool) $role->can_manage_users) {
+            return false;
+        }
+
+        if ((int) ($permissions['can_manage_users'] ?? 0) === 1) {
+            return false;
+        }
+
+        // Trägt diese Rolle gerade kein aktives Mitglied, nimmt das Streichen
+        // niemandem etwas - dann soll sich ein ungenutztes Häkchen auch abwählen
+        // lassen. Die Mitgliederverwaltung steht in diesem Fall ohnehin niemandem
+        // offen; wer hier ist, hält can_manage_roles und braucht die Hilfe nicht.
+        if (!$this->roleIsHeldByAnActiveMember((int) $role->id)) {
+            return false;
+        }
+
+        return !$this->activeUserManagementExistsBesides((int) $role->id);
+    }
+
+    private function roleIsHeldByAnActiveMember(int $roleId): bool
+    {
+        return User::where('is_active', 1)
+            ->whereHas('roles', static function ($query) use ($roleId): void {
+                $query->where('roles.id', $roleId);
+            })
+            ->exists();
+    }
+
+    /**
+     * Hält ein aktives Mitglied die Mitgliederverwaltung über eine andere Rolle
+     * als die genannte?
+     */
+    private function activeUserManagementExistsBesides(int $exceptRoleId): bool
+    {
+        return User::where('is_active', 1)
+            ->whereHas('roles', static function ($query) use ($exceptRoleId): void {
+                $query->where('roles.can_manage_users', 1)
+                    ->where('roles.id', '!=', $exceptRoleId);
+            })
+            ->exists();
+    }
+
+    /**
      * @return array<string,bool>
      */
     private function moduleFlags(): array
@@ -373,6 +448,18 @@ class RoleController
         // Aufrufer selbst hält.
         $cappedPermissions = $this->permissionsBeyondActor($permissions, $existingRole->getAttributes());
         $permissions = $this->withoutPermissions($permissions, $cappedPermissions);
+
+        // Nach dem Kappen, nicht davor: Geprüft wird der Stand, der wirklich
+        // gespeichert würde.
+        if ($this->wouldOrphanUserManagement($existingRole, $permissions)) {
+            $this->logger->warning('Removing the last role with user management was refused.', [
+                'event' => 'authz.role.last_user_management_kept',
+                'role_id' => (int) $existingRole->id,
+            ]);
+
+            $_SESSION['error'] = self::LAST_USER_MANAGEMENT_MESSAGE;
+            return $response->withHeader('Location', '/roles')->withStatus(302);
+        }
 
         // The flag list comes straight from buildPermissionFlags() so a newly added can_*
         // right is picked up automatically, without a second hardcoded list to keep in sync.

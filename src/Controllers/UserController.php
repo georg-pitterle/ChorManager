@@ -278,12 +278,10 @@ class UserController
                 ]);
             }
 
-            $vgData = [];
-            foreach ($voiceGroupIds as $vgId) {
-                $svId = !empty($subVoices[$vgId]) ? (int) $subVoices[$vgId] : null;
-                $vgData[$vgId] = ['sub_voice_id' => $svId];
-            }
-            $this->userPersistence->syncVoiceGroups($user, $vgData);
+            $this->userPersistence->syncVoiceGroups(
+                $user,
+                self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices)
+            );
 
             if ($submitAction === 'save_and_invite') {
                 $inviteResult = $this->sendInvitationEmail($user, $request);
@@ -514,14 +512,10 @@ class UserController
             // den nicht verwaltbaren zusammengeführt und deren Untergruppen in $subVoices
             // gesichert. Die frühere zweite Berechnung an dieser Stelle war Wort für Wort
             // dieselbe und lieferte zwangsläufig dasselbe Ergebnis.
-            $vgData = [];
-            foreach ((array) $voiceGroupIds as $vgId) {
-                $svId = !empty($subVoices[$vgId]) ? (int) $subVoices[$vgId] : null;
-                $vgData[$vgId] = ['sub_voice_id' => $svId];
-            }
-
-
-            $this->userPersistence->syncVoiceGroups($targetUser, $vgData);
+            $this->userPersistence->syncVoiceGroups(
+                $targetUser,
+                self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices)
+            );
 
             // can_manage_project_members reicht projektübergreifend, deshalb wird die
             // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
@@ -771,6 +765,72 @@ class UserController
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * Die Stimmgruppen-Zuordnung für `syncVoiceGroups()`: je Stimmgruppe die
+     * gewählte Untergruppe, oder null.
+     *
+     * Eine Untergruppe, die nicht zu ihrer Stimmgruppe gehört, wird still
+     * verworfen - dieselbe Wahl wie bei den Rollen und Stimmgruppen darüber: Ein
+     * Wert, der so nicht aus der Oberfläche kommt, soll die erlaubten Änderungen
+     * derselben Maske nicht blockieren.
+     *
+     * Vorher wurde die Untergruppe übernommen, wie sie hereinkam. Über das
+     * Formular fällt das nicht auf - es bietet je Stimmgruppe nur deren eigene
+     * Untergruppen an -, über einen zusammengebauten Beitrag schon: Danach trug
+     * ein Bass die Untergruppe "Sopran 1", und Anwesenheitsliste und
+     * Auswertungen zeigten sie so an. Der Fremdschlüssel hält das nicht auf,
+     * `user_voice_groups.sub_voice_id` zeigt auf `sub_voices` und nicht auf das
+     * Paar aus Gruppe und Untergruppe.
+     *
+     * Eine Abfrage für alle Paare, nicht eine je Stimmgruppe. Stand zuvor
+     * zweimal wortgleich in create() und update().
+     *
+     * @param array<array-key, mixed> $voiceGroupIds
+     * @param array<array-key, mixed> $subVoices Untergruppe je Stimmgruppen-Kennung
+     * @return array<int, array{sub_voice_id: int|null}>
+     */
+    private static function buildVoiceGroupPivot(array $voiceGroupIds, array $subVoices): array
+    {
+        $groupIds = [];
+        $requested = [];
+
+        foreach ($voiceGroupIds as $rawGroupId) {
+            $groupId = (int) $rawGroupId;
+            if ($groupId <= 0) {
+                continue;
+            }
+
+            $groupIds[] = $groupId;
+
+            // Der Zugriff mit dem rohen Schlüssel genügt: PHP führt den
+            // Array-Schlüssel "3" und 3 auf dasselbe Fach.
+            $subVoiceId = empty($subVoices[$rawGroupId]) ? 0 : (int) $subVoices[$rawGroupId];
+            if ($subVoiceId > 0) {
+                $requested[$groupId] = $subVoiceId;
+            }
+        }
+
+        $groupOfSubVoice = [];
+        if ($requested !== []) {
+            $groupOfSubVoice = SubVoice::query()
+                ->whereIn('id', array_values($requested))
+                ->whereIn('voice_group_id', array_keys($requested))
+                ->pluck('voice_group_id', 'id')
+                ->map(static fn ($groupId): int => (int) $groupId)
+                ->all();
+        }
+
+        $pivot = [];
+        foreach ($groupIds as $groupId) {
+            $subVoiceId = $requested[$groupId] ?? null;
+            $belongsToGroup = $subVoiceId !== null && ($groupOfSubVoice[$subVoiceId] ?? null) === $groupId;
+
+            $pivot[$groupId] = ['sub_voice_id' => $belongsToGroup ? $subVoiceId : null];
+        }
+
+        return $pivot;
     }
 
     /**

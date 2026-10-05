@@ -24,6 +24,9 @@
             </div>
 
             <form class="d-flex" method="get" action="/attendance" id="eventSelectForm">
+                {% if show_old_events %}
+                    <input type="hidden" name="show_old_events" value="1">
+                {% endif %}
                 <select class="form-select attendance-selector" name="event_id">
                     <option value="">-- Termin wählen --</option>
                     {% for e in events %}
@@ -34,6 +37,21 @@
                     {% endfor %}
                 </select>
             </form>
+
+            {% if show_old_events %}
+                {# Ohne Termin-Kennung: Mit ihr lüde der Server den ganzen Bestand erneut,
+                   falls der gewählte Termin älter als zwölf Monate ist - der Knopf sähe
+                   dann wirkungslos aus. Ohne sie wählt er den nächstgelegenen Termin
+                   im Fenster. #}
+                <a href="/attendance" class="btn btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> Nur die letzten 12 Monate
+                </a>
+            {% else %}
+                {% set _widen_target = current_event ? "/attendance/" ~ current_event.id : "/attendance" %}
+                <a href="{{ _widen_target }}?show_old_events=1" class="btn btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> Ältere Termine anzeigen
+                </a>
+            {% endif %}
         </div>
     </section>
 {% endblock page_header %}

@@ -14,11 +14,15 @@ use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use App\Util\InputValidator;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
 {
     private const SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
+
+    /** Wie weit die Terminauswahl ohne den Haken "Ältere Termine" zurückreicht. */
+    private const RECENT_MONTHS = 12;
 
     private Twig $view;
     private AttendanceScopeService $scopeService;
@@ -37,6 +41,42 @@ class AttendanceController
         $this->nameFormatter = $nameFormatter;
     }
 
+    /**
+     * Die Termine der Auswahl: nur solche mit Anwesenheitspflicht, und nur solche,
+     * zu denen der Nutzer selbst gehört oder in denen er mindestens ein
+     * verwaltbares Mitglied betreut - "alle Mitglieder verwalten" sieht jeden
+     * Termin.
+     *
+     * Ohne `$withHistory` reicht die Auswahl zwölf Monate zurück; künftige Termine
+     * sind immer dabei. Vorher war das Fenster unbegrenzt: Jeder Aufruf von
+     * /attendance holte jeden Pflichttermin seit der Erstinstallation samt
+     * Zielgruppen-Filtern und prüfte jeden einzeln in PHP, nur um daraus eine
+     * Auswahlliste zu bauen. Mit jedem Chorjahr wurde das mehr. Zwölf Monate
+     * decken das laufende Chorjahr und das Nachtragen vergessener Listen ab; den
+     * ganzen Bestand holt der Haken "Ältere Termine anzeigen" - dasselbe Mittel
+     * wie `show_old_events` in der Terminliste.
+     *
+     * Die Grenze liegt in der Abfrage und nicht im Filter danach, sonst wäre
+     * nichts gewonnen.
+     *
+     * @return \Illuminate\Support\Collection<int, Event>
+     */
+    private function accessibleEvents(bool $withHistory)
+    {
+        $query = Event::where('attendance_required', true)
+            ->with('audienceFilters.conditions');
+
+        if (!$withHistory) {
+            $query->where('starts_at', '>=', Carbon::now()->subMonths(self::RECENT_MONTHS));
+        }
+
+        return $query
+            ->orderBy('starts_at', 'asc')
+            ->get()
+            ->filter(fn(Event $event): bool => $this->scopeService->canAccessEvent($event))
+            ->values();
+    }
+
     public function show(Request $request, Response $response, array $args): Response
     {
         $routeEventId = isset($args['event_id']) ? (int) $args['event_id'] : null;
@@ -45,14 +85,22 @@ class AttendanceController
             ? (int) $queryParams['event_id']
             : null;
 
-        // Nur Termine, zu denen der Nutzer selbst gehört oder in denen er mindestens ein
-        // verwaltbares Mitglied betreut - "alle Mitglieder verwalten" sieht jeden Termin.
-        $events = Event::where('attendance_required', true)
-            ->with('audienceFilters.conditions')
-            ->orderBy('starts_at', 'asc')
-            ->get()
-            ->filter(fn(Event $event): bool => $this->scopeService->canAccessEvent($event))
-            ->values();
+        $showOldEvents = !empty($queryParams['show_old_events']);
+        $events = $this->accessibleEvents($showOldEvents);
+
+        // Ein Lesezeichen auf einen älteren Termin muss weiter aufgehen. Nennt die
+        // Anfrage eine Kennung, die im Fenster nicht vorkommt, wird einmalig der
+        // ganze Bestand geladen - sonst liefe /attendance/17 ins Leere, sobald der
+        // Termin aus dem Fenster gewandert ist.
+        $requestedEventId = $routeEventId ?? $queryEventId;
+        $requestOutsideWindow = !$showOldEvents
+            && $requestedEventId !== null
+            && $requestedEventId > 0
+            && !$this->eventExists($events, $requestedEventId);
+        if ($requestOutsideWindow) {
+            $showOldEvents = true;
+            $events = $this->accessibleEvents(true);
+        }
 
         $eventId = $this->resolveSelectedEventId($routeEventId, $queryEventId, $events);
         if ($eventId !== null) {
@@ -152,6 +200,7 @@ class AttendanceController
             // Fingerabdruck des angezeigten Standes: erkennt beim Speichern, ob
             // jemand anderes dieselben Mitglieder zwischenzeitlich geändert hat.
             'state_hash' => $eventId ? $this->attendanceStateHash($eventId, $renderedUserIds) : '',
+            'show_old_events' => $showOldEvents,
             'success' => $success,
             'error' => $error
         ]);
