@@ -34,10 +34,20 @@ PHP_REQUIRED_SUFFIXES=(cli common curl gd intl mbstring mysql sqlite3 xml zip)
 # Deshalb werden diese übersprungen, wenn die Zielversion sie nicht kennt.
 PHP_OPTIONAL_SUFFIXES=(opcache readline)
 
-# Quelle, aus der schon das mitgelieferte PHP 8.4 stammt. Wird nur zur Diagnose
-# angefragt, wenn die Installation scheitert.
+# Die Quelle, aus der PHP in der verlangten Version kommt. Im Image ist sie nicht
+# eingetragen - ensure_php_package_source() trägt sie nach.
 PHP_PACKAGE_SOURCE_HOST="ppa.launchpadcontent.net"
 PHP_PACKAGE_SOURCE="https://${PHP_PACKAGE_SOURCE_HOST}/ondrej/php/ubuntu/dists/noble/InRelease"
+PHP_PACKAGE_REPOSITORY="https://${PHP_PACKAGE_SOURCE_HOST}/ondrej/php/ubuntu"
+PHP_PACKAGE_SUITE="noble"
+PHP_PACKAGE_SOURCE_LIST="/etc/apt/sources.list.d/ondrej-php.list"
+PHP_PACKAGE_KEYRING="/etc/apt/keyrings/ondrej-php.asc"
+
+# Der Signierschlüssel kommt vom Keyserver, nicht von launchpad.net: Dessen API
+# ist aus der Remote-Umgebung mit 403 gesperrt, keyserver.ubuntu.com antwortet.
+PHP_PACKAGE_KEY_HOST="keyserver.ubuntu.com"
+PHP_PACKAGE_KEY_URL="https://${PHP_PACKAGE_KEY_HOST}/pks/lookup?op=get&search="
+PHP_PACKAGE_KEY_FINGERPRINT="14AA40EC0831756756D7F66C4F4EA0AAE5267A6C"
 
 APT_UPDATED=0
 LOG_DIR="/var/log"
@@ -114,13 +124,24 @@ FLUSH PRIVILEGES;
 SQL
 
 # --------------------------------------------------------------------- PHP ----
-# Das Image bringt PHP 8.4 aus dem ondrej/php-PPA mit, composer.json verlangt
-# aber ^8.5. Dieselbe Paketquelle hätte 8.5, nur blockt die Netzwerkrichtlinie
-# der Remote-Umgebung ppa.launchpadcontent.net derzeit mit 403.
+# Das Image bringt das PHP von Ubuntu 24.04 mit, also 8.3 - und dabei bleibt es:
+# Eine LTS friert die Minor-Version für ihre ganze Laufzeit ein und backportet
+# nur Sicherheitsfixes. composer.json verlangt ^8.5, das kommt aus Ubuntu nie.
 #
-# Der Hook versucht das Upgrade deshalb bei jedem Start und fällt zurück, wenn
-# die Quelle nicht erreichbar ist. Wird der Host in der Umgebung freigegeben,
-# zieht die nächste Sitzung PHP 8.5 von selbst - ohne Änderung an diesem Skript.
+# Die Version gibt es im ondrej/php-PPA (8.5.11 für noble, Stand 10/2026), nur
+# ist die Quelle im Image nicht eingetragen: sources.list.d kennt ausschließlich
+# ubuntu.sources und docker.list. Deshalb trägt ensure_php_package_source() sie
+# nach, bevor installiert wird.
+#
+# Hier stand zuvor, die Netzwerkrichtlinie blocke ppa.launchpadcontent.net mit
+# 403 - das trifft nicht mehr zu, der Host antwortet mit 200. Sichtbar wurde die
+# veraltete Begründung nicht, weil apt mit "Unable to locate package php8.5-..."
+# scheiterte, und das sah wie ein gesperrter Spiegel aus. Es war die fehlende
+# Quelle.
+#
+# Der Hook versucht das Upgrade bei jedem Start und fällt zurück, wenn etwas
+# davon nicht erreichbar ist - dann läuft die Sitzung auf dem PHP des Images
+# weiter, mit --ignore-platform-req=php für Composer.
 required_php="$(
     php -r '
         $manifest = json_decode(file_get_contents("composer.json"), true);
@@ -132,11 +153,81 @@ current_php="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"
 
 composer_platform_args=()
 
+# Trägt das ondrej/php-PPA als Paketquelle nach, samt Signierschlüssel.
+#
+# Idempotent: Ist die Quelle schon da, bleibt es dabei. Geschrieben wird die
+# Quelldatei erst, wenn der Schlüssel geholt *und* sein Fingerabdruck geprüft
+# ist - eine halbe Einrichtung wäre schlimmer als keine, weil dann jedes
+# folgende `apt-get update` der Sitzung darüber stolpert.
+#
+# Scheitert etwas, kommt 1 zurück und der Aufrufer fällt auf das PHP des Images
+# zurück.
+ensure_php_package_source() {
+    if [ -f "$PHP_PACKAGE_SOURCE_LIST" ]; then
+        log "Paketquelle für PHP ist eingetragen"
+        return 0
+    fi
+
+    log "Paketquelle für PHP nachtragen (ondrej/php)"
+
+    local keyring_tmp
+    keyring_tmp="$(mktemp)"
+
+    if ! curl --silent --show-error --fail --max-time 30 --output "$keyring_tmp" \
+        "${PHP_PACKAGE_KEY_URL}0x${PHP_PACKAGE_KEY_FINGERPRINT}" \
+        2>>"$LOG_DIR/php-upgrade-session-start.log"; then
+        log "Signierschlüssel nicht abrufbar von ${PHP_PACKAGE_KEY_HOST}"
+        rm -f "$keyring_tmp"
+        return 1
+    fi
+
+    # Der Keyserver antwortet auf eine unbekannte Suche mit einer HTML-Seite und
+    # Status 200. Ohne diese Prüfung landete sie als "Schlüssel" in den Keyrings.
+    if ! grep -q 'BEGIN PGP PUBLIC KEY BLOCK' "$keyring_tmp"; then
+        log "Antwort von ${PHP_PACKAGE_KEY_HOST} ist kein PGP-Schlüssel"
+        rm -f "$keyring_tmp"
+        return 1
+    fi
+
+    # Und es muss der erwartete Schlüssel sein, nicht irgendeiner.
+    if ! gpg --show-keys --with-colons "$keyring_tmp" 2>/dev/null \
+        | grep -q "^fpr:\{1,\}${PHP_PACKAGE_KEY_FINGERPRINT}:"; then
+        log "Fingerabdruck passt nicht zu ${PHP_PACKAGE_KEY_FINGERPRINT}"
+        rm -f "$keyring_tmp"
+        return 1
+    fi
+
+    install -d -m 0755 /etc/apt/keyrings
+    install -m 0644 "$keyring_tmp" "$PHP_PACKAGE_KEYRING"
+    rm -f "$keyring_tmp"
+
+    printf 'deb [signed-by=%s] %s %s main\n' \
+        "$PHP_PACKAGE_KEYRING" "$PHP_PACKAGE_REPOSITORY" "$PHP_PACKAGE_SUITE" \
+        > "$PHP_PACKAGE_SOURCE_LIST"
+
+    # Der Index muss die neue Quelle noch lesen; ein früheres update in dieser
+    # Sitzung kannte sie nicht.
+    #
+    # Der Schlüssel des PPA ist rsa1024, apt meldet dazu "uses weak algorithm".
+    # Heute eine Warnung, in einer künftigen apt-Version ein Fehler - dann
+    # scheitert das update und der Rückfall unten greift.
+    APT_UPDATED=0
+    ensure_apt_updated
+
+    return 0
+}
+
 install_php_version() {
     local version="$1"
     local packages=() skipped=() suffix package
 
     ensure_apt_updated
+
+    # Nur wenn die gewünschte Version im Index fehlt: Ist sie schon da, braucht
+    # es keine zusätzliche Quelle.
+    if ! apt-cache show "php${version}-cli" >/dev/null 2>&1; then
+        ensure_php_package_source || return 1
+    fi
 
     for suffix in "${PHP_REQUIRED_SUFFIXES[@]}"; do
         packages+=("php${version}-${suffix}")
