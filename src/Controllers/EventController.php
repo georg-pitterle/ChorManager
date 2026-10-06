@@ -26,6 +26,8 @@ use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
 use App\Services\EventRecurrenceService;
 use App\Services\NotificationService;
+use App\Services\Notifications\InAppMessage;
+use App\Services\Notifications\InAppNotificationStore;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Services\EntityCleanupService;
@@ -224,6 +226,36 @@ class EventController
     }
 
     /**
+     * Die Zeile einer Bemerkung in der Glocke - beim Anlegen und beim Ändern
+     * dieselbe Form.
+     */
+    private function noteBellText(?string $actorName, string $content): string
+    {
+        return $actorName === null ? $content : $actorName . ': ' . $content;
+    }
+
+    /**
+     * Wann - für die Zeile in der Glocke. Eine Serie nennt Anzahl und Beginn,
+     * sonst stünde dort nur der erste von vierzig Terminen.
+     *
+     * @param list<Event> $events
+     */
+    private function describeWhen(array $events): string
+    {
+        $first = $events[0] ?? null;
+        if ($first === null || $first->starts_at === null) {
+            return '';
+        }
+
+        $startsAt = Carbon::parse($first->starts_at);
+        if (count($events) > 1) {
+            return count($events) . ' Termine ab ' . $startsAt->format('d.m.Y');
+        }
+
+        return $startsAt->format('d.m.Y, H:i') . ' Uhr';
+    }
+
+    /**
      * Versand an eine bereits aufgelöste Empfängerliste - für die Absage, deren
      * Zielgruppe zum Zeitpunkt des Versands nicht mehr ermittelbar ist.
      *
@@ -238,6 +270,7 @@ class EventController
         array $events,
         string $subject,
         string $template,
+        string $inAppBody,
         array $extraContext = []
     ): void {
         if ($this->notificationService === null || $recipients->isEmpty() || $events === []) {
@@ -251,6 +284,8 @@ class EventController
             $recipients,
             $subject,
             $template,
+            // Der Termin ist gelöscht - der Eintrag führt in die Übersicht.
+            new InAppMessage($subject, $inAppBody, '/events'),
             array_merge([
                 'events' => $events,
                 'event' => $events[0],
@@ -277,7 +312,9 @@ class EventController
         array $events,
         string $subject,
         string $template,
-        array $extraContext = []
+        string $inAppBody,
+        array $extraContext = [],
+        ?int $inAppCommentId = null
     ): void {
         if ($this->notificationService === null || $events === []) {
             return;
@@ -305,6 +342,14 @@ class EventController
             User::whereIn('id', array_keys($userIds))->get(),
             $subject,
             $template,
+            new InAppMessage(
+                $subject,
+                $inAppBody,
+                '/events/' . $first->id,
+                'event',
+                (int) $first->id,
+                $inAppCommentId
+            ),
             array_merge([
                 'events' => $events,
                 'event' => $first,
@@ -500,6 +545,7 @@ class EventController
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
+        (new InAppNotificationStore())->markEntityReadQuietly($userId, 'event', (int) $event->id, $this->logger);
         $event->setRelation('comments', $this->getVisibleEventComments($event->id, $userId));
 
         $success = $_SESSION['success'] ?? null;
@@ -743,7 +789,7 @@ class EventController
 
         $isPrivate = !empty($data['is_private']);
 
-        Comment::create([
+        $note = Comment::create([
             'entity_type' => 'event',
             'entity_id' => $event->id,
             'user_id' => (int) ($_SESSION['user_id'] ?? 0),
@@ -754,16 +800,19 @@ class EventController
         // Eine private Bemerkung sieht nur, wer sie geschrieben hat - sie per
         // Mail an die ganze Zielgruppe zu tragen, kehrte ihren Zweck um.
         if (!$isPrivate) {
+            $actorName = $this->actorName((int) ($_SESSION['user_id'] ?? 0));
             $this->notifyAudience(
                 $request,
                 NotificationType::EVENT_NOTE,
                 [$event],
                 'Bemerkung zu: ' . $event->title,
                 'emails/notification_event_note.twig',
+                $this->noteBellText($actorName, $content),
                 [
                     'note_text' => $content,
-                    'actor_name' => $this->actorName((int) ($_SESSION['user_id'] ?? 0)),
-                ]
+                    'actor_name' => $actorName,
+                ],
+                (int) $note->id
             );
         }
 
@@ -812,6 +861,12 @@ class EventController
 
         $note->update(['comment' => $content]);
 
+        // Wer bereits eine Glocke dazu hat, liest künftig den neuen Text.
+        (new InAppNotificationStore())->rewriteForComment(
+            (int) $note->id,
+            $this->noteBellText($this->actorName((int) $note->user_id), $content)
+        );
+
         $_SESSION['success'] = 'Bemerkung aktualisiert.';
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
     }
@@ -848,7 +903,9 @@ class EventController
             );
         }
 
+        $noteId = (int) $note->id;
         $note->delete();
+        (new InAppNotificationStore())->deleteForComment($noteId);
 
         $_SESSION['success'] = 'Bemerkung gelöscht.';
         return $response->withHeader('Location', '/events/' . $event->id)->withStatus(302);
@@ -1023,12 +1080,14 @@ class EventController
                 $audienceService->setAudience($event, $audienceSets);
 
                 if ($this->shouldNotifyMembers($data)) {
+                    $createdEvent = $event->fresh();
                     $this->notifyAudience(
                         $request,
                         NotificationType::EVENT_CREATED,
-                        [$event->fresh()],
+                        [$createdEvent],
                         'Neuer Termin: ' . $title,
                         'emails/notification_event_created.twig',
+                        $this->describeWhen([$createdEvent]),
                         ['series_title' => $title]
                     );
                 }
@@ -1095,6 +1154,7 @@ class EventController
                         $createdEvents,
                         'Neue Termine: ' . $title,
                         'emails/notification_event_created.twig',
+                        $this->describeWhen($createdEvents),
                         ['series_title' => $title]
                     );
                 }
@@ -1392,6 +1452,10 @@ class EventController
                         [$event->fresh()],
                         'Termin geändert: ' . $event->title,
                         'emails/notification_event_changed.twig',
+                        implode(' · ', array_map(
+                            static fn (array $change): string => $change['label'] . ': ' . $change['after'],
+                            $changes
+                        )),
                         ['changes' => $changes]
                     );
                 }
@@ -1438,7 +1502,8 @@ class EventController
                 $recipients,
                 [$cancelled],
                 'Abgesagt: ' . $cancelled->title,
-                'emails/notification_event_cancelled.twig'
+                'emails/notification_event_cancelled.twig',
+                $this->describeWhen([$cancelled])
             );
 
             $_SESSION['success'] = 'Termin gelöscht.';
@@ -1515,7 +1580,8 @@ class EventController
                 $recipients,
                 $cancelled,
                 'Abgesagt: ' . $event->title,
-                'emails/notification_event_cancelled.twig'
+                'emails/notification_event_cancelled.twig',
+                $this->describeWhen($cancelled)
             );
 
             $_SESSION['success'] = sprintf(

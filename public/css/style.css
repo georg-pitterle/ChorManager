@@ -1024,21 +1024,100 @@ html.nav-open-administration [data-nav-section="administration"] .app-sidebar__i
     font-size: 0.72rem;
 }
 
-/* Mail badge (nav envelope icon with unread-count overlay) */
-.mail-badge-trigger {
+/* Mail badge (nav envelope icon with unread-count overlay) - die Glocke daneben
+   trägt ihre Zähler-Pille genauso. */
+.mail-badge-trigger,
+.notification-bell-trigger {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
-.mail-badge-trigger .mail-badge-count {
+.mail-badge-trigger .mail-badge-count,
+.notification-bell-trigger .notification-bell-count {
     position: absolute;
     top: -0.4rem;
     right: -0.6rem;
     font-size: 0.625rem;
     line-height: 1;
     padding: 0.2em 0.4em;
+}
+
+/* Glocke: Dropdown in der Kopfzeile und Liste unter /notifications. */
+.notification-bell-menu {
+    width: min(24rem, calc(100vw - 2rem));
+}
+
+.notification-bell-list {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.notification-item {
+    display: flex;
+    gap: 0.75rem;
+    white-space: normal;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+}
+
+.notification-item-icon {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+
+.notification-item-text {
+    min-width: 0;
+}
+
+.notification-item-body {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.notification-item-unread {
+    background-color: var(--bs-primary-bg-subtle);
+}
+
+.notification-item-unread .notification-item-title {
+    font-weight: 600;
+}
+
+/* Profil: je Anlass ein Schalter für "E-Mail" und einer für "Glocke". Ab der
+   Tablet-Breite stehen sie unter gemeinsamen Spaltenköpfen; die Beschriftung
+   neben dem Schalter bleibt dann nur für Screenreader. */
+.notification-channel-heads,
+.notification-channel-switches {
+    gap: 1.5rem;
+}
+
+.notification-channel-heads span {
+    min-width: 4rem;
+    text-align: center;
+}
+
+@media (min-width: 768px) {
+    .notification-channel-switches .form-check {
+        min-width: 4rem;
+        display: flex;
+        justify-content: center;
+        padding-left: 0;
+    }
+
+    .notification-channel-switches .form-check-input {
+        margin-left: 0;
+    }
+
+    .notification-channel-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
 }
 
 @media (max-width: 767.98px) {

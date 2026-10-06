@@ -94,5 +94,11 @@ trait TwigViewStubs
                 'external_webmail_url' => $externalWebmailUrl,
             ]
         ));
+
+        // Die Glocke steht im selben Benutzermenü; ohne Zähler blendet sie sich aus.
+        $environment->addFunction(new TwigFunction(
+            'notification_badge',
+            static fn (): ?int => null
+        ));
     }
 }

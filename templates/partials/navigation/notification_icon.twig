@@ -1,0 +1,4 @@
+{# Symbol je Bereich eines Glocken-Eintrags. Dieselbe Zuordnung steht in
+   public/js/notification-bell.js - beide Stellen gemeinsam ändern. #}
+{%- set _icons = {"tasks": "bi-check2-square", "events": "bi-calendar-event", "projects": "bi-folder2-open", "sponsoring": "bi-briefcase"} -%}
+{{- _icons[group]|default("bi-bell") -}}

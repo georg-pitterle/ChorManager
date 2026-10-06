@@ -72,7 +72,9 @@ use App\Models\SheetArchiveLineItem;
 use App\Models\SubVoice;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Models\UserNotificationSetting;
+use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
@@ -199,6 +201,7 @@ class DevSeedService
                 'settings' => 0,
                 'app_settings' => 0,
                 'user_notification_settings' => 0,
+                'user_notifications' => 0,
                 'sponsor_packages' => 0,
                 'sponsors' => 0,
                 'sponsorships' => 0,
@@ -287,6 +290,9 @@ class DevSeedService
             $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
             $this->seedSponsorAttachments($sponsors, $sponsorships);
+            // Nach Aufgaben, Terminen, Projekten und Sponsoren: Die Einträge
+            // verlinken auf sie.
+            $this->seedUserNotifications($users['active']);
             $this->seedNewsletters($projects, $users['active']);
             // Nach Rollen, Stimmgruppen und Projekten: Die Freigaben zeigen auf sie.
             $this->seedFileManagement($roles, $voiceData, $projects, $users['active']);
@@ -362,6 +368,7 @@ class DevSeedService
             'oidc_signing_keys',
             'notification_dispatch_log',
             'user_notification_settings',
+            'user_notifications',
             'sponsoring_contacts',
             'sponsorships',
             'sponsors',
@@ -2156,12 +2163,99 @@ class DevSeedService
             $type = $types[$index % count($types)];
 
             $setting = UserNotificationSetting::updateOrCreate(
-                ['user_id' => $user->id, 'notification_type' => $type],
+                ['user_id' => $user->id, 'notification_type' => $type, 'channel' => NotificationChannel::MAIL],
                 ['enabled' => false]
             );
 
             if ($setting->wasRecentlyCreated) {
                 $this->report['counts']['user_notification_settings']++;
+            }
+
+            // Jede zweite dieser Personen hat zusätzlich einen anderen Anlass nur
+            // in der Glocke abbestellt - so zeigt das Profil beide Kanäle getrennt.
+            if ($index % 2 === 0) {
+                $bellType = $types[($index + 1) % count($types)];
+                $bellSetting = UserNotificationSetting::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'notification_type' => $bellType,
+                        'channel' => NotificationChannel::IN_APP,
+                    ],
+                    ['enabled' => false]
+                );
+
+                if ($bellSetting->wasRecentlyCreated) {
+                    $this->report['counts']['user_notification_settings']++;
+                }
+            }
+        }
+    }
+
+    /**
+     * Glocken-Einträge für die Testkonten: gemischt gelesen und ungelesen, über
+     * mehrere Anlässe, damit Dropdown, Seite und Zähler etwas zu zeigen haben.
+     * Die erste Person (die Admin-Person) behält alles ungelesen.
+     *
+     * @param array<int, User> $activeUsers
+     */
+    private function seedUserNotifications(array $activeUsers): void
+    {
+        $activeUsers = array_values($activeUsers);
+        if ($activeUsers === []) {
+            return;
+        }
+
+        $task = Task::query()->orderBy('id')->first();
+        $event = Event::query()->orderBy('starts_at')->first();
+        $project = Project::query()->orderBy('id')->first();
+        $sponsor = Sponsor::query()->orderBy('id')->first();
+
+        $entries = [];
+        if ($task !== null) {
+            $entries[] = [NotificationType::TASK_COMMENT, 'Neuer Kommentar: ' . $task->name,
+                'Ich habe beim Musikhaus angefragt, die Antwort kommt morgen.', '/tasks/' . $task->id, 'task', $task->id];
+            $entries[] = [NotificationType::TASK_ASSIGNED, 'Neue Aufgabe: ' . $task->name,
+                'Du wurdest eingetragen', '/tasks/' . $task->id, 'task', $task->id];
+        }
+        if ($event !== null) {
+            $entries[] = [NotificationType::EVENT_CHANGED, 'Termin geändert: ' . $event->title,
+                'Ort: Pfarrsaal St. Nikolaus', '/events/' . $event->id, 'event', $event->id];
+        }
+        if ($project !== null) {
+            $entries[] = [NotificationType::PROJECT_MEMBER_ADDED, 'Neues Projekt: ' . $project->name,
+                'Du bist jetzt dabei', '/projects/' . $project->id . '/members', 'project', $project->id];
+        }
+        if ($sponsor !== null) {
+            $entries[] = [NotificationType::SPONSORING_FOLLOW_UP_DUE, 'Wiedervorlage: ' . $sponsor->name,
+                'Fällig am ' . Carbon::tomorrow()->format('d.m.Y'), '/sponsoring/sponsors/' . $sponsor->id,
+                'sponsor', $sponsor->id];
+        }
+        if ($entries === []) {
+            return;
+        }
+
+        $actor = $activeUsers[1] ?? null;
+        foreach (array_slice($activeUsers, 0, 8) as $index => $user) {
+            foreach ($entries as $offset => [$type, $title, $body, $link, $entityType, $entityId]) {
+                $createdAt = Carbon::now()->subHours(($offset + 1) * ($index + 2));
+                // Die erste Person behält alles ungelesen, die übrigen haben je
+                // einen Teil schon gelesen.
+                $isRead = $index > 0 && $offset % 2 === 1;
+                $actorId = $actor !== null && (int) $actor->id !== (int) $user->id ? (int) $actor->id : null;
+
+                UserNotification::create([
+                    'user_id' => $user->id,
+                    'notification_type' => $type,
+                    'actor_user_id' => $actorId,
+                    'title' => $title,
+                    'body' => $body,
+                    'link' => $link,
+                    'entity_type' => $entityType,
+                    'entity_id' => (int) $entityId,
+                    'read_at' => $isRead ? $createdAt->copy()->addHour() : null,
+                    'created_at' => $createdAt,
+                ]);
+                $this->report['counts']['user_notifications']++;
             }
         }
     }

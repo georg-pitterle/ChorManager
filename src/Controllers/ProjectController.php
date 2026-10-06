@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\NotificationService;
+use App\Services\Notifications\InAppMessage;
+use App\Services\Notifications\InAppNotificationStore;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Persistence\ProjectPersistence;
@@ -244,6 +246,13 @@ class ProjectController
             return $this->denyProjectAccess($response, $projectId, 'Dieses Projekt existiert nicht.');
         }
 
+        (new InAppNotificationStore())->markEntityReadQuietly(
+            (int) ($_SESSION['user_id'] ?? 0),
+            'project',
+            $projectId,
+            $this->logger
+        );
+
         // Members are already loaded with relationships via ProjectQuery::getProjectMembers()
         $members = $this->projectQuery->getProjectMembers($projectId);
 
@@ -381,6 +390,13 @@ class ProjectController
             [$user],
             'Du bist jetzt bei „' . $project->name . '“ dabei',
             'emails/notification_project_member_added.twig',
+            new InAppMessage(
+                'Neues Projekt: ' . $project->name,
+                'Du bist jetzt dabei',
+                '/projects/' . $project->id . '/members',
+                'project',
+                (int) $project->id
+            ),
             [
                 'project' => $project,
                 'link' => $baseUrl . '/projects/' . $project->id . '/members',

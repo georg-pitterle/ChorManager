@@ -7,9 +7,13 @@ namespace Tests\Feature;
 use App\Models\AppSetting;
 use App\Models\MailQueue;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Models\UserNotificationSetting;
 use App\Services\MailQueueService;
 use App\Services\NotificationService;
+use App\Services\Notifications\InAppMessage;
+use App\Services\Notifications\InAppNotificationStore;
+use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -27,6 +31,8 @@ use Tests\Unit\Bootstrap;
  */
 final class NotificationServiceFeatureTest extends TestCase
 {
+    use TestHttpHelpers;
+
     private const TEMPLATE = 'emails/notification_project_member_added.twig';
 
     private User $anna;
@@ -59,6 +65,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->bernd],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -80,6 +87,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -98,6 +106,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->bernd],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context(),
             (int) $this->anna->id
         );
@@ -119,6 +128,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->bernd],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -143,6 +153,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -161,6 +172,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->bernd],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -181,6 +193,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna],
             'Testbetreff',
             'emails/notification_task_assigned.twig',
+            $this->inApp(),
             $this->context()
         );
 
@@ -198,6 +211,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->bernd],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -217,6 +231,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->anna],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -233,6 +248,7 @@ final class NotificationServiceFeatureTest extends TestCase
             [$this->anna, $this->bernd],
             'Testbetreff',
             self::TEMPLATE,
+            $this->inApp(),
             $this->context()
         );
 
@@ -245,8 +261,9 @@ final class NotificationServiceFeatureTest extends TestCase
         $settings = $this->service()->settingsFor((int) $this->anna->id);
 
         foreach (NotificationType::all() as $type) {
+            $default = NotificationType::defaultEnabled($type);
             $this->assertSame(
-                NotificationType::defaultEnabled($type),
+                [NotificationChannel::MAIL => $default, NotificationChannel::IN_APP => $default],
                 $settings[$type],
                 'Ohne Eintrag muss die Vorgabe des Anlasses gelten: ' . $type
             );
@@ -263,16 +280,158 @@ final class NotificationServiceFeatureTest extends TestCase
         $service = $this->service();
         $type = NotificationType::PROJECT_MEMBER_ADDED;
 
-        $service->storeSettings((int) $this->anna->id, [$type => false]);
+        $service->storeSettings((int) $this->anna->id, [$type => [NotificationChannel::MAIL => false]]);
         $this->assertSame(1, $this->settingRowCount());
 
-        $service->storeSettings((int) $this->anna->id, [$type => NotificationType::defaultEnabled($type)]);
+        $service->storeSettings((int) $this->anna->id, [$type => [NotificationChannel::MAIL => NotificationType::defaultEnabled($type)]]);
         $this->assertSame(0, $this->settingRowCount());
+    }
+
+    public function testOneCallProducesAMailAndABellEntry(): void
+    {
+        $this->service()->notify(
+            NotificationType::PROJECT_MEMBER_ADDED,
+            [$this->anna],
+            'Testbetreff',
+            self::TEMPLATE,
+            $this->inApp(),
+            $this->context()
+        );
+
+        $this->assertSame([$this->anna->email], $this->queuedRecipients());
+        $this->assertSame(['Neues Projekt: Testprojekt'], $this->bellTitles($this->anna));
+    }
+
+    public function testOptingOutOfTheBellKeepsTheMail(): void
+    {
+        $this->optOut($this->anna, NotificationChannel::IN_APP);
+
+        $this->notifyAnnaAndBernd();
+
+        $this->assertSame([$this->anna->email, $this->bernd->email], $this->queuedRecipients());
+        $this->assertSame([], $this->bellTitles($this->anna));
+        $this->assertCount(1, $this->bellTitles($this->bernd));
+    }
+
+    public function testOptingOutOfTheMailKeepsTheBell(): void
+    {
+        $this->optOut($this->anna, NotificationChannel::MAIL);
+
+        $this->notifyAnnaAndBernd();
+
+        $this->assertSame([$this->bernd->email], $this->queuedRecipients());
+        $this->assertCount(1, $this->bellTitles($this->anna));
+    }
+
+    public function testAGloballyDisabledTypeRingsNoBell(): void
+    {
+        AppSetting::updateOrCreate(
+            ['setting_key' => NotificationType::settingKey(NotificationType::PROJECT_MEMBER_ADDED)],
+            ['setting_value' => '0', 'binary_content' => '', 'mime_type' => 'text/plain']
+        );
+
+        $this->notifyAnnaAndBernd();
+
+        $this->assertSame([], $this->bellTitles($this->anna));
+        $this->assertSame([], $this->bellTitles($this->bernd));
+    }
+
+    public function testAMemberWithoutAnEmailAddressStillGetsTheBell(): void
+    {
+        $this->anna->email = 'keine-adresse';
+        $this->anna->save();
+
+        $this->notifyAnnaAndBernd();
+
+        $this->assertSame([$this->bernd->email], $this->queuedRecipients());
+        $this->assertCount(1, $this->bellTitles($this->anna));
+    }
+
+    public function testTheTriggeringPersonAndInactiveMembersGetNoBell(): void
+    {
+        $this->bernd->is_active = 0;
+        $this->bernd->save();
+
+        $this->service()->notify(
+            NotificationType::PROJECT_MEMBER_ADDED,
+            [$this->anna, $this->bernd],
+            'Testbetreff',
+            self::TEMPLATE,
+            $this->inApp(),
+            $this->context(),
+            (int) $this->anna->id
+        );
+
+        $this->assertSame([], $this->bellTitles($this->anna));
+        $this->assertSame([], $this->bellTitles($this->bernd));
+    }
+
+    public function testAPersonListedTwiceGetsOneBellEntry(): void
+    {
+        $this->service()->notify(
+            NotificationType::PROJECT_MEMBER_ADDED,
+            [$this->anna, $this->anna],
+            'Testbetreff',
+            self::TEMPLATE,
+            $this->inApp(),
+            $this->context()
+        );
+
+        $this->assertCount(1, $this->bellTitles($this->anna));
+    }
+
+    /**
+     * Scheitert das Schreiben der Glocke, gehen die Mails trotzdem raus - und
+     * der Fehler steht im Log.
+     */
+    public function testAFailingBellDoesNotStopTheMails(): void
+    {
+        [$logger, $handler] = $this->logger();
+        $store = $this->createStub(InAppNotificationStore::class);
+        $store->method('createMany')->willThrowException(new \RuntimeException('kaputt'));
+
+        $sent = (new NotificationService(
+            new MailQueueService(),
+            Twig::create(dirname(__DIR__, 2) . '/templates'),
+            $logger,
+            ['tasks' => true, 'sponsoring' => true],
+            $store
+        ))->notify(
+            NotificationType::PROJECT_MEMBER_ADDED,
+            [$this->anna],
+            'Testbetreff',
+            self::TEMPLATE,
+            $this->inApp(),
+            $this->context()
+        );
+
+        $this->assertSame(1, $sent);
+        $this->assertNotNull($this->recordFor($handler, 'notification.in_app_failed'));
+    }
+
+    public function testSettingsAreStoredPerChannel(): void
+    {
+        $service = $this->service();
+        $service->storeSettings((int) $this->anna->id, [
+            NotificationType::TASK_COMMENT => [NotificationChannel::MAIL => false, NotificationChannel::IN_APP => true],
+        ]);
+
+        $this->assertFalse($service->wantsNotification((int) $this->anna->id, NotificationType::TASK_COMMENT));
+        $this->assertTrue($service->wantsNotification(
+            (int) $this->anna->id,
+            NotificationType::TASK_COMMENT,
+            NotificationChannel::IN_APP
+        ));
+        $this->assertSame(
+            [NotificationChannel::MAIL => false, NotificationChannel::IN_APP => true],
+            $service->settingsFor((int) $this->anna->id)[NotificationType::TASK_COMMENT]
+        );
+        $this->assertSame(1, $this->settingRowCount(), 'Nur die Abweichung wird gespeichert.');
     }
 
     public function testUnknownTypesAreIgnoredWhenStoring(): void
     {
-        $this->service()->storeSettings((int) $this->anna->id, ['gibt_es_nicht' => false]);
+        $this->service()->storeSettings((int) $this->anna->id, ['gibt_es_nicht' => [NotificationChannel::MAIL => false]]);
 
         $this->assertSame(0, $this->settingRowCount());
     }
@@ -317,6 +476,41 @@ final class NotificationServiceFeatureTest extends TestCase
             ->orderBy('id')
             ->pluck('recipient_email')
             ->all();
+    }
+
+    private function inApp(): InAppMessage
+    {
+        return new InAppMessage('Neues Projekt: Testprojekt', 'Du bist jetzt dabei', '/projects/42/members', 'project', 42);
+    }
+
+    private function notifyAnnaAndBernd(): void
+    {
+        $this->service()->notify(
+            NotificationType::PROJECT_MEMBER_ADDED,
+            [$this->anna, $this->bernd],
+            'Testbetreff',
+            self::TEMPLATE,
+            $this->inApp(),
+            $this->context()
+        );
+    }
+
+    private function optOut(User $user, string $channel): void
+    {
+        UserNotificationSetting::create([
+            'user_id' => $user->id,
+            'notification_type' => NotificationType::PROJECT_MEMBER_ADDED,
+            'channel' => $channel,
+            'enabled' => false,
+        ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function bellTitles(User $user): array
+    {
+        return UserNotification::where('user_id', $user->id)->orderBy('id')->pluck('title')->all();
     }
 
     private function settingRowCount(): int

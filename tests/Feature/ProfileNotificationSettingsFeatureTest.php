@@ -13,6 +13,7 @@ use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
 use App\Services\NotificationService;
 use App\Services\PasswordPolicyService;
+use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
@@ -88,7 +89,7 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
         $type = NotificationType::PROJECT_MEMBER_ADDED;
 
         // Alles ausser diesem Anlass bleibt angehakt.
-        $this->submit($this->allCheckedExcept($type));
+        $this->submit($this->allCheckedExcept($type, NotificationChannel::MAIL));
 
         $this->assertFalse($this->service()->wantsNotification((int) $this->user->id, $type));
         $this->assertSame('Deine Benachrichtigungen wurden gespeichert.', $_SESSION['success'] ?? null);
@@ -98,7 +99,7 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
     {
         $type = NotificationType::PROJECT_MEMBER_ADDED;
 
-        $this->submit($this->allCheckedExcept($type));
+        $this->submit($this->allCheckedExcept($type, NotificationChannel::MAIL));
         $this->assertSame(1, UserNotificationSetting::where('user_id', $this->user->id)->count());
 
         $this->submit($this->allCheckedExcept(null));
@@ -146,14 +147,57 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
     }
 
     /**
-     * @return array<string, string>
+     * Die Glocke lässt sich abschalten, ohne dass die Mail mitgeht - zwei
+     * Schalter, zwei Entscheidungen.
      */
-    private function allCheckedExcept(?string $excluded): array
+    public function testTheBellCanBeTurnedOffWhileTheMailStays(): void
+    {
+        $type = NotificationType::TASK_COMMENT;
+
+        $this->submit($this->allCheckedExcept($type, NotificationChannel::IN_APP));
+
+        $service = $this->service();
+        $userId = (int) $this->user->id;
+        $this->assertTrue($service->wantsNotification($userId, $type, NotificationChannel::MAIL));
+        $this->assertFalse($service->wantsNotification($userId, $type, NotificationChannel::IN_APP));
+        $this->assertSame(1, UserNotificationSetting::where('user_id', $this->user->id)->count());
+    }
+
+    /**
+     * Ein zusammengebauter Aufruf im alten Format (ein Wert statt der beiden
+     * Kanäle) darf nicht zu einem Fehler führen; der Anlass gilt dann als
+     * abgewählt.
+     */
+    public function testAScalarValueForATypeTurnsBothChannelsOff(): void
+    {
+        $notifications = $this->allCheckedExcept(NotificationType::TASK_COMMENT);
+        $notifications[NotificationType::TASK_COMMENT] = '1';
+
+        $this->submit($notifications);
+
+        $this->assertSame('Deine Benachrichtigungen wurden gespeichert.', $_SESSION['success'] ?? null);
+        $this->assertFalse($this->service()->wantsNotification(
+            (int) $this->user->id,
+            NotificationType::TASK_COMMENT,
+            NotificationChannel::IN_APP
+        ));
+    }
+
+    /**
+     * Alle Anlässe und Kanäle angehakt außer dem genannten. Ohne Kanal fällt
+     * der Anlass ganz weg.
+     *
+     * @return array<string, array<string, string>|string>
+     */
+    private function allCheckedExcept(?string $excludedType, ?string $excludedChannel = null): array
     {
         $checked = [];
         foreach ($this->service()->availableTypes() as $type) {
-            if ($type !== $excluded) {
-                $checked[$type] = '1';
+            foreach (NotificationChannel::all() as $channel) {
+                if ($type === $excludedType && ($excludedChannel === null || $excludedChannel === $channel)) {
+                    continue;
+                }
+                $checked[$type][$channel] = '1';
             }
         }
 
@@ -161,7 +205,7 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
     }
 
     /**
-     * @param array<string, string> $notifications
+     * @param array<string, array<string, string>|string> $notifications
      */
     private function submit(array $notifications): void
     {

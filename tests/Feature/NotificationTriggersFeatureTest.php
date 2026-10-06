@@ -9,6 +9,7 @@ use App\Models\MailQueue;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Policies\TaskPolicy;
 use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
@@ -94,6 +95,53 @@ final class NotificationTriggersFeatureTest extends TestCase
             NotificationType::TASK_ASSIGNED,
             $this->firstQueued()->payload_json['notification_type']
         );
+    }
+
+    public function testAssigningRingsTheBellOfTheNewAssignees(): void
+    {
+        $this->controller()->create(
+            $this->makeRequest('POST', '/projects/' . $this->project->id . '/tasks', [
+                'title' => 'Bühne aufbauen',
+                'assigned_user_ids' => [(string) $this->anna->id, (string) $this->bernd->id],
+            ]),
+            $this->makeResponse(),
+            ['project_id' => (string) $this->project->id]
+        );
+
+        $entry = UserNotification::where('user_id', $this->bernd->id)->firstOrFail();
+        $task = Task::where('name', 'Bühne aufbauen')->firstOrFail();
+        $this->assertSame('Neue Aufgabe: Bühne aufbauen', $entry->title);
+        $this->assertStringEndsWith('hat dich eingetragen', (string) $entry->body);
+        $this->assertSame('/tasks/' . $task->id, $entry->link);
+        $this->assertSame('task', $entry->entity_type);
+        $this->assertSame((int) $task->id, $entry->entity_id);
+        $this->assertSame(0, UserNotification::where('user_id', $this->anna->id)->count());
+    }
+
+    public function testCommentingRingsTheBellOfAssigneesAndCreator(): void
+    {
+        $task = $this->makeTask('Programmheft', [$this->bernd->id], (int) $this->clara->id);
+
+        $this->controller()->addComment(
+            $this->makeRequest('POST', '/tasks/' . $task->id . '/comments', [
+                'content' => '<p>Der Saal ist <strong>reserviert</strong>.</p>',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $task->id]
+        );
+
+        $entries = UserNotification::orderBy('user_id')->get();
+        $this->assertEqualsCanonicalizing(
+            [(int) $this->bernd->id, (int) $this->clara->id],
+            $entries->pluck('user_id')->all()
+        );
+        $first = $entries->first();
+        $this->assertSame('Neuer Kommentar: Programmheft', $first->title);
+        $this->assertStringEndsWith('Der Saal ist reserviert.', (string) $first->body);
+        $this->assertSame('/tasks/' . $task->id, $first->link);
+        $this->assertSame('task', $first->entity_type);
+        $this->assertSame((int) $task->id, $first->entity_id);
+        $this->assertSame((int) $this->anna->id, $first->actor_user_id);
     }
 
     /**

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\EventController;
+use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\MailQueue;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Services\EventAudienceService;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
@@ -240,6 +242,167 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             NotificationType::EVENT_NOTE,
             $this->firstQueued()->payload_json['notification_type']
         );
+    }
+
+    public function testANewEventRingsTheBellWithDateAndLink(): void
+    {
+        $event = $this->createEventViaController();
+
+        $entry = $this->bell(NotificationType::EVENT_CREATED);
+        $this->assertSame('Neuer Termin: ' . $event->title, $entry->title);
+        $this->assertSame($event->starts_at->format('d.m.Y, H:i') . ' Uhr', $entry->body);
+        $this->assertSame('/events/' . $event->id, $entry->link);
+        $this->assertSame('event', $entry->entity_type);
+        $this->assertSame((int) $event->id, $entry->entity_id);
+    }
+
+    public function testASeriesRingsTheBellOnceWithCountAndStart(): void
+    {
+        $firstDay = Carbon::now()->addWeek()->next(Carbon::MONDAY);
+
+        $this->controller->create(
+            $this->makeRequest('POST', '/events', $this->body([
+                'starts_at' => $firstDay->format('Y-m-d'),
+                'repeat' => '1',
+                'frequency' => 'weekly',
+                'recurrence_interval' => '1',
+                'weekdays' => ['1'],
+                'series_end_date' => $firstDay->copy()->addWeeks(3)->format('Y-m-d'),
+            ])),
+            $this->makeResponse()
+        );
+
+        $entries = UserNotification::where('user_id', $this->singer->id)
+            ->where('notification_type', NotificationType::EVENT_CREATED)
+            ->get();
+        $this->assertCount(1, $entries, 'Eine Serie ist ein Eintrag, nicht einer je Termin.');
+        $this->assertSame('4 Termine ab ' . $firstDay->format('d.m.Y'), $entries->first()->body);
+    }
+
+    public function testAMovedEventRingsTheBellWithTheNewTime(): void
+    {
+        $event = $this->createEventViaController();
+
+        $this->updateEvent($event, ['start_time' => '20:30', 'end_time' => '22:00']);
+
+        $entry = $this->bell(NotificationType::EVENT_CHANGED);
+        $this->assertSame('Termin geändert: ' . $event->title, $entry->title);
+        $this->assertStringContainsString(
+            'Beginn: ' . $event->starts_at->format('d.m.Y') . ' 20:30 Uhr',
+            (string) $entry->body
+        );
+        $this->assertSame('/events/' . $event->id, $entry->link);
+    }
+
+    public function testACancelledEventLinksToTheOverview(): void
+    {
+        $event = $this->createEventViaController();
+
+        $this->controller->delete(
+            $this->makeRequest('POST', '/events/' . $event->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $event->id]
+        );
+
+        $entry = $this->bell(NotificationType::EVENT_CANCELLED);
+        $this->assertSame('Abgesagt: ' . $event->title, $entry->title);
+        $this->assertSame($event->starts_at->format('d.m.Y, H:i') . ' Uhr', $entry->body);
+        $this->assertSame('/events', $entry->link);
+        $this->assertNull($entry->entity_type);
+        $this->assertNull($entry->entity_id);
+    }
+
+    public function testAPublicNoteRingsTheBellWithTheNote(): void
+    {
+        $event = $this->createEventViaController();
+
+        $this->controller->addNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
+                'content' => 'Bitte Notenmappen mitbringen.',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $event->id]
+        );
+
+        $entry = $this->bell(NotificationType::EVENT_NOTE);
+        $this->assertSame('Bemerkung zu: ' . $event->title, $entry->title);
+        $this->assertStringEndsWith('Bitte Notenmappen mitbringen.', (string) $entry->body);
+        $this->assertSame('/events/' . $event->id, $entry->link);
+    }
+
+    /**
+     * Wer eine Bemerkung löscht, nimmt sie auch aus der Glocke aller anderen -
+     * sonst bliebe ein versehentlich geposteter Text bis zu 180 Tage lesbar.
+     */
+    public function testDeletingANoteRemovesItFromTheBell(): void
+    {
+        $event = $this->createEventViaController();
+        $note = $this->postNote($event, 'Meine Nummer: 0664 1234567');
+        $this->assertSame(1, UserNotification::where('notification_type', NotificationType::EVENT_NOTE)->count());
+
+        $this->controller->deleteNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(0, UserNotification::where('notification_type', NotificationType::EVENT_NOTE)->count());
+    }
+
+    public function testEditingANoteRewritesTheBellText(): void
+    {
+        $event = $this->createEventViaController();
+        $note = $this->postNote($event, 'Meine Nummer: 0664 1234567');
+
+        $this->controller->updateNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+                'content' => 'Bitte Notenmappen mitbringen.',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $body = (string) $this->bell(NotificationType::EVENT_NOTE)->body;
+        $this->assertStringEndsWith('Bitte Notenmappen mitbringen.', $body);
+        $this->assertStringNotContainsString('0664', $body);
+    }
+
+    public function testAPrivateNoteRingsNoBell(): void
+    {
+        $event = $this->createEventViaController();
+
+        $this->controller->addNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
+                'content' => 'Nur für mich.',
+                'is_private' => '1',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $event->id]
+        );
+
+        $this->assertSame(0, UserNotification::where('notification_type', NotificationType::EVENT_NOTE)->count());
+    }
+
+    private function postNote(Event $event, string $content): Comment
+    {
+        $this->controller->addNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes', ['content' => $content]),
+            $this->makeResponse(),
+            ['id' => (string) $event->id]
+        );
+
+        return Comment::where('entity_type', 'event')
+            ->where('entity_id', $event->id)
+            ->orderByDesc('id')
+            ->firstOrFail();
+    }
+
+    private function bell(string $type): UserNotification
+    {
+        return UserNotification::where('user_id', $this->singer->id)
+            ->where('notification_type', $type)
+            ->orderByDesc('id')
+            ->firstOrFail();
     }
 
     /**

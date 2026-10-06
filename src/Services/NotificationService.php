@@ -7,7 +7,10 @@ namespace App\Services;
 use App\Models\AppSetting;
 use App\Models\User;
 use App\Models\UserNotificationSetting;
+use App\Services\Notifications\InAppMessage;
+use App\Services\Notifications\InAppNotificationStore;
 use App\Util\MailBranding;
+use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use Illuminate\Support\Collection;
 use Psr\Log\LoggerInterface;
@@ -22,9 +25,16 @@ use Slim\Views\Twig;
  * (`user_notification_settings`). Stünde diese Kette in den Controllern, fehlte
  * sie über kurz oder lang an einer Stelle - und genau dort schriebe der
  * ChorManager jemandem, der das abbestellt hat.
+ *
+ * Jeder Anlass geht über zwei Kanäle: die Mail und die Glocke in der Kopfzeile.
+ * Modul und Verwaltung gelten für beide gemeinsam, die Person entscheidet je
+ * Kanal. Eine gültige E-Mail-Adresse braucht nur die Mail - wer keine hat,
+ * bekommt trotzdem den Eintrag in der Glocke.
  */
 class NotificationService
 {
+    private readonly InAppNotificationStore $inAppStore;
+
     /**
      * @param array<string, bool> $modules Flags aus `settings.modules`
      */
@@ -32,26 +42,33 @@ class NotificationService
         private readonly MailQueueService $mailQueueService,
         private readonly Twig $view,
         private readonly LoggerInterface $logger,
-        private readonly array $modules = []
+        private readonly array $modules = [],
+        ?InAppNotificationStore $inAppStore = null
     ) {
+        $this->inAppStore = $inAppStore ?? new InAppNotificationStore();
     }
 
     /**
-     * Reiht die Benachrichtigung für alle Empfänger ein, die sie wollen, und
-     * gibt zurück, wie viele Mails das waren.
+     * Benachrichtigt alle Empfänger, die es wollen - per Mail und in der Glocke,
+     * jeder Kanal für sich geprüft. Gibt zurück, wie viele **Mails** eingereiht
+     * wurden.
+     *
+     * Der Glockentext ist Pflicht, damit kein Auslöser den zweiten Kanal
+     * vergessen kann.
      *
      * `$actorUserId` ist die Person, die den Anlass ausgelöst hat. Sie bekommt
-     * keine Mail: Wer sich selbst eine Aufgabe zuweist oder den eigenen
-     * Kommentar schreibt, weiß es bereits.
+     * nichts: Wer sich selbst eine Aufgabe zuweist oder den eigenen Kommentar
+     * schreibt, weiß es bereits.
      *
      * @param iterable<User> $recipients
-     * @param array<string, mixed> $context Zusätzliche Variablen für die Vorlage
+     * @param array<string, mixed> $context Zusätzliche Variablen für die Mail-Vorlage
      */
     public function notify(
         string $type,
         iterable $recipients,
         string $subject,
         string $template,
+        InAppMessage $inApp,
         array $context = [],
         ?int $actorUserId = null
     ): int {
@@ -59,13 +76,46 @@ class NotificationService
             return 0;
         }
 
-        $branding = MailBranding::resolve();
-        $eligible = $this->filterRecipients($type, $recipients, $actorUserId);
+        $candidates = $this->candidates($recipients, $actorUserId);
+        if ($candidates === []) {
+            return 0;
+        }
+
+        $inAppCount = $this->ringBell($type, $inApp, $candidates, $actorUserId);
+        $enqueued = $this->enqueueMails($type, $candidates, $subject, $template, $context);
+
+        $this->logger->info('Notifications enqueued.', [
+            'event' => 'notification.enqueued',
+            'notification_type' => $type,
+            'recipient_count' => $enqueued,
+            'in_app_count' => $inAppCount,
+        ]);
+
+        return $enqueued;
+    }
+
+    /**
+     * @param array<int, User> $candidates
+     * @param array<string, mixed> $context
+     */
+    private function enqueueMails(
+        string $type,
+        array $candidates,
+        string $subject,
+        string $template,
+        array $context
+    ): int {
+        $eligible = $this->withoutOptedOut(
+            $type,
+            NotificationChannel::MAIL,
+            array_filter($candidates, fn (User $user): bool => $this->hasUsableEmail($user))
+        );
 
         if ($eligible === []) {
             return 0;
         }
 
+        $branding = MailBranding::resolve();
         $enqueued = 0;
 
         foreach ($eligible as $user) {
@@ -98,13 +148,37 @@ class NotificationService
             }
         }
 
-        $this->logger->info('Notifications enqueued.', [
-            'event' => 'notification.enqueued',
-            'notification_type' => $type,
-            'recipient_count' => $enqueued,
-        ]);
-
         return $enqueued;
+    }
+
+    /**
+     * @param array<int, User> $candidates
+     */
+    private function ringBell(string $type, InAppMessage $inApp, array $candidates, ?int $actorUserId): int
+    {
+        $eligible = $this->withoutOptedOut($type, NotificationChannel::IN_APP, $candidates);
+        if ($eligible === []) {
+            return 0;
+        }
+
+        try {
+            return $this->inAppStore->createMany(
+                $type,
+                $inApp,
+                array_map(static fn (User $user): int => (int) $user->id, $eligible),
+                $actorUserId
+            );
+        } catch (\Throwable $e) {
+            // Die Glocke ist der leisere Kanal: Scheitert sie, sollen die Mails
+            // trotzdem hinausgehen.
+            $this->logger->error('Writing in-app notifications failed.', [
+                'event' => 'notification.in_app_failed',
+                'notification_type' => $type,
+                'exception' => $e,
+            ]);
+
+            return 0;
+        }
     }
 
     /**
@@ -141,12 +215,13 @@ class NotificationService
     }
 
     /**
-     * Die Empfänger, die diese Mail bekommen sollen.
+     * Wer überhaupt in Frage kommt - für beide Kanäle gleich: nicht die
+     * auslösende Person, nur aktive Konten, jede Person einmal.
      *
      * @param iterable<User> $recipients
-     * @return list<User>
+     * @return array<int, User> nach `user_id`
      */
-    private function filterRecipients(string $type, iterable $recipients, ?int $actorUserId): array
+    private function candidates(iterable $recipients, ?int $actorUserId): array
     {
         $candidates = [];
         foreach ($recipients as $user) {
@@ -164,39 +239,52 @@ class NotificationService
                 continue;
             }
 
-            $email = trim((string) $user->email);
-            if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-                continue;
-            }
-
             // Dieselbe Person kann über zwei Wege in der Liste stehen - etwa als
             // Zugewiesene *und* als Erstellerin einer Aufgabe.
             $candidates[$userId] = $user;
         }
 
-        if ($candidates === []) {
+        return $candidates;
+    }
+
+    private function hasUsableEmail(User $user): bool
+    {
+        $email = trim((string) $user->email);
+
+        return $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    /**
+     * @param array<int, User> $users nach `user_id`
+     * @return list<User>
+     */
+    private function withoutOptedOut(string $type, string $channel, array $users): array
+    {
+        if ($users === []) {
             return [];
         }
 
-        $optedOut = $this->optedOutUserIds($type, array_keys($candidates));
+        $optedOut = $this->optedOutUserIds($type, $channel, array_keys($users));
 
         return array_values(array_filter(
-            $candidates,
+            $users,
             static fn (User $user): bool => !in_array((int) $user->id, $optedOut, true)
         ));
     }
 
     /**
-     * Wer diesen Anlass abbestellt hat. Eine Abfrage für alle Empfänger statt
-     * einer je Person - bei einem Chortermin sind das schnell hundert.
+     * Wer diesen Anlass auf diesem Kanal abbestellt hat. Eine Abfrage für alle
+     * Empfänger statt einer je Person - bei einem Chortermin sind das schnell
+     * hundert.
      *
      * @param list<int> $userIds
      * @return list<int>
      */
-    private function optedOutUserIds(string $type, array $userIds): array
+    private function optedOutUserIds(string $type, string $channel, array $userIds): array
     {
         return array_map('intval', UserNotificationSetting::query()
             ->where('notification_type', $type)
+            ->where('channel', $channel)
             ->whereIn('user_id', $userIds)
             ->where('enabled', false)
             ->pluck('user_id')
@@ -290,14 +378,15 @@ class NotificationService
     }
 
     /**
-     * Ob eine bestimmte Person diesen Anlass bekommen möchte. Für das
-     * Profilformular und für Einzelfallprüfungen.
+     * Ob eine bestimmte Person diesen Anlass auf diesem Kanal bekommen möchte.
+     * Für das Profilformular und für Einzelfallprüfungen.
      */
-    public function wantsNotification(int $userId, string $type): bool
+    public function wantsNotification(int $userId, string $type, string $channel = NotificationChannel::MAIL): bool
     {
         $setting = UserNotificationSetting::query()
             ->where('user_id', $userId)
             ->where('notification_type', $type)
+            ->where('channel', $channel)
             ->value('enabled');
 
         if ($setting === null) {
@@ -308,62 +397,69 @@ class NotificationService
     }
 
     /**
-     * Die Entscheidungen einer Person über alle Anlässe, für das Profilformular.
+     * Die Entscheidungen einer Person über alle Anlässe und beide Kanäle, für
+     * das Profilformular.
      *
-     * @return array<string, bool>
+     * @return array<string, array{mail: bool, in_app: bool}>
      */
     public function settingsFor(int $userId): array
     {
-        $stored = UserNotificationSetting::query()
-            ->where('user_id', $userId)
-            ->pluck('enabled', 'notification_type')
-            ->all();
+        $stored = [];
+        foreach (UserNotificationSetting::query()->where('user_id', $userId)->get() as $row) {
+            $stored[(string) $row->notification_type][(string) $row->channel] = (bool) $row->enabled;
+        }
 
         $settings = [];
         foreach (NotificationType::all() as $type) {
-            $settings[$type] = array_key_exists($type, $stored)
-                ? (bool) $stored[$type]
-                : NotificationType::defaultEnabled($type);
+            $default = NotificationType::defaultEnabled($type);
+            $settings[$type] = [
+                NotificationChannel::MAIL => $stored[$type][NotificationChannel::MAIL] ?? $default,
+                NotificationChannel::IN_APP => $stored[$type][NotificationChannel::IN_APP] ?? $default,
+            ];
         }
 
         return $settings;
     }
 
     /**
-     * Übernimmt die Entscheidungen aus dem Profilformular.
+     * Übernimmt die Entscheidungen aus dem Profilformular, je Anlass und Kanal.
      *
      * Gespeichert wird nur, was von der Vorgabe abweicht; deckt sich die
      * Entscheidung mit ihr, verschwindet die Zeile wieder. So bleibt die
      * Tabelle klein und eine später geänderte Vorgabe greift für alle, die
-     * nichts anderes wollten.
+     * nichts anderes wollten. Ein Kanal, der in `$decisions` fehlt, bleibt
+     * unverändert.
      *
-     * @param array<string, bool> $decisions
+     * @param array<string, array<string, bool>> $decisions
      */
     public function storeSettings(int $userId, array $decisions): void
     {
-        foreach ($decisions as $type => $enabled) {
+        foreach ($decisions as $type => $channels) {
             if (!NotificationType::exists($type)) {
                 continue;
             }
 
-            if ($enabled === NotificationType::defaultEnabled($type)) {
-                UserNotificationSetting::query()
-                    ->where('user_id', $userId)
-                    ->where('notification_type', $type)
-                    ->delete();
-                continue;
-            }
+            foreach (NotificationChannel::all() as $channel) {
+                if (!array_key_exists($channel, $channels)) {
+                    continue;
+                }
 
-            UserNotificationSetting::updateOrCreate(
-                ['user_id' => $userId, 'notification_type' => $type],
-                ['enabled' => $enabled]
-            );
+                $enabled = (bool) $channels[$channel];
+                $key = ['user_id' => $userId, 'notification_type' => $type, 'channel' => $channel];
+
+                if ($enabled === NotificationType::defaultEnabled($type)) {
+                    UserNotificationSetting::query()->where($key)->delete();
+                    continue;
+                }
+
+                UserNotificationSetting::updateOrCreate($key, ['enabled' => $enabled]);
+            }
         }
     }
 
     /**
-     * Empfänger als Sammlung, gefiltert wie beim Versand - für Auslöser, die
-     * vorher wissen wollen, ob überhaupt jemand übrig bleibt.
+     * Mail-Empfänger als Sammlung, gefiltert wie beim Versand - für Auslöser,
+     * die vorher wissen wollen, ob überhaupt jemand übrig bleibt.
      *
      * @param iterable<User> $recipients
      * @return Collection<int, User>
@@ -374,6 +470,11 @@ class NotificationService
             return new Collection();
         }
 
-        return new Collection($this->filterRecipients($type, $recipients, $actorUserId));
+        $withEmail = array_filter(
+            $this->candidates($recipients, $actorUserId),
+            fn (User $user): bool => $this->hasUsableEmail($user)
+        );
+
+        return new Collection($this->withoutOptedOut($type, NotificationChannel::MAIL, $withEmail));
     }
 }

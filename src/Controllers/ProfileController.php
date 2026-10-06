@@ -20,6 +20,7 @@ use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
 use App\Util\BlockedHostException;
 use App\Util\Csrf;
+use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use App\Util\OutboundConnectionGuard;
 use App\Util\InputValidator;
@@ -305,9 +306,15 @@ class ProfileController
         $data = (array)$request->getParsedBody();
         $submitted = (array)($data['notifications'] ?? []);
 
+        // Ein leeres Kästchen sendet der Browser gar nicht mit - ein fehlender
+        // Kanal heißt also "abgewählt". Kommt statt der Kanäle ein einzelner
+        // Wert, gilt der Anlass ebenso als abgewählt.
         $decisions = [];
         foreach ($this->notificationService->availableTypes() as $type) {
-            $decisions[$type] = !empty($submitted[$type]);
+            $channels = is_array($submitted[$type] ?? null) ? $submitted[$type] : [];
+            foreach (NotificationChannel::all() as $channel) {
+                $decisions[$type][$channel] = !empty($channels[$channel]);
+            }
         }
 
         try {

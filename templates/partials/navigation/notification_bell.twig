@@ -1,0 +1,35 @@
+{# Glocke samt Zähler-Pille und Dropdown.
+   Die Pille steckt immer im Markup und wird bei 0 nur ausgeblendet - wie beim
+   Mail-Badge, damit notification-bell.js sie nur umschreiben muss. Die Liste
+   lädt erst beim Aufklappen, damit nicht jeder Seitenaufruf sie mitholt. #}
+{% set _unread = notification_badge() %}
+{% if _unread is not null %}
+    {% set _hidden_class = _unread > 0 ? "" : " d-none" %}
+    {% set _label = _unread > 99 ? "99+" : _unread %}
+    <div class="dropdown me-3" data-notification-bell>
+        <button type="button"
+                class="btn btn-link text-white p-0 notification-bell-trigger"
+                data-bs-toggle="dropdown"
+                data-bs-auto-close="outside"
+                aria-expanded="false"
+                title="Benachrichtigungen">
+            <i class="bi bi-bell-fill fs-5"></i>
+            <span class="badge bg-danger rounded-pill notification-bell-count{{ _hidden_class }}"
+                  data-notification-bell-count>{{ _label }}</span>
+            <span class="visually-hidden">Benachrichtigungen</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end shadow p-0 notification-bell-menu">
+            <div class="d-flex align-items-center justify-content-between gap-2 px-3 py-2 border-bottom">
+                <strong>Benachrichtigungen</strong>
+                <form action="/notifications/read-all" method="post" class="m-0" data-notification-bell-read-all>
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-link btn-sm p-0">Alle als gelesen markieren</button>
+                </form>
+            </div>
+            <div class="notification-bell-list" data-notification-bell-list>
+                <div class="px-3 py-3 text-muted small">Wird geladen …</div>
+            </div>
+            <a href="/notifications" class="d-block text-center px-3 py-2 border-top small">Alle anzeigen</a>
+        </div>
+    </div>
+{% endif %}

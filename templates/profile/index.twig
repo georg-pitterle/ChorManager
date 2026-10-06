@@ -312,28 +312,49 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         <p class="text-muted">
-                            Hier legst du fest, worüber dich der Chor-Manager per E-Mail informiert.
-                            Alles ist zu Beginn eingeschaltet; was du hier abwählst, kommt nicht mehr.
+                            Hier legst du fest, worüber dich der Chor-Manager informiert – per E-Mail, in der
+                            Glocke oben rechts oder beides. Alles ist zu Beginn eingeschaltet; was du hier
+                            abwählst, kommt auf diesem Weg nicht mehr.
                         </p>
 
                         <form action="/profile/notifications" method="post">
+                            {% set _channels = {"mail": "E-Mail", "in_app": "Glocke"} %}
                             {% for group, types in notification_groups %}
-                                <h3 class="h6 text-uppercase text-muted mt-4 mb-3">
-                                    {{ notification_group_labels[group]|default(group) }}
-                                </h3>
+                                <div class="row align-items-end mt-4 mb-2">
+                                    <h3 class="col h6 text-uppercase text-muted mb-0">
+                                        {{ notification_group_labels[group]|default(group) }}
+                                    </h3>
+                                    <div class="col-auto d-none d-md-flex notification-channel-heads text-muted small">
+                                        {% for _label in _channels %}
+                                            <span>{{ _label }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                                 {% for type in types %}
-                                    {% set _checked = notification_settings[type.type]|default(false) %}
-                                    <div class="form-check mb-3">
-                                        <input class="form-check-input"
-                                               type="checkbox"
-                                               id="notification-{{ type.type }}"
-                                               name="notifications[{{ type.type }}]"
-                                               value="1"
-                                               {{ _checked ? "checked" : "" }}>
-                                        <label class="form-check-label" for="notification-{{ type.type }}">
-                                            {{ type.label }}
-                                        </label>
-                                        <div class="form-text">{{ type.description }}</div>
+                                    {% set _setting = notification_settings[type.type]|default({}) %}
+                                    <div class="row align-items-center py-2 border-top">
+                                        <div class="col-12 col-md">
+                                            <div class="fw-medium">{{ type.label }}</div>
+                                            <div class="form-text mt-0">{{ type.description }}</div>
+                                        </div>
+                                        <div class="col-12 col-md-auto d-flex notification-channel-switches mt-2 mt-md-0">
+                                            {% for _channel, _label in _channels %}
+                                                {% set _id = "notification-" ~ type.type ~ "-" ~ _channel %}
+                                                {% set _checked = _setting[_channel]|default(false) %}
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input"
+                                                           type="checkbox"
+                                                           role="switch"
+                                                           id="{{ _id }}"
+                                                           name="notifications[{{ type.type }}][{{ _channel }}]"
+                                                           value="1"
+                                                           aria-label="{{ _label }}: {{ type.label }}"
+                                                           {{ _checked ? "checked" : "" }}>
+                                                    <label class="form-check-label notification-channel-label"
+                                                           for="{{ _id }}">{{ _label }}</label>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
                                     </div>
                                 {% endfor %}
                             {% endfor %}

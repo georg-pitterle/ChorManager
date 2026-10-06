@@ -8,6 +8,8 @@ use App\Models\AppSetting;
 use App\Models\NotificationDispatchLog;
 use App\Models\SponsoringContact;
 use App\Models\Task;
+use App\Services\Notifications\InAppMessage;
+use App\Services\Notifications\InAppNotificationStore;
 use App\Util\NotificationType;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -41,10 +43,14 @@ class NotificationReminderService
      */
     private const DISPATCH_LOG_RETENTION_MONTHS = 12;
 
+    private readonly InAppNotificationStore $inAppStore;
+
     public function __construct(
         private readonly NotificationService $notificationService,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        ?InAppNotificationStore $inAppStore = null
     ) {
+        $this->inAppStore = $inAppStore ?? new InAppNotificationStore();
     }
 
     /**
@@ -57,8 +63,36 @@ class NotificationReminderService
         // Nach dem Verschicken, nicht davor: Ein Aufräumlauf, der scheitert,
         // darf die Erinnerungen dieses Laufs nicht aufhalten.
         $this->pruneExpiredDispatchLog();
+        $this->pruneExpiredInAppNotifications();
 
         return $enqueued;
+    }
+
+    /**
+     * Räumt alte Glocken-Einträge ab - im selben Takt wie das Versandprotokoll,
+     * damit kein eigener Cronjob nötig ist.
+     */
+    public function pruneExpiredInAppNotifications(): int
+    {
+        try {
+            $deleted = $this->inAppStore->prune();
+        } catch (\Throwable $e) {
+            $this->logger->error('In-app notification prune failed.', [
+                'event' => 'notification.in_app_prune_failed',
+                'exception' => $e,
+            ]);
+
+            return 0;
+        }
+
+        if ($deleted > 0) {
+            $this->logger->debug('In-app notifications pruned.', [
+                'event' => 'notification.in_app_pruned',
+                'removed' => $deleted,
+            ]);
+        }
+
+        return $deleted;
     }
 
     /**
@@ -134,6 +168,13 @@ class NotificationReminderService
                     [$assignee],
                     'Bald fällig: ' . $task->name,
                     'emails/notification_task_due_soon.twig',
+                    new InAppMessage(
+                        'Bald fällig: ' . $task->name,
+                        'Fällig am ' . Carbon::parse($dueDate)->format('d.m.Y'),
+                        '/tasks/' . $task->id,
+                        'task',
+                        (int) $task->id
+                    ),
                     [
                         'task' => $task,
                         'link' => rtrim($baseUrl, '/') . '/tasks/' . $task->id,
@@ -190,6 +231,13 @@ class NotificationReminderService
                 [$owner],
                 'Wiedervorlage: ' . ($contact->sponsor->name ?? 'Sponsor'),
                 'emails/notification_sponsoring_follow_up_due.twig',
+                new InAppMessage(
+                    'Wiedervorlage: ' . ($contact->sponsor->name ?? 'Sponsor'),
+                    'Fällig am ' . Carbon::parse($followUpDate)->format('d.m.Y'),
+                    '/sponsoring/sponsors/' . $contact->sponsor_id,
+                    'sponsor',
+                    (int) $contact->sponsor_id
+                ),
                 [
                     'contact' => $contact,
                     'link' => rtrim($baseUrl, '/') . '/sponsoring/sponsors/' . $contact->sponsor_id,

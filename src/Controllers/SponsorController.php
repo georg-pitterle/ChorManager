@@ -13,6 +13,9 @@ use App\Models\Sponsorship;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
+use App\Services\Notifications\InAppNotificationStore;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use App\Util\SponsorEngagementState;
 use App\Util\SponsorshipStatus;
 use App\Util\InputValidator;
@@ -34,11 +37,18 @@ class SponsorController
     private SponsoringPolicy $policy;
     private EntityAttachmentService $attachments;
 
-    public function __construct(Twig $view, SponsoringPolicy $policy, EntityAttachmentService $attachments)
-    {
+    private LoggerInterface $logger;
+
+    public function __construct(
+        Twig $view,
+        SponsoringPolicy $policy,
+        EntityAttachmentService $attachments,
+        ?LoggerInterface $logger = null
+    ) {
         $this->view = $view;
         $this->policy = $policy;
         $this->attachments = $attachments;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function index(Request $request, Response $response): Response
@@ -111,6 +121,13 @@ class SponsorController
             'contacts.sponsorship.package',
             'contacts.sponsorship.project',
         ])->findOrFail((int) $args['id']);
+
+        (new InAppNotificationStore())->markEntityReadQuietly(
+            (int) $this->policy->currentUserId(),
+            'sponsor',
+            (int) $sponsor->id,
+            $this->logger
+        );
 
         $users    = User::where('is_active', 1)->orderBy('last_name')->get();
         $projects = $this->policy->selectableProjects();

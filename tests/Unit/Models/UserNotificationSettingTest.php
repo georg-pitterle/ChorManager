@@ -6,6 +6,8 @@ namespace Tests\Unit\Models;
 
 use App\Models\User;
 use App\Models\UserNotificationSetting;
+use App\Util\NotificationChannel;
+use App\Util\NotificationType;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -108,5 +110,34 @@ final class UserNotificationSettingTest extends TestCase
         $row->refresh();
 
         self::assertFalse($row->enabled);
+    }
+
+    /**
+     * Mail und Glocke sind zwei Zeilen desselben Anlasses. Ein Update auf die
+     * eine darf die andere nicht mitnehmen.
+     */
+    public function testSavingOneChannelLeavesTheOtherAlone(): void
+    {
+        $mail = UserNotificationSetting::create([
+            'user_id' => $this->user->id,
+            'notification_type' => NotificationType::TASK_COMMENT,
+            'channel' => NotificationChannel::MAIL,
+            'enabled' => false,
+        ]);
+        UserNotificationSetting::create([
+            'user_id' => $this->user->id,
+            'notification_type' => NotificationType::TASK_COMMENT,
+            'channel' => NotificationChannel::IN_APP,
+            'enabled' => false,
+        ]);
+
+        $mail->enabled = true;
+        $mail->save();
+
+        self::assertFalse((bool) UserNotificationSetting::query()
+            ->where('user_id', $this->user->id)
+            ->where('notification_type', NotificationType::TASK_COMMENT)
+            ->where('channel', NotificationChannel::IN_APP)
+            ->value('enabled'));
     }
 }

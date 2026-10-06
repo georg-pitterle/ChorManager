@@ -8,8 +8,11 @@ use App\Models\AppSetting;
 use App\Models\MailQueue;
 use App\Models\NotificationDispatchLog;
 use App\Models\Project;
+use App\Models\Sponsor;
+use App\Models\SponsoringContact;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Services\MailQueueService;
 use App\Services\NotificationReminderService;
 use App\Services\NotificationService;
@@ -91,6 +94,69 @@ final class NotificationReminderFeatureTest extends TestCase
         $this->assertSame(1, $service->processDue(self::BASE_URL));
         $this->assertSame(0, $service->processDue(self::BASE_URL));
         $this->assertSame(1, $this->queuedCount());
+    }
+
+    /**
+     * Die Sperre gegen Wiederholung gilt für beide Kanäle: Ein zweiter Lauf
+     * legt auch keinen zweiten Eintrag in der Glocke an.
+     */
+    public function testAReminderRingsTheBellOnceAcrossRuns(): void
+    {
+        $task = $this->makeTask('Noten kopieren', '+1 day', [$this->anna->id]);
+
+        $service = $this->service();
+        $service->processDue(self::BASE_URL);
+        $service->processDue(self::BASE_URL);
+
+        $entries = UserNotification::where('user_id', $this->anna->id)->get();
+        $this->assertCount(1, $entries);
+        $this->assertSame('Bald fällig: Noten kopieren', $entries->first()->title);
+        $this->assertSame('Fällig am ' . Carbon::today()->addDay()->format('d.m.Y'), $entries->first()->body);
+        $this->assertSame('/tasks/' . $task->id, $entries->first()->link);
+        $this->assertSame('task', $entries->first()->entity_type);
+    }
+
+    public function testADueFollowUpRingsTheBellOfItsAuthor(): void
+    {
+        AppSetting::updateOrCreate(
+            ['setting_key' => 'notification_sponsoring_follow_up_days_before'],
+            ['setting_value' => '2', 'binary_content' => '', 'mime_type' => 'text/plain']
+        );
+        SponsoringContact::query()->delete();
+        $sponsor = Sponsor::create(['type' => 'organization', 'name' => 'Musikhaus Klang']);
+        SponsoringContact::create([
+            'sponsor_id' => $sponsor->id,
+            'user_id' => $this->bernd->id,
+            'contact_date' => Carbon::today()->subWeek()->toDateString(),
+            'type' => 'call',
+            'summary' => 'Angebot besprochen',
+            'follow_up_date' => Carbon::today()->addDay()->toDateString(),
+            'follow_up_done' => 0,
+        ]);
+
+        $this->service()->processDue(self::BASE_URL);
+
+        $entry = UserNotification::where('user_id', $this->bernd->id)->firstOrFail();
+        $this->assertSame('Wiedervorlage: Musikhaus Klang', $entry->title);
+        $this->assertSame('/sponsoring/sponsors/' . $sponsor->id, $entry->link);
+        $this->assertSame('sponsor', $entry->entity_type);
+        $this->assertSame((int) $sponsor->id, $entry->entity_id);
+    }
+
+    public function testTheReminderRunPrunesOldBellEntries(): void
+    {
+        UserNotification::create([
+            'user_id' => $this->anna->id,
+            'notification_type' => NotificationType::TASK_COMMENT,
+            'title' => 'Uralt',
+            'link' => '/tasks/1',
+            'read_at' => Carbon::now()->subDays(60),
+            'created_at' => Carbon::now()->subDays(61),
+        ]);
+
+        $this->service()->processDue(self::BASE_URL);
+
+        $this->assertSame(0, UserNotification::where('title', 'Uralt')->count());
     }
 
     /**

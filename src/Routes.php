@@ -22,6 +22,7 @@ use App\Controllers\VoiceGroupController;
 use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
 use App\Controllers\MailBadgeController;
+use App\Controllers\UserNotificationController;
 use App\Controllers\ProfileController;
 use App\Controllers\WebmailController;
 use App\Controllers\AppSettingController;
@@ -210,6 +211,13 @@ return function (App $app) {
             $group->post('/profile/mailbox/test', [ProfileController::class, 'testMailboxConnection']);
             $group->post('/profile/mailbox/delete', [ProfileController::class, 'deleteMailbox']);
             $group->get(MailBadgeController::REFRESH_PATH, [MailBadgeController::class, 'show']);
+
+            // Glocke - jede angemeldete Person, ohne weiteres Recht.
+            $group->get('/notifications', [UserNotificationController::class, 'index']);
+            $group->get('/notifications/badge', [UserNotificationController::class, 'badge']);
+            $group->get('/notifications/recent', [UserNotificationController::class, 'recent']);
+            $group->get('/notifications/{id:[0-9]+}/open', [UserNotificationController::class, 'open']);
+            $group->post('/notifications/read-all', [UserNotificationController::class, 'readAll']);
             if ($settings['modules']['webmail'] ?? false) {
                 $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
             }

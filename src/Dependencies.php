@@ -16,7 +16,9 @@ use App\Controllers\AppSettingController;
 use App\Controllers\EventController;
 use App\Controllers\ProfileController;
 use App\Controllers\ProjectController;
+use App\Controllers\SponsorController;
 use App\Controllers\TaskController;
+use App\Controllers\UserNotificationController;
 use App\Queries\ProjectQuery;
 use App\Services\HtmlSanitizer;
 use App\Queries\UserQuery;
@@ -110,6 +112,8 @@ use App\Services\FlashMessageService;
 use App\Services\MysqldumpRunner;
 use App\Services\MailBadgeService;
 use App\Services\MailBadgeViewService;
+use App\Services\Notifications\InAppNotificationStore;
+use App\Services\Notifications\NotificationBadgeViewService;
 use App\Services\MailCredentialCryptoService;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
@@ -385,7 +389,21 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(MailQueueService::class),
                 $c->get(Twig::class),
                 $c->get(LoggerInterface::class),
-                $modules
+                $modules,
+                $c->get(InAppNotificationStore::class)
+            );
+        },
+        InAppNotificationStore::class => \DI\autowire(),
+        NotificationBadgeViewService::class => \DI\autowire(),
+        UserNotificationController::class => \DI\autowire(),
+        // Der Logger ist im Konstruktor optional (die Tests kommen ohne aus), und
+        // optionale Parameter füllt PHP-DI nicht aus dem Container.
+        SponsorController::class => function (ContainerInterface $c): SponsorController {
+            return new SponsorController(
+                $c->get(Twig::class),
+                $c->get(SponsoringPolicy::class),
+                $c->get(EntityAttachmentService::class),
+                $c->get(LoggerInterface::class)
             );
         },
         SendRegistrationRemindersCommand::class => \DI\autowire(),
@@ -796,6 +814,13 @@ return function (ContainerBuilder $containerBuilder) {
             $environment->addFunction(new TwigFunction(
                 'mail_badge',
                 static fn (): array => $mailBadgeView->forCurrentUser()
+            ));
+
+            // Zähler der Glocke - aus demselben Grund erst beim Rendern ermittelt.
+            $notificationBadgeView = $c->get(NotificationBadgeViewService::class);
+            $environment->addFunction(new TwigFunction(
+                'notification_badge',
+                static fn (): ?int => $notificationBadgeView->forCurrentUser()
             ));
 
             // Flash-Meldungen werden erst beim Rendern des Vollseiten-Layouts

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Util\NotificationChannel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Die abweichende Entscheidung einer Person zu einem Benachrichtigungs-Anlass.
+ * Die abweichende Entscheidung einer Person zu einem Benachrichtigungs-Anlass,
+ * je Kanal - Mail oder Glocke (Migration 20261005090100).
  *
  * Fehlt die Zeile, gilt die Vorgabe aus `NotificationType` - siehe die
  * Begründung in Migration 20260830140000.
@@ -16,20 +18,21 @@ use Illuminate\Database\Eloquent\Model;
 class UserNotificationSetting extends Model
 {
     /**
-     * Die beiden Spalten, die eine Zeile eindeutig benennen. Die Tabelle hat
-     * keine `id`; ihr Primärschlüssel ist das Paar (Migration 20260830140000).
+     * Die drei Spalten, die eine Zeile eindeutig benennen. Die Tabelle hat
+     * keine `id`; ihr Primärschlüssel ist das Tripel (Migrationen 20260830140000
+     * und 20261005090100).
      *
      * @var list<string>
      */
-    private const KEY_COLUMNS = ['user_id', 'notification_type'];
+    private const KEY_COLUMNS = ['user_id', 'notification_type', 'channel'];
 
     protected $table = 'user_notification_settings';
 
     /**
      * Eloquent kann nur einen einspaltigen Schlüssel benennen. `user_id` ist
-     * davon die Hälfte, die es tatsächlich als Spalte gibt - die Vorgabe `id`
+     * davon der Teil, den es tatsächlich als Spalte gibt - die Vorgabe `id`
      * zeigte auf eine Spalte, die diese Tabelle nie hatte. Adressiert wird eine
-     * Zeile trotzdem immer über beide Spalten; dafür sorgen die beiden
+     * Zeile trotzdem immer über alle drei Spalten; dafür sorgen die beiden
      * Überschreibungen weiter unten.
      *
      * @var string
@@ -39,9 +42,20 @@ class UserNotificationSetting extends Model
     public $incrementing = false;
     public $timestamps = false;
 
+    /**
+     * Derselbe Standard wie die Spalte. Ohne ihn kennt eine neu angelegte Zeile
+     * ihren Kanal nicht, und `refresh()` suchte nach `channel IS NULL`.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'channel' => NotificationChannel::MAIL,
+    ];
+
     protected $fillable = [
         'user_id',
         'notification_type',
+        'channel',
         'enabled',
     ];
 

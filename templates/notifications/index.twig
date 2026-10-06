@@ -1,0 +1,65 @@
+{% extends "layout.twig" %}
+
+{% block title %}Benachrichtigungen{% endblock title %}
+
+{% block content %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">Benachrichtigungen</h1>
+        <div class="d-flex flex-wrap gap-2">
+            {% if only_unread %}
+                <a href="/notifications" class="btn btn-outline-secondary btn-sm">Alle anzeigen</a>
+            {% else %}
+                <a href="/notifications?unread=1" class="btn btn-outline-secondary btn-sm">Nur ungelesene</a>
+            {% endif %}
+            {% if unread_count > 0 %}
+                <form action="/notifications/read-all" method="post" class="m-0">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check2-all"></i> Alle als gelesen markieren
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if notifications is empty %}
+        <p class="text-muted">
+            {{ only_unread ? "Keine ungelesenen Benachrichtigungen." : "Keine Benachrichtigungen." }}
+        </p>
+    {% else %}
+        <div class="list-group shadow-sm">
+            {% for item in notifications %}
+                {% set _unread_class = item.unread ? " notification-item-unread" : "" %}
+                {% set _icon = include("partials/navigation/notification_icon.twig", {group: item.group}) %}
+                <a href="{{ item.url }}"
+                   class="list-group-item list-group-item-action notification-item{{ _unread_class }}">
+                    <i class="bi {{ _icon }} notification-item-icon"></i>
+                    <div class="notification-item-text flex-grow-1">
+                        <div class="d-flex justify-content-between gap-2">
+                            <span class="notification-item-title">{{ item.title }}</span>
+                            <small class="text-muted text-nowrap" title="{{ item.created_at|date("d.m.Y H:i") }}">
+                                {{ item.relative_time }}
+                            </small>
+                        </div>
+                        {% if item.body %}
+                            <div class="small text-muted notification-item-body">{{ item.body }}</div>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+
+        {% if pages > 1 %}
+            {% set _filter = only_unread ? "&unread=1" : "" %}
+            <nav class="mt-3" aria-label="Seiten">
+                <ul class="pagination pagination-sm flex-wrap">
+                    {% for p in 1..pages %}
+                        <li class="page-item{{ p == page ? " active" : "" }}">
+                            <a class="page-link" href="/notifications?page={{ p }}{{ _filter }}">{{ p }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% endif %}
+{% endblock content %}

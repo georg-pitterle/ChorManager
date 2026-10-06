@@ -14,6 +14,7 @@
           data-mail-badge-count>{{ _label }}</span>
 {% endmacro %}
 
+{{ include("partials/navigation/notification_bell.twig") }}
 {% set _mail_badge = mail_badge() %}
 {% set _unseen_count = _mail_badge.unseen_count %}
 {% set _external_webmail_url = _mail_badge.external_webmail_url %}

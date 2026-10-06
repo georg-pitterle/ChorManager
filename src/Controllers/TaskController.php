@@ -17,6 +17,8 @@ use App\Services\NameFormatterService;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
 use App\Services\NotificationService;
+use App\Services\Notifications\InAppMessage;
+use App\Services\Notifications\InAppNotificationStore;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Policies\TaskPolicy;
@@ -208,6 +210,7 @@ class TaskController
             ->map(fn ($assignee): string => $this->nameFormatter->formatPerson($assignee))
             ->values()
             ->all();
+        $actorName = $this->actorName($actorId);
 
         $this->notificationService->notify(
             NotificationType::TASK_ASSIGNED,
@@ -216,9 +219,16 @@ class TaskController
             ),
             'Neue Aufgabe: ' . $task->name,
             'emails/notification_task_assigned.twig',
+            new InAppMessage(
+                'Neue Aufgabe: ' . $task->name,
+                $actorName === null ? 'Du wurdest eingetragen' : $actorName . ' hat dich eingetragen',
+                '/tasks/' . $task->id,
+                'task',
+                (int) $task->id
+            ),
             [
                 'task' => $task,
-                'actor_name' => $this->actorName($actorId),
+                'actor_name' => $actorName,
                 'co_assignees' => $coAssignees,
                 'link' => $this->taskUrl($request, $task),
                 'profile_url' => $this->profileUrl($request),
@@ -247,15 +257,23 @@ class TaskController
         if ($task->createdBy !== null) {
             $recipients[] = $task->createdBy;
         }
+        $actorName = $this->actorName($actorId);
 
         $this->notificationService->notify(
             NotificationType::TASK_COMMENT,
             $recipients,
             'Neuer Kommentar: ' . $task->name,
             'emails/notification_task_comment.twig',
+            new InAppMessage(
+                'Neuer Kommentar: ' . $task->name,
+                $actorName === null ? $comment : $actorName . ': ' . $comment,
+                '/tasks/' . $task->id,
+                'task',
+                (int) $task->id
+            ),
             [
                 'task' => $task,
-                'actor_name' => $this->actorName($actorId),
+                'actor_name' => $actorName,
                 'comment_text' => $comment,
                 'link' => $this->taskUrl($request, $task),
                 'profile_url' => $this->profileUrl($request),
@@ -401,6 +419,13 @@ class TaskController
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
+
+        (new InAppNotificationStore())->markEntityReadQuietly(
+            (int) ($_SESSION['user_id'] ?? 0),
+            'task',
+            (int) $task->id,
+            $this->logger
+        );
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
