@@ -74,6 +74,9 @@ class FileShareAccessFeatureTest extends TestCase
         $this->assertSame(Share::LEVEL_UPLOAD, $this->access->fileLevelFor($actor, $file));
 
         FileShare::query()->where('file_id', $file->id)->update(['level' => Share::LEVEL_EDIT]);
+        // Direkt am Modell geschrieben, nicht über die Dienste: Der Zwischenspeicher
+        // von FileAccessService erfährt davon nur hierüber.
+        FileAccessService::invalidate();
         $this->assertSame(Share::LEVEL_EDIT, $this->access->fileLevelFor($actor, $file));
         $shared = $this->access->sharedFilesFor($actor)->pluck('id')->all();
         $this->assertSame([], $shared, 'Im sichtbaren Ordner kein Extra-Eintrag.');
@@ -89,10 +92,16 @@ class FileShareAccessFeatureTest extends TestCase
         $actor = $this->actor($member);
 
         $root->delete();
+        // Direkt am Modell geschrieben, nicht über die Dienste: Der Zwischenspeicher
+        // von FileAccessService erfährt davon nur hierüber.
+        FileAccessService::invalidate();
         $this->assertSame(Share::LEVEL_NONE, $this->access->fileLevelFor($actor, $file->fresh()));
         $this->assertSame([], $this->access->sharedFilesFor($actor)->pluck('id')->all());
 
         $root->restore();
+        // Direkt am Modell geschrieben, nicht über die Dienste: Der Zwischenspeicher
+        // von FileAccessService erfährt davon nur hierüber.
+        FileAccessService::invalidate();
         $file->delete();
         $this->assertSame(Share::LEVEL_NONE, $this->access->fileLevelFor($actor, StoredFile::withTrashed()->find($file->id)));
     }

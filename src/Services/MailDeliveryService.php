@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\MailQueueEntryNotClaimableException;
 use App\Models\MailQueue;
 use Carbon\Carbon;
 use Exception;
@@ -27,6 +28,10 @@ class MailDeliveryService
     /**
      * Process all due mail queue entries.
      *
+     * Gezählt wird, was dieser Durchlauf tatsächlich getan hat. Ein Eintrag, den ein
+     * zweiter Durchlauf vorweggenommen hat, steht in keiner der vier Zahlen: Er ist
+     * nicht gescheitert, aber auch nicht von hier aus verschickt worden.
+     *
      * @param int $batchSize
      * @return array ['sent' => int, 'skipped' => int, 'failed' => int, 'dead' => int]
      */
@@ -46,6 +51,13 @@ class MailDeliveryService
         foreach ($entries as $entry) {
             try {
                 $this->sendEntry($entry);
+            } catch (MailQueueEntryNotClaimableException) {
+                // Ein zweiter Durchlauf war schneller, oder die Zeile ist inzwischen
+                // weg. Beides ist kein Fehlschlag und zählt deshalb nirgends mit: Die
+                // Mail ist unterwegs oder es gibt sie nicht mehr. Gezählt wurde es
+                // vorher als `failed`, und ein gesunder Versand mit zwei Arbeitern sah
+                // damit nach Problemen aus.
+                continue;
             } catch (Throwable $e) {
                 // Throwable statt Exception: Ein TypeError aus dem Mailer ist ein
                 // Error und riss bisher den ganzen Durchlauf mit - alle Mails
@@ -150,7 +162,7 @@ class MailDeliveryService
             ]);
 
         if (!$updated) {
-            throw new Exception("Entry already being processed or status changed");
+            throw new MailQueueEntryNotClaimableException('Entry already being processed or status changed');
         }
 
         // Reload after status change. Verschwindet die Zeile in genau diesem
@@ -158,7 +170,7 @@ class MailDeliveryService
         // Durchlauf soll den Eintrag überspringen, nicht abbrechen.
         $entry = MailQueue::find($entry->id);
         if (!$entry instanceof MailQueue) {
-            throw new Exception('Mail queue entry vanished while it was being claimed');
+            throw new MailQueueEntryNotClaimableException('Mail queue entry vanished while it was being claimed');
         }
 
         try {

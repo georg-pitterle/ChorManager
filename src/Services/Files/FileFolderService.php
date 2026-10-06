@@ -43,6 +43,7 @@ final class FileFolderService
             'quota_bytes' => $this->normalizeQuota($quotaBytes),
             'created_by' => $actor->userId,
         ]);
+        $this->access->forget();
 
         $this->logger->info('Team folder created.', [
             'event' => 'files.folder_created',
@@ -66,6 +67,7 @@ final class FileFolderService
             'name' => $clean,
             'created_by' => $actor->userId,
         ]);
+        $this->access->forget();
 
         $this->logger->info('Folder created.', [
             'event' => 'files.folder_created',
@@ -89,6 +91,8 @@ final class FileFolderService
             $this->assertNameFree($folder->parent_id, $clean, (int) $folder->id);
             $folder->name = $clean;
             $folder->save();
+            // Der Name steht im Baum und damit in jedem Brotkrumen-Pfad.
+            $this->access->forget();
         }
 
         return $folder;
@@ -114,6 +118,7 @@ final class FileFolderService
 
         $folder->parent_id = (int) $target->id;
         $folder->save();
+        $this->access->forget();
 
         $this->logger->info('Folder moved.', [
             'event' => 'files.folder_moved',
@@ -135,6 +140,7 @@ final class FileFolderService
         $folder->deleted_by = $actor->userId;
         $folder->save();
         $folder->delete();
+        $this->access->forget();
 
         $this->logger->info('Folder moved to trash.', [
             'event' => 'files.deleted',
@@ -168,28 +174,38 @@ final class FileFolderService
         $this->requireLevel($actor, $folder, FileFolderShare::LEVEL_MANAGE);
         $shares = $this->normalizeShares($rawShares, array_keys(FileFolderShare::LEVEL_LABELS));
 
-        DB::connection()->transaction(function () use ($actor, $folder, $shares): void {
-            // Die Filter der alten Freigaben räumt der Fremdschlüssel mit ab.
-            FileFolderShare::query()->where('folder_id', $folder->id)->delete();
+        try {
+            DB::connection()->transaction(function () use ($actor, $folder, $shares): void {
+                // Die Filter der alten Freigaben räumt der Fremdschlüssel mit ab.
+                FileFolderShare::query()->where('folder_id', $folder->id)->delete();
 
-            foreach ($shares as $share) {
-                $row = FileFolderShare::create([
-                    'folder_id' => (int) $folder->id,
-                    'level' => $share['level'],
-                    'created_by' => $actor->userId,
-                ]);
-                $this->filters->create($share['conditions'], 'file_folder_share_id', (int) $row->id);
-            }
+                foreach ($shares as $share) {
+                    $row = FileFolderShare::create([
+                        'folder_id' => (int) $folder->id,
+                        'level' => $share['level'],
+                        'created_by' => $actor->userId,
+                    ]);
+                    $this->filters->create($share['conditions'], 'file_folder_share_id', (int) $row->id);
+                }
 
-            // Wer hier verwaltet, soll sich nicht versehentlich selbst aussperren -
-            // sonst bliebe der Ordner bis zum Eingreifen der Verwaltung verwaist.
-            if (!$this->access->can($actor, $folder, FileFolderShare::LEVEL_MANAGE)) {
-                throw new FileManagementException(
-                    'Diese Freigaben würden dir selbst die Verwaltung entziehen.',
-                    422
-                );
-            }
-        });
+                // Die Prüfung unten muss den eben geschriebenen Stand sehen, nicht den
+                // von vor der Transaktion.
+                $this->access->forget();
+
+                // Wer hier verwaltet, soll sich nicht versehentlich selbst aussperren -
+                // sonst bliebe der Ordner bis zum Eingreifen der Verwaltung verwaist.
+                if (!$this->access->can($actor, $folder, FileFolderShare::LEVEL_MANAGE)) {
+                    throw new FileManagementException(
+                        'Diese Freigaben würden dir selbst die Verwaltung entziehen.',
+                        422
+                    );
+                }
+            });
+        } finally {
+            // Auch auf dem Fehlerweg: Nach einem Rollback stünde sonst der
+            // zurückgenommene Stand im Zwischenspeicher.
+            $this->access->forget();
+        }
 
         $this->logger->info('Folder shares changed.', [
             'event' => 'files.share_changed',

@@ -9,6 +9,7 @@ use App\Models\FileFolderShare;
 use App\Models\FileShare;
 use App\Models\StoredFile;
 use App\Services\Audience\AudienceFilterService;
+use App\Services\Audience\MemberProfile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -29,11 +30,114 @@ use Illuminate\Support\Collection;
  * Dateien: Ihre Stufe ist die höhere aus Ordnerstufe und eigener
  * Dateifreigabe. Eine Dateifreigabe wirkt nur, solange Datei und alle
  * Vorfahren leben.
+ *
+ * Zwischenspeicher
+ * ----------------
+ * Ordnerbaum, Ordnerstufen, Dateifreigaben und das Mitgliedsprofil werden je
+ * Instanz behalten. Der Dienst lebt im Container genau eine Anfrage lang, der
+ * Speicher also auch - er braucht deshalb keine Ablaufzeit, aber ein
+ * ausdrückliches Verwerfen.
+ *
+ * Gemessen an einem Bestand mit drei Teamordnern, sechs Unterordnern und
+ * achtzehn Dateien kostete der Dienst ohne diesen Speicher 33 Abfragen für die
+ * Seite /files und 14 für ein einziges `fileLevelFor()`: `tree()` lief dreimal
+ * je Dateistufe, und sowohl die Ordner- als auch die Dateifreigaben schlugen
+ * dasselbe Profil erneut nach.
+ *
+ * **Wer Ordner oder Freigaben schreibt, verwirft den Speicher.** Das betrifft
+ * FileFolderService (anlegen, umbenennen, verschieben, in den Papierkorb,
+ * Freigaben setzen), FileTrashService (zurückholen, endgültig löschen) und
+ * FileShareService (Dateifreigaben setzen) - und zwar auch dann, wenn der
+ * Schreibvorgang scheitert: Innerhalb einer Transaktion liest der Dienst den
+ * noch nicht festgeschriebenen Stand, und nach einem Rollback wäre genau der im
+ * Speicher. Dateien selbst stehen nicht darin; sie anzulegen, zu verschieben
+ * oder in den Papierkorb zu legen verlangt kein Verwerfen.
+ *
+ * Verworfen wird prozessweit, über einen Generationszähler, und nicht nur auf
+ * der Instanz, die gerade zur Hand ist. Der Speicher spiegelt den Zustand der
+ * Datenbank, und der gilt für jede Instanz gleich - der Container hält zwar nur
+ * eine, aber nicht jeder Schreibvorgang läuft über die Dienste hier: Fixtures
+ * der Tests, Kommandos in `bin/` und jeder künftige Aufrufer schreiben direkt am
+ * Modell. Die hätten eine Instanz gar nicht zur Hand, und ein Speicher, dessen
+ * Richtigkeit daran hängt, dass alle ihn kennen, wird irgendwann falsch. Wer
+ * Ordner oder Freigaben ohne Instanz schreibt, ruft `FileAccessService::invalidate()`.
  */
 final class FileAccessService
 {
+    /** @var array<int, array{parent_id: ?int, deleted: bool, name: string}>|null */
+    private ?array $treeCache = null;
+
+    /** @var array<string, array<int, int>> */
+    private array $folderLevelCache = [];
+
+    /** @var array<string, array<int, int>> */
+    private array $directFileLevelCache = [];
+
+    /** @var array<int, MemberProfile|null> */
+    private array $profileCache = [];
+
+    /**
+     * Generation der Daten in der Datenbank. Jedes Verwerfen zählt sie hoch;
+     * eine Instanz, die an einer älteren hängt, baut ihren Speicher neu auf.
+     */
+    private static int $generation = 0;
+
+    private int $cachedGeneration = 0;
+
     public function __construct(private readonly AudienceFilterService $filters = new AudienceFilterService())
     {
+    }
+
+    /**
+     * Verwirft den Zwischenspeicher aller Instanzen dieses Prozesses. Aufzurufen
+     * von jedem, der Ordner oder Freigaben geschrieben hat - siehe Klassenkommentar.
+     */
+    public static function invalidate(): void
+    {
+        self::$generation++;
+    }
+
+    /**
+     * Dasselbe, nur als Instanzaufruf: Die Dienste haben eine zur Hand, und
+     * `$this->access->forget()` liest sich an der Schreibstelle besser als ein
+     * statischer Aufruf.
+     */
+    public function forget(): void
+    {
+        self::invalidate();
+        $this->dropCaches();
+    }
+
+    /**
+     * Hängt der Speicher an einer älteren Generation, wird er fallen gelassen.
+     * Steht am Anfang jedes Lesewegs, der etwas behält.
+     */
+    private function syncGeneration(): void
+    {
+        if ($this->cachedGeneration === self::$generation) {
+            return;
+        }
+
+        $this->dropCaches();
+        $this->cachedGeneration = self::$generation;
+    }
+
+    private function dropCaches(): void
+    {
+        $this->treeCache = null;
+        $this->folderLevelCache = [];
+        $this->directFileLevelCache = [];
+        $this->profileCache = [];
+    }
+
+    /**
+     * Schlüssel des Zwischenspeichers. Das Datei-Admin-Recht gehört hinein: Es
+     * entscheidet über jede Stufe, und derselbe Mensch kann in einer Anfrage als
+     * Admin und als einfaches Mitglied gefragt werden (AudiencePreviewController).
+     */
+    private static function cacheKey(FileActor $actor): string
+    {
+        return $actor->userId . '|' . ($actor->isFileAdmin ? '1' : '0');
     }
 
     public function levelFor(FileActor $actor, FileFolder|int $folder): int
@@ -93,7 +197,14 @@ final class FileAccessService
      */
     public function directFileLevels(FileActor $actor): array
     {
-        return $this->matchingLevels($actor, FileShare::query(), 'file_id', 'file_share_id');
+        $this->syncGeneration();
+
+        return $this->directFileLevelCache[self::cacheKey($actor)] ??= $this->matchingLevels(
+            $actor,
+            FileShare::query(),
+            'file_id',
+            'file_share_id'
+        );
     }
 
     public function can(FileActor $actor, FileFolder|int $folder, int $requiredLevel): bool
@@ -148,6 +259,16 @@ final class FileAccessService
      * @return array<int, int> folder_id => Stufe (nur Stufe >= Lesen)
      */
     public function folderLevels(FileActor $actor): array
+    {
+        $this->syncGeneration();
+
+        return $this->folderLevelCache[self::cacheKey($actor)] ??= $this->computeFolderLevels($actor);
+    }
+
+    /**
+     * @return array<int, int> folder_id => Stufe (nur Stufe >= Lesen)
+     */
+    private function computeFolderLevels(FileActor $actor): array
     {
         $tree = $this->tree();
         $ownLevels = $actor->isFileAdmin ? [] : $this->matchingShareLevels($actor);
@@ -289,6 +410,12 @@ final class FileAccessService
      */
     private function tree(): array
     {
+        $this->syncGeneration();
+
+        if ($this->treeCache !== null) {
+            return $this->treeCache;
+        }
+
         $tree = [];
         $rows = FileFolder::withTrashed()->toBase()->get(['id', 'parent_id', 'deleted_at', 'name']);
         foreach ($rows as $row) {
@@ -299,7 +426,22 @@ final class FileAccessService
             ];
         }
 
-        return $tree;
+        return $this->treeCache = $tree;
+    }
+
+    /**
+     * Das Profil des Mitglieds, einmal je Instanz. Es kostet vier Abfragen, und
+     * Ordner- wie Dateifreigaben brauchen dasselbe.
+     */
+    private function profileOf(int $userId): ?MemberProfile
+    {
+        $this->syncGeneration();
+
+        if (!array_key_exists($userId, $this->profileCache)) {
+            $this->profileCache[$userId] = $this->filters->profileOf($userId);
+        }
+
+        return $this->profileCache[$userId];
     }
 
     /**
@@ -321,7 +463,7 @@ final class FileAccessService
      */
     private function matchingLevels(FileActor $actor, Builder $query, string $keyColumn, string $ownerColumn): array
     {
-        $profile = $this->filters->profileOf($actor->userId);
+        $profile = $this->profileOf($actor->userId);
         if ($profile === null) {
             return [];
         }

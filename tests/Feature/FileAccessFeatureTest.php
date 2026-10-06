@@ -118,6 +118,9 @@ class FileAccessFeatureTest extends TestCase
         $this->share($root, 'user', (int) $member->id, Share::LEVEL_MANAGE);
 
         $root->delete();
+        // Direkt am Modell geschrieben, nicht über die Dienste: Der Zwischenspeicher
+        // von FileAccessService erfährt davon nur hierüber.
+        FileAccessService::invalidate();
 
         $this->assertSame(Share::LEVEL_NONE, $this->access->levelFor($this->actor($member), $child->fresh()));
         $this->assertSame(Share::LEVEL_NONE, $this->access->levelFor($this->actor($member, true), $child->fresh()));

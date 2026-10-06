@@ -13,6 +13,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Services\Files\FileAccessService;
 use App\Services\Files\FileActor;
 use App\Services\Files\LocalFileStorage;
 use App\Util\PasswordHasher;
@@ -33,6 +34,9 @@ trait FileFixtures
         Bootstrap::getCapsule()?->connection()->beginTransaction();
         $this->storageDir = sys_get_temp_dir() . '/files-test-' . bin2hex(random_bytes(6));
         $_SESSION = [];
+        // Jeder Test beginnt mit einem leeren Bestand; ein Speicher aus dem
+        // vorherigen Test darf nicht hineinreichen.
+        FileAccessService::invalidate();
     }
 
     protected function tearDownFileFixtures(): void
@@ -103,13 +107,22 @@ trait FileFixtures
         return $project;
     }
 
+    /**
+     * Die Fixtures schreiben direkt am Modell, nicht über die Dienste. Der
+     * Zwischenspeicher von FileAccessService erfährt davon deshalb nur über den
+     * ausdrücklichen Aufruf - ohne ihn sähe ein Test, der nach dem Lesen noch
+     * einen Ordner anlegt, weiter den Stand von vorher.
+     */
     protected function createFolder(string $name, ?FileFolder $parent = null, ?int $quota = null): FileFolder
     {
-        return FileFolder::create([
+        $folder = FileFolder::create([
             'parent_id' => $parent?->id,
             'name' => $name,
             'quota_bytes' => $quota,
         ]);
+        FileAccessService::invalidate();
+
+        return $folder;
     }
 
     /** Alte Zieltypen der Tests auf Filter-Bedingungen abgebildet. */
@@ -135,6 +148,7 @@ trait FileFixtures
             'level' => $level,
         ]);
         (new AudienceFilterService())->create($conditions, 'file_folder_share_id', (int) $share->id);
+        FileAccessService::invalidate();
 
         return $share;
     }
@@ -149,6 +163,7 @@ trait FileFixtures
             'level' => $level,
         ]);
         (new AudienceFilterService())->create($conditions, 'file_share_id', (int) $share->id);
+        FileAccessService::invalidate();
 
         return $share;
     }

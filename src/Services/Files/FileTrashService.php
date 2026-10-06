@@ -109,6 +109,7 @@ final class FileTrashService
         $folder->deleted_by = null;
         $folder->save();
         $folder->restore();
+        $this->access->forget();
 
         $this->logger->info('Folder restored from trash.', [
             'event' => 'files.restored',
@@ -228,6 +229,8 @@ final class FileTrashService
         // Die Fremdschlüssel räumen Unterordner, Dateien, Versionen, Freigaben samt
         // ihren Zielgruppen-Filtern und Favoriten mit ab.
         FileFolder::withTrashed()->whereKey($folderId)->forceDelete();
+        // Der Teilbaum ist weg, und mit ihm die Freigaben seiner Ordner und Dateien.
+        $this->access->forget();
 
         $this->files->deleteUnreferencedStorage($candidates);
     }
@@ -241,6 +244,8 @@ final class FileTrashService
 
         // Freigaben samt Filtern gehen über die Fremdschlüssel mit.
         StoredFile::withTrashed()->whereIn('id', $fileIds)->forceDelete();
+        // Die Dateifreigaben gehen über den Fremdschlüssel mit.
+        $this->access->forget();
 
         $this->files->deleteUnreferencedStorage($candidates);
     }

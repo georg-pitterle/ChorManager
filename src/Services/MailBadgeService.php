@@ -34,6 +34,20 @@ class MailBadgeService
      */
     private const MAX_RESPONSE_LINES = 200;
 
+    /**
+     * Nur diese beiden Werte bauen nachweislich eine verschlüsselte Verbindung auf:
+     * `ssl` von der ersten Zeile an, `tls` über STARTTLS vor dem LOGIN.
+     *
+     * Alles andere - der Altbestand `none`, ein leerer Wert, ein Tippfehler - heißt
+     * Klartext, und im Klartext geht hier ein Mailbox-Passwort über das Netz. Das
+     * Profilformular lässt `none` seit längerem nicht mehr speichern und warnt beim
+     * Altbestand davor; dieser Dienst lief trotzdem weiter und war damit die letzte
+     * Stelle, an der ein solcher Zugang noch Schaden anrichten konnte.
+     *
+     * @var list<string>
+     */
+    private const ENCRYPTED_TRANSPORTS = ['ssl', 'tls'];
+
     private MailCredentialCryptoService $crypto;
     private LoggerInterface $logger;
     private int $connectTimeoutSeconds;
@@ -60,10 +74,15 @@ class MailBadgeService
         $socket = null;
 
         try {
-            $password = $this->crypto->decrypt((string) $account->imap_password_enc);
-
             $host = (string) $account->imap_host;
-            $encryption = (string) $account->imap_encryption;
+            $encryption = strtolower(trim((string) $account->imap_encryption));
+
+            // Vor allem anderen und vor jeder Verbindung: Ohne Verschlüsselung wird das
+            // Passwort nicht angefasst, es verlässt den Prozess gar nicht.
+            if (!in_array($encryption, self::ENCRYPTED_TRANSPORTS, true)) {
+                $this->logFailure($account, 'encryption_required');
+                return false;
+            }
 
             try {
                 $validatedIp = OutboundConnectionGuard::resolvePublicIp($host);
@@ -104,6 +123,8 @@ class MailBadgeService
             }
 
             stream_set_timeout($socket, $this->connectTimeoutSeconds);
+
+            $password = $this->crypto->decrypt((string) $account->imap_password_enc);
 
             $greeting = fgets($socket, 512);
             if ($greeting === false || !str_starts_with($greeting, '* ')) {
@@ -307,14 +328,21 @@ class MailBadgeService
         return null;
     }
 
-    private function logFailure(UserMailAccount $account): void
+    /**
+     * Der Grund ist freiwillig: Die meisten Fehlschläge sind Netz- oder
+     * Anmeldeprobleme und tragen ihre Erklärung schon in den Zeilen darüber. Wo er
+     * mitkommt, erklärt er einen Fehlschlag, den niemand von außen sehen kann.
+     */
+    private function logFailure(UserMailAccount $account, ?string $reason = null): void
     {
-        $this->logger->warning(
-            'Mail badge refresh failed.',
-            [
-                'event' => 'mail_badge.refresh.failed',
-                'user_id' => $account->user_id,
-            ]
-        );
+        $context = [
+            'event' => 'mail_badge.refresh.failed',
+            'user_id' => $account->user_id,
+        ];
+        if ($reason !== null) {
+            $context['reason'] = $reason;
+        }
+
+        $this->logger->warning('Mail badge refresh failed.', $context);
     }
 }

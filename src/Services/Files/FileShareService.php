@@ -54,18 +54,23 @@ final class FileShareService
         $this->requireManage($actor, $file);
         $shares = $this->folders->normalizeShares($rawShares, array_keys(FileShare::LEVELS));
 
-        DB::connection()->transaction(function () use ($actor, $file, $shares): void {
-            // Die Filter der alten Freigaben räumt der Fremdschlüssel mit ab.
-            FileShare::query()->where('file_id', $file->id)->delete();
-            foreach ($shares as $share) {
-                $row = FileShare::create([
-                    'file_id' => (int) $file->id,
-                    'level' => $share['level'],
-                    'created_by' => $actor->userId,
-                ]);
-                $this->filters->create($share['conditions'], 'file_share_id', (int) $row->id);
-            }
-        });
+        try {
+            DB::connection()->transaction(function () use ($actor, $file, $shares): void {
+                // Die Filter der alten Freigaben räumt der Fremdschlüssel mit ab.
+                FileShare::query()->where('file_id', $file->id)->delete();
+                foreach ($shares as $share) {
+                    $row = FileShare::create([
+                        'file_id' => (int) $file->id,
+                        'level' => $share['level'],
+                        'created_by' => $actor->userId,
+                    ]);
+                    $this->filters->create($share['conditions'], 'file_share_id', (int) $row->id);
+                }
+            });
+        } finally {
+            // Auch auf dem Fehlerweg, siehe FileFolderService::setShares().
+            $this->access->forget();
+        }
 
         $this->logger->info('File shares changed.', [
             'event' => 'files.file_share_changed',

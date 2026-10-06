@@ -14,6 +14,31 @@ use Psr\Log\NullLogger;
 
 class Mailer
 {
+    /**
+     * Die beiden Werte, die den Versandweg nachweislich verschlüsseln. Alles andere -
+     * `none`, ein leerer Wert, ein Tippfehler - schickt Zugangsdaten und Mailinhalt im
+     * Klartext über das Netz.
+     *
+     * PHPMailer versucht über `SMTPAutoTLS` von sich aus ein STARTTLS, wenn der Server
+     * es anbietet. Darauf lässt sich aber nichts aufbauen: Bietet der Server es nicht
+     * an, geht es still unverschlüsselt weiter, und dass es so war, steht nirgends.
+     *
+     * @var list<string>
+     */
+    private const ENCRYPTED_TRANSPORTS = ['tls', 'ssl'];
+
+    /**
+     * Grund, mit dem ein solcher Versand abbricht.
+     *
+     * Der Text trägt `invalid_config`, weil MailDeliveryService::classifyError() genau
+     * darauf prüft und die Mail dann sofort beiseitelegt. Eine fehlende Einstellung
+     * behebt sich nicht von selbst; sie dreimal zu wiederholen kostet nur Zeit und
+     * verdeckt in der Statistik, woran es lag. Englisch wie die übrigen Meldungen von
+     * PHPMailer, die durch dasselbe Feld laufen.
+     */
+    private const ENCRYPTION_REQUIRED_ERROR = 'invalid_config: SMTP requires SMTP_ENCRYPTION=tls'
+        . ' or ssl when APP_ENV=production; refusing to send credentials in the clear.';
+
     private PHPMailer $mail;
     private ?string $lastError = null;
     private bool $useSmtp = false;
@@ -56,7 +81,7 @@ class Mailer
         $this->mail->Username = EnvHelper::read('SMTP_USERNAME', '');
         $this->mail->Password = EnvHelper::read('SMTP_PASSWORD', '');
 
-        $encryption = strtolower(EnvHelper::read('SMTP_ENCRYPTION', 'none'));
+        $encryption = $this->smtpEncryption();
         if ($encryption === 'tls') {
             $this->mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($encryption === 'ssl') {
@@ -66,6 +91,33 @@ class Mailer
         }
 
         $this->mail->Port = (int) EnvHelper::read('SMTP_PORT', '1025');
+    }
+
+    private function smtpEncryption(): string
+    {
+        return strtolower(trim(EnvHelper::read('SMTP_ENCRYPTION', 'none')));
+    }
+
+    /**
+     * Fehlt im Produktivbetrieb die Verschlüsselung, wird nicht gesendet.
+     *
+     * Geprüft wird beim Senden und nicht im Konstruktor: Der Mailer hängt im Container,
+     * und eine Ausnahme dort nähme jede Seite mit, die ihn nur beiläufig anfordert -
+     * auch die Einstellungsseite, auf der der Fehler zu beheben wäre. Der Versandweg
+     * über sendmail bleibt außen vor: Er läuft über einen lokalen Prozess, nicht über
+     * das Netz, und trägt keine Zugangsdaten.
+     */
+    private function requiresEncryptionButHasNone(): bool
+    {
+        if (!$this->useSmtp) {
+            return false;
+        }
+
+        if (EnvHelper::read('APP_ENV', 'development') !== 'production') {
+            return false;
+        }
+
+        return !in_array($this->smtpEncryption(), self::ENCRYPTED_TRANSPORTS, true);
     }
 
     private function configureSendmail(): void
@@ -105,6 +157,26 @@ class Mailer
                 'success' => true,
                 'skipped' => true,
                 'provider_name' => 'disabled',
+                'provider_message_id' => null,
+            ];
+        }
+
+        if ($this->requiresEncryptionButHasNone()) {
+            $this->lastError = self::ENCRYPTION_REQUIRED_ERROR;
+            $this->logger->error(
+                'Outbound mail refused because SMTP would be unencrypted.',
+                [
+                    'event' => 'mail.send.refused',
+                    'reason' => 'encryption_required',
+                    'provider_name' => $providerName,
+                    'recipient_email' => $to,
+                ]
+            );
+
+            return [
+                'success' => false,
+                'skipped' => false,
+                'provider_name' => $providerName,
                 'provider_message_id' => null,
             ];
         }

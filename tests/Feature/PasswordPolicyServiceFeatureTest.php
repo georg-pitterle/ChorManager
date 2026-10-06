@@ -70,6 +70,51 @@ class PasswordPolicyServiceFeatureTest extends TestCase
     }
 
     /**
+     * Ein Umlaut ist ein Buchstabe, kein Sonderzeichen.
+     *
+     * Geprüft wurde auf "nicht Buchstabe und nicht Ziffer" - allerdings nur gegen das
+     * lateinische Grundalphabet. Damit zählten ä, ö, ü und ß als Sonderzeichen, und
+     * "Grüßgottäöü1" erfüllte die Regel, ohne eines zu enthalten. Wer die Meldung
+     * "mindestens ein Sonderzeichen" liest, meint damit nicht seinen eigenen Namen.
+     */
+    public function testUmlautsAreLettersAndDoNotSatisfyTheSpecialCharacterRule(): void
+    {
+        $policy = new PasswordPolicyService();
+
+        $message = $policy->validate('Gruessgottaeoeue1'); // naming:ascii
+        $this->assertNotNull($message, 'Ohne Sonderzeichen muss abgelehnt werden.');
+
+        $withUmlautsOnly = $policy->validate('Grüßgottäöü1');
+        $this->assertNotNull($withUmlautsOnly);
+        $this->assertStringContainsString('Sonderzeichen', $withUmlautsOnly);
+    }
+
+    /**
+     * Buchstaben anderer Schriften zählen ebenso als Buchstaben: Wer sein Passwort auf
+     * Griechisch oder Kyrillisch setzt, hat damit kein Sonderzeichen gewählt.
+     */
+    public function testLettersOfOtherScriptsAreNotSpecialCharactersEither(): void
+    {
+        $policy = new PasswordPolicyService();
+
+        $this->assertNotNull($policy->validate('Passwortπαλαιό1'));
+        $this->assertNull($policy->validate('Passwortπαλαιό1!'));
+    }
+
+    /**
+     * Was ein Sonderzeichen bleibt: Satz- und Rechenzeichen, Leerzeichen, Symbole.
+     */
+    public function testPunctuationAndSymbolsStillCount(): void
+    {
+        $policy = new PasswordPolicyService();
+
+        foreach (['!', '?', '-', '_', '.', '#', '$', '%', '&', '+', '=', '/', ' ', '€'] as $character) {
+            $password = 'Passwortlang1' . $character;
+            $this->assertNull($policy->validate($password), 'Zeichen: ' . $character);
+        }
+    }
+
+    /**
      * Gezählt werden Zeichen, nicht Bytes. Dieses Passwort hat genau die Mindestlänge,
      * belegt aber mehr Bytes; mit `strlen()` wäre es als lang genug durchgegangen, und die
      * Grenze läge für Umlaut-Passwörter faktisch niedriger.

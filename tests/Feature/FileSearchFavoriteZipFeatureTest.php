@@ -104,6 +104,9 @@ class FileSearchFavoriteZipFeatureTest extends TestCase
         $this->assertSame([], $favorites->listFor($member)['files']);
 
         $share->delete();
+        // Direkt am Modell geschrieben, nicht über die Dienste: Der Zwischenspeicher
+        // von FileAccessService erfährt davon nur hierüber.
+        FileAccessService::invalidate();
         $this->assertSame([], $favorites->listFor($member)['folders']);
     }
 

@@ -200,6 +200,8 @@ class FileFolderServiceFeatureTest extends TestCase
         $this->shareWith($root, ['role' => [(int) $role->id], 'voice_group' => [(int) $group->id]], Share::LEVEL_READ);
         $role->users()->detach();
         $role->delete();
+        // Die Rolle steckt im Mitgliedsprofil, das der Zugriffsdienst behält.
+        FileAccessService::invalidate();
 
         // Das Formular schickt, was es anzeigt - samt dem gelöschten Wert.
         try {

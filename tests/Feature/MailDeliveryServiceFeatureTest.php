@@ -219,4 +219,110 @@ final class MailDeliveryServiceFeatureTest extends TestCase
 
         $this->assertSame('failed', MailQueue::findOrFail($entry->id)->status);
     }
+
+    /**
+     * Zwei Durchläufe gleichzeitig: Genau einer bekommt die Mail.
+     *
+     * Beide holen sich denselben Ausschnitt der Warteschlange; den Zuschlag gibt dann ein
+     * bedingtes Update. Wer verliert, bekam eine Ausnahme und wurde als `failed` gezählt.
+     * Fehlgeschlagen ist dabei aber nichts - die Mail ist unterwegs, nur eben im anderen
+     * Durchlauf. Ein gesunder Versand mit zwei Arbeitern sah damit in der Statistik nach
+     * Problemen aus, und wer der Zahl folgte, suchte einen Fehler, den es nicht gab.
+     *
+     * Nachgestellt wird der Wettlauf über den zweiten Eintrag: Während der eigene
+     * Durchlauf noch am ersten arbeitet, nimmt der andere Durchlauf den zweiten an sich.
+     * Genau so liegt der Fall in Wirklichkeit - die Liste stand schon, als der Zuschlag
+     * woanders fiel.
+     */
+    public function testAnEntryTakenByAnotherRunIsNotCountedAsFailed(): void
+    {
+        $now = Carbon::now();
+        $mine = $this->enqueue('Gehört diesem Durchlauf', $now->copy()->subMinutes(30));
+        $taken = $this->enqueue('Holt sich der andere Durchlauf', $now->copy()->subMinutes(20));
+
+        $mailer = $this->createStub(Mailer::class);
+        $mailer->method('isUsingSmtp')->willReturn(true);
+        $mailer->method('sendHtmlMailDetailed')->willReturnCallback(
+            static function (string $to, string $subject) use ($mine, $taken): array {
+                if ($subject === $mine->subject) {
+                    // Der andere Durchlauf greift zu, während dieser noch beschäftigt ist.
+                    MailQueue::query()->whereKey($taken->id)->update(['status' => 'sending']);
+                }
+
+                return [
+                    'success' => true,
+                    'skipped' => true,
+                    'provider_name' => 'disabled',
+                    'provider_message_id' => null,
+                ];
+            }
+        );
+
+        $stats = (new MailDeliveryService($mailer))->processDueEntries(10);
+
+        $this->assertSame(0, $stats['failed'], 'Ein fremder Anspruch ist kein Fehlschlag.');
+        $this->assertSame(1, $stats['skipped'], 'Der eigene Eintrag zählt wie immer.');
+        $this->assertSame(0, $stats['sent']);
+        $this->assertSame(0, $stats['dead']);
+
+        $stored = MailQueue::findOrFail($taken->id);
+        $this->assertSame(
+            'sending',
+            $stored->status,
+            'Der fremde Anspruch bleibt unangetastet - er gehört dem anderen Durchlauf.'
+        );
+        $this->assertSame(0, (int) $stored->attempts, 'Ein fremder Anspruch kostet keinen Versuch.');
+    }
+
+    /**
+     * Verschwindet die Zeile im selben Augenblick, ist auch das kein Fehlschlag: Es gibt
+     * nichts mehr zu verschicken.
+     */
+    public function testAnEntryThatVanishedIsNotCountedAsFailed(): void
+    {
+        $now = Carbon::now();
+        $mine = $this->enqueue('Gehört diesem Durchlauf', $now->copy()->subMinutes(30));
+        $gone = $this->enqueue('Ist beim Zugriff schon weg', $now->copy()->subMinutes(20));
+
+        $mailer = $this->createStub(Mailer::class);
+        $mailer->method('isUsingSmtp')->willReturn(true);
+        $mailer->method('sendHtmlMailDetailed')->willReturnCallback(
+            static function (string $to, string $subject) use ($mine, $gone): array {
+                if ($subject === $mine->subject) {
+                    MailQueue::query()->whereKey($gone->id)->delete();
+                }
+
+                return [
+                    'success' => true,
+                    'skipped' => true,
+                    'provider_name' => 'disabled',
+                    'provider_message_id' => null,
+                ];
+            }
+        );
+
+        $stats = (new MailDeliveryService($mailer))->processDueEntries(10);
+
+        $this->assertSame(0, $stats['failed']);
+        $this->assertSame(1, $stats['skipped']);
+    }
+
+    /**
+     * Ein echter Fehlschlag zählt weiter: Die Abgrenzung oben darf nicht alles
+     * verschlucken, was eine Ausnahme wirft.
+     */
+    public function testARealSendFailureIsStillCounted(): void
+    {
+        $this->enqueue('Scheitert wirklich', Carbon::now()->subMinutes(10));
+
+        $mailer = $this->createStub(Mailer::class);
+        $mailer->method('isUsingSmtp')->willReturn(true);
+        $mailer->method('sendHtmlMailDetailed')->willReturnCallback(
+            static fn (): array => throw new \Error('Fehler aus dem Mailer.')
+        );
+
+        $stats = (new MailDeliveryService($mailer))->processDueEntries(10);
+
+        $this->assertSame(1, $stats['failed'], 'Ein tatsächlicher Fehlschlag gehört gezählt.');
+    }
 }

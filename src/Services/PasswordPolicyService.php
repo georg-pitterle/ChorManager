@@ -29,7 +29,15 @@ class PasswordPolicyService
             return 'Das Passwort muss mindestens eine Zahl enthalten.';
         }
 
-        if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+        // `\p{L}` statt `A-Za-z`: Geprüft wurde nur gegen das lateinische
+        // Grundalphabet, womit ä, ö, ü und ß als Sonderzeichen galten - "Grüßgottäöü1"
+        // erfüllte die Regel, ohne eines zu enthalten. Wer "mindestens ein
+        // Sonderzeichen" liest, meint damit nicht seinen eigenen Namen. Ein Buchstabe
+        // ist ein Buchstabe, in jeder Schrift.
+        //
+        // `!== 1` statt `!`: Bei ungültigem UTF-8 gibt preg_match() false zurück, und
+        // das soll wie "kein Sonderzeichen gefunden" wirken, nicht wie ein Treffer.
+        if (preg_match('/[^\p{L}\p{N}]/u', $password) !== 1) {
             return 'Das Passwort muss mindestens ein Sonderzeichen enthalten.';
         }
 
