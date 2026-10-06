@@ -8,6 +8,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use App\Util\EnvHelper;
 use App\Util\MailInlineImages;
+use App\Util\MailPlainText;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -210,8 +211,10 @@ class Mailer
 
         $this->mail->Body = $inline['html'];
 
-        // Generate plain text version from HTML
-        $this->mail->AltBody = strip_tags($inline['html']);
+        // Die Textfassung für Programme, die kein HTML anzeigen. Nicht über strip_tags():
+        // das entfernt nur die Auszeichnung und ließ den gesamten CSS-Block der Vorlage
+        // als Fließtext stehen, siehe MailPlainText.
+        $this->mail->AltBody = MailPlainText::fromHtml($inline['html']);
     }
 
     /**

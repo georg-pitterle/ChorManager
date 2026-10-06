@@ -23,7 +23,15 @@ use Psr\Log\LoggerInterface;
  */
 final class FileShareService
 {
-    private const TOKEN_PATTERN = '/^[A-Za-z0-9_-]{32}$/';
+    /**
+     * 32 Zeichen aus dem base64url-Alphabet - base64 von 24 Zufallsbytes, ohne Polster.
+     *
+     * `\z` statt `$`, wie bei CalendarSubscriptionService und WebdavAccessService: `$`
+     * lässt in PCRE einen abschließenden Zeilenumbruch durchgehen, "<32 Zeichen>\n" wäre
+     * damit ein gültiger Token. Öffentlich, damit sich die Grenze prüfen lässt, ohne den
+     * Weg über die Datenbank zu nehmen.
+     */
+    public const TOKEN_PATTERN = '/^[A-Za-z0-9_-]{32}\z/';
 
     public function __construct(
         private readonly FileAccessService $access,

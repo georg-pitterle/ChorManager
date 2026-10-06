@@ -11,7 +11,10 @@ class PasswordPolicyService
     public function validate(string $password): ?string
     {
         if (mb_strlen($password) < self::MIN_LENGTH) {
-            return 'Das Passwort muss mindestens 12 Zeichen lang sein.';
+            // Die Zahl aus der Konstante, nicht als Ziffer im Text: Wird die Mindestlänge
+            // angehoben, nannte die Meldung sonst weiter die alte - und wer sie befolgt,
+            // bekommt dieselbe Meldung erneut.
+            return 'Das Passwort muss mindestens ' . self::MIN_LENGTH . ' Zeichen lang sein.';
         }
 
         if (!preg_match('/[A-Z]/', $password)) {

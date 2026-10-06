@@ -65,7 +65,15 @@ class BackupService
                 continue;
             }
 
-            $dataPath = $this->resolveDataPath($decoded);
+            // Die Kennung stammt aus dem Dateinamen, nicht aus dem Inhalt der Datei.
+            // Weichen beide voneinander ab, ist der Eintrag nicht stimmig - sein Verweis
+            // zeigte auf Daten, die nicht zu ihm gehören.
+            $id = basename($metaPath, '.json');
+            if ((string) $decoded['id'] !== $id) {
+                continue;
+            }
+
+            $dataPath = $this->resolveDataPath($id, $decoded);
             if ($dataPath === null || !file_exists($dataPath)) {
                 continue;
             }
@@ -187,7 +195,7 @@ class BackupService
         }
 
         $metadata = json_decode((string) file_get_contents($metaPath), true);
-        $dataPath = is_array($metadata) ? $this->resolveDataPath($metadata) : null;
+        $dataPath = is_array($metadata) ? $this->resolveDataPath($id, $metadata) : null;
 
         if ($dataPath !== null && file_exists($dataPath)) {
             unlink($dataPath);
@@ -236,7 +244,7 @@ class BackupService
         }
 
         $metadata = json_decode((string) file_get_contents($metaPath), true);
-        $dataPath = is_array($metadata) ? $this->resolveDataPath($metadata) : null;
+        $dataPath = is_array($metadata) ? $this->resolveDataPath($id, $metadata) : null;
 
         if ($dataPath === null || !file_exists($dataPath)) {
             throw new \RuntimeException('Backup data file missing: ' . $id);
@@ -263,7 +271,7 @@ class BackupService
             throw new \RuntimeException('Backup metadata is corrupt: ' . $id);
         }
 
-        $dataPath = $this->resolveDataPath($metadata);
+        $dataPath = $this->resolveDataPath($id, $metadata);
         if ($dataPath === null || !file_exists($dataPath)) {
             throw new \RuntimeException('Backup data file missing: ' . $id);
         }
@@ -306,17 +314,25 @@ class BackupService
     }
 
     /**
+     * Pfad der Datendatei eines Backups.
+     *
+     * Den Namen bestimmt ausschließlich die geprüfte Kennung, nie das Feld `id`
+     * innerhalb der Metadaten-JSON. Von dort stammte er vorher, und ein `../` darin ließ
+     * den Pfad aus dem Backup-Verzeichnis herausführen - `delete()` entfernte die Datei
+     * dann dort, wo der Verweis hinzeigte. Nur die Endung darf aus den Metadaten kommen:
+     * sie entscheidet nichts über den Ort.
+     *
      * @param array<string,mixed> $metadata
      */
-    private function resolveDataPath(array $metadata): ?string
+    private function resolveDataPath(string $id, array $metadata): ?string
     {
-        if (!isset($metadata['id'])) {
+        if (!preg_match(self::ID_PATTERN, $id)) {
             return null;
         }
 
         $extension = ($metadata['gzip'] ?? true) ? '.sql.gz' : '.sql';
 
-        return $this->backupDir . '/' . $metadata['id'] . $extension;
+        return $this->backupDir . '/' . $id . $extension;
     }
 
     private function assertValidId(string $id): void

@@ -300,4 +300,54 @@ final class BackupServiceTest extends TestCase
         $this->assertArrayHasKey('mail_key_id', $metadata);
         $this->assertNull($metadata['mail_key_id']);
     }
+
+    /**
+     * `delete()`, `getFile()` und `restore()` prüfen die übergebene Kennung gegen ein festes
+     * Muster, bauen den Pfad der Datendatei aber aus `id` **innerhalb** der Metadaten-JSON.
+     * Trägt die ein `../`, zeigte der Pfad aus dem Backup-Verzeichnis heraus - und `delete()`
+     * entfernte die Datei dort. Die geprüfte Kennung ist die einzige, die den Pfad bestimmen darf.
+     */
+    public function testDeleteNeverFollowsAForeignPathFromTheMetadataFile(): void
+    {
+        $service = $this->makeService();
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+        $id = (string) $metadata['id'];
+
+        $outsidePath = sys_get_temp_dir() . '/chormanager_outside_' . bin2hex(random_bytes(4)) . '.sql.gz';
+        file_put_contents($outsidePath, 'fremde Datei');
+
+        // Die Metadaten zeigen auf die fremde Datei, die Kennung der Datei selbst bleibt gültig.
+        $metaPath = $this->backupDir . '/' . $id . '.json';
+        $tampered = $metadata;
+        $tampered['id'] = '../' . basename($outsidePath, '.sql.gz');
+        file_put_contents($metaPath, (string) json_encode($tampered));
+
+        try {
+            $service->delete($id);
+
+            $this->assertFileExists($outsidePath, 'Die Datei ausserhalb des Backup-Verzeichnisses wurde entfernt.');
+        } finally {
+            if (file_exists($outsidePath)) {
+                unlink($outsidePath);
+            }
+        }
+    }
+
+    /**
+     * Ein Eintrag, dessen Metadaten eine andere Kennung tragen als ihre Datei, ist nicht
+     * stimmig und gehört nicht in die Liste - sonst stünde dort ein Backup, dessen Daten
+     * woanders liegen.
+     */
+    public function testListSkipsEntriesWhoseMetadataIdDoesNotMatchTheFileName(): void
+    {
+        $service = $this->makeService();
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+        $id = (string) $metadata['id'];
+
+        $tampered = $metadata;
+        $tampered['id'] = '../etc/passwd';
+        file_put_contents($this->backupDir . '/' . $id . '.json', (string) json_encode($tampered));
+
+        $this->assertSame([], $service->list());
+    }
 }

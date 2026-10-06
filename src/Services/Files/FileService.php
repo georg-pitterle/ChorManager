@@ -602,6 +602,12 @@ final class FileService
         }
         $stream->rewind();
         $out = fopen($temp, 'wb');
+        if ($out === false) {
+            // Ohne diese Prüfung lief der Schreibvorgang unten auf `fwrite(false, ...)`
+            // und endete als TypeError - statt als Fehler, der sagt, woran es lag.
+            @unlink($temp);
+            throw new \RuntimeException('Could not open temporary file for the upload.');
+        }
         while (!$stream->eof()) {
             fwrite($out, $stream->read(1024 * 1024));
         }
