@@ -110,6 +110,48 @@
                         <a href="/registrations" class="btn btn-outline-primary">Zu den Anmeldungen</a>
                     </article>
                 {% endif %}
+
+                {% if storage_tile %}
+                    {% set _storage = storage_tile.summary %}
+                    <article class="surface-card dashboard-panel dashboard-panel--action">
+                        <div class="dashboard-panel__body">
+                            <p class="dashboard-panel__eyebrow">System</p>
+                            <h3 class="dashboard-panel__title">
+                                <i class="bi bi-hdd"></i>
+                                Speicherplatz
+                            </h3>
+                            {% if _storage is null %}
+                                <p class="dashboard-panel__text mb-0">Speicherplatz nicht ermittelbar.</p>
+                            {% else %}
+                                <p class="dashboard-panel__text mb-1">
+                                    <strong>{{ _storage.totalBytes|format_bytes }}</strong> belegt
+                                </p>
+                                <div class="usage-bar" role="img" aria-label="Aufteilung des Speicherplatzes">
+                                    {% set _storage_total = _storage.totalBytes %}
+                                    {% for area in _storage.areas %}
+                                        {% set _area_share = _storage_total > 0 ? area.bytes / _storage_total * 100 : 0 %}
+                                        <span class="usage-bar__fill usage-bar__fill--{{ loop.index }}"
+                                              style="--usage-share: {{ _area_share|round(1) }}%"></span>
+                                    {% endfor %}
+                                </div>
+                                <ul class="usage-legend">
+                                    {% for area in _storage.areas %}
+                                        <li>
+                                            {% set _swatch = "usage-bar__fill usage-bar__fill--" ~ loop.index %}
+                                            <span class="usage-legend__swatch {{ _swatch }}"></span>
+                                            {{ area.label }}:
+                                            {{ area.failed ? "nicht ermittelbar" : area.bytes|format_bytes }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                                <p class="dashboard-panel__text small text-muted mb-0 mt-2">
+                                    Stand: {{ _storage.generatedAt|date("d.m.Y H:i") }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <a href="/storage" class="btn btn-outline-secondary">Details</a>
+                    </article>
+                {% endif %}
             </div>
         </section>
 

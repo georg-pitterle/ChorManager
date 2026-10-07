@@ -361,6 +361,18 @@
                                         {% endfor %}
                                     </tr>
                                     <tr>
+                                        <th scope="row" class="roles-matrix-label">Speicherplatz-Verwaltung</th>
+                                        {% for role in roles %}
+                                            <td data-label="{{ role.name }}" class="text-center align-middle">
+                                                {% if role.can_manage_storage %}
+                                                    <span class="badge rounded-pill bg-success" aria-label="Ja" title="Ja"><i class="bi bi-check-lg text-white"></i></span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill bg-danger" aria-label="Nein" title="Nein"><i class="bi bi-x-lg text-white"></i></span>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
                                         <th scope="row" class="roles-matrix-label">Aktive Mitglieder</th>
                                         {% for role in roles %}
                                             <td data-label="{{ role.name }}" class="text-center align-middle">
@@ -401,6 +413,7 @@
                                                             data-tasks="{{ role.can_manage_tasks ? '1' : '0' }}"
                                                             data-backups="{{ role.can_manage_backups ? '1' : '0' }}"
                                                             data-files="{{ role.can_manage_files ? '1' : '0' }}"
+                                                            data-storage="{{ role.can_manage_storage ? '1' : '0' }}"
                                                             data-own-voice-group="{{ role.can_manage_own_voice_group ? '1' : '0' }}"
                                                             data-assign-own-voice-group-project="{{ role.can_assign_own_voice_group_to_project ? '1' : '0' }}">
                                                         <i class="bi bi-pencil"></i> Bearbeiten
@@ -785,6 +798,18 @@
                         <input class="form-check-input"
                                type="checkbox"
                                role="switch"
+                               id="can_manage_storage"
+                               name="can_manage_storage"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="can_manage_storage">Speicherplatz-Verwaltung</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person die Übersicht über den belegten Speicherplatz sehen.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
                                id="can_manage_own_voice_group"
                                name="can_manage_own_voice_group"
                                value="1">
@@ -1131,6 +1156,18 @@
                         <label class="form-check-label fw-bold text-primary"
                                for="edit_can_manage_backups">Backup-Verwaltung</label>
                         <div class="form-text">Wenn aktiv, darf diese Person Datenbank-Backups erstellen, herunterladen, löschen und wiederherstellen.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="edit_can_manage_storage"
+                               name="can_manage_storage"
+                               value="1">
+                        <label class="form-check-label fw-bold text-primary"
+                               for="edit_can_manage_storage">Speicherplatz-Verwaltung</label>
+                        <div class="form-text">Wenn aktiv, darf diese Person die Übersicht über den belegten Speicherplatz sehen.</div>
                     </div>
 
                     <div class="form-check form-switch mb-3">

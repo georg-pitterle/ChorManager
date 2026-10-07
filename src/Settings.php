@@ -89,6 +89,12 @@ return function (ContainerBuilder $containerBuilder) {
                 'gzip' => EnvHelper::readBool('BACKUP_GZIP', true),
                 'app_version' => EnvHelper::read('APP_VERSION', 'dev'),
             ],
+            // Speicherplatz-Übersicht: Kurzfassung für die Dashboard-Kachel und das
+            // Verzeichnis, dessen übrige Unterordner unter "Sonstiges" erscheinen.
+            'storage' => [
+                'summary_cache' => __DIR__ . '/../var/cache/storage-usage-summary.json',
+                'var_dir' => __DIR__ . '/../var',
+            ],
         ],
     ]);
 };

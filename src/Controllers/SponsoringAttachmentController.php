@@ -11,6 +11,7 @@ use App\Models\Attachment;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Policies\SponsoringPolicy;
+use App\Util\ByteFormatter;
 
 /**
  * Zentrale Sammlung aller Sponsoring-Anhänge.
@@ -159,22 +160,9 @@ class SponsoringAttachmentController
             'name_sort'         => mb_strtolower((string) $attachment->original_name),
             'mime_type'         => (string) $attachment->mime_type,
             'size_bytes'        => (int) $attachment->file_size,
-            'size_display'      => $this->formatSize((int) $attachment->file_size),
+            'size_display'      => ByteFormatter::format((int) $attachment->file_size),
             'created_at_display' => $createdAt ? $createdAt->format('d.m.Y') : '–',
             'created_at_sort'   => $createdAt ? $createdAt->format('Y-m-d') : '',
         ];
-    }
-
-    private function formatSize(int $bytes): string
-    {
-        if ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 1, ',', '.') . ' MB';
-        }
-
-        if ($bytes >= 1024) {
-            return number_format($bytes / 1024, 0, ',', '.') . ' KB';
-        }
-
-        return $bytes . ' B';
     }
 }

@@ -100,6 +100,10 @@ class NavigationLayoutSeamFeatureTest extends TestCase
             'person_name',
             static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
         ));
+        $environment->addFilter(new \Twig\TwigFilter(
+            'format_bytes',
+            static fn (mixed $bytes): string => \App\Util\ByteFormatter::format((int) $bytes)
+        ));
         $environment->addGlobal('settings', $settings);
         $environment->addGlobal('session', $_SESSION);
         $this->registerMailBadgeStub($environment);

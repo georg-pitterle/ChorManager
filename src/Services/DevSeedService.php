@@ -445,6 +445,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 1,
                 'can_manage_backups' => 1,
                 'can_manage_files' => 1,
+                'can_manage_storage' => 1,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
             ],

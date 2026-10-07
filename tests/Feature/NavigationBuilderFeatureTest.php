@@ -286,6 +286,15 @@ class NavigationBuilderFeatureTest extends TestCase
         $this->assertSame(['/backups'], array_column($administration['items'], 'url'));
     }
 
+    public function testStorageItemFollowsTheStorageRight(): void
+    {
+        $administration = $this->section($this->build(['can_manage_storage' => true]), 'administration');
+
+        $this->assertNotNull($administration);
+        $this->assertSame(['/storage'], array_column($administration['items'], 'url'));
+        $this->assertNotContains('/storage', $this->urls($this->build(['can_manage_backups' => true])));
+    }
+
     public function testAdminSeesFullStructure(): void
     {
         $urls = $this->urls($this->build(self::ADMIN_PERMISSIONS, self::ALL_MODULES));

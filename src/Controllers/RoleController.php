@@ -96,6 +96,7 @@ class RoleController
             'can_manage_tasks' => isset($data['can_manage_tasks']) ? 1 : 0,
             'can_manage_backups' => isset($data['can_manage_backups']) ? 1 : 0,
             'can_manage_files' => isset($data['can_manage_files']) ? 1 : 0,
+            'can_manage_storage' => isset($data['can_manage_storage']) ? 1 : 0,
             'can_manage_own_voice_group' => isset($data['can_manage_own_voice_group']) ? 1 : 0,
             'can_assign_own_voice_group_to_project' =>
                 isset($data['can_assign_own_voice_group_to_project']) ? 1 : 0,
@@ -383,6 +384,7 @@ class RoleController
                 'can_manage_tasks' => $permissions['can_manage_tasks'],
                 'can_manage_backups' => $permissions['can_manage_backups'],
                 'can_manage_files' => $permissions['can_manage_files'],
+                'can_manage_storage' => $permissions['can_manage_storage'],
                 'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group'],
                 'can_assign_own_voice_group_to_project' =>
                     $permissions['can_assign_own_voice_group_to_project']
@@ -494,6 +496,7 @@ class RoleController
                 'can_manage_tasks' => $permissions['can_manage_tasks'],
                 'can_manage_backups' => $permissions['can_manage_backups'],
                 'can_manage_files' => $permissions['can_manage_files'],
+                'can_manage_storage' => $permissions['can_manage_storage'],
                 'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group'],
                 'can_assign_own_voice_group_to_project' =>
                     $permissions['can_assign_own_voice_group_to_project']

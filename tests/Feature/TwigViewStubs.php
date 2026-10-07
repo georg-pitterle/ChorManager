@@ -8,6 +8,7 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\NameFormatterService;
 use App\Util\AttachmentPreview;
+use App\Util\ByteFormatter;
 use Slim\Views\Twig;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
@@ -36,6 +37,10 @@ trait TwigViewStubs
         $environment->addFilter(new TwigFilter(
             'person_name',
             static fn (mixed $person): string => (new NameFormatterService())->formatPerson($person)
+        ));
+        $environment->addFilter(new TwigFilter(
+            'format_bytes',
+            static fn (mixed $bytes): string => ByteFormatter::format((int) $bytes)
         ));
         $environment->addGlobal('session', $_SESSION);
         $environment->addGlobal('current_path', $currentPath);

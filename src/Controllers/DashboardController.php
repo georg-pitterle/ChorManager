@@ -7,8 +7,11 @@ namespace App\Controllers;
 use App\Models\Newsletter;
 use App\Models\Project;
 use App\Policies\TaskPolicy;
+use App\Services\Storage\StorageUsageService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 
 class DashboardController
@@ -22,7 +25,9 @@ class DashboardController
         Twig $view,
         \App\Services\MailQueueAdminService $mailQueueAdminService,
         TaskPolicy $taskPolicy,
-        array $settings = []
+        array $settings = [],
+        private readonly ?StorageUsageService $storageUsage = null,
+        private readonly LoggerInterface $logger = new NullLogger()
     ) {
         $this->view = $view;
         $this->mailQueueAdminService = $mailQueueAdminService;
@@ -82,7 +87,24 @@ class DashboardController
             $registrationSummary = (new \App\Services\PendingRegistrationSummaryService())->forUser($userId);
         }
 
+        // Nur die zwischengespeicherte Kurzfassung - das Dashboard soll nicht bei
+        // jedem Aufruf Verzeichnisse durchlaufen. Fehlt sie oder ist sie zu alt,
+        // misst summary() einmal neu.
+        $storageTile = null;
+        if ($this->storageUsage !== null && (bool) ($_SESSION['can_manage_storage'] ?? false)) {
+            try {
+                $storageTile = ['summary' => $this->storageUsage->summary()];
+            } catch (\Throwable $e) {
+                $this->logger->error('Storage tile could not be filled.', [
+                    'event' => 'storage.dashboard_tile_failed',
+                    'exception' => $e,
+                ]);
+                $storageTile = ['summary' => null];
+            }
+        }
+
         $data = [
+            'storage_tile' => $storageTile,
             'current_project' => $currentProject,
             'upcoming_project' => $upcomingProject,
             'latest_sent_newsletter' => $latestSentNewsletter,

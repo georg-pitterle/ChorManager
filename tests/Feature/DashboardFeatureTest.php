@@ -12,7 +12,12 @@ use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Policies\TaskPolicy;
 use App\Services\MailQueueAdminService;
+use App\Services\Storage\StorageUsageNode;
+use App\Services\Storage\StorageUsageProvider;
+use App\Services\Storage\StorageUsageService;
+use App\Util\ByteFormatter;
 use App\Util\PasswordHasher;
+use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -67,6 +72,10 @@ class DashboardFeatureTest extends TestCase
         $environment->addFilter(new TwigFilter(
             'person_name',
             static fn (mixed $person): string => (new \App\Services\NameFormatterService())->formatPerson($person)
+        ));
+        $environment->addFilter(new TwigFilter(
+            'format_bytes',
+            static fn (mixed $bytes): string => ByteFormatter::format((int) $bytes)
         ));
         $environment->addGlobal('settings', $settings);
         $environment->addGlobal('session', $_SESSION);
@@ -318,6 +327,91 @@ class DashboardFeatureTest extends TestCase
         $this->assertStringContainsString('Absagen: {{ registration_summary.no }}', $template);
         $this->assertStringContainsString('Vielleicht: {{ registration_summary.maybe }}', $template);
         $this->assertStringContainsString('href="/registrations"', $template);
+    }
+
+    private function storageService(int $bytes, bool $fails = false): StorageUsageService
+    {
+        $provider = new class ($bytes, $fails) implements StorageUsageProvider {
+            public function __construct(private readonly int $bytes, private readonly bool $fails)
+            {
+            }
+
+            public function key(): string
+            {
+                return 'database';
+            }
+
+            public function label(): string
+            {
+                return 'Datenbank';
+            }
+
+            public function usage(): StorageUsageNode
+            {
+                if ($this->fails) {
+                    throw new \RuntimeException('kaputt');
+                }
+
+                return new StorageUsageNode('database', 'Datenbank', $this->bytes);
+            }
+        };
+
+        $this->storageCache = sys_get_temp_dir() . '/dashboard-storage-' . bin2hex(random_bytes(6)) . '.json';
+
+        return new StorageUsageService([$provider], $this->storageCache, new NullLogger());
+    }
+
+    private string $storageCache = '';
+
+    private function renderDashboard(?StorageUsageService $storage): string
+    {
+        $settings = ['modules' => []];
+        $controller = new DashboardController(
+            $this->createDashboardTwig($settings),
+            new MailQueueAdminService(),
+            new TaskPolicy($_SESSION),
+            $settings,
+            $storage
+        );
+
+        try {
+            return (string) $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse())->getBody();
+        } finally {
+            if ($this->storageCache !== '') {
+                @unlink($this->storageCache);
+            }
+        }
+    }
+
+    public function testStorageTileShowsTotalAndLinkForTheStorageRight(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createUser()->id, 'can_manage_storage' => true];
+
+        $body = $this->renderDashboard($this->storageService(5 * 1048576));
+
+        $this->assertStringContainsString('Speicherplatz', $body);
+        $this->assertStringContainsString('5,0 MB', $body);
+        $this->assertStringContainsString('href="/storage"', $body);
+        $this->assertStringContainsString('Stand:', $body);
+    }
+
+    public function testStorageTileIsHiddenWithoutTheRight(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createUser()->id, 'can_manage_storage' => false];
+
+        $body = $this->renderDashboard($this->storageService(5 * 1048576));
+
+        $this->assertStringNotContainsString('href="/storage"', $body);
+    }
+
+    public function testFailedStorageAreaShowsUnavailableButDashboardRenders(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createUser()->id, 'can_manage_storage' => true];
+
+        $body = $this->renderDashboard($this->storageService(0, true));
+
+        $this->assertStringContainsString('nicht ermittelbar', $body);
+        $this->assertStringContainsString('Schnellzugriff', $body);
     }
 
     public function testDashboardTemplateUsesNeutralCommunicationEmptyState(): void

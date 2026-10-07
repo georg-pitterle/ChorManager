@@ -46,6 +46,7 @@ use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\SheetArchiveController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
+use App\Controllers\StorageController;
 use App\Controllers\DownloadController;
 use App\Controllers\WebdavController;
 use App\Controllers\FileBrowserController;
@@ -848,6 +849,10 @@ return function (App $app) {
                     );
                 }
             )->add(new RoleMiddleware(requiresBackupManagement: true));
+
+            // Speicherplatz-Übersicht
+            $group->get('/storage', [StorageController::class, 'index'])
+                ->add(new RoleMiddleware(requiresStorageManagement: true));
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])

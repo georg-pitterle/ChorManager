@@ -13,6 +13,7 @@ export const PROTECTED_ROUTES = [
     { path: '/song-library', requires: ['can_manage_song_library'] },
     { path: '/admin/mail-queue', requires: ['can_manage_mail_queue'] },
     { path: '/backups', requires: ['can_manage_backups'] },
+    { path: '/storage', requires: ['can_manage_storage'] },
 ];
 
 // Ein Passwort für alle Test-Mitglieder (wird nach dem Anlegen direkt in der DB gesetzt, siehe

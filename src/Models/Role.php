@@ -42,6 +42,7 @@ class Role extends Model
         'can_manage_tasks',
         'can_manage_backups',
         'can_manage_files',
+        'can_manage_storage',
         'can_manage_own_voice_group',
         'can_assign_own_voice_group_to_project',
     ];

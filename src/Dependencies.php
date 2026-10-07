@@ -123,7 +123,14 @@ use App\Middleware\RegistrationReminderMiddleware;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Util\AppUrlResolver;
+use App\Controllers\StorageController;
+use App\Services\Storage\BackupUsageProvider;
+use App\Services\Storage\DatabaseUsageProvider;
+use App\Services\Storage\FileStorageUsageProvider;
+use App\Services\Storage\StorageUsageService;
+use App\Services\Storage\VarDirectoryUsageProvider;
 use App\Util\AttachmentPreview;
+use App\Util\ByteFormatter;
 use App\Util\EnvHelper;
 use App\Policies\NewsletterPolicy;
 use App\Policies\ProjectMemberPolicy;
@@ -420,7 +427,9 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(MailQueueAdminService::class),
                 $c->get(TaskPolicy::class),
-                $c->get('settings')
+                $c->get('settings'),
+                $c->get(StorageUsageService::class),
+                $c->get(LoggerInterface::class)
             );
         },
         RoleController::class => function (ContainerInterface $c) {
@@ -599,6 +608,31 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get('settings')['files']['total_quota_bytes']
             );
         },
+        // Dateiablage nur mit aktivem Modul - ohne sie gibt es weder Dateien noch ein
+        // Ablageverzeichnis, das sich zu zeigen lohnt.
+        StorageUsageService::class => function (ContainerInterface $c): StorageUsageService {
+            $settings = $c->get('settings');
+            $providers = [];
+            if ($settings['modules']['files'] ?? false) {
+                $providers[] = new FileStorageUsageProvider(
+                    $c->get(FileAccessService::class),
+                    $c->get(FileQuotaService::class)
+                );
+            }
+            $providers[] = new DatabaseUsageProvider();
+            $providers[] = new BackupUsageProvider($settings['backup']['dir']);
+            $providers[] = new VarDirectoryUsageProvider(
+                $settings['storage']['var_dir'],
+                [$settings['files']['storage_path'], $settings['backup']['dir']]
+            );
+
+            return new StorageUsageService(
+                $providers,
+                $settings['storage']['summary_cache'],
+                $c->get(LoggerInterface::class)
+            );
+        },
+        StorageController::class => \DI\autowire(),
         FileFolderService::class => \DI\autowire(),
         FileService::class => function (ContainerInterface $c): FileService {
             $files = $c->get('settings')['files'];
@@ -895,6 +929,10 @@ return function (ContainerBuilder $containerBuilder) {
             $environment->addFilter(new TwigFilter(
                 'person_name',
                 static fn (mixed $person): string => $nameFormatter->formatPerson($person)
+            ));
+            $environment->addFilter(new TwigFilter(
+                'format_bytes',
+                static fn (mixed $bytes): string => ByteFormatter::format((int) $bytes)
             ));
 
             return $twig;
