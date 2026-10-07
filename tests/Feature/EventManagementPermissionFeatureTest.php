@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Services\RolePermissionCatalog;
 use App\Services\SessionAuthService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
@@ -144,18 +145,19 @@ final class EventManagementPermissionFeatureTest extends TestCase
 
     public function testRolesUiOffersEventPermission(): void
     {
-        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/roles/index.twig');
+        // Die Bearbeiten-Buttons mit den data-*-Attributen stehen im Übersichts-Partial.
+        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/roles/index.twig')
+            . file_get_contents(dirname(__DIR__, 2) . '/templates/roles/_overview.twig');
         $this->assertIsString($template);
         $this->assertStringContainsString('id="can_manage_events"', $template);
         $this->assertStringContainsString('id="edit_can_manage_events"', $template);
         $this->assertStringContainsString('name="can_manage_events"', $template);
         $this->assertStringContainsString('data-events="', $template);
 
-        $rowPattern = '#<th scope="row" class="roles-matrix-label">Termine verwalten</th>\s*'
-            . '\{% for role in roles %\}\s*'
-            . '<td[^>]*>\s*'
-            . '\{% if role\.can_manage_events %\}#s';
-        $this->assertMatchesRegularExpression($rowPattern, $template);
+        $this->assertContains(
+            ['key' => 'can_manage_events', 'label' => 'Termine verwalten'],
+            array_merge(...array_column(RolePermissionCatalog::groupsForModules([]), 'permissions'))
+        );
 
         $js = file_get_contents(dirname(__DIR__, 2) . '/public/js/roles.js');
         $this->assertIsString($js);

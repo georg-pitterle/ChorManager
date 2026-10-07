@@ -37,7 +37,7 @@ class ActionButtonsConsistencyFeatureTest extends TestCase
     public function testSingleActionTablesStillUseButtonGroupWrapper(): void
     {
         $templatePaths = [
-            dirname(__DIR__) . '/../templates/roles/index.twig',
+            dirname(__DIR__) . '/../templates/roles/_overview.twig',
             dirname(__DIR__) . '/../templates/projects/tasks.twig',
             dirname(__DIR__) . '/../templates/projects/members.twig',
             dirname(__DIR__) . '/../templates/newsletters/archive.twig',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Services\RolePermissionCatalog;
 use DI\ContainerBuilder;
 use PHPUnit\Framework\TestCase;
 use Slim\Factory\AppFactory;
@@ -238,13 +239,15 @@ final class FinanceFeatureFlagTest extends TestCase
         $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
         $this->assertIsString($template);
 
-        // Matrix-Block plus Checkbox-Bloecke im Create- und Edit-Modal: drei Gates noetig.
+        // Checkboxen im Create- und Edit-Modal: zwei Gates. Die Rollenübersicht blendet
+        // das Recht über den Rechte-Katalog aus.
         $gateCount = substr_count($template, '{% if settings.modules.finance %}');
         $this->assertGreaterThanOrEqual(
-            3,
+            2,
             $gateCount,
-            'Finance permission UI (matrix rows, create checkboxes, edit checkboxes) must be feature-gated.'
+            'Finance permission UI (create and edit checkboxes) must be feature-gated.'
         );
+        $this->assertSame('finance', RolePermissionCatalog::moduleGates()['can_read_finances'] ?? null);
     }
 
     public function testEnvExamplesAndProdComposeDocumentFeatureFinance(): void

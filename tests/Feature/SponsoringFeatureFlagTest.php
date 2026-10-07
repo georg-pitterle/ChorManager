@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Services\RolePermissionCatalog;
 use PHPUnit\Framework\TestCase;
 use Slim\Factory\AppFactory;
 
@@ -103,13 +104,15 @@ final class SponsoringFeatureFlagTest extends TestCase
         $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
         $this->assertIsString($template);
 
-        // Matrix-Zeile plus Checkboxen im Create- und Edit-Modal: drei Gates noetig.
+        // Checkboxen im Create- und Edit-Modal: zwei Gates. Die Rollenübersicht blendet
+        // das Recht über den Rechte-Katalog aus.
         $gateCount = substr_count($template, '{% if settings.modules.sponsoring %}');
         $this->assertGreaterThanOrEqual(
-            3,
+            2,
             $gateCount,
-            'Sponsoring permission UI (matrix row, create checkbox, edit checkbox) must be feature-gated.'
+            'Sponsoring permission UI (create and edit checkboxes) must be feature-gated.'
         );
+        $this->assertSame('sponsoring', RolePermissionCatalog::moduleGates()['can_manage_sponsoring'] ?? null);
     }
 
     public function testEnvExamplesAndProdComposeDocumentFeatureSponsoring(): void

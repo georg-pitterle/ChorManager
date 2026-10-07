@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Services\RolePermissionCatalog;
 use PHPUnit\Framework\TestCase;
 
 class RoleSheetArchiveModuleGateFeatureTest extends TestCase
@@ -16,17 +17,9 @@ class RoleSheetArchiveModuleGateFeatureTest extends TestCase
         return $template;
     }
 
-    public function testPermissionMatrixRowIsGatedByModuleFlag(): void
+    public function testOverviewHidesPermissionWhileModuleIsOff(): void
     {
-        $pattern = '#\{% if settings\.modules\.sheet_archive %\}\s*'
-            . '<tr>\s*'
-            . '<th scope="row" class="roles-matrix-label">Notenarchiv verwalten</th>#s';
-
-        $this->assertMatchesRegularExpression(
-            $pattern,
-            $this->template(),
-            'Notenarchiv-Zeile der Rechte-Matrix muss hinter settings.modules.sheet_archive stehen'
-        );
+        $this->assertSame('sheet_archive', RolePermissionCatalog::moduleGates()['can_manage_sheet_archive'] ?? null);
     }
 
     public function testCreateModalCheckboxIsGatedByModuleFlag(): void

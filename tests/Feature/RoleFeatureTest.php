@@ -99,22 +99,15 @@ class RoleFeatureTest extends TestCase
         $this->assertSame('Der Rollenname darf nicht leer sein.', $_SESSION['error']);
     }
 
-    public function testRolesTemplateProvidesDataLabelsForCardView(): void
+    public function testRolesPageShowsOverviewInsteadOfMatrix(): void
     {
         $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
 
         $this->assertIsString($templateContent);
-        $this->assertStringContainsString('data-label="{{ role.name }}"', $templateContent);
-        $this->assertStringContainsString('{{ role.active_users_count }}', $templateContent);
-        $this->assertStringContainsString('text-body-secondary', $templateContent);
-        $this->assertStringContainsString('class="text-center align-middle"', $templateContent);
-        $this->assertStringContainsString('badge rounded-pill bg-success', $templateContent);
-        $this->assertStringContainsString('badge rounded-pill bg-danger', $templateContent);
-        $this->assertStringContainsString('bi bi-check-lg text-white', $templateContent);
-        $this->assertStringContainsString('bi bi-x-lg text-white', $templateContent);
-        $this->assertStringNotContainsString('text-light">Level {{ role.hierarchy_level }}', $templateContent);
-        $this->assertStringNotContainsString('</i> Ja</span>', $templateContent);
-        $this->assertStringNotContainsString('</i> Nein</span>', $templateContent);
+        $this->assertStringContainsString('{{ include("roles/_overview.twig") }}', $templateContent);
+        $this->assertStringContainsString('/js/role-overview.js', $templateContent);
+        $this->assertStringNotContainsString('data-table-engine', $templateContent);
+        $this->assertStringNotContainsString('badge rounded-pill bg-danger', $templateContent);
     }
 
     public function testIndexLoadsActiveUserCountAliasForRoles(): void

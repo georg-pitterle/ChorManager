@@ -20,7 +20,9 @@ final class RoleBackupPermissionFeatureTest extends TestCase
 
     public function testRolesTemplateExposesBackupCheckboxAndTableColumn(): void
     {
-        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+        // Die Bearbeiten-Buttons mit den data-*-Attributen stehen im Übersichts-Partial.
+        $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig')
+            . file_get_contents(dirname(__DIR__) . '/../templates/roles/_overview.twig');
 
         $this->assertIsString($templateContent);
         $this->assertStringContainsString('name="can_manage_backups"', $templateContent);

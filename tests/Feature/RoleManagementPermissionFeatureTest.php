@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\NameFormatterService;
+use App\Services\RolePermissionCatalog;
 use App\Services\SessionAuthService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
@@ -131,18 +132,19 @@ final class RoleManagementPermissionFeatureTest extends TestCase
 
     public function testRolesUiOffersRolePermission(): void
     {
-        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/roles/index.twig');
+        // Die Bearbeiten-Buttons mit den data-*-Attributen stehen im Übersichts-Partial.
+        $template = file_get_contents(dirname(__DIR__, 2) . '/templates/roles/index.twig')
+            . file_get_contents(dirname(__DIR__, 2) . '/templates/roles/_overview.twig');
         $this->assertIsString($template);
         $this->assertStringContainsString('id="can_manage_roles"', $template);
         $this->assertStringContainsString('id="edit_can_manage_roles"', $template);
         $this->assertStringContainsString('name="can_manage_roles"', $template);
         $this->assertStringContainsString('data-roles="', $template);
 
-        $rowPattern = '#<th scope="row" class="roles-matrix-label">Rollen verwalten</th>\s*'
-            . '\{% for role in roles %\}\s*'
-            . '<td[^>]*>\s*'
-            . '\{% if role\.can_manage_roles %\}#s';
-        $this->assertMatchesRegularExpression($rowPattern, $template);
+        $this->assertContains(
+            ['key' => 'can_manage_roles', 'label' => 'Rollen verwalten'],
+            array_merge(...array_column(RolePermissionCatalog::groupsForModules([]), 'permissions'))
+        );
 
         $js = file_get_contents(dirname(__DIR__, 2) . '/public/js/roles.js');
         $this->assertIsString($js);

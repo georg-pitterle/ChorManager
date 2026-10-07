@@ -9,29 +9,14 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\RoleOverview;
+use App\Services\RolePermissionCatalog;
 use App\Util\InputValidator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 class RoleController
 {
-    /**
-     * Permissions whose form controls only exist while their module is active.
-     *
-     * @var array<string,string>
-     */
-    private const MODULE_GATED_PERMISSIONS = [
-        'can_read_finances' => 'finance',
-        'can_manage_finances' => 'finance',
-        'can_manage_budget' => 'budget',
-        'can_manage_sponsoring' => 'sponsoring',
-        'can_create_own_sponsorships' => 'sponsoring',
-        'can_manage_newsletters' => 'newsletter',
-        'can_manage_sheet_archive' => 'sheet_archive',
-        'can_manage_tasks' => 'tasks',
-        'can_manage_files' => 'files',
-    ];
-
     /**
      * Ab diesem Hierarchie-Level darf eine Rolle jedes Recht vergeben, auch eines,
      * das die vergebende Person selbst nicht hält.
@@ -109,7 +94,7 @@ class RoleController
         // A permission belonging to an inactive module has no checkbox in the form, so every
         // save would submit it as absent and silently clear the right. Keep the stored value
         // instead and ignore anything submitted for it - the field can only be forged.
-        foreach (self::MODULE_GATED_PERMISSIONS as $permission => $module) {
+        foreach (RolePermissionCatalog::moduleGates() as $permission => $module) {
             if ((bool) ($modules[$module] ?? false)) {
                 continue;
             }
@@ -324,6 +309,7 @@ class RoleController
             // Für das Löschen zählt jede Zuweisung, auch die eines archivierten Mitglieds.
             'users as assigned_users_count',
         ])->orderBy('hierarchy_level', 'desc')->get();
+        $permissionGroups = RolePermissionCatalog::groupsForModules($this->moduleFlags());
 
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -331,6 +317,8 @@ class RoleController
 
         return $this->view->render($response, 'roles/index.twig', [
             'roles' => $roles,
+            'permission_groups' => $permissionGroups,
+            'overview' => RoleOverview::build($roles, $permissionGroups),
             'success' => $success,
             'error' => $error,
             'role_create_action' => '/roles',

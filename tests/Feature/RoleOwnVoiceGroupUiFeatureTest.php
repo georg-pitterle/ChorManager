@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\RoleController;
 use App\Models\Role;
+use App\Services\RolePermissionCatalog;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -35,7 +36,9 @@ class RoleOwnVoiceGroupUiFeatureTest extends TestCase
 
     public function testRolesTemplateOffersOwnVoiceGroupCheckboxInBothModals(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+        // Die Bearbeiten-Buttons mit den data-*-Attributen stehen im Übersichts-Partial.
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig')
+            . file_get_contents(dirname(__DIR__) . '/../templates/roles/_overview.twig');
         $this->assertIsString($template);
         $this->assertStringContainsString('id="can_manage_own_voice_group"', $template);
         $this->assertStringContainsString('id="edit_can_manage_own_voice_group"', $template);
@@ -43,22 +46,12 @@ class RoleOwnVoiceGroupUiFeatureTest extends TestCase
         $this->assertStringContainsString('data-own-voice-group="', $template);
     }
 
-    public function testRolesTemplateShowsOwnVoiceGroupInPermissionMatrixRow(): void
+    public function testCatalogListsOwnVoiceGroupPermission(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
-        $this->assertIsString($template);
-
-        // The per-role ✓/✗ matrix row is distinct from the modal checkboxes asserted above:
-        // an admin comparing roles must be able to see who holds this right without opening
-        // the edit modal for every role.
-        $rowPattern = '#<th scope="row" class="roles-matrix-label">Eigene Stimmgruppe verwalten</th>\s*'
-            . '\{% for role in roles %\}\s*'
-            . '<td[^>]*>\s*'
-            . '\{% if role\.can_manage_own_voice_group %\}#s';
-        $this->assertMatchesRegularExpression(
-            $rowPattern,
-            $template,
-            'permission matrix must have a dedicated row for Eigene Stimmgruppe verwalten'
+        // Die Rollenübersicht zeigt jedes Recht aus dem Katalog; ohne Eintrag sähe niemand, wer es hält.
+        $this->assertContains(
+            ['key' => 'can_manage_own_voice_group', 'label' => 'Eigene Stimmgruppe verwalten'],
+            array_merge(...array_column(RolePermissionCatalog::groupsForModules([]), 'permissions'))
         );
     }
 

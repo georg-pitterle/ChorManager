@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\RoleController;
 use App\Models\Role;
+use App\Services\RolePermissionCatalog;
 use PHPUnit\Framework\TestCase;
 
 class RoleFilesPermissionFeatureTest extends TestCase
@@ -53,13 +54,9 @@ class RoleFilesPermissionFeatureTest extends TestCase
         $this->assertSame(1, $flags['can_manage_files']);
     }
 
-    public function testPermissionMatrixRowIsGatedByModuleFlag(): void
+    public function testOverviewHidesPermissionWhileModuleIsOff(): void
     {
-        $pattern = '#\{% if settings\.modules\.files %\}\s*'
-            . '<tr>\s*'
-            . '<th scope="row" class="roles-matrix-label">Dateiverwaltung verwalten</th>#s';
-
-        $this->assertMatchesRegularExpression($pattern, $this->template());
+        $this->assertSame('files', RolePermissionCatalog::moduleGates()['can_manage_files'] ?? null);
     }
 
     public function testCreateAndEditCheckboxesAreGatedByModuleFlag(): void

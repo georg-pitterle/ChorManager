@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\RoleController;
+use App\Services\RolePermissionCatalog;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -35,7 +36,9 @@ class RoleAssignOwnVoiceGroupProjectUiFeatureTest extends TestCase
 
     public function testRolesTemplateOffersCheckboxInBothModals(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
+        // Die Bearbeiten-Buttons mit den data-*-Attributen stehen im Übersichts-Partial.
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig')
+            . file_get_contents(dirname(__DIR__) . '/../templates/roles/_overview.twig');
         $this->assertIsString($template);
         $this->assertStringContainsString('id="can_assign_own_voice_group_to_project"', $template);
         $this->assertStringContainsString('id="edit_can_assign_own_voice_group_to_project"', $template);
@@ -43,19 +46,12 @@ class RoleAssignOwnVoiceGroupProjectUiFeatureTest extends TestCase
         $this->assertStringContainsString('data-assign-own-voice-group-project="', $template);
     }
 
-    public function testRolesTemplateShowsAssignOwnVoiceGroupProjectMatrixRow(): void
+    public function testCatalogListsAssignOwnVoiceGroupProjectPermission(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/roles/index.twig');
-        $this->assertIsString($template);
-
-        $rowPattern = '#<th scope="row" class="roles-matrix-label">Eigene Stimmgruppe ins Projekt zuweisen</th>\s*'
-            . '\{% for role in roles %\}\s*'
-            . '<td[^>]*>\s*'
-            . '\{% if role\.can_assign_own_voice_group_to_project %\}#s';
-        $this->assertMatchesRegularExpression(
-            $rowPattern,
-            $template,
-            'permission matrix must have a dedicated row for Eigene Stimmgruppe ins Projekt zuweisen'
+        // Die Rollenübersicht zeigt jedes Recht aus dem Katalog; ohne Eintrag sähe niemand, wer es hält.
+        $this->assertContains(
+            ['key' => 'can_assign_own_voice_group_to_project', 'label' => 'Eigene Stimmgruppe ins Projekt zuweisen'],
+            array_merge(...array_column(RolePermissionCatalog::groupsForModules([]), 'permissions'))
         );
     }
 

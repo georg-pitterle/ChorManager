@@ -69,7 +69,9 @@ final class StoragePermissionFeatureTest extends TestCase
 
     public function testRoleTemplateAndScriptCarryTheRight(): void
     {
-        $template = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/roles/index.twig');
+        // Die Bearbeiten-Buttons mit den data-*-Attributen stehen im Übersichts-Partial.
+        $template = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/roles/index.twig')
+            . file_get_contents(dirname(__DIR__, 2) . '/templates/roles/_overview.twig');
         $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/js/roles.js');
 
         $this->assertStringContainsString('role.can_manage_storage', $template);
