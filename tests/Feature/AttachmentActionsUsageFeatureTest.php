@@ -50,6 +50,13 @@ final class AttachmentActionsUsageFeatureTest extends TestCase
     {
         parent::setUp();
         Bootstrap::setupTestDatabase();
+
+        // Die Twig-Factory startet die PHP-Session, falls noch keine läuft - und
+        // session_start() füllt $_SESSION dabei neu. Ein Recht, das der Test
+        // vorher setzt, wäre danach weg. Im Klassenverbund fiel das nicht auf,
+        // weil ein früherer Test die Session schon gestartet hatte; allein lief
+        // die Sponsoring-Übersicht ohne Recht und zeigte keine Anhänge.
+        $this->container()->get(Twig::class);
         $_SESSION = [];
     }
 
