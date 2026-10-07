@@ -39,7 +39,7 @@ Programme und Skripte (z. B. `.exe`, `.php`, `.sh`) lassen sich nicht hochladen.
 
 ## 4. Vorschau und Download
 
-Ein Klick auf eine PDF-, Bild-, Text- oder MP3-Datei öffnet die **Vorschau** direkt im Browser – Übe-Aufnahmen lassen sich dort abspielen. Alle anderen Dateien werden heruntergeladen. Über **Ordner → Als ZIP herunterladen** holst du einen ganzen Ordner samt Unterordnern auf einmal.
+Ein Klick auf eine PDF-, Bild-, Text- oder MP3-Datei öffnet die **Vorschau** direkt im Browser – Übe-Aufnahmen lassen sich dort abspielen. Office-Dokumente öffnest du über **Bearbeiten** bzw. **Ansehen** im Browser (siehe [Office-Dokumente im Browser bearbeiten](files-office)). Alle anderen Dateien werden heruntergeladen. Über **Ordner → Als ZIP herunterladen** holst du einen ganzen Ordner samt Unterordnern auf einmal.
 
 ## 5. Suchen und anheften
 
@@ -49,6 +49,7 @@ Das Suchfeld oben rechts sucht in allen Ordnern, die du sehen darfst, nach Datei
 
 - [Ordner freigeben](files-sharing) – wer einen Ordner sehen und darin arbeiten darf
 - [Papierkorb und Versionen](files-trash-versions) – Gelöschtes zurückholen, alte Fassungen wiederherstellen
+- [Office-Dokumente im Browser bearbeiten](files-office) – Texte, Tabellen und Präsentationen ohne Herunterladen ändern
 
 ## Häufige Stolperfallen
 

@@ -1,18 +1,39 @@
 # Benachrichtigungen
 
-Der Chor-Manager schickt dir eine E-Mail, wenn etwas passiert, das dich betrifft: eine Aufgabe wird dir zugewiesen, ein Termin verschiebt sich, jemand kommentiert deine Aufgabe. So musst du nicht selbst nachsehen, ob sich etwas getan hat.
+Der Chor-Manager sagt dir Bescheid, wenn etwas passiert, das dich betrifft: eine Aufgabe wird dir zugewiesen, ein Termin verschiebt sich, jemand kommentiert deine Aufgabe. So musst du nicht selbst nachsehen, ob sich etwas getan hat.
 
-Zu Beginn ist alles eingeschaltet. Was du nicht bekommen willst, wählst du in deinem Profil ab – jeder Anlass einzeln.
+Jede Benachrichtigung kommt auf zwei Wegen: als **E-Mail** und in der **Glocke** oben rechts in der Kopfzeile. Zu Beginn ist beides eingeschaltet. Was du nicht bekommen willst, schaltest du in deinem Profil ab – jeden Anlass und jeden Weg einzeln.
 
-> **Berechtigung:** Den Reiter **Benachrichtigungen** im Profil hat jedes Mitglied. Die installationsweiten Schalter unter **Administration → App-Einstellungen** sieht nur, wer das Recht **"Stammdaten verwalten"** hat. Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
+> **Berechtigung:** Die Glocke und den Reiter **Benachrichtigungen** im Profil hat jedes Mitglied. Die installationsweiten Schalter unter **Administration → App-Einstellungen** sieht nur, wer das Recht **"Stammdaten verwalten"** hat. Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
-## 1. Die eigenen Benachrichtigungen einstellen
+## 1. Die Glocke
+
+Die **Glocke** steht in der Kopfzeile links neben dem Personen-Symbol. Eine rote Zahl zeigt, wie viele Benachrichtigungen du noch nicht gelesen hast. Die Zahl aktualisiert sich von selbst, solange die Seite offen ist, und spätestens dann, wenn du in das Browserfenster zurückwechselst.
+
+Ein Klick auf die Glocke klappt die letzten Benachrichtigungen auf. Ungelesene sind farbig hinterlegt; das Symbol links zeigt den Bereich – Aufgabe, Termin, Projekt oder Sponsoring.
+
+![Die aufgeklappte Glocke mit den letzten Benachrichtigungen](images/notifications/04-bell-dropdown.png)
+
+- **Ein Klick auf einen Eintrag** öffnet die Aufgabe, den Termin, das Projekt oder den Sponsor und markiert den Eintrag als gelesen.
+- **Öffnest du das Ziel auf anderem Weg** – etwa die Aufgabe über die Projektplanung –, gelten die Einträge dazu ebenfalls als gelesen.
+- **Alle als gelesen markieren** setzt die Zahl auf null, ohne etwas zu öffnen. Das bloße Aufklappen der Glocke markiert nichts.
+- **Alle anzeigen** führt zur vollständigen Liste.
+
+## 2. Alle Benachrichtigungen
+
+Die Seite **Benachrichtigungen** listet alles, neueste oben. Mit **Nur ungelesene** blendest du Gelesenes aus.
+
+![Die Seite mit allen Benachrichtigungen](images/notifications/05-notifications-page.png)
+
+Gelesene Einträge verschwinden nach 30 Tagen von selbst, ungelesene nach 180 Tagen.
+
+## 3. Die eigenen Benachrichtigungen einstellen
 
 Du findest die Einstellung unter **Profil → Benachrichtigungen**. Das Profil erreichst du oben rechts über das Personen-Symbol.
 
 ![Der Profil-Reiter mit den einzelnen Benachrichtigungen](images/notifications/01-profile-notifications.png)
 
-Jedes Häkchen steht für einen Anlass. Nimmst du es heraus, bekommst du diese eine Art Mail nicht mehr – alle anderen bleiben davon unberührt.
+Jede Zeile steht für einen Anlass, mit je einem Schalter für **E-Mail** und **Glocke**. Schaltest du einen davon aus, bekommst du diesen Anlass auf diesem Weg nicht mehr – der andere Weg und alle anderen Anlässe bleiben davon unberührt. So kannst du etwa Kommentare nur in der Glocke sehen, ohne eine Mail dafür zu bekommen.
 
 | Anlass | Wann er eintritt |
 | --- | --- |
@@ -30,23 +51,23 @@ Die Aufgaben-Anlässe erscheinen nur, wenn das Aufgaben-Modul aktiv ist; die Wie
 
 Am Ende jeder Mail steht, welcher Anlass sie ausgelöst hat, mit einem Link zurück auf diese Seite.
 
-## 2. Was du selbst auslöst, kommt nicht zurück
+## 4. Was du selbst auslöst, kommt nicht zurück
 
-Weist du dir selbst eine Aufgabe zu oder schreibst du einen Kommentar, bekommst du dafür keine Mail – du weißt es ja bereits. Benachrichtigt werden nur die anderen Beteiligten.
+Weist du dir selbst eine Aufgabe zu oder schreibst du einen Kommentar, bekommst du dafür weder eine Mail noch einen Eintrag in der Glocke – du weißt es ja bereits. Benachrichtigt werden nur die anderen Beteiligten.
 
-## 3. Beim Anlegen eines Termins entscheiden
+## 5. Beim Anlegen eines Termins entscheiden
 
 Im Formular für einen Termin sitzt unten das Häkchen **Mitglieder benachrichtigen**. Es ist vorbelegt.
 
 ![Das Häkchen im Formular für einen neuen Termin](images/notifications/03-event-notify-checkbox.png)
 
-Nimm es heraus, wenn du nur eine Kleinigkeit korrigierst. Sonst geht für einen berichtigten Tippfehler eine Mail an die ganze Zielgruppe. Beim **Bearbeiten** eines Termins gilt dasselbe Häkchen.
+Nimm es heraus, wenn du nur eine Kleinigkeit korrigierst. Sonst bekommt für einen berichtigten Tippfehler die ganze Zielgruppe Bescheid. Beim **Bearbeiten** eines Termins gilt dasselbe Häkchen.
 
-Eine **Serie** löst genau **eine** Mail je Empfänger aus, in der alle Termine stehen – nicht eine Mail pro Termin.
+Eine **Serie** löst je Empfänger genau **eine** Mail und **einen** Eintrag in der Glocke aus, in der alle Termine stehen – nicht einen pro Termin.
 
-## 4. Installationsweit steuern
+## 6. Installationsweit steuern
 
-Unter **Administration → App-Einstellungen** steht ein Abschnitt **Benachrichtigungen**. Was dort abgeschaltet ist, verschickt der Chor-Manager für niemanden – auch nicht für Mitglieder, die den Anlass in ihrem Profil angehakt haben.
+Unter **Administration → App-Einstellungen** steht ein Abschnitt **Benachrichtigungen**. Was dort abgeschaltet ist, meldet der Chor-Manager niemandem – weder per Mail noch in der Glocke, auch nicht Mitgliedern, die den Anlass in ihrem Profil eingeschaltet haben.
 
 ![Die installationsweiten Schalter in den App-Einstellungen](images/notifications/02-settings-notifications.png)
 
@@ -59,8 +80,9 @@ Eine **0** schaltet die jeweilige Erinnerung ganz ab.
 
 ## Häufige Stolperfallen
 
-- **Ein abgeschalteter Anlass verschwindet aus dem Profil** – wer ihn dort sucht, findet ihn nicht mehr. Das ist Absicht: Ein Häkchen für etwas, das ohnehin nie kommt, wäre irreführend.
-- **Nur neu Hinzugekommene werden benachrichtigt** – änderst du die Zuweisung einer Aufgabe, bekommen nur die neuen Personen eine Mail. Wer schon eingetragen war, weiß es bereits.
-- **Private Bemerkungen bleiben privat** – eine Bemerkung mit dem Häkchen "Privat" löst keine Mail aus.
-- **Abgesagte Termine kommen ohne Link** – der Termin ist gelöscht, ein Link ginge ins Leere. Die Mail nennt Titel und Datum, damit du ihn im eigenen Kalender findest.
+- **Ein abgeschalteter Anlass verschwindet aus dem Profil** – wer ihn dort sucht, findet ihn nicht mehr. Das ist Absicht: Ein Schalter für etwas, das ohnehin nie kommt, wäre irreführend.
+- **Keine E-Mail-Adresse hinterlegt** – dann kommt nur der Eintrag in der Glocke.
+- **Nur neu Hinzugekommene werden benachrichtigt** – änderst du die Zuweisung einer Aufgabe, bekommen nur die neuen Personen Bescheid. Wer schon eingetragen war, weiß es bereits.
+- **Private Bemerkungen bleiben privat** – eine Bemerkung mit dem Häkchen "Privat" löst keine Benachrichtigung aus.
+- **Abgesagte Termine kommen ohne Link zum Termin** – er ist gelöscht. Mail und Glocke nennen Titel und Datum, damit du ihn im eigenen Kalender findest; der Eintrag in der Glocke führt zur Terminliste.
 - **Erinnerungen kommen nur vorher, nicht nachher** – eine bereits überfällige Aufgabe wird nicht täglich angemahnt.

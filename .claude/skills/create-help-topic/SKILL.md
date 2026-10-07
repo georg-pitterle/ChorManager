@@ -65,12 +65,12 @@ Vor dem Start folgende Punkte klären (wenn nicht bereits aus dem Kontext bekann
 Seed-Lauf erzeugt realistische Testdaten. Immer `reset-and-seed` verwenden, damit der Zustand deterministisch ist.
 
 ```powershell
-ddev exec curl -s -X POST "http://localhost/dev/seed" `
-  -H "Content-Type: application/json" `
-  -d '{"mode":"reset-and-seed","years":3}'
+ddev php bin/dev_seed.php --mode=reset-and-seed --years=3
 ```
 
-**Erfolg prüfen**: Antwort enthält `"status":"ok"` und eine Zählerübersicht. Bei Fehler → stoppen, Fehler melden.
+Die HTTP-Route `/dev/seed` ist dafür nicht geeignet: Ohne Anmeldung leitet sie auf den Login um (302) und seedet nichts.
+
+**Erfolg prüfen**: Der Lauf endet mit Exit-Code 0 und der Logzeile `"event":"dev_seed.completed"` samt Zählerübersicht (`report`). Bei `"event":"dev_seed.failed"` oder einem anderen Exit-Code → stoppen, Fehler melden. Die Ausgabe ist lang (eine JSON-Zeile je Ereignis), deshalb nur die Abschlusszeile prüfen.
 
 Seed-Zugangsdaten für Screenshots:
 - E-Mail: `seed.001@chor.local`

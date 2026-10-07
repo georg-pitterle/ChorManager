@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Erstellt Screenshots der Benachrichtigungs-Einstellungen für die
+ * Erstellt Screenshots der Benachrichtigungen (Einstellungen und Glocke) für die
  * How-To-Dokumentation (help/notifications/docs/).
  *
  * Nutzung:
@@ -141,6 +141,24 @@ async function main() {
         );
         await page.locator('#notify-members-create').scrollIntoViewIfNeeded();
         await shotModal(page, '03-event-notify-checkbox');
+
+        // 4. Die Glocke in der Kopfzeile, aufgeklappt. Die Liste lädt erst beim Öffnen.
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle' });
+        await clickAndWaitForEvent(
+            page,
+            page.locator('.notification-bell-trigger'),
+            '[data-notification-bell]',
+            'shown.bs.dropdown'
+        );
+        await page.waitForFunction(() => {
+            const list = document.querySelector('[data-notification-bell-list]');
+            return list && !list.textContent.includes('Wird geladen');
+        });
+        await shotModal(page, '04-bell-dropdown');
+
+        // 5. Die Seite mit allen Benachrichtigungen
+        await page.goto(`${BASE_URL}/notifications`, { waitUntil: 'networkidle' });
+        await shot(page, '05-notifications-page');
 
         console.log('Fertig: alle Screenshots zu den Benachrichtigungen erstellt.');
     } finally {
