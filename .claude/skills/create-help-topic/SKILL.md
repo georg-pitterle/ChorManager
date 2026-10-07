@@ -23,6 +23,78 @@ Vollständiger Workflow zum Erstellen eines neuen Hilfe-Themas inkl. Screenshots
 
 ---
 
+## Arbeitsteilung: Sonnet-Subagent schreibt, Hauptthread prüft
+
+Ein Hilfethema ist überwiegend Fleißarbeit: Templates lesen, Playwright-Skript schreiben
+und so lange nachbessern, bis die Bilder stimmen, deutschen Text verfassen. Das kann Sonnet
+gut und deutlich günstiger. Die teuren Teile – viele Screenshot-Durchläufe, das Ansehen der
+Bilder, das Debuggen von Wartebedingungen – laufen damit im günstigeren Modell.
+
+Schwach wird es bei **Aussagen über Rechte und Sichtbarkeit**: welches Recht eine Kachel
+zeigt, wann ein Menüpunkt fehlt, was eine Stufe erlaubt. Eine falsche Aussage dort
+schickt Leser auf die Suche nach etwas, das sie nie sehen. Deshalb bleibt die Prüfung
+beim Hauptthread.
+
+| Schritt | Wer |
+|---|---|
+| Thema klären (Schritt 1), Rückfragen an den Nutzer | Hauptthread |
+| Umgebung vorbereiten: Seed-Lauf (Schritt 2), ggf. optionale Container (z. B. `ddev start --profiles=collabora`) | Hauptthread, **einmal** vor allen Dispatches |
+| Screenshot-Skript, Screenshots, Markdown, Verweise im Oberthema (Schritte 3–5) | Sonnet-Subagent, ein Dispatch je Thema |
+| Aussagen gegen den Code prüfen, Stichprobe der Bilder, `phpunit --filter Help`, Commit | Hauptthread |
+
+**Wann nicht delegieren:** Bei kleinen Änderungen – ein Absatz, ein Bild neu, ein
+Klickpfad korrigiert – inline arbeiten. Der Subagent startet kalt und müsste den Kontext
+erst nachbauen.
+
+**Mehrere Themen** dürfen parallel laufen, weil der Seed vorher einmal gelaufen ist. Kein
+Subagent darf selbst einen `reset-and-seed` starten – er würde die Daten unter den
+laufenden Screenshots der anderen löschen.
+
+### Dispatch
+
+`Agent` mit `model: "sonnet"`, im Vordergrund (`run_in_background: false`), Prompt nach
+dieser Vorlage:
+
+```
+Erstelle das Hilfethema "<Titel>" für ChorManager nach dem Skill
+.claude/skills/create-help-topic/SKILL.md (Schritte 3–5; lies den Skill zuerst).
+
+- Slug / Dateien: help/<slug>/docs/<slug>[-<bereich>].md
+- Umfang: <welche Seiten, Funktionen, Abläufe>
+- Bekannt aus dem Hauptthread: <Commits, Specs unter docs/superpowers/specs/, relevante
+  Templates und Controller, Besonderheiten der Umgebung>
+- Verweise: <in welchem Oberthema unter "Anleitungen" verlinkt wird>
+
+Die Umgebung ist vorbereitet: Seed lief (reset-and-seed), <Container> laufen.
+Starte KEINEN Seed-Lauf. Keine Commits. Alle Befehle im Vordergrund.
+
+Jede Aussage über Rechte, Sichtbarkeit, Stufen und Bedingungen leitest du aus dem
+Code ab, nicht aus Vermutungen. Recht-Labels aus templates/roles/index.twig,
+Sichtbarkeit aus src/Navigation/NavigationBuilder.php, Kachel-/Knopf-Bedingungen aus
+Template und Controller.
+
+Sieh dir jedes Screenshot nach der Aufnahme an (Read) und nimm es neu auf, wenn etwas
+verdeckt, abgeschnitten, leer oder mitten in einer Animation ist.
+
+Berichte am Ende:
+1. Geänderte und neue Dateien
+2. Screenshots mit Abmessungen (Breite x Höhe)
+3. Liste aller Aussagen über Rechte/Sichtbarkeit/Bedingungen, je mit Quelle (Datei:Zeile)
+4. Was du nicht klären konntest
+```
+
+### Prüfung im Hauptthread
+
+1. **Aussagenliste** aus dem Bericht gegen die genannten Quellen prüfen. Bei Rechten und
+   Sichtbarkeit jede Zeile, nicht nur Stichproben.
+2. **Bilder**: Abmessungen ansehen (Faustregel ~2000 px Höhe) und die Bilder mit Modal,
+   Dropdown oder eingebettetem Editor öffnen – dort gehen Aufnahmen am ehesten schief.
+3. **Markdown** einmal ganz lesen: Rollennamen, Umlaute, Bildpfade, Berechtigungs-Blockquote.
+4. `ddev php vendor/bin/phpunit --filter Help` und die Seite unter `/help/{slug}` laden.
+5. Kleine Fehler selbst beheben, keinen Fix-Subagenten dispatchen.
+
+---
+
 ## Verzeichnisstruktur
 
 Jedes Hilfe-Thema liegt in einem eigenen Ordner unter `help/`:
