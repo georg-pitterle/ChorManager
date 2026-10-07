@@ -381,7 +381,7 @@ class FinanceJournalService
             'user_first_name' => $actor?->first_name,
             'user_last_name' => $actor?->last_name,
             'action' => $action,
-            'change_set' => $changes === [] ? null : json_encode($changes, JSON_UNESCAPED_UNICODE),
+            'change_set' => $changes === [] ? null : $changes,
             'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
         ]);
     }

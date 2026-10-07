@@ -212,7 +212,7 @@ class MailQueueService
             'subject' => $subject,
             'body_html' => $bodyHtml,
             'payload_json' => $payload,
-            'status' => 'queued',
+            'status' => MailQueue::STATUS_QUEUED,
             'attempts' => 0,
             'max_attempts' => 3,
             'is_retryable' => false,

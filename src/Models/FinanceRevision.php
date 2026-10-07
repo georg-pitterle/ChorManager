@@ -31,8 +31,19 @@ class FinanceRevision extends Model
         'created_at',
     ];
 
+    /**
+     * `change_set` als `json:unicode` und nicht als `array`: Beide decodieren
+     * beim Lesen gleich, aber `array` schreibt Umlaute als `\uXXXX`. Die Spalte
+     * ist das Journal des Kassabuchs - wer darin einmal per SQL nachsieht, soll
+     * "Grüße" lesen und nicht "Gr\u00fc\u00dfe". `json:unicode` schreibt
+     * byte-identisch das, was FinanceJournalService vorher von Hand mit
+     * `json_encode(..., JSON_UNESCAPED_UNICODE)` erzeugt hat.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
         'created_at' => 'datetime',
+        'change_set' => 'json:unicode',
     ];
 
     public function finance()
@@ -75,16 +86,16 @@ class FinanceRevision extends Model
     /**
      * Decoded change set: field => ['from' => mixed, 'to' => mixed].
      *
+     * Das Decodieren erledigt der Cast; hier bleibt nur die Zusicherung, dass
+     * ein Aufrufer immer ein Array bekommt. `null` steht für "nichts geändert"
+     * (ACTION_LOCK schreibt das), und eine unlesbare Zeile soll die
+     * Journalansicht nicht abbrechen lassen.
+     *
      * @return array<string, array{from: mixed, to: mixed}>
      */
     public function changeSet(): array
     {
-        $raw = $this->getAttribute('change_set');
-        if (!is_string($raw) || $raw === '') {
-            return [];
-        }
-
-        $decoded = json_decode($raw, true);
+        $decoded = $this->getAttribute('change_set');
 
         return is_array($decoded) ? $decoded : [];
     }

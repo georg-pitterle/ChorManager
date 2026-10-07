@@ -51,11 +51,18 @@ class Project extends Model
     }
 
     /**
-     * Events whose audience names this project in at least one row. Returns a
-     * query builder (events are not bound to a project by a foreign key; the
-     * link runs through the audience filters).
+     * Termine, deren Zielgruppe dieses Projekt in mindestens einer Zeile nennt.
+     * Liefert einen Query Builder - ein Termin hängt nicht per Fremdschlüssel an
+     * einem Projekt, die Verbindung läuft über die Zielgruppen-Filter.
+     *
+     * Heißt bewusst `eventsQuery()` und nicht `events()`: Eine parameterlose
+     * `events()` hält Eloquent beim Property-Zugriff für eine Relation und
+     * wirft "must return a relationship instance", sobald jemand `project.events`
+     * schreibt - und genau das schreibt ein Template, ohne zu ahnen, dass hier
+     * keine Relation steht. Gleiche Begründung wie bei
+     * Finance::getIsReversalAttribute().
      */
-    public function events()
+    public function eventsQuery()
     {
         return Event::query()->forProject((int) $this->id);
     }

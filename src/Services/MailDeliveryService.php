@@ -69,8 +69,8 @@ class MailDeliveryService
 
             $entry->refresh();
 
-            if ($entry->status === 'sent') {
-                if ($entry->delivery_status === 'skipped') {
+            if ($entry->status === MailQueue::STATUS_SENT) {
+                if ($entry->delivery_status === MailQueue::DELIVERY_STATUS_SKIPPED) {
                     $stats['skipped']++;
                     continue;
                 }
@@ -79,17 +79,17 @@ class MailDeliveryService
                 continue;
             }
 
-            if ($entry->status === 'skipped') {
+            if ($entry->status === MailQueue::STATUS_SKIPPED) {
                 $stats['skipped']++;
                 continue;
             }
 
-            if ($entry->status === 'dead') {
+            if ($entry->status === MailQueue::STATUS_DEAD) {
                 $stats['dead']++;
                 continue;
             }
 
-            if ($entry->status === 'failed') {
+            if ($entry->status === MailQueue::STATUS_FAILED) {
                 $stats['failed']++;
             }
         }
@@ -106,7 +106,7 @@ class MailDeliveryService
         $threshold = $now->copy()->subMinutes($minutes);
 
         $staleEntries = MailQueue::query()
-            ->where('status', 'sending')
+            ->where('status', MailQueue::STATUS_SENDING)
             ->where('updated_at', '<=', $threshold)
             ->get();
 
@@ -119,10 +119,10 @@ class MailDeliveryService
 
             $affected = MailQueue::query()
                 ->where('id', $entry->id)
-                ->where('status', 'sending')
+                ->where('status', MailQueue::STATUS_SENDING)
                 ->where('updated_at', '<=', $threshold)
                 ->update([
-                    'status' => $isDead ? 'dead' : 'failed',
+                    'status' => $isDead ? MailQueue::STATUS_DEAD : MailQueue::STATUS_FAILED,
                     'is_retryable' => !$isDead,
                     'next_attempt_at' => $isDead ? null : $now,
                     'last_attempt_at' => $now,
@@ -153,12 +153,12 @@ class MailDeliveryService
      */
     public function sendEntry(MailQueue $entry): void
     {
-        // Prevent double-send: set to 'sending' atomically
+        // Prevent double-send: set to STATUS_SENDING atomically
         $claimTimestamp = Carbon::now();
         $updated = MailQueue::where('id', $entry->id)
             ->where('status', $entry->status)
             ->update([
-                'status' => 'sending',
+                'status' => MailQueue::STATUS_SENDING,
                 'updated_at' => $claimTimestamp,
             ]);
 
@@ -191,8 +191,8 @@ class MailDeliveryService
 
             if ($success && $isSkipped) {
                 $entry->update([
-                    'status' => 'skipped',
-                    'delivery_status' => 'skipped',
+                    'status' => MailQueue::STATUS_SKIPPED,
+                    'delivery_status' => MailQueue::DELIVERY_STATUS_SKIPPED,
                     'provider_name' => (string) ($result['provider_name'] ?? 'disabled'),
                     'provider_message_id' => null,
                     'accepted_at' => null,
@@ -213,8 +213,8 @@ class MailDeliveryService
                 $now = Carbon::now();
 
                 $entry->update([
-                    'status' => 'sent',
-                    'delivery_status' => 'accepted',
+                    'status' => MailQueue::STATUS_SENT,
+                    'delivery_status' => MailQueue::DELIVERY_STATUS_ACCEPTED,
                     'provider_name' => (string) (
                         $result['provider_name']
                         ?? ($this->mailer->isUsingSmtp() ? 'smtp' : 'sendmail')
@@ -294,14 +294,14 @@ class MailDeliveryService
             $nextAttemptAt = Carbon::now()->addSeconds($backoffSeconds);
 
             $entry->update([
-                'status' => 'failed',
+                'status' => MailQueue::STATUS_FAILED,
                 'is_retryable' => true,
                 'next_attempt_at' => $nextAttemptAt,
             ]);
         } else {
             // Dead letter: no more retries
             $entry->update([
-                'status' => 'dead',
+                'status' => MailQueue::STATUS_DEAD,
                 'is_retryable' => false,
             ]);
 

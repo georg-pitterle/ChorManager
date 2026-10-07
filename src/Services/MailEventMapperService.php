@@ -47,7 +47,7 @@ final class MailEventMapperService
 
         if ($normalizedType === 'delivered') {
             $queue->update($baseUpdate + [
-                'delivery_status' => 'delivered',
+                'delivery_status' => MailQueue::DELIVERY_STATUS_DELIVERED,
                 'delivered_at' => $occurredAt,
             ]);
 
@@ -56,7 +56,7 @@ final class MailEventMapperService
 
         if ($normalizedType === 'bounced') {
             $queue->update($baseUpdate + [
-                'delivery_status' => 'bounced',
+                'delivery_status' => MailQueue::DELIVERY_STATUS_BOUNCED,
                 'bounced_at' => $occurredAt,
             ]);
 
@@ -65,7 +65,7 @@ final class MailEventMapperService
 
         if ($normalizedType === 'complained') {
             $queue->update($baseUpdate + [
-                'delivery_status' => 'complained',
+                'delivery_status' => MailQueue::DELIVERY_STATUS_COMPLAINED,
                 'complained_at' => $occurredAt,
             ]);
         }

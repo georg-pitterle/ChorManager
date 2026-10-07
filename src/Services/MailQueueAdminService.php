@@ -167,7 +167,7 @@ class MailQueueAdminService
         }
 
         $entry->update([
-            'status' => 'queued',
+            'status' => MailQueue::STATUS_QUEUED,
             'next_attempt_at' => Carbon::now(),
             'attempts' => 0,
             'error_code' => null,
@@ -186,7 +186,7 @@ class MailQueueAdminService
     public function retryAllDead(): int
     {
         return MailQueue::dead()->update([
-            'status' => 'queued',
+            'status' => MailQueue::STATUS_QUEUED,
             'next_attempt_at' => Carbon::now(),
             'attempts' => 0,
             'error_code' => null,

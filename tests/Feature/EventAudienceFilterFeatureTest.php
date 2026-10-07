@@ -115,7 +115,7 @@ class EventAudienceFilterFeatureTest extends TestCase
 
         $ids = Event::query()->forProject((int) $project->id)->pluck('id')->map(fn ($id): int => (int) $id)->all();
         $this->assertSame([(int) $combined->id], $ids);
-        $this->assertSame([(int) $combined->id], $project->events()->pluck('id')->map(fn ($id): int => (int) $id)->all());
+        $this->assertSame([(int) $combined->id], $project->eventsQuery()->pluck('id')->map(fn ($id): int => (int) $id)->all());
     }
 
     public function testEmptyFormIsRejected(): void

@@ -6,11 +6,13 @@ namespace Tests\Unit\Models;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -27,6 +29,19 @@ use Tests\Unit\Bootstrap;
  */
 final class ModelSchemaConsistencyTest extends TestCase
 {
+    /**
+     * Statuslisten in den Modellen und die Spalte, die jede beschreibt. Nur
+     * Namen, die Vollständigkeit behaupten - eine bewusste Teilmenge heißt
+     * anders (siehe `Attendance::RECORDED_STATUSES`).
+     *
+     * @var array<string, string>
+     */
+    private const STATUS_LIST_COLUMNS = [
+        'STATUSES' => 'status',
+        'SUPPORTED_STATUSES' => 'status',
+        'DELIVERY_STATUSES' => 'delivery_status',
+    ];
+
     /** @var array<string, list<string>>|null */
     private static ?array $columnsByTable = null;
 
@@ -149,9 +164,10 @@ final class ModelSchemaConsistencyTest extends TestCase
      * nach dem Versand fiel durch `isPending()`, `isSent()` und `isFailed()`
      * gleichermaßen hindurch.
      *
-     * Geprüft werden nur Listen, deren Name Vollständigkeit behauptet.
-     * `Attendance::RECORDED_STATUSES` ist bewusst eine Teilmenge - `unknown`
-     * zählt dort nicht als Erfassung - und heißt deshalb anders.
+     * Geprüft werden nur Listen, deren Name Vollständigkeit behauptet, und
+     * jede gegen die Spalte, die sie beschreibt. `Attendance::RECORDED_STATUSES`
+     * ist bewusst eine Teilmenge - `unknown` zählt dort nicht als Erfassung -
+     * und heißt deshalb anders.
      *
      * @param class-string<Model> $class
      */
@@ -162,18 +178,19 @@ final class ModelSchemaConsistencyTest extends TestCase
         $reflection = new ReflectionClass($class);
         $checked = 0;
 
-        foreach (['STATUSES', 'SUPPORTED_STATUSES'] as $name) {
+        foreach (self::STATUS_LIST_COLUMNS as $name => $column) {
             if (!$reflection->hasConstant($name)) {
                 continue;
             }
 
-            $allowed = $this->enumValuesOf($model->getTable(), 'status');
+            $allowed = $this->enumValuesOf($model->getTable(), $column);
 
             self::assertNotSame([], $allowed, sprintf(
-                '%s::%s gibt es, aber "%s.status" ist kein ENUM.',
+                '%s::%s gibt es, aber "%s.%s" ist kein ENUM.',
                 $class,
                 $name,
-                $model->getTable()
+                $model->getTable(),
+                $column
             ));
 
             /** @var list<string> $declared */
@@ -182,10 +199,11 @@ final class ModelSchemaConsistencyTest extends TestCase
             sort($allowed);
 
             self::assertSame($allowed, $declared, sprintf(
-                '%s::%s weicht von "%s.status" ab. ENUM: %s',
+                '%s::%s weicht von "%s.%s" ab. ENUM: %s',
                 $class,
                 $name,
                 $model->getTable(),
+                $column,
                 implode(', ', $allowed)
             ));
             $checked++;
@@ -205,7 +223,7 @@ final class ModelSchemaConsistencyTest extends TestCase
         foreach (self::modelProvider() as [$class]) {
             $reflection = new ReflectionClass($class);
 
-            foreach (['STATUSES', 'SUPPORTED_STATUSES'] as $name) {
+            foreach (array_keys(self::STATUS_LIST_COLUMNS) as $name) {
                 $found += $reflection->hasConstant($name) ? 1 : 0;
             }
         }
@@ -263,6 +281,44 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
+     * Eine parameterlose Methode, die einen Query Builder liefert, muss auf
+     * `Query` enden.
+     *
+     * Eloquent hält beim Property-Zugriff jede parameterlose Methode für eine
+     * Relation: `$model->foo` ruft `foo()` auf und wirft "must return a
+     * relationship instance", wenn dabei keine Relation herauskommt. Ein
+     * Template schreibt aber `projekt.events`, ohne zu wissen, dass dahinter
+     * keine Relation steht - und bekommt dann keinen leeren Wert, sondern einen
+     * Abbruch. Genau so stand `Project::events()` da, bis es `eventsQuery()`
+     * hieß.
+     *
+     * Die Endung ist deshalb kein Geschmack, sondern die Warnung an der
+     * Aufrufstelle.
+     *
+     * @param class-string<Model> $class
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
+    public function testQueryMethodenHeissenAuchSo(string $class): void
+    {
+        $problems = [];
+
+        foreach ($this->builderMethodsOf($class) as $name) {
+            if (str_ends_with($name, 'Query')) {
+                continue;
+            }
+
+            $problems[] = sprintf(
+                '%s::%s() liefert einen Query Builder, heißt aber nicht "...Query". '
+                    . 'Ein Property-Zugriff darauf bricht mit "must return a relationship instance" ab.',
+                $class,
+                $name
+            );
+        }
+
+        self::assertSame([], $problems, implode("\n", $problems));
+    }
+
+    /**
      * Schützt davor, dass der Relationstest oben leer durchläuft, weil die
      * Reflexion keine einzige Relation mehr erkennt.
      */
@@ -307,6 +363,45 @@ final class ModelSchemaConsistencyTest extends TestCase
         }
 
         return $relations;
+    }
+
+    /**
+     * Die parameterlosen Methoden eines Modells, die einen Query Builder und
+     * keine Relation liefern.
+     *
+     * @param class-string<Model> $class
+     * @return list<string>
+     */
+    private function builderMethodsOf(string $class): array
+    {
+        $model = new $class();
+        $names = [];
+
+        foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            if ($method->class !== $class || $method->getNumberOfParameters() > 0 || $method->isStatic()) {
+                continue;
+            }
+
+            if (str_starts_with($method->name, 'get') || str_starts_with($method->name, 'scope')) {
+                continue;
+            }
+
+            try {
+                $result = $model->{$method->name}();
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if ($result instanceof Relation) {
+                continue;
+            }
+
+            if ($result instanceof EloquentBuilder || $result instanceof QueryBuilder) {
+                $names[] = $method->name;
+            }
+        }
+
+        return $names;
     }
 
     /**

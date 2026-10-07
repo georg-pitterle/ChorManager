@@ -193,8 +193,8 @@ class MailQueueFeatureTest extends TestCase
         $this->assertIsString($service);
         $this->assertStringContainsString('processDueEntries', $service);
         $this->assertStringContainsString('MailQueue::dueSoon()', $service);
-        $this->assertStringContainsString("'status' => 'failed'", $service);
-        $this->assertStringContainsString("'status' => 'dead'", $service);
+        $this->assertStringContainsString("'status' => MailQueue::STATUS_FAILED", $service);
+        $this->assertStringContainsString("'status' => MailQueue::STATUS_DEAD", $service);
         $this->assertStringContainsString('classifyError', $service);
         $this->assertStringContainsString('Carbon::now()->addSeconds', $service);
     }

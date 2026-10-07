@@ -127,7 +127,7 @@ class EvaluationController
             if ($selectedProject) {
                 $this->rememberSelectedProject($userId, $projectId);
 
-                $projectEvents = $selectedProject->events()
+                $projectEvents = $selectedProject->eventsQuery()
                     ->where('attendance_required', true)
                     ->where('starts_at', '<=', Carbon::now())
                     ->with('audienceFilters.conditions')

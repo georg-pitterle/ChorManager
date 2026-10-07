@@ -65,9 +65,9 @@ class NewsletterSecurityHardeningFeatureTest extends TestCase
         $modelContent = file_get_contents(dirname(__DIR__) . '/../src/Models/MailQueue.php');
 
         $this->assertIsString($modelContent);
-        $this->assertStringContainsString("where('status', 'queued')", $modelContent);
+        $this->assertStringContainsString("where('status', self::STATUS_QUEUED)", $modelContent);
         $this->assertStringContainsString("orWhere(function (\$retryableFailed)", $modelContent);
-        $this->assertStringContainsString("where('status', 'failed')", $modelContent);
+        $this->assertStringContainsString("where('status', self::STATUS_FAILED)", $modelContent);
         $this->assertStringContainsString("where('is_retryable', true)", $modelContent);
         $this->assertStringContainsString("whereColumn('attempts', '<', 'max_attempts')", $modelContent);
     }
