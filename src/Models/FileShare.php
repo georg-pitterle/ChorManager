@@ -17,9 +17,17 @@ class FileShare extends Model
 {
     public const UPDATED_AT = null;
 
+    /**
+     * Die beiden zulässigen Stufen mit ihrem Label. Die Labels kommen aus
+     * FileFolderShare::LEVEL_LABELS und stehen nicht ein zweites Mal hier -
+     * sonst hieße dieselbe Stufe nach einer Umbenennung an Datei und Ordner
+     * unterschiedlich.
+     *
+     * @var array<int, string>
+     */
     public const LEVELS = [
-        FileFolderShare::LEVEL_READ => 'Lesen',
-        FileFolderShare::LEVEL_EDIT => 'Bearbeiten',
+        FileFolderShare::LEVEL_READ => FileFolderShare::LEVEL_LABELS[FileFolderShare::LEVEL_READ],
+        FileFolderShare::LEVEL_EDIT => FileFolderShare::LEVEL_LABELS[FileFolderShare::LEVEL_EDIT],
     ];
 
     protected $table = 'file_shares';

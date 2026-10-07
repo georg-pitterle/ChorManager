@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudienceConditionSets;
 use App\Services\Audience\AudienceFilterService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
+    use HasAudienceConditionSets;
+
     protected $table = 'events';
     public $timestamps = false;
 
@@ -57,21 +60,6 @@ class Event extends Model
     public function audienceFilters(): HasMany
     {
         return $this->hasMany(AudienceFilter::class, 'event_id', 'id');
-    }
-
-    /**
-     * Bedingungsmengen der Zielgruppe, eine je Zeile. Nutzt eine vorab geladene
-     * Beziehung (`with('audienceFilters.conditions')`).
-     *
-     * @return list<array<string, list<int>>>
-     */
-    public function audienceConditionSets(): array
-    {
-        $filters = $this->relationLoaded('audienceFilters')
-            ? $this->audienceFilters
-            : $this->audienceFilters()->with('conditions')->orderBy('id')->get();
-
-        return $filters->map(static fn (AudienceFilter $filter): array => $filter->conditionSet())->values()->all();
     }
 
     /**

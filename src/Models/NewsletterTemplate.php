@@ -33,9 +33,6 @@ class NewsletterTemplate extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    /**
-     * Empfängerquellen, die beim Laden der Vorlage in den Newsletter übernommen werden.
-     */
     /** Zielgruppen-Zeilen; dazu kommen die Termine aus recipientSources(). */
     public function audienceFilters(): HasMany
     {

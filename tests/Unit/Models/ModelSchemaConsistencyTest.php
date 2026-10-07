@@ -140,6 +140,80 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
+     * Eine Statusliste im Modell muss genau die Werte nennen, die das ENUM erlaubt.
+     *
+     * Ein ENUM wird per Migration erweitert, die Liste im Modell bleibt stehen:
+     * Der neue Wert wird dann geschrieben, aber von keiner Prüfmethode erkannt.
+     * Genau so überlebte `queued` die Migration 20260419223000 ein halbes Jahr,
+     * ohne dass `NewsletterRecipient` es kannte - der normale Zustand direkt
+     * nach dem Versand fiel durch `isPending()`, `isSent()` und `isFailed()`
+     * gleichermaßen hindurch.
+     *
+     * Geprüft werden nur Listen, deren Name Vollständigkeit behauptet.
+     * `Attendance::RECORDED_STATUSES` ist bewusst eine Teilmenge - `unknown`
+     * zählt dort nicht als Erfassung - und heißt deshalb anders.
+     *
+     * @param class-string<Model> $class
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
+    public function testStatuslistenDeckenDasEnumAb(string $class): void
+    {
+        $model = new $class();
+        $reflection = new ReflectionClass($class);
+        $checked = 0;
+
+        foreach (['STATUSES', 'SUPPORTED_STATUSES'] as $name) {
+            if (!$reflection->hasConstant($name)) {
+                continue;
+            }
+
+            $allowed = $this->enumValuesOf($model->getTable(), 'status');
+
+            self::assertNotSame([], $allowed, sprintf(
+                '%s::%s gibt es, aber "%s.status" ist kein ENUM.',
+                $class,
+                $name,
+                $model->getTable()
+            ));
+
+            /** @var list<string> $declared */
+            $declared = array_map('strval', (array) $reflection->getConstant($name));
+            sort($declared);
+            sort($allowed);
+
+            self::assertSame($allowed, $declared, sprintf(
+                '%s::%s weicht von "%s.status" ab. ENUM: %s',
+                $class,
+                $name,
+                $model->getTable(),
+                implode(', ', $allowed)
+            ));
+            $checked++;
+        }
+
+        self::assertGreaterThanOrEqual(0, $checked);
+    }
+
+    /**
+     * Schützt davor, dass der Test oben leer durchläuft, weil keine einzige
+     * Statusliste mehr gefunden wird.
+     */
+    public function testEsGibtUeberhauptStatuslistenZuPruefen(): void
+    {
+        $found = 0;
+
+        foreach (self::modelProvider() as [$class]) {
+            $reflection = new ReflectionClass($class);
+
+            foreach (['STATUSES', 'SUPPORTED_STATUSES'] as $name) {
+                $found += $reflection->hasConstant($name) ? 1 : 0;
+            }
+        }
+
+        self::assertGreaterThanOrEqual(3, $found, 'Es wurde kaum eine Statusliste erkannt.');
+    }
+
+    /**
      * @param class-string<Model> $class
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
@@ -271,6 +345,27 @@ final class ModelSchemaConsistencyTest extends TestCase
         }
 
         return $dateColumns;
+    }
+
+    /**
+     * Die zugelassenen Werte einer ENUM-Spalte. Leer, wenn die Spalte kein ENUM
+     * ist oder es sie nicht gibt.
+     *
+     * @return list<string>
+     */
+    private function enumValuesOf(string $table, string $column): array
+    {
+        $this->loadSchema();
+
+        $type = self::$typesByTable[$table][$column] ?? '';
+
+        if (!preg_match("/^enum\\((.*)\\)$/i", $type, $match)) {
+            return [];
+        }
+
+        preg_match_all("/'((?:[^']|'')*)'/", $match[1], $values);
+
+        return array_map(static fn (string $value): string => str_replace("''", "'", $value), $values[1]);
     }
 
     /**

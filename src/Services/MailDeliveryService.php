@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Exceptions\MailQueueEntryNotClaimableException;
 use App\Models\MailQueue;
+use App\Models\NewsletterRecipient;
 use Carbon\Carbon;
 use Exception;
 use Throwable;
@@ -135,7 +136,7 @@ class MailDeliveryService
             }
 
             if ($isDead && $entry->mail_type === 'newsletter') {
-                $this->syncNewsletterRecipient($entry, 'failed');
+                $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_FAILED);
             }
 
             $repaired++;
@@ -202,7 +203,7 @@ class MailDeliveryService
                 ]);
 
                 if ($entry->mail_type === 'newsletter') {
-                    $this->syncNewsletterRecipient($entry, 'sent');
+                    $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_SENT);
                 }
 
                 return;
@@ -236,7 +237,7 @@ class MailDeliveryService
 
                 // Sync to NewsletterRecipient if applicable
                 if ($entry->mail_type === 'newsletter') {
-                    $this->syncNewsletterRecipient($entry, 'sent');
+                    $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_SENT);
                 }
             } else {
                 // Soft failure: might be retryable
@@ -306,7 +307,7 @@ class MailDeliveryService
 
             // Sync to NewsletterRecipient if applicable
             if ($entry->mail_type === 'newsletter') {
-                $this->syncNewsletterRecipient($entry, 'failed');
+                $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_FAILED);
             }
         }
     }
@@ -381,7 +382,7 @@ class MailDeliveryService
      * Sync mail queue result to NewsletterRecipient.
      *
      * @param MailQueue $entry
-     * @param string $status 'sent' or 'failed'
+     * @param string $status NewsletterRecipient::STATUS_SENT oder ::STATUS_FAILED
      */
     private function syncNewsletterRecipient(MailQueue $entry, string $status): void
     {
@@ -395,7 +396,7 @@ class MailDeliveryService
         }
 
         // Find and update corresponding NewsletterRecipient
-        \App\Models\NewsletterRecipient::where('id', $payload['recipient_id'])
+        NewsletterRecipient::where('id', $payload['recipient_id'])
             ->update(['status' => $status]);
     }
 }

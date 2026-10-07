@@ -8,6 +8,7 @@ use App\Exceptions\NewsletterAttachmentsTooLargeException;
 use App\Exceptions\NewsletterWithoutRecipientsException;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
+use App\Models\NewsletterRecipient;
 use App\Models\User;
 use App\Services\HtmlSanitizer;
 use Carbon\Carbon;
@@ -193,7 +194,7 @@ class NewsletterService
                 // Mark as queued initially. Die Zeile liegt bereits vor - sie erneut
                 // über Newsletter und Mitglied zu suchen kostet je Empfänger eine
                 // zusätzliche Abfrage und trifft dieselbe Zeile.
-                $recipient->update(['status' => 'queued']);
+                $recipient->update(['status' => NewsletterRecipient::STATUS_QUEUED]);
 
                 // Record a per-recipient archive entry so the newsletter shows up
                 // in the recipient's personal archive and can be previewed in-app,
@@ -224,7 +225,7 @@ class NewsletterService
                         'exception' => $e,
                     ]
                 );
-                $recipient->update(['status' => 'failed']);
+                $recipient->update(['status' => NewsletterRecipient::STATUS_FAILED]);
             }
         }
 

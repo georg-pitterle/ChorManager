@@ -92,15 +92,14 @@ class NewsletterRecipientService
      */
     public function audienceOf(Newsletter $newsletter): array
     {
-        $filters = $newsletter->relationLoaded('audienceFilters')
-            ? $newsletter->audienceFilters
-            : $newsletter->audienceFilters()->with('conditions')->orderBy('id')->get();
         $sources = $newsletter->relationLoaded('recipientSources')
             ? $newsletter->recipientSources
             : $newsletter->recipientSources()->orderBy('id')->get();
 
         return [
-            'sets' => $filters->map(static fn ($filter): array => $filter->conditionSet())->values()->all(),
+            // Die Bedingungsmengen kommen aus dem Model (HasAudienceConditionSets)
+            // und nicht mehr aus einer zweiten Fassung derselben Regel hier.
+            'sets' => $newsletter->audienceConditionSets(),
             'event_ids' => $sources->pluck('reference_id')->map(static fn ($id): int => (int) $id)->values()->all(),
         ];
     }
@@ -202,7 +201,7 @@ class NewsletterRecipientService
         foreach ($uniqueUserIds as $userId) {
             $newsletter->recipients()->create([
                 'user_id' => $userId,
-                'status' => 'pending',
+                'status' => NewsletterRecipient::STATUS_PENDING,
             ]);
         }
 

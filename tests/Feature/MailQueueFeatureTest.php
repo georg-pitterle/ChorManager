@@ -206,7 +206,8 @@ class MailQueueFeatureTest extends TestCase
         $this->assertIsString($service);
         $this->assertStringContainsString('syncNewsletterRecipient', $service);
         $this->assertStringContainsString('$payload[\'recipient_id\']', $service);
-        $this->assertStringContainsString('\\App\\Models\\NewsletterRecipient::where(\'id\', $payload[\'recipient_id\'])', $service);
+        $this->assertStringContainsString('use App\\Models\\NewsletterRecipient;', $service);
+        $this->assertStringContainsString('NewsletterRecipient::where(\'id\', $payload[\'recipient_id\'])', $service);
         $this->assertStringContainsString('->update([\'status\' => $status]);', $service);
     }
 

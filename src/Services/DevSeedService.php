@@ -1037,7 +1037,6 @@ class DevSeedService
                 while ($created < $seriesDef['count'] && $cursor <= $endDate->setTime(23, 59, 59)) {
                     $event = Event::create([
                         'title' => $seriesDef['title'] . ' - ' . $project->name,
-                        'project_id' => $project->id,
                         'starts_at' => $cursor->format('Y-m-d') . ' 19:00:00',
                         'ends_at' => $cursor->format('Y-m-d') . ' 21:00:00',
                         'event_type_id' => $eventTypes[$seriesDef['type']]->id,
@@ -1064,7 +1063,6 @@ class DevSeedService
                 $eventDate = $endDate->modify($singleDef['offset'] . ' days')->setTime(19, 0);
                 $event = Event::create([
                     'title' => $singleDef['title'] . ' - ' . $project->name,
-                    'project_id' => $project->id,
                     'starts_at' => $eventDate->format('Y-m-d') . ' 19:00:00',
                     'ends_at' => $eventDate->format('Y-m-d') . ' 21:00:00',
                     'event_type_id' => $eventTypes[$singleDef['type']]->id,
@@ -1087,7 +1085,6 @@ class DevSeedService
 
                 $event = Event::create([
                     'title' => 'Zusatzprobe - ' . $project->name,
-                    'project_id' => $project->id,
                     'starts_at' => $paddingDate->format('Y-m-d') . ' 19:00:00',
                     'ends_at' => $paddingDate->format('Y-m-d') . ' 21:00:00',
                     'event_type_id' => $eventTypes['Probe']->id,
@@ -1419,7 +1416,6 @@ class DevSeedService
             $eventDate = $dates[$i % count($dates)];
             Event::create([
                 'title' => 'Vereinssitzung ' . ($i + 1),
-                'project_id' => null,
                 'starts_at' => $eventDate->format('Y-m-d') . ' 19:00:00',
                 'ends_at' => $eventDate->format('Y-m-d') . ' 21:00:00',
                 'event_type_id' => $eventTypes['Sitzung']->id,
@@ -4560,7 +4556,7 @@ class DevSeedService
                     NewsletterRecipient::create([
                         'newsletter_id' => $newsletter->id,
                         'user_id' => $userId,
-                        'status' => 'sent',
+                        'status' => NewsletterRecipient::STATUS_SENT,
                     ]);
                     $this->report['counts']['newsletter_recipients']++;
 
@@ -4607,7 +4603,7 @@ class DevSeedService
                 NewsletterRecipient::create([
                     'newsletter_id' => $draft->id,
                     'user_id' => $userId,
-                    'status' => 'pending',
+                    'status' => NewsletterRecipient::STATUS_PENDING,
                 ]);
                 $this->report['counts']['newsletter_recipients']++;
             }
@@ -4652,7 +4648,7 @@ class DevSeedService
             NewsletterRecipient::create([
                 'newsletter_id' => $generalDraft->id,
                 'user_id' => $recipient->id,
-                'status' => 'pending',
+                'status' => NewsletterRecipient::STATUS_PENDING,
             ]);
             $this->report['counts']['newsletter_recipients']++;
         }
@@ -4680,7 +4676,7 @@ class DevSeedService
         NewsletterRecipient::create([
             'newsletter_id' => $generalDraft->id,
             'user_id' => $fallbackMember->id,
-            'status' => 'pending',
+            'status' => NewsletterRecipient::STATUS_PENDING,
         ]);
         $this->report['counts']['newsletter_recipients']++;
 
@@ -4722,7 +4718,7 @@ class DevSeedService
             NewsletterRecipient::create([
                 'newsletter_id' => $roleNewsletter->id,
                 'user_id' => $userId,
-                'status' => 'sent',
+                'status' => NewsletterRecipient::STATUS_SENT,
             ]);
             $this->report['counts']['newsletter_recipients']++;
 
@@ -4791,7 +4787,7 @@ class DevSeedService
             NewsletterRecipient::create([
                 'newsletter_id' => $eventDraft->id,
                 'user_id' => $userId,
-                'status' => 'pending',
+                'status' => NewsletterRecipient::STATUS_PENDING,
             ]);
             $this->report['counts']['newsletter_recipients']++;
         }

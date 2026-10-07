@@ -283,7 +283,12 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($serviceContent);
         $this->assertStringContainsString('mailQueueService->enqueueNewsletterMail(', $serviceContent);
         $this->assertStringContainsString("'status' => Newsletter::STATUS_SENT", $serviceContent);
-        $this->assertStringContainsString("'status' => 'queued'", $serviceContent);
+        // Der Empfänger geht in den Warteschlangen-Zustand - benannt über die
+        // Konstante, nicht mehr als Zeichenkette.
+        $this->assertStringContainsString(
+            "'status' => NewsletterRecipient::STATUS_QUEUED",
+            $serviceContent
+        );
     }
 
     public function testMigrationAddsQueuedNewsletterRecipientStatusForQueueWorkflow(): void
