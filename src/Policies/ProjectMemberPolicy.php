@@ -40,6 +40,7 @@ class ProjectMemberPolicy
     private bool $canAssignOwnVoiceGroup;
     /** @var array<int> */
     private array $ownVoiceGroupIds;
+    /** @var array<int>|null */
     private ?array $accessibleProjectIdsCache = null;
 
     /**
@@ -166,18 +167,33 @@ class ProjectMemberPolicy
      */
     public function getAccessibleProjectIds(): array
     {
-        if ($this->accessibleProjectIdsCache !== null) {
-            return $this->accessibleProjectIdsCache;
+        if ($this->accessibleProjectIdsCache === null) {
+            $this->accessibleProjectIdsCache = $this->loadAccessibleProjectIds();
         }
 
+        return $this->accessibleProjectIdsCache;
+    }
+
+    /**
+     * Die Regel hinter getAccessibleProjectIds(), ohne den Zwischenspeicher.
+     *
+     * Getrennt, weil jeder der drei Zweige den Merker zuvor selbst setzte und
+     * danach selbst zurückgab: dieselben zwei Zeilen dreimal, und ein vierter
+     * Zweig hätte sie ein viertes Mal gebraucht. Gesetzt wird der Merker jetzt
+     * an einer Stelle, hier steht nur noch, welche Projekte das jeweilige Recht
+     * umfasst.
+     *
+     * @return array<int>
+     */
+    private function loadAccessibleProjectIds(): array
+    {
         // Das breite Recht sieht alle Projekte - auch die, in denen der Nutzer
         // selbst nicht Mitglied ist (etwa ein gerade angelegtes Projekt).
         if ($this->canManageProjectMembers) {
-            $this->accessibleProjectIdsCache = array_map(
+            return array_map(
                 'intval',
                 Project::query()->pluck('id')->all()
             );
-            return $this->accessibleProjectIdsCache;
         }
 
         // Das stimmgruppen-beschränkte Recht bleibt auf die eigenen Projekte begrenzt.
@@ -187,7 +203,7 @@ class ProjectMemberPolicy
         // zweite Abfrage über die Beziehung. Ein fehlendes Konto fällt weiterhin
         // auf die leere Liste unten durch - es hat schlicht keine Projekte.
         if ($this->holdsVoiceGroupScope() && $this->userId > 0) {
-            $this->accessibleProjectIdsCache = array_map(
+            return array_map(
                 'intval',
                 Project::query()
                     ->select('projects.id')
@@ -197,11 +213,9 @@ class ProjectMemberPolicy
                     ->pluck('projects.id')
                     ->all()
             );
-            return $this->accessibleProjectIdsCache;
         }
 
         // No access by default
-        $this->accessibleProjectIdsCache = [];
-        return $this->accessibleProjectIdsCache;
+        return [];
     }
 }
