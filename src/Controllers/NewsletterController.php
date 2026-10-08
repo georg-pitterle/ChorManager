@@ -197,9 +197,9 @@ class NewsletterController
      * Newsletters. Zwei Kopien derselben Zugriffsregel liefen auseinander,
      * sobald eine von beiden angepasst wird.
      */
-    private function canViewNewsletterById(int $newsletterId, ?int $userId): bool
+    private function canViewNewsletterById(int $newsletterId): bool
     {
-        return $this->newsletterPolicy->canView($newsletterId, $userId);
+        return $this->newsletterPolicy->canView($newsletterId);
     }
 
     /**
@@ -695,7 +695,7 @@ class NewsletterController
         $isModal = InputValidator::asString($queryParams['modal'] ?? '0') === '1';
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canViewNewsletterById($id, $userId)) {
+        if (!$this->canViewNewsletterById($id)) {
             return $response->withStatus(403);
         }
 
@@ -814,7 +814,7 @@ class NewsletterController
         $id = (int) $request->getAttribute('id');
         $userId = $_SESSION['user_id'] ?? null;
 
-        if (!$this->canViewNewsletterById($id, $userId)) {
+        if (!$this->canViewNewsletterById($id)) {
             return $response->withStatus(403);
         }
 

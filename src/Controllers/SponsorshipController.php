@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
+use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
 use App\Util\AmountNormalizer;
@@ -23,6 +24,7 @@ class SponsorshipController
     public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
     public const STATUS_ERROR = 'Ungültiger Status für die Vereinbarung.';
     public const PROJECT_ERROR = 'Vereinbarungen lassen sich nur zu einem laufenden Projekt erfassen.';
+    public const ASSIGNEE_ERROR = 'Die zuständige Person muss ein aktives Mitglied sein.';
     public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';
 
     /** Anhänge, die an einer Vereinbarung hängen: Verträge, Angebote. */
@@ -103,6 +105,12 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
+        $assignee = $this->validateAssignedUser($data, null);
+        if ($assignee['error'] !== null) {
+            $_SESSION['error'] = $assignee['error'];
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
         $period = $this->prefillPeriodFromProject($data, $projectId);
 
         try {
@@ -110,7 +118,7 @@ class SponsorshipController
                 'sponsor_id'       => $sponsorId,
                 'project_id'       => $projectId,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
-                'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'assigned_user_id' => $assignee['value'],
                 'created_by_user_id' => $this->policy->currentUserId(),
                 'amount'           => $normalizedAmount,
                 'status'           => $status,
@@ -174,13 +182,22 @@ class SponsorshipController
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
             }
 
+            $currentAssignee = $sponsorship->assigned_user_id === null
+                ? null
+                : (int) $sponsorship->assigned_user_id;
+            $assignee = $this->validateAssignedUser($data, $currentAssignee);
+            if ($assignee['error'] !== null) {
+                $_SESSION['error'] = $assignee['error'];
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
             // Beim Ändern wird der Zeitraum NICHT aus dem Projekt nachgefüllt:
             // ein leeres Feld ist hier eine bewusste Eingabe ("unbefristet"),
             // und eine Vorbelegung machte das Leeren unmöglich.
             $sponsorship->update([
                 'project_id'       => $projectId,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
-                'assigned_user_id' => !empty($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : null,
+                'assigned_user_id' => $assignee['value'],
                 'amount'           => $normalizedAmount,
                 'status'           => $status,
                 'start_date'       => !empty($data['start_date']) ? (string) $data['start_date'] : null,
@@ -208,6 +225,53 @@ class SponsorshipController
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+    }
+
+    /**
+     * Die zuständige Person aus dem Formular, oder null für "niemand".
+     *
+     * Der Wert kam zuvor ungeprüft aus der Anfrage in die Zeile. Eine Kennung,
+     * die keinem Mitglied gehört, lief damit in den Fremdschlüssel auf `users`
+     * und kam als nichtssagendes "konnte nicht angelegt werden" zurück - dieselbe
+     * Art Lücke, die SponsoringPolicy::canUseProject() für das Projekt und
+     * ProjectController::addMember() für das Mitglied schon schließt.
+     *
+     * Geprüft wird gegen die **aktiven** Mitglieder, also genau die, die das
+     * Formular anbietet. Eine Ausnahme gilt für die bereits eingetragene Person:
+     * Sie bleibt gültig, auch wenn sie inzwischen archiviert wurde. Sonst
+     * scheiterte ein Speichern aus einem ganz anderen Grund - ein korrigierter
+     * Betrag - an einer Zuständigkeit, die niemand angefasst hat, oder das
+     * Formular hätte sie still gelöscht. Dieselbe Überlegung steht an
+     * SponsoringPolicy::retainedProjects().
+     *
+     * @param array<string, mixed> $data
+     * @param int|null $current bisher eingetragene Person, null beim Anlegen
+     * @return array{error: string|null, value: int|null}
+     */
+    private function validateAssignedUser(array $data, ?int $current): array
+    {
+        if (empty($data['assigned_user_id'])) {
+            return ['error' => null, 'value' => null];
+        }
+
+        $submitted = (int) $data['assigned_user_id'];
+
+        if ($submitted <= 0) {
+            return ['error' => self::ASSIGNEE_ERROR, 'value' => null];
+        }
+
+        if ($current !== null && $submitted === $current) {
+            return ['error' => null, 'value' => $submitted];
+        }
+
+        $isActiveMember = User::query()
+            ->whereKey($submitted)
+            ->where('is_active', 1)
+            ->exists();
+
+        return $isActiveMember
+            ? ['error' => null, 'value' => $submitted]
+            : ['error' => self::ASSIGNEE_ERROR, 'value' => null];
     }
 
     public function delete(Request $request, Response $response, array $args): Response

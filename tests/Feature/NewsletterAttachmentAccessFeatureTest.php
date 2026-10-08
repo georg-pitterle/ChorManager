@@ -35,7 +35,7 @@ final class NewsletterAttachmentAccessFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $recipient->id;
         $_SESSION['can_manage_newsletters'] = false;
 
-        $this->assertTrue($this->registry()->mayAccess($attachment, (int) $recipient->id));
+        $this->assertTrue($this->registry()->mayAccess($attachment));
     }
 
     public function testSomeoneOutsideTheDistributionListIsRejected(): void
@@ -47,7 +47,7 @@ final class NewsletterAttachmentAccessFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $stranger->id;
         $_SESSION['can_manage_newsletters'] = false;
 
-        $this->assertFalse($this->registry()->mayAccess($attachment, (int) $stranger->id));
+        $this->assertFalse($this->registry()->mayAccess($attachment));
     }
 
     public function testNewsletterManagementMayLoadTheFileBeforeSending(): void
@@ -60,7 +60,7 @@ final class NewsletterAttachmentAccessFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $creator->id;
         $_SESSION['can_manage_newsletters'] = true;
 
-        $this->assertTrue($this->registry()->mayAccess($attachment, (int) $creator->id));
+        $this->assertTrue($this->registry()->mayAccess($attachment));
     }
 
     public function testDisabledModuleLocksTheFile(): void
@@ -71,7 +71,7 @@ final class NewsletterAttachmentAccessFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $recipient->id;
         $_SESSION['can_manage_newsletters'] = true;
 
-        $this->assertFalse($this->registry(false)->mayAccess($attachment, (int) $recipient->id));
+        $this->assertFalse($this->registry(false)->mayAccess($attachment));
     }
 
     /**
@@ -102,7 +102,8 @@ final class NewsletterAttachmentAccessFeatureTest extends TestCase
             new SponsoringPolicy($_SESSION),
             new TaskPolicy($_SESSION),
             ['newsletter' => $moduleEnabled],
-            new NewsletterPolicy($_SESSION)
+            new NewsletterPolicy($_SESSION),
+            $_SESSION
         );
     }
 

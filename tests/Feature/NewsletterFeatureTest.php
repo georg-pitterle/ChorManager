@@ -414,9 +414,11 @@ class NewsletterFeatureTest extends TestCase
         $this->assertIsString($policyContent);
         $this->assertStringContainsString('NewsletterArchive::query()', $policyContent);
         $this->assertStringContainsString("->where('newsletter_id', \$newsletterId)", $policyContent);
-        $this->assertStringContainsString("->where('user_id', \$userId)", $policyContent);
-        $this->assertStringContainsString('$this->newsletterPolicy->canView($newsletterId, $userId)', $controllerContent);
-        $this->assertStringContainsString('!$this->canViewNewsletterById($id, $userId)', $controllerContent);
+        // Die Kennung kommt seit dem Review-Lauf 38 aus der Sitzung der Policy,
+        // nicht mehr als Parameter von außen.
+        $this->assertStringContainsString("->where('user_id', \$this->userId)", $policyContent);
+        $this->assertStringContainsString('$this->newsletterPolicy->canView($newsletterId)', $controllerContent);
+        $this->assertStringContainsString('!$this->canViewNewsletterById($id)', $controllerContent);
     }
 
     public function testMailerHasIsMailSendDisabledMethod(): void

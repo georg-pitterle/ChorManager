@@ -38,32 +38,48 @@ final class AttachmentAccessRegistry
     /** @var array<string, bool> */
     private array $modules;
 
+    /** @var array<string, mixed> */
+    private array $session;
+
+    private int $userId;
+
     /**
+     * Die Sitzung kommt von außen, wie bei den Policies - siehe
+     * tests/Unit/Policies/PoliciesReceiveTheSessionTest. Zuvor griff die Registry
+     * an zwei Stellen selbst in das Sitzungs-Superglobal und nahm die Kennung der
+     * anfragenden Person zusätzlich als Parameter: zwei Wege zur selben Angabe,
+     * und der Parameter ließ sich mit einer fremden Kennung füllen.
+     *
      * @param array<string, bool> $modules
+     * @param array<string, mixed> $session
      */
     public function __construct(
         SponsoringPolicy $sponsoringPolicy,
         TaskPolicy $taskPolicy,
         array $modules,
-        NewsletterPolicy $newsletterPolicy
+        NewsletterPolicy $newsletterPolicy,
+        array $session
     ) {
         $this->sponsoringPolicy = $sponsoringPolicy;
         $this->taskPolicy = $taskPolicy;
         $this->modules = $modules;
         $this->newsletterPolicy = $newsletterPolicy;
+        $this->session = $session;
+        $this->userId = (int) ($session['user_id'] ?? 0);
     }
 
     /**
      * Ob die anfragende Person diesen Anhang lesen darf.
      *
-     * `$userId` **muss** die Kennung der anfragenden Person aus der Sitzung
-     * sein (`$_SESSION['user_id']`), niemals ein aus der Anfrage übernommener
-     * Wert. Die Sponsoring- und Finanzregeln lesen ihre Kennung selbst aus der
-     * Sitzung (`SponsoringPolicy::__construct()`, `mayReadFinances()`); ein
-     * abweichender Parameter würde dieselbe Prüfung zwei verschiedene
-     * Personen beantworten lassen.
+     * Gefragt wird immer für die Person aus der Sitzung. Früher nahm die
+     * Methode deren Kennung als Parameter und reichte ihn an `maySeeSong()` und
+     * `NewsletterPolicy::canView()` weiter, während die Sponsoring- und
+     * Finanzregeln ihre Kennung schon selbst aus der Sitzung lasen. Ein
+     * abweichender Parameter hätte dieselbe Prüfung zwei verschiedene Personen
+     * beantworten lassen; davor warnte nur ein Kommentar. Ohne den Parameter ist
+     * der Fall nicht mehr möglich.
      */
-    public function mayAccess(Attachment $attachment, int $userId): bool
+    public function mayAccess(Attachment $attachment): bool
     {
         $entityType = (string) $attachment->entity_type;
         $entityId = (int) $attachment->entity_id;
@@ -73,11 +89,16 @@ final class AttachmentAccessRegistry
             'task'        => $this->moduleEnabled('tasks') && $this->taskPolicy->canManageTasks(),
             'sponsor'     => $this->moduleEnabled('sponsoring') && $this->maySeeSponsor($entityId),
             'sponsorship' => $this->moduleEnabled('sponsoring') && $this->maySeeSponsorship($entityId),
-            'song'        => $this->maySeeSong($entityId, $userId),
+            'song'        => $this->maySeeSong($entityId),
             'newsletter'  => $this->moduleEnabled('newsletter')
-                && $this->newsletterPolicy->canView($entityId, $userId),
+                && $this->newsletterPolicy->canView($entityId),
             default       => false,
         };
+    }
+
+    private function sessionFlag(string $key): bool
+    {
+        return (bool) ($this->session[$key] ?? false);
     }
 
     private function moduleEnabled(string $module): bool
@@ -90,8 +111,8 @@ final class AttachmentAccessRegistry
      */
     private function mayReadFinances(): bool
     {
-        return (bool) ($_SESSION['can_read_finances'] ?? false)
-            || (bool) ($_SESSION['can_manage_finances'] ?? false);
+        return $this->sessionFlag('can_read_finances')
+            || $this->sessionFlag('can_manage_finances');
     }
 
     private function maySeeSponsor(int $sponsorId): bool
@@ -114,13 +135,13 @@ final class AttachmentAccessRegistry
      * Lied-Detailseite zeigte auf die mitgliedschaftsgebundene Route und lief
      * für eine Repertoire-Verwaltung ohne Projekt ins Leere.
      */
-    private function maySeeSong(int $songId, int $userId): bool
+    private function maySeeSong(int $songId): bool
     {
-        if ((bool) ($_SESSION['can_manage_song_library'] ?? false)) {
+        if ($this->sessionFlag('can_manage_song_library')) {
             return true;
         }
 
-        if ($userId <= 0 || $songId <= 0) {
+        if ($this->userId <= 0 || $songId <= 0) {
             return false;
         }
 
@@ -132,7 +153,7 @@ final class AttachmentAccessRegistry
                 'project_song_assignments.project_id'
             )
             ->where('project_song_assignments.song_id', $songId)
-            ->where('project_users.user_id', $userId)
+            ->where('project_users.user_id', $this->userId)
             ->exists();
     }
 }

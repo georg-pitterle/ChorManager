@@ -100,8 +100,7 @@ class AttachmentController
             return null;
         }
 
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        if (!$this->access->mayAccess($metadata, $userId)) {
+        if (!$this->access->mayAccess($metadata)) {
             return null;
         }
 

@@ -779,7 +779,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(SponsoringPolicy::class),
                 $c->get(TaskPolicy::class),
                 is_array($modules) ? $modules : [],
-                $c->get(NewsletterPolicy::class)
+                $c->get(NewsletterPolicy::class),
+                $_SESSION
             );
         },
 

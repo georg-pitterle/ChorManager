@@ -35,25 +35,29 @@ class NewsletterPolicy
     }
 
     /**
-     * @param int|null $userId Kennung der anfragenden Person. Fehlt sie, gilt die
-     *                         aus der Sitzung; ein aus der Anfrage übernommener
-     *                         Wert gehört hier nie hinein.
+     * Geprüft wird immer für die Person aus der Sitzung.
+     *
+     * Hier stand zuvor ein zweiter Parameter, mit dem sich diese Person
+     * überschreiben ließ, und daneben der Kommentar, dass dort nie ein Wert aus
+     * der Anfrage hineingehört. Beides ist weg: Übergeben wurde ohnehin an jeder
+     * Stelle genau die Kennung, die der Konstruktor schon gelesen hatte, und ohne
+     * den Parameter kann die Prüfung gar nicht mehr für jemand anderen antworten
+     * als für den Anfragenden. Eine Regel, die die Signatur durchsetzt, braucht
+     * keinen Kommentar, der vor ihr warnt.
      */
-    public function canView(int $newsletterId, ?int $userId = null): bool
+    public function canView(int $newsletterId): bool
     {
         if ($this->canManageNewsletters) {
             return true;
         }
 
-        $userId = $userId ?? $this->userId;
-
-        if ($newsletterId <= 0 || $userId <= 0) {
+        if ($newsletterId <= 0 || $this->userId <= 0) {
             return false;
         }
 
         return NewsletterArchive::query()
             ->where('newsletter_id', $newsletterId)
-            ->where('user_id', $userId)
+            ->where('user_id', $this->userId)
             ->exists();
     }
 }

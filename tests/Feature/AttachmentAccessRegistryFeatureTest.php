@@ -148,7 +148,8 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
             new SponsoringPolicy($_SESSION),
             new TaskPolicy($_SESSION),
             array_merge($defaults, $modules),
-            new NewsletterPolicy($_SESSION)
+            new NewsletterPolicy($_SESSION),
+            $_SESSION
         );
     }
 
@@ -167,8 +168,8 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
         $_SESSION['can_manage_tasks'] = true;
         $_SESSION['can_manage_song_library'] = true;
 
-        $this->assertFalse($this->registry()->mayAccess($this->attachment('newsletter'), 1));
-        $this->assertFalse($this->registry()->mayAccess($this->attachment(''), 1));
+        $this->assertFalse($this->registry()->mayAccess($this->attachment('newsletter')));
+        $this->assertFalse($this->registry()->mayAccess($this->attachment('')));
     }
 
     /**
@@ -182,22 +183,22 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $registry = $this->registry();
 
-        $this->assertFalse($registry->mayAccess($this->attachment('finance'), 1));
-        $this->assertFalse($registry->mayAccess($this->attachment('task'), 1));
-        $this->assertFalse($registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id), 1));
-        $this->assertFalse($registry->mayAccess($this->attachment('sponsorship', (int) $this->sponsorship->id), 1));
+        $this->assertFalse($registry->mayAccess($this->attachment('finance')));
+        $this->assertFalse($registry->mayAccess($this->attachment('task')));
+        $this->assertFalse($registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id)));
+        $this->assertFalse($registry->mayAccess($this->attachment('sponsorship', (int) $this->sponsorship->id)));
     }
 
     public function testFinanceNeedsReadOrManagePermission(): void
     {
         $_SESSION['can_read_finances'] = true;
-        $this->assertTrue($this->registry()->mayAccess($this->attachment('finance'), 1));
+        $this->assertTrue($this->registry()->mayAccess($this->attachment('finance')));
 
         $_SESSION = ['can_manage_finances' => true];
-        $this->assertTrue($this->registry()->mayAccess($this->attachment('finance'), 1));
+        $this->assertTrue($this->registry()->mayAccess($this->attachment('finance')));
 
         $_SESSION = [];
-        $this->assertFalse($this->registry()->mayAccess($this->attachment('finance'), 1));
+        $this->assertFalse($this->registry()->mayAccess($this->attachment('finance')));
     }
 
     public function testFinanceIsBlockedWhenModuleIsOff(): void
@@ -206,18 +207,18 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $registry = $this->registry(['finance' => false]);
 
-        $this->assertFalse($registry->mayAccess($this->attachment('finance'), 1));
+        $this->assertFalse($registry->mayAccess($this->attachment('finance')));
     }
 
     public function testTaskNeedsTaskManagementAndModule(): void
     {
         $_SESSION['can_manage_tasks'] = true;
-        $this->assertTrue($this->registry()->mayAccess($this->attachment('task'), 1));
+        $this->assertTrue($this->registry()->mayAccess($this->attachment('task')));
 
-        $this->assertFalse($this->registry(['tasks' => false])->mayAccess($this->attachment('task'), 1));
+        $this->assertFalse($this->registry(['tasks' => false])->mayAccess($this->attachment('task')));
 
         $_SESSION = [];
-        $this->assertFalse($this->registry()->mayAccess($this->attachment('task'), 1));
+        $this->assertFalse($this->registry()->mayAccess($this->attachment('task')));
     }
 
     /**
@@ -233,10 +234,10 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
         $registry = $this->registry(['sponsoring' => false]);
 
         $this->assertFalse(
-            $registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id), 1)
+            $registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id))
         );
         $this->assertFalse(
-            $registry->mayAccess($this->attachment('sponsorship', (int) $this->sponsorship->id), 1)
+            $registry->mayAccess($this->attachment('sponsorship', (int) $this->sponsorship->id))
         );
     }
 
@@ -246,8 +247,8 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $registry = $this->registry();
 
-        $this->assertTrue($registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id), 1));
-        $this->assertTrue($registry->mayAccess($this->attachment('sponsorship', (int) $this->sponsorship->id), 1));
+        $this->assertTrue($registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id)));
+        $this->assertTrue($registry->mayAccess($this->attachment('sponsorship', (int) $this->sponsorship->id)));
     }
 
     /**
@@ -263,12 +264,10 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
         $registry = $this->registry();
 
         $this->assertFalse(
-            $registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id), $this->requestingUserId)
+            $registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id))
         );
         $this->assertFalse($registry->mayAccess(
-            $this->attachment('sponsorship', (int) $this->sponsorship->id),
-            $this->requestingUserId
-        ));
+            $this->attachment('sponsorship', (int) $this->sponsorship->id)));
     }
 
     /**
@@ -287,12 +286,10 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
         $registry = $this->registry();
 
         $this->assertTrue(
-            $registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id), $this->sponsorOwnerId)
+            $registry->mayAccess($this->attachment('sponsor', (int) $this->sponsor->id))
         );
         $this->assertTrue($registry->mayAccess(
-            $this->attachment('sponsorship', (int) $this->sponsorship->id),
-            $this->sponsorOwnerId
-        ));
+            $this->attachment('sponsorship', (int) $this->sponsorship->id)));
     }
 
     public function testSongLibraryManagerMayAccessWithoutProjectMembership(): void
@@ -301,12 +298,12 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         // entity_id zeigt auf ein Lied, das es nicht geben muss: das Recht
         // entscheidet, nicht die Zuordnung zu einem Projekt.
-        $this->assertTrue($this->registry()->mayAccess($this->attachment('song', 999999), 1));
+        $this->assertTrue($this->registry()->mayAccess($this->attachment('song', 999999)));
     }
 
     public function testSongWithoutPermissionAndWithoutMembershipIsRejected(): void
     {
-        $this->assertFalse($this->registry()->mayAccess($this->attachment('song', 999999), 1));
+        $this->assertFalse($this->registry()->mayAccess($this->attachment('song', 999999)));
     }
 
     /**
@@ -317,11 +314,14 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
      */
     public function testSongProjectMemberMayAccessWithoutSongLibraryPermission(): void
     {
-        $registry = $this->registry();
         $songAttachment = $this->attachment('song', $this->songId);
 
-        $this->assertTrue($registry->mayAccess($songAttachment, $this->memberUserId));
-        $this->assertFalse($registry->mayAccess($songAttachment, $this->requestingUserId));
+        // Die Person kommt aus der Sitzung, deshalb je Sitzung eine Registry.
+        $_SESSION['user_id'] = $this->memberUserId;
+        $this->assertTrue($this->registry()->mayAccess($songAttachment));
+
+        $_SESSION['user_id'] = $this->requestingUserId;
+        $this->assertFalse($this->registry()->mayAccess($songAttachment));
     }
 
     /**
@@ -332,10 +332,11 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
      */
     public function testSongProjectMembershipDoesNotGrantAccessToUnrelatedSong(): void
     {
+        $_SESSION['user_id'] = $this->memberUserId;
         $registry = $this->registry();
 
         $this->assertFalse(
-            $registry->mayAccess($this->attachment('song', $this->unassignedSongId), $this->memberUserId)
+            $registry->mayAccess($this->attachment('song', $this->unassignedSongId))
         );
     }
 
@@ -347,10 +348,11 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
      */
     public function testSongAccessIsNotGatedByAnyModule(): void
     {
+        $_SESSION['user_id'] = $this->memberUserId;
         $registry = $this->registry(['finance' => false, 'sponsoring' => false, 'tasks' => false]);
 
         $this->assertTrue(
-            $registry->mayAccess($this->attachment('song', $this->songId), $this->memberUserId)
+            $registry->mayAccess($this->attachment('song', $this->songId))
         );
     }
 
@@ -366,7 +368,7 @@ final class AttachmentAccessRegistryFeatureTest extends TestCase
 
         $registry = $this->registry();
 
-        $this->assertFalse($registry->mayAccess($this->attachment('sponsor', 999999), 1));
-        $this->assertFalse($registry->mayAccess($this->attachment('sponsorship', 999999), 1));
+        $this->assertFalse($registry->mayAccess($this->attachment('sponsor', 999999)));
+        $this->assertFalse($registry->mayAccess($this->attachment('sponsorship', 999999)));
     }
 }

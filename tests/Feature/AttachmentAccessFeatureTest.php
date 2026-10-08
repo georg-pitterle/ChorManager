@@ -79,7 +79,8 @@ final class AttachmentAccessFeatureTest extends TestCase
             new SponsoringPolicy($_SESSION),
             new TaskPolicy($_SESSION),
             ['finance' => true, 'sponsoring' => true, 'tasks' => true, 'newsletter' => true],
-            new NewsletterPolicy($_SESSION)
+            new NewsletterPolicy($_SESSION),
+            $_SESSION
         );
 
         return new AttachmentController($registry, new AttachmentResponseFactory(), new NullLogger());
@@ -184,12 +185,18 @@ final class AttachmentAccessFeatureTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
     }
 
+    /**
+     * Je Rechtelage ein eigener Controller: Die Registry bekommt die Sitzung seit
+     * dem Review-Lauf 38 über den Konstruktor, genau wie die Policies daneben,
+     * und liest sie nicht mehr bei jeder Frage neu. In einer echten Anfrage
+     * ändern sich die Rechte-Schlüssel nach dem Anmelden nicht mehr; ein Test,
+     * der sie mitten im Lauf umlegt, prüfte eine Lage, die es nicht gibt.
+     */
     public function testFinanceAttachmentNeedsFinancePermission(): void
     {
         $attachment = $this->createAttachment('finance', 'text/plain', 'beleg.txt');
-        $controller = $this->makeController();
 
-        $denied = $controller->download(
+        $denied = $this->makeController()->download(
             $this->makeRequest('GET', '/attachments/' . $attachment->id . '/download'),
             $this->makeResponse(),
             ['id' => (string) $attachment->id]
@@ -197,7 +204,7 @@ final class AttachmentAccessFeatureTest extends TestCase
         $this->assertSame(404, $denied->getStatusCode());
 
         $_SESSION['can_read_finances'] = true;
-        $allowed = $controller->download(
+        $allowed = $this->makeController()->download(
             $this->makeRequest('GET', '/attachments/' . $attachment->id . '/download'),
             $this->makeResponse(),
             ['id' => (string) $attachment->id]
@@ -227,15 +234,16 @@ final class AttachmentAccessFeatureTest extends TestCase
     }
 
     /**
-     * Vertrag aus AttachmentAccessRegistry::mayAccess(): die übergebene
-     * Kennung muss aus der Sitzung stammen, nie aus der Anfrage. Ein Mock von
-     * AttachmentAccessRegistry scheidet aus - die Klasse ist `final`, und
-     * PHPUnit weigert sich, eine `final`-Klasse zu doubeln. Beobachtet wird
-     * deshalb an einer anderen, bereits vorhandenen Stelle: bei
-     * `entity_type=song` landet `$userId` unverändert als zweite Bindung in
-     * der project_song_assignments-Abfrage, die `maySeeSong()` ausführt. Das
-     * Abfrage-Protokoll zeigt damit unmittelbar, welche Kennung
-     * `authorize()` tatsächlich weitergereicht hat.
+     * Vertrag aus AttachmentAccessRegistry::mayAccess(): entschieden wird für die
+     * Person aus der Sitzung, nie für eine aus der Anfrage. Seit dem Review-Lauf
+     * 38 nimmt die Registry dafür gar keine Kennung mehr an - sie liest die
+     * Sitzung über ihren Konstruktor. Ein Mock von AttachmentAccessRegistry
+     * scheidet aus: die Klasse ist `final`, und PHPUnit weigert sich, eine
+     * `final`-Klasse zu doubeln. Beobachtet wird deshalb an einer anderen,
+     * bereits vorhandenen Stelle: bei `entity_type=song` landet die Kennung aus
+     * der Sitzung als zweite Bindung in der project_song_assignments-Abfrage,
+     * die `maySeeSong()` ausführt. Das Abfrage-Protokoll zeigt damit
+     * unmittelbar, mit welcher Kennung tatsächlich geprüft wurde.
      *
      * Die Routen-Kennung (die Anhang-Id) bekommt bewusst eine andere Zahl als
      * die Sitzungs-Kennung: eine Verwechslung der beiden Werte wird dadurch
