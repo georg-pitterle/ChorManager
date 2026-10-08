@@ -244,7 +244,9 @@ ist. Bei Nein oder ohne Antwort: stehenbleiben und melden.
 
 Die Rückfrage ist die einzige Stelle, an der ein Push überhaupt zur Debatte steht — die
 Voraussetzungen stehen in `instructions/git-push-guard.md`. Der unbeaufsichtigte
-Review-Lauf hat dort seine eigene Ausnahme und fragt niemanden.
+Review-Lauf hat dort seine eigene Ausnahme und fragt niemanden, und sie gilt auch für die
+Nacharbeit zu seinen Befunden: Ist eine Frage aus dem Review beantwortet, ist die Antwort
+schon die Freigabe — dann wird für den Push nicht noch einmal gefragt.
 
 ## 9. Melden
 

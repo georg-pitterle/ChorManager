@@ -28,20 +28,30 @@ The exception covers only that case and only under these conditions:
 The full workflow around this - checks, message, squash, rebase, fast-forward - lives in
 the `git-commit` skill.
 
-## Exception: automated code review
+## Exception: automated code review and its follow-up
 
 The scheduled, unattended code review runs in an ephemeral container - without a push its
 results are lost. It is therefore allowed to push, including directly to `main`.
 
-The exception covers only that run and only under these conditions:
+The same applies to the follow-up work the review causes. A finding that needed a decision
+goes into the report instead of into `main`; once the developer has answered it, carrying
+that answer out and pushing it needs no second round of asking. **The answer is the
+go-ahead.** Asking again would put the same decision to the developer twice - once as the
+answer, once as the push - and in the meantime the finished work sits in a container that
+gets reclaimed. That the answer arrives interactively does not turn the work back into an
+ordinary agent run; it is still the review's follow-up.
 
-- Push only commits the review itself created. Never push unrelated local work.
+The exception covers these two cases - the run and its follow-up - and only under these
+conditions:
+
+- Push only commits the review or its follow-up created. Never push unrelated local work.
 - Never force-push and never rewrite published history (`--force`, `--force-with-lease`,
   amend or rebase of pushed commits stay forbidden on every branch).
 - Push only a green state: the relevant automated tests, `ddev composer phpcs` and - for
   Twig changes - `ddev composer twigcs` must have run and passed beforehand.
-- Fixes that need a decision by the developer are not pushed. They belong in the report,
-  not in `main`.
+- Fixes that are **still** waiting on a decision by the developer are not pushed. They
+  belong in the report, not in `main`. What the developer has already decided is no longer
+  one of them.
 - Every push is reported: branch, commits, and what was executed to verify them.
 
 Any other agent run stays under the default rule above.
