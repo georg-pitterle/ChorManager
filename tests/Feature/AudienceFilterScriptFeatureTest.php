@@ -38,6 +38,24 @@ class AudienceFilterScriptFeatureTest extends TestCase
     }
 
     /**
+     * Eine frisch angelegte Zeile hat noch keine Bedingung. /audience-preview lehnt
+     * sie mit 422 ab ("mindestens eine Bedingung wählen"), und der Browser meldet
+     * jede solche Antwort als Konsolenfehler - der E2E-Crawler fand ihn nach einem
+     * Klick auf "Zielgruppe hinzufügen". Die Zusammenfassung sagt bereits "Keine
+     * Bedingung gewählt"; gezählt wird erst, wenn es etwas zu zählen gibt.
+     */
+    public function testEmptyRowIsNotSentForCounting(): void
+    {
+        $script = self::script();
+        $start = (int) strpos($script, 'function refresh(');
+        $fetch = (int) strpos($script, "fetch('/audience-preview'", $start);
+        $beforeFetch = substr($script, $start, $fetch - $start);
+
+        $this->assertGreaterThan($start, $fetch);
+        $this->assertMatchesRegularExpression('/rowPayload\(row\)\.toString\(\) === \'\'/', $beforeFetch);
+    }
+
+    /**
      * Nachgeladene Dialoge (Vorlage bearbeiten im Newsletter-Modal) müssen ihre
      * Zeilen selbst anbinden können, ohne auf shown.bs.modal zu warten.
      */

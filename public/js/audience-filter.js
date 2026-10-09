@@ -98,6 +98,13 @@
 
         function refresh() {
             window.clearTimeout(timer);
+            // Ohne Bedingung gibt es nichts zu zählen; der Server würde die Zeile mit 422
+            // ablehnen. Die Zusammenfassung zeigt dann schon "Keine Bedingung gewählt".
+            if (rowPayload(row).toString() === '') {
+                row.classList.remove('audience-row--empty');
+                counter.textContent = '';
+                return;
+            }
             timer = window.setTimeout(function () {
                 fetch('/audience-preview', {
                     method: 'POST',

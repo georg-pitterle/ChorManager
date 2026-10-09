@@ -7,7 +7,10 @@ import { expect } from '@playwright/test';
 //    per fetch nachgeladen und in #newsletterActionContent eingehängt (public/js/newsletters.js),
 //    ausgelöst von Schaltflächen mit data-newsletter-modal-url.
 //  - Anlegen: #create-newsletter-form mit #project_id, #title, #template (Vorlage laden),
-//    Empfängerquellen in #recipient-sources (je Block [data-source-type="..."] mit Tom Select),
+//    Empfänger als Zielgruppen-Zeilen (templates/partials/audience/*.twig, public/js/audience-filter.js):
+//    [data-audience-rows] mit [data-audience-add], je Zeile [data-audience-row] mit Tom-Select-Feldern
+//    select[data-audience-condition="role|voice_group|sub_voice|project|user"] und [data-audience-remove];
+//    dazu die Zielgruppe einzelner Termine in select[data-newsletter-event-ids] (newsletters/_audience.twig).
 //    Absenden über den Button "Erstellen als Entwurf".
 //  - Bearbeiten: #edit-newsletter-form (Attribut data-newsletter-id), Versenden über
 //    #send-newsletter-btn (bestätigt per window.confirm), Empfängerzahl in #recipient-count-badge.
@@ -107,11 +110,65 @@ export async function fillEditor(page, text) {
 }
 
 /**
- * Wählt Einträge in einem Tom-Select-Feld einer Empfängerquelle aus. Getippt und geklickt wird
- * im echten Widget; das darunterliegende <select multiple> wird dadurch von Tom Select gepflegt.
+ * Empfängerquelle der Szenarien -> Feld einer Zielgruppen-Zeile. Eine Quelle wird zu einer
+ * eigenen Zeile mit genau diesem einen Feld: Zeilen sind untereinander ODER-verknüpft, mehrere
+ * Werte in einem Feld genügen einzeln. Damit entspricht die Auswahl der früheren Vereinigung
+ * der Quellen. "event_attendees" ist keine Zeile, sondern das Feld "Zielgruppe eines Termins".
+ */
+const AUDIENCE_CATEGORY = {
+    project_members: 'project',
+    role: 'role',
+    voice_group: 'voice_group',
+    sub_voice: 'sub_voice',
+    user: 'user',
+};
+
+/**
+ * Wählt Empfänger aus: legt für die Quelle eine neue Zielgruppen-Zeile an und wählt die Einträge
+ * im passenden Tom-Select-Feld, bzw. wählt Termine im Feld "Zielgruppe eines Termins".
  */
 export async function pickRecipientSource(page, sourceType, labels) {
-    const block = page.locator(`${MODAL_CONTENT} #recipient-sources [data-source-type="${sourceType}"]`);
+    const audience = page.locator(`${MODAL_CONTENT} [data-audience-rows]`);
+
+    if (sourceType === 'event_attendees') {
+        const eventBlock = page.locator(`${MODAL_CONTENT} div:has(> select[data-newsletter-event-ids])`);
+        await pickInTomSelect(eventBlock, labels, 'Zielgruppe eines Termins');
+        return;
+    }
+
+    const category = AUDIENCE_CATEGORY[sourceType];
+    if (!category) {
+        throw new Error(`Unbekannte Empfängerquelle "${sourceType}"`);
+    }
+
+    const rows = audience.locator('[data-audience-row-list] [data-audience-row]');
+    const before = await rows.count();
+    await audience.locator('[data-audience-add]').click();
+    await expect(rows).toHaveCount(before + 1);
+
+    // Eine neue Zeile ist aufgeklappt; das Feld steht mit seinem Label in einer eigenen Spalte.
+    const row = rows.last();
+    const field = row.locator(`div:has(> select[data-audience-condition="${category}"])`);
+    await pickInTomSelect(field, labels, sourceType);
+}
+
+/**
+ * Entfernt alle Zielgruppen-Zeilen - etwa die aus einer geladenen Vorlage übernommenen -, damit
+ * ein Szenario genau die Empfänger setzt, die es verlangt.
+ */
+export async function clearAudience(page) {
+    const remove = page.locator(`${MODAL_CONTENT} [data-audience-rows] [data-audience-remove]`);
+    for (let count = await remove.count(); count > 0; count = await remove.count()) {
+        await remove.first().click();
+        await expect(remove).toHaveCount(count - 1);
+    }
+}
+
+/**
+ * Wählt Einträge in einem Tom-Select-Feld aus. Getippt und geklickt wird im echten Widget; das
+ * darunterliegende <select multiple> wird dadurch von Tom Select gepflegt.
+ */
+async function pickInTomSelect(block, labels, sourceType) {
     const control = block.locator('.ts-control');
     const search = control.locator('input');
     await control.waitFor({ state: 'visible' });
@@ -120,7 +177,7 @@ export async function pickRecipientSource(page, sourceType, labels) {
 
     for (const label of labels) {
         // Tom Select toggelt: Ein Klick auf ein bereits offenes Feld SCHLIESST die Liste. Offen
-        // sein kann sie z. B. nach clearRecipientSource(), dessen x-Klicks das Feld fokussieren.
+        // sein kann sie z. B. nach einem Klick, der das Feld fokussiert hat.
         // Der Suchtext filtert dann eine unsichtbare Liste - das Fehlerbild ist eine vorhandene,
         // aber verborgene Option.
         if (!(await dropdown.isVisible())) {
@@ -162,17 +219,6 @@ export async function pickRecipientSource(page, sourceType, labels) {
     }
 }
 
-/**
- * Entfernt alle Auswahlen einer Empfängerquelle über die x-Schaltflächen der Chips.
- */
-export async function clearRecipientSource(page, sourceType) {
-    const block = page.locator(`${MODAL_CONTENT} #recipient-sources [data-source-type="${sourceType}"]`);
-    const removeButtons = block.locator('.ts-control .item .remove');
-    for (let count = await removeButtons.count(); count > 0; count = await removeButtons.count()) {
-        await removeButtons.first().click();
-    }
-}
-
 export async function readRecipientCount(page) {
     const badge = page.locator(`${MODAL_CONTENT} #recipient-count-badge`);
     await badge.waitFor({ state: 'visible' });
@@ -196,7 +242,8 @@ export async function openCreateModal(page) {
  * @param {?string} draft.project      Projektname oder null für "kein Projekt"
  * @param {?string} draft.content      Text für den Editor; entfällt, wenn eine Vorlage geladen wird
  * @param {?string} draft.template     Name einer Vorlage, die vor dem Tippen geladen wird
- * @param {object} draft.sources       { project_members?: string[], role?: string[], user?: string[] }
+ * @param {object} draft.sources       { project_members?, role?, voice_group?, sub_voice?, user?,
+ *                                     event_attendees? } - je Quelle eine Liste von Beschriftungen
  */
 export async function createNewsletterDraft(page, draft) {
     await openCreateModal(page);
@@ -215,11 +262,14 @@ export async function createNewsletterDraft(page, draft) {
 
     await content.locator('#title').fill(draft.title);
 
-    // Die Projektquelle ist mit dem gewählten Projekt vorbelegt. Für eine saubere, vorhersagbare
-    // Auswahl wird sie geleert und danach genau das gesetzt, was das Szenario verlangt.
-    await clearRecipientSource(page, 'project_members');
-    for (const [sourceType, labels] of Object.entries(draft.sources ?? {})) {
-        await pickRecipientSource(page, sourceType, labels);
+    // Eine geladene Vorlage bringt ihre Zielgruppen mit. Gibt das Szenario Empfänger vor,
+    // werden sie entfernt und genau die gesetzt, die es verlangt; ohne Vorgabe bleibt der
+    // Empfängerkreis der Vorlage stehen.
+    if (draft.sources !== undefined) {
+        await clearAudience(page);
+        for (const [sourceType, labels] of Object.entries(draft.sources)) {
+            await pickRecipientSource(page, sourceType, labels);
+        }
     }
 
     if (draft.content) {
@@ -383,7 +433,11 @@ export async function createNewsletterTemplate(page, template) {
 export async function insertPlaceholder(page, label) {
     // TinyMCE macht aus dem tooltip das aria-label ("Platzhalter einfügen"), und der
     // barrierefreie Name gewinnt gegen den sichtbaren Text - daher als Muster suchen.
-    const button = page.getByRole('button', { name: /Platzhalter/ }).first();
+    // Nur im Editor suchen: Die Kopfzeile einer Zielgruppen-Zeile ist ebenfalls ein Knopf und
+    // nennt das gewählte Projekt - heißt es z. B. "... Platzhalterversand", wäre sie sonst der
+    // erste Treffer. Leiste und Überlaufleiste hängen in .tox-tinymce bzw. .tox-tinymce-aux.
+    const editorUi = page.locator('.tox-tinymce, .tox-tinymce-aux');
+    const button = editorUi.getByRole('button', { name: /Platzhalter/ }).first();
 
     // Am Handy reicht die Breite nicht für die ganze Leiste: TinyMCE schiebt die hinteren
     // Knöpfe in eine Überlaufleiste hinter "Zusätzliche Elemente auf der Symbolleiste ein-
@@ -391,10 +445,27 @@ export async function insertPlaceholder(page, label) {
     // sonst wäre der Knopf nur "noch nicht" sichtbar, nicht "versteckt".
     await page.locator('.tox-toolbar__primary').first().waitFor({ state: 'visible' });
     if (!(await button.isVisible())) {
-        await page.getByRole('button', { name: /Zusätzliche Elemente/ }).first().click();
+        await editorUi.getByRole('button', { name: /Zusätzliche Elemente/ }).first().click();
     }
-    await button.click();
-    await page.getByRole('menuitem', { name: new RegExp(label) }).click();
+    // Die Platzhalter holt der Editor erst nach dem Start per fetch (public/js/tinymce-init.js).
+    // Wird das Menü vorher geöffnet, ist es leer und bleibt es - also notfalls schließen und
+    // erneut öffnen, bis der Eintrag da ist. Ein Klick auf den offenen Knopf schließt das Menü.
+    const item = page.locator('.tox-tinymce-aux').getByRole('menuitem', { name: new RegExp(label) });
+    await expect
+        .poll(
+            async () => {
+                if (await item.isVisible()) {
+                    return true;
+                }
+
+                await button.click();
+
+                return item.waitFor({ state: 'visible', timeout: 2_000 }).then(() => true).catch(() => false);
+            },
+            { timeout: 20_000, message: `Der Platzhalter "${label}" muss im Menü erscheinen` }
+        )
+        .toBe(true);
+    await item.click();
 }
 
 /**
