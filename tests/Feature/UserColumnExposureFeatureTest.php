@@ -100,7 +100,7 @@ class UserColumnExposureFeatureTest extends TestCase
         $projectQuery = new ProjectQuery(new NameFormatterService());
 
         return [
-            'UserQuery::getAllUsers' => $userQuery->getAllUsers(),
+            'UserQuery::getActiveUsers' => $userQuery->getActiveUsers(),
             'UserQuery::getArchivedUsers' => $userQuery->getArchivedUsers(),
             'ProjectQuery::getProjectMembers' => $projectQuery->getProjectMembers($this->projectId),
             'ProjectQuery::getUsersNotInProject' => $projectQuery->getUsersNotInProject($this->projectId),

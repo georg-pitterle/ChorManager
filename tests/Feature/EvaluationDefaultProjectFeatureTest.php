@@ -13,8 +13,12 @@ use Tests\Unit\Bootstrap;
 
 /**
  * Auswertungen sollen ohne project_id-Parameter das aktuell laufende Projekt
- * vorauswaehlen (start_date <= heute <= end_date) und erst danach auf die
- * zuletzt gewaehlte Auswahl (users.last_project_id) zurueckfallen.
+ * vorauswählen und erst danach auf die zuletzt gewählte Auswahl
+ * (users.last_project_id) zurückfallen.
+ *
+ * "Laufend" heißt: Das Startdatum ist erreicht, und das Enddatum ist entweder
+ * noch nicht überschritten oder gar nicht gesetzt. Ein leeres Enddatum liest
+ * sich in der Oberfläche als "noch nicht festgelegt", nicht als "schon vorbei".
  */
 class EvaluationDefaultProjectFeatureTest extends TestCase
 {
@@ -120,6 +124,79 @@ class EvaluationDefaultProjectFeatureTest extends TestCase
         $this->assertSame(0, $this->projectQuery->findCurrentProjectId([(int) $open->id]));
     }
 
+    /**
+     * Ein begonnenes Projekt ohne Enddatum läuft.
+     *
+     * Die Abfrage verlangte zuvor ein gesetztes Enddatum und ließ ein solches
+     * Projekt deshalb nie vorauswählen - obwohl beide Spalten nullable sind und
+     * das Projektformular das Enddatum leer lässt. Für ein Chorprojekt ohne
+     * festes Ende stand damit keine Vorauswahl bereit.
+     */
+    public function testStartedProjectWithoutEndDateIsRunning(): void
+    {
+        $open = $this->createOpenEndedProject('-1 month');
+
+        $this->assertSame(
+            (int) $open->id,
+            $this->projectQuery->findCurrentProjectId([(int) $open->id])
+        );
+    }
+
+    /**
+     * Das offene Ende verschiebt den Anfang nicht: Vor dem Startdatum läuft auch
+     * ein Projekt ohne Enddatum nicht.
+     */
+    public function testFutureProjectWithoutEndDateIsNotRunning(): void
+    {
+        $future = $this->createOpenEndedProject('+2 months');
+
+        $this->assertSame(0, $this->projectQuery->findCurrentProjectId([(int) $future->id]));
+    }
+
+    /**
+     * Gegen ein begrenztes Projekt gewinnt weiter das zuletzt gestartete - das
+     * offene Ende ist kein Vorrang, nur eine zweite Art, laufend zu sein.
+     */
+    public function testTheMostRecentlyStartedWinsAgainstAnOpenEndedProject(): void
+    {
+        $openStartedEarlier = $this->createOpenEndedProject('-3 months');
+        $boundedStartedLater = $this->createProject('-1 month', '+1 month');
+
+        $accessible = [(int) $openStartedEarlier->id, (int) $boundedStartedLater->id];
+
+        $this->assertSame(
+            (int) $boundedStartedLater->id,
+            $this->projectQuery->findCurrentProjectId($accessible)
+        );
+    }
+
+    /**
+     * Die Eingrenzung auf die zugänglichen Projekte gilt unverändert. Die
+     * ODER-Bedingung für das Enddatum muss dafür geklammert bleiben - ohne
+     * Klammer bräche sie aus der UND-Kette aus und ein offenes Projekt käme
+     * auch dann zurück, wenn es gar nicht zugänglich ist.
+     */
+    public function testAnOpenEndedProjectOutsideTheAccessibleOnesStaysOut(): void
+    {
+        $openButForeign = $this->createOpenEndedProject('-1 month');
+        $accessiblePast = $this->createProject('-12 months', '-6 months');
+
+        $this->assertSame(
+            0,
+            $this->projectQuery->findCurrentProjectId([(int) $accessiblePast->id])
+        );
+        $this->assertNotSame(0, (int) $openButForeign->id);
+    }
+
+    private function createOpenEndedProject(string $startModifier): Project
+    {
+        return Project::create([
+            'name' => 'Offenes Projekt ' . bin2hex(random_bytes(4)),
+            'start_date' => Carbon::now()->modify($startModifier)->toDateString(),
+            'end_date' => null,
+        ]);
+    }
+
     private function createProject(string $startModifier, string $endModifier): Project
     {
         return Project::create([
@@ -134,7 +211,7 @@ class EvaluationDefaultProjectFeatureTest extends TestCase
         $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EvaluationController.php');
         $this->assertIsString($controller);
 
-        // Beide Auswertungs-Seiten muessen dieselbe Vorauswahl-Logik nutzen.
+        // Beide Auswertungs-Seiten müssen dieselbe Vorauswahl-Logik nutzen.
         $this->assertSame(
             2,
             substr_count($controller, '$projectId = $this->resolveDefaultProjectId($accessibleProjectIds, $userId);')

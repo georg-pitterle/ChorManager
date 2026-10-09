@@ -136,11 +136,22 @@ class UserQuery
             ->find($id);
     }
 
-    public function getAllUsers(): Collection
+    /**
+     * Die aktiven Mitglieder - die Mitgliederliste in ihrem Regelfall.
+     *
+     * Hieß bis hierher getAllUsers() und versprach damit mehr, als sie hält: Das
+     * Archiv hat mit getArchivedUsers() seine eigene Abfrage, beide sind
+     * Hälften desselben Bestands. Wer "alle" las und die archivierten
+     * Mitglieder miterwartete, bekam sie nie - ohne Fehler, ohne Hinweis.
+     */
+    public function getActiveUsers(): Collection
     {
         return $this->orderedListQuery(1);
     }
 
+    /**
+     * Die andere Hälfte: die archivierten (deaktivierten) Mitglieder.
+     */
     public function getArchivedUsers(): Collection
     {
         return $this->orderedListQuery(0);

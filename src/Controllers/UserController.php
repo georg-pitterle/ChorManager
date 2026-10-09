@@ -88,7 +88,7 @@ class UserController
             // Das Archiv steht ohnehin nur dem übergreifenden Recht offen, siehe oben.
             $users = $this->userQuery->getArchivedUsers();
         } elseif ($canManageUsers) {
-            $users = $this->userQuery->getAllUsers();
+            $users = $this->userQuery->getActiveUsers();
         } else {
             // Die Einschränkung läuft in der Abfrage, nicht als filter() über alle
             // aktiven Mitglieder: die Datenbank liefert gleich nur die eigenen

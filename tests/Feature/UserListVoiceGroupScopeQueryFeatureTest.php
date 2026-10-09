@@ -143,7 +143,7 @@ class UserListVoiceGroupScopeQueryFeatureTest extends TestCase
     {
         $ownVoiceGroups = [$this->sopranId];
 
-        $filtered = $this->query()->getAllUsers()
+        $filtered = $this->query()->getActiveUsers()
             ->filter(function (User $user) use ($ownVoiceGroups): bool {
                 return array_intersect($ownVoiceGroups, $user->voiceGroups->pluck('id')->all()) !== [];
             })

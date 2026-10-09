@@ -112,7 +112,7 @@ class UserListEagerLoadFeatureTest extends TestCase
 
         $connection->flushQueryLog();
         $connection->enableQueryLog();
-        (new UserQuery(new NameFormatterService()))->getAllUsers();
+        (new UserQuery(new NameFormatterService()))->getActiveUsers();
         $queries = $connection->getQueryLog();
         $connection->disableQueryLog();
 
@@ -126,7 +126,7 @@ class UserListEagerLoadFeatureTest extends TestCase
 
     private function listedUser(): User
     {
-        $users = (new UserQuery(new NameFormatterService()))->getAllUsers();
+        $users = (new UserQuery(new NameFormatterService()))->getActiveUsers();
         $user = $users->firstWhere('id', $this->userId);
 
         $this->assertInstanceOf(User::class, $user, 'Das angelegte Mitglied fehlt in der Liste.');

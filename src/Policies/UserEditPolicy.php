@@ -216,7 +216,7 @@ class UserEditPolicy
     /**
      * True when the target holds a role that outranks the acting session's own level.
      *
-     * Die Rollen sind an beiden Aufrufstellen (UserQuery::getAllUsers() und
+     * Die Rollen sind an beiden Aufrufstellen (UserQuery::getActiveUsers() und
      * ::findIncludingArchived()) bereits eager-geladen, ein zusätzlicher Query
      * entsteht nicht.
      *

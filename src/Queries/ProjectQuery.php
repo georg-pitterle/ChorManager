@@ -108,13 +108,26 @@ class ProjectQuery
     }
 
     /**
-     * Kennung des Projekts, das heute läuft (start_date <= heute <= end_date),
-     * eingegrenzt auf die übergebenen zugänglichen Projekte. Läuft keines: 0.
+     * Kennung des Projekts, das heute läuft, eingegrenzt auf die übergebenen
+     * zugänglichen Projekte. Läuft keines: 0.
+     *
+     * Laufend heißt: Das Startdatum ist erreicht, und das Enddatum ist entweder
+     * noch nicht überschritten oder gar nicht gesetzt. Zuvor verlangte die
+     * Abfrage ein gesetztes Enddatum, und ein begonnenes Projekt ohne Enddatum
+     * kam deshalb nie als Vorauswahl in Frage - obwohl beide Spalten nullable
+     * sind und das Projektformular das Enddatum leer lässt. Für ein Chorprojekt
+     * ohne festes Ende stand damit keine Vorauswahl bereit. Ein leeres Enddatum
+     * liest sich in der Oberfläche als "noch nicht festgelegt", nicht als
+     * "schon vorbei".
+     *
+     * Das Startdatum bleibt Pflicht: Ohne Startdatum gibt es keinen Zeitpunkt,
+     * ab dem das Projekt liefe, und die Projektliste stellt es ohnehin ans Ende.
      *
      * Laufen mehrere Projekte parallel, gewinnt das zuletzt gestartete - also
      * genau das, was in jeder Projektliste oben steht (Project::scopeChronological).
      * Vorher gewann das zuerst endende; die Auswertungen wählten damit ein anderes
-     * Projekt vor, als die Liste darüber an erster Stelle zeigte.
+     * Projekt vor, als die Liste darüber an erster Stelle zeigte. Das offene Ende
+     * ist dabei kein Vorrang, nur eine zweite Art, laufend zu sein.
      *
      * @param int[] $accessibleProjectIds
      */
@@ -128,9 +141,14 @@ class ProjectQuery
 
         $project = Project::whereIn('projects.id', $accessibleProjectIds)
             ->whereNotNull('start_date')
-            ->whereNotNull('end_date')
             ->where('start_date', '<=', $today)
-            ->where('end_date', '>=', $today)
+            // Die Klammer ist tragend: Ohne sie bräche das ODER aus der UND-Kette
+            // aus, und ein offenes Projekt käme auch dann zurück, wenn es gar
+            // nicht zu den zugänglichen gehört.
+            ->where(function ($query) use ($today): void {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', $today);
+            })
             ->chronological()
             // Gleiches Startdatum und gleicher Name lassen die Reihenfolge sonst
             // offen; die Vorauswahl wechselte dann zwischen zwei Aufrufen.
