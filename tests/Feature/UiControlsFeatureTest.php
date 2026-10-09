@@ -59,6 +59,11 @@ class UiControlsFeatureTest extends TestCase
         }
 
         $this->assertNone($offenders, 'Abbrechen als gefüllter grauer Knopf.');
+
+        // Nebenaktionen (Schließen, Zurück, Hinzufügen) tragen dieselbe graue Kontur.
+        foreach (self::templates() as $path => $content) {
+            $this->assertDoesNotMatchRegularExpression('/class="btn btn-secondary\b/', $content, $path);
+        }
     }
 
     public function testPageHeaderButtonsHaveNormalSize(): void
@@ -76,6 +81,20 @@ class UiControlsFeatureTest extends TestCase
         }
 
         $this->assertNone($offenders, 'Kleine Knöpfe im Seitenkopf.');
+
+        // Im Seitenkopf: eine Hauptaktion (primary), Nebenaktionen grau, Löschen/Archivieren rot.
+        $coloured = [];
+        foreach (self::templates() as $path => $content) {
+            preg_match_all('/<div class="page-actions[^"]*"[^>]*>(.*?)<\/section>/s', $content, $blocks);
+
+            foreach ($blocks[1] as $block) {
+                if (preg_match('/class="btn [^"]*\bbtn-(outline-primary|info|outline-info|success|outline-success|warning|outline-warning)\b/', $block) === 1) {
+                    $coloured[] = $path;
+                }
+            }
+        }
+
+        $this->assertNone($coloured, 'Farbige Nebenaktionen im Seitenkopf.');
     }
 
     public function testPrimaryButtonsCarryNoIcon(): void

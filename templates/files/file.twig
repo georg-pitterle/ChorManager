@@ -44,7 +44,7 @@
             {% endif %}
             {% set _office_mode = office_mode(file.name, level) %}
             {% if _office_mode %}
-                <a class="btn btn-outline-primary" href="/files/{{ file.id }}/edit">
+                <a class="btn btn-outline-secondary" href="/files/{{ file.id }}/edit">
                     {% if _office_mode == "edit" %}
                         <i class="bi bi-pencil-square me-1" aria-hidden="true"></i> Im Browser bearbeiten
                     {% else %}

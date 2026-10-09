@@ -101,7 +101,7 @@ async function main() {
         await shot(page, '03-new-event-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
-            page.locator('#addEventModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#addEventModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#addEventModal',
             'hidden.bs.modal'
         );
@@ -131,7 +131,7 @@ async function main() {
         await shot(page, '06-calendar-subscription-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
-            page.locator('#calendarSubscriptionModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#calendarSubscriptionModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#calendarSubscriptionModal',
             'hidden.bs.modal'
         );

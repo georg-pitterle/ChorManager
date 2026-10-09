@@ -105,7 +105,7 @@ async function main() {
 
         // 1. Berechtigungsmatrix
         await page.goto(`${BASE_URL}/roles`, { waitUntil: 'networkidle' });
-        await page.locator('#rolesTable').waitFor({ state: 'visible' });
+        await page.locator('.role-overview-list').waitFor({ state: 'visible' });
         await shot(page, '01-permission-matrix');
 
         // 2. Modal: Neue Rolle anlegen
@@ -118,7 +118,7 @@ async function main() {
         await shotModal(page, '02-new-role-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#addRoleModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#addRoleModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#addRoleModal',
             'hidden.bs.modal'
         );
@@ -133,7 +133,7 @@ async function main() {
         await shotModal(page, '03-edit-role-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#editRoleModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#editRoleModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#editRoleModal',
             'hidden.bs.modal'
         );
@@ -142,10 +142,12 @@ async function main() {
         //    haben deshalb keinen Loeschen-Button - fuer den Screenshot legen wir eine
         //    unbesetzte Beispielrolle an und loeschen sie im selben Zug wieder.
         await createExampleRole(page, EXAMPLE_ROLE_NAME);
-        const exampleRow = page.locator('#rolesTable thead th', { hasText: EXAMPLE_ROLE_NAME });
+        const exampleRow = page.locator('.role-overview-role', { hasText: EXAMPLE_ROLE_NAME });
         await exampleRow.waitFor({ state: 'visible' });
+        // In der Rollenübersicht zeigt nur die ausgewählte Rolle ihre Aktionen.
+        await exampleRow.click();
 
-        const deleteTrigger = page.locator('[data-bs-target^="#deleteRoleModal"]').last();
+        const deleteTrigger = page.locator('[data-bs-target^="#deleteRoleModal"]:visible').last();
         const deleteModalId = await deleteTrigger.getAttribute('data-bs-target');
         await clickAndWaitForEvent(page, deleteTrigger, deleteModalId, 'shown.bs.modal');
         await shotModal(page, '04-delete-role-modal');

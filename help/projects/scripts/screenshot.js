@@ -145,7 +145,7 @@ async function main() {
         await shotModal(page, '02-new-project-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#addProjectModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#addProjectModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#addProjectModal',
             'hidden.bs.modal'
         );
@@ -160,7 +160,7 @@ async function main() {
         await shotModal(page, '03-edit-project-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator(`#editProjectModal${firstId} .btn-secondary[data-bs-dismiss="modal"]`),
+            page.locator(`#editProjectModal${firstId} .btn-outline-secondary[data-bs-dismiss="modal"]`),
             `#editProjectModal${firstId}`,
             'hidden.bs.modal'
         );
@@ -199,7 +199,7 @@ async function main() {
         await shotModal(page, '07-new-task-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#addTaskModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#addTaskModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#addTaskModal',
             'hidden.bs.modal'
         );

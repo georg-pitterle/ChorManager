@@ -113,7 +113,7 @@ async function main() {
         await shot(page, '03-new-sponsor-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
-            page.locator('#createSponsorModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#createSponsorModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#createSponsorModal',
             'hidden.bs.modal'
         );
@@ -126,7 +126,7 @@ async function main() {
         await page
             .locator('#sponsorsTable tbody tr:not([data-state="blocked"])')
             .first()
-            .locator('a.fw-semibold')
+            .locator('td[data-label="Name"] a')
             .click();
         await page.waitForLoadState('networkidle');
         await page.locator('#pane-stammdaten').waitFor({ state: 'visible' });
@@ -146,7 +146,7 @@ async function main() {
         await shot(page, '06-new-agreement-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
-            page.locator('#newSponsorshipModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#newSponsorshipModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#newSponsorshipModal',
             'hidden.bs.modal'
         );
@@ -165,7 +165,7 @@ async function main() {
         await shot(page, '08-new-contact-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
-            page.locator('#newContactModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#newContactModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#newContactModal',
             'hidden.bs.modal'
         );

@@ -127,7 +127,7 @@ async function main() {
         await shotModal(page, '02-new-entry-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#financeModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#financeModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#financeModal',
             'hidden.bs.modal'
         );
@@ -142,7 +142,7 @@ async function main() {
         await shotModal(page, '03-settings-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#settingsModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#settingsModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#settingsModal',
             'hidden.bs.modal'
         );
@@ -173,7 +173,7 @@ async function main() {
         await shotModal(page, '07-budget-new-item-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator(`${itemModalSelector} .btn-secondary[data-bs-dismiss="modal"]`),
+            page.locator(`${itemModalSelector} .btn-outline-secondary[data-bs-dismiss="modal"]`),
             itemModalSelector,
             'hidden.bs.modal'
         );
@@ -188,7 +188,7 @@ async function main() {
         await shotModal(page, '08-budget-new-category-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#modal-create-category .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#modal-create-category .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#modal-create-category',
             'hidden.bs.modal'
         );
@@ -210,7 +210,7 @@ async function main() {
         await shotModal(page, '10-account-modal');
         await clickAndWaitForEvent(
             page,
-            page.locator('#financeAccountModal .btn-secondary[data-bs-dismiss="modal"]'),
+            page.locator('#financeAccountModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#financeAccountModal',
             'hidden.bs.modal'
         );
