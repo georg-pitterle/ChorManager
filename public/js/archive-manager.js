@@ -116,10 +116,10 @@ document.addEventListener("DOMContentLoaded", function () {
         row.innerHTML = `
             <div class="input-group">
                 <input type="hidden" class="voice-id" value="">
-                <input type="text" class="form-control voice-category creatable-input" list="sheetArchiveVoiceSuggestions" placeholder="Stimme eingeben" value="">
-                <input type="number" class="form-control voice-count" min="0" value="0" style="max-width: 100px">
-                <button type="button" class="btn btn-danger btn-sm delete-voice-item">
-                    <i class="bi bi-trash"></i>
+                <input type="text" class="form-control voice-category creatable-input" list="sheetArchiveVoiceSuggestions" placeholder="Stimme eingeben" value="" aria-label="Stimme">
+                <input type="number" class="form-control voice-count voice-count-input" min="0" value="0" aria-label="Anzahl">
+                <button type="button" class="btn btn-danger btn-sm delete-voice-item" aria-label="Stimme entfernen">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
                 </button>
             </div>
         `;

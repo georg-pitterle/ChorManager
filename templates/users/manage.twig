@@ -401,7 +401,7 @@
                                         <label class="form-check-label fw-bold" for="vg_add_{{ group.id }}">{{ group.name }}</label>
                                     </div>
                                     <div class="mt-1 ps-4 collapse-sv{% if group.id not in modal_form_create.form.voice_groups|default([]) %} d-none{% endif %}">
-                                        <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
+                                        <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]" aria-label="Teilstimme für {{ group.name }}">
                                             <option value="">(Keine Teilstimme)</option>
                                             {% for sv in sub_voices %}
                                                 {% if sv.voice_group_id == group.id %}

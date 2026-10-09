@@ -18,8 +18,8 @@
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
             {% if available_years|length >= 1 %}
                 <form method="get" action="/budget" class="d-flex align-items-center gap-2">
-                    <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
-                    <select name="year" class="form-select form-select-sm w-auto onchange-submit">
+                    <label for="budget-index-year" class="text-muted small mb-0 text-nowrap">Jahr:</label>
+                    <select name="year" class="form-select form-select-sm w-auto onchange-submit" id="budget-index-year">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? "selected" : "" }}>{{ label }}</option>
                         {% endfor %}
@@ -54,8 +54,8 @@
 
     {% macro group_picker(finance_groups, selected_id) %}
         <div class="mb-3">
-            <label class="form-label">Gruppe</label>
-            <select class="form-select" name="finance_group_id" data-budget-group-select>
+            <label for="budget-index-finance-group-id" class="form-label">Gruppe</label>
+            <select class="form-select" name="finance_group_id" data-budget-group-select id="budget-index-finance-group-id">
                 <option value="">— Gruppe wählen —</option>
                 {% for g in finance_groups %}
                     <option value="{{ g.id }}" {{ selected_id == g.id ? "selected" : "" }}>{{ g.name }}</option>
@@ -68,7 +68,8 @@
                    maxlength="255"
                    placeholder="Name der neuen Gruppe"
                    autocomplete="off"
-                   data-budget-group-new>
+                   data-budget-group-new
+                   aria-label="Name der neuen Gruppe">
             <div class="form-text">Verknüpft das Budget mit den Buchungen dieser Gruppe im Kassabuch.</div>
         </div>
     {% endmacro %}
@@ -339,12 +340,12 @@
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label class="form-label">Bezeichnung</label>
-                                    <input type="text" class="form-control" name="description" required maxlength="255">
+                                    <label for="budget-index-description-{{ loop.parent.loop.index }}-{{ loop.index }}" class="form-label">Bezeichnung</label>
+                                    <input type="text" class="form-control" name="description" required maxlength="255" id="budget-index-description-{{ loop.parent.loop.index }}-{{ loop.index }}">
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Geplanter Betrag (€)</label>
-                                    <input type="text" class="form-control" name="planned_amount" required placeholder="0,00">
+                                    <label for="budget-index-planned-amount-{{ loop.parent.loop.index }}-{{ loop.index }}" class="form-label">Geplanter Betrag (€)</label>
+                                    <input type="text" class="form-control" name="planned_amount" required placeholder="0,00" id="budget-index-planned-amount-{{ loop.parent.loop.index }}-{{ loop.index }}">
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -368,14 +369,16 @@
                                 </div>
                                 <div class="modal-body">
                                     <div class="mb-3">
-                                        <label class="form-label">Bezeichnung</label>
+                                        <label for="budget-index-description-v2-{{ loop.parent.loop.parent.loop.index }}-{{ loop.parent.loop.index }}-{{ loop.index }}" class="form-label">Bezeichnung</label>
                                         <input type="text" class="form-control" name="description"
-                                               value="{{ item.description }}" required maxlength="255">
+                                               value="{{ item.description }}" required maxlength="255"
+                                               id="budget-index-description-v2-{{ loop.parent.loop.parent.loop.index }}-{{ loop.parent.loop.index }}-{{ loop.index }}">
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label">Geplanter Betrag (€)</label>
+                                        <label for="budget-index-planned-amount-v2-{{ loop.parent.loop.parent.loop.index }}-{{ loop.parent.loop.index }}-{{ loop.index }}" class="form-label">Geplanter Betrag (€)</label>
                                         <input type="text" class="form-control" name="planned_amount"
-                                               value="{{ item.planned_amount }}" required>
+                                               value="{{ item.planned_amount }}" required
+                                               id="budget-index-planned-amount-v2-{{ loop.parent.loop.parent.loop.index }}-{{ loop.parent.loop.index }}-{{ loop.index }}">
                                     </div>
                                 </div>
                                 <div class="modal-footer">

@@ -38,6 +38,7 @@
     </head>
     {% set _sidebar_class = session.user_id ? " app-shell--with-sidebar" : "" %}
     <body class="app-shell{{ _sidebar_class }}">
+        <a class="skip-link" href="#main-content">Zum Inhalt springen</a>
         {% if session.user_id %}
             {% set navigation = navigation(active_nav|default("")) %}
             <header class="navbar navbar-dark bg-dark fixed-top app-topbar">
@@ -52,7 +53,7 @@
                     </button>
                     <a class="navbar-brand d-flex align-items-center" href="/dashboard">
                         <img src="/logo"
-                             alt="Logo"
+                             alt=""
                              width="200"
                              height="64"
                              class="me-2 navbar-logo">
@@ -75,7 +76,7 @@
             {{ include("partials/navigation/sidebar.twig", {navigation: navigation}, false) }}
             {{ include("partials/navigation/search_modal.twig", [], false) }}
         {% endif %}
-        <main class="app-main container-fluid">
+        <main id="main-content" class="app-main container-fluid" tabindex="-1">
             {% block page_header %}
             {% endblock page_header %}
             <div class="app-content container-xl">
@@ -101,7 +102,9 @@
             <script src="{{ asset_path('/js/navigation-search-rank.js') }}"></script>
             <script src="{{ asset_path('/js/navigation-search.js') }}"></script>
         {% endif %}
-        <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
+        {# TinyMCE (rund 480 KB) lädt nur, wer den Block füllt; sonst holt tinymce-init.js ihn bei Bedarf nach. #}
+        {% block editor_scripts %}
+        {% endblock editor_scripts %}
         <script src="{{ asset_path('/js/tinymce-init.js') }}"></script>
         {% block scripts %}
         {% endblock scripts %}

@@ -20,8 +20,8 @@
                 <form method="get"
                       action="/finances"
                       class="d-flex align-items-center gap-2">
-                    <label class="text-muted small mb-0 text-nowrap">Jahr:</label>
-                    <select name="year" class="form-select form-select-sm w-auto onchange-submit">
+                    <label for="finances-index-year" class="text-muted small mb-0 text-nowrap">Jahr:</label>
+                    <select name="year" class="form-select form-select-sm w-auto onchange-submit" id="finances-index-year">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
                             </option>
@@ -446,7 +446,8 @@
                                                                 payment_method: item.payment_method,
                                                                 finance_account_id: item.finance_account_id,
                                                                 attachments: _open_atts
-                                                            }|json_encode|e("html_attr") }}">
+                                                            }|json_encode|e("html_attr") }}"
+                                                            aria-label="Buchung bearbeiten">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                 </td>
@@ -513,7 +514,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">
+                            <label for="group_select" class="form-label">
                                 Gruppe <span class="text-muted small">(optional)</span>
                             </label>
                             <select class="form-select" id="group_select">
@@ -526,7 +527,8 @@
                                    id="group_name"
                                    name="group_name"
                                    placeholder="Name der neuen Gruppe"
-                                   autocomplete="off">
+                                   autocomplete="off"
+                                   aria-label="Name der neuen Gruppe">
                         </div>
 
                         <div class="row mb-3">

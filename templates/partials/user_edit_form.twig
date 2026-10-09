@@ -28,30 +28,33 @@
         {% if can_edit_profile %}
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Vorname *</label>
+                    <label for="partials-user-edit-form-first-name" class="form-label">Vorname *</label>
                     <input type="text"
                            class="form-control"
                            name="first_name"
                            value="{{ edit_form.first_name|default(user.first_name) }}"
-                           required>
+                           required
+                           id="partials-user-edit-form-first-name">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Nachname *</label>
+                    <label for="partials-user-edit-form-last-name" class="form-label">Nachname *</label>
                     <input type="text"
                            class="form-control"
                            name="last_name"
                            value="{{ edit_form.last_name|default(user.last_name) }}"
-                           required>
+                           required
+                           id="partials-user-edit-form-last-name">
                 </div>
             </div>
             <div class="mb-3">
-                <label class="form-label">E-Mail-Adresse *</label>
+                <label for="partials-user-edit-form-email" class="form-label">E-Mail-Adresse *</label>
                 <input type="email"
                        class="form-control"
                        name="email"
                        value="{{ edit_form.email|default(user.email) }}"
                        {% if not can_edit_email %}readonly{% endif %}
-                       required>
+                       required
+                       id="partials-user-edit-form-email">
                 {% if not can_edit_email %}
                     <div class="form-text">
                         Die E-Mail-Adresse kann nur von der Mitgliederverwaltung geändert werden.
@@ -106,7 +109,7 @@
                                        for="vg_{{ user.id }}_{{ group.id }}">{{ group.name }}</label>
                             </div>
                             <div class="mt-1 ps-4 collapse-sv{% if not _group_checked %} d-none{% endif %}">
-                                <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]">
+                                <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]" aria-label="Teilstimme für {{ group.name }}">
                                     <option value="">(Keine Teilstimme)</option>
                                     {% for sv in sub_voices %}
                                         {% if sv.voice_group_id == group.id %}

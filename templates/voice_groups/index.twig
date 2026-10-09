@@ -46,13 +46,15 @@
                                         <button class="btn btn-sm btn-outline-secondary"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#editGroupModal{{ group.id }}"
-                                                title="Bearbeiten">
+                                                title="Bearbeiten"
+                                                aria-label="Bearbeiten">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#deleteGroupModal{{ group.id }}"
-                                                title="Löschen">
+                                                title="Löschen"
+                                                aria-label="Löschen">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
@@ -68,13 +70,15 @@
                                                     <button class="btn btn-link text-secondary p-0 px-2"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#editSubVoiceModal{{ sub_voice.id }}"
-                                                            title="Bearbeiten">
+                                                            title="Bearbeiten"
+                                                            aria-label="Bearbeiten">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button class="btn btn-link text-danger p-0 px-2"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#deleteSubVoiceModal{{ sub_voice.id }}"
-                                                            title="Löschen">
+                                                            title="Löschen"
+                                                            aria-label="Löschen">
                                                         <i class="bi bi-x-circle"></i>
                                                     </button>
                                                 </div>
@@ -100,13 +104,14 @@
                                                                 {{ modal.show_modal_error(error, modal_form_edit_subs[sub_voice.id].error, "voice_sub_edit_" ~ sub_voice.id) }}
 
                                                                 <div class="mb-3">
-                                                                    <label class="form-label">Name</label>
+                                                                    <label for="voice-groups-index-name-{{ loop.parent.loop.index }}-{{ loop.index }}" class="form-label">Name</label>
                                                                     {% set edit_sub_form = modal_form_edit_subs[sub_voice.id].form|default({}) %}
                                                                     <input type="text"
                                                                            name="name"
                                                                            class="form-control"
                                                                            value="{{ edit_sub_form.name|default(sub_voice.name) }}"
-                                                                           required>
+                                                                           required
+                                                                           id="voice-groups-index-name-{{ loop.parent.loop.index }}-{{ loop.index }}">
                                                                 </div>
                                                             </div>
                                                             <div class="modal-footer pb-0 border-0">
@@ -186,13 +191,14 @@
                                                 {{ modal.show_modal_error(error, modal_form_edit_groups[group.id].error, "voice_group_edit_" ~ group.id) }}
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Name</label>
+                                                    <label for="voice-groups-index-name-v2-{{ loop.index }}" class="form-label">Name</label>
                                                     {% set edit_group_form = modal_form_edit_groups[group.id].form|default({}) %}
                                                     <input type="text"
                                                            name="name"
                                                            class="form-control"
                                                            value="{{ edit_group_form.name|default(group.name) }}"
-                                                           required>
+                                                           required
+                                                           id="voice-groups-index-name-v2-{{ loop.index }}">
                                                 </div>
                                             </div>
                                             <div class="modal-footer pb-0 border-0">
@@ -260,13 +266,14 @@
                                                 {{ modal.show_modal_error(error, modal_form_create_subs[group.id].error, "voice_sub_create_" ~ group.id) }}
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Name der Unterstimme (z.B. Sopran 1)</label>
+                                                    <label for="voice-groups-index-name-v3-{{ loop.index }}" class="form-label">Name der Unterstimme (z.B. Sopran 1)</label>
                                                     {% set create_sub_form = modal_form_create_subs[group.id].form|default({}) %}
                                                     <input type="text"
                                                            name="name"
                                                            class="form-control"
                                                            value="{{ create_sub_form.name|default("") }}"
-                                                           required>
+                                                           required
+                                                           id="voice-groups-index-name-v3-{{ loop.index }}">
                                                 </div>
                                             </div>
                                             <div class="modal-footer pb-0 border-0">
@@ -307,12 +314,13 @@
                         {{ modal.show_modal_error(error, modal_form_create_group.error, "voice_group_create") }}
 
                         <div class="mb-3">
-                            <label class="form-label">Name der Stimmgruppe (z.B. Tenor)</label>
+                            <label for="voice-groups-index-name-v4" class="form-label">Name der Stimmgruppe (z.B. Tenor)</label>
                             <input type="text"
                                    name="name"
                                    class="form-control"
                                    value="{{ modal_form_create_group.form.name|default("") }}"
-                                   required>
+                                   required
+                                   id="voice-groups-index-name-v4">
                         </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">

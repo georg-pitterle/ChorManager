@@ -194,7 +194,8 @@
                                    name="name"
                                    class="form-control"
                                    placeholder="Neue Kategorie..."
-                                   required>
+                                   required
+                                   aria-label="Name der neuen Kategorie">
                         </div>
                         <div class="col-md-4">
                             <button type="submit" class="btn btn-primary w-100">
@@ -222,8 +223,10 @@
                                                        name="name"
                                                        class="form-control form-control-sm"
                                                        value="{{ cat.name }}"
-                                                       required>
-                                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                       required
+                                                       aria-label="Name der Kategorie">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                        aria-label="Kategorie speichern">
                                                     <i class="bi bi-check"></i>
                                                 </button>
                                             </form>
@@ -233,7 +236,8 @@
                                                   method="post"
                                                   class="d-inline"
                                                   data-confirm="Kategorie '{{ cat.name }}' wirklich loeschen?">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                        aria-label="Kategorie löschen">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>

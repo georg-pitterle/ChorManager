@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', function () {
             Sortable.create(zone, {
                 group: 'kanban',
                 animation: 150,
+                // Auf Touch-Geräten erst nach langem Drücken ziehen, sonst löst jedes Wischen
+                // zum Scrollen der Spalte versehentlich ein Verschieben der Karte aus.
+                delay: 200,
+                delayOnTouchOnly: true,
+                touchStartThreshold: 5,
                 draggable: '.kanban-card',
                 onEnd: function (evt) {
                     updatePlaceholder(evt.from);

@@ -27,7 +27,7 @@
                 {% if show_old_events %}
                     <input type="hidden" name="show_old_events" value="1">
                 {% endif %}
-                <select class="form-select attendance-selector" name="event_id">
+                <select class="form-select attendance-selector" name="event_id" aria-label="Termin wählen">
                     <option value="">-- Termin wählen --</option>
                     {% for e in events %}
                         <option value="{{ e.id }}"
@@ -172,7 +172,8 @@
                                                name="note[{{ member.user_id }}]"
                                                maxlength="255"
                                                placeholder="Notiz (optional)"
-                                               value="{{ member.note }}">
+                                               value="{{ member.note }}"
+                                               aria-label="Notiz zu {{ member|person_name }}">
                                     </li>
                                 {% endfor %}
                             </ul>

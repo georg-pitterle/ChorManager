@@ -13,7 +13,7 @@
         </div>
         <div class="page-actions">
             <form class="d-flex" method="get" action="/evaluations">
-                <select class="form-select onchange-submit" name="project_id">
+                <select class="form-select onchange-submit" name="project_id" aria-label="Projekt wählen">
                     <option value="">-- Projekt wählen --</option>
                     {% for p in projects %}
                         <option value="{{ p.id }}"

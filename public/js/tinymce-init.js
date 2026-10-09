@@ -21,13 +21,47 @@ function registerTinymceModalFocusGuard() {
     }, true);
 }
 
+let tinymceLoadPromise = null;
+
+// Das Layout bindet TinyMCE nur auf Seiten ein, die einen Editor mitbringen. Taucht ein
+// Editor anderswo auf (nachgeladener Dialog), holt dieser Lader das Skript einmalig nach.
+function loadTinymce() {
+    if (typeof tinymce !== 'undefined') {
+        return Promise.resolve();
+    }
+
+    if (!tinymceLoadPromise) {
+        tinymceLoadPromise = new Promise(function (resolve, reject) {
+            const script = document.createElement('script');
+            script.src = '/vendor/tinymce/tinymce/tinymce.min.js';
+            script.onload = resolve;
+            script.onerror = function () {
+                tinymceLoadPromise = null;
+                reject(new Error('TinyMCE konnte nicht geladen werden'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    return tinymceLoadPromise;
+}
+
 function initTinymceEditors(root) {
     registerTinymceModalFocusGuard();
 
     const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
     const editors = scope.querySelectorAll('.tinymce-editor');
 
-    if (!editors.length || typeof tinymce === 'undefined') {
+    if (!editors.length) {
+        return;
+    }
+
+    if (typeof tinymce === 'undefined') {
+        // Schlägt das Laden fehl, bleibt das Textfeld als einfaches Eingabefeld benutzbar.
+        loadTinymce().then(function () {
+            initTinymceEditors(root);
+        }).catch(function () {});
+
         return;
     }
 

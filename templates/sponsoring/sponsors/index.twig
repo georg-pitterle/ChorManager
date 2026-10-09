@@ -179,8 +179,8 @@
                     <div class="modal-body">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">Typ</label>
-                                <select name="type" class="form-select">
+                                <label for="sponsors-index-type" class="form-label">Typ</label>
+                                <select name="type" class="form-select" id="sponsors-index-type">
                                     <option value="organization">Organisation / Firma</option>
                                     <option value="person">Einzelperson</option>
                                 </select>
@@ -197,40 +197,42 @@
                                 </div>
                             </div>
                             <div class="col-12">
-                                <label class="form-label">
+                                <label for="sponsors-index-name" class="form-label">
                                     Name <span class="text-danger">*</span>
                                 </label>
-                                <input type="text" name="name" class="form-control" required>
+                                <input type="text" name="name" class="form-control" required id="sponsors-index-name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Kontaktperson</label>
-                                <input type="text" name="contact_person" class="form-control">
+                                <label for="sponsors-index-contact-person" class="form-label">Kontaktperson</label>
+                                <input type="text" name="contact_person" class="form-control" id="sponsors-index-contact-person">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">E-Mail</label>
-                                <input type="email" name="email" class="form-control">
+                                <label for="sponsors-index-email" class="form-label">E-Mail</label>
+                                <input type="email" name="email" class="form-control" id="sponsors-index-email">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Telefon</label>
-                                <input type="text" name="phone" class="form-control">
+                                <label for="sponsors-index-phone" class="form-label">Telefon</label>
+                                <input type="text" name="phone" class="form-control" id="sponsors-index-phone">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Website</label>
+                                <label for="sponsors-index-website" class="form-label">Website</label>
                                 <input type="url"
                                        name="website"
                                        class="form-control"
-                                       placeholder="https://...">
+                                       placeholder="https://..."
+                                       id="sponsors-index-website">
                             </div>
                             <div class="col-12">
-                                <label class="form-label">Adresse</label>
-                                <textarea name="address" class="form-control" rows="2"></textarea>
+                                <label for="sponsors-index-address" class="form-label">Adresse</label>
+                                <textarea name="address" class="form-control" rows="2" id="sponsors-index-address"></textarea>
                             </div>
                             <div class="col-12">
-                                <label class="form-label">Begründung zur Absage</label>
+                                <label for="sponsors-index-requests-blocked-note" class="form-label">Begründung zur Absage</label>
                                 <textarea name="requests_blocked_note"
                                           class="form-control"
                                           rows="2"
-                                          placeholder="Nur nötig, wenn keine Anfragen mehr erwünscht sind"></textarea>
+                                          placeholder="Nur nötig, wenn keine Anfragen mehr erwünscht sind"
+                                          id="sponsors-index-requests-blocked-note"></textarea>
                             </div>
                         </div>
                     </div>

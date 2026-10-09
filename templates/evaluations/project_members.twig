@@ -14,7 +14,7 @@
         <div class="page-actions d-flex gap-2">
             <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
             <form class="d-flex" method="get" action="/evaluations/project-members">
-                <select class="form-select onchange-submit select-min-220" name="project_id">
+                <select class="form-select onchange-submit select-min-220" name="project_id" aria-label="Projekt wählen">
                     <option value="">-- Projekt wählen --</option>
                     {% for p in projects %}
                         <option value="{{ p.id }}"

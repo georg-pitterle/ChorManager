@@ -19,6 +19,11 @@ use App\Util\InputValidator;
 class AppSettingController
 {
     public const DEFAULT_PRIMARY_COLOR = '#E8A817';
+
+    /** Dunkelster Seitenhintergrund (#EEF2F7), gegen den Text noch lesbar sein muss. */
+    private const PAGE_BACKGROUND_RGB = [238, 242, 247];
+
+    private const MIN_TEXT_CONTRAST = 4.5;
     /** @var array<int, string> */
     public const LOG_LEVELS = [
         'DEBUG',
@@ -355,7 +360,7 @@ class AppSettingController
         }
 
         $themeRgb = self::hexToRgb($themeColor);
-        $themeStrong = self::darkenHex($themeColor, 16);
+        $themeStrong = self::strongPrimaryColor($themeColor);
 
         $css = ':root, [data-bs-theme="light"] {' . "\n"
             . "    --theme-primary: {$themeColor};\n"
@@ -383,16 +388,64 @@ class AppSettingController
         return sprintf('%d, %d, %d', $red, $green, $blue);
     }
 
-    private static function darkenHex(string $hexColor, int $percentage): string
+    /**
+     * Die dunkle Variante der Vereinsfarbe für Text auf hellem Grund (Links, Outline-Knöpfe).
+     *
+     * Dunkelt schrittweise ab, bis der Kontrast zum Seitenhintergrund mindestens 4,5:1
+     * beträgt (WCAG 1.4.3). Ein fester Abdunkelungsfaktor reicht dafür nicht: Das Standardgelb
+     * erreichte damit nur 2,9:1, hellere Vereinsfarben noch weniger. Farbton und Sättigung
+     * bleiben erhalten, nur die Helligkeit sinkt; eine schon lesbare Farbe bleibt unverändert.
+     */
+    public static function strongPrimaryColor(string $hexColor): string
     {
         $normalized = ltrim(self::normalizePrimaryColor($hexColor), '#');
-        $factor = max(0.0, min(1.0, 1 - ($percentage / 100)));
+        $channels = [
+            (int) hexdec(substr($normalized, 0, 2)),
+            (int) hexdec(substr($normalized, 2, 2)),
+            (int) hexdec(substr($normalized, 4, 2)),
+        ];
 
-        $red = (int) round(hexdec(substr($normalized, 0, 2)) * $factor);
-        $green = (int) round(hexdec(substr($normalized, 2, 2)) * $factor);
-        $blue = (int) round(hexdec(substr($normalized, 4, 2)) * $factor);
+        for ($factor = 1.0; $factor > 0.0; $factor -= 0.01) {
+            $candidate = array_map(
+                static fn (int $channel): int => (int) round($channel * $factor),
+                $channels
+            );
 
-        return sprintf('#%02X%02X%02X', $red, $green, $blue);
+            if (self::contrastRatio($candidate, self::PAGE_BACKGROUND_RGB) >= self::MIN_TEXT_CONTRAST) {
+                return sprintf('#%02X%02X%02X', ...$candidate);
+            }
+        }
+
+        return '#000000';
+    }
+
+    /**
+     * @param array{int, int, int} $first
+     * @param array{int, int, int} $second
+     */
+    private static function contrastRatio(array $first, array $second): float
+    {
+        $firstLuminance = self::relativeLuminance($first);
+        $secondLuminance = self::relativeLuminance($second);
+
+        return (max($firstLuminance, $secondLuminance) + 0.05) / (min($firstLuminance, $secondLuminance) + 0.05);
+    }
+
+    /**
+     * @param array{int, int, int} $rgb
+     */
+    private static function relativeLuminance(array $rgb): float
+    {
+        [$red, $green, $blue] = array_map(
+            static function (int $channel): float {
+                $unit = $channel / 255;
+
+                return $unit <= 0.03928 ? $unit / 12.92 : (($unit + 0.055) / 1.055) ** 2.4;
+            },
+            $rgb
+        );
+
+        return 0.2126 * $red + 0.7152 * $green + 0.0722 * $blue;
     }
 
     /**

@@ -139,7 +139,8 @@
                                                             opening_date: account.opening_date|date("Y-m-d"),
                                                             is_active: account.is_active,
                                                             sort_order: account.sort_order
-                                                        }|json_encode|e("html_attr") }}">
+                                                        }|json_encode|e("html_attr") }}"
+                                                        aria-label="Konto bearbeiten">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 {% if row.booking_count == 0 %}
@@ -147,7 +148,8 @@
                                                           method="post"
                                                           class="d-inline"
                                                           data-confirm="Konto wirklich löschen?">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                                aria-label="Konto löschen">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
                                                     </form>

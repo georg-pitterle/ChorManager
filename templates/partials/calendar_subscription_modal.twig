@@ -39,8 +39,10 @@
                                type="text"
                                class="form-control"
                                value="{{ _subscription_url }}"
-                               readonly>
-                        <button id="copyCalendarSubscriptionUrl" type="button" class="btn btn-outline-secondary">
+                               readonly
+                               aria-label="Adresse des Kalender-Abonnements">
+                        <button id="copyCalendarSubscriptionUrl" type="button" class="btn btn-outline-secondary"
+                                aria-label="Adresse kopieren">
                             <i class="bi bi-clipboard"></i>
                         </button>
                     </div>
@@ -59,10 +61,12 @@
                                    type="text"
                                    class="form-control"
                                    value="{{ _task_url }}"
-                                   readonly>
+                                   readonly
+                                   aria-label="Adresse des Aufgaben-Abonnements">
                             <button id="copyCalendarTaskSubscriptionUrl"
                                     type="button"
-                                    class="btn btn-outline-secondary">
+                                    class="btn btn-outline-secondary"
+                                    aria-label="Adresse kopieren">
                                 <i class="bi bi-clipboard"></i>
                             </button>
                         </div>

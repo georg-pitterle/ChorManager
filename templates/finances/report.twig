@@ -18,8 +18,8 @@
                 <form method="get"
                       action="/finances/report"
                       class="d-flex align-items-center gap-2">
-                    <label class="text-muted small mb-0">Geschäftsjahr:</label>
-                    <select name="year" class="form-select form-select-sm onchange-submit w-auto">
+                    <label for="finances-report-year" class="text-muted small mb-0">Geschäftsjahr:</label>
+                    <select name="year" class="form-select form-select-sm onchange-submit w-auto" id="finances-report-year">
                         {% for year, label in available_years %}
                             <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
                             </option>

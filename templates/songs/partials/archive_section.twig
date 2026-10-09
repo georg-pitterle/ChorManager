@@ -64,12 +64,13 @@
                                                        class="form-control voice-category creatable-input"
                                                        list="sheetArchiveVoiceSuggestions"
                                                        placeholder="Stimme eingeben"
-                                                       value="{{ item.voice_category }}">
+                                                       value="{{ item.voice_category }}"
+                                                       aria-label="Stimme">
                                                 <input type="number"
-                                                       class="form-control voice-count"
+                                                       class="form-control voice-count voice-count-input"
                                                        min="0"
                                                        value="{{ item.count }}"
-                                                       style="max-width: 100px">
+                                                       aria-label="Anzahl">
                                                 <button type="button"
                                                         class="btn btn-danger btn-sm delete-voice-item"
                                                         aria-label="Einzelstimme löschen">

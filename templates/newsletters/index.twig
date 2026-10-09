@@ -1,4 +1,7 @@
 {% extends "layout.twig" %}
+{% block editor_scripts %}
+    <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
+{% endblock editor_scripts %}
 
 {% block title %}
     Newsletter versenden - {{ app_settings.app_name|default("Chor-Manager") }}

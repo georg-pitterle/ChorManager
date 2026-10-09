@@ -140,14 +140,16 @@
                                            form="createPackageForm"
                                            class="form-control form-control-sm"
                                            placeholder="Name *"
-                                           required>
+                                           required
+                                           aria-label="Name des neuen Pakets">
                                 </td>
                                 <td data-label="Beschreibung">
                                     <input type="text"
                                            name="description"
                                            form="createPackageForm"
                                            class="form-control form-control-sm"
-                                           placeholder="Beschreibung">
+                                           placeholder="Beschreibung"
+                                           aria-label="Beschreibung des neuen Pakets">
                                 </td>
                                 <td data-label="Mindestbetrag">
                                     <input type="number"
@@ -156,12 +158,14 @@
                                            class="form-control form-control-sm"
                                            step="0.01"
                                            min="0"
-                                           placeholder="0.00">
+                                           placeholder="0.00"
+                                           aria-label="Mindestbetrag des neuen Pakets">
                                 </td>
                                 <td data-label="Farbe">
                                     <select name="color"
                                             form="createPackageForm"
-                                            class="form-select form-select-sm">
+                                            class="form-select form-select-sm"
+                                            aria-label="Farbe des neuen Pakets">
                                         {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
                                             <option value="{{ c }}">{{ c }}</option>
                                         {% endfor %}
@@ -198,31 +202,33 @@
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label">
+                                <label for="packages-index-name-{{ loop.index }}" class="form-label">
                                     Name <span class="text-danger">*</span>
                                 </label>
                                 <input type="text"
                                        name="name"
                                        class="form-control"
                                        value="{{ pkg.name }}"
-                                       required>
+                                       required
+                                       id="packages-index-name-{{ loop.index }}">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Beschreibung</label>
-                                <textarea name="description" class="form-control" rows="2">{{ pkg.description }}</textarea>
+                                <label for="packages-index-description-{{ loop.index }}" class="form-label">Beschreibung</label>
+                                <textarea name="description" class="form-control" rows="2" id="packages-index-description-{{ loop.index }}">{{ pkg.description }}</textarea>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Mindestbetrag (€)</label>
+                                <label for="packages-index-min-amount-{{ loop.index }}" class="form-label">Mindestbetrag (€)</label>
                                 <input type="number"
                                        name="min_amount"
                                        class="form-control"
                                        step="0.01"
                                        min="0"
-                                       value="{{ pkg.min_amount }}">
+                                       value="{{ pkg.min_amount }}"
+                                       id="packages-index-min-amount-{{ loop.index }}">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Farbe</label>
-                                <select name="color" class="form-select">
+                                <label for="packages-index-color-{{ loop.index }}" class="form-label">Farbe</label>
+                                <select name="color" class="form-select" id="packages-index-color-{{ loop.index }}">
                                     {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
                                         <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}
                                         </option>

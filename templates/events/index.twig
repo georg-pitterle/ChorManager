@@ -436,16 +436,17 @@
                              {% if not create_form.form.repeat %}style="display:none;"{% endif %}>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
-                                    <label class="form-label small text-muted">Wiederhole jeden</label>
+                                    <label for="events-index-recurrence-interval" class="form-label small text-muted">Wiederhole jeden</label>
                                     <input type="number"
                                            class="form-control"
                                            name="recurrence_interval"
                                            value="{{ create_form.form.recurrence_interval|default('1') }}"
-                                           min="1">
+                                           min="1"
+                                           id="events-index-recurrence-interval">
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small text-muted"></label>
-                                    <select class="form-select" name="frequency" id="frequency">
+                                    <label for="frequency" class="form-label small text-muted"></label>
+                                    <select class="form-select" name="frequency" id="frequency" aria-label="Zeiteinheit">
                                         <option value="daily"
                                                 {% if create_form.form.frequency == 'daily' %}selected{% endif %}>
                                             Tag

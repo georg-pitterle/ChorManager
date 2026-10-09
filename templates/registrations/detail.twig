@@ -178,7 +178,8 @@
                                            name="note[{{ member.user_id }}]"
                                            maxlength="255"
                                            placeholder="Begründung (optional)"
-                                           value="{{ member.note }}">
+                                           value="{{ member.note }}"
+                                           aria-label="Begründung zu {{ member|person_name }}">
                                 {% elseif member.note %}
                                     <div class="text-muted small">{{ member.note }}</div>
                                 {% endif %}

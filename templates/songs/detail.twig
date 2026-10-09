@@ -216,7 +216,8 @@
                                         <form method="post"
                                               action="/song-library/songs/{{ song.id }}/attachments/{{ attachment.id }}/delete"
                                               data-confirm="Anhang '{{ attachment.original_name }}' wirklich löschen?">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen"
+                                                    aria-label="Löschen">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
@@ -260,13 +261,15 @@
                                            name="title"
                                            class="form-control mb-2"
                                            value="{{ resource.title }}"
-                                           required>
+                                           required
+                                           aria-label="Titel des Links">
                                     <input type="url"
                                            name="url"
                                            class="form-control mb-2"
                                            value="{{ resource.url }}"
-                                           required>
-                                    <textarea name="description" class="form-control mb-2" rows="2">{{ resource.description }}</textarea>
+                                           required
+                                           aria-label="Adresse des Links">
+                                    <textarea name="description" class="form-control mb-2" rows="2" aria-label="Beschreibung des Links">{{ resource.description }}</textarea>
                                     <div class="d-flex justify-content-between gap-2">
                                         <button type="submit" class="btn btn-outline-primary btn-sm">Speichern</button>
                                         <button type="submit"
@@ -285,16 +288,19 @@
                                    name="title"
                                    class="form-control mb-2"
                                    placeholder="Linktitel"
-                                   required>
+                                   required
+                                   aria-label="Titel des Links">
                             <input type="url"
                                    name="url"
                                    class="form-control mb-2"
                                    placeholder="https://…"
-                                   required>
+                                   required
+                                   aria-label="Adresse des Links">
                             <textarea name="description"
                                       class="form-control mb-2"
                                       rows="2"
-                                      placeholder="Beschreibung (optional)"></textarea>
+                                      placeholder="Beschreibung (optional)"
+                                      aria-label="Beschreibung des Links"></textarea>
                             <button type="submit" class="btn btn-outline-secondary btn-sm">Link hinzufügen</button>
                         </form>
                     </div>
@@ -338,10 +344,12 @@
                                                    name="note"
                                                    class="form-control form-control-sm"
                                                    placeholder="Notiz (optional)"
-                                                   value="{{ assignment.note }}">
+                                                   value="{{ assignment.note }}"
+                                                   aria-label="Notiz zur Projektzuordnung">
                                             <button type="submit"
                                                     class="btn btn-outline-secondary btn-sm text-nowrap"
-                                                    title="Notiz speichern">
+                                                    title="Notiz speichern"
+                                                    aria-label="Notiz speichern">
                                                 <i class="bi bi-floppy"></i>
                                             </button>
                                         </form>
@@ -351,7 +359,8 @@
                                               action="/song-library/assignments/{{ assignment.id }}/delete"
                                               data-confirm="Zuordnung zum Projekt '{{ assignment.project.name ?? 'Unbekannt' }}' wirklich entfernen?">
                                             <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                    aria-label="Zuordnung entfernen">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
                                         </form>
@@ -385,7 +394,8 @@
                                id="new_note"
                                name="note"
                                class="form-control form-control-sm"
-                               placeholder="z.B. Stimmgruppe, Besonderheiten …">
+                               placeholder="z.B. Stimmgruppe, Besonderheiten …"
+                               aria-label="Notiz zur Projektzuordnung">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary btn-sm w-100">

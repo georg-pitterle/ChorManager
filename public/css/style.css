@@ -7,7 +7,7 @@
     --theme-surface-muted: #f5f7fa;
     --theme-border: #d9dee7;
     --theme-text: #1f2937;
-    --theme-text-muted: #667085;
+    --theme-text-muted: #5b6578;
     --theme-topbar: #18212b;
     --theme-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 
@@ -44,6 +44,32 @@ body.app-shell {
 
 .app-content {
     padding-bottom: 2rem;
+}
+
+/* Sprunglink: erst sichtbar, wenn die Tastatur ihn erreicht. */
+.skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 2000;
+    padding: 0.6rem 1rem;
+    border-radius: 0.375rem;
+    background: var(--theme-primary);
+    color: #2b2b2b;
+    font-weight: 600;
+    text-decoration: none;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+    color: #2b2b2b;
+    outline: 2px solid #2b2b2b;
+    outline-offset: 2px;
+}
+
+.app-main:focus {
+    outline: none;
 }
 
 .page-header {
@@ -132,9 +158,10 @@ body.app-shell {
     color: var(--theme-text-muted);
 }
 
+/* Weiß statt halbtransparentem Weiß: auf dem Rot reicht nur reines Weiß für 4,5:1. */
 .mail-queue-stat-card--critical .mail-queue-stat-card__label,
 .mail-queue-stat-card--critical .mail-queue-stat-card__meta {
-    color: rgba(255, 255, 255, 0.86);
+    color: #ffffff;
 }
 
 .mail-queue-stat-card__value {
@@ -166,7 +193,7 @@ body.app-shell {
     padding: 1rem 1.25rem;
     border: 1px solid rgba(var(--theme-primary-rgb), 0.25);
     border-radius: 1rem;
-    background: linear-gradient(180deg, rgba(232, 168, 23, 0.12) 0%, rgba(232, 168, 23, 0.06) 100%);
+    background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.12) 0%, rgba(var(--theme-primary-rgb), 0.06) 100%);
 }
 
 .mail-queue-overview-actions__hint {
@@ -465,8 +492,9 @@ body.app-shell {
     border-color: var(--bs-warning);
 }
 
-.role-overview-role.is-lacking {
-    opacity: 0.45;
+.role-overview-role.is-lacking .role-overview-role-name {
+    color: var(--bs-secondary-color);
+    font-weight: 400;
 }
 
 .role-overview-role-name {
@@ -910,7 +938,7 @@ body.app-shell {
     padding: 0.9rem 0.75rem 0.3rem;
     border: 0;
     background: none;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.62);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -1577,7 +1605,7 @@ a {
 }
 
 a:hover {
-    color: #946b08;
+    color: color-mix(in srgb, var(--theme-primary-strong) 80%, #000000);
 }
 
 /* Login Card specific */
@@ -1758,6 +1786,11 @@ a:hover {
     min-width: 220px;
 }
 
+/* Zahlenfeld neben dem Stimmnamen in der Archiv-Zeile */
+.voice-count-input {
+    max-width: 100px;
+}
+
 /* Avatar circle for comment author initials */
 .avatar-circle {
     width: 40px;
@@ -1890,13 +1923,12 @@ a:hover {
 .kanban-cards-container.kanban-drop-active {
     outline: 2px dashed var(--theme-primary, #E8A817);
     outline-offset: -2px;
-    background-color: rgba(232, 168, 23, 0.04);
+    background-color: rgba(var(--theme-primary-rgb), 0.04);
 }
 
 /* Drag over highlight styles */
 .kanban-cards-container.drag-over {
-    background-color: rgba(232, 168, 23, 0.08);
-    /* theme-primary with opacity */
+    background-color: rgba(var(--theme-primary-rgb), 0.08);
     border: 2px dashed var(--theme-primary, #E8A817);
     border-bottom-left-radius: 1rem;
     border-bottom-right-radius: 1rem;
@@ -1945,7 +1977,7 @@ a:hover {
 }
 
 .kanban-card-title a:hover {
-    color: var(--theme-primary, #E8A817);
+    color: var(--theme-primary-strong);
 }
 
 .kanban-card-meta {
@@ -2625,5 +2657,18 @@ a:hover {
     .storage-row--depth-1 th,
     .storage-row--depth-2 th {
         padding-left: 0.5rem;
+    }
+}
+
+/* Touch-Geräte: Aktionsknöpfe in Tabellenzeilen und Listen erreichen die empfohlene
+   Zielgröße von 44 px (bei Maus bleibt das kompakte btn-sm). */
+@media (pointer: coarse) {
+    td .btn-sm,
+    .list-group-item .btn-sm {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
     }
 }

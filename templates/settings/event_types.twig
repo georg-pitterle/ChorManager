@@ -47,13 +47,15 @@
                                         <button class="btn btn-sm btn-outline-secondary"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#editTypeModal{{ type.id }}"
-                                                title="Bearbeiten">
+                                                title="Bearbeiten"
+                                                aria-label="Bearbeiten">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#deleteTypeModal{{ type.id }}"
-                                                title="Löschen">
+                                                title="Löschen"
+                                                aria-label="Löschen">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
@@ -80,17 +82,18 @@
                                                 {{ modal.show_modal_error(error, modal_form_edits[type.id].error, 'event_type_edit_' ~ type.id) }}
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Name</label>
+                                                    <label for="settings-event-types-name-{{ loop.index }}" class="form-label">Name</label>
                                                     {% set edit_form = modal_form_edits[type.id].form|default({}) %}
                                                     <input type="text"
                                                            name="name"
                                                            class="form-control"
                                                            value="{{ edit_form.name|default(type.name) }}"
-                                                           required>
+                                                           required
+                                                           id="settings-event-types-name-{{ loop.index }}">
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label">Farbe (Bootstrap Klasse)</label>
-                                                    <select name="color" class="form-select">
+                                                    <label for="settings-event-types-color-{{ loop.index }}" class="form-label">Farbe (Bootstrap Klasse)</label>
+                                                    <select name="color" class="form-select" id="settings-event-types-color-{{ loop.index }}">
                                                         <option value="primary"
                                                                 {% if edit_form.color|default(type.color) == 'primary' %}selected{% endif %}>
                                                             Blau (Primary)
@@ -192,17 +195,18 @@
                         {{ modal.show_modal_error(error, modal_form_create.error, 'event_type_create') }}
 
                         <div class="mb-3">
-                            <label class="form-label">Name (z.B. Probe, Auftritt)</label>
+                            <label for="settings-event-types-name-v2" class="form-label">Name (z.B. Probe, Auftritt)</label>
                             <input type="text"
                                    name="name"
                                    class="form-control"
                                    required
                                    value="{{ modal_form_create.form.name|default('') }}"
-                                   placeholder="Name des Typs...">
+                                   placeholder="Name des Typs..."
+                                   id="settings-event-types-name-v2">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Farbe (Bootstrap Klasse)</label>
-                            <select name="color" class="form-select">
+                            <label for="settings-event-types-color-v2" class="form-label">Farbe (Bootstrap Klasse)</label>
+                            <select name="color" class="form-select" id="settings-event-types-color-v2">
                                 <option value="primary"
                                         {% if modal_form_create.form.color|default('info') == 'primary' %}selected{% endif %}>
                                     Blau (Primary)

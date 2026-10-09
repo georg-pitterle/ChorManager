@@ -25,7 +25,8 @@
                             class="form-select select-min-220"
                             data-tom-select
                             data-placeholder="Mitglied suchen ..."
-                            required>
+                            required
+                            aria-label="Mitglied suchen">
                         <option value="">-- Mitglied hinzufügen --</option>
                         {% if active_users|length > 0 %}
                             <optgroup label="Aktive Mitglieder">
