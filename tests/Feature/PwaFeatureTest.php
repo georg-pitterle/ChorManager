@@ -21,7 +21,7 @@ class PwaFeatureTest extends TestCase
 
             $this->assertIsString($content);
             $this->assertStringContainsString('<link rel="manifest" href="/manifest.webmanifest">', $content);
-            $this->assertStringContainsString('<meta name="theme-color" content="#1f3a5f">', $content);
+            $this->assertStringContainsString('<meta name="theme-color" content="#18212b">', $content);
             $this->assertStringContainsString('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">', $content);
         }
     }

@@ -154,7 +154,7 @@
                         {% if song.categories|length > 0 %}
                             <div class="d-flex flex-wrap gap-2 mb-2">
                                 {% for cat in song.categories %}
-                                    <span class="badge fs-6 bg-primary-subtle text-primary-emphasis">{{ cat.name }}</span>
+                                    <span class="badge fs-6 text-bg-light border">{{ cat.name }}</span>
                                 {% endfor %}
                             </div>
                         {% else %}

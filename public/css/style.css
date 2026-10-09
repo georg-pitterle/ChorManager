@@ -2324,6 +2324,19 @@ a:hover {
     border-top: 1px solid var(--surface-border);
 }
 
+/* Am Telefon: höchstens zwei Knöpfe stehen nebeneinander und teilen sich die Breite, statt
+   umzubrechen - eine zweizeilige Klebeleiste nähme gut 110 px vom Bildschirm. */
+@media (max-width: 575.98px) {
+    .form-action-bar:not(:has(> :nth-child(3))) {
+        flex-wrap: nowrap;
+    }
+
+    .form-action-bar:not(:has(> :nth-child(3))) > .btn {
+        flex: 1 1 0;
+        white-space: normal;
+    }
+}
+
 /* Formular als Flex-Huelle in einem Dialog.
 
    Bootstrap verteilt Kopf, Koerper und Fussleiste über .modal-content

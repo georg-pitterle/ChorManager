@@ -152,10 +152,10 @@ class UiControlsFeatureTest extends TestCase
         $offenders = [];
 
         foreach (self::templates() as $path => $content) {
-            preg_match_all('/class="(badge\b[^"]*)"/', $content, $badges);
+            preg_match_all('/class="([^"]*\bbadge\b[^"]*)"/', $content, $badges);
 
             foreach ($badges[1] as $class) {
-                if (preg_match('/(^|\s)bg-(primary|secondary|success|danger|warning|info|light|dark)(\s|$)/', $class) === 1) {
+                if (preg_match('/(^|\s)bg-(primary|secondary|success|danger|warning|info|light|dark)(-subtle)?(\s|$)/', $class) === 1) {
                     $offenders[] = $path . ': ' . $class;
                 }
             }
@@ -172,6 +172,31 @@ class UiControlsFeatureTest extends TestCase
     {
         foreach (self::templates() as $path => $content) {
             $this->assertDoesNotMatchRegularExpression('/\son(click|submit|change)=/', $content, $path);
+        }
+    }
+
+    /**
+     * Badge-Farben tragen Bedeutung: grün erledigt/positiv, rot negativ/dringend, gelb Achtung,
+     * grau neutral/inaktiv/Art, blau Hinweis/in Arbeit. Festgehalten an den früheren Ausreißern.
+     */
+    public function testBadgeColoursFollowTheirMeaning(): void
+    {
+        $templates = self::templates();
+        $expected = [
+            'templates/projects/tasks.twig' => ['text-bg-warning">Mittel<'],
+            'templates/finances/accounts.twig' => ['text-bg-secondary">Bar<', 'text-bg-secondary">Bank<'],
+            'templates/backups/index.twig' => ['text-bg-secondary">Manuell<'],
+        ];
+
+        foreach ($expected as $path => $needles) {
+            foreach ($needles as $needle) {
+                $this->assertStringContainsString($needle, $templates[$path], $path);
+            }
+        }
+
+        foreach ($templates as $path => $content) {
+            $this->assertDoesNotMatchRegularExpression('/text-bg-(warning|primary)"[^>]*>\s*storniert/', $content, $path);
+            $this->assertStringNotContainsString('badge bg-primary">Mittel', $content, $path);
         }
     }
 

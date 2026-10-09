@@ -120,7 +120,7 @@
                                             {% if song.categories|length > 0 %}
                                                 <div class="d-flex flex-wrap gap-1">
                                                     {% for cat in song.categories %}
-                                                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ cat.name }}</span>
+                                                        <span class="badge text-bg-light border">{{ cat.name }}</span>
                                                     {% endfor %}
                                                 </div>
                                             {% else %}

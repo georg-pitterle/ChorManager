@@ -106,9 +106,9 @@
                                         </td>
                                         <td data-label="Art">
                                             {% if account.type == "cash" %}
-                                                <span class="badge text-bg-warning">Bar</span>
+                                                <span class="badge text-bg-secondary">Bar</span>
                                             {% else %}
-                                                <span class="badge text-bg-info">Bank</span>
+                                                <span class="badge text-bg-secondary">Bank</span>
                                             {% endif %}
                                         </td>
                                         <td data-label="IBAN">{{ account.iban|default("-") }}</td>

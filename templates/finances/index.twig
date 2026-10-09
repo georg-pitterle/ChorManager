@@ -163,7 +163,7 @@
                                             {% if item.is_reversal %}
                                                 <span class="badge text-bg-secondary">Storno</span>
                                             {% elseif item.is_reversed %}
-                                                <span class="badge text-bg-warning">storniert</span>
+                                                <span class="badge text-bg-secondary">storniert</span>
                                             {% endif %}
                                         </td>
                                         <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>

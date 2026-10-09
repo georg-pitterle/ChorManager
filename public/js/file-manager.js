@@ -222,7 +222,7 @@
                 info.appendChild(heading);
                 if (version.id === data.current_version_id) {
                     const badge = document.createElement('span');
-                    badge.className = 'badge bg-success ms-2';
+                    badge.className = 'badge text-bg-success ms-2';
                     badge.textContent = 'aktuell';
                     info.appendChild(badge);
                 }
@@ -252,7 +252,7 @@
                     form.appendChild(token);
                     const button = document.createElement('button');
                     button.type = 'submit';
-                    button.className = 'btn btn-sm btn-outline-primary';
+                    button.className = 'btn btn-sm btn-outline-secondary';
                     button.textContent = 'Wiederherstellen';
                     form.appendChild(button);
                     actions.appendChild(form);
