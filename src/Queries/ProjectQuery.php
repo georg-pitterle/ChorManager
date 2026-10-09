@@ -6,6 +6,7 @@ namespace App\Queries;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Util\SubVoiceOrder;
 use App\Util\VoiceGroupOrder;
@@ -231,20 +232,45 @@ class ProjectQuery
      * voice-group-scoped project member changes. A missing user yields [].
      *
      * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
-     * Stimmgruppen-Modelle selbst nicht gebraucht. Ein fehlendes Konto darf
-     * nicht durchschlagen - zeigt die Session auf ein gelöschtes Mitglied,
-     * bräche ein direktes User::find(...)->voiceGroups() mit einem Fatal Error ab.
+     * Stimmgruppen-Modelle selbst nicht gebraucht.
+     *
+     * Gefragt wird von der Stimmgruppe aus, nicht vom Konto: So steht die
+     * Antwort nach einer Runde zum Server fest. Zuvor lud der Lookup erst das
+     * Mitglied und stellte danach die zweite Abfrage über die Beziehung -
+     * dieselben zwei Runden, die ProjectMemberPolicy::loadAccessibleProjectIds()
+     * schon hinter sich hat, und das an jedem Zuweisen und Entfernen eines
+     * Projektmitglieds.
+     *
+     * Das Konto zuerst zu laden war dort nötig, wo die Beziehung daran hing: Ein
+     * direktes User::find(...)->voiceGroups() bräche bei einem gelöschten
+     * Mitglied mit einem Fatal Error ab. Von der Stimmgruppe aus fällt derselbe
+     * Fall von selbst auf die leere Liste - und damit aus dem
+     * stimmgruppen-beschränkten Recht heraus, genau wie bisher.
+     *
+     * Die Reihenfolge bleibt die von User::voiceGroups() (`voice_groups.id`
+     * aufsteigend). Sie spielt für den array_intersect() der Rechteprüfung keine
+     * Rolle, aber eine Id-Liste, deren Reihenfolge der Treiber bestimmt, lädt zu
+     * einem Test ein, der nur zufällig grün ist.
      *
      * @return array<int>
      */
     public function getUserVoiceGroupIds(int $userId): array
     {
-        $user = User::select(['id'])->find($userId);
-        if (!$user) {
+        if ($userId <= 0) {
+            // Leer ohne Datenbankzugriff - dieselbe Abkürzung wie in
+            // getProjectsByIds(): Kein Konto trägt eine Kennung <= 0.
             return [];
         }
 
-        return self::toIntList($user->voiceGroups()->pluck('voice_groups.id'));
+        return self::toIntList(
+            VoiceGroup::query()
+                ->select('voice_groups.id')
+                ->whereHas('users', function ($relation) use ($userId): void {
+                    $relation->where('users.id', $userId);
+                })
+                ->orderBy('voice_groups.id')
+                ->pluck('voice_groups.id')
+        );
     }
 
     /**
