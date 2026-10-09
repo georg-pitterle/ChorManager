@@ -1704,6 +1704,12 @@ thead th {
     --bs-btn-active-color: #212529;
 }
 
+/* Text Warning: Bootstraps Gelb als Schrift hat auf Weiß nur 1,6:1 (Zähler "Entschuldigt",
+   Quoten, Wiedervorlagen). Derselbe dunkle Bernsteinton wie beim Outline-Knopf: 5,8:1. */
+.text-warning {
+    color: #806000 !important;
+}
+
 /* Text Primary */
 .text-primary {
     color: var(--theme-primary-strong) !important;

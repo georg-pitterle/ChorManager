@@ -59,7 +59,7 @@
                                         <td data-label="Zeitpunkt">{{ revision.created_at|date("d.m.Y H:i") }}</td>
                                         <td data-label="Buchung">
                                             {% if revision.finance %}
-                                                <strong>Nr. {{ revision.finance.running_number }}</strong>
+                                                Nr. {{ revision.finance.running_number }}
                                                 <div class="small text-muted">{{ revision.finance.description }}</div>
                                             {% else %}
                                                 <span class="text-muted">-</span>

@@ -71,12 +71,12 @@
                                     data-sort-recorded="{{ stat.total_recorded|default(0) }}"
                                     data-sort-percentage="{{ stat.percentage|default(0) }}">
                                     <td data-label="Name">
-                                        <strong>{{ stat|person_name }}</strong>
+                                        {{ stat|person_name }}
                                     </td>
                                     <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
-                                    <td data-label="Anwesend" class="text-center text-success fw-bold">{{ stat.present_count|default('0') }}</td>
-                                    <td data-label="Entschuldigt" class="text-center text-warning fw-bold">{{ stat.excused_count|default('0') }}</td>
-                                    <td data-label="Unentschuldigt" class="text-center text-danger fw-bold">{{ stat.unexcused_count|default('0') }}</td>
+                                    <td data-label="Anwesend" class="text-center text-success">{{ stat.present_count|default('0') }}</td>
+                                    <td data-label="Entschuldigt" class="text-center text-warning">{{ stat.excused_count|default('0') }}</td>
+                                    <td data-label="Unentschuldigt" class="text-center text-danger">{{ stat.unexcused_count|default('0') }}</td>
                                     {# Macht die Bezugsgröße der Quote sichtbar: gerechnet wird gegen
                                        alle stattgefundenen Pflichttermine, erfasst wurden ggf. weniger. #}
                                     <td data-label="Erfasst" class="text-center text-muted">{{ stat.total_recorded|default('0') }} / {{ stat.total_events|default(total_events) }}</td>

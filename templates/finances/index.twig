@@ -159,7 +159,7 @@
                                         data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
                                         data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
                                         <td data-label="Lfd. Nr.">
-                                            <strong>{{ item.running_number }}</strong>
+                                            {{ item.running_number }}
                                             {% if item.is_reversal %}
                                                 <span class="badge bg-secondary">Storno</span>
                                             {% elseif item.is_reversed %}
@@ -195,7 +195,7 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Betrag"
-                                            class="finance-amount-cell text-end fw-bold {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
+                                            class="finance-amount-cell text-end {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
                                             {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
                                         </td>
                                         <td data-label="Konto">
@@ -371,7 +371,7 @@
                                             data-sort-group_name="{{ item.group_name|default("")|lower }}"
                                             data-sort-type="{{ item.type == "income" ? "eingang" : "ausgang" }}"
                                             data-sort-amount="{{ item.type == "income" ? item.amount : -item.amount }}">
-                                            <td data-label="Lfd. Nr."><strong>{{ item.running_number }}</strong></td>
+                                            <td data-label="Lfd. Nr.">{{ item.running_number }}</td>
                                             <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
                                             <td data-label="Beschreibung">{{ item.description }}</td>
                                             <td data-label="Gruppe">{{ item.group_name|default("-") }}</td>

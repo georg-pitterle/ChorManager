@@ -60,7 +60,7 @@
                                                 data-sort-sender="{{ sender_name|lower }}"
                                                 data-sort-sent="{{ entry.sent_at|date('Y-m-d H:i:s') }}">
                                                 <td data-label="Titel">
-                                                    <strong>{{ subject }}</strong>
+                                                    {{ subject }}
                                                     {% if newsletter.event %}
                                                         <br>
                                                         <small class="text-muted">Event: {{ newsletter.event.title }}</small>

@@ -80,7 +80,7 @@
                                         data-sort-start_date="{{ project.start_date|default('') }}"
                                         data-sort-end_date="{{ project.end_date|default('') }}">
                                         <td data-label="Projektname">
-                                            <strong>{{ project.name }}</strong>
+                                            {{ project.name }}
                                         </td>
                                         <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
                                         <td data-label="Startdatum">{{ has_start_date ? project.start_date|date("d.m.Y") : "-" }}</td>

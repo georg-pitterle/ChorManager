@@ -105,7 +105,7 @@
                                             data-sort-due_date="{{ task.end_date ? task.end_date|date('Y-m-d') : '9999-12-31' }}"
                                             data-sort-task_status="{{ task.status|lower }}">
                                             <td data-label="Titel">
-                                                <strong>{{ task.name }}</strong>
+                                                {{ task.name }}
                                                 {% if task.comments_count > 0 %}
                                                     <span class="badge bg-light text-dark ms-2"
                                                           title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>

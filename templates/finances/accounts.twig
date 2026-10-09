@@ -99,7 +99,7 @@
                                         data-sort-balance="{{ row.balance }}"
                                         data-sort-booking_count="{{ row.booking_count }}">
                                         <td data-label="Konto">
-                                            <strong>{{ account.name }}</strong>
+                                            {{ account.name }}
                                             {% if not account.is_active %}
                                                 <span class="badge bg-secondary ms-1">inaktiv</span>
                                             {% endif %}

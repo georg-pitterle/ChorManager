@@ -172,7 +172,7 @@
                                             data-sort-location="{{ event.location|default('')|lower }}"
                                             data-sort-type="{{ event.type_name|lower }}">
                                             <td data-label="Datum / Zeit">
-                                                <strong>{{ event.starts_at|date('d.m.Y') }}</strong>
+                                                {{ event.starts_at|date('d.m.Y') }}
                                                 <br>
                                                 <span class="text-muted small">{{ event.starts_at|date('H:i') }} - {{ event.ends_at|date('H:i') }}</span>
                                                 {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}

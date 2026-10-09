@@ -157,7 +157,7 @@
                                             data-sort-created="{{ newsletter.created_at|date("Y-m-d H:i:s") }}"
                                             data-sort-status="{{ newsletter.status|lower }}">
                                             <td data-label="Titel">
-                                                <strong>{{ newsletter.title }}</strong>
+                                                {{ newsletter.title }}
                                             </td>
                                             <td data-label="Projekt">{{ newsletter.project.name|default("–") }}</td>
                                             <td data-label="Erstellt von">

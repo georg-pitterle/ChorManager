@@ -227,4 +227,40 @@ class UiTypographyFeatureTest extends TestCase
         $this->assertStringContainsString('finance-kpi-value--balance', $report);
         $this->assertSame(5, substr_count($report, 'class="finance-report-icon'));
     }
+
+    /**
+     * In Tabellen ist fett nur, was ein Ergebnis oder eine Warnung ist (Saldo, Summe, Quote,
+     * Überfälliges). Kennungen einer Zeile - Name, Titel, Nummer, Datum - stehen normal; sie
+     * sind meist ohnehin Links.
+     */
+    public function testTableIdentifiersAreNotBold(): void
+    {
+        $offenders = [];
+        $identifier = '/(person_name|\.name\b|\.title\b|running_number|starts_at|\bsubject\b)/';
+
+        foreach (self::templates() as $path => $content) {
+            preg_match_all('/<td\b[^>]*>(.*?)<\/td>/s', $content, $cells);
+
+            foreach ($cells[1] as $cell) {
+                preg_match_all('/<(strong|b)\b[^>]*>(.*?)<\/\1>|class="[^"]*\bfw-(bold|semibold)\b[^"]*"[^>]*>([^<]*)/s', $cell, $bold, PREG_SET_ORDER);
+
+                foreach ($bold as $match) {
+                    $text = ($match[2] ?? '') . ($match[4] ?? '');
+                    if (preg_match($identifier, $text) === 1) {
+                        $offenders[] = $path . ': ' . trim(preg_replace('/\s+/', ' ', $text) ?? '');
+                    }
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, 'Fette Kennungen in Tabellenzellen.');
+    }
+
+    public function testWarningTextIsReadable(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/\.text-warning\s*\{[^}]*color:\s*#806000/',
+            (string) file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css')
+        );
+    }
 }

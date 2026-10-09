@@ -108,7 +108,7 @@
                                     data-sort-email="{{ m.email|lower }}"
                                     data-sort-voice="{{ m.voice_groups_display|default('')|lower }}">
                                     <td data-label="Name">
-                                        <strong>{{ m|person_name }}</strong>
+                                        {{ m|person_name }}
                                         {% if not m.is_active|default(true) %}
                                             <span class="badge text-bg-secondary ms-1">Archiviert</span>
                                         {% endif %}
