@@ -7,7 +7,7 @@
 {% block content %}
     <div class="row mt-4 mb-3">
         <div class="col-12">
-            <h1>Mein Profil</h1>
+            <h1 class="h2">Mein Profil</h1>
         </div>
     </div>
 
@@ -321,7 +321,7 @@
                             {% set _channels = {"mail": "E-Mail", "in_app": "Glocke"} %}
                             {% for group, types in notification_groups %}
                                 <div class="row align-items-end mt-4 mb-2">
-                                    <h3 class="col h6 text-uppercase text-muted mb-0">
+                                    <h3 class="col group-label mb-0">
                                         {{ notification_group_labels[group]|default(group) }}
                                     </h3>
                                     <div class="col-auto d-none d-md-flex notification-channel-heads text-muted small">

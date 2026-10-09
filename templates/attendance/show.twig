@@ -80,12 +80,12 @@
         <section class="surface-card form-surface mb-4">
             <div class="card shadow-sm mb-0 border-primary border-0">
                 <div class="card-body">
-                    <h5 class="card-title text-primary">{{ current_event.title }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">
+                    <h5 class="card-title">{{ current_event.title }}</h5>
+                    <p class="card-subtitle mb-2 text-muted">
                         {{ current_event.starts_at|date('d.m.Y H:i') }} – {{ current_event.ends_at|date('H:i') }}
                         {% if current_event.location %}| <i class="bi bi-geo-alt"></i> {{ current_event.location }}{% endif %}
                         | Typ: {{ current_event.type }}
-                    </h6>
+                    </p>
                 </div>
             </div>
         </section>

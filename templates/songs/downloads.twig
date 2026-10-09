@@ -52,7 +52,6 @@
                                     {% for song in project.assignedSongs %}
                                         <article class="surface-card dashboard-panel dashboard-panel--communication downloads-song-panel mb-3">
                                             <div class="dashboard-panel__body mb-3">
-                                                <p class="dashboard-panel__eyebrow">Lied</p>
                                                 <h3 class="dashboard-panel__title">
                                                     <i class="bi bi-music-note-beamed"></i>{{ song.title }}
                                                 </h3>
@@ -144,7 +143,7 @@
                                             </div>
 
                                             <div class="downloads-song-links mt-3">
-                                                <h4 class="h6 mb-2">Links</h4>
+                                                <h4 class="group-label mb-2">Links</h4>
                                                 {% if song.linkResources|length > 0 %}
                                                     <div class="list-group list-group-flush">
                                                         {% for resource in song.linkResources %}

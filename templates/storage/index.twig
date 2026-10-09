@@ -57,7 +57,7 @@
 
     {% for area in report.areas %}
         <section class="surface-card storage-area" aria-labelledby="storage-area-{{ area.key }}">
-            <h2 class="h5 mb-3" id="storage-area-{{ area.key }}">{{ area.label }}</h2>
+            <h2 class="card-title mb-3" id="storage-area-{{ area.key }}">{{ area.label }}</h2>
 
             {% if area.error %}
                 <p class="text-muted mb-0">Dieser Bereich ist nicht ermittelbar. Details stehen im Protokoll.</p>
@@ -84,7 +84,7 @@
                 </div>
 
                 {% for breakdown in area.children|filter(child => child.breakdown) %}
-                    <h3 class="h6 mt-3">{{ breakdown.label }}</h3>
+                    <h3 class="group-label mt-3">{{ breakdown.label }}</h3>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle storage-table">
                             <thead>

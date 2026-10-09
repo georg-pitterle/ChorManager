@@ -29,7 +29,6 @@
                 {% if session.can_manage_own_voice_group or session.can_manage_attendance_all %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Organisation</p>
                             <h3 class="dashboard-panel__title">
                                 <i class="bi bi-person-check-fill"></i>
                                 Anwesenheiten
@@ -45,7 +44,6 @@
                 {% if _finance_panel_visible %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Finanzen</p>
                             <h3 class="dashboard-panel__title">
                                 <i class="bi bi-bank"></i>
                                 Kassa
@@ -59,7 +57,6 @@
                 {% if session.can_manage_users %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Mitglieder</p>
                             <h3 class="dashboard-panel__title">
                                 <i class="bi bi-people-fill"></i>
                                 Mitglieder verwalten
@@ -72,7 +69,6 @@
 
                 <article class="surface-card dashboard-panel dashboard-panel--action">
                     <div class="dashboard-panel__body">
-                        <p class="dashboard-panel__eyebrow">Auswertung</p>
                         <h3 class="dashboard-panel__title">
                             <i class="bi bi-bar-chart-fill"></i>
                             Auswertungen
@@ -86,7 +82,6 @@
                     {% set _has_pending = registration_summary.pending > 0 %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Termine</p>
                             <h3 class="dashboard-panel__title">
                                 <i class="bi bi-calendar-check"></i>
                                 Ausstehende Anmeldungen
@@ -115,7 +110,6 @@
                     {% set _storage = storage_tile.summary %}
                     <article class="surface-card dashboard-panel dashboard-panel--action">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">System</p>
                             <h3 class="dashboard-panel__title">
                                 <i class="bi bi-hdd"></i>
                                 Speicherplatz
@@ -167,10 +161,9 @@
                     {% if session.can_manage_tasks and current_project %}
                         <article class="surface-card dashboard-panel dashboard-panel--context">
                             <div class="dashboard-panel__body">
-                                <p class="dashboard-panel__eyebrow">Laufendes Projekt</p>
                                 <h3 class="dashboard-panel__title">
                                     <i class="bi bi-list-check"></i>
-                                    Aufgaben: {{ current_project.name }}
+                                    Laufendes Projekt: {{ current_project.name }}
                                 </h3>
                                 <p class="dashboard-panel__text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
                             </div>
@@ -182,10 +175,9 @@
                     {% if session.can_manage_tasks and upcoming_project %}
                         <article class="surface-card dashboard-panel dashboard-panel--context">
                             <div class="dashboard-panel__body">
-                                <p class="dashboard-panel__eyebrow">Kommendes Projekt</p>
                                 <h3 class="dashboard-panel__title">
                                     <i class="bi bi-calendar2-week"></i>
-                                    Aufgaben: {{ upcoming_project.name }}
+                                    Kommendes Projekt: {{ upcoming_project.name }}
                                 </h3>
                                 <p class="dashboard-panel__text">Bereite das nächste Projekt frühzeitig vor und plane Aufgaben im Team.</p>
                             </div>
@@ -219,14 +211,12 @@
                 {% if latest_sent_newsletter %}
                     <article class="surface-card dashboard-panel dashboard-panel--communication">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Zuletzt versendeter Newsletter</p>
                             <h3 class="dashboard-panel__title">{{ latest_sent_newsletter.title }}</h3>
                             <p class="dashboard-panel__text">
+                                Zuletzt versendeter Newsletter
+                                {%- if latest_sent_newsletter.sent_at %}, am {{ latest_sent_newsletter.sent_at|date("d.m.Y H:i") }}{% endif %}
+                                <br>
                                 Projekt: {{ latest_sent_newsletter.project.name|default("-") }}
-                                {% if latest_sent_newsletter.sent_at %}
-                                    <br>
-                                    Gesendet am {{ latest_sent_newsletter.sent_at|date("d.m.Y H:i") }}
-                                {% endif %}
                             </p>
                         </div>
                         <button type="button"
@@ -239,7 +229,6 @@
                 {% if dead_mail_count is not null %}
                     <article class="surface-card dashboard-panel {% if dead_mail_count > 0 %}dashboard-panel--critical{% else %}dashboard-panel--communication{% endif %}">
                         <div class="dashboard-panel__body">
-                            <p class="dashboard-panel__eyebrow">Mail-Queue</p>
                             <h3 class="dashboard-panel__title">Mail-Queue</h3>
                             <p class="dashboard-panel__text">
                                 {% if dead_mail_count > 0 %}

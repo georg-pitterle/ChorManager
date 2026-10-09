@@ -57,8 +57,8 @@
                                         <i class="bi bi-graph-up-arrow text-success fs-3"></i>
                                     </div>
                                     <div>
-                                        <h6 class="card-subtitle text-muted mb-1">Einnahmen</h6>
-                                        <h3 class="card-title text-success mb-0">{{ total_income|number_format(2, ',', '.') }} €</h3>
+                                        <h3 class="group-label mb-1">Einnahmen</h3>
+                                        <p class="finance-kpi-value text-success mb-0">{{ total_income|number_format(2, ',', '.') }} €</p>
                                         {% if reversed_income > 0 %}
                                             <div class="small text-muted">davon Storno: {{ reversed_income|number_format(2, ',', '.') }} €</div>
                                         {% endif %}
@@ -76,8 +76,8 @@
                                         <i class="bi bi-graph-down-arrow text-danger fs-3"></i>
                                     </div>
                                     <div>
-                                        <h6 class="card-subtitle text-muted mb-1">Ausgaben</h6>
-                                        <h3 class="card-title text-danger mb-0">{{ total_expense|number_format(2, ',', '.') }} €</h3>
+                                        <h3 class="group-label mb-1">Ausgaben</h3>
+                                        <p class="finance-kpi-value text-danger mb-0">{{ total_expense|number_format(2, ',', '.') }} €</p>
                                         {% if reversed_expense > 0 %}
                                             <div class="small text-muted">davon Storno: {{ reversed_expense|number_format(2, ',', '.') }} €</div>
                                         {% endif %}
@@ -95,10 +95,10 @@
                                         <i class="bi bi-cash-stack text-primary fs-3"></i>
                                     </div>
                                     <div>
-                                        <h6 class="card-subtitle text-muted mb-1">Saldo</h6>
-                                        <h3 class="card-title mb-0 {{ balance >= 0 ? 'text-primary' : 'text-warning' }}">
+                                        <h3 class="group-label mb-1">Saldo</h3>
+                                        <p class="finance-kpi-value mb-0 {{ balance >= 0 ? 'text-primary' : 'text-danger' }}">
                                             {{ balance > 0 ? '+' : '' }}{{ balance|number_format(2, ',', '.') }} €
-                                        </h3>
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -117,9 +117,9 @@
 
                 <div class="row g-4 mb-4">
                     <div class="col-12">
-                        <h5 class="text-muted fw-semibold mb-3">
+                        <h2 class="dashboard-section-title mb-3">
                             <i class="bi bi-safe me-1"></i> Kassabericht je Konto
-                        </h5>
+                        </h2>
                         <div class="card shadow-sm border-0">
                             <div class="card-body p-0">
                                 <div class="table-responsive finance-report-table-wrap">
@@ -209,9 +209,9 @@
 
                 <div class="row g-4 mb-4">
                     <div class="col-12">
-                        <h5 class="text-muted fw-semibold mb-3">
+                        <h2 class="dashboard-section-title mb-3">
                             <i class="bi bi-funnel me-1"></i> Saldo nach Zahlungsart
-                        </h5>
+                        </h2>
                     </div>
                     <div class="col-md-6">
                         <div class="card shadow-sm border-0 h-100">
@@ -220,7 +220,7 @@
                                     <div class="bg-secondary bg-opacity-10 p-3 rounded-circle me-3">
                                         <i class="bi bi-cash-coin text-secondary fs-4"></i>
                                     </div>
-                                    <h6 class="mb-0 fw-semibold">Bar (Kassa)</h6>
+                                    <h3 class="card-title mb-0">Bar (Kassa)</h3>
                                 </div>
                                 <div class="table-responsive finance-report-table-wrap">
                                     <table class="table table-sm mb-0 finance-report-table">
@@ -255,7 +255,7 @@
                                     <div class="bg-info bg-opacity-10 p-3 rounded-circle me-3">
                                         <i class="bi bi-bank text-info fs-4"></i>
                                     </div>
-                                    <h6 class="mb-0 fw-semibold">Überweisung (Bank)</h6>
+                                    <h3 class="card-title mb-0">Überweisung (Bank)</h3>
                                 </div>
                                 <div class="table-responsive finance-report-table-wrap">
                                     <table class="table table-sm mb-0 finance-report-table">
@@ -290,7 +290,7 @@
                         <div class="col-md-6">
                             <div class="card shadow-sm border-0 h-100">
                                 <div class="card-header bg-success bg-opacity-10 border-0 py-3">
-                                    <h6 class="mb-0 text-success fw-bold">
+                                    <h6 class="mb-0">
                                         <i class="bi bi-plus-circle me-1"></i> Einnahmen nach Gruppe
                                     </h6>
                                 </div>
@@ -324,7 +324,7 @@
                         <div class="col-md-6">
                             <div class="card shadow-sm border-0 h-100">
                                 <div class="card-header bg-danger bg-opacity-10 border-0 py-3">
-                                    <h6 class="mb-0 text-danger fw-bold">
+                                    <h6 class="mb-0">
                                         <i class="bi bi-dash-circle me-1"></i> Ausgaben nach Gruppe
                                     </h6>
                                 </div>

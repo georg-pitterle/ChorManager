@@ -97,7 +97,7 @@
 
                         <hr class="my-4">
 
-                        <h2 class="h5 mb-3">Mail-Queue</h2>
+                        <h2 class="card-title mb-3">Mail-Queue</h2>
 
                         <div class="mb-4">
                             <label for="mailqueue_trigger_mode" class="form-label fw-bold">Trigger-Modus</label>
@@ -147,7 +147,7 @@
                         {% if settings.modules.registration %}
                             <hr class="my-4">
 
-                            <h2 class="h5 mb-3">Anmeldung</h2>
+                            <h2 class="card-title mb-3">Anmeldung</h2>
 
                             <div class="mb-4">
                                 <label class="form-label fw-bold" for="registration_reminder_days_before">
@@ -175,7 +175,7 @@
                         {% if notification_groups|default({})|length > 0 %}
                             <hr class="my-4">
                             <div id="settings-notifications">
-                                    <h2 class="h5 mb-3">Benachrichtigungen</h2>
+                                    <h2 class="card-title mb-3">Benachrichtigungen</h2>
                                     <p class="text-muted small">
                                         Was hier abgeschaltet ist, verschickt der Chor-Manager für niemanden -
                                         unabhängig davon, was die Einzelnen in ihrem Profil eingestellt haben.
@@ -183,7 +183,7 @@
                                     </p>
 
                                 {% for group, types in notification_groups %}
-                                    <h3 class="h6 text-uppercase text-muted mt-4 mb-3">
+                                    <h3 class="group-label mt-4 mb-3">
                                         {{ notification_group_labels[group]|default(group) }}
                                     </h3>
                                     {% for type in types %}
@@ -234,7 +234,7 @@
 
                         <hr class="my-4">
 
-                        <h2 class="h5 mb-3">Darstellung</h2>
+                        <h2 class="card-title mb-3">Darstellung</h2>
 
                         {% set _name_format = settings_values.name_display_format|default("first_last") %}
                         <div class="mb-4">
@@ -258,7 +258,7 @@
 
                         <hr class="my-4">
 
-                        <h2 class="h5 mb-3">Protokollierung</h2>
+                        <h2 class="card-title mb-3">Protokollierung</h2>
 
                         <div class="mb-3">
                             <label for="log_level" class="form-label">Log-Level</label>

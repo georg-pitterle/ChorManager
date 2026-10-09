@@ -33,14 +33,14 @@
     {% if is_file_admin and total_used_bytes is not null %}
         <div class="card mb-4">
             <div class="card-body">
-                <h2 class="h6 mb-2">Gesamter Speicher</h2>
+                <h2 class="group-label mb-2">Gesamter Speicher</h2>
                 {{ files_ui.quota_bar(total_used_bytes, total_quota_bytes) }}
             </div>
         </div>
     {% endif %}
 
     {% if favorites.folders is not empty or favorites.files is not empty %}
-        <h2 class="h5 mb-3"><i class="bi bi-star-fill text-warning me-1" aria-hidden="true"></i> Favoriten</h2>
+        <h2 class="dashboard-section-title mb-3"><i class="bi bi-star-fill text-warning me-1" aria-hidden="true"></i> Favoriten</h2>
         <div class="list-group mb-4">
             {% for folder in favorites.folders %}
                 <a class="list-group-item list-group-item-action" href="/files/folders/{{ folder.id }}">
@@ -56,7 +56,7 @@
         </div>
     {% endif %}
 
-    <h2 class="h5 mb-3">Teamordner</h2>
+    <h2 class="dashboard-section-title mb-3">Teamordner</h2>
     {% if roots is empty %}
         <div class="alert alert-info">
             {% if is_file_admin %}
@@ -71,7 +71,7 @@
                 <div class="col-12 col-md-6 col-xl-4">
                     <a class="card h-100 files-root-card text-decoration-none" href="/files/folders/{{ root.folder.id }}">
                         <div class="card-body">
-                            <h3 class="h6 card-title mb-2">
+                            <h3 class="card-title mb-2">
                                 <i class="bi bi-folder2-open text-warning me-1" aria-hidden="true"></i>
                                 {{ root.folder.name }}
                             </h3>
@@ -84,7 +84,7 @@
     {% endif %}
 
     {% if shared is not empty or shared_files is not empty %}
-        <h2 class="h5 mb-3">Mit mir geteilt</h2>
+        <h2 class="dashboard-section-title mb-3">Mit mir geteilt</h2>
         <div class="list-group mb-4">
             {% for file in shared_files %}
                 <a class="list-group-item list-group-item-action" href="/files/{{ file.id }}">

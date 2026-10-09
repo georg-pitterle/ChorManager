@@ -76,7 +76,7 @@
                     <div class="card-body">
                         {% for group in recipient_source_groups %}
                             <div class="mb-3">
-                                <h3 class="h6 mb-2">{{ group.label }}</h3>
+                                <h3 class="group-label mb-2">{{ group.label }}</h3>
                                 <ul class="list-unstyled mb-0">
                                     {% for name in group.names %}
                                         <li><i class="bi bi-dot"></i> {{ name }}</li>

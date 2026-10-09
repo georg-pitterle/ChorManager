@@ -23,7 +23,7 @@
                 <a href="/projects/{{ project.id }}/members"
                    class="list-group-item list-group-item-action">
                     <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">{{ project.name }}</h5>
+                        <h5 class="card-title mb-1">{{ project.name }}</h5>
                         {% if project.start_date %}<small class="text-muted">{{ project.start_date|date("d.m.Y") }}</small>{% endif %}
                     </div>
                     {% if project.description %}<p class="mb-1 text-muted">{{ project.description }}</p>{% endif %}
