@@ -27,10 +27,10 @@
                 </form>
             {% endif %}
             <a href="/finances/report/pdf?year={{ selected_year }}"
-               class="btn btn-outline-primary btn-sm">
+               class="btn btn-outline-primary">
                 <i class="bi bi-file-earmark-pdf"></i> PDF herunterladen
             </a>
-            <a href="/finances" class="btn btn-outline-secondary btn-sm">
+            <a href="/finances" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Zurück zum Kassabuch
             </a>
         </div>
@@ -310,7 +310,7 @@
                                                 {% endfor %}
                                                 {% if not found_income %}
                                                     <tr>
-                                                        <td class="text-center py-3 text-muted">Keine Einnahmen</td>
+                                                        <td class="text-center text-muted py-4">Keine Einnahmen</td>
                                                     </tr>
                                                 {% endif %}
                                             </tbody>
@@ -343,7 +343,7 @@
                                                 {% endfor %}
                                                 {% if not found_expense %}
                                                     <tr>
-                                                        <td class="text-center py-3 text-muted">Keine Ausgaben</td>
+                                                        <td class="text-center text-muted py-4">Keine Ausgaben</td>
                                                     </tr>
                                                 {% endif %}
                                             </tbody>
@@ -379,7 +379,7 @@
                                                     {% if grp == '(Keine Gruppe)' %}
                                                         <span class="text-muted fst-italic">{{ grp }}</span>
                                                     {% else %}
-                                                        <span class="badge rounded-pill bg-light text-dark border me-1">{{ grp }}</span>
+                                                        <span class="badge text-bg-light rounded-pill border me-1">{{ grp }}</span>
                                                     {% endif %}
                                                 </td>
                                                 <td class="text-end text-success finance-report-amount-cell">+ {{ totals.income|number_format(2, ',', '.') }} €</td>
@@ -458,7 +458,7 @@
                                         </tr>
                                     {% else %}
                                         <tr>
-                                            <td colspan="5" class="text-center py-4 text-muted">Keine Buchungen vorhanden.</td>
+                                            <td colspan="5" class="text-center text-muted py-4">Keine Buchungen vorhanden.</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>

@@ -53,7 +53,7 @@
                     aria-controls="pane-projects"
                     aria-selected="false">
                 <i class="bi bi-music-note-list me-1"></i>Meine Projekte
-                <span class="badge bg-secondary ms-1">{{ projects|length }}</span>
+                <span class="badge text-bg-secondary ms-1">{{ projects|length }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -165,7 +165,7 @@
                             <p class="group-label mb-1">Rolle(n)</p>
                             <p class="fs-5 mb-0">
                                 {% for role in user.roles %}
-                                    <span class="badge bg-primary">{{ role.name }}</span>
+                                    <span class="badge text-bg-primary">{{ role.name }}</span>
                                 {% else %}
                                     -
                                 {% endfor %}

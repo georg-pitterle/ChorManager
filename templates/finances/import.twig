@@ -14,7 +14,7 @@
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
             <form action="/finances/import/cancel" method="post">
-                <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                <button type="submit" class="btn btn-outline-secondary w-100">
                     <i class="bi bi-x-circle"></i> Abbrechen
                 </button>
             </form>
@@ -127,7 +127,7 @@
                                             <td data-label="Zahldatum">
                                                 {{ row.payment_date ? row.payment_date|date("d.m.Y") : "-" }}
                                                 {% if row.payment_date_estimated %}
-                                                    <span class="badge bg-warning text-dark"
+                                                    <span class="badge text-bg-warning"
                                                           title="Kein Valutadatum im Auszug - Buchungsdatum übernommen">
                                                         geschätzt
                                                     </span>
@@ -151,11 +151,11 @@
                                             </td>
                                             <td data-label="Art">
                                                 {% if row.type == "income" %}
-                                                    <span class="badge bg-success">Eingang</span>
+                                                    <span class="badge text-bg-success">Eingang</span>
                                                 {% elseif row.type == "expense" %}
-                                                    <span class="badge bg-danger">Ausgang</span>
+                                                    <span class="badge text-bg-danger">Ausgang</span>
                                                 {% else %}
-                                                    <span class="badge bg-secondary">unbekannt</span>
+                                                    <span class="badge text-bg-secondary">unbekannt</span>
                                                 {% endif %}
                                             </td>
                                             <td data-label="Betrag" class="text-end finance-amount-column">

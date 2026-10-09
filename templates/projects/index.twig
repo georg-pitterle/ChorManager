@@ -15,7 +15,7 @@
                     class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#addProjectModal">
-                <i class="bi bi-folder-plus"></i> Neues Projekt
+                Neues Projekt
             </button>
         </div>
     </section>
@@ -90,7 +90,7 @@
                                                  role="group"
                                                  aria-label="Projektaktionen für {{ project.name }}">
                                                 <button type="button"
-                                                        class="btn btn-sm btn-outline-primary"
+                                                        class="btn btn-sm btn-outline-secondary"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#editProjectModal{{ project.id }}">
                                                     <i class="bi bi-pencil"></i> Bearbeiten
@@ -141,7 +141,7 @@
              tabindex="-1"
              aria-labelledby="editProjectModalLabel{{ project.id }}"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/projects/{{ project.id }}/update"
                       method="post"
                       class="modal-content">
@@ -189,7 +189,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Änderungen speichern</button>
                     </div>
                 </form>
@@ -203,7 +203,7 @@
          tabindex="-1"
          aria-labelledby="addProjectModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form action="/projects" method="post" class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addProjectModalLabel">Projekt anlegen</h5>
@@ -233,7 +233,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                     <button type="submit" class="btn btn-primary">Speichern</button>
                 </div>
             </form>

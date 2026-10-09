@@ -19,7 +19,7 @@
                 {% set _close_url = "/newsletters/archive" %}
             {% endif %}
             <a href="{{ _close_url }}"
-               class="btn btn-outline-secondary btn-sm">
+               class="btn btn-outline-secondary">
                 <i class="bi bi-x-circle"></i> Schließen
             </a>
         </div>
@@ -57,7 +57,7 @@
                     <div class="card-footer">
                         <div class="text-muted text-center">
                             <small>
-                                Empfänger: <strong class="badge bg-info">{{ newsletter.recipient_count }}</strong>
+                                Empfänger: <strong class="badge text-bg-info">{{ newsletter.recipient_count }}</strong>
                                 | Status: <strong>{{ newsletter.status }}</strong>
                             </small>
                         </div>

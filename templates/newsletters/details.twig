@@ -13,7 +13,7 @@
         <div class="page-actions">
             {% set _status_filter = newsletter.status == "sent" ? "sent" : "draft" %}
             <a href="/newsletters?project_id={{ newsletter.project_id }}&status={{ _status_filter }}"
-               class="btn btn-outline-secondary btn-sm">
+               class="btn btn-outline-secondary">
                 <i class="bi bi-x-circle"></i> Schließen
             </a>
         </div>
@@ -36,9 +36,9 @@
                             <dt class="col-sm-4">Status</dt>
                             <dd class="col-sm-8">
                                 {% if newsletter.status == "sent" %}
-                                    <span class="badge bg-success">Versendet</span>
+                                    <span class="badge text-bg-success">Versendet</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Entwurf</span>
+                                    <span class="badge text-bg-secondary">Entwurf</span>
                                 {% endif %}
                             </dd>
 

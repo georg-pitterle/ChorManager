@@ -269,7 +269,7 @@ class OfficeEditorControllerFeatureTest extends TestCase
 
         // Wie bei den Projekten: eigener Knopf direkt neben dem "..."-Menü, nicht im Menü.
         $this->assertMatchesRegularExpression(
-            '#<a class="btn btn-sm btn-outline-primary"\s+href="/files/' . $file->id . '/edit\?from=folder">#',
+            '#<a class="btn btn-sm btn-outline-secondary"\s+href="/files/' . $file->id . '/edit\?from=folder">#',
             $html
         );
         $this->assertStringNotContainsString(

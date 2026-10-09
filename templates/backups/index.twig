@@ -13,8 +13,8 @@
         <div class="page-actions">
             <form method="post" action="/backups">
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-lg me-1"></i> Backup erstellen
+                <button type="submit" class="btn btn-primary">
+                    Backup erstellen
                 </button>
             </form>
         </div>
@@ -58,9 +58,9 @@
                     <tr>
                         <td data-label="Typ">
                             {% if backup.type == "manual" %}
-                                <span class="badge bg-primary">Manuell</span>
+                                <span class="badge text-bg-primary">Manuell</span>
                             {% else %}
-                                <span class="badge bg-secondary">Automatisch</span>
+                                <span class="badge text-bg-secondary">Automatisch</span>
                             {% endif %}
                         </td>
                         <td data-label="Erstellt am">{{ backup.created_at }}</td>
@@ -69,7 +69,7 @@
                             {% if backup.files_count is defined %}
                                 {{ backup.files_count }} ({{ (backup.files_bytes / 1024 / 1024)|round(1) }} MB)
                                 {% if backup.files_missing|default(0) > 0 %}
-                                    <span class="badge bg-warning text-dark" title="Beim Sichern nicht gefunden">
+                                    <span class="badge text-bg-warning" title="Beim Sichern nicht gefunden">
                                         {{ backup.files_missing }} fehlend
                                     </span>
                                 {% endif %}
@@ -88,7 +88,7 @@
                                     </a>
                                 {% endif %}
                                 <button type="button"
-                                        class="btn btn-sm btn-outline-warning restore-backup-btn"
+                                        class="btn btn-sm btn-outline-danger restore-backup-btn"
                                         data-bs-toggle="modal"
                                         data-bs-target="#restoreBackupModal"
                                         data-id="{{ backup.id }}">
@@ -106,7 +106,7 @@
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">Keine Backups vorhanden.</td>
+                        <td colspan="5" class="text-center text-muted py-4">Keine Backups vorhanden.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -114,7 +114,7 @@
     </div>
 
     <div class="modal fade" id="restoreBackupModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <form method="post" id="restoreBackupForm">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -126,7 +126,7 @@
                         <p>Diese Aktion überschreibt die gesamte Datenbank mit dem Inhalt dieses Backups und beendet <strong>alle</strong> aktiven Sitzungen, einschließlich Ihrer eigenen. Diese Aktion kann nicht widerrufen werden.</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-warning">Wiederherstellen</button>
                     </div>
                 </form>
@@ -135,7 +135,7 @@
     </div>
 
     <div class="modal fade" id="deleteBackupModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <form method="post" id="deleteBackupForm">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -147,7 +147,7 @@
                         <p>Soll dieses Backup endgültig gelöscht werden?</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-danger">Löschen</button>
                     </div>
                 </form>

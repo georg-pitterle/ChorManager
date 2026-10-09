@@ -16,7 +16,7 @@
             <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createTypeModal">
-                <i class="bi bi-plus-lg"></i> Termin-Typ hinzufügen
+                Termin-Typ hinzufügen
             </button>
         </div>
     </section>
@@ -67,7 +67,7 @@
                                  data-open-edit-modal="{{ modal_form_edits[type.id].open_modal ? '1' : '0' }}"
                                  tabindex="-1"
                                  aria-hidden="true">
-                                <div class="modal-dialog">
+                                <div class="modal-dialog modal-dialog-scrollable">
                                     <form method="post" action="/event-types/{{ type.id }}/update">
                                         <div class="modal-content border-0 shadow">
                                             <div class="modal-header">
@@ -125,7 +125,7 @@
                                                 </div>
                                             </div>
                                             <div class="modal-footer pb-0 border-0">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                 <button type="submit" class="btn btn-primary">Speichern</button>
                                             </div>
                                         </div>
@@ -138,13 +138,13 @@
                                  id="deleteTypeModal{{ type.id }}"
                                  tabindex="-1"
                                  aria-hidden="true">
-                                <div class="modal-dialog">
+                                <div class="modal-dialog modal-dialog-scrollable">
                                     <form method="post" action="/event-types/{{ type.id }}/delete">
                                         <div class="modal-content border-0 shadow">
-                                            <div class="modal-header bg-danger text-white">
+                                            <div class="modal-header">
                                                 <h5 class="modal-title">Event-Typ löschen</h5>
                                                 <button type="button"
-                                                        class="btn-close btn-close-white"
+                                                        class="btn-close"
                                                         data-bs-dismiss="modal"
                                                         aria-label="Close"></button>
                                             </div>
@@ -155,7 +155,7 @@
                                                 </p>
                                             </div>
                                             <div class="modal-footer border-0">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                 <button type="submit" class="btn btn-danger">Löschen</button>
                                             </div>
                                         </div>
@@ -180,7 +180,7 @@
          data-open-create-modal="{{ modal_form_create.open_modal ? '1' : '0' }}"
          tabindex="-1"
          aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form method="post" action="/event-types">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header">
@@ -238,7 +238,7 @@
                         </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Anlegen</button>
                     </div>
                 </div>

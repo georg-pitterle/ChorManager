@@ -13,15 +13,15 @@
         </div>
         <div class="page-actions">
             {{ include("files/partials/search_form.twig", {term: ""}, false) }}
-            <a class="btn btn-outline-secondary btn-sm" href="/files/trash">
+            <a class="btn btn-outline-secondary" href="/files/trash">
                 <i class="bi bi-trash3 me-1" aria-hidden="true"></i> Papierkorb
             </a>
             {% if is_file_admin %}
                 <button type="button"
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#filesCreateRootModal">
-                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Teamordner anlegen
+                    Teamordner anlegen
                 </button>
             {% endif %}
         </div>
@@ -102,7 +102,7 @@
 
     {% if is_file_admin %}
         <div class="modal fade" id="filesCreateRootModal" tabindex="-1" aria-labelledby="filesCreateRootTitle" aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form class="modal-content" method="post" action="/files/roots">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                     <div class="modal-header">

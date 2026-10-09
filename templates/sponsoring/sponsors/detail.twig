@@ -25,14 +25,14 @@
             </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/sponsoring/attachments" class="btn btn-outline-secondary btn-sm">
+            <a href="/sponsoring/attachments" class="btn btn-outline-secondary">
                 <i class="bi bi-paperclip me-1"></i>Alle Anhänge
             </a>
             {% if can_manage_all %}
                 <form method="post"
                       action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
                       data-confirm="Sponsor wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
-                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <button type="submit" class="btn btn-outline-danger">
                         <i class="bi bi-trash me-1"></i>Löschen
                     </button>
                 </form>
@@ -98,7 +98,7 @@
                             type="button"
                             role="tab">
                         <i class="bi bi-file-earmark-text me-1"></i>Vereinbarungen
-                        <span class="badge bg-secondary ms-1">{{ sponsor.sponsorships|length }}</span>
+                        <span class="badge text-bg-secondary ms-1">{{ sponsor.sponsorships|length }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -109,7 +109,7 @@
                             type="button"
                             role="tab">
                         <i class="bi bi-chat-dots me-1"></i>Kontakthistorie
-                        <span class="badge bg-secondary ms-1">{{ sponsor.contacts|length }}</span>
+                        <span class="badge text-bg-secondary ms-1">{{ sponsor.contacts|length }}</span>
                     </button>
                 </li>
             </ul>
@@ -263,7 +263,7 @@
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p class="text-muted small">Noch keine Anhänge vorhanden.</p>
+                                <p class="text-muted">Noch keine Anhänge vorhanden.</p>
                             {% endif %}
 
                             {% if can_edit_sponsor %}
@@ -308,7 +308,7 @@
                             <button class="btn btn-primary btn-sm"
                                     data-bs-toggle="modal"
                                     data-bs-target="#newSponsorshipModal">
-                                <i class="bi bi-plus-lg me-1"></i>Neue Vereinbarung
+                                Neue Vereinbarung
                             </button>
                         {% endif %}
                     </div>
@@ -360,7 +360,7 @@
                                             </td>
                                             <td>
                                                 {% if sp.attachments|length > 0 %}
-                                                    <span class="badge bg-light text-dark border">{{ sp.attachments|length }} <i class="bi bi-paperclip"></i></span>
+                                                    <span class="badge text-bg-light border">{{ sp.attachments|length }} <i class="bi bi-paperclip"></i></span>
                                                 {% else %}
                                                     –
                                                 {% endif %}
@@ -475,7 +475,7 @@
                          id="newSponsorshipModal"
                          tabindex="-1"
                          aria-hidden="true">
-                        <div class="modal-dialog modal-lg">
+                        <div class="modal-dialog modal-lg modal-dialog-scrollable">
                             <form method="post"
                                   action="/sponsoring/sponsorships"
                                   enctype="multipart/form-data"
@@ -566,9 +566,9 @@
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                         <button type="submit" class="btn btn-primary">
-                                            <i class="bi bi-check-lg me-1"></i>Anlegen
+                                            Anlegen
                                         </button>
                                     </div>
                                 </div>
@@ -583,7 +583,7 @@
                              id="editSponsorshipModal{{ sp.id }}"
                              tabindex="-1"
                              aria-hidden="true">
-                            <div class="modal-dialog modal-lg">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
                                 <form method="post"
                                       action="/sponsoring/sponsorships/{{ sp.id }}"
                                       enctype="multipart/form-data"
@@ -695,9 +695,9 @@
                                             </div>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                             <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-check me-1"></i>Speichern
+                                                Speichern
                                             </button>
                                         </div>
                                     </div>
@@ -719,7 +719,7 @@
                                     data-bs-toggle="modal"
                                     data-bs-target="#newContactModal"
                                     data-contact-sponsorship="">
-                                <i class="bi bi-plus-lg me-1"></i>Kontakt protokollieren
+                                Kontakt protokollieren
                             </button>
                         {% endif %}
                     </div>
@@ -837,7 +837,7 @@
                                  id="editContactModal{{ contact.id }}"
                                  tabindex="-1"
                                  aria-hidden="true">
-                                <div class="modal-dialog">
+                                <div class="modal-dialog modal-dialog-scrollable">
                                     <form method="post" action="/sponsoring/contacts/{{ contact.id }}">
                                         <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                                         <div class="modal-content border-0 shadow">
@@ -912,9 +912,9 @@
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                 <button type="submit" class="btn btn-primary">
-                                                    <i class="bi bi-check me-1"></i>Speichern
+                                                    Speichern
                                                 </button>
                                             </div>
                                         </div>
@@ -938,7 +938,7 @@
          id="newContactModal"
          tabindex="-1"
          aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form method="post" action="/sponsoring/contacts">
                 <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                 <div class="modal-content border-0 shadow">
@@ -1003,9 +1003,9 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-1"></i>Speichern
+                            Speichern
                         </button>
                     </div>
                 </div>

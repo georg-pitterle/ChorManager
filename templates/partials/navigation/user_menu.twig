@@ -10,7 +10,7 @@
     {% set _hidden_class = unseen_count > 0 ? "" : " d-none" %}
     {% set _label = unseen_count > 99 ? "99+" : unseen_count %}
     <i class="bi bi-envelope-fill fs-5"></i>
-    <span class="badge bg-danger rounded-pill mail-badge-count{{ _hidden_class }}"
+    <span class="badge text-bg-danger rounded-pill mail-badge-count{{ _hidden_class }}"
           data-mail-badge-count>{{ _label }}</span>
 {% endmacro %}
 

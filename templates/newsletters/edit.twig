@@ -86,7 +86,7 @@
 
                                 <div class="alert alert-info mb-0">
                                     <strong>Empfänger:</strong>
-                                    <span id="recipient-count-badge" class="badge bg-info">{{ newsletter.recipient_count }}</span>
+                                    <span id="recipient-count-badge" class="badge text-bg-info">{{ newsletter.recipient_count }}</span>
                                     <span class="small text-muted ms-2" id="recipient-count-status"></span>
                                 </div>
                             </section>
@@ -249,7 +249,7 @@
 
             <!-- Save Template Modal -->
             <div class="modal fade" id="saveTemplateModal" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-dialog-scrollable">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">Als Vorlage speichern</h5>
@@ -273,7 +273,7 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                             <button type="button" class="btn btn-primary" id="save-template-btn">Speichern</button>
                         </div>
                     </div>

@@ -78,21 +78,21 @@
                         <div class="col-sm-6 mb-3">
                             <span class="text-muted small d-block mb-1">Status</span>
                             {% if task.status == "Abgeschlossen" %}
-                                <span class="badge bg-success fs-6"><i class="bi bi-check-circle"></i> Erledigt</span>
+                                <span class="badge text-bg-success fs-6"><i class="bi bi-check-circle"></i> Erledigt</span>
                             {% elseif task.status == "In Bearbeitung" %}
-                                <span class="badge bg-info text-dark fs-6"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
+                                <span class="badge text-bg-info fs-6"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
                             {% else %}
-                                <span class="badge bg-secondary bg-opacity-75 fs-6"><i class="bi bi-circle"></i> Offen</span>
+                                <span class="badge text-bg-secondary bg-opacity-75 fs-6"><i class="bi bi-circle"></i> Offen</span>
                             {% endif %}
                         </div>
                         <div class="col-sm-6 mb-3">
                             <span class="text-muted small d-block mb-1">Priorität</span>
                             {% if task.priority == "Niedrig" %}
-                                <span class="badge bg-secondary fs-6">Niedrig</span>
+                                <span class="badge text-bg-secondary fs-6">Niedrig</span>
                             {% elseif task.priority == "Mittel" %}
-                                <span class="badge bg-primary fs-6">Mittel</span>
+                                <span class="badge text-bg-primary fs-6">Mittel</span>
                             {% elseif task.priority == "Hoch" %}
-                                <span class="badge bg-danger fs-6">Hoch</span>
+                                <span class="badge text-bg-danger fs-6">Hoch</span>
                             {% endif %}
                         </div>
                         <div class="col-sm-6 mb-3">
@@ -185,7 +185,7 @@
          tabindex="-1"
          aria-labelledby="editTaskModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form action="/tasks/{{ task.id }}/update"
                   method="post"
                   class="modal-content">
@@ -280,7 +280,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                     <button type="submit" class="btn btn-primary">Änderungen Speichern</button>
                 </div>
             </form>

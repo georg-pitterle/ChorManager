@@ -16,7 +16,7 @@
             <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createGroupModal">
-                <i class="bi bi-plus-lg"></i> Stimmgruppe hinzufügen
+                Stimmgruppe hinzufügen
             </button>
         </div>
     </section>
@@ -88,7 +88,7 @@
                                                  data-open-edit-sub-modal="{{ modal_form_edit_subs[sub_voice.id].open_modal ? "1" : "0" }}"
                                                  tabindex="-1"
                                                  aria-hidden="true">
-                                                <div class="modal-dialog">
+                                                <div class="modal-dialog modal-dialog-scrollable">
                                                     <form method="post"
                                                           action="/voice-groups/{{ group.id }}/sub/{{ sub_voice.id }}/update">
                                                         <div class="modal-content border-0 shadow">
@@ -114,7 +114,7 @@
                                                                 </div>
                                                             </div>
                                                             <div class="modal-footer pb-0 border-0">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                                 <button type="submit" class="btn btn-primary">Speichern</button>
                                                             </div>
                                                         </div>
@@ -126,14 +126,14 @@
                                                  id="deleteSubVoiceModal{{ sub_voice.id }}"
                                                  tabindex="-1"
                                                  aria-hidden="true">
-                                                <div class="modal-dialog">
+                                                <div class="modal-dialog modal-dialog-scrollable">
                                                     <form method="post"
                                                           action="/voice-groups/{{ group.id }}/sub/{{ sub_voice.id }}/delete">
                                                         <div class="modal-content border-0 shadow">
-                                                            <div class="modal-header bg-danger text-white">
+                                                            <div class="modal-header">
                                                                 <h5 class="modal-title">Unterstimme löschen</h5>
                                                                 <button type="button"
-                                                                        class="btn-close btn-close-white"
+                                                                        class="btn-close"
                                                                         data-bs-dismiss="modal"
                                                                         aria-label="Close"></button>
                                                             </div>
@@ -149,7 +149,7 @@
                                                                 {% endif %}
                                                             </div>
                                                             <div class="modal-footer border-0">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                                 <button type="submit" class="btn btn-danger">Löschen</button>
                                                             </div>
                                                         </div>
@@ -176,7 +176,7 @@
                                  data-open-edit-group-modal="{{ modal_form_edit_groups[group.id].open_modal ? "1" : "0" }}"
                                  tabindex="-1"
                                  aria-hidden="true">
-                                <div class="modal-dialog">
+                                <div class="modal-dialog modal-dialog-scrollable">
                                     <form method="post" action="/voice-groups/{{ group.id }}/update">
                                         <div class="modal-content border-0 shadow">
                                             <div class="modal-header">
@@ -201,7 +201,7 @@
                                                 </div>
                                             </div>
                                             <div class="modal-footer pb-0 border-0">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                 <button type="submit" class="btn btn-primary">Speichern</button>
                                             </div>
                                         </div>
@@ -213,13 +213,13 @@
                                  id="deleteGroupModal{{ group.id }}"
                                  tabindex="-1"
                                  aria-hidden="true">
-                                <div class="modal-dialog">
+                                <div class="modal-dialog modal-dialog-scrollable">
                                     <form method="post" action="/voice-groups/{{ group.id }}/delete">
                                         <div class="modal-content border-0 shadow">
-                                            <div class="modal-header bg-danger text-white">
+                                            <div class="modal-header">
                                                 <h5 class="modal-title">Stimmgruppe löschen</h5>
                                                 <button type="button"
-                                                        class="btn-close btn-close-white"
+                                                        class="btn-close"
                                                         data-bs-dismiss="modal"
                                                         aria-label="Close"></button>
                                             </div>
@@ -238,7 +238,7 @@
                                                 Dieser Vorgang kann nicht rückgängig gemacht werden!
                                             </div>
                                             <div class="modal-footer border-0">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                 <button type="submit" class="btn btn-danger">Löschen</button>
                                             </div>
                                         </div>
@@ -251,7 +251,7 @@
                                  data-open-create-sub-modal="{{ modal_form_create_subs[group.id].open_modal ? "1" : "0" }}"
                                  tabindex="-1"
                                  aria-hidden="true">
-                                <div class="modal-dialog">
+                                <div class="modal-dialog modal-dialog-scrollable">
                                     <form method="post" action="/voice-groups/{{ group.id }}/sub">
                                         <div class="modal-content border-0 shadow">
                                             <div class="modal-header">
@@ -276,7 +276,7 @@
                                                 </div>
                                             </div>
                                             <div class="modal-footer pb-0 border-0">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                                 <button type="submit" class="btn btn-primary">Anlegen</button>
                                             </div>
                                         </div>
@@ -299,7 +299,7 @@
          data-open-create-group-modal="{{ modal_form_create_group.open_modal ? "1" : "0" }}"
          tabindex="-1"
          aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form method="post" action="/voice-groups">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header">
@@ -323,7 +323,7 @@
                         </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Anlegen</button>
                     </div>
                 </div>

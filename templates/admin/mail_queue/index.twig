@@ -70,10 +70,9 @@
         <div class="mail-queue-overview-actions mb-4">
             <form method="post"
                   action="/admin/mail-queue/retry-all-dead"
-                  class="d-inline">
-                <button type="submit"
-                        class="btn btn-warning"
-                        onclick="return confirm('{{ stats.dead }} endgültig fehlgeschlagene Einträge erneut einreihen?');">
+                  class="d-inline"
+                  data-confirm="{{ stats.dead }} endgültig fehlgeschlagene Einträge erneut einreihen?">
+                <button type="submit" class="btn btn-warning">
                     Alle endgültig fehlgeschlagenen Einträge erneut einreihen
                 </button>
             </form>
@@ -132,7 +131,7 @@
                                         data-sort-next-attempt="{{ next_attempt_value }}">
                                         <td data-label="ID">{{ entry.id }}</td>
                                         <td data-label="Typ">
-                                            <span class="badge bg-info text-dark">{{ type_labels[entry.mail_type]|default(entry.mail_type|default('Unbekannt')) }}</span>
+                                            <span class="badge text-bg-info">{{ type_labels[entry.mail_type]|default(entry.mail_type|default('Unbekannt')) }}</span>
                                         </td>
                                         <td data-label="Empfänger">{{ entry.recipient_email ?: '—' }}</td>
                                         <td data-label="Status">
@@ -171,7 +170,7 @@
                                                      role="group"
                                                      aria-label="Aktionen für Queue-Eintrag {{ entry.id }}">
                                                     <form method="post" action="/admin/mail-queue/{{ entry.id }}/retry">
-                                                        <button type="submit" class="btn btn-sm btn-warning">Erneut einreihen</button>
+                                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Erneut einreihen</button>
                                                     </form>
                                                 </div>
                                             {% else %}

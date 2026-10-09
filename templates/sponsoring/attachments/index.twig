@@ -21,8 +21,8 @@
             <p class="text-muted mb-0">Verträge, Logos und Unterlagen aus allen Vereinbarungen an einem Ort.</p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house me-1"></i> Dashboard</a>
-            <a href="/sponsoring/sponsors" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people me-1"></i> Sponsoren</a>
+            <a href="/sponsoring" class="btn btn-outline-secondary"><i class="bi bi-house me-1"></i> Dashboard</a>
+            <a href="/sponsoring/sponsors" class="btn btn-outline-secondary"><i class="bi bi-people me-1"></i> Sponsoren</a>
         </div>
     </section>
 {% endblock page_header %}
@@ -95,7 +95,7 @@
                                         <div class="text-muted small">{{ attachment.mime_type }}</div>
                                     </td>
                                     <td data-label="Herkunft">
-                                        <span class="badge bg-light text-dark border">{{ attachment.context_label }}</span>
+                                        <span class="badge text-bg-light border">{{ attachment.context_label }}</span>
                                         <div class="text-muted small">{{ attachment.reference }}</div>
                                     </td>
                                     <td data-label="Sponsor">

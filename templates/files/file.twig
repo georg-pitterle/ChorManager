@@ -31,7 +31,7 @@
         <div class="page-actions">
             {% if attachment_previewable(file.mime_type) %}
                 <button type="button"
-                        class="btn btn-outline-secondary btn-sm"
+                        class="btn btn-outline-secondary"
                         data-attachment-preview
                         data-attachment-id="{{ file.id }}"
                         data-attachment-name="{{ file.name }}"
@@ -44,7 +44,7 @@
             {% endif %}
             {% set _office_mode = office_mode(file.name, level) %}
             {% if _office_mode %}
-                <a class="btn btn-outline-primary btn-sm" href="/files/{{ file.id }}/edit">
+                <a class="btn btn-outline-primary" href="/files/{{ file.id }}/edit">
                     {% if _office_mode == "edit" %}
                         <i class="bi bi-pencil-square me-1" aria-hidden="true"></i> Im Browser bearbeiten
                     {% else %}
@@ -52,15 +52,15 @@
                     {% endif %}
                 </a>
             {% endif %}
-            <a class="btn btn-primary btn-sm" href="/files/{{ file.id }}/download">
-                <i class="bi bi-download me-1" aria-hidden="true"></i> Herunterladen
+            <a class="btn btn-primary" href="/files/{{ file.id }}/download">
+                Herunterladen
             </a>
             <form method="post" action="/files/favorites">
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <input type="hidden" name="type" value="file">
                 <input type="hidden" name="id" value="{{ file.id }}">
                 <input type="hidden" name="back" value="/files/{{ file.id }}">
-                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <button type="submit" class="btn btn-outline-secondary">
                     {% if is_favorite %}
                         <i class="bi bi-star-fill text-warning me-1" aria-hidden="true"></i> Favorit entfernen
                     {% else %}
@@ -101,7 +101,7 @@
                                 <div>
                                     <strong>Version {{ version.version_number }}</strong>
                                     {% if version.id == file.current_version_id %}
-                                        <span class="badge bg-success ms-1">aktuell</span>
+                                        <span class="badge text-bg-success ms-1">aktuell</span>
                                     {% endif %}
                                     <div class="small text-muted">
                                         {{ version.created_at|date("d.m.Y H:i") }}
@@ -180,12 +180,12 @@
                                         <div>
                                             <strong>{{ link.label ?: "Link vom " ~ link.created_at|date("d.m.Y") }}</strong>
                                             {% if not _active %}
-                                                <span class="badge bg-secondary ms-1">
+                                                <span class="badge text-bg-secondary ms-1">
                                                     {{ link.revoked_at ? "widerrufen" : "abgelaufen" }}
                                                 </span>
                                             {% endif %}
                                             {% if link.hasPassword() %}
-                                                <span class="badge bg-info text-dark ms-1">Passwort</span>
+                                                <span class="badge text-bg-info ms-1">Passwort</span>
                                             {% endif %}
                                             <div class="small text-muted">
                                                 {% if link.expires_at %}

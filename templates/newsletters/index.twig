@@ -23,7 +23,7 @@
                         class="btn btn-primary"
                         data-newsletter-modal-url="/newsletters/create?modal=1"
                         data-newsletter-modal-title="Neuer Newsletter">
-                    <i class="bi bi-plus-circle"></i> Neuer Newsletter
+                    Neuer Newsletter
                 </button>
             {% endif %}
             <a href="/newsletters/templates" class="btn btn-outline-secondary">
@@ -164,21 +164,21 @@
                                                 {{ newsletter.createdBy|person_name }}
                                             </td>
                                             <td data-label="Empfänger">
-                                                <span class="badge bg-info">{{ newsletter.recipient_count }}</span>
+                                                <span class="badge text-bg-info">{{ newsletter.recipient_count }}</span>
                                             </td>
                                             <td data-label="Erstellt am">{{ newsletter.created_at|date("d.m.Y H:i") }}</td>
                                             <td data-label="Status">
                                                 {% if newsletter.status == "draft" %}
-                                                    <span class="badge bg-secondary">Entwurf</span>
+                                                    <span class="badge text-bg-secondary">Entwurf</span>
                                                 {% elseif newsletter.status == "sent" %}
-                                                    <span class="badge bg-success">Versendet</span>
+                                                    <span class="badge text-bg-success">Versendet</span>
                                                 {% endif %}
                                             </td>
                                             <td data-label="Aktionen" class="text-end">
                                                 <div class="btn-group">
                                                     {% if newsletter.status == "draft" %}
                                                         <button type="button"
-                                                                class="btn btn-sm btn-outline-primary"
+                                                                class="btn btn-sm btn-outline-secondary"
                                                                 data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/edit?modal=1"
                                                                 data-newsletter-modal-title="Newsletter bearbeiten">
                                                             <i class="bi bi-pencil"></i> Bearbeiten
@@ -251,7 +251,7 @@
                                         </tr>
                                     {% else %}
                                         <tr>
-                                            <td colspan="7" class="text-center py-4 text-muted">
+                                            <td colspan="7" class="text-center text-muted py-4">
                                                 <i class="bi bi-info-circle me-1"></i>
                                                 Keine Newsletter in dieser Kategorie vorhanden.
                                             </td>

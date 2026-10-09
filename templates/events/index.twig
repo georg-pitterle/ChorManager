@@ -15,11 +15,11 @@
         <div class="page-actions">
             <div class="btn-group me-2" role="group" aria-label="Ansicht wählen">
                 <a href="/events?view=list&project_id={{ filters.project_id|default('') }}&event_type_id={{ filters.event_type_id|default('') }}&show_old_events={{ filters.show_old_events|default('') }}"
-                   class="btn btn-sm {{ view_mode == 'list' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+                   class="btn {{ view_mode == 'list' ? 'btn-secondary' : 'btn-outline-secondary' }}">
                     <i class="bi bi-list-ul"></i> Liste
                 </a>
                 <a href="/events?view=calendar&project_id={{ filters.project_id|default('') }}&event_type_id={{ filters.event_type_id|default('') }}&show_old_events={{ filters.show_old_events|default('') }}"
-                   class="btn btn-sm {{ view_mode == 'calendar' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+                   class="btn {{ view_mode == 'calendar' ? 'btn-secondary' : 'btn-outline-secondary' }}">
                     <i class="bi bi-calendar3"></i> Kalender
                 </a>
             </div>
@@ -36,7 +36,7 @@
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#addEventModal">
-                    <i class="bi bi-calendar-plus"></i> Termin erstellen
+                    Termin erstellen
                 </button>
             {% endif %}
         </div>
@@ -201,7 +201,7 @@
                                                     {% set _can_attendance = session.can_manage_own_voice_group or session.can_manage_attendance_all %}
                                                     {% if _can_attendance and event.attendance_required %}
                                                         <a href="/attendance/{{ event.id }}"
-                                                           class="btn btn-sm btn-outline-primary">
+                                                           class="btn btn-sm btn-outline-secondary">
                                                             <i class="bi bi-person-check"></i> Anwesenheit
                                                         </a>
                                                     {% endif %}
@@ -246,7 +246,7 @@
                                         </tr>
                                     {% else %}
                                         <tr>
-                                            <td colspan="7" class="text-center py-4 text-muted">Keine Termine geplant.</td>
+                                            <td colspan="7" class="text-center text-muted py-4">Keine Termine geplant.</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -283,7 +283,7 @@
              tabindex="-1"
              aria-labelledby="addEventModalLabel"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/events" method="post" class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="addEventModalLabel">Neuen Termin anlegen</h5>
@@ -496,7 +496,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Speichern</button>
                     </div>
                 </form>

@@ -31,40 +31,40 @@
             <div class="btn-group btn-group-wrap w-100 w-sm-auto">
                 {% if can_write_finances %}
                     <button type="button"
-                            class="btn btn-outline-secondary btn-sm"
+                            class="btn btn-outline-secondary"
                             data-bs-toggle="modal"
                             data-bs-target="#settingsModal">
                         <i class="bi bi-gear"></i> Konfiguration
                     </button>
                     <button type="button"
-                            class="btn btn-outline-secondary btn-sm"
+                            class="btn btn-outline-secondary"
                             data-bs-toggle="modal"
                             data-bs-target="#financeImportModal">
                         <i class="bi bi-upload"></i> Import
                     </button>
                 {% endif %}
-                <a href="/finances/accounts" class="btn btn-outline-secondary btn-sm">
+                <a href="/finances/accounts" class="btn btn-outline-secondary">
                     <i class="bi bi-safe"></i> Konten
                 </a>
-                <a href="/finances/journal" class="btn btn-outline-secondary btn-sm">
+                <a href="/finances/journal" class="btn btn-outline-secondary">
                     <i class="bi bi-clock-history"></i> Journal
                 </a>
                 <a href="/finances/export?year={{ selected_year }}"
-                   class="btn btn-outline-secondary btn-sm">
+                   class="btn btn-outline-secondary">
                     <i class="bi bi-filetype-csv"></i> CSV
                 </a>
                 <a href="/finances/report?year={{ selected_year }}"
-                   class="btn btn-info text-white btn-sm">
+                   class="btn btn-info text-white">
                     <i class="bi bi-graph-up"></i> Auswertung
                 </a>
             </div>
             {% if can_write_finances %}
                 <button type="button"
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#financeModal"
                         data-action="reset-finance-modal">
-                    <i class="bi bi-plus-circle"></i> Neuer Eintrag
+                    Neuer Eintrag
                 </button>
             {% endif %}
         </div>
@@ -161,9 +161,9 @@
                                         <td data-label="Lfd. Nr.">
                                             {{ item.running_number }}
                                             {% if item.is_reversal %}
-                                                <span class="badge bg-secondary">Storno</span>
+                                                <span class="badge text-bg-secondary">Storno</span>
                                             {% elseif item.is_reversed %}
-                                                <span class="badge bg-warning text-dark">storniert</span>
+                                                <span class="badge text-bg-warning">storniert</span>
                                             {% endif %}
                                         </td>
                                         <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
@@ -173,7 +173,7 @@
                                         <td data-label="Beschreibung">{{ item.description }}</td>
                                         <td data-label="Gruppe">
                                             {% if item.group_name %}
-                                                <span class="badge rounded-pill bg-light text-dark border">{{ item.group_name }}</span>
+                                                <span class="badge text-bg-light rounded-pill border">{{ item.group_name }}</span>
                                             {% else %}
                                                 <span class="text-muted small">—</span>
                                             {% endif %}
@@ -183,12 +183,12 @@
                                            immer im DOM, damit die Tabellensuche es weiter findet. #}
                                         <td data-label="Art" class="finance-icon-column">
                                             {% if item.type == "income" %}
-                                                <span class="badge bg-success" title="Eingang">
+                                                <span class="badge text-bg-success" title="Eingang">
                                                     <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
                                                     <span class="finance-type-label">Eingang</span>
                                                 </span>
                                             {% else %}
-                                                <span class="badge bg-danger" title="Ausgang">
+                                                <span class="badge text-bg-danger" title="Ausgang">
                                                     <i class="bi bi-box-arrow-up" aria-hidden="true"></i>
                                                     <span class="finance-type-label">Ausgang</span>
                                                 </span>
@@ -311,7 +311,7 @@
                                 {% else %}
                                     <tr>
                                         <td colspan="{{ can_write_finances ? 10 : 9 }}"
-                                            class="text-center py-4 text-muted">
+                                            class="text-center text-muted py-4">
                                             Keine Einträge in diesem Geschäftsjahr gefunden.
                                         </td>
                                     </tr>
@@ -377,9 +377,9 @@
                                             <td data-label="Gruppe">{{ item.group_name|default("-") }}</td>
                                             <td data-label="Art">
                                                 {% if item.type == "income" %}
-                                                    <span class="badge bg-success">Eingang</span>
+                                                    <span class="badge text-bg-success">Eingang</span>
                                                 {% else %}
-                                                    <span class="badge bg-danger">Ausgang</span>
+                                                    <span class="badge text-bg-danger">Ausgang</span>
                                                 {% endif %}
                                             </td>
                                             <td data-label="Betrag" class="text-end finance-amount-column">
@@ -468,7 +468,7 @@
              tabindex="-1"
              aria-labelledby="financeModalLabel"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/save"
                       method="post"
                       enctype="multipart/form-data"
@@ -588,7 +588,7 @@
                         </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Speichern</button>
                     </div>
                 </form>
@@ -599,7 +599,7 @@
              id="settingsModal"
              tabindex="-1"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/settings"
                       method="post"
                       class="modal-content border-0 shadow">
@@ -643,7 +643,7 @@
                         </div>
                     </div>
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
                     </div>
                 </form>
@@ -654,7 +654,7 @@
              id="financeImportModal"
              tabindex="-1"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/import/preview"
                       method="post"
                       enctype="multipart/form-data"
@@ -685,7 +685,7 @@
                         </div>
                     </div>
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Datei einlesen</button>
                     </div>
                 </form>

@@ -36,7 +36,7 @@
                                         aria-expanded="false"
                                         aria-controls="download-collapse-{{ project.id }}">
                                     <span class="fw-semibold">{{ project.name }}</span>
-                                    <span class="badge bg-secondary ms-3">{{ project.assignedSongs|length }} Lieder</span>
+                                    <span class="badge text-bg-secondary ms-3">{{ project.assignedSongs|length }} Lieder</span>
                                 </button>
                             </h2>
                             <div id="download-collapse-{{ project.id }}"
@@ -156,7 +156,7 @@
                                                         {% endfor %}
                                                     </div>
                                                 {% else %}
-                                                    <p class="text-muted small mb-0">Keine Links zu diesem Lied vorhanden.</p>
+                                                    <p class="text-muted mb-0">Keine Links zu diesem Lied vorhanden.</p>
                                                 {% endif %}
                                             </div>
                                         </article>

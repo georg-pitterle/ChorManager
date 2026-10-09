@@ -13,12 +13,12 @@
             <p class="text-muted mb-0">Sponsorenstammdaten und Vereinbarungen verwalten.</p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/sponsoring" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house me-1"></i> Dashboard</a>
-            <a href="/sponsoring/attachments" class="btn btn-outline-secondary btn-sm"><i class="bi bi-paperclip me-1"></i> Anhänge</a>
-            <button class="btn btn-primary btn-sm"
+            <a href="/sponsoring" class="btn btn-outline-secondary"><i class="bi bi-house me-1"></i> Dashboard</a>
+            <a href="/sponsoring/attachments" class="btn btn-outline-secondary"><i class="bi bi-paperclip me-1"></i> Anhänge</a>
+            <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createSponsorModal">
-                <i class="bi bi-plus-lg"></i> Neuer Sponsor
+                Neuer Sponsor
             </button>
         </div>
     </section>
@@ -112,14 +112,14 @@
                                     <td data-label="Vereinbarungen"
                                         data-sort-key="sponsorship_count"
                                         data-sort-value="{{ sponsor.sponsorships|length }}">
-                                        <span class="badge bg-light text-dark border">{{ sponsor.sponsorships|length }}</span>
+                                        <span class="badge text-bg-light border">{{ sponsor.sponsorships|length }}</span>
                                     </td>
                                     <td data-label="Aktionen" class="text-end text-nowrap">
                                         <div class="btn-group"
                                              role="group"
                                              aria-label="Aktionen für Sponsor {{ sponsor.name }}">
                                             <a href="/sponsoring/sponsors/{{ sponsor.id }}"
-                                               class="btn btn-sm btn-outline-primary"
+                                               class="btn btn-sm btn-outline-secondary"
                                                title="Details">
                                                 <i class="bi bi-eye"></i> Details
                                             </a>
@@ -163,7 +163,7 @@
          id="createSponsorModal"
          tabindex="-1"
          aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form method="post" action="/sponsoring/sponsors">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header">
@@ -236,9 +236,9 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-1"></i>Anlegen
+                            Anlegen
                         </button>
                     </div>
                 </div>

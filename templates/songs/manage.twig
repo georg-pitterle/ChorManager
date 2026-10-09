@@ -18,7 +18,7 @@
                 <i class="bi bi-tags"></i> Kategorien
             </button>
             <a href="/song-library/create" class="btn btn-primary">
-                <i class="bi bi-music-note-list"></i> Neues Lied
+                Neues Lied
             </a>
         </div>
     </section>
@@ -134,7 +134,7 @@
                                                  role="group"
                                                  aria-label="Aktionen für {{ song.title }}">
                                                 <a href="/song-library/{{ song.id }}"
-                                                   class="btn btn-outline-primary btn-sm">
+                                                   class="btn btn-sm btn-outline-secondary">
                                                     <i class="bi bi-pencil-square me-1"></i>Details
                                                 </a>
                                                 <button type="button"
@@ -177,7 +177,7 @@
          tabindex="-1"
          aria-labelledby="manageCategoriesModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="manageCategoriesModalLabel">Kategorien verwalten</h5>
@@ -198,7 +198,7 @@
                         </div>
                         <div class="col-md-4">
                             <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-plus"></i> Anlegen
+                                Anlegen
                             </button>
                         </div>
                     </form>

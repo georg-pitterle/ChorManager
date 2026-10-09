@@ -40,7 +40,7 @@
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#addUserModal">
-                    <i class="bi bi-person-plus-fill"></i> Mitglied hinzufügen
+                    Mitglied hinzufügen
                 </button>
             {% endif %}
         </div>
@@ -190,7 +190,7 @@
                                         <td data-label="Name">{{ person.member_link(user, user.id, can_edit_member) }}</td>
                                         <td data-label="E-Mail">{{ user.email }}</td>
                                         <td data-label="Rolle">
-                                            {% for role in user.roles %}<span class="badge bg-secondary me-1">{{ role.name }}</span>{% endfor %}
+                                            {% for role in user.roles %}<span class="badge text-bg-secondary me-1">{{ role.name }}</span>{% endfor %}
                                         </td>
                                         <td data-label="Stimme">
                                             {% if user.voice_group_ids|length > 0 %}
@@ -243,7 +243,7 @@
                                                           method="post"
                                                           data-confirm="Mitglied {{ user.first_name }} {{ user.last_name }} wirklich wiederherstellen?">
                                                         <button type="submit"
-                                                                class="btn btn-sm btn-outline-success"
+                                                                class="btn btn-sm btn-outline-secondary"
                                                                 title="Wiederherstellen">
                                                             <i class="bi bi-person-check-fill"></i> Wiederherstellen
                                                         </button>
@@ -255,7 +255,7 @@
                                                      aria-label="Aktionen für {{ user.first_name }} {{ user.last_name }}">
                                                     {% if can_edit_users %}
                                                         <button type="button"
-                                                                class="btn btn-sm btn-outline-primary js-edit-user"
+                                                                class="btn btn-sm btn-outline-secondary js-edit-user"
                                                                 data-user-id="{{ user.id }}"
                                                                 title="Bearbeiten">
                                                             <i class="bi bi-pencil-fill"></i> Bearbeiten
@@ -324,7 +324,7 @@
          tabindex="-1"
          aria-labelledby="addUserModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form action="/users"
                   method="post"
                   class="modal-content"
@@ -419,7 +419,7 @@
 
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                     <button type="submit"
                             class="btn btn-primary"
                             name="submit_action"
@@ -446,7 +446,7 @@
              tabindex="-1"
              aria-labelledby="editUserModalLabel"
              aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content" id="editUserModalContent">
                     <div class="modal-body">
                         <div class="d-flex justify-content-center py-4">

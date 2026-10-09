@@ -13,9 +13,9 @@
             <p class="text-muted mb-0">Sponsoren, Pakete und Kontaktverlauf an einem Ort steuern.</p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/sponsoring/sponsors" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people me-1"></i> Sponsoren</a>
-            <a href="/sponsoring/packages" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-seam me-1"></i> Pakete</a>
-            <a href="/sponsoring/attachments" class="btn btn-outline-secondary btn-sm"><i class="bi bi-paperclip me-1"></i> Anhänge</a>
+            <a href="/sponsoring/sponsors" class="btn btn-outline-secondary"><i class="bi bi-people me-1"></i> Sponsoren</a>
+            <a href="/sponsoring/packages" class="btn btn-outline-secondary"><i class="bi bi-box-seam me-1"></i> Pakete</a>
+            <a href="/sponsoring/attachments" class="btn btn-outline-secondary"><i class="bi bi-paperclip me-1"></i> Anhänge</a>
         </div>
     </section>
 {% endblock page_header %}
@@ -94,7 +94,7 @@
                                     <div class="text-muted small">Fällige Wiedervorlagen</div>
                                     <div class="fs-3 fw-bold">
                                         {{ open_follow_ups }}
-                                        {% if open_follow_ups > 0 %}<span class="badge bg-danger ms-1">!</span>{% endif %}
+                                        {% if open_follow_ups > 0 %}<span class="badge text-bg-danger ms-1">!</span>{% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -168,7 +168,7 @@
                                                  role="group"
                                                  aria-label="Aktionen für Kontakt {{ contact.sponsor_name }}">
                                                 <form method="post" action="{{ contact.mark_done_url }}">
-                                                    <button type="submit" class="btn btn-sm btn-success">
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">
                                                         <i class="bi bi-check-lg"></i> Erledigt
                                                     </button>
                                                 </form>

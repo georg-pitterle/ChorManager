@@ -26,10 +26,10 @@
                 </form>
             {% endif %}
             {% if can_write %}
-                <button class="btn btn-primary btn-sm"
+                <button class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#modal-create-category">
-                    <i class="bi bi-plus-lg me-1"></i> Kategorie hinzufügen
+                    Kategorie hinzufügen
                 </button>
             {% endif %}
         </div>
@@ -188,7 +188,7 @@
                                                     </tr>
                                                 {% else %}
                                                     <tr>
-                                                        <td colspan="{{ can_write ? 3 : 2 }}" class="text-muted text-center py-3">Keine Posten vorhanden.</td>
+                                                        <td colspan="{{ can_write ? 3 : 2 }}" class="text-center text-muted py-4">Keine Posten vorhanden.</td>
                                                     </tr>
                                                 {% endfor %}
                                                 {% if can_write %}
@@ -248,7 +248,7 @@
 {% if can_write %}
 
     <div class="modal fade" id="modal-create-category" tabindex="-1" aria-labelledby="modal-create-category-label" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content border-0 shadow">
                 <form method="post" action="/budget/categories">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -275,7 +275,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Anlegen</button>
                     </div>
                 </form>
@@ -287,7 +287,7 @@
         {% for row in section_rows %}
 
             <div class="modal fade" id="modal-edit-category-{{ row.category.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow">
                         <form method="post" action="/budget/categories/{{ row.category.id }}/update">
                             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -299,7 +299,7 @@
                                 {{ _self.group_picker(finance_groups, row.category.finance_group_id) }}
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                 <button type="submit" class="btn btn-primary">Speichern</button>
                             </div>
                         </form>
@@ -308,19 +308,19 @@
             </div>
 
             <div class="modal fade" id="modal-delete-category-{{ row.category.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow">
                         <form method="post" action="/budget/categories/{{ row.category.id }}/delete">
                             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                            <div class="modal-header bg-danger text-white">
+                            <div class="modal-header">
                                 <h5 class="modal-title">Kategorie löschen</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <p>Kategorie <strong>{{ row.category.group_name }}</strong> und alle zugehörigen Posten ({{ row.items|length }}) wirklich löschen?</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                 <button type="submit" class="btn btn-danger">Löschen</button>
                             </div>
                         </form>
@@ -329,7 +329,7 @@
             </div>
 
             <div class="modal fade" id="modal-create-item-{{ row.category.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow">
                         <form method="post" action="/budget/categories/{{ row.category.id }}/items">
                             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -348,7 +348,7 @@
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                 <button type="submit" class="btn btn-primary">Anlegen</button>
                             </div>
                         </form>
@@ -358,7 +358,7 @@
 
             {% for item in row.items %}
                 <div class="modal fade" id="modal-edit-item-{{ item.id }}" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog">
+                    <div class="modal-dialog modal-dialog-scrollable">
                         <div class="modal-content border-0 shadow">
                             <form method="post" action="/budget/items/{{ item.id }}/update">
                                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
@@ -381,7 +381,7 @@
                                     </div>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                                     <button type="submit" class="btn btn-primary">Speichern</button>
                                 </div>
                             </form>

@@ -3,7 +3,7 @@
 
 {% if can_upload %}
     <div class="modal fade" id="filesNewFolderModal" tabindex="-1" aria-labelledby="filesNewFolderTitle" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/folders">
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <div class="modal-header">
@@ -29,7 +29,7 @@
              tabindex="-1"
              aria-labelledby="filesNewDocumentTitle"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/office-documents">
                     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                     <div class="modal-header">
@@ -69,7 +69,7 @@
 
 {% if can_edit %}
     <div class="modal fade" id="filesRenameModal" tabindex="-1" aria-labelledby="filesRenameTitle" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form class="modal-content" method="post" action="" data-files-rename-form>
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <div class="modal-header">
@@ -89,7 +89,7 @@
     </div>
 
     <div class="modal fade" id="filesMoveModal" tabindex="-1" aria-labelledby="filesMoveTitle" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form class="modal-content" method="post" action="" data-files-move-form>
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <div class="modal-header">
@@ -117,7 +117,7 @@
 {% endif %}
 
 <div class="modal fade" id="filesVersionsModal" tabindex="-1" aria-labelledby="filesVersionsTitle" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title h5" id="filesVersionsTitle">Versionen</h2>
@@ -132,7 +132,7 @@
 
 {% if can_manage %}
     <div class="modal fade" id="filesSharesModal" tabindex="-1" aria-labelledby="filesSharesTitle" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/shares">
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <div class="modal-header">
@@ -178,7 +178,7 @@
 
 {% if is_root and is_file_admin %}
     <div class="modal fade" id="filesQuotaModal" tabindex="-1" aria-labelledby="filesQuotaTitle" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <form class="modal-content" method="post" action="/files/folders/{{ folder.id }}/quota">
                 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                 <div class="modal-header">

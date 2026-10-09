@@ -24,7 +24,7 @@
                     class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#addTaskModal">
-                <i class="bi bi-plus-lg"></i> Neue Aufgabe
+                Neue Aufgabe
             </button>
         </div>
     </section>
@@ -107,7 +107,7 @@
                                             <td data-label="Titel">
                                                 {{ task.name }}
                                                 {% if task.comments_count > 0 %}
-                                                    <span class="badge bg-light text-dark ms-2"
+                                                    <span class="badge text-bg-light ms-2"
                                                           title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
                                                 {% endif %}
                                             </td>
@@ -131,27 +131,27 @@
                                             </td>
                                             <td data-label="Priorität">
                                                 {% if task.priority == 'Niedrig' %}
-                                                    <span class="badge bg-secondary">Niedrig</span>
+                                                    <span class="badge text-bg-secondary">Niedrig</span>
                                                 {% elseif task.priority == 'Mittel' %}
-                                                    <span class="badge bg-primary">Mittel</span>
+                                                    <span class="badge text-bg-primary">Mittel</span>
                                                 {% elseif task.priority == 'Hoch' %}
-                                                    <span class="badge bg-danger">Hoch</span>
+                                                    <span class="badge text-bg-danger">Hoch</span>
                                                 {% endif %}
                                             </td>
                                             <td data-label="Status">
                                                 {% if task.status == 'Abgeschlossen' %}
-                                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Erledigt</span>
+                                                    <span class="badge text-bg-success"><i class="bi bi-check-circle"></i> Erledigt</span>
                                                 {% elseif task.status == 'In Bearbeitung' %}
-                                                    <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
+                                                    <span class="badge text-bg-info"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
                                                 {% else %}
-                                                    <span class="badge bg-secondary bg-opacity-75"><i class="bi bi-circle"></i> Offen</span>
+                                                    <span class="badge text-bg-secondary bg-opacity-75"><i class="bi bi-circle"></i> Offen</span>
                                                 {% endif %}
                                             </td>
                                             <td data-label="Aktionen" class="text-end">
                                                 <div class="btn-group"
                                                      role="group"
                                                      aria-label="Aktionen für Aufgabe {{ task.name }}">
-                                                    <a href="/tasks/{{ task.id }}" class="btn btn-sm btn-outline-primary">
+                                                    <a href="/tasks/{{ task.id }}" class="btn btn-sm btn-outline-secondary">
                                                         Details <i class="bi bi-chevron-right"></i>
                                                     </a>
                                                 </div>
@@ -180,7 +180,7 @@
                                 <div class="kanban-column-header">
                                     <h3>
                                         <i class="bi bi-circle text-secondary me-2"></i>Offen
-                                        <span class="badge bg-secondary ms-2" id="count-offen">{{ tasks|filter(t => t.status == 'Offen')|length }}</span>
+                                        <span class="badge text-bg-secondary ms-2" id="count-offen">{{ tasks|filter(t => t.status == 'Offen')|length }}</span>
                                     </h3>
                                 </div>
                                 <div class="kanban-cards-container" data-drop-zone="Offen">
@@ -195,7 +195,7 @@
                                                 <div class="kanban-card-title">
                                                     <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
                                                     {% if task.comments_count > 0 %}
-                                                        <span class="badge bg-light text-dark ms-1"
+                                                        <span class="badge text-bg-light ms-1"
                                                               title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
                                                     {% endif %}
                                                 </div>
@@ -241,7 +241,7 @@
                                 <div class="kanban-column-header">
                                     <h3>
                                         <i class="bi bi-arrow-repeat text-info me-2"></i>In Bearbeitung
-                                        <span class="badge bg-info text-dark ms-2" id="count-in-bearbeitung">{{ tasks|filter(t => t.status == 'In Bearbeitung')|length }}</span>
+                                        <span class="badge text-bg-info ms-2" id="count-in-bearbeitung">{{ tasks|filter(t => t.status == 'In Bearbeitung')|length }}</span>
                                     </h3>
                                 </div>
                                 <div class="kanban-cards-container" data-drop-zone="In Bearbeitung">
@@ -256,7 +256,7 @@
                                                 <div class="kanban-card-title">
                                                     <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
                                                     {% if task.comments_count > 0 %}
-                                                        <span class="badge bg-light text-dark ms-1"
+                                                        <span class="badge text-bg-light ms-1"
                                                               title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
                                                     {% endif %}
                                                 </div>
@@ -302,7 +302,7 @@
                                 <div class="kanban-column-header">
                                     <h3>
                                         <i class="bi bi-x-circle text-danger me-2"></i>Blockiert
-                                        <span class="badge bg-danger ms-2" id="count-blockiert">{{ tasks|filter(t => t.status == 'Blockiert')|length }}</span>
+                                        <span class="badge text-bg-danger ms-2" id="count-blockiert">{{ tasks|filter(t => t.status == 'Blockiert')|length }}</span>
                                     </h3>
                                 </div>
                                 <div class="kanban-cards-container" data-drop-zone="Blockiert">
@@ -317,7 +317,7 @@
                                                 <div class="kanban-card-title">
                                                     <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
                                                     {% if task.comments_count > 0 %}
-                                                        <span class="badge bg-light text-dark ms-1"
+                                                        <span class="badge text-bg-light ms-1"
                                                               title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
                                                     {% endif %}
                                                 </div>
@@ -363,7 +363,7 @@
                                 <div class="kanban-column-header">
                                     <h3>
                                         <i class="bi bi-check-circle text-success me-2"></i>Erledigt
-                                        <span class="badge bg-success ms-2" id="count-abgeschlossen">{{ tasks|filter(t => t.status == 'Abgeschlossen')|length }}</span>
+                                        <span class="badge text-bg-success ms-2" id="count-abgeschlossen">{{ tasks|filter(t => t.status == 'Abgeschlossen')|length }}</span>
                                     </h3>
                                 </div>
                                 <div class="kanban-cards-container" data-drop-zone="Abgeschlossen">
@@ -378,7 +378,7 @@
                                                 <div class="kanban-card-title">
                                                     <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
                                                     {% if task.comments_count > 0 %}
-                                                        <span class="badge bg-light text-dark ms-1"
+                                                        <span class="badge text-bg-light ms-1"
                                                               title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
                                                     {% endif %}
                                                 </div>
@@ -429,7 +429,7 @@
          tabindex="-1"
          aria-labelledby="addTaskModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form action="/projects/{{ project.id }}/tasks"
                   method="post"
                   class="modal-content">
@@ -499,7 +499,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                     <button type="submit" class="btn btn-primary">Aufgabe Speichern</button>
                 </div>
             </form>

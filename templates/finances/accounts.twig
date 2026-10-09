@@ -15,16 +15,16 @@
             </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/finances" class="btn btn-outline-secondary btn-sm">
+            <a href="/finances" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Zum Kassabuch
             </a>
             {% if can_write_finances %}
                 <button type="button"
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#financeAccountModal"
                         data-action="reset-account-modal">
-                    <i class="bi bi-plus-circle"></i> Neues Konto
+                    Neues Konto
                 </button>
             {% endif %}
         </div>
@@ -101,14 +101,14 @@
                                         <td data-label="Konto">
                                             {{ account.name }}
                                             {% if not account.is_active %}
-                                                <span class="badge bg-secondary ms-1">inaktiv</span>
+                                                <span class="badge text-bg-secondary ms-1">inaktiv</span>
                                             {% endif %}
                                         </td>
                                         <td data-label="Art">
                                             {% if account.type == "cash" %}
-                                                <span class="badge bg-warning text-dark">Bar</span>
+                                                <span class="badge text-bg-warning">Bar</span>
                                             {% else %}
-                                                <span class="badge bg-info text-white">Bank</span>
+                                                <span class="badge text-bg-info">Bank</span>
                                             {% endif %}
                                         </td>
                                         <td data-label="IBAN">{{ account.iban|default("-") }}</td>
@@ -159,7 +159,7 @@
                                 {% else %}
                                     <tr>
                                         <td colspan="{{ can_write_finances ? 8 : 7 }}"
-                                            class="text-center py-4 text-muted">
+                                            class="text-center text-muted py-4">
                                             Noch keine Konten angelegt.
                                         </td>
                                     </tr>
@@ -174,7 +174,7 @@
 
     {% if can_write_finances %}
         <div class="modal fade" id="financeAccountModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/accounts/save"
                       method="post"
                       id="finance-account-form"
@@ -259,7 +259,7 @@
                         </div>
                     </div>
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-primary">Speichern</button>
                     </div>
                 </form>

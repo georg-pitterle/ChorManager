@@ -39,7 +39,7 @@
                     {% if can_manage_members %}
                         <a href="/projects/{{ selected_project.id }}/members"
                            class="btn btn-primary">
-                            <i class="bi bi-people"></i> Mitglieder verwalten
+                            Mitglieder verwalten
                         </a>
                     {% endif %}
                 </div>
@@ -70,7 +70,7 @@
                                             {{ sub_voice }}
                                         {% endif %}
                                     </strong>
-                                    <span class="badge bg-secondary ms-2">{{ members|length }}
+                                    <span class="badge text-bg-secondary ms-2">{{ members|length }}
                                         {% if members|length == 1 %}
                                             Mitglied
                                         {% else %}
@@ -83,7 +83,7 @@
                                         <li class="list-group-item d-flex justify-content-between align-items-center">
                                             <span><strong>{{ m|person_name }}</strong></span>
                                             {% if not m.is_active %}
-                                                <span class="badge bg-secondary">Archiviert</span>
+                                                <span class="badge text-bg-secondary">Archiviert</span>
                                             {% endif %}
                                         </li>
                                     {% endfor %}
