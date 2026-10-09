@@ -22,12 +22,12 @@ const SCREENSHOT_CSS = `
     body.app-shell--with-sidebar {
         background:
             linear-gradient(to right, #18212b 0, #18212b var(--app-sidebar-width), transparent var(--app-sidebar-width)),
-            linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%);
+            #eef2f7;
     }
     html.nav-collapsed body.app-shell--with-sidebar {
         background:
             linear-gradient(to right, #18212b 0, #18212b var(--app-sidebar-rail-width), transparent var(--app-sidebar-rail-width)),
-            linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%);
+            #eef2f7;
     }
 }
 .app-sidebar.offcanvas-lg,

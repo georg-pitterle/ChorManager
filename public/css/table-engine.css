@@ -82,7 +82,7 @@
 
 [data-table-engine="true"][data-active-view="cards"] .table-responsive-cards tr {
     border: 1px solid var(--theme-border);
-    border-radius: 0.75rem;
+    border-radius: var(--app-radius, 0.375rem);
     margin: 0.75rem;
     padding: 0.5rem;
     background: #fff;
