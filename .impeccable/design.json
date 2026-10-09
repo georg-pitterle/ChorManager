@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T22:00:00+02:00",
+  "title": "Design System: ChorManager",
+  "extensions": {
+    "colorMeta": {
+      "club-primary": { "role": "primary", "displayName": "Vereinsfarbe", "canonical": "var(--theme-primary)", "tonalRamp": ["#3d2c06", "#5e440a", "#8e660e", "#b88512", "#e8a817", "#f0c25a", "#f6d995", "#fbefd2"] },
+      "club-primary-readable": { "role": "primary", "displayName": "Lesbare Vereinsfarbe", "canonical": "var(--theme-primary-strong)", "tonalRamp": ["#2a1f04", "#47340a", "#6b4e0c", "#8e660e", "#b5872a", "#d1aa5a", "#e6cf9c", "#f6ecd6"] },
+      "topbar-ink": { "role": "neutral", "displayName": "Topbar-Tinte", "tonalRamp": ["#0b1015", "#18212b", "#243244", "#3a4a5e", "#56667b", "#7b8899", "#a9b2be", "#dde1e7"] },
+      "sidebar-slate": { "role": "neutral", "displayName": "Schieferblau", "tonalRamp": ["#121a24", "#1b2635", "#243244", "#33445a", "#4b5d75", "#6f8098", "#9eabbd", "#d6dce5"] },
+      "page-mist": { "role": "neutral", "displayName": "Seitennebel", "tonalRamp": ["#5f6b7a", "#8693a3", "#aab4c1", "#c8d0da", "#dde3eb", "#eef2f7", "#f5f8fb", "#fbfcfe"] },
+      "surface-white": { "role": "neutral", "displayName": "Weiß" },
+      "surface-muted": { "role": "neutral", "displayName": "Gedämpfte Fläche" },
+      "hairline": { "role": "neutral", "displayName": "Haarlinie" },
+      "listhead-mist": { "role": "neutral", "displayName": "Tabellenkopf-Nebel" },
+      "text-ink": { "role": "neutral", "displayName": "Tinte" },
+      "text-muted": { "role": "neutral", "displayName": "Gedämpfte Tinte" },
+      "button-ink": { "role": "neutral", "displayName": "Knopf-Tinte" },
+      "amber-readable": { "role": "neutral", "displayName": "Lesbarer Bernstein" }
+    },
+    "typographyMeta": {
+      "page-title": { "displayName": "Seitentitel", "purpose": "Genau einer pro Seite, h1.h2 im Seitenkopf." },
+      "section-title": { "displayName": "Abschnitt", "purpose": "Gliedert eine Seite; Überschrift mit Haarlinie darunter." },
+      "card-title": { "displayName": "Karte/Kachel", "purpose": "Titel von Karten, Kacheln und Kartenköpfen." },
+      "body": { "displayName": "Fließtext", "purpose": "Standardtext." },
+      "group-label": { "displayName": "Gruppenlabel", "purpose": "Einzige Großschreibung; auch Tabellenköpfe." },
+      "kpi-value": { "displayName": "Kennzahl", "purpose": "Werte im Kassabericht; fett nur der Saldo." }
+    },
+    "shadows": [
+      { "name": "hover-lift", "value": "0 8px 18px rgba(15, 23, 42, 0.08)", "purpose": "Nur als Rückmeldung beim Darüberfahren über Kacheln und Kanban-Karten." },
+      { "name": "topbar", "value": "0 2px 16px rgba(0, 0, 0, 0.4)", "purpose": "Topbar über dem Inhalt." }
+    ],
+    "motion": [
+      { "name": "chevron", "value": "transform 0.15s ease", "purpose": "Aufklapp-Pfeile in Seitenleiste und Listen." },
+      { "name": "sidebar", "value": "width 0.15s ease", "purpose": "Ein- und Ausklappen der Seitenleiste; aus bei prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "576px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "992px" },
+      { "name": "xl", "value": "1200px" },
+      { "name": "xxl", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primärknopf",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Eine Hauptaktion pro Kontext, ohne Icon.",
+      "html": "<button class=\"ds-btn-primary\">Speichern</button>",
+      "css": ".ds-btn-primary { background: var(--theme-primary, #E8A817); color: #2b2b2b; border: 1px solid var(--theme-primary, #E8A817); border-radius: 0.375rem; padding: 0.375rem 0.75rem; font-weight: 600; font-size: 1rem; cursor: pointer; } .ds-btn-primary:hover { background: color-mix(in srgb, var(--theme-primary, #E8A817) 88%, #000); } .ds-btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 0.25rem rgba(232, 168, 23, 0.5); }"
+    },
+    {
+      "name": "Nebenknopf",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Abbrechen, Schließen, Zurück, Bearbeiten: graue Kontur.",
+      "html": "<button class=\"ds-btn-secondary\">Abbrechen</button>",
+      "css": ".ds-btn-secondary { background: #fff; color: #6c757d; border: 1px solid #6c757d; border-radius: 0.375rem; padding: 0.375rem 0.75rem; font-size: 1rem; cursor: pointer; } .ds-btn-secondary:hover { background: #6c757d; color: #fff; } .ds-btn-secondary:focus-visible { outline: 0; box-shadow: 0 0 0 0.25rem rgba(108, 117, 125, 0.5); }"
+    },
+    {
+      "name": "Löschen-Knopf",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Löschen, Archivieren, Überschreiben: rote Kontur.",
+      "html": "<button class=\"ds-btn-danger\">Löschen</button>",
+      "css": ".ds-btn-danger { background: #fff; color: #dc3545; border: 1px solid #dc3545; border-radius: 0.375rem; padding: 0.375rem 0.75rem; font-size: 1rem; cursor: pointer; } .ds-btn-danger:hover { background: #dc3545; color: #fff; }"
+    },
+    {
+      "name": "Formularfläche",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flache weiße Fläche mit Haarlinie und 3px Vereinsfarbe oben.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Mail-Queue</h3><p class=\"ds-card-text\">Steuert, wie Mails versendet werden.</p></div>",
+      "css": ".ds-card { background: #fff; border: 1px solid #d5dbe4; border-top: 3px solid var(--theme-primary, #E8A817); border-radius: 0.375rem; padding: 1rem; } .ds-card-title { margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 600; color: #1f2937; } .ds-card-text { margin: 0; color: #5b6578; }"
+    },
+    {
+      "name": "Eingabefeld",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Beschriftung form-label, Hilfstext form-text.",
+      "html": "<label class=\"ds-label\" for=\"ds-name\">Name der App</label><input class=\"ds-input\" id=\"ds-name\" value=\"Chor-Manager\"><div class=\"ds-help\">Erscheint im Kopf und in den Titeln.</div>",
+      "css": ".ds-label { display: block; margin-bottom: 0.5rem; color: #1f2937; } .ds-input { width: 100%; padding: 0.375rem 0.75rem; border: 1px solid #dee2e6; border-radius: 0.375rem; font-size: 1rem; } .ds-input:focus { outline: 0; border-color: #f4d48b; box-shadow: 0 0 0 0.25rem rgba(232, 168, 23, 0.25); } .ds-help { margin-top: 0.25rem; font-size: 0.875em; color: #5b6578; }"
+    },
+    {
+      "name": "Gruppenlabel",
+      "kind": "custom",
+      "refersTo": "group-label",
+      "description": "Einzige Großschreibung im System.",
+      "html": "<p class=\"ds-group-label\">Finanzen</p>",
+      "css": ".ds-group-label { margin: 0; color: #5b6578; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }"
+    },
+    {
+      "name": "Status-Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Farbe nach Bedeutung: grün erledigt, rot negativ, gelb Achtung, grau neutral.",
+      "html": "<span class=\"ds-badge ds-badge-ok\">Versendet</span> <span class=\"ds-badge ds-badge-neutral\">Entwurf</span>",
+      "css": ".ds-badge { display: inline-block; padding: 0.35em 0.65em; border-radius: 0.375rem; font-size: 0.75em; font-weight: 700; line-height: 1; } .ds-badge-ok { background: #198754; color: #fff; } .ds-badge-neutral { background: #6c757d; color: #fff; }"
+    },
+    {
+      "name": "Topbar",
+      "kind": "nav",
+      "refersTo": "topbar",
+      "description": "Dunkler Rahmen mit Markenname in Vereinsfarbe und 3px-Unterkante.",
+      "html": "<header class=\"ds-topbar\"><span class=\"ds-brand\">Chor-Manager</span></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; height: 3.75rem; padding: 0 1rem; background: #18212b; border-bottom: 3px solid var(--theme-primary, #E8A817); } .ds-brand { color: var(--theme-primary, #E8A817); font-weight: 700; letter-spacing: 0.5px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Die Partitur",
+    "overview": "Eine Partitur hat eine feste Ordnung: Zeilen, Systeme, Stimmen, und jedes Zeichen steht an seinem Platz. Genau so ist ChorManager gebaut. Jedes Element hat eine Rolle – Seitentitel, Abschnitt, Karte, Gruppenlabel; Hauptaktion, Nebenaktion, Löschen – und jede Rolle hat genau eine Form. Nichts steht zufällig, nichts wird für eine einzelne Seite neu erfunden.\n\nDie Oberfläche ist ruhig und sachlich. Ehrenamtliche öffnen sie zwischen Probe und Beruf, Mitglieder oft nur alle paar Wochen; beide sollen sich sofort zurechtfinden. Deshalb flache weiße Flächen auf hellem Grund, feine Konturen statt Schatten, eine einzige Rundung und kaum Farbe außer der Vereinsfarbe und den Bedeutungsfarben. Die Vereinsfarbe ist frei einstellbar (White Label) – das System muss jede Farbe tragen, auch helle, ohne an Lesbarkeit zu verlieren.\n\nDunkel sind nur Topbar und Seitenleiste: der Rahmen der Partitur. Der Inhalt darin bleibt hell und gleichförmig.",
+    "keyCharacteristics": [
+      "Eine Rolle, eine Form – für Überschriften, Knöpfe, Flächen, Hinweise und Badges.",
+      "Flach: keine Schatten, keine Verläufe auf Flächen; Tiefe entsteht durch Kontur und Hintergrundton.",
+      "Eine Rundung (0,375rem) wie im Menü, etwas mehr nur für Dialoge.",
+      "Ein Rahmen pro Ebene – nie Karte in Karte.",
+      "Farbe trägt Bedeutung oder Vereinsidentität, nie Dekoration."
+    ],
+    "rules": [
+      { "name": "The White-Label Rule", "body": "Keine Farbe im Code hängt an einem bestimmten Gelb. Akzente laufen über --theme-primary / --theme-primary-rgb, lesbare Varianten über --theme-primary-strong. Ein fester Gelbton ist ein Fehler.", "section": "colors" },
+      { "name": "The Meaning Rule", "body": "Grün, Rot, Gelb, Grau und Blau tragen die oben genannte Bedeutung – auch bei Badges. Eine Art (Bar, Bank, Manuell) ist grau, nie bunt.", "section": "colors" },
+      { "name": "The Four Roles Rule", "body": "Es gibt vier Überschriftenrollen. Eine Überschrift hat keine eigene Farbe und keine Hilfsklassen für Größe, Gewicht oder Großschreibung.", "section": "typography" },
+      { "name": "The Bold-Is-A-Result Rule", "body": "Fett ist ein Ergebnis oder eine Warnung: Saldo, Summe, Quote, Überfälliges. Namen, Titel, Nummern und Datum stehen normal.", "section": "typography" },
+      { "name": "The One-Frame Rule", "body": "Ein Rahmen pro Ebene. Ein Abschnitt, der Karten, Tabellen oder Kacheln enthält, ist selbst rahmenlos; in einem Dialog ist der Dialog der Rahmen, Karten darin sind flach.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do Akzente über --theme-primary und lesbare Akzente über --theme-primary-strong setzen.",
+      "Do Rundungen nur über --app-radius / --app-radius-lg.",
+      "Do Seitenformulare mit .form-action-bar abschließen.",
+      "Do neue Überschriften einer der vier Rollen zuordnen.",
+      "Do Kontrast für Text mindestens 4,5:1 halten – auch für helle Vereinsfarben."
+    ],
+    "donts": [
+      "Don't Karte in Karte oder Rahmen im Dialog.",
+      "Don't Schatten, Verläufe oder Glas auf Flächen.",
+      "Don't Kleinüberschriften über Titeln oder Kacheln.",
+      "Don't Icons in Seiten-, Abschnitts- oder Gruppentiteln oder in Primärknöpfen.",
+      "Don't gefüllte graue Knöpfe, farbige Nebenaktionen im Seitenkopf oder bg-* an Badges.",
+      "Don't Bootstraps Gelb als Schriftfarbe.",
+      "Don't Inline-Skripte oder Inline-Styles (außer CSS-Variablen für dynamische Werte)."
+    ]
+  }
+}
