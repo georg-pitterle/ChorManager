@@ -18,16 +18,11 @@
                     <li class="breadcrumb-item active">{{ sponsor.name }}</li>
                 </ol>
             </nav>
-            <p class="text-uppercase text-muted small mb-1">Finanzen</p>
-            <h1 class="h2 mb-1">
-                {% if sponsor.type == 'organization' %}
-                    <i class="bi bi-building me-2"></i>
-                {% else %}
-                    <i class="bi bi-person me-2"></i>
-                {% endif %}
-                {{ sponsor.name }}
-            </h1>
-            <p class="text-muted mb-0">Stammdaten, Vereinbarungen und Kontakthistorie im Überblick.</p>
+            <h1 class="h2 mb-1">{{ sponsor.name }}</h1>
+            <p class="text-muted mb-0">
+                {{ sponsor.type == 'organization' ? 'Organisation / Firma' : 'Einzelperson' }} ·
+                Stammdaten, Vereinbarungen und Kontakthistorie im Überblick.
+            </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
             <a href="/sponsoring/attachments" class="btn btn-outline-secondary btn-sm">
@@ -220,9 +215,9 @@
                                     </div>
                                     <div class="col-12">
                                         {% if can_edit_sponsor %}
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-check me-1"></i>Speichern
-                                            </button>
+                                            <div class="form-action-bar">
+                                                <button type="submit" class="btn btn-primary">Speichern</button>
+                                            </div>
                                         {% else %}
                                             <p class="text-muted small mb-0">
                                                 Diese Stammdaten hat jemand anderes angelegt. Ändern darf sie die
@@ -236,7 +231,7 @@
                             <hr class="my-4">
 
                             <h3 class="group-label">
-                                <i class="bi bi-paperclip me-1"></i>Anhänge zum Sponsor
+                                Anhänge zum Sponsor
                             </h3>
                             <p class="text-muted small">Logo, Mediadaten oder Unterlagen, die zu keiner einzelnen Vereinbarung gehören.</p>
 

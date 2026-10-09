@@ -8,7 +8,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Noten &amp; Dateien</p>
             <h1 class="h2 mb-1">Dateien</h1>
             <p class="text-muted mb-0">Teamordner mit Noten, Aufnahmen und Unterlagen.</p>
         </div>
@@ -40,7 +39,7 @@
     {% endif %}
 
     {% if favorites.folders is not empty or favorites.files is not empty %}
-        <h2 class="dashboard-section-title mb-3"><i class="bi bi-star-fill text-warning me-1" aria-hidden="true"></i> Favoriten</h2>
+        <h2 class="dashboard-section-title mb-3">Favoriten</h2>
         <div class="list-group mb-4">
             {% for folder in favorites.folders %}
                 <a class="list-group-item list-group-item-action" href="/files/folders/{{ folder.id }}">

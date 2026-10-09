@@ -7,7 +7,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Kassabuch</p>
             <h1 class="h2 mb-1">Kontoauszug importieren</h1>
             <p class="text-muted mb-0">
                 Datei: <strong>{{ filename }}</strong>
@@ -181,13 +180,13 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 mt-3">
+                <div class="form-action-bar">
                     <button type="submit"
                             class="btn btn-primary"
                             id="finance-import-submit"
                             data-label-template="%count% Zeilen übernehmen"
                             {{ importable_count == 0 ? "disabled" : "" }}>
-                        <i class="bi bi-check2-circle"></i> {{ importable_count }} Zeilen übernehmen
+                        {{ importable_count }} Zeilen übernehmen
                     </button>
                 </div>
             </form>

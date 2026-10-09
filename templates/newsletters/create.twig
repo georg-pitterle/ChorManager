@@ -10,7 +10,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
             <h1 class="h2 mb-1">Neuer Newsletter</h1>
             <p class="text-muted mb-0">
                 Projekt: <strong>{{ project.name|default("kein Projekt") }}</strong>
@@ -115,13 +114,13 @@
                 </section>
             </div>
 
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <div class="form-action-bar">
                 <a href="/newsletters?status=draft"
                    class="btn btn-outline-secondary">
-                    <i class="bi bi-x-circle"></i> Abbrechen
+                    Abbrechen
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-circle"></i> Erstellen als Entwurf
+                    Erstellen als Entwurf
                 </button>
             </div>
         </form>

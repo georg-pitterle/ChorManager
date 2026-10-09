@@ -121,7 +121,7 @@
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label for="first_name"
-                                       class="form-label text-muted small fw-bold text-uppercase">Vorname</label>
+                                       class="form-label">Vorname</label>
                                 <input type="text"
                                        class="form-control"
                                        id="first_name"
@@ -131,7 +131,7 @@
                             </div>
                             <div class="col-6 mb-3">
                                 <label for="last_name"
-                                       class="form-label text-muted small fw-bold text-uppercase">Nachname</label>
+                                       class="form-label">Nachname</label>
                                 <input type="text"
                                        class="form-control"
                                        id="last_name"
@@ -142,7 +142,7 @@
                         </div>
                         <div class="mb-4">
                             <label for="email"
-                                   class="form-label text-muted small fw-bold text-uppercase">E-Mail Adresse</label>
+                                   class="form-label">E-Mail Adresse</label>
                             <input type="email"
                                    class="form-control"
                                    id="email"
@@ -151,9 +151,9 @@
                                    required>
                         </div>
 
-                        <div class="d-grid justify-content-md-end mb-4">
+                        <div class="form-action-bar">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-person-check"></i> Profil speichern
+                                Profil speichern
                             </button>
                         </div>
                     </form>
@@ -162,7 +162,7 @@
 
                     <div class="row mt-4">
                         <div class="col-6 mb-3">
-                            <label class="text-muted small fw-bold text-uppercase">Rolle(n)</label>
+                            <p class="group-label mb-1">Rolle(n)</p>
                             <p class="fs-5 mb-0">
                                 {% for role in user.roles %}
                                     <span class="badge bg-primary">{{ role.name }}</span>
@@ -172,7 +172,7 @@
                             </p>
                         </div>
                         <div class="col-6 mb-3">
-                            <label class="text-muted small fw-bold text-uppercase">Stimmgruppe(n)</label>
+                            <p class="group-label mb-1">Stimmgruppe(n)</p>
                             <p class="fs-5 mb-0">
                                 {% if user.voice_group_ids|length > 0 %}
                                     {% for group_id in user.voice_group_ids %}
@@ -292,9 +292,9 @@
                             </div>
                         </div>
 
-                        <div class="d-grid justify-content-md-end">
+                        <div class="form-action-bar">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Speichern
+                                Speichern
                             </button>
                         </div>
                     </form>
@@ -359,9 +359,9 @@
                                 {% endfor %}
                             {% endfor %}
 
-                            <div class="d-grid justify-content-md-end mt-4">
+                            <div class="form-action-bar">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-save"></i> Speichern
+                                    Speichern
                                 </button>
                             </div>
                         </form>
@@ -410,9 +410,9 @@
                                    minlength="6">
                         </div>
 
-                        <div class="d-grid justify-content-md-end">
-                            <button type="submit" class="btn btn-warning">
-                                <i class="bi bi-arrow-repeat"></i> Passwort aktualisieren
+                        <div class="form-action-bar">
+                            <button type="submit" class="btn btn-primary">
+                                Passwort aktualisieren
                             </button>
                         </div>
                     </form>
@@ -431,7 +431,7 @@
                     <form action="/profile/mailbox" method="post" id="mailboxForm">
                         <div id="mailboxFormFeedback" class="alert d-none" role="alert"></div>
                         <div class="mb-3">
-                            <label for="imap_host" class="form-label text-muted small fw-bold text-uppercase">Host</label>
+                            <label for="imap_host" class="form-label">Host</label>
                             <input type="text"
                                    class="form-control"
                                    id="imap_host"
@@ -443,7 +443,7 @@
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label for="imap_port"
-                                       class="form-label text-muted small fw-bold text-uppercase">Port</label>
+                                       class="form-label">Port</label>
                                 <input type="number"
                                        class="form-control"
                                        id="imap_port"
@@ -456,7 +456,7 @@
                             </div>
                             <div class="col-6 mb-3">
                                 <label for="imap_encryption"
-                                       class="form-label text-muted small fw-bold text-uppercase">Verschlüsselung</label>
+                                       class="form-label">Verschlüsselung</label>
                                 {% set _encryption = mail_account.imap_encryption|default("ssl") %}
                                 <select class="form-select" id="imap_encryption" name="imap_encryption" required>
                                     <option value="ssl" {{ _encryption == "ssl" ? "selected" : "" }}>SSL</option>
@@ -472,7 +472,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="imap_username"
-                                   class="form-label text-muted small fw-bold text-uppercase">Benutzername</label>
+                                   class="form-label">Benutzername</label>
                             <input type="text"
                                    class="form-control"
                                    id="imap_username"
@@ -489,9 +489,9 @@
                             {% endif %}
                         </div>
                         <hr class="my-3">
-                        <p class="text-muted small fw-bold text-uppercase mb-2">SMTP (optional, zum Versenden)</p>
+                        <p class="group-label mb-2">SMTP (optional, zum Versenden)</p>
                         <div class="mb-3">
-                            <label for="smtp_host" class="form-label text-muted small fw-bold text-uppercase">SMTP-Host</label>
+                            <label for="smtp_host" class="form-label">SMTP-Host</label>
                             <input type="text"
                                    class="form-control"
                                    id="smtp_host"
@@ -502,7 +502,7 @@
                         </div>
                         <div class="row mb-3">
                             <div class="col-6">
-                                <label for="smtp_port" class="form-label text-muted small fw-bold text-uppercase">SMTP-Port</label>
+                                <label for="smtp_port" class="form-label">SMTP-Port</label>
                                 <input type="number"
                                        class="form-control"
                                        id="smtp_port"
@@ -513,7 +513,7 @@
                                        max="65535">
                             </div>
                             <div class="col-6">
-                                <label for="smtp_encryption" class="form-label text-muted small fw-bold text-uppercase">Verschlüsselung</label>
+                                <label for="smtp_encryption" class="form-label">Verschlüsselung</label>
                                 {% set _smtp_enc = mail_account.smtp_encryption|default("tls") %}
                                 <select class="form-select" id="smtp_encryption" name="smtp_encryption">
                                     <option value="ssl" {{ _smtp_enc == "ssl" ? "selected" : "" }}>SSL</option>
@@ -542,7 +542,7 @@
                         {% if not settings.modules.webmail %}
                             <div class="mb-4">
                                 <label for="external_webmail_url"
-                                       class="form-label text-muted small fw-bold text-uppercase">
+                                       class="form-label">
                                     Externe Webmail-URL (optional)
                                 </label>
                                 <input type="url"
@@ -558,14 +558,14 @@
                             </div>
                         {% endif %}
 
-                        <div class="d-flex justify-content-end gap-2">
+                        <div class="form-action-bar">
                             <button type="submit"
                                     class="btn btn-outline-secondary"
                                     formaction="/profile/mailbox/test">
                                 <i class="bi bi-plug"></i> Verbindung testen
                             </button>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-envelope-check"></i> Mailbox speichern
+                                Mailbox speichern
                             </button>
                         </div>
                     </form>

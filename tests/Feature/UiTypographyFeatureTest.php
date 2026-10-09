@@ -33,7 +33,7 @@ class UiTypographyFeatureTest extends TestCase
             }
 
             $relative = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($root) + 1));
-            if (str_starts_with($relative, 'templates/emails/') || str_starts_with($relative, 'templates/help/')) {
+            if (str_starts_with($relative, 'templates/emails/')) {
                 continue;
             }
 
@@ -99,6 +99,10 @@ class UiTypographyFeatureTest extends TestCase
         }
 
         $this->assertSame([], $offenders, 'Großgeschriebene Kleinüberschriften statt .group-label.');
+
+        foreach (self::templates() as $path => $content) {
+            $this->assertStringNotContainsString('text-uppercase', $content, $path . ': Großschreibung nur über .group-label.');
+        }
         $this->assertStringContainsString(
             '.group-label {',
             (string) file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css')
@@ -141,5 +145,86 @@ class UiTypographyFeatureTest extends TestCase
             '/\.btn-outline-warning\s*\{[^}]*--bs-btn-color:\s*#[0-9a-fA-F]{6}/s',
             (string) file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css')
         );
+    }
+
+    /**
+     * Über dem Seitentitel steht keine Kleinüberschrift mehr (früher der Menüabschnitt in
+     * Großbuchstaben). Wo eine Seite einen Weg zurück braucht, ist das eine Brotkrumenleiste.
+     */
+    public function testPageTitlesHaveNoEyebrow(): void
+    {
+        foreach (self::templates() as $path => $content) {
+            $this->assertStringNotContainsString('class="text-uppercase text-muted small mb-1"', $content, $path);
+        }
+    }
+
+    public function testPageSectionAndGroupHeadingsCarryNoIcon(): void
+    {
+        $offenders = [];
+
+        foreach (self::templates() as $path => $content) {
+            preg_match_all('/<(h[1-6])\b([^>]*)>(.*?)<\/\1>/s', $content, $matches, PREG_SET_ORDER);
+
+            foreach ($matches as $match) {
+                $isMainHeading = $match[1] === 'h1'
+                    || str_contains($match[2], 'dashboard-section-title')
+                    || str_contains($match[2], 'group-label');
+
+                if ($isMainHeading && str_contains($match[3], '<i ')) {
+                    $offenders[] = $path . ' <' . $match[1] . '>';
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, 'Seiten-, Abschnitts- oder Gruppentitel mit Icon.');
+    }
+
+    public function testFormLabelsShareOneStyle(): void
+    {
+        $offenders = [];
+
+        foreach (self::templates() as $path => $content) {
+            preg_match_all('/<label\b[^>]*class="([^"]*\bform-label\b[^"]*)"/', $content, $matches);
+
+            foreach ($matches[1] as $classes) {
+                if (preg_match('/\b(fw-bold|fw-semibold|text-uppercase|text-muted|small)\b/', $classes) === 1) {
+                    $offenders[] = $path . ': ' . $classes;
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, 'Feldbeschriftungen mit eigenem Stil.');
+    }
+
+    /**
+     * Speichern sitzt auf Seiten immer in der gemeinsamen, mitlaufenden Aktionsleiste; die
+     * früheren eigenen Varianten (graue Klebeleiste, Rasterzeile rechts) gibt es nicht mehr.
+     */
+    public function testSaveActionsUseTheSharedActionBar(): void
+    {
+        foreach (self::templates() as $path => $content) {
+            $this->assertStringNotContainsString('sticky-bottom', $content, $path);
+            $this->assertStringNotContainsString('d-grid justify-content-md-end', $content, $path);
+            $this->assertStringNotContainsString('d-grid gap-2 d-md-flex justify-content-md-end', $content, $path);
+        }
+
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css');
+        $this->assertMatchesRegularExpression('/\.form-action-bar \{[^}]*position: sticky;[^}]*justify-content: flex-end;/s', $css);
+
+        $pageForms = ['settings/index.twig', 'profile/index.twig', 'attendance/show.twig', 'registrations/detail.twig',
+            'events/edit.twig', 'songs/create.twig', 'songs/detail.twig', 'newsletters/create.twig'];
+        foreach ($pageForms as $template) {
+            $this->assertStringContainsString('class="form-action-bar"', self::templates()['templates/' . $template], $template);
+        }
+    }
+
+    public function testFinanceReportShowsOnlyBalancesInBold(): void
+    {
+        $report = self::templates()['templates/finances/report.twig'];
+
+        $this->assertDoesNotMatchRegularExpression('/text-(success|danger) fw-bold/', $report);
+        $this->assertStringNotContainsString('border-start', $report);
+        $this->assertStringContainsString('finance-kpi-value--balance', $report);
+        $this->assertSame(5, substr_count($report, 'class="finance-report-icon'));
     }
 }

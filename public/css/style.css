@@ -33,6 +33,11 @@
     --bs-primary: var(--theme-primary, #E8A817);
     --bs-primary-rgb: var(--theme-primary-rgb);
 
+    /* Bootstraps Linkfarbe (Tabs, Seitennavigation, btn-link) folgt der lesbaren Vereinsfarbe
+       statt dem Bootstrap-Blau. */
+    --bs-link-color: var(--theme-primary-strong);
+    --bs-link-hover-color: color-mix(in srgb, var(--theme-primary-strong) 80%, #000000);
+
     /* Anthrazit / Dunkelgrau für Kontraste */
     --bs-dark: #2b2b2b;
     --bs-dark-rgb: 43, 43, 43;
@@ -367,12 +372,32 @@ body.app-shell {
     text-transform: uppercase;
 }
 
-/* Kennzahl auf einer Berichtskarte (Einnahmen, Ausgaben, Saldo): ein Wert, keine Überschrift. */
+/* Kennzahl auf einer Berichtskarte (Einnahmen, Ausgaben, Saldo): ein Wert, keine Überschrift.
+   Fett ist nur der Saldo - die anderen Beträge sind Bestandteile, das Ergebnis trägt. */
 .finance-kpi-value {
     font-size: 1.75rem;
-    font-weight: 600;
+    font-weight: 400;
     line-height: 1.2;
     font-variant-numeric: tabular-nums;
+}
+
+.finance-kpi-value--balance {
+    font-weight: 700;
+}
+
+/* Symbol neben Kennzahlen und Zahlungsarten im Kassabericht: ein neutraler Kreis für alle,
+   die Bedeutung tragen Beschriftung und Betragsfarbe. */
+.finance-report-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    background: var(--theme-surface-muted);
+    color: var(--theme-text-muted);
+    font-size: 1.4rem;
 }
 
 .dashboard-panel__text {
@@ -1759,10 +1784,6 @@ a:hover {
     object-fit: contain;
 }
 
-.settings-form-shell {
-    width: min(100%, 980px);
-}
-
 .settings-logo-row {
     align-items: stretch;
 }
@@ -2264,9 +2285,12 @@ a:hover {
     overflow-x: auto;
 }
 
-/* Aktionsleiste eines Formulars: bleibt beim Scrollen am unteren Rand stehen.
+/* Aktionsleiste jedes Formulars auf einer Seite: Speichern steht rechts, Abbrechen
+   bzw. Nebenaktionen links davon, und die Leiste bleibt beim Scrollen am unteren Rand
+   stehen, solange das Formular im Bild ist. Bei kurzen Formularen liegt sie einfach am
+   Ende. In Dialogen übernimmt das der Dialogfuß.
 
-   Gedacht fuer lange Formulare in einem scrollenden Dialog. Am Telefon ist der
+   Ursprünglich für lange Formulare in einem scrollenden Dialog gebaut. Am Telefon ist der
    sichtbare Bereich des Dialogs nur rund 220 bis 650 px hoch, der Inhalt des
    Vorlagen-Formulars dagegen rund 1400 px - "Speichern" als letztes Element lag
    damit weit unterhalb des Sichtfensters. Sticky haelt die Leiste immer erreichbar,
@@ -2276,10 +2300,16 @@ a:hover {
     position: sticky;
     bottom: 0;
     z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
-    background-color: var(--bs-body-bg);
-    border-top: 1px solid var(--bs-border-color);
+    background-color: var(--surface-fill);
+    border-top: 1px solid var(--surface-border);
 }
 
 /* Formular als Flex-Huelle in einem Dialog.

@@ -7,7 +7,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Kommunikation</p>
             <h1 class="h2 mb-1">Newsletter-Einstellungen</h1>
             <p class="text-muted mb-0">{{ newsletter.title }}</p>
         </div>
@@ -120,9 +119,9 @@
                                            name="template_description">
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary mt-3">
-                                <i class="bi bi-bookmark"></i> Als Vorlage speichern
-                            </button>
+                            <div class="form-action-bar">
+                                <button type="submit" class="btn btn-primary">Als Vorlage speichern</button>
+                            </div>
                         </form>
                     </div>
                 </div>

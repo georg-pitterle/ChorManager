@@ -16,7 +16,7 @@
                 </ol>
             </nav>
             <h1 class="h2 mb-1">
-                <i class="bi bi-music-note-beamed me-2"></i>{{ song.title }}
+                {{ song.title }}
             </h1>
             {% if song.composer or song.arranger or song.publisher %}
                 <p class="text-muted mb-0">
@@ -71,7 +71,7 @@
             <form method="post" action="/song-library/songs/{{ song.id }}/update">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label for="title" class="form-label fw-semibold">
+                        <label for="title" class="form-label">
                             Titel <span class="text-danger">*</span>
                         </label>
                         <input type="text"
@@ -82,7 +82,7 @@
                                required>
                     </div>
                     <div class="col-md-6">
-                        <label for="composer" class="form-label fw-semibold">Komponist</label>
+                        <label for="composer" class="form-label">Komponist</label>
                         <input type="text"
                                id="composer"
                                name="composer"
@@ -90,7 +90,7 @@
                                value="{{ song.composer }}">
                     </div>
                     <div class="col-md-6">
-                        <label for="arranger" class="form-label fw-semibold">Arrangeur</label>
+                        <label for="arranger" class="form-label">Arrangeur</label>
                         <input type="text"
                                id="arranger"
                                name="arranger"
@@ -98,7 +98,7 @@
                                value="{{ song.arranger }}">
                     </div>
                     <div class="col-md-6">
-                        <label for="publisher" class="form-label fw-semibold">Verlag</label>
+                        <label for="publisher" class="form-label">Verlag</label>
                         <input type="text"
                                id="publisher"
                                name="publisher"
@@ -107,9 +107,9 @@
                     </div>
                 </div>
 
-                <div class="mt-3 d-flex justify-content-end">
+                <div class="form-action-bar">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-floppy me-1"></i>Speichern
+                        Speichern
                     </button>
                 </div>
             </form>
@@ -128,9 +128,9 @@
                       data-archive-form="1">
                     {{ include("songs/partials/archive_section.twig") }}
 
-                    <div class="mt-3 d-flex justify-content-end">
+                    <div class="form-action-bar">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-floppy me-1"></i>Notenarchiv speichern
+                            Notenarchiv speichern
                         </button>
                     </div>
                 </form>
@@ -162,7 +162,7 @@
                         {% endif %}
 
                         <form method="post" action="/song-library/songs/{{ song.id }}/categories">
-                            <label class="form-label fw-semibold">Kategorien bearbeiten</label>
+                            <label class="form-label">Kategorien bearbeiten</label>
                             <div class="row row-cols-1 row-cols-sm-2 g-2 mb-3">
                                 {% for cat in all_categories %}
                                     <div class="col">
@@ -230,7 +230,7 @@
                               action="/song-library/songs/{{ song.id }}/attachments"
                               enctype="multipart/form-data"
                               data-upload-compress="true">
-                            <label for="attachments" class="form-label fw-semibold">Dateien hochladen</label>
+                            <label for="attachments" class="form-label">Dateien hochladen</label>
                             <input type="file"
                                    id="attachments"
                                    name="attachments[]"
@@ -379,14 +379,14 @@
                     <input type="hidden" name="song_id" value="{{ song.id }}">
                     <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
                     <div class="col-md-5">
-                        <label for="project_id" class="form-label fw-semibold">Projekt hinzufügen</label>
+                        <label for="project_id" class="form-label">Projekt hinzufügen</label>
                         <select id="project_id" name="project_id" class="form-select form-select-sm">
                             <option value="">Projekt wählen …</option>
                             {% for project in unassigned_projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
                         </select>
                     </div>
                     <div class="col-md-5">
-                        <label for="new_note" class="form-label fw-semibold">Notiz (optional)</label>
+                        <label for="new_note" class="form-label">Notiz (optional)</label>
                         <input type="text"
                                id="new_note"
                                name="note"

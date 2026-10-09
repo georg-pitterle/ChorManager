@@ -7,7 +7,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Administration</p>
             <h1 class="h2 mb-1">App-Einstellungen</h1>
             <p class="text-muted mb-0">Name, Logo und Standardfarbe zentral verwalten.</p>
         </div>
@@ -21,7 +20,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Meldung schließen"></button>
         </div>
     {% endif %}
     {% if error %}
@@ -30,7 +29,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Meldung schließen"></button>
         </div>
     {% endif %}
 
@@ -42,16 +41,16 @@
                 <p class="dashboard-section-lead mb-0">App-Metadaten, Branding und Mail-Queue-Parameter verwalten.</p>
             </div>
 
-            <div class="surface-card form-surface card border-0 settings-form-shell">
-                <div class="card-body p-4">
+            <div class="surface-card form-surface card border-0">
+                <div class="card-body">
                     <form action="/settings"
                           method="post"
                           enctype="multipart/form-data"
                           autocomplete="off"
                           id="app-logo-form"
                           data-upload-compress="true">
-                        <div class="mb-4">
-                            <label for="app_name" class="form-label fw-bold">Name der App</label>
+                        <div class="mb-3">
+                            <label for="app_name" class="form-label">Name der App</label>
                             <input type="text"
                                    class="form-control"
                                    id="app_name"
@@ -61,8 +60,8 @@
                             <div class="form-text">Dieser Name wird im Header und in den Titeln der App angezeigt.</div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="app_logo" class="form-label fw-bold">Logo hochladen</label>
+                        <div class="mb-3">
+                            <label for="app_logo" class="form-label">Logo hochladen</label>
                             <div class="settings-logo-row d-flex flex-column flex-lg-row align-items-start gap-3">
                                 <div class="bg-light p-3 rounded border text-center logo-preview-frame settings-logo-preview">
                                     <img src="/logo"
@@ -83,8 +82,8 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="primary_color" class="form-label fw-bold">Primärfarbe</label>
+                        <div class="mb-3">
+                            <label for="primary_color" class="form-label">Primärfarbe</label>
                             <input type="text"
                                    class="form-control"
                                    id="primary_color"
@@ -99,8 +98,8 @@
 
                         <h2 class="card-title mb-3">Mail-Queue</h2>
 
-                        <div class="mb-4">
-                            <label for="mailqueue_trigger_mode" class="form-label fw-bold">Trigger-Modus</label>
+                        <div class="mb-3">
+                            <label for="mailqueue_trigger_mode" class="form-label">Trigger-Modus</label>
                             <select class="form-select"
                                     id="mailqueue_trigger_mode"
                                     name="mailqueue_trigger_mode">
@@ -120,8 +119,8 @@
                             <div class="form-text">Steuert, ob die Queue per Cron, opportunistisch oder gemischt verarbeitet werden soll.</div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="mailqueue_opportunistic_rate_limit" class="form-label fw-bold">
+                        <div class="mb-3">
+                            <label for="mailqueue_opportunistic_rate_limit" class="form-label">
                                 Opportunistisches Rate-Limit pro Minute
                             </label>
                             <input type="number"
@@ -133,8 +132,8 @@
                             <div class="form-text">Maximale Anzahl opportunistischer Queue-Trigger pro Minute.</div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="mailqueue_batch_size" class="form-label fw-bold">Batch-Größe</label>
+                        <div class="mb-3">
+                            <label for="mailqueue_batch_size" class="form-label">Batch-Größe</label>
                             <input type="number"
                                    class="form-control"
                                    id="mailqueue_batch_size"
@@ -149,8 +148,8 @@
 
                             <h2 class="card-title mb-3">Anmeldung</h2>
 
-                            <div class="mb-4">
-                                <label class="form-label fw-bold" for="registration_reminder_days_before">
+                            <div class="mb-3">
+                                <label class="form-label" for="registration_reminder_days_before">
                                     Erinnerungsmail: Tage vor Anmeldeschluss (0 = aus)
                                 </label>
                                 <input type="number"
@@ -204,7 +203,7 @@
                                 {% endfor %}
 
                                 <div class="mb-4 mt-4">
-                                    <label class="form-label fw-bold" for="notification_task_due_days_before">
+                                    <label class="form-label" for="notification_task_due_days_before">
                                         Aufgaben-Erinnerung: Tage vor Fälligkeit (0 = aus)
                                     </label>
                                     <input type="number"
@@ -216,8 +215,8 @@
                                            value="{{ settings_values.notification_task_due_days_before|default(3) }}">
                                 </div>
 
-                                <div class="mb-4">
-                                    <label class="form-label fw-bold" for="notification_sponsoring_follow_up_days_before">
+                                <div class="mb-3">
+                                    <label class="form-label" for="notification_sponsoring_follow_up_days_before">
                                         Wiedervorlage-Erinnerung: Tage vorher (0 = aus)
                                     </label>
                                     {% set _follow_up_days = settings_values.notification_sponsoring_follow_up_days_before %}
@@ -237,8 +236,8 @@
                         <h2 class="card-title mb-3">Darstellung</h2>
 
                         {% set _name_format = settings_values.name_display_format|default("first_last") %}
-                        <div class="mb-4">
-                            <label for="name_display_format" class="form-label fw-bold">Namensdarstellung</label>
+                        <div class="mb-3">
+                            <label for="name_display_format" class="form-label">Namensdarstellung</label>
                             <select class="form-select"
                                     id="name_display_format"
                                     name="name_display_format">
@@ -292,10 +291,10 @@
                             </div>
                         </div>
 
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="/dashboard" class="btn btn-outline-secondary me-md-2">Abbrechen</a>
+                        <div class="form-action-bar">
+                            <a href="/dashboard" class="btn btn-outline-secondary">Abbrechen</a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check"></i> Einstellungen speichern
+                                Einstellungen speichern
                             </button>
                         </div>
                     </form>

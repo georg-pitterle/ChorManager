@@ -7,7 +7,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Finanzen</p>
             <h1 class="h2 mb-1">Finanzauswertung</h1>
             <p class="text-muted mb-0">
                 Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong>
@@ -50,11 +49,11 @@
             <div class="finances-report">
                 <div class="row g-4 mb-4">
                     <div class="col-md-4">
-                        <div class="card shadow-sm border-0 border-start border-success border-4 h-100">
+                        <div class="surface-card card h-100">
                             <div class="card-body py-4">
                                 <div class="d-flex align-items-center mb-2">
-                                    <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="bi bi-graph-up-arrow text-success fs-3"></i>
+                                    <div class="finance-report-icon me-3">
+                                        <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
                                     </div>
                                     <div>
                                         <h3 class="group-label mb-1">Einnahmen</h3>
@@ -69,11 +68,11 @@
                     </div>
 
                     <div class="col-md-4">
-                        <div class="card shadow-sm border-0 border-start border-danger border-4 h-100">
+                        <div class="surface-card card h-100">
                             <div class="card-body py-4">
                                 <div class="d-flex align-items-center mb-2">
-                                    <div class="bg-danger bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="bi bi-graph-down-arrow text-danger fs-3"></i>
+                                    <div class="finance-report-icon me-3">
+                                        <i class="bi bi-graph-down-arrow" aria-hidden="true"></i>
                                     </div>
                                     <div>
                                         <h3 class="group-label mb-1">Ausgaben</h3>
@@ -88,15 +87,15 @@
                     </div>
 
                     <div class="col-md-4">
-                        <div class="card shadow-sm border-0 border-start {{ balance >= 0 ? 'border-primary' : 'border-warning' }} border-4 h-100">
+                        <div class="surface-card card h-100">
                             <div class="card-body py-4">
                                 <div class="d-flex align-items-center mb-2">
-                                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="bi bi-cash-stack text-primary fs-3"></i>
+                                    <div class="finance-report-icon me-3">
+                                        <i class="bi bi-cash-stack" aria-hidden="true"></i>
                                     </div>
                                     <div>
                                         <h3 class="group-label mb-1">Saldo</h3>
-                                        <p class="finance-kpi-value mb-0 {{ balance >= 0 ? 'text-primary' : 'text-danger' }}">
+                                        <p class="finance-kpi-value finance-kpi-value--balance mb-0 {{ balance >= 0 ? 'text-success' : 'text-danger' }}">
                                             {{ balance > 0 ? '+' : '' }}{{ balance|number_format(2, ',', '.') }} €
                                         </p>
                                     </div>
@@ -118,7 +117,7 @@
                 <div class="row g-4 mb-4">
                     <div class="col-12">
                         <h2 class="dashboard-section-title mb-3">
-                            <i class="bi bi-safe me-1"></i> Kassabericht je Konto
+                            Kassabericht je Konto
                         </h2>
                         <div class="card shadow-sm border-0">
                             <div class="card-body p-0">
@@ -160,8 +159,8 @@
                                             {% endfor %}
                                         </tbody>
                                         <tfoot>
-                                            <tr class="table-dark fw-bold">
-                                                <td>Gesamt</td>
+                                            <tr class="table-dark">
+                                                <td class="fw-bold">Gesamt</td>
                                                 <td class="text-end finance-report-amount-cell">
                                                     {{ account_statement.totals.opening|number_format(2, ",", ".") }} €
                                                 </td>
@@ -171,7 +170,7 @@
                                                 <td class="text-end finance-report-amount-cell">
                                                     − {{ account_statement.totals.expense|number_format(2, ",", ".") }} €
                                                 </td>
-                                                <td class="text-end finance-report-amount-cell">
+                                                <td class="text-end fw-bold finance-report-amount-cell">
                                                     {{ account_statement.totals.closing|number_format(2, ",", ".") }} €
                                                 </td>
                                             </tr>
@@ -210,15 +209,15 @@
                 <div class="row g-4 mb-4">
                     <div class="col-12">
                         <h2 class="dashboard-section-title mb-3">
-                            <i class="bi bi-funnel me-1"></i> Saldo nach Zahlungsart
+                            Saldo nach Zahlungsart
                         </h2>
                     </div>
                     <div class="col-md-6">
-                        <div class="card shadow-sm border-0 h-100">
+                        <div class="surface-card card h-100">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-secondary bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="bi bi-cash-coin text-secondary fs-4"></i>
+                                    <div class="finance-report-icon me-3">
+                                        <i class="bi bi-cash-coin" aria-hidden="true"></i>
                                     </div>
                                     <h3 class="card-title mb-0">Bar (Kassa)</h3>
                                 </div>
@@ -226,13 +225,13 @@
                                     <table class="table table-sm mb-0 finance-report-table">
                                         <tr>
                                             <td class="text-muted">Einnahmen</td>
-                                            <td class="text-end text-success fw-bold finance-report-amount-cell">
+                                            <td class="text-end text-success finance-report-amount-cell">
                                                 + {{ cash_income|number_format(2, ',', '.') }} €
                                             </td>
                                         </tr>
                                         <tr>
                                             <td class="text-muted">Ausgaben</td>
-                                            <td class="text-end text-danger fw-bold finance-report-amount-cell">
+                                            <td class="text-end text-danger finance-report-amount-cell">
                                                 − {{ cash_expense|number_format(2, ',', '.') }} €
                                             </td>
                                         </tr>
@@ -249,11 +248,11 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card shadow-sm border-0 h-100">
+                        <div class="surface-card card h-100">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="bi bi-bank text-info fs-4"></i>
+                                    <div class="finance-report-icon me-3">
+                                        <i class="bi bi-bank" aria-hidden="true"></i>
                                     </div>
                                     <h3 class="card-title mb-0">Überweisung (Bank)</h3>
                                 </div>
@@ -261,13 +260,13 @@
                                     <table class="table table-sm mb-0 finance-report-table">
                                         <tr>
                                             <td class="text-muted">Einnahmen</td>
-                                            <td class="text-end text-success fw-bold finance-report-amount-cell">
+                                            <td class="text-end text-success finance-report-amount-cell">
                                                 + {{ bank_income|number_format(2, ',', '.') }} €
                                             </td>
                                         </tr>
                                         <tr>
                                             <td class="text-muted">Ausgaben</td>
-                                            <td class="text-end text-danger fw-bold finance-report-amount-cell">
+                                            <td class="text-end text-danger finance-report-amount-cell">
                                                 − {{ bank_expense|number_format(2, ',', '.') }} €
                                             </td>
                                         </tr>
@@ -288,10 +287,9 @@
                 {% if has_groups %}
                     <div class="row g-4 mb-4">
                         <div class="col-md-6">
-                            <div class="card shadow-sm border-0 h-100">
-                                <div class="card-header bg-success bg-opacity-10 border-0 py-3">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-plus-circle me-1"></i> Einnahmen nach Gruppe
+                            <div class="surface-card card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Einnahmen nach Gruppe
                                     </h6>
                                 </div>
                                 <div class="card-body p-0">
@@ -304,7 +302,7 @@
                                                         {% set found_income = true %}
                                                         <tr>
                                                             <td>{{ grp }}</td>
-                                                            <td class="text-end text-success fw-bold finance-report-amount-cell">
+                                                            <td class="text-end text-success finance-report-amount-cell">
                                                                 + {{ totals.income|number_format(2, ',', '.') }} €
                                                             </td>
                                                         </tr>
@@ -322,10 +320,9 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card shadow-sm border-0 h-100">
-                                <div class="card-header bg-danger bg-opacity-10 border-0 py-3">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-dash-circle me-1"></i> Ausgaben nach Gruppe
+                            <div class="surface-card card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Ausgaben nach Gruppe
                                     </h6>
                                 </div>
                                 <div class="card-body p-0">
@@ -338,7 +335,7 @@
                                                         {% set found_expense = true %}
                                                         <tr>
                                                             <td>{{ grp }}</td>
-                                                            <td class="text-end text-danger fw-bold finance-report-amount-cell">
+                                                            <td class="text-end text-danger finance-report-amount-cell">
                                                                 − {{ totals.expense|number_format(2, ',', '.') }} €
                                                             </td>
                                                         </tr>

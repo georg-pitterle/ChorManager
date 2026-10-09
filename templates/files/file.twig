@@ -20,7 +20,7 @@
                 </ol>
             </nav>
             <h1 class="h2 mb-1 text-break">
-                <i class="bi {{ files_ui.icon(file.mime_type) }} me-1" aria-hidden="true"></i>{{ file.name }}
+                {{ file.name }}
             </h1>
             <p class="text-muted mb-0 small">
                 {{ files_ui.size(file.size) }}
@@ -214,7 +214,7 @@
                         <form method="post" action="/files/{{ file.id }}/links" class="row g-2">
                             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                             <div class="col-12">
-                                <label class="form-label small" for="filesLinkLabel">Bezeichnung (optional)</label>
+                                <label class="form-label" for="filesLinkLabel">Bezeichnung (optional)</label>
                                 <input class="form-control form-control-sm"
                                        id="filesLinkLabel"
                                        name="label"
@@ -222,7 +222,7 @@
                                        placeholder="z. B. Presse Frühjahrskonzert">
                             </div>
                             <div class="col-6">
-                                <label class="form-label small" for="filesLinkExpires">Gültig bis (optional)</label>
+                                <label class="form-label" for="filesLinkExpires">Gültig bis (optional)</label>
                                 <input class="form-control form-control-sm"
                                        id="filesLinkExpires"
                                        name="expires_at"
@@ -230,7 +230,7 @@
                                        min="{{ min_expiry }}">
                             </div>
                             <div class="col-6">
-                                <label class="form-label small" for="filesLinkPassword">Passwort (optional)</label>
+                                <label class="form-label" for="filesLinkPassword">Passwort (optional)</label>
                                 <input class="form-control form-control-sm"
                                        id="filesLinkPassword"
                                        name="password"

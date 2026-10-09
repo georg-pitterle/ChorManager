@@ -10,9 +10,12 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">
-                <a href="/projects" class="text-decoration-none text-muted"><i class="bi bi-arrow-left"></i> Projekte</a> / {{ project.name }}
-            </p>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/projects">Projekte</a></li>
+                    <li class="breadcrumb-item active">{{ project.name }}</li>
+                </ol>
+            </nav>
             <h1 class="h2 mb-1">Projektplanung (Aufgaben)</h1>
             <p class="text-muted mb-0">Zuweisungen und Statusberichte für das Projekt.</p>
         </div>

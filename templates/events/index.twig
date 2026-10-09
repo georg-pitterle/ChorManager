@@ -9,7 +9,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">Termine</p>
             <h1 class="h2 mb-1">Events</h1>
             <p class="text-muted mb-0">Plane Termine, filtere Ergebnisse und bearbeite Serien konsistent an einem Ort.</p>
         </div>
@@ -80,7 +79,7 @@
                           class="row g-3 align-items-end">
                         <input type="hidden" name="view" value="{{ view_mode }}">
                         <div class="col-12 col-md-5 mb-2">
-                            <label for="filter_project" class="form-label small">Projekt</label>
+                            <label for="filter_project" class="form-label">Projekt</label>
                             <select name="project_id" id="filter_project" class="form-select">
                                 <option value="">Alle Projekte</option>
                                 {% for p in projects %}
@@ -92,7 +91,7 @@
                             </select>
                         </div>
                         <div class="col-12 col-md-5 mb-2">
-                            <label for="filter_type" class="form-label small">Event-Typ</label>
+                            <label for="filter_type" class="form-label">Event-Typ</label>
                             <select name="event_type_id" id="filter_type" class="form-select">
                                 <option value="">Alle Typen</option>
                                 {% for et in event_types %}
@@ -436,7 +435,7 @@
                              {% if not create_form.form.repeat %}style="display:none;"{% endif %}>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
-                                    <label for="events-index-recurrence-interval" class="form-label small text-muted">Wiederhole jeden</label>
+                                    <label for="events-index-recurrence-interval" class="form-label">Wiederhole jeden</label>
                                     <input type="number"
                                            class="form-control"
                                            name="recurrence_interval"
@@ -445,7 +444,7 @@
                                            id="events-index-recurrence-interval">
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="frequency" class="form-label small text-muted"></label>
+                                    <label for="frequency" class="form-label"></label>
                                     <select class="form-select" name="frequency" id="frequency" aria-label="Zeiteinheit">
                                         <option value="daily"
                                                 {% if create_form.form.frequency == 'daily' %}selected{% endif %}>
@@ -470,7 +469,7 @@
                             <div id="weekday_selector"
                                  class="mb-3"
                                  {% if create_form.form.frequency != 'weekly' %}style="display:none;"{% endif %}>
-                                <label class="form-label small text-muted">am</label>
+                                <label class="form-label">am</label>
                                 <div class="d-flex flex-wrap gap-1">
                                     {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
                                         <input type="checkbox"
@@ -486,7 +485,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="series_end_date" class="form-label small text-muted">Wiederholung beenden am</label>
+                                <label for="series_end_date" class="form-label">Wiederholung beenden am</label>
                                 <input type="date"
                                        class="form-control"
                                        id="series_end_date"

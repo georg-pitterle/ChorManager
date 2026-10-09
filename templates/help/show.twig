@@ -7,9 +7,12 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <p class="text-uppercase text-muted small mb-1">
-                <a href="/help" class="text-muted text-decoration-none">Hilfe</a>
-            </p>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/help">Hilfe</a></li>
+                    <li class="breadcrumb-item active">{{ title }}</li>
+                </ol>
+            </nav>
             <h1 class="h2 mb-1">{{ title }}</h1>
         </div>
         <div class="page-actions">
