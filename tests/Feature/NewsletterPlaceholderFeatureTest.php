@@ -148,6 +148,23 @@ final class NewsletterPlaceholderFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Wer den Newsletter schon im Browser liest, braucht den Link dorthin nicht:
+     * Er führte auf dieselbe Seite zurück.
+     */
+    public function testArchiveLinkIsEmptyInTheBrowserView(): void
+    {
+        $creator = $this->createUser();
+        $recipient = $this->createUser();
+        $newsletter = $this->createNewsletter(null, $creator);
+        $context = RenderContext::fromNewsletter($newsletter, 'https://chor.example', new NameFormatterService())
+            ->forBrowserView();
+
+        $rendered = $this->service()->renderHtml('<p>Hallo {{archiv_link}}</p>', $context, $recipient);
+
+        $this->assertSame('<p>Hallo </p>', $rendered);
+    }
+
     public function testProjectlessNewsletterResolvesProjectToEmptyString(): void
     {
         $creator = $this->createUser();

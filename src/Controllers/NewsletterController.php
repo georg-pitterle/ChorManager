@@ -223,7 +223,7 @@ class NewsletterController
     private function personalizedNewsletterContent(Newsletter $newsletter, ?User $recipient, string $baseUrl): array
     {
         $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml((string) $newsletter->content_html);
-        $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
+        $context = $this->placeholderService->contextFor($newsletter, $baseUrl)->forBrowserView();
 
         return [
             'title' => $this->placeholderService->renderSubject((string) $newsletter->title, $context, $recipient),
@@ -532,6 +532,19 @@ class NewsletterController
             (string) $validation['payload']['content_html']
         );
 
+        // Dateien aus dem Anlegen-Formular: Der Entwurf steht bereits, eine abgelehnte Datei
+        // verwirft ihn nicht, sondern kommt als Warnung zurück. Der Zustellweg wird wie im
+        // Editor aus der Größe vorbelegt.
+        $upload = $this->entityAttachments->storeUploads(
+            $request->getUploadedFiles()['attachments'] ?? null,
+            NewsletterAttachmentService::ENTITY_TYPE,
+            (int) $newsletter->id,
+            fn (int $size): array => ['delivery_mode' => $this->newsletterAttachments->suggestMode($size)]
+        );
+        if ($upload['error'] !== null) {
+            $warnings[] = $upload['error'];
+        }
+
         // Der einzige verlinkte Weg zum Anlegen ist der Modal-Dialog: Der Client lädt den
         // Editor per Anfrage in denselben Dialog nach, ohne Seitenwechsel. layout_modal.twig
         // bindet den Session-Meldungsbereich gar nicht ein, eine Sitzungswarnung würde dort
@@ -734,6 +747,12 @@ class NewsletterController
                 ? ''
                 : $this->nameFormatter->formatPerson($previewRecipient),
             'preview_is_own_data' => $isOwnData,
+            // Verlinkte Dateien stehen im Mail-Rahmen; angehängte hat nur die Mail selbst, und
+            // ohne diese Liste sähe man in Vorschau und Archiv nicht, dass etwas dranhing.
+            'attached_files' => $this->newsletterAttachments->metadataFor(
+                (int) $newsletter->id,
+                NewsletterAttachmentService::MODE_ATTACH
+            ),
             'can_manage_newsletters' => $canManage,
             'is_modal' => $isModal,
         ]);
@@ -889,7 +908,7 @@ class NewsletterController
         }
 
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
-        $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
+        $context = $this->placeholderService->contextFor($newsletter, $baseUrl)->forBrowserView();
         $sanitized = $this->htmlSanitizer->sanitizeNewsletterHtml(InputValidator::asString($data['content_html'] ?? null));
 
         $subject = $this->placeholderService->renderSubject(

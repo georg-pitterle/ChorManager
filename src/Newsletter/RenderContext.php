@@ -22,8 +22,27 @@ final class RenderContext
         public readonly string $title,
         public readonly string $projectName,
         public readonly string $senderName,
-        public readonly string $date
+        public readonly string $date,
+        public readonly bool $inBrowserView = false
     ) {
+    }
+
+    /**
+     * Derselbe Kontext für eine Ansicht im Browser: Verweise auf die Browser-Ansicht
+     * entfallen dort, sie führten auf die Seite zurück, auf der man schon ist.
+     */
+    public function forBrowserView(): self
+    {
+        return new self(
+            $this->appName,
+            $this->baseUrl,
+            $this->newsletterId,
+            $this->title,
+            $this->projectName,
+            $this->senderName,
+            $this->date,
+            true
+        );
     }
 
     public static function fromNewsletter(

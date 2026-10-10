@@ -54,6 +54,23 @@
                                 sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
                                 loading="lazy"></iframe>
                     </div>
+                    {% if attached_files|default([])|length > 0 %}
+                        <div class="card-body border-top newsletter-preview-attachments">
+                            <h6 class="mb-2"><i class="bi bi-paperclip"></i> Anhänge</h6>
+                            <ul class="list-unstyled mb-0">
+                                {% for file in attached_files %}
+                                    <li>
+                                        <a href="/attachments/{{ file.id }}/download"
+                                           target="_blank"
+                                           rel="noopener noreferrer">{{ file.original_name }}</a>
+                                        <small class="text-muted">
+                                            {{ (file.file_size / 1024)|round(1) ~ " KB" }}
+                                        </small>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
                     <div class="card-footer">
                         <div class="text-muted text-center">
                             <small>

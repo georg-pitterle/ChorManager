@@ -195,7 +195,7 @@ class NewsletterPlaceholderService
                 scope: PlaceholderDefinition::SCOPE_GLOBAL,
                 example: 'Im Browser ansehen',
                 resolver: static function (RenderContext $context, ?User $recipient): string {
-                    if ($context->newsletterId === null) {
+                    if ($context->newsletterId === null || $context->inBrowserView) {
                         return '';
                     }
 
