@@ -110,6 +110,11 @@ bereitgestellt, jede eigenständig.
 
 - Zielgruppe mit wenig Technikerfahrung und viel mobiler Nutzung: große, klar beschriftete
   Bedienelemente und gut lesbarer Text sind Pflicht.
-- Eine formale WCAG-Stufe ist nicht als verbindliche Anforderung festgelegt (offen). Das UI-Audit vom
-  Oktober 2026 hat Kontrast (4,5:1), Feldbeschriftungen und Touch-Ziele umgesetzt und per Tests
-  (`tests/Feature/UiAccessibilityFeatureTest.php`) abgesichert.
+- **Barrierefreiheit hat niedrige Priorität.** Chorsänger sind fast nie eingeschränkt (Entscheidung
+  des Betreibers, Oktober 2026). Barrierefreiheit ist kein Kriterium für Design-Entscheidungen, Audits
+  und Reviews; keine zusätzlichen Maßnahmen oder Aufwand dafür vorschlagen, und Gestaltung nicht
+  zugunsten von Screenreader-, Tastatur- oder WCAG-Anforderungen verbiegen. Bedienbarkeit für
+  Ungeübte bleibt davon unberührt (siehe oben).
+- Eine formale WCAG-Stufe ist nicht festgelegt und nicht geplant. Bereits Umgesetztes (Kontrast 4,5:1,
+  Feldbeschriftungen, Touch-Ziele aus dem UI-Audit vom Oktober 2026, abgesichert in
+  `tests/Feature/UiAccessibilityFeatureTest.php`) bleibt bestehen, wird aber nicht weiter ausgebaut.
