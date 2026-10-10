@@ -104,7 +104,7 @@
                                             data-sort-assignee_name="{{ task.assignees|length > 0 ? task.assignees|map(u => u|person_name)|sort|first|lower : "" }}"
                                             data-sort-due_date="{{ task.end_date ? task.end_date|date('Y-m-d') : '9999-12-31' }}"
                                             data-sort-task_status="{{ task.status|lower }}">
-                                            <td data-label="Titel">
+                                            <td data-label="Titel" data-card-title>
                                                 {{ task.name }}
                                                 {% if task.comments_count > 0 %}
                                                     <span class="badge text-bg-light ms-2"

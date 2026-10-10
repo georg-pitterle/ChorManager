@@ -54,9 +54,9 @@
                 { value: 'queued', label: 'In Warteschlange' },
                 { value: 'sending', label: 'Wird gesendet' },
                 { value: 'sent', label: 'Versendet' },
-                { value: 'skipped', label: 'Uebersprungen' },
+                { value: 'skipped', label: 'Übersprungen' },
                 { value: 'failed', label: 'Fehlgeschlagen' },
-                { value: 'dead', label: 'Endgueltig fehlgeschlagen' }
+                { value: 'dead', label: 'Endgültig fehlgeschlagen' }
             ], 'status');
             var typeControl = createSelect('Typ', [
                 { value: 'newsletter', label: 'Newsletter' },

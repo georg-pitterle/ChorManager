@@ -82,10 +82,10 @@
                                 <tr data-sort-name="{{ pkg.name|lower }}"
                                     data-sort-min_amount="{{ pkg.min_amount }}"
                                     data-sort-color="{{ pkg.color|lower }}">
-                                    <td data-label="Name">
+                                    <td data-label="Name" data-card-title>
                                         <span class="badge bg-{{ pkg.color }} fs-6">{{ pkg.name }}</span>
                                     </td>
-                                    <td data-label="Beschreibung" class="small text-muted">{{ pkg.description ?? '–' }}</td>
+                                    <td data-label="Beschreibung" data-card-block class="small text-muted">{{ pkg.description ?? '–' }}</td>
                                     <td data-label="Mindestbetrag" class="text-nowrap">{{ pkg.min_amount|number_format(2, ",", ".") }} €</td>
                                     <td data-label="Farbe">
                                         <span class="badge bg-{{ pkg.color }}">{{ pkg.color }}</span>

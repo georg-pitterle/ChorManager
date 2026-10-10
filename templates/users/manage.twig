@@ -187,7 +187,7 @@
                                                        aria-label="Mitglied auswählen">
                                             </td>
                                         {% endif %}
-                                        <td data-label="Name">{{ person.member_link(user, user.id, can_edit_member) }}</td>
+                                        <td data-label="Name" data-card-title>{{ person.member_link(user, user.id, can_edit_member) }}</td>
                                         <td data-label="E-Mail">{{ user.email }}</td>
                                         <td data-label="Rolle">
                                             {% for role in user.roles %}<span class="badge text-bg-secondary me-1">{{ role.name }}</span>{% endfor %}

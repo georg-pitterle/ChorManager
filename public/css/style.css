@@ -278,8 +278,12 @@ body.app-shell {
     background: #ffffff;
 }
 
+/* minmax(0, 1fr): Eine Grid-Spalte schrumpft sonst nicht unter die Mindestbreite ihres Inhalts.
+   Eine breite Tabelle blähte den ganzen Inhaltsbereich über den Viewport auf, statt in der
+   Karten- oder Scroll-Ansicht zu landen. */
 .dashboard-shell {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
     margin-bottom: 1.5rem;
 }
@@ -1408,9 +1412,9 @@ thead:not([class]) {
 }
 
 thead th {
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
     text-transform: uppercase;
     color: var(--listhead-text, #1f2937);
     background-color: var(--listhead-bg, #eef1f5);

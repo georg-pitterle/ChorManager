@@ -79,10 +79,10 @@
                                         data-sort-description="{{ project.description|default('')|lower }}"
                                         data-sort-start_date="{{ project.start_date|default('') }}"
                                         data-sort-end_date="{{ project.end_date|default('') }}">
-                                        <td data-label="Projektname">
+                                        <td data-label="Projektname" data-card-title>
                                             {{ project.name }}
                                         </td>
-                                        <td data-label="Beschreibung">{{ project.description|default('-') }}</td>
+                                        <td data-label="Beschreibung" data-card-block>{{ project.description|default('-') }}</td>
                                         <td data-label="Startdatum">{{ has_start_date ? project.start_date|date("d.m.Y") : "-" }}</td>
                                         <td data-label="Enddatum">{{ has_end_date ? project.end_date|date("d.m.Y") : "-" }}</td>
                                         <td data-label="Aktionen" class="text-end">

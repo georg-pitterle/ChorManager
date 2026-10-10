@@ -59,7 +59,7 @@
                                                 data-sort-project="{{ newsletter.project.name|default('')|lower }}"
                                                 data-sort-sender="{{ sender_name|lower }}"
                                                 data-sort-sent="{{ entry.sent_at|date('Y-m-d H:i:s') }}">
-                                                <td data-label="Titel">
+                                                <td data-label="Titel" data-card-title>
                                                     {{ subject }}
                                                     {% if newsletter.event %}
                                                         <br>

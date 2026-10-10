@@ -140,7 +140,24 @@ class LayoutFeatureTest extends TestCase
         );
         // Typographic treatment on th cells
         $this->assertStringContainsString('text-transform: uppercase', $styleContent);
-        $this->assertStringContainsString('letter-spacing: 0.04em', $styleContent);
+        // Tabellenköpfe nutzen die Gruppenlabel-Typografie aus DESIGN.md (700, 0,06em, 0,75rem).
+        $this->assertMatchesRegularExpression(
+            '/thead th \{[^}]*font-weight: 700;[^}]*letter-spacing: 0\.06em;[^}]*font-size: 0\.75rem;/s',
+            $styleContent
+        );
+    }
+
+    public function testDashboardShellColumnMayShrinkBelowContentWidth(): void
+    {
+        $styleContent = file_get_contents(dirname(__DIR__) . '/../public/css/style.css');
+
+        $this->assertIsString($styleContent);
+        // Sonst bläht eine breite Tabelle den Inhaltsbereich über den Viewport auf und die
+        // Auto-Ansicht der Table-Engine hält sie für passend.
+        $this->assertMatchesRegularExpression(
+            '/\.dashboard-shell \{[^}]*grid-template-columns: minmax\(0, 1fr\);/s',
+            $styleContent
+        );
     }
 
     public function testCssDefinesCardHeaderHarmonizationRule(): void

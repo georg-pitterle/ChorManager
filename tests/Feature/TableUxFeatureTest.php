@@ -54,6 +54,69 @@ class TableUxFeatureTest extends TestCase
         $this->assertStringContainsString('>Zurücksetzen<', $toolbarContent);
     }
 
+    public function testSharedToolbarExposesResultCountForFilteredRows(): void
+    {
+        $toolbarContent = file_get_contents(dirname(__DIR__) . '/../templates/partials/table_toolbar.twig');
+
+        $this->assertIsString($toolbarContent);
+        $this->assertStringContainsString('data-table-result-count', $toolbarContent);
+    }
+
+    public function testSearchKeepsRawInputAndDoesNotWriteBackWhileTyping(): void
+    {
+        $engineContent = file_get_contents(dirname(__DIR__) . '/../public/js/table-engine.js');
+
+        $this->assertIsString($engineContent);
+        // Die Eingabe wird nicht beim Tippen normalisiert (verschluckte Leerzeichen) ...
+        $this->assertStringNotContainsString('state.searchQuery = normalizeText(searchInput.value)', $engineContent);
+        $this->assertStringContainsString('state.searchQuery = searchInput.value;', $engineContent);
+        // ... und wird nur dann ins Feld zurückgeschrieben, wenn es vom Zustand abweicht.
+        $this->assertStringContainsString('if (searchInput.value !== state.searchQuery)', $engineContent);
+    }
+
+    public function testSharedToolbarOffersFilterClearAndKeepsViewSwitchInMenu(): void
+    {
+        $toolbarContent = file_get_contents(dirname(__DIR__) . '/../templates/partials/table_toolbar.twig');
+
+        $this->assertIsString($toolbarContent);
+        $this->assertStringContainsString('data-table-filter-clear', $toolbarContent);
+        $this->assertStringContainsString('data-table-filter-toggle', $toolbarContent);
+        // Der Ansichtsschalter steckt im Menü „Ansicht“, nicht mehr als Knopfgruppe.
+        $this->assertStringContainsString('>Ansicht<', $toolbarContent);
+        $this->assertStringNotContainsString('btn-group ms-auto', $toolbarContent);
+        $this->assertStringContainsString('pro Seite</option>', $toolbarContent);
+    }
+
+    public function testEngineShowsNoResultsRowAndNeverBuildsHtmlFromHeaderText(): void
+    {
+        $engineContent = file_get_contents(dirname(__DIR__) . '/../public/js/table-engine.js');
+
+        $this->assertIsString($engineContent);
+        $this->assertStringContainsString('Keine Treffer für', $engineContent);
+        $this->assertStringContainsString('Filter zurücksetzen', $engineContent);
+        // Sortierbezeichnungen stammen aus dem Tabellenkopf und gehen nie als HTML ins Panel.
+        $this->assertStringNotContainsString("getSortLabel(sortSpec.key) + '</span>'", $engineContent);
+    }
+
+    public function testCardViewHasTitleFieldAndNoStripedCards(): void
+    {
+        $css = file_get_contents(dirname(__DIR__) . '/../public/css/table-engine.css');
+
+        $this->assertIsString($css);
+        $this->assertStringContainsString('td[data-card-title]', $css);
+        $this->assertStringContainsString('td[data-card-block]', $css);
+        $this->assertStringContainsString('td[data-card-empty]', $css);
+        $this->assertStringContainsString('--bs-table-bg-type: transparent', $css);
+        // White-Label: Sortier-Badge folgt der Vereinsfarbe, nicht Bootstrap-Blau.
+        $this->assertStringNotContainsString('13, 110, 253', $css);
+        $this->assertStringNotContainsString('#0d6efd', $css);
+
+        $eventsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/events/index.twig');
+        $this->assertIsString($eventsTemplate);
+        $this->assertStringContainsString('data-label="Titel" data-card-title', $eventsTemplate);
+        $this->assertStringContainsString('badge text-bg-{{ event.type_color }}', $eventsTemplate);
+    }
+
     public function testUsersManagePluginHasNoOwnResetButton(): void
     {
         $pluginContent = file_get_contents(

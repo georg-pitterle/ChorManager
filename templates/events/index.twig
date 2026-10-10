@@ -115,7 +115,7 @@
                         </div>
                         <div class="col-12 col-md-2 d-flex align-items-end mb-2">
                             <a href="/events" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-x-circle"></i> Reset
+                                <i class="bi bi-x-circle"></i> Filter zurücksetzen
                             </a>
                         </div>
                     </form>
@@ -177,7 +177,7 @@
                                                 <span class="text-muted small">{{ event.starts_at|date('H:i') }} - {{ event.ends_at|date('H:i') }}</span>
                                                 {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
                                             </td>
-                                            <td data-label="Titel">{{ event.title }}</td>
+                                            <td data-label="Titel" data-card-title>{{ event.title }}</td>
                                             <td data-label="Bemerkung"
                                                 data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
                                                 {% if event.comments|length > 0 %}
@@ -188,7 +188,7 @@
                                             </td>
                                             <td data-label="Ort">{{ event.location|default('-') }}</td>
                                             <td data-label="Typ">
-                                                <span class="badge bg-{{ event.type_color }}">{{ event.type_name }}</span>
+                                                <span class="badge text-bg-{{ event.type_color }}">{{ event.type_name }}</span>
                                             </td>
                                             <td data-label="Zielgruppe">{{ event.audience_label|default('Alle') }}</td>
                                             <td data-label="Aktionen" class="text-end">

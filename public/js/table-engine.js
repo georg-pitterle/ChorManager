@@ -83,7 +83,7 @@
         return value;
     }
 
-    function resolveAutoView(overflowDelta, currentView, useHysteresis) {
+    function resolveAutoView(overflowDelta) {
         return overflowDelta > 0 ? 'cards' : 'table';
     }
 
@@ -197,13 +197,107 @@
         return String(value || '').trim().toLowerCase();
     }
 
-    function matchesSearch(row, query) {
-        if (!query) {
+    // Die Eingabe bleibt im Feld unverändert; nur der Vergleich normalisiert. Mehrere Wörter
+    // gelten als UND-Suche, damit „Vorname Nachname“ in beliebiger Reihenfolge trifft.
+    function parseSearchTokens(query) {
+        return normalizeText(query).split(/\s+/).filter(Boolean);
+    }
+
+    function textMatchesQuery(text, query) {
+        const tokens = parseSearchTokens(query);
+        if (tokens.length === 0) {
             return true;
         }
-        const text = normalizeText(row.textContent);
-        return text.includes(query);
+        const haystack = normalizeText(text);
+        return tokens.every(function (token) {
+            return haystack.includes(token);
+        });
     }
+
+    // Steuerelemente (Zeilenaktionen, Menüs) gehören nicht zum durchsuchbaren Inhalt: Sonst
+    // trifft „bearbeiten“ jede Zeile.
+    const SEARCH_IGNORED_SELECTOR = 'button, .btn, .dropdown-menu, form, [data-search-ignore]';
+    const rowSearchTextCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+    function getRowSearchText(row) {
+        if (rowSearchTextCache && rowSearchTextCache.has(row)) {
+            return rowSearchTextCache.get(row);
+        }
+
+        let text = String(row.textContent || '');
+        if (typeof row.cloneNode === 'function') {
+            const clone = row.cloneNode(true);
+            clone.querySelectorAll(SEARCH_IGNORED_SELECTOR).forEach(function (node) {
+                node.remove();
+            });
+            text = String(clone.textContent || '');
+        }
+
+        if (rowSearchTextCache) {
+            rowSearchTextCache.set(row, text);
+        }
+        return text;
+    }
+
+    function matchesSearch(row, query) {
+        if (parseSearchTokens(query).length === 0) {
+            return true;
+        }
+        return textMatchesQuery(getRowSearchText(row), query);
+    }
+
+    // Server-seitiger Leerzustand: eine einzelne gedämpfte Zelle über alle Spalten.
+    function isPlaceholderRow(row) {
+        const cells = row && row.children ? Array.from(row.children) : [];
+        if (cells.length !== 1) {
+            return false;
+        }
+        const cell = cells[0];
+        return cell.colSpan > 1
+            && cell.classList
+            && typeof cell.classList.contains === 'function'
+            && cell.classList.contains('text-muted');
+    }
+
+    // Zellen ohne Inhalt: nichts oder nur ein Strich als Platzhalter.
+    function isEmptyCellText(text) {
+        return /^[\s\-\u2013\u2014]*$/.test(String(text || ''));
+    }
+
+    function formatResultCount(matching, total) {
+        if (matching === total) {
+            return total + (total === 1 ? ' Eintrag' : ' Einträge');
+        }
+        return matching + ' von ' + total + ' Einträgen';
+    }
+
+    // Anzahl belegter Filterwerte über alle Plugins; zeigt am Telefon „Filter (n)“.
+    function countActiveFilters(pluginFilters) {
+        if (!pluginFilters || typeof pluginFilters !== 'object') {
+            return 0;
+        }
+        return Object.keys(pluginFilters).reduce(function (sum, pluginName) {
+            const value = pluginFilters[pluginName];
+            if (value && typeof value === 'object') {
+                return sum + Object.keys(value).filter(function (key) {
+                    return normalizeText(value[key]) !== '';
+                }).length;
+            }
+            return sum + (normalizeText(value) !== '' ? 1 : 0);
+        }, 0);
+    }
+
+    function shouldShowPageControls(totalPages) {
+        return totalPages > 1;
+    }
+
+    window.ChorTableEngine.isEmptyCellText = isEmptyCellText;
+    window.ChorTableEngine.countActiveFilters = countActiveFilters;
+    window.ChorTableEngine.shouldShowPageControls = shouldShowPageControls;
+    window.ChorTableEngine.parseSearchTokens = parseSearchTokens;
+    window.ChorTableEngine.textMatchesQuery = textMatchesQuery;
+    window.ChorTableEngine.isPlaceholderRow = isPlaceholderRow;
+    window.ChorTableEngine.formatResultCount = formatResultCount;
 
     function matchesPluginFilters(row, pluginFilters) {
         const keys = Object.keys(pluginFilters || {});
@@ -320,7 +414,9 @@
         const modeButtons = container.querySelectorAll('[data-table-mode], [data-table-view]');
         const sortButtons = container.querySelectorAll('th[data-sort-key]');
         const sortColumnIndexes = {};
-        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        const rows = Array.from(table.querySelectorAll('tbody tr')).filter(function (row) {
+            return !isPlaceholderRow(row);
+        });
         const searchInput = container.querySelector('[data-table-search]');
         const resetButton = container.querySelector('[data-table-reset]');
         const sortToggleButton = container.querySelector('[data-table-sort-toggle]');
@@ -335,6 +431,13 @@
         const pageNextButton = container.querySelector('[data-table-page-next]');
         const pageLabel = container.querySelector('[data-table-page-label]');
         const pluginSlot = container.querySelector('[data-table-plugin-slot]');
+        const resultCountLabel = container.querySelector('[data-table-result-count]');
+        const filterClearButton = container.querySelector('[data-table-filter-clear]');
+        const filterToggleButton = container.querySelector('[data-table-filter-toggle]');
+        const tbody = typeof table.querySelector === 'function' ? table.querySelector('tbody') : null;
+        let noResultsRow = null;
+        let bottomPager = null;
+        let noResultsMessage = null;
         const defaults = createDefaultState(container);
         const allowedPageSizes = getAllowedPageSizes(pageSizeSelect, defaults.pageSize);
         const requestedPluginNames = parsePluginNames(container.dataset.tablePlugins);
@@ -342,6 +445,52 @@
         let mode = normalizeMode(prefs.viewOverride || prefs.view || container.dataset.defaultView || 'auto');
         let state = createState(container, prefs.state, allowedPageSizes);
         let lastStableTableWidth = 0;
+
+        if (rows.length > 0) {
+            bottomPager = buildBottomPager();
+        }
+
+        // Leere Werte markieren; in der Kartenansicht blendet das CSS sie aus.
+        rows.forEach(function (row) {
+            if (typeof row.querySelectorAll !== 'function') {
+                return;
+            }
+            row.querySelectorAll('td').forEach(function (cell) {
+                const isPlainValue = !cell.children || cell.children.length === 0;
+                if (isPlainValue && !cell.hasAttribute('colspan') && isEmptyCellText(cell.textContent)) {
+                    cell.setAttribute('data-card-empty', '');
+                }
+            });
+        });
+
+        if (filterToggleButton && pluginSlot && typeof filterToggleButton.addEventListener === 'function') {
+            filterToggleButton.addEventListener('click', function () {
+                const isOpen = pluginSlot.classList.toggle('is-open');
+                filterToggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+        }
+
+        if (tbody && rows.length > 0) {
+            const headerCellCount = table.querySelectorAll('thead th').length;
+            const resetLink = document.createElement('button');
+            resetLink.type = 'button';
+            resetLink.className = 'btn btn-link p-0 align-baseline';
+            resetLink.textContent = 'Filter zurücksetzen';
+            resetLink.addEventListener('click', clearFilters);
+
+            noResultsMessage = document.createElement('span');
+            const cell = document.createElement('td');
+            cell.colSpan = Math.max(1, headerCellCount);
+            cell.className = 'table-no-results__cell text-muted';
+            cell.appendChild(noResultsMessage);
+            cell.appendChild(resetLink);
+
+            noResultsRow = document.createElement('tr');
+            noResultsRow.className = 'table-no-results';
+            noResultsRow.hidden = true;
+            noResultsRow.appendChild(cell);
+            tbody.appendChild(noResultsRow);
+        }
 
         sortButtons.forEach(function (header, sortableIndex) {
             const key = header && header.dataset ? header.dataset.sortKey : '';
@@ -441,9 +590,17 @@
                 const toggleButton = document.createElement('button');
                 toggleButton.type = 'button';
                 toggleButton.className = 'btn btn-sm btn-outline-secondary table-sort-panel-main';
-                toggleButton.innerHTML = '<span class="table-sort-order-badge">' + (index + 1) + '</span>'
-                    + '<span class="table-sort-panel-label">' + getSortLabel(sortSpec.key) + '</span>'
-                    + '<i class="bi ' + (sortSpec.dir === 'desc' ? 'bi-arrow-down' : 'bi-arrow-up') + '"></i>';
+                const orderBadge = document.createElement('span');
+                orderBadge.className = 'table-sort-order-badge';
+                orderBadge.textContent = String(index + 1);
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'table-sort-panel-label';
+                labelSpan.textContent = getSortLabel(sortSpec.key);
+                const dirIcon = document.createElement('i');
+                dirIcon.className = 'bi ' + (sortSpec.dir === 'desc' ? 'bi-arrow-down' : 'bi-arrow-up');
+                toggleButton.appendChild(orderBadge);
+                toggleButton.appendChild(labelSpan);
+                toggleButton.appendChild(dirIcon);
                 toggleButton.addEventListener('click', function () {
                     const nextSortColumns = normalizeSortColumns(state.sortColumns);
                     nextSortColumns[index] = {
@@ -663,7 +820,9 @@
 
         function syncToolbarState(totalPages) {
             if (searchInput) {
-                searchInput.value = state.searchQuery;
+                if (searchInput.value !== state.searchQuery) {
+                    searchInput.value = state.searchQuery;
+                }
                 searchInput.disabled = false;
             }
 
@@ -680,17 +839,30 @@
                 sortToggleButton.disabled = sortButtons.length === 0;
             }
 
+            const showPageControls = shouldShowPageControls(totalPages);
+
             if (pagePrevButton) {
                 pagePrevButton.disabled = state.page <= 1;
+                pagePrevButton.hidden = !showPageControls;
             }
 
             if (pageNextButton) {
                 pageNextButton.disabled = state.page >= totalPages;
+                pageNextButton.hidden = !showPageControls;
             }
 
             if (pageLabel) {
                 pageLabel.textContent = 'Seite ' + state.page + ' / ' + totalPages;
+                pageLabel.hidden = !showPageControls;
             }
+
+            if (pageSizeSelect) {
+                // Die Auswahl bleibt, solange es überhaupt mehr Zeilen als die kleinste Seitengröße gibt;
+                // sie springt also nicht weg, während man filtert.
+                pageSizeSelect.hidden = rows.length <= Math.min.apply(null, allowedPageSizes);
+            }
+
+            syncBottomPager(totalPages, showPageControls);
         }
 
         function syncSortHeaders() {
@@ -755,6 +927,11 @@
             orderedRows.forEach(function (row) {
                 tbody.appendChild(row);
             });
+
+            // Die Keine-Treffer-Zeile bleibt am Ende, damit sie die Zebrastreifen nicht verschiebt.
+            if (noResultsRow) {
+                tbody.appendChild(noResultsRow);
+            }
         }
 
         function applyRows() {
@@ -789,6 +966,7 @@
             });
 
             syncToolbarState(totalPages);
+            syncResultFeedback(sortedRows.length);
 
             // Expose the resolved filter/pagination result so external scripts (e.g. the
             // bulk-select logic in users.js) can act on the *filtered* set across pages -
@@ -803,6 +981,123 @@
             container.chorTableLastApplied = appliedDetail;
             if (typeof container.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
                 container.dispatchEvent(new CustomEvent('chor-table:applied', { detail: appliedDetail }));
+            }
+        }
+
+        function resetPlugins() {
+            plugins.forEach(function (entry) {
+                if (typeof entry.plugin.reset === 'function') {
+                    entry.plugin.reset();
+                }
+                if (typeof entry.plugin.setState === 'function') {
+                    const pluginState = state.pluginFilters && typeof state.pluginFilters === 'object'
+                        ? state.pluginFilters[entry.name]
+                        : null;
+                    entry.plugin.setState(pluginState && typeof pluginState === 'object' ? pluginState : {});
+                }
+            });
+            syncPluginStateIntoTableState();
+        }
+
+        // Nur Suche und Filter zurücknehmen; Sortierung, Seitengröße und Ansicht bleiben.
+        function clearFilters() {
+            state.searchQuery = '';
+            state.pluginFilters = {};
+            state.page = 1;
+            resetPlugins();
+            applyAndPersist();
+        }
+
+        // Zweite Blätterleiste unter der Tabelle: Nach 100 Zeilen muss man nicht zurückscrollen.
+        function buildBottomPager() {
+            if (!pagePrevButton || !pageNextButton || !document || typeof document.createElement !== 'function') {
+                return null;
+            }
+            const host = typeof table.closest === 'function' ? (table.closest('.table-responsive') || table) : table;
+            if (!host || typeof host.insertAdjacentElement !== 'function') {
+                return null;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'table-pagination-bottom d-flex gap-2 align-items-center justify-content-center';
+            wrapper.hidden = true;
+
+            const prev = document.createElement('button');
+            prev.type = 'button';
+            prev.className = 'btn btn-sm btn-outline-secondary';
+            prev.textContent = '‹ Zurück';
+            prev.addEventListener('click', function () {
+                if (state.page > 1) {
+                    state.page -= 1;
+                    applyAndPersist();
+                }
+            });
+
+            const label = document.createElement('span');
+            label.className = 'small text-muted';
+
+            const next = document.createElement('button');
+            next.type = 'button';
+            next.className = 'btn btn-sm btn-outline-secondary';
+            next.textContent = 'Weiter ›';
+            next.addEventListener('click', function () {
+                state.page += 1;
+                applyAndPersist();
+            });
+
+            wrapper.appendChild(prev);
+            wrapper.appendChild(label);
+            wrapper.appendChild(next);
+            host.insertAdjacentElement('afterend', wrapper);
+
+            return { wrapper: wrapper, prev: prev, next: next, label: label };
+        }
+
+        function syncBottomPager(totalPages, showPageControls) {
+            if (!bottomPager) {
+                return;
+            }
+            bottomPager.wrapper.hidden = !showPageControls;
+            bottomPager.prev.disabled = state.page <= 1;
+            bottomPager.next.disabled = state.page >= totalPages;
+            bottomPager.label.textContent = 'Seite ' + state.page + ' / ' + totalPages;
+        }
+
+        function syncFilterToggle() {
+            if (!filterToggleButton || !pluginSlot) {
+                return;
+            }
+            const hasPluginControls = pluginSlot.children && pluginSlot.children.length > 0;
+            filterToggleButton.hidden = !hasPluginControls;
+            const activeCount = countActiveFilters(state.pluginFilters);
+            filterToggleButton.textContent = activeCount > 0 ? 'Filter (' + activeCount + ')' : 'Filter';
+        }
+
+        function syncResultFeedback(matchingCount) {
+            syncFilterToggle();
+
+            if (resultCountLabel) {
+                resultCountLabel.textContent = formatResultCount(matchingCount, rows.length);
+            }
+
+            if (filterClearButton) {
+                // Wird nach dem Neuladen aus gespeicherten Einstellungen gefiltert, bleibt der
+                // Hinweis samt Ausweg sichtbar.
+                const hasQuery = parseSearchTokens(state.searchQuery).length > 0;
+                filterClearButton.hidden = !(hasQuery || matchingCount < rows.length);
+            }
+
+            if (!noResultsRow) {
+                return;
+            }
+
+            const isEmpty = rows.length > 0 && matchingCount === 0;
+            noResultsRow.hidden = !isEmpty;
+            if (isEmpty) {
+                const query = String(state.searchQuery || '').trim();
+                noResultsMessage.textContent = query
+                    ? 'Keine Treffer für „' + query + '“. '
+                    : 'Keine Treffer für die gewählten Filter. ';
             }
         }
 
@@ -1004,7 +1299,7 @@
 
         if (searchInput) {
             searchInput.addEventListener('input', function () {
-                state.searchQuery = normalizeText(searchInput.value);
+                state.searchQuery = searchInput.value;
                 state.page = 1;
                 applyAndPersist();
             });
@@ -1040,7 +1335,7 @@
                         const currentSort = nextSortColumns.splice(existingIndex, 1)[0];
                         nextSortColumns.unshift({
                             key: currentSort.key,
-                            dir: currentSort.dir === 'asc' ? 'desc' : 'asc'
+                            dir: currentSort.dir
                         });
                     }
 
@@ -1092,21 +1387,14 @@
             });
         }
 
+        if (filterClearButton && typeof filterClearButton.addEventListener === 'function') {
+            filterClearButton.addEventListener('click', clearFilters);
+        }
+
         if (resetButton) {
             resetButton.addEventListener('click', function () {
                 state = createState(container, null, allowedPageSizes);
-                plugins.forEach(function (entry) {
-                    if (typeof entry.plugin.reset === 'function') {
-                        entry.plugin.reset();
-                    }
-                    if (typeof entry.plugin.setState === 'function') {
-                        const pluginState = state.pluginFilters && typeof state.pluginFilters === 'object'
-                            ? state.pluginFilters[entry.name]
-                            : null;
-                        entry.plugin.setState(pluginState && typeof pluginState === 'object' ? pluginState : {});
-                    }
-                });
-                syncPluginStateIntoTableState();
+                resetPlugins();
 
                 if (window.ChorTablePrefs && typeof window.ChorTablePrefs.clear === 'function') {
                     window.ChorTablePrefs.clear(tableId);
@@ -1126,7 +1414,16 @@
 
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('[data-table-engine="true"]').forEach(initTable);
-    });
-})(window, document);
+    if (typeof module === 'object' && module.exports) {
+        module.exports = window.ChorTableEngine;
+    }
+
+    if (document) {
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-table-engine="true"]').forEach(initTable);
+        });
+    }
+})(
+    typeof window !== 'undefined' ? window : { ChorTableEngine: {} },
+    typeof document !== 'undefined' ? document : null
+);

@@ -79,7 +79,7 @@
                                     {% for template in templates %}
                                         <tr data-sort-name="{{ template.name|lower }}"
                                             data-sort-context="{{ template.project_id ? "projekt" : "global" }}">
-                                            <td data-label="Name">{{ template.name }}</td>
+                                            <td data-label="Name" data-card-title>{{ template.name }}</td>
                                             <td data-label="Kontext">
                                                 <span class="badge rounded-pill {{ template.project_id ? "bg-info text-dark" : "bg-secondary" }}">
                                                     {{ template.project_id ? "Projekt" : "Global" }}

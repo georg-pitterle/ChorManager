@@ -5,6 +5,11 @@
                data-table-search
                placeholder="Suche..."
                aria-label="Tabellensuche">
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary d-md-none"
+                data-table-filter-toggle
+                aria-expanded="false"
+                hidden>Filter</button>
         <div class="d-flex gap-2 align-items-center" data-table-plugin-slot></div>
         <div class="dropdown">
             <button type="button"
@@ -32,47 +37,62 @@
         <button type="button"
                 class="btn btn-sm btn-outline-secondary"
                 data-table-reset
+                title="Suche, Filter, Sortierung und Ansicht zurücksetzen"
                 disabled>Zurücksetzen</button>
     </div>
-    <div class="d-flex gap-2 align-items-center flex-wrap"
-         data-table-pagination>
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-table-page-prev
-                aria-label="Vorherige Seite"
-                disabled>‹</button>
+    <div class="d-flex gap-2 align-items-center flex-wrap table-toolbar__status">
         <span class="small text-muted"
-              data-table-page-label
+              data-table-result-count
               role="status"
               aria-live="polite"
-              aria-atomic="true">Seite 1 / 1</span>
+              aria-atomic="true"></span>
         <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-table-page-next
-                aria-label="Nächste Seite"
-                disabled>›</button>
-        <select class="form-select form-select-sm"
-                data-table-page-size
-                aria-label="Seitengröße"
-                disabled>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100" selected>100</option>
-            <option value="200">200</option>
-        </select>
+                class="btn btn-link btn-sm p-0"
+                data-table-filter-clear
+                hidden>Filter zurücksetzen</button>
+        <div class="d-flex gap-2 align-items-center flex-wrap"
+             data-table-pagination>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-table-page-prev
+                    aria-label="Vorherige Seite"
+                    disabled>‹</button>
+            <span class="small text-muted"
+                  data-table-page-label
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true">Seite 1 / 1</span>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-table-page-next
+                    aria-label="Nächste Seite"
+                    disabled>›</button>
+            <select class="form-select form-select-sm"
+                    data-table-page-size
+                    aria-label="Seitengröße"
+                    disabled>
+                <option value="25">25 pro Seite</option>
+                <option value="50">50 pro Seite</option>
+                <option value="100" selected>100 pro Seite</option>
+                <option value="200">200 pro Seite</option>
+            </select>
+        </div>
     </div>
-    <div class="btn-group ms-auto"
-         role="group"
-         aria-label="Ansicht umschalten"
-         data-table-view-toggle>
+    <div class="dropdown ms-auto" data-table-view-toggle>
         <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-table-mode="auto">Auto</button>
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-table-view="cards">Karten</button>
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-table-view="table">Tabelle</button>
+                class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                data-bs-toggle="dropdown"
+                aria-expanded="false">Ansicht</button>
+        <div class="dropdown-menu dropdown-menu-end">
+            <button type="button"
+                    class="dropdown-item"
+                    data-table-mode="auto">Auto</button>
+            <button type="button"
+                    class="dropdown-item"
+                    data-table-view="cards">Karten</button>
+            <button type="button"
+                    class="dropdown-item"
+                    data-table-view="table">Tabelle</button>
+        </div>
     </div>
 </div>
