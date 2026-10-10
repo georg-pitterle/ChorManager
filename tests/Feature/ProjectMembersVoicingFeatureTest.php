@@ -173,12 +173,16 @@ class ProjectMembersVoicingFeatureTest extends TestCase
         $this->assertStringNotContainsString('class="card shadow', $source);
     }
 
-    public function testTemplateDoesNotReloadOnEveryArrowKey(): void
+    /**
+     * Die Projektauswahl wechselt wie auf den übrigen Auswertungsseiten sofort;
+     * ohne JavaScript bleibt "Anzeigen" als Ausweg im noscript-Block.
+     */
+    public function testProjectSelectSubmitsOnChangeWithNoscriptFallback(): void
     {
         $source = $this->template();
 
-        $this->assertStringNotContainsString('onchange-submit', $source);
-        $this->assertStringContainsString('type="submit"', $source);
+        $this->assertStringContainsString('onchange-submit', $source);
+        $this->assertMatchesRegularExpression('/<noscript>\s*<button type="submit"/', $source);
     }
 
     public function testTemplateKeepsTheNotesIconDecorative(): void

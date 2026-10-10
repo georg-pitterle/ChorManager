@@ -12,7 +12,8 @@
         </div>
         <div class="page-actions d-flex gap-2">
             <form class="d-flex gap-2" method="get" action="/evaluations/project-members">
-                <select class="form-select select-min-220" name="project_id" aria-label="Projekt wählen">
+                <select class="form-select select-min-220 onchange-submit" name="project_id"
+                        aria-label="Projekt wählen">
                     {% if not selected_project %}
                         <option value="">Projekt wählen</option>
                     {% endif %}
@@ -23,7 +24,7 @@
                         </option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-outline-secondary">Anzeigen</button>
+                <noscript><button type="submit" class="btn btn-outline-secondary">Anzeigen</button></noscript>
             </form>
             {% if selected_project %}
                 <a href="/evaluations?project_id={{ selected_project.id }}"

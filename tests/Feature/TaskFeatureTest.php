@@ -38,6 +38,34 @@ class TaskFeatureTest extends TestCase
 
     private const INITIAL_MIGRATION_PATH = __DIR__ . '/../../db/migrations/20260314130000_initial.php';
 
+    /** @var list<callable> */
+    private array $cleanups = [];
+
+    protected function tearDown(): void
+    {
+        foreach (array_reverse($this->cleanups) as $cleanup) {
+            $cleanup();
+        }
+        $this->cleanups = [];
+
+        parent::tearDown();
+    }
+
+    /**
+     * Räumt Projekt, Person und Aufgabe samt Verlauf nach dem Test weg, damit
+     * der Lecktest der Suite keine Zeilen findet.
+     */
+    private function removeAfterTest(Project $project, User $user, Task $task): void
+    {
+        $this->cleanups[] = static function () use ($project, $user, $task): void {
+            Activity::where('entity_type', 'task')->where('entity_id', $task->id)->delete();
+            $task->delete();
+            $project->users()->detach();
+            $project->delete();
+            $user->delete();
+        };
+    }
+
     /**
      * Test task controller exists with all required methods
      */
@@ -374,7 +402,7 @@ class TaskFeatureTest extends TestCase
         $templateContent = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
 
         $this->assertStringContainsString(
-            '{% if settings.modules.tasks and session.can_manage_tasks %}',
+            '{% set can_plan = settings.modules.tasks and session.can_manage_tasks %}',
             $templateContent
         );
         $this->assertStringNotContainsString('session.can_manage_master_data', $templateContent);
@@ -821,6 +849,7 @@ class TaskFeatureTest extends TestCase
             'status' => 'Offen',
             'created_by' => $user->id,
         ]);
+        $this->removeAfterTest($project, $user, $task);
 
         $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
         $controller = new TaskController(
@@ -872,6 +901,7 @@ class TaskFeatureTest extends TestCase
             'status' => 'Offen',
             'created_by' => $user->id,
         ]);
+        $this->removeAfterTest($project, $user, $task);
 
         $makeController = function (array $session): TaskController {
             return new TaskController(

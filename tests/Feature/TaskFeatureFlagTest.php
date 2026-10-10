@@ -105,10 +105,12 @@ final class TaskFeatureFlagTest extends TestCase
         $template = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');
         $this->assertIsString($template);
 
+        // Die Planungs-Verknüpfung hängt an einer einzigen Bedingung, die Modul und Recht verbindet.
         $this->assertStringContainsString(
-            '{% if settings.modules.tasks and session.can_manage_tasks %}',
+            '{% set can_plan = settings.modules.tasks and session.can_manage_tasks %}',
             $template
         );
+        $this->assertStringContainsString('{% if can_plan %}', $template);
         $this->assertStringNotContainsString('{% if session.can_manage_tasks %}', $template);
     }
 

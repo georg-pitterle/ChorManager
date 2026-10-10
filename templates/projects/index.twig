@@ -89,12 +89,20 @@
                                             <div class="btn-group"
                                                  role="group"
                                                  aria-label="Projektaktionen für {{ project.name }}">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-secondary"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#editProjectModal{{ project.id }}">
-                                                    <i class="bi bi-pencil"></i> Bearbeiten
-                                                </button>
+                                                {% set can_plan = settings.modules.tasks and session.can_manage_tasks %}
+                                                {% if can_plan %}
+                                                    <a href="/projects/{{ project.id }}/tasks"
+                                                       class="btn btn-sm btn-outline-secondary">
+                                                        <i class="bi bi-list-check"></i> Planung
+                                                    </a>
+                                                {% else %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editProjectModal{{ project.id }}">
+                                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                                    </button>
+                                                {% endif %}
                                                 <button type="button"
                                                         class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
                                                         data-bs-toggle="dropdown"
@@ -103,11 +111,14 @@
                                                     <span class="visually-hidden">Weitere Aktionen</span>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end">
-                                                    {% if settings.modules.tasks and session.can_manage_tasks %}
+                                                    {% if can_plan %}
                                                         <li>
-                                                            <a href="/projects/{{ project.id }}/tasks" class="dropdown-item">
-                                                                <i class="bi bi-list-check me-2"></i> Planung
-                                                            </a>
+                                                            <button type="button"
+                                                                    class="dropdown-item"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#editProjectModal{{ project.id }}">
+                                                                <i class="bi bi-pencil me-2"></i> Bearbeiten
+                                                            </button>
                                                         </li>
                                                     {% endif %}
 
