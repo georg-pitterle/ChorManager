@@ -119,10 +119,14 @@
                         <h2 class="dashboard-section-title mb-3">
                             Kassabericht je Konto
                         </h2>
-                        <div class="card shadow-sm border-0">
+                        <div class="surface-card card border-0 table-shell"
+                             data-table-engine="true"
+                             data-table-id="finances.report.statement"
+                             data-default-view="auto"
+                             data-default-page-size="10000">
                             <div class="card-body p-0">
                                 <div class="table-responsive finance-report-table-wrap">
-                                    <table class="table table-sm mb-0 finance-report-table finance-statement-table">
+                                    <table class="table table-sm mb-0 table-responsive-cards finance-report-table finance-statement-table">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Konto</th>
@@ -160,17 +164,17 @@
                                         </tbody>
                                         <tfoot>
                                             <tr class="table-dark">
-                                                <td class="fw-bold">Gesamt</td>
-                                                <td class="text-end finance-report-amount-cell">
+                                                <td class="fw-bold" data-label="Konto">Gesamt</td>
+                                                <td class="text-end finance-report-amount-cell" data-label="Anfangsbestand">
                                                     {{ account_statement.totals.opening|number_format(2, ",", ".") }} €
                                                 </td>
-                                                <td class="text-end finance-report-amount-cell">
+                                                <td class="text-end finance-report-amount-cell" data-label="Einnahmen">
                                                     + {{ account_statement.totals.income|number_format(2, ",", ".") }} €
                                                 </td>
-                                                <td class="text-end finance-report-amount-cell">
+                                                <td class="text-end finance-report-amount-cell" data-label="Ausgaben">
                                                     − {{ account_statement.totals.expense|number_format(2, ",", ".") }} €
                                                 </td>
-                                                <td class="text-end fw-bold finance-report-amount-cell">
+                                                <td class="text-end fw-bold finance-report-amount-cell" data-label="Endbestand">
                                                     {{ account_statement.totals.closing|number_format(2, ",", ".") }} €
                                                 </td>
                                             </tr>
@@ -354,7 +358,11 @@
                         </div>
                     </div>
 
-                    <div class="card shadow-sm border-0 mb-4">
+                    <div class="surface-card card border-0 mb-4"
+                         data-table-engine="true"
+                         data-table-id="finances.report.groups"
+                         data-default-view="auto"
+                         data-default-page-size="10000">
                         <div class="card-header bg-white py-3">
                             <h5 class="mb-0">
                                 <i class="bi bi-tag me-2"></i>Saldo nach Gruppe
@@ -362,7 +370,7 @@
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive finance-report-table-wrap">
-                                <table class="table table-hover table-sm mb-0 finance-report-table">
+                                <table class="table table-hover table-sm mb-0 table-responsive-cards finance-report-table">
                                     <thead class="table-light">
                                         <tr>
                                             <th>Gruppe</th>
@@ -375,16 +383,16 @@
                                         {% for grp, totals in group_totals %}
                                             {% set grp_balance = totals.income - totals.expense %}
                                             <tr>
-                                                <td>
+                                                <td data-label="Gruppe">
                                                     {% if grp == '(Keine Gruppe)' %}
                                                         <span class="text-muted fst-italic">{{ grp }}</span>
                                                     {% else %}
                                                         <span class="badge text-bg-light rounded-pill border me-1">{{ grp }}</span>
                                                     {% endif %}
                                                 </td>
-                                                <td class="text-end text-success finance-report-amount-cell">+ {{ totals.income|number_format(2, ',', '.') }} €</td>
-                                                <td class="text-end text-danger finance-report-amount-cell">− {{ totals.expense|number_format(2, ',', '.') }} €</td>
-                                                <td class="text-end fw-bold finance-report-amount-cell {{ grp_balance >= 0 ? 'text-success' : 'text-danger' }}">
+                                                <td class="text-end text-success finance-report-amount-cell" data-label="Einnahmen">+ {{ totals.income|number_format(2, ',', '.') }} €</td>
+                                                <td class="text-end text-danger finance-report-amount-cell" data-label="Ausgaben">− {{ totals.expense|number_format(2, ',', '.') }} €</td>
+                                                <td class="text-end fw-bold finance-report-amount-cell {{ grp_balance >= 0 ? 'text-success' : 'text-danger' }}" data-label="Saldo">
                                                     {{ grp_balance|number_format(2, ',', '.') }} €
                                                 </td>
                                             </tr>

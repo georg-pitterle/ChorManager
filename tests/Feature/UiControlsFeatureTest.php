@@ -60,6 +60,12 @@ class UiControlsFeatureTest extends TestCase
 
         $this->assertNone($offenders, 'Abbrechen als gefüllter grauer Knopf.');
 
+        // Kontur-Knöpfe stehen auf hellem Grund: eine weiße Schrift (Rest einer früher
+        // gefüllten Variante) macht sie unlesbar.
+        foreach (self::templates() as $path => $content) {
+            $this->assertDoesNotMatchRegularExpression('/class="btn btn-outline-[a-z]+[^"]*\btext-white\b/', $content, $path);
+        }
+
         // Nebenaktionen (Schließen, Zurück, Hinzufügen) tragen dieselbe graue Kontur.
         foreach (self::templates() as $path => $content) {
             $this->assertDoesNotMatchRegularExpression('/class="btn btn-secondary\b/', $content, $path);

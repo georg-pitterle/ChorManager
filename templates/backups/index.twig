@@ -42,75 +42,87 @@
         Gesicherte Dateien der Dateiverwaltung werden dabei zurückgeschrieben.
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th scope="col">Typ</th>
-                    <th scope="col">Erstellt am</th>
-                    <th scope="col">Größe</th>
-                    <th scope="col">Dateien</th>
-                    <th scope="col">Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for backup in backups %}
-                    <tr>
-                        <td data-label="Typ">
-                            {% if backup.type == "manual" %}
-                                <span class="badge text-bg-secondary">Manuell</span>
-                            {% else %}
-                                <span class="badge text-bg-secondary">Automatisch</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Erstellt am">{{ backup.created_at }}</td>
-                        <td data-label="Größe">{{ (backup.size / 1024 / 1024)|round(2) }} MB</td>
-                        <td data-label="Dateien">
-                            {% if backup.files_count is defined %}
-                                {{ backup.files_count }} ({{ (backup.files_bytes / 1024 / 1024)|round(1) }} MB)
-                                {% if backup.files_missing|default(0) > 0 %}
-                                    <span class="badge text-bg-warning" title="Beim Sichern nicht gefunden">
-                                        {{ backup.files_missing }} fehlend
-                                    </span>
-                                {% endif %}
-                            {% else %}
-                                <span class="text-muted">nur Datenbank</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Aktionen">
-                            <div class="btn-group" role="group" aria-label="Backup-Aktionen">
-                                <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download">
-                                    <i class="bi bi-download"></i> Download
-                                </a>
-                                {% if backup.files_count is defined %}
-                                    <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download-files">
-                                        <i class="bi bi-folder2"></i> Dateien
-                                    </a>
-                                {% endif %}
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-danger restore-backup-btn"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#restoreBackupModal"
-                                        data-id="{{ backup.id }}">
-                                    <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
-                                </button>
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-danger delete-backup-btn"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#deleteBackupModal"
-                                        data-id="{{ backup.id }}">
-                                    <i class="bi bi-trash"></i> Löschen
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Keine Backups vorhanden.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="surface-card card border-0 table-shell"
+         data-table-engine="true"
+         data-table-id="backups.index"
+         data-default-view="auto"
+         data-default-page-size="50"
+         data-page-size-options="25,50,100"
+         data-default-sort-key="created"
+         data-default-sort-dir="desc">
+        {{ include("partials/table_toolbar.twig") }}
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-responsive-cards">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col">Typ</th>
+                            <th scope="col" data-sort-key="created" data-sort-type="date">Erstellt am</th>
+                            <th scope="col">Größe</th>
+                            <th scope="col">Dateien</th>
+                            <th scope="col">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for backup in backups %}
+                            <tr data-sort-created="{{ backup.created_at }}">
+                                <td data-label="Typ">
+                                    {% if backup.type == "manual" %}
+                                        <span class="badge text-bg-secondary">Manuell</span>
+                                    {% else %}
+                                        <span class="badge text-bg-secondary">Automatisch</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Erstellt am">{{ backup.created_at|date("d.m.Y H:i") }}</td>
+                                <td data-label="Größe">{{ (backup.size / 1024 / 1024)|round(2) }} MB</td>
+                                <td data-label="Dateien">
+                                    {% if backup.files_count is defined %}
+                                        {{ backup.files_count }} ({{ (backup.files_bytes / 1024 / 1024)|round(1) }} MB)
+                                        {% if backup.files_missing|default(0) > 0 %}
+                                            <span class="badge text-bg-warning" title="Beim Sichern nicht gefunden">
+                                                {{ backup.files_missing }} fehlend
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">nur Datenbank</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Aktionen">
+                                    <div class="btn-group" role="group" aria-label="Backup-Aktionen">
+                                        <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download">
+                                            <i class="bi bi-download"></i> Download
+                                        </a>
+                                        {% if backup.files_count is defined %}
+                                            <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download-files">
+                                                <i class="bi bi-folder2"></i> Dateien
+                                            </a>
+                                        {% endif %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger restore-backup-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#restoreBackupModal"
+                                                data-id="{{ backup.id }}">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger delete-backup-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#deleteBackupModal"
+                                                data-id="{{ backup.id }}">
+                                            <i class="bi bi-trash"></i> Löschen
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Keine Backups vorhanden.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="restoreBackupModal" tabindex="-1" aria-hidden="true">

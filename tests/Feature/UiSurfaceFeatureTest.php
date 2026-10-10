@@ -72,4 +72,43 @@ class UiSurfaceFeatureTest extends TestCase
     {
         $this->assertStringContainsString('--page-bg: #eef2f7;', self::css());
     }
+
+    /**
+     * Bootstraps helle Primärtöne (aufgeklapptes Akkordeon, ungelesene Benachrichtigung)
+     * wären sonst Bootstrap-Blau statt Vereinsfarbe.
+     */
+    public function testSubtlePrimaryTonesFollowTheClubColour(): void
+    {
+        $css = self::css();
+
+        $this->assertMatchesRegularExpression('/--bs-primary-bg-subtle:[^;]*var\(--theme-primary\)/', $css);
+        $this->assertMatchesRegularExpression('/--bs-primary-text-emphasis:[^;]*var\(--theme-primary-strong\)/', $css);
+    }
+
+    /**
+     * Am Telefon sitzt die Glocke nicht am rechten Rand; rechtsbündig an ihr ausgerichtet,
+     * ragte das Benachrichtigungsmenü links aus dem Bildschirm.
+     */
+    public function testNotificationMenuFitsThePhoneScreen(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 575\.98px\) \{\s*\.notification-bell-menu\.show \{[^}]*position: fixed !important;[^}]*inset:[^}]*0\.5rem !important;/s',
+            self::css()
+        );
+    }
+
+    /**
+     * Seitenkopf am Telefon: Aktionen als Kacheln (nebeneinander, umbrechend, Zeile gefüllt) -
+     * auf jeder Seite gleich, unabhängig von den Hilfsklassen der Seite.
+     */
+    public function testPageHeaderActionsAreTilesOnPhones(): void
+    {
+        $css = self::css();
+
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 575\.98px\) \{\s*\.page-header \.page-actions \{[^}]*flex-wrap: wrap !important;/s',
+            $css
+        );
+        $this->assertMatchesRegularExpression('/\.page-header \.page-actions > \* \{[^}]*flex: 1 1 auto;/s', $css);
+    }
 }

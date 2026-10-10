@@ -24,10 +24,16 @@
     {% if matrix is empty %}
         <p class="text-muted mb-0">Keine Termine mit freigeschalteter Anmeldung gefunden.</p>
     {% else %}
-        <div class="surface-card card shadow-sm border-0 table-shell">
+        <div class="surface-card card border-0 table-shell"
+             data-table-engine="true"
+             data-table-id="evaluations.registrations"
+             data-default-view="auto"
+             data-default-page-size="50"
+             data-page-size-options="25,50,100">
+            {{ include("partials/table_toolbar.twig") }}
             <div class="table-responsive">
-                <table class="table table-sm table-striped align-middle mb-0">
-                    <thead>
+                <table class="table table-sm table-striped align-middle mb-0 table-responsive-cards">
+                    <thead class="table-dark">
                         <tr>
                             <th>Termin</th>
                             {% for name in voice_group_names %}
@@ -41,23 +47,23 @@
                     <tbody>
                         {% for row in matrix %}
                             <tr>
-                                <td>
+                                <td data-label="Termin">
                                     <a href="/registrations/{{ row.event.id }}" class="text-decoration-none">
                                         {{ row.event.title }}
                                     </a>
                                     <div class="text-muted small">{{ row.event.starts_at|date("d.m.Y H:i") }}</div>
                                 </td>
                                 {% for name in voice_group_names %}
-                                    <td class="text-center">
+                                    <td class="text-center" data-label="{{ name }}">
                                         {{ row.cells[name].yes }}
                                         {% if row.cells[name].maybe > 0 %}
                                             <span class="text-muted">({{ row.cells[name].maybe }})</span>
                                         {% endif %}
                                     </td>
                                 {% endfor %}
-                                <td class="text-center fw-bold">{{ row.total_yes }}</td>
-                                <td class="text-center">{{ row.response_rate }} %</td>
-                                <td class="text-center">
+                                <td class="text-center fw-bold" data-label="Zusagen gesamt">{{ row.total_yes }}</td>
+                                <td class="text-center" data-label="Rücklauf">{{ row.response_rate }} %</td>
+                                <td class="text-center" data-label="Anwesend (Ist)">
                                     {% if row.attendance_comparison is not null %}
                                         {{ row.attendance_comparison }}
                                     {% else %}

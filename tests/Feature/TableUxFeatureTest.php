@@ -96,7 +96,8 @@ class TableUxFeatureTest extends TestCase
             'templates/finances/index.twig',
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
-            'templates/songs/downloads.twig',
+            // songs/downloads.twig nicht: Die Dateitabellen je Lied haben keine Werkzeugleiste
+            // und damit keine Seitenwahl - dort gilt UiTablesFeatureTest (keine Zeile ausblenden).
             'templates/sponsoring/dashboard.twig',
             'templates/projects/index.twig',
             'templates/projects/members.twig',

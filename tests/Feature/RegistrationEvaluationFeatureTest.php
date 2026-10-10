@@ -538,7 +538,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
      */
     private function extractRowCells(string $body, string $eventTitle, int $voiceGroupColumnCount): array
     {
-        $pattern = '#<tr>\s*<td>\s*<a href="/registrations/\d+"[^>]*>\s*'
+        $pattern = '#<tr>\s*<td[^>]*>\s*<a href="/registrations/\d+"[^>]*>\s*'
             . preg_quote($eventTitle, '/') . '\s*</a>.*?</tr>#s';
 
         $this->assertMatchesRegularExpression($pattern, $body, 'row for event not found: ' . $eventTitle);

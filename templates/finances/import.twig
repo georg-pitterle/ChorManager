@@ -87,7 +87,13 @@
                     </div>
                 </div>
 
-                <div class="surface-card card border-0 table-shell">
+                {# Ohne Werkzeugleiste und ohne Seitenaufteilung: Jede Zeile muss sichtbar und
+                   übernehmbar sein; die Engine schaltet hier nur am Handy auf Karten um. #}
+                <div class="surface-card card border-0 table-shell"
+                     data-table-engine="true"
+                     data-table-id="finances.import"
+                     data-default-view="auto"
+                     data-default-page-size="10000">
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover table-striped mb-0 table-responsive-cards finance-import-table">

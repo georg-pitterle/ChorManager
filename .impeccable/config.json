@@ -8,6 +8,12 @@
         "value": "atkinson hyperlegible",
         "createdAt": "2026-10-09T21:04:00.038Z",
         "reason": "Claude: nur die lokale Vergleichsseite var/ui-compare/index.html (gitignored) nutzt diese Schrift; die App selbst verwendet den System-Schriftstapel laut DESIGN.md"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "bootstrap-icons",
+        "createdAt": "2026-10-10T19:18:43.289Z",
+        "reason": "Claude: Icon-Font für den Aufklapp-Pfeil (.downloads-webdav__summary::after), keine Textschrift; Icons laufen projektweit über Bootstrap Icons"
       }
     ]
   }

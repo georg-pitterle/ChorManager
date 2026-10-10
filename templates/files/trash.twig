@@ -23,68 +23,78 @@
     {% if items is empty %}
         <p class="text-muted py-3 mb-0">Der Papierkorb ist leer.</p>
     {% else %}
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead>
-                    <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col" class="d-none d-md-table-cell">Ort</th>
-                        <th scope="col" class="d-none d-md-table-cell">Gelöscht</th>
-                        <th scope="col" class="text-end"><span class="visually-hidden">Aktionen</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                        {% set _path = item.container_id ? paths[item.container_id]|default([]) : [] %}
-                        <tr>
-                            <td>
-                                {% if item.type == "folder" %}
-                                    <i class="bi bi-folder-fill text-warning me-2" aria-hidden="true"></i>
-                                {% else %}
-                                    <i class="bi bi-file-earmark me-2" aria-hidden="true"></i>
-                                {% endif %}
-                                {{ item.name }}
-                                {% if item.type == "file" %}
-                                    <small class="text-muted ms-1">{{ files_ui.size(item.size) }}</small>
-                                {% endif %}
-                                <div class="d-md-none small text-muted">
-                                    {{ _path is empty ? "Teamordner" : _path|column("name")|join(" / ") }}
-                                </div>
-                            </td>
-                            <td class="d-none d-md-table-cell small">
-                                {{ _path is empty ? "Teamordner" : _path|column("name")|join(" / ") }}
-                            </td>
-                            <td class="d-none d-md-table-cell small">
-                                {{ item.deleted_at|date("d.m.Y H:i") }}
-                                <span class="d-block text-muted">endgültig ab {{ item.expires_at|date("d.m.Y") }}</span>
-                            </td>
-                            <td class="text-end">
-                                <div class="d-inline-flex gap-1">
-                                    <form method="post" action="/files/trash/{{ item.type }}/{{ item.id }}/restore">
-                                        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                            <span class="d-none d-sm-inline">Wiederherstellen</span>
-                                        </button>
-                                    </form>
-                                    {% if item.can_purge %}
-                                        <form method="post"
-                                              action="/files/trash/{{ item.type }}/{{ item.id }}/purge"
-                                              data-confirm="„{{ item.name }}“ endgültig löschen? Nicht umkehrbar.">
-                                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-                                            <button type="submit"
-                                                    class="btn btn-sm btn-outline-danger"
-                                                    aria-label="Endgültig löschen">
-                                                <i class="bi bi-x-octagon" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="surface-card card border-0 table-shell"
+             data-table-engine="true"
+             data-table-id="files.trash"
+             data-default-view="auto"
+             data-default-page-size="50"
+             data-page-size-options="25,50,100"
+             data-default-sort-key="deleted"
+             data-default-sort-dir="desc">
+            {{ include("partials/table_toolbar.twig") }}
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-responsive-cards">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col" data-sort-key="name" data-sort-type="text">Name</th>
+                                <th scope="col" data-sort-key="place" data-sort-type="text">Ort</th>
+                                <th scope="col" data-sort-key="deleted" data-sort-type="date">Gelöscht</th>
+                                <th scope="col" class="text-end"><span class="visually-hidden">Aktionen</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                {% set _path = item.container_id ? paths[item.container_id]|default([]) : [] %}
+                                {% set _place = _path is empty ? "Teamordner" : _path|column("name")|join(" / ") %}
+                                <tr data-sort-name="{{ item.name|lower }}"
+                                    data-sort-place="{{ _place|lower }}"
+                                    data-sort-deleted="{{ item.deleted_at|date("Y-m-d H:i:s") }}">
+                                    <td data-label="Name">
+                                        {% if item.type == "folder" %}
+                                            <i class="bi bi-folder-fill text-warning me-2" aria-hidden="true"></i>
+                                        {% else %}
+                                            <i class="bi bi-file-earmark me-2" aria-hidden="true"></i>
+                                        {% endif %}
+                                        {{ item.name }}
+                                        {% if item.type == "file" %}
+                                            <small class="text-muted ms-1">{{ files_ui.size(item.size) }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Ort" class="small">{{ _place }}</td>
+                                    <td data-label="Gelöscht" class="small">
+                                        {{ item.deleted_at|date("d.m.Y H:i") }}
+                                        <span class="d-block text-muted">endgültig ab {{ item.expires_at|date("d.m.Y") }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-inline-flex gap-1">
+                                            <form method="post" action="/files/trash/{{ item.type }}/{{ item.id }}/restore">
+                                                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                                    Wiederherstellen
+                                                </button>
+                                            </form>
+                                            {% if item.can_purge %}
+                                                <form method="post"
+                                                      action="/files/trash/{{ item.type }}/{{ item.id }}/purge"
+                                                      data-confirm="„{{ item.name }}“ endgültig löschen? Nicht umkehrbar.">
+                                                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            aria-label="Endgültig löschen">
+                                                        <i class="bi bi-x-octagon" aria-hidden="true"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     {% endif %}
 {% endblock content %}

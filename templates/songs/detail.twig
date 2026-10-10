@@ -313,59 +313,65 @@
             </div>
 
             {% if song.projectAssignments|length > 0 %}
-                <div class="table-responsive mb-4">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Projekt</th>
-                                <th>Notiz</th>
-                                <th class="text-end">Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for assignment in song.projectAssignments %}
+                <div class="mb-4"
+                     data-table-engine="true"
+                     data-table-id="songs.detail.assignments"
+                     data-default-view="auto"
+                     data-default-page-size="10000">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0 table-responsive-cards">
+                            <thead class="table-light">
                                 <tr>
-                                    <td>
-                                        {% if assignment.project %}
-                                            {{ assignment.project.name }}
-                                        {% else %}
-                                            <span class="text-muted fst-italic">Unbekannt</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <form method="post"
-                                              action="/song-library/assignments/{{ assignment.id }}/update"
-                                              class="d-flex gap-2 align-items-center">
-                                            <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
-                                            <input type="text"
-                                                   name="note"
-                                                   class="form-control form-control-sm"
-                                                   placeholder="Notiz (optional)"
-                                                   value="{{ assignment.note }}"
-                                                   aria-label="Notiz zur Projektzuordnung">
-                                            <button type="submit"
-                                                    class="btn btn-outline-secondary btn-sm text-nowrap"
-                                                    title="Notiz speichern"
-                                                    aria-label="Notiz speichern">
-                                                <i class="bi bi-floppy"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                    <td class="text-end">
-                                        <form method="post"
-                                              action="/song-library/assignments/{{ assignment.id }}/delete"
-                                              data-confirm="Zuordnung zum Projekt '{{ assignment.project.name ?? 'Unbekannt' }}' wirklich entfernen?">
-                                            <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm"
-                                                    aria-label="Zuordnung entfernen">
-                                                <i class="bi bi-x-lg"></i>
-                                            </button>
-                                        </form>
-                                    </td>
+                                    <th>Projekt</th>
+                                    <th>Notiz</th>
+                                    <th class="text-end">Aktionen</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {% for assignment in song.projectAssignments %}
+                                    <tr>
+                                        <td data-label="Projekt">
+                                            {% if assignment.project %}
+                                                {{ assignment.project.name }}
+                                            {% else %}
+                                                <span class="text-muted fst-italic">Unbekannt</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Notiz">
+                                            <form method="post"
+                                                  action="/song-library/assignments/{{ assignment.id }}/update"
+                                                  class="d-flex gap-2 align-items-center">
+                                                <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
+                                                <input type="text"
+                                                       name="note"
+                                                       class="form-control form-control-sm"
+                                                       placeholder="Notiz (optional)"
+                                                       value="{{ assignment.note }}"
+                                                       aria-label="Notiz zur Projektzuordnung">
+                                                <button type="submit"
+                                                        class="btn btn-outline-secondary btn-sm text-nowrap"
+                                                        title="Notiz speichern"
+                                                        aria-label="Notiz speichern">
+                                                    <i class="bi bi-floppy"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                        <td data-label="Aktionen" class="text-end">
+                                            <form method="post"
+                                                  action="/song-library/assignments/{{ assignment.id }}/delete"
+                                                  data-confirm="Zuordnung zum Projekt '{{ assignment.project.name ?? 'Unbekannt' }}' wirklich entfernen?">
+                                                <input type="hidden" name="return_to" value="/song-library/{{ song.id }}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                        aria-label="Zuordnung entfernen">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             {% else %}
                 <p class="text-muted small mb-4">Diesem Lied ist noch kein Projekt zugeordnet.</p>

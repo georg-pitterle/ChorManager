@@ -294,7 +294,7 @@
 
                 {# ─── Tab 2: Vereinbarungen ─── #}
                 <div class="tab-pane fade" id="pane-vereinbarungen" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         {% if sees_totals %}
                             <span class="text-muted">Zugesagt: <strong>{{ accepted_total|number_format(2, ",", ".") }} €</strong></span>
                         {% else %}
@@ -314,157 +314,162 @@
                     </div>
 
                     {% if sponsor.sponsorships|length > 0 %}
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Paket</th>
-                                        <th>Status</th>
-                                        <th>Betrag</th>
-                                        <th>Projekt</th>
-                                        <th>Zuständig</th>
-                                        <th>Zeitraum</th>
-                                        <th>Anhänge</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for sp in sponsor.sponsorships %}
-                                        {% set _sp_owned = sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id %}
-                                        {% set can_edit_sp = can_manage_all or _sp_owned %}
-                                        {% set sees_sp = visible_details[sp.id] %}
+                        <div data-table-engine="true"
+                             data-table-id="sponsoring.sponsor.sponsorships"
+                             data-default-view="auto"
+                             data-default-page-size="10000">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle table-responsive-cards">
+                                    <thead class="table-light">
                                         <tr>
-                                            <td>
-                                                {% if sp.package %}
-                                                    <span class="badge bg-{{ sp.package.color }}">{{ sp.package.name }}</span>
-                                                {% else %}
-                                                    –
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span>
-                                            </td>
-                                            <td class="text-nowrap">
-                                                {% if sees_sp %}
-                                                    {{ sp.amount|number_format(2, ",", ".") }} €
-                                                {% else %}
-                                                    <span class="text-muted" title="Nur für die Sponsoring-Verwaltung sichtbar">–</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ sp.project ? sp.project.name : '–' }}</td>
-                                            <td>{{ sp.assignedUser ? sp.assignedUser|person_name : "–" }}</td>
-                                            <td class="text-nowrap small">
-                                                {{ sp.start_date ? sp.start_date.format('d.m.Y') : '–' }}
-                                                {% if sp.start_date and sp.end_date %}–{% endif %}
-                                                {{ sp.end_date ? sp.end_date.format('d.m.Y') : '' }}
-                                            </td>
-                                            <td>
-                                                {% if sp.attachments|length > 0 %}
-                                                    <span class="badge text-bg-light border">{{ sp.attachments|length }} <i class="bi bi-paperclip"></i></span>
-                                                {% else %}
-                                                    –
-                                                {% endif %}
-                                            </td>
-                                            <td class="text-end text-nowrap">
-                                                {% if can_edit_sp %}
-                                                    <button class="btn btn-sm btn-outline-secondary"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#editSponsorshipModal{{ sp.id }}"
-                                                            title="Bearbeiten"
-                                                            aria-label="Bearbeiten">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                    <form method="post"
-                                                          action="/sponsoring/sponsorships/{{ sp.id }}/delete"
-                                                          class="d-inline"
-                                                          data-confirm="Vereinbarung löschen?">
-                                                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen"
-                                                                aria-label="Löschen">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </form>
-                                                {% else %}
-                                                    <span class="text-muted small">
-                                                        <i class="bi bi-lock" title="Von jemand anderem angelegt"></i>
-                                                    </span>
-                                                {% endif %}
-                                            </td>
+                                            <th>Paket</th>
+                                            <th>Status</th>
+                                            <th>Betrag</th>
+                                            <th>Projekt</th>
+                                            <th>Zuständig</th>
+                                            <th>Zeitraum</th>
+                                            <th>Anhänge</th>
+                                            <th></th>
                                         </tr>
-                                        {# Anhänge-Zeile: Dateinamen und Links nur mit Einsicht #}
-                                        {% if sp.attachments|length > 0 and sees_sp %}
-                                            <tr class="table-light">
-                                                <td colspan="8" class="ps-4 py-1">
-                                                    <small class="text-muted me-2"><i class="bi bi-paperclip"></i> Anhänge:</small>
-                                                    {% for att in sp.attachments %}
-                                                        <div class="me-2 d-inline-flex align-items-center gap-2">
-                                                            <span class="attachment-inline-name text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
-                                                            {{ include("partials/attachment_actions.twig", {
-                                                                attachment_id: att.id,
-                                                                attachment_name: att.original_name,
-                                                                attachment_mime: att.mime_type,
-                                                                attachment_size: att.file_size,
-                                                            }, false) }}
-                                                            {% if can_edit_sp %}
-                                                                <form method="post"
-                                                                      action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
-                                                                      class="d-inline"
-                                                                      data-confirm="Anhang löschen?">
-                                                                    <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                                                    <button type="submit"
-                                                                            class="btn btn-link btn-sm text-danger p-0 ms-1"
-                                                                            title="Anhang löschen"
-                                                                            aria-label="Anhang löschen">
-                                                                        <i class="bi bi-x-circle"></i>
-                                                                    </button>
-                                                                </form>
-                                                            {% endif %}
-                                                        </div>
-                                                    {% endfor %}
+                                    </thead>
+                                    <tbody>
+                                        {% for sp in sponsor.sponsorships %}
+                                            {% set _sp_owned = sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id %}
+                                            {% set can_edit_sp = can_manage_all or _sp_owned %}
+                                            {% set sees_sp = visible_details[sp.id] %}
+                                            <tr>
+                                                <td data-label="Paket">
+                                                    {% if sp.package %}
+                                                        <span class="badge bg-{{ sp.package.color }}">{{ sp.package.name }}</span>
+                                                    {% else %}
+                                                        –
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Status">
+                                                    <span class="badge bg-{{ status_colors[sp.status] ?? 'secondary' }}">{{ status_labels[sp.status] ?? sp.status }}</span>
+                                                </td>
+                                                <td data-label="Betrag" class="text-nowrap">
+                                                    {% if sees_sp %}
+                                                        {{ sp.amount|number_format(2, ",", ".") }} €
+                                                    {% else %}
+                                                        <span class="text-muted" title="Nur für die Sponsoring-Verwaltung sichtbar">–</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Projekt">{{ sp.project ? sp.project.name : '–' }}</td>
+                                                <td data-label="Zuständig">{{ sp.assignedUser ? sp.assignedUser|person_name : "–" }}</td>
+                                                <td data-label="Zeitraum" class="text-nowrap small">
+                                                    {{ sp.start_date ? sp.start_date.format('d.m.Y') : '–' }}
+                                                    {% if sp.start_date and sp.end_date %}–{% endif %}
+                                                    {{ sp.end_date ? sp.end_date.format('d.m.Y') : '' }}
+                                                </td>
+                                                <td data-label="Anhänge">
+                                                    {% if sp.attachments|length > 0 %}
+                                                        <span class="badge text-bg-light border">{{ sp.attachments|length }} <i class="bi bi-paperclip"></i></span>
+                                                    {% else %}
+                                                        –
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-end text-nowrap">
+                                                    {% if can_edit_sp %}
+                                                        <button class="btn btn-sm btn-outline-secondary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#editSponsorshipModal{{ sp.id }}"
+                                                                title="Bearbeiten"
+                                                                aria-label="Bearbeiten">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <form method="post"
+                                                              action="/sponsoring/sponsorships/{{ sp.id }}/delete"
+                                                              class="d-inline"
+                                                              data-confirm="Vereinbarung löschen?">
+                                                            <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen"
+                                                                    aria-label="Löschen">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    {% else %}
+                                                        <span class="text-muted small">
+                                                            <i class="bi bi-lock" title="Von jemand anderem angelegt"></i>
+                                                        </span>
+                                                    {% endif %}
                                                 </td>
                                             </tr>
-                                        {% endif %}
-                                        {# Kontakthistorie der Vereinbarung: verhandelt wird je Projekt, deshalb
-                                           stehen die Kontakte hier und nicht nur in der Gesamtliste am Sponsor. #}
-                                        <tr>
-                                            <td colspan="8" class="ps-4 py-2 border-top-0">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <small class="text-muted">
-                                                        <i class="bi bi-chat-dots"></i>
-                                                        Kontakte zu dieser Vereinbarung ({{ sp.contacts|length }})
-                                                    </small>
-                                                    {% if not sponsor.requests_blocked %}
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-primary py-0"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#newContactModal"
-                                                                data-contact-sponsorship="{{ sp.id }}">
-                                                            <i class="bi bi-plus-lg"></i> Kontakt
-                                                        </button>
-                                                    {% endif %}
-                                                </div>
-                                                {% if sp.contacts|length > 0 %}
-                                                    <ul class="list-unstyled mb-0 small">
-                                                        {% for contact in sp.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
-                                                            <li>
-                                                                <span class="text-nowrap text-muted">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</span>
-                                                                {% if visible_contacts[contact.id] %}
-                                                                    <span class="ms-1">{{ contact.summary }}</span>
-                                                                {% else %}
-                                                                    <span class="ms-1 fst-italic text-muted">Zusammenfassung nicht sichtbar</span>
+                                            {# Anhänge-Zeile: Dateinamen und Links nur mit Einsicht #}
+                                            {% if sp.attachments|length > 0 and sees_sp %}
+                                                <tr class="table-light">
+                                                    <td colspan="8" class="ps-4 py-1">
+                                                        <small class="text-muted me-2"><i class="bi bi-paperclip"></i> Anhänge:</small>
+                                                        {% for att in sp.attachments %}
+                                                            <div class="me-2 d-inline-flex align-items-center gap-2">
+                                                                <span class="attachment-inline-name text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
+                                                                {{ include("partials/attachment_actions.twig", {
+                                                                    attachment_id: att.id,
+                                                                    attachment_name: att.original_name,
+                                                                    attachment_mime: att.mime_type,
+                                                                    attachment_size: att.file_size,
+                                                                }, false) }}
+                                                                {% if can_edit_sp %}
+                                                                    <form method="post"
+                                                                          action="/sponsoring/sponsorships/{{ sp.id }}/attachments/{{ att.id }}/delete"
+                                                                          class="d-inline"
+                                                                          data-confirm="Anhang löschen?">
+                                                                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                                        <button type="submit"
+                                                                                class="btn btn-link btn-sm text-danger p-0 ms-1"
+                                                                                title="Anhang löschen"
+                                                                                aria-label="Anhang löschen">
+                                                                            <i class="bi bi-x-circle"></i>
+                                                                        </button>
+                                                                    </form>
                                                                 {% endif %}
-                                                                <span class="text-muted">– {{ contact.user ? contact.user|person_name : "unbekannt" }}</span>
-                                                            </li>
+                                                            </div>
                                                         {% endfor %}
-                                                    </ul>
-                                                {% else %}
-                                                    <p class="text-muted small mb-0">Noch kein Kontakt protokolliert.</p>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                            {# Kontakthistorie der Vereinbarung: verhandelt wird je Projekt, deshalb
+                                               stehen die Kontakte hier und nicht nur in der Gesamtliste am Sponsor. #}
+                                            <tr>
+                                                <td colspan="8" class="ps-4 py-2 border-top-0">
+                                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-chat-dots"></i>
+                                                            Kontakte zu dieser Vereinbarung ({{ sp.contacts|length }})
+                                                        </small>
+                                                        {% if not sponsor.requests_blocked %}
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-primary py-0"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#newContactModal"
+                                                                    data-contact-sponsorship="{{ sp.id }}">
+                                                                <i class="bi bi-plus-lg"></i> Kontakt
+                                                            </button>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if sp.contacts|length > 0 %}
+                                                        <ul class="list-unstyled mb-0 small">
+                                                            {% for contact in sp.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                                                                <li>
+                                                                    <span class="text-nowrap text-muted">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</span>
+                                                                    {% if visible_contacts[contact.id] %}
+                                                                        <span class="ms-1">{{ contact.summary }}</span>
+                                                                    {% else %}
+                                                                        <span class="ms-1 fst-italic text-muted">Zusammenfassung nicht sichtbar</span>
+                                                                    {% endif %}
+                                                                    <span class="text-muted">– {{ contact.user ? contact.user|person_name : "unbekannt" }}</span>
+                                                                </li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    {% else %}
+                                                        <p class="text-muted small mb-0">Noch kein Kontakt protokolliert.</p>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     {% else %}
                         <div class="text-muted py-3">Noch keine Vereinbarungen vorhanden.</div>
@@ -725,110 +730,115 @@
                     </div>
 
                     {% if sponsor.contacts|length > 0 %}
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Datum</th>
-                                        <th>Art</th>
-                                        <th>Zusammenfassung</th>
-                                        <th>Vereinbarung</th>
-                                        <th>Protokolliert von</th>
-                                        <th>Wiedervorlage</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
-                                        {% set can_edit_contact = may_edit_contacts[contact.id] %}
-                                        {% set can_complete_follow_up = may_complete_follow_ups[contact.id] %}
-                                        {% set sees_contact = visible_contacts[contact.id] %}
+                        <div data-table-engine="true"
+                             data-table-id="sponsoring.sponsor.contacts"
+                             data-default-view="auto"
+                             data-default-page-size="10000">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle table-responsive-cards">
+                                    <thead class="table-light">
                                         <tr>
-                                            <td class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
-                                            <td class="text-nowrap">
-                                                {% if contact.type == 'call' %}
-                                                    <i class="bi bi-telephone text-primary" title="Anruf"></i> Anruf
-                                                {% elseif contact.type == 'email' %}
-                                                    <i class="bi bi-envelope text-info" title="E-Mail"></i> E-Mail
-                                                {% elseif contact.type == 'meeting' %}
-                                                    <i class="bi bi-people text-success" title="Treffen"></i> Treffen
-                                                {% elseif contact.type == 'letter' %}
-                                                    <i class="bi bi-file-text text-secondary" title="Brief"></i> Brief
-                                                {% else %}
-                                                    <i class="bi bi-chat-dots text-muted" title="Sonstiges"></i> Sonstiges
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if sees_contact %}
-                                                    {{ contact.summary }}
-                                                {% else %}
-                                                    <span class="fst-italic text-muted">Zusammenfassung nicht sichtbar</span>
-                                                {% endif %}
-                                            </td>
-                                            <td class="small">
-                                                {% if contact.sponsorship %}
-                                                    {{ contact.sponsorship.project ? contact.sponsorship.project.name : 'Ohne Projekt' }}
-                                                    <div class="text-muted">{{ contact.sponsorship.package ? contact.sponsorship.package.name : 'Ohne Paket' }}</div>
-                                                {% else %}
-                                                    <span class="text-muted">Ohne Vereinbarung</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ contact.user ? contact.user|person_name : "–" }}</td>
-                                            <td class="text-nowrap">
-                                                {% if contact.follow_up_date %}
-                                                    {% if contact.follow_up_done %}
-                                                        <span class="text-success"><i class="bi bi-check-circle"></i> {{ contact.follow_up_date.format('d.m.Y') }}</span>
-                                                    {% else %}
-                                                        <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %} text-danger fw-semibold {% else %} text-warning {% endif %}">
-                                                            <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
-                                                        </span>
-                                                        {% if can_complete_follow_up %}
-                                                            <form method="post"
-                                                                  action="/sponsoring/contacts/{{ contact.id }}/done"
-                                                                  class="d-inline ms-1">
-                                                                <button type="submit"
-                                                                        class="btn btn-sm btn-outline-success py-0 px-1"
-                                                                        title="Erledigt"
-                                                                        aria-label="Erledigt">
-                                                                    <i class="bi bi-check"></i>
-                                                                </button>
-                                                            </form>
-                                                        {% endif %}
-                                                    {% endif %}
-                                                {% else %}
-                                                    –
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if can_edit_contact %}
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-secondary"
-                                                            title="Bearbeiten"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#editContactModal{{ contact.id }}"
-                                                            aria-label="Bearbeiten">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                    <form method="post"
-                                                          action="/sponsoring/contacts/{{ contact.id }}/delete"
-                                                          class="d-inline"
-                                                          data-confirm="Kontakt löschen?">
-                                                        <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen"
-                                                                aria-label="Löschen">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </form>
-                                                {% else %}
-                                                    <span class="text-muted small">
-                                                        <i class="bi bi-lock" title="Von jemand anderem protokolliert"></i>
-                                                    </span>
-                                                {% endif %}
-                                            </td>
+                                            <th>Datum</th>
+                                            <th>Art</th>
+                                            <th>Zusammenfassung</th>
+                                            <th>Vereinbarung</th>
+                                            <th>Protokolliert von</th>
+                                            <th>Wiedervorlage</th>
+                                            <th></th>
                                         </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {% for contact in sponsor.contacts|sort((a, b) => b.contact_date <=> a.contact_date) %}
+                                            {% set can_edit_contact = may_edit_contacts[contact.id] %}
+                                            {% set can_complete_follow_up = may_complete_follow_ups[contact.id] %}
+                                            {% set sees_contact = visible_contacts[contact.id] %}
+                                            <tr>
+                                                <td data-label="Datum" class="text-nowrap">{{ contact.contact_date ? contact.contact_date.format('d.m.Y') : '' }}</td>
+                                                <td data-label="Art" class="text-nowrap">
+                                                    {% if contact.type == 'call' %}
+                                                        <i class="bi bi-telephone text-primary" title="Anruf"></i> Anruf
+                                                    {% elseif contact.type == 'email' %}
+                                                        <i class="bi bi-envelope text-info" title="E-Mail"></i> E-Mail
+                                                    {% elseif contact.type == 'meeting' %}
+                                                        <i class="bi bi-people text-success" title="Treffen"></i> Treffen
+                                                    {% elseif contact.type == 'letter' %}
+                                                        <i class="bi bi-file-text text-secondary" title="Brief"></i> Brief
+                                                    {% else %}
+                                                        <i class="bi bi-chat-dots text-muted" title="Sonstiges"></i> Sonstiges
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Zusammenfassung">
+                                                    {% if sees_contact %}
+                                                        {{ contact.summary }}
+                                                    {% else %}
+                                                        <span class="fst-italic text-muted">Zusammenfassung nicht sichtbar</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Vereinbarung" class="small">
+                                                    {% if contact.sponsorship %}
+                                                        {{ contact.sponsorship.project ? contact.sponsorship.project.name : 'Ohne Projekt' }}
+                                                        <div class="text-muted">{{ contact.sponsorship.package ? contact.sponsorship.package.name : 'Ohne Paket' }}</div>
+                                                    {% else %}
+                                                        <span class="text-muted">Ohne Vereinbarung</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Protokolliert von">{{ contact.user ? contact.user|person_name : "–" }}</td>
+                                                <td data-label="Wiedervorlage" class="text-nowrap">
+                                                    {% if contact.follow_up_date %}
+                                                        {% if contact.follow_up_done %}
+                                                            <span class="text-success"><i class="bi bi-check-circle"></i> {{ contact.follow_up_date.format('d.m.Y') }}</span>
+                                                        {% else %}
+                                                            <span class="{% if contact.follow_up_date.format('Y-m-d') <= 'now'|date('Y-m-d') %} text-danger fw-semibold {% else %} text-warning {% endif %}">
+                                                                <i class="bi bi-alarm"></i> {{ contact.follow_up_date.format('d.m.Y') }}
+                                                            </span>
+                                                            {% if can_complete_follow_up %}
+                                                                <form method="post"
+                                                                      action="/sponsoring/contacts/{{ contact.id }}/done"
+                                                                      class="d-inline ms-1">
+                                                                    <button type="submit"
+                                                                            class="btn btn-sm btn-outline-success py-0 px-1"
+                                                                            title="Erledigt"
+                                                                            aria-label="Erledigt">
+                                                                        <i class="bi bi-check"></i>
+                                                                    </button>
+                                                                </form>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        –
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Aktionen">
+                                                    {% if can_edit_contact %}
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary"
+                                                                title="Bearbeiten"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#editContactModal{{ contact.id }}"
+                                                                aria-label="Bearbeiten">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <form method="post"
+                                                              action="/sponsoring/contacts/{{ contact.id }}/delete"
+                                                              class="d-inline"
+                                                              data-confirm="Kontakt löschen?">
+                                                            <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen"
+                                                                    aria-label="Löschen">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    {% else %}
+                                                        <span class="text-muted small">
+                                                            <i class="bi bi-lock" title="Von jemand anderem protokolliert"></i>
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         {% set contacts_with_edit_modal = sponsor.contacts|filter(contact => may_edit_contacts[contact.id]) %}
