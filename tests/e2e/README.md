@@ -7,7 +7,7 @@ und ein aggressiver Crawler über alle Routen. Läuft gegen die lokale DDEV-Inst
 > `--config tests/e2e/playwright.config.mjs` ist immer nötig.
 >
 > **Auf dem Host ausführen, NICHT im DDEV-Container** (`ddev exec` o. Ä.): Der Browser
-> (Chromium) liegt auf dem Host, die Tests rufen die Seite über `https://chormanager.ddev.site`
+> (Chromium) liegt auf dem Host, die Tests rufen die Seite über `https://e2e.chormanager.ddev.site`
 > auf, und `globalSetup` nutzt die `ddev`-CLI (die es nur auf dem Host gibt). `php`/`mysql`
 > laufen automatisch über `ddev ...` im `bin/fresh-db.sh`-Skript.
 
@@ -18,8 +18,13 @@ ddev start                       # DDEV läuft, https://chormanager.ddev.site er
 npx playwright install chromium  # einmalig: Browser installieren
 ```
 
-> ⚠️ Jeder Lauf startet mit **fresh-db** (`globalSetup`) und **leert die Dev-DB**.
-> Danach ggf. `ddev composer seed:dev`, um Dev-Daten zurückzuholen.
+> Die Suite läuft gegen einen **eigenen Host** `https://e2e.chormanager.ddev.site` mit eigener
+> Datenbank `db_test_e2e`, eigenem Dateiablageordner `var/files-e2e` und eigener `APP_URL`
+> (`.ddev/nginx_full/nginx-site.conf`, Werte gespiegelt in `steps/environment.mjs`). Jeder Lauf
+> startet mit **fresh-db** (`globalSetup`) – geleert wird nur `db_test_e2e`, die **Dev-DB bleibt
+> unangetastet**, und auf `https://chormanager.ddev.site` lässt sich parallel weiterarbeiten.
+> Gemeinsam bleibt nur das Mailpit-Postfach; die Newsletter-Szenarien suchen über eindeutige
+> Betreffzeilen und stolpern daher nicht über fremde Mails.
 
 ## Häufigste Befehle
 
@@ -130,8 +135,9 @@ E2E_KEEP_DB=1 npx playwright test --config tests/e2e/playwright.config.mjs scena
 ## DB manuell zurücksetzen
 
 ```bash
-bash bin/fresh-db.sh
-# leere, migrierte DB ohne User -> App zeigt /setup
+bash bin/fresh-db.sh db_test_e2e
+# leere, migrierte E2E-DB ohne User -> e2e.chormanager.ddev.site zeigt /setup
+# (ohne Argument trifft es die Dev-DB "db")
 ```
 
 ## Nützliche Flags
@@ -153,7 +159,7 @@ npx playwright show-report   # letzten HTML-Report öffnen
   `bash` auf WSL-bash statt Git Bash auf. Der Test sucht Git Bash automatisch
   (`C:\Program Files\Git\bin\bash.exe`). Liegt Git woanders, den Pfad per Umgebungsvariable
   setzen: `E2E_BASH="C:\Pfad\zu\Git\bin\bash.exe"`. Voraussetzung: **Git for Windows** installiert.
-- **`fresh-db.sh fehlgeschlagen`:** Läuft DDEV? `ddev start`. Danach `bash bin/fresh-db.sh`
+- **`fresh-db.sh fehlgeschlagen`:** Läuft DDEV? `ddev start`. Danach `bash bin/fresh-db.sh db_test_e2e`
   einzeln testen; die Meldung nennt Exit-Code und stderr.
 
 ## Ergebnisse deuten

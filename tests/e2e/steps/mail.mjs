@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { E2E_CLI_ENV, E2E_DATABASE } from './environment.mjs';
 import { resolveBash } from './shell.mjs';
 
 // Der Newsletter-Versand stellt Mails nur in die Warteschlange (mail_queue). Zugestellt werden
@@ -6,6 +7,7 @@ import { resolveBash } from './shell.mjs';
 // (SMTP_HOST ist leer), und DDEV leitet sendmail an Mailpit weiter - dort lassen sich die
 // erzeugten Mails über die HTTP-API nachweisen.
 
+// Mailpit gehört zum DDEV-Projekt, nicht zu einem Host - beide Hosts teilen dasselbe Postfach.
 const MAILPIT_BASE = 'https://chormanager.ddev.site:8026';
 
 function ddevPhp(php) {
@@ -19,7 +21,7 @@ function ddevPhp(php) {
  */
 export function countQueuedMails(subject) {
     const escaped = String(subject).replace(/"/g, '\\"');
-    const php = `$pdo=new PDO("mysql:host=db;dbname=db","db","db");`
+    const php = `$pdo=new PDO("mysql:host=db;dbname=${E2E_DATABASE}","db","db");`
         + `$s=$pdo->prepare("SELECT COUNT(*) FROM mail_queue WHERE subject=? AND status=\\"queued\\"");`
         + `$s->execute(["${escaped}"]);echo (int) $s->fetchColumn();`;
     return Number(ddevPhp(php).trim());
@@ -35,7 +37,7 @@ export function deliverQueuedMails(subject, maxRuns = 5) {
             return;
         }
 
-        execFileSync(resolveBash(), ['-lc', 'ddev php bin/process_mail_queue.php'], { encoding: 'utf8' });
+        execFileSync(resolveBash(), ['-lc', `ddev exec ${E2E_CLI_ENV} php bin/process_mail_queue.php`], { encoding: 'utf8' });
     }
 
     const remaining = countQueuedMails(subject);

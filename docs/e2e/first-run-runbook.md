@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Die ganze App wird auf einer frisch bebootstrappten Dev-DB automatisch
+Die ganze App wird auf einer frisch bebootstrappten, eigenen E2E-Datenbank automatisch
 erkundet (Crawler) und in kritischen Flows tief getestet (Szenarien).
 Ersatz fürs manuelle Durchklicken vor einem Release oder nach größeren
 Änderungen.
@@ -22,16 +22,18 @@ Alle drei Projekte teilen sich eine gemeinsame `globalSetup`
 ## Vorbedingungen
 
 - DDEV läuft: `ddev start`
-- Erreichbar: https://chormanager.ddev.site
+- Erreichbar: https://e2e.chormanager.ddev.site (eigener DDEV-Host mit Datenbank `db_test_e2e`,
+  eigenem Dateiablageordner und eigener `APP_URL`; siehe `.ddev/nginx_full/nginx-site.conf` und
+  `tests/e2e/steps/environment.mjs`)
 - Playwright-Browser installiert: `npx playwright install chromium`
 
 ## Datenbank-Reset (manuell, optional)
 
 ```bash
-bash bin/fresh-db.sh
+bash bin/fresh-db.sh db_test_e2e
 ```
 
-Leert die Dev-DB (DROP/CREATE) und migriert neu. Danach hat die App keine
+Leert die E2E-DB (DROP/CREATE) und migriert neu. Danach hat der E2E-Host keine
 User → `/setup`. Die Migration seedet dabei produktseitig die SATB-Struktur
 (Sopran, Alt, Tenor, Bass) inkl. je zwei Untergruppen ("Sopran 1"/"Sopran 2"
 … "Bass 1"/"Bass 2") als Auslieferungszustand. Dieser Schritt ist manuell
@@ -46,7 +48,7 @@ npx playwright test --config tests/e2e/playwright.config.mjs
 
 `global-setup.mjs` macht automatisch:
 
-1. `bash bin/fresh-db.sh` (frische, migrierte DB — SATB-Struktur bereits
+1. `bash bin/fresh-db.sh db_test_e2e` (frische, migrierte DB — SATB-Struktur bereits
    geseedet, keine User).
 2. Admin über `/setup` anlegen (`tests/e2e/data/fixtures.mjs` → `ADMIN`),
    danach Cookies leeren und über `/login` neu einloggen (damit der echte

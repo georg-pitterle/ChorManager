@@ -5,8 +5,9 @@
 // und damit ein kleines Fenster, egal wie der Hauptkontext konfiguriert ist.
 
 import { devices } from '@playwright/test';
+import { BASE_URL } from './environment.mjs';
 
-export const BASE_URL = 'https://chormanager.ddev.site';
+export { BASE_URL };
 
 // Mobiler Lauf: E2E_VIEWPORT=mobile schaltet die GANZE Suite auf Telefonmasse um
 // (npm run e2e:mobile). Kein eigenes Playwright-Project, damit Desktop und Mobile nie

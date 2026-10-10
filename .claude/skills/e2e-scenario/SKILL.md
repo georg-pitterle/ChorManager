@@ -24,7 +24,8 @@ deterministische Daten (`data/`), Szenarien (`scenarios/`), plus ein aggressiver
 
 ## Wie das Netz tickt (Kurzabriss)
 
-- **Vor jedem Lauf** läuft `global-setup.mjs`: setzt die DB per `bin/fresh-db.sh` zurück
+- **Vor jedem Lauf** läuft `global-setup.mjs`: setzt die E2E-Datenbank `db_test_e2e` per `bin/fresh-db.sh` zurück
+  (eigener Host `e2e.chormanager.ddev.site`, siehe `steps/environment.mjs` — die Dev-DB bleibt unberührt)
   (leer + migriert — die Migration seedet SATB-Stimmgruppen + 8 Untergruppen "Sopran 1"…"Bass 2"
   als Produkt-Default), legt über `/setup` einen Admin an, loggt ein und speichert die Session
   (`storageState` → `.auth/admin.json`).
@@ -96,7 +97,7 @@ Seite neu (`waitForURL`).
   **erbt hier den Admin-`storageState`** aus der Config. Vor dem Login `clearCookies()`, sonst
   leitet `/login` sofort auf `/dashboard`:
   ```javascript
-  const context = await browser.newContext({ baseURL: 'https://chormanager.ddev.site', ignoreHTTPSErrors: true });
+  const context = await browser.newContext({ baseURL: 'https://e2e.chormanager.ddev.site', ignoreHTTPSErrors: true });
   await context.clearCookies();
   const userPage = await context.newPage();
   await login(userPage, { email, password });

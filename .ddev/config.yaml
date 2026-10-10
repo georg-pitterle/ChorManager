@@ -4,7 +4,9 @@ docroot: public
 php_version: "8.5"
 webserver_type: nginx-fpm
 xdebug_enabled: false
-additional_hostnames: []
+additional_hostnames:
+    # E2E-Lauf (tests/e2e): eigener Host mit eigener Datenbank, siehe nginx_full/nginx-site.conf.
+    - e2e.chormanager
 additional_fqdns: []
 database:
     type: mariadb

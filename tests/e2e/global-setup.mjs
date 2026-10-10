@@ -8,6 +8,7 @@ import { setupAdmin, login } from './steps/auth.mjs';
 import { resolveBash } from './steps/shell.mjs';
 import { AUTH_FILE } from './playwright.config.mjs';
 import { newBrowserContext } from './steps/browser.mjs';
+import { E2E_DATABASE } from './steps/environment.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -20,8 +21,9 @@ export default async function globalSetup() {
     }
 
     // Wir bootstrappen -> immer fresh-db, damit /setup gegen eine leere DB läuft
-    // (auch bei E2E_KEEP_DB=1 ohne vorhandene Session).
-    console.log('[e2e] fresh-db ...');
+    // (auch bei E2E_KEEP_DB=1 ohne vorhandene Session). Zurückgesetzt wird nur die Datenbank des
+    // E2E-Hosts (steps/environment.mjs), nie die Entwicklungsdatenbank.
+    console.log(`[e2e] fresh-db ${E2E_DATABASE} ...`);
     const repoRoot = path.join(dir, '..', '..');
     const freshDbScript = path.join(repoRoot, 'bin', 'fresh-db.sh');
     try {
@@ -29,7 +31,7 @@ export default async function globalSetup() {
         // globalSetup u. U. mit einem anderen Arbeitsverzeichnis, wodurch `ddev` sein Projekt
         // nicht findet. Ausgabe erfassen statt 'inherit', damit die echte Fehlerursache
         // (z. B. eine ddev-Meldung) im Fehlerfall sichtbar ist - 'inherit' verschluckt sie.
-        const out = execFileSync(resolveBash(), [freshDbScript], {
+        const out = execFileSync(resolveBash(), [freshDbScript, E2E_DATABASE], {
             cwd: repoRoot,
             encoding: 'utf8',
             stdio: ['ignore', 'pipe', 'pipe'],

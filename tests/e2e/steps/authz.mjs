@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { E2E_DATABASE } from './environment.mjs';
 import { resolveBash } from './shell.mjs';
 
 // DB-Helfer für den Autorisierungstest. Beide gehen bewusst NICHT über die UI:
@@ -16,7 +17,7 @@ function ddevPhp(php) {
 
 export function setMemberPassword(email, plain) {
     const php = `$p=password_hash("${plain}",PASSWORD_DEFAULT);`
-        + `$pdo=new PDO("mysql:host=db;dbname=db","db","db");`
+        + `$pdo=new PDO("mysql:host=db;dbname=${E2E_DATABASE}","db","db");`
         + `$s=$pdo->prepare("UPDATE users SET password=?, is_active=1 WHERE email=?");`
         + `$s->execute([$p,"${email}"]);echo $s->rowCount();`;
     const out = ddevPhp(php).trim();
@@ -26,7 +27,7 @@ export function setMemberPassword(email, plain) {
 }
 
 export function readRolePermissions() {
-    const php = `$pdo=new PDO("mysql:host=db;dbname=db","db","db");`
+    const php = `$pdo=new PDO("mysql:host=db;dbname=${E2E_DATABASE}","db","db");`
         + `echo json_encode($pdo->query("SELECT * FROM roles")->fetchAll(PDO::FETCH_ASSOC));`;
     const rows = JSON.parse(ddevPhp(php).trim());
     const byName = {};
