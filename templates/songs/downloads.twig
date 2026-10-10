@@ -1,186 +1,67 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Probenmaterial - {{ app_settings.app_name|default('Chor-Manager') }}
+    Probenmaterial - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
             <h1 class="h2 mb-1">Probenmaterial</h1>
-            <p class="text-muted mb-0">Hier findest du die Lieder und Dateien zu den Projekten, an denen du teilnimmst.</p>
+            <p class="text-muted mb-0">
+                Noten, Übe-Audio und Links zu den Projekten, in denen du mitsingst.
+                Öffne ein Projekt, um die Dateien zu sehen.
+            </p>
         </div>
     </section>
 {% endblock page_header %}
 
 {% block content %}
-    <div class="dashboard-shell downloads-shell">
-        <section class="dashboard-section dashboard-section--communication downloads-section"
-                 aria-labelledby="downloads-project-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="downloads-project-title">Projekt-Downloads</h2>
-                <p class="dashboard-section-lead mb-0">
-                    Öffne ein Projekt, um alle zugeordneten Lieddateien abzuspielen oder herunterzuladen.
-                </p>
+    <div class="downloads-shell">
+        {% if current_projects|length == 0 and past_projects|length == 0 %}
+            <article class="surface-card dashboard-panel dashboard-panel--empty">
+                <div class="dashboard-panel__body">
+                    <h2 class="dashboard-panel__title">
+                        <i class="bi bi-folder-x" aria-hidden="true"></i>Noch kein Probenmaterial
+                    </h2>
+                    <p class="dashboard-panel__text mb-0">Du bist derzeit keinem Projekt zugeordnet.</p>
+                </div>
+            </article>
+        {% endif %}
+
+        {% if current_projects|length > 0 %}
+            <div class="accordion downloads-accordion" id="downloadsCurrentAccordion">
+                {% for project in current_projects %}
+                    {{ include("partials/downloads_project.twig", {
+                        project: project,
+                        accordion_id: "downloadsCurrentAccordion",
+                        expanded: loop.first,
+                        midi_mime_types: midi_mime_types,
+                    }, false) }}
+                {% endfor %}
             </div>
+        {% endif %}
 
-            <div class="surface-card p-3 p-md-4 downloads-surface">
-                <div class="accordion" id="downloadsProjectsAccordion">
-                    {% for project in projects %}
-                        <div class="accordion-item mb-3 border-0 shadow-sm">
-                            <h2 class="accordion-header" id="download-heading-{{ project.id }}">
-                                <button class="accordion-button collapsed"
-                                        type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#download-collapse-{{ project.id }}"
-                                        aria-expanded="false"
-                                        aria-controls="download-collapse-{{ project.id }}">
-                                    <span class="fw-semibold">{{ project.name }}</span>
-                                    <span class="badge text-bg-secondary ms-3">{{ project.assignedSongs|length }} Lieder</span>
-                                </button>
-                            </h2>
-                            <div id="download-collapse-{{ project.id }}"
-                                 class="accordion-collapse collapse"
-                                 aria-labelledby="download-heading-{{ project.id }}"
-                                 data-bs-parent="#downloadsProjectsAccordion">
-                                <div class="accordion-body downloads-accordion-body">
-                                    {% if project.assignedSongs|length == 0 %}
-                                        <p class="text-muted mb-0">Keine Lieder in diesem Projekt vorhanden.</p>
-                                    {% endif %}
-
-                                    {% for song in project.assignedSongs %}
-                                        <article class="surface-card dashboard-panel dashboard-panel--communication downloads-song-panel mb-3">
-                                            <div class="dashboard-panel__body mb-3">
-                                                <h3 class="dashboard-panel__title">
-                                                    <i class="bi bi-music-note-beamed"></i>{{ song.title }}
-                                                </h3>
-                                                <p class="dashboard-panel__text mb-0">
-                                                    Komponist: {{ song.composer|default('-') }} | Arrangeur: {{ song.arranger|default('-') }} | Verlag: {{ song.publisher|default('-') }}
-                                                </p>
-                                            </div>
-
-                                            <div data-table-engine="true"
-                                                 data-table-id="downloads.project.{{ project.id }}.song.{{ song.id }}"
-                                                 data-default-view="auto"
-                                                 data-default-page-size="10000"
-                                                 data-default-sort-key="file_name">
-                                                <div class="d-flex justify-content-end align-items-center gap-2 mb-2">
-                                                    <div class="btn-group"
-                                                         role="group"
-                                                         aria-label="Ansicht umschalten"
-                                                         data-table-view-toggle>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary"
-                                                                data-table-mode="auto">Auto</button>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary"
-                                                                data-table-view="cards">Karten</button>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary"
-                                                                data-table-view="table">Tabelle</button>
-                                                    </div>
-                                                </div>
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm align-middle mb-0 table-responsive-cards downloads-files-table"
-                                                           id="downloadsSongTable{{ song.id }}">
-                                                        <thead>
-                                                            <tr>
-                                                                <th data-sort-key="file_name" data-sort-type="text">Datei</th>
-                                                                <th data-sort-key="mime_type" data-sort-type="text">Typ</th>
-                                                                <th>Größe</th>
-                                                                <th>Wiedergabe</th>
-                                                                <th class="text-end">Aktionen</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {% for attachment in song.attachments %}
-                                                                {% set mime = attachment.mime_type|lower %}
-                                                                {% set is_mp3 = mime == 'audio/mpeg' %}
-                                                                {% set is_midi = mime == 'audio/midi' or mime == 'audio/x-midi' or mime == 'application/x-midi' %}
-                                                                <tr data-sort-file_name="{{ attachment.original_name|lower }}"
-                                                                    data-sort-mime_type="{{ attachment.mime_type|lower }}">
-                                                                    <td data-label="Datei">{{ attachment.original_name }}</td>
-                                                                    <td data-label="Typ">
-                                                                        <small>{{ attachment.mime_type }}</small>
-                                                                    </td>
-                                                                    <td data-label="Größe">{{ ((attachment.file_size / 1024)|round(1)) }} KB</td>
-                                                                    <td data-label="Wiedergabe">
-                                                                        {% if is_mp3 %}
-                                                                            <audio controls preload="none" class="w-100">
-                                                                                <source src="/attachments/{{ attachment.id }}/preview"
-                                                                                        type="audio/mpeg">
-                                                                                Dein Browser unterstützt kein Audio-Playback.
-                                                                            </audio>
-                                                                        {% elseif is_midi %}
-                                                                            <div class="midi-player-block" data-midi-id="{{ attachment.id }}">
-                                                                                <midi-player src="/attachments/{{ attachment.id }}/preview" visualizer="#none" class="w-100"></midi-player>
-                                                                                <small class="text-muted d-none midi-fallback">MIDI-Playback im Browser nicht verfügbar. Bitte Datei herunterladen.</small>
-                                                                            </div>
-                                                                        {% else %}
-                                                                            <span class="text-muted">Nicht direkt abspielbar</span>
-                                                                        {% endif %}
-                                                                    </td>
-                                                                    <td data-label="Aktionen" class="text-end">
-                                                                        {{ include("partials/attachment_actions.twig", {
-                                                                            attachment_id: attachment.id,
-                                                                            attachment_name: attachment.original_name,
-                                                                            attachment_mime: attachment.mime_type,
-                                                                            attachment_size: attachment.file_size,
-                                                                            show_label: true,
-                                                                        }, false) }}
-                                                                    </td>
-                                                                </tr>
-                                                            {% else %}
-                                                                <tr>
-                                                                    <td colspan="5" class="text-muted">Keine Anhänge zu diesem Lied vorhanden.</td>
-                                                                </tr>
-                                                            {% endfor %}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-
-                                            <div class="downloads-song-links mt-3">
-                                                <h4 class="group-label mb-2">Links</h4>
-                                                {% if song.linkResources|length > 0 %}
-                                                    <div class="list-group list-group-flush">
-                                                        {% for resource in song.linkResources %}
-                                                            <div class="list-group-item px-0">
-                                                                <a href="{{ resource.url }}"
-                                                                   target="_blank"
-                                                                   rel="noopener noreferrer"
-                                                                   class="fw-semibold text-decoration-none">{{ resource.title }}</a>
-                                                                {% if resource.description %}<p class="text-muted small mb-0 mt-1">{{ resource.description }}</p>{% endif %}
-                                                            </div>
-                                                        {% endfor %}
-                                                    </div>
-                                                {% else %}
-                                                    <p class="text-muted mb-0">Keine Links zu diesem Lied vorhanden.</p>
-                                                {% endif %}
-                                            </div>
-                                        </article>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                    {% else %}
-                        <article class="surface-card dashboard-panel dashboard-panel--empty">
-                            <div class="dashboard-panel__body">
-                                <h3 class="dashboard-panel__title">
-                                    <i class="bi bi-folder-x"></i>Keine Projekt-Downloads verfügbar
-                                </h3>
-                                <p class="dashboard-panel__text mb-0">Du bist derzeit keinem Projekt mit Liedern zugeordnet.</p>
-                            </div>
-                        </article>
+        {% if past_projects|length > 0 %}
+            <section class="downloads-past" aria-labelledby="downloads-past-label">
+                <p class="group-label" id="downloads-past-label">Frühere Projekte</p>
+                <div class="accordion downloads-accordion" id="downloadsPastAccordion">
+                    {% for project in past_projects %}
+                        {{ include("partials/downloads_project.twig", {
+                            project: project,
+                            accordion_id: "downloadsPastAccordion",
+                            expanded: false,
+                            midi_mime_types: midi_mime_types,
+                        }, false) }}
                     {% endfor %}
                 </div>
-            </div>
-        </section>
+            </section>
+        {% endif %}
 
         {% if webdav %}
             <details class="downloads-webdav"{% if webdav.token %} open{% endif %}>
                 <summary class="downloads-webdav__summary">
-                    <i class="bi bi-tablet"></i>
+                    <i class="bi bi-tablet" aria-hidden="true"></i>
                     <span>Noten aufs Tablet - Projektordner in einer Noten-App einbinden</span>
                 </summary>
 
@@ -220,10 +101,10 @@
                                             aria-label="Zugangswort kopieren"
                                             title="Zugangswort kopieren"><i class="bi bi-clipboard"></i></button>
                                 </span>
-                                <p class="text-danger small mb-0 mt-1">
+                                <div class="alert alert-warning py-2 px-3 small mb-0 mt-2" role="status">
                                     Jetzt in die App eintragen - danach lässt es sich nicht mehr anzeigen,
                                     nur neu erzeugen.
-                                </p>
+                                </div>
                             {% elseif webdav.exists %}
                                 <span class="text-muted">Vergeben. Anzeigen geht nicht mehr, nur neu erzeugen.</span>
                             {% else %}
@@ -232,9 +113,13 @@
                         </dd>
                     </dl>
 
-                    <form method="post" action="/downloads/webdav-token" class="d-inline">
+                    {% set _renew_confirm = "Neues Zugangswort erzeugen? Jedes Gerät, auf dem noch das bisherige steht, kommt danach nicht mehr an die Noten." %}
+                    <form method="post"
+                          action="/downloads/webdav-token"
+                          class="d-inline"
+                          {% if webdav.exists %}data-confirm="{{ _renew_confirm }}"{% endif %}>
                         <button type="submit" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-key"></i>
+                            <i class="bi bi-key" aria-hidden="true"></i>
                             {{ webdav.exists ? "Neues Zugangswort erzeugen" : "Zugangswort erzeugen" }}
                         </button>
                     </form>
@@ -245,7 +130,7 @@
                     {% endif %}
 
                     <a href="/help/repertoire-webdav" class="small d-inline-flex align-items-center gap-2 mt-3">
-                        <i class="bi bi-book"></i>
+                        <i class="bi bi-book" aria-hidden="true"></i>
                         <span>Einrichtung in forScore, MobileSheets und Co.</span>
                     </a>
                 </div>
@@ -255,8 +140,10 @@
 {% endblock content %}
 
 {% block scripts %}
-    <script src="/vendor/tone/Tone.js"></script>
-    <script src="/vendor/magenta-music/core.js"></script>
-    <script src="/vendor/html-midi-player/dist/midi-player.min.js"></script>
-    <script src="{{ asset_path('/js/downloads.js') }}"></script>
+    {% if has_midi %}
+        <script src="/vendor/tone/Tone.js"></script>
+        <script src="/vendor/magenta-music/core.js"></script>
+        <script src="/vendor/html-midi-player/dist/midi-player.min.js"></script>
+    {% endif %}
+    <script src="{{ asset_path("/js/downloads.js") }}"></script>
 {% endblock scripts %}

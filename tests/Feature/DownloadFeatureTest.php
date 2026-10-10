@@ -48,7 +48,7 @@ class DownloadFeatureTest extends TestCase
 
     public function testDownloadTemplateRendersSeparateSongLinksSection(): void
     {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/songs/downloads.twig');
+        $template = file_get_contents(dirname(__DIR__) . '/../templates/partials/downloads_project.twig');
 
         $this->assertIsString($template);
         $this->assertStringContainsString('song.linkResources', $template);

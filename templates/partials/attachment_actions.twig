@@ -10,8 +10,10 @@
      attachment_name  Anzeigename
      attachment_mime  MIME-Typ
      attachment_size  Größe in Bytes
-     show_label       Beschriftung neben dem Symbol zeigen (Vorgabe: false) #}
+     show_label       Beschriftung neben dem Symbol zeigen (Vorgabe: false)
+     label_always     Beschriftung auch unter sm zeigen, nicht erst ab sm (Vorgabe: false) #}
 {% set _show_label = show_label|default(false) %}
+{% set _label_class = label_always|default(false) ? "" : "d-none d-sm-inline" %}
 {% set _previewable = attachment_previewable(attachment_mime) %}
 <div class="btn-group btn-group-sm attachment-actions"
      role="group"
@@ -27,7 +29,7 @@
                 title="Vorschau">
             <i class="bi bi-eye" aria-hidden="true"></i>
             {% if _show_label %}
-                <span class="d-none d-sm-inline">Vorschau</span>
+                <span class="{{ _label_class }}">Vorschau</span>
             {% else %}
                 <span class="visually-hidden">Vorschau</span>
             {% endif %}
@@ -38,7 +40,7 @@
        title="Herunterladen">
         <i class="bi bi-download" aria-hidden="true"></i>
         {% if _show_label %}
-            <span class="d-none d-sm-inline">Download</span>
+            <span class="{{ _label_class }}">Download</span>
         {% else %}
             <span class="visually-hidden">Herunterladen</span>
         {% endif %}

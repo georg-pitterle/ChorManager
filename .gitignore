@@ -15,3 +15,6 @@ test-results/
 playwright-report/
 .claude/worktrees/
 .impeccable/hook.cache.json
+
+# Impeccable Design-Critique-Snapshots
+.impeccable/

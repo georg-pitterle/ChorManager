@@ -1,0 +1,141 @@
+{# Ein Projekt der Probenmaterial-Seite als Eintrag eines Bootstrap-Accordions.
+
+   Parameter:
+     project          Projekt mit assignedSongs (je Lied attachments und linkResources)
+     accordion_id     Kennung des umgebenden Accordions (für data-bs-parent)
+     expanded         true: Eintrag ist beim Laden aufgeklappt
+     midi_mime_types  Liste der MIME-Typen, die der MIDI-Abspieler bekommt #}
+{% set _start = project.start_date ? project.start_date|date("d.m.Y") : "" %}
+{% set _end = project.end_date ? project.end_date|date("d.m.Y") : "" %}
+{% set _has_range = _start != "" and _end != "" %}
+{% set _range = _has_range ? _start ~ " – " ~ _end : (_start != "" ? "ab " ~ _start : _end) %}
+{% set _song_count = project.assignedSongs|length %}
+{% set _count_label = _song_count == 1 ? "1 Lied" : _song_count ~ " Lieder" %}
+
+<div class="accordion-item downloads-project">
+    <h2 class="accordion-header" id="download-heading-{{ project.id }}">
+        <button class="accordion-button{{ expanded ? "" : " collapsed" }}"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#download-collapse-{{ project.id }}"
+                aria-expanded="{{ expanded ? "true" : "false" }}"
+                aria-controls="download-collapse-{{ project.id }}">
+            <span class="downloads-project__title">
+                <span class="downloads-project__name">{{ project.name }}</span>
+                {% if _range != "" %}
+                    <span class="downloads-project__range">{{ _range }}</span>
+                {% endif %}
+            </span>
+            <span class="badge text-bg-secondary downloads-project__count">{{ _count_label }}</span>
+        </button>
+    </h2>
+    <div id="download-collapse-{{ project.id }}"
+         class="accordion-collapse collapse{{ expanded ? " show" : "" }}"
+         aria-labelledby="download-heading-{{ project.id }}"
+         data-bs-parent="#{{ accordion_id }}">
+        <div class="accordion-body downloads-project__body">
+            {% for song in project.assignedSongs %}
+                {% set _credits = [] %}
+                {% if song.composer %}
+                    {% set _credits = _credits|merge(["Komponist: " ~ song.composer]) %}
+                {% endif %}
+                {% if song.arranger %}
+                    {% set _credits = _credits|merge(["Arrangement: " ~ song.arranger]) %}
+                {% endif %}
+                {% if song.publisher %}
+                    {% set _credits = _credits|merge(["Verlag: " ~ song.publisher]) %}
+                {% endif %}
+                {% set _files = song.attachments|length %}
+                {% set _links = song.linkResources|length %}
+
+                <article class="downloads-song">
+                    <h3 class="downloads-song__title">{{ song.title }}</h3>
+                    {% if _credits|length > 0 %}
+                        <p class="downloads-song__credits">{{ _credits|join(" · ") }}</p>
+                    {% endif %}
+
+                    {% if _files == 0 and _links == 0 %}
+                        <p class="text-muted small mb-0">Noch keine Dateien oder Links.</p>
+                    {% endif %}
+
+                    {% if _files > 0 %}
+                        <ul class="downloads-files list-unstyled mb-0">
+                            {% for attachment in song.attachments %}
+                                {% set _mime = attachment.mime_type|lower %}
+                                {% set _is_audio = _mime == "audio/mpeg" %}
+                                {% set _is_midi = _mime in midi_mime_types %}
+                                {% set _is_pdf = _mime == "application/pdf" %}
+                                {% set _kind = _is_audio ? "Übe-Audio" : (_is_midi ? "MIDI" : (_is_pdf ? "Noten" : "Datei")) %}
+                                {% set _icon = _is_audio ? "bi-music-note-beamed" : (_is_midi ? "bi-music-note-list" : (_is_pdf ? "bi-file-earmark-music" : "bi-file-earmark")) %}
+                                <li class="downloads-file">
+                                    <span class="downloads-file__icon" aria-hidden="true">
+                                        <i class="bi {{ _icon }}"></i>
+                                    </span>
+                                    <div class="downloads-file__main">
+                                        <span class="downloads-file__name">{{ attachment.original_name }}</span>
+                                        <span class="downloads-file__meta">
+                                            {{ _kind }}{% if attachment.file_size %} · {{ attachment.file_size|format_bytes }}{% endif %}
+                                        </span>
+                                        {% if _is_audio %}
+                                            <audio controls
+                                                   preload="none"
+                                                   class="downloads-file__player"
+                                                   aria-label="Abspielen: {{ attachment.original_name }}">
+                                                <source src="/attachments/{{ attachment.id }}/preview" type="audio/mpeg">
+                                                Dein Browser unterstützt kein Audio-Playback.
+                                            </audio>
+                                        {% elseif _is_midi %}
+                                            <div class="midi-player-block downloads-file__player" data-midi-id="{{ attachment.id }}">
+                                                <midi-player src="/attachments/{{ attachment.id }}/preview"
+                                                             visualizer="#none"
+                                                             aria-label="Abspielen: {{ attachment.original_name }}"></midi-player>
+                                                <small class="text-muted d-none midi-fallback">
+                                                    MIDI-Playback im Browser nicht verfügbar. Bitte Datei herunterladen.
+                                                </small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="downloads-file__actions">
+                                        {{ include("partials/attachment_actions.twig", {
+                                            attachment_id: attachment.id,
+                                            attachment_name: attachment.original_name,
+                                            attachment_mime: attachment.mime_type,
+                                            attachment_size: attachment.file_size,
+                                            show_label: true,
+                                            label_always: true,
+                                        }, false) }}
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if _links > 0 %}
+                        <div class="downloads-song-links">
+                            <h4 class="group-label">Links</h4>
+                            <ul class="list-unstyled mb-0">
+                                {% for resource in song.linkResources %}
+                                    <li class="downloads-link">
+                                        <a href="{{ resource.url }}"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="fw-semibold text-decoration-none">
+                                            {{ resource.title }}
+                                            <i class="bi bi-box-arrow-up-right small" aria-hidden="true"></i>
+                                            <span class="visually-hidden">(öffnet in neuem Tab)</span>
+                                        </a>
+                                        {% if resource.description %}
+                                            <p class="text-muted small mb-0">{{ resource.description }}</p>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </article>
+            {% else %}
+                <p class="text-muted mb-0">Noch keine Lieder in diesem Projekt.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>

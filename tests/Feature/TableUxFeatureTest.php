@@ -96,8 +96,8 @@ class TableUxFeatureTest extends TestCase
             'templates/finances/index.twig',
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
-            // songs/downloads.twig nicht: Die Dateitabellen je Lied haben keine Werkzeugleiste
-            // und damit keine Seitenwahl - dort gilt UiTablesFeatureTest (keine Zeile ausblenden).
+            // songs/downloads.twig nicht: Die Seite hat keine Tabelle mehr, sondern je Lied
+            // eine Dateiliste (siehe DownloadsPageLayoutFeatureTest).
             'templates/sponsoring/dashboard.twig',
             'templates/projects/index.twig',
             'templates/projects/members.twig',
@@ -120,7 +120,6 @@ class TableUxFeatureTest extends TestCase
             'templates/finances/index.twig',
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
-            'templates/songs/downloads.twig',
             'templates/sponsoring/dashboard.twig',
             'templates/projects/index.twig',
             'templates/projects/members.twig',
@@ -132,13 +131,7 @@ class TableUxFeatureTest extends TestCase
             $content = file_get_contents(dirname(__DIR__) . '/../' . $template);
             $this->assertIsString($content, $template);
             // View-toggle is now integrated in toolbar, NOT a separate include
-            if (str_contains($template, 'downloads')) {
-                // Downloads has no toolbar, so should not have it
-                $this->assertStringNotContainsString('table_view_toggle.twig', $content, "Template $template should not include view-toggle separately anymore");
-            } else {
-                // All others have toolbar which includes view-toggle
-                $this->assertStringNotContainsString('table_view_toggle.twig', $content, "Template $template should not include view-toggle separately anymore");
-            }
+            $this->assertStringNotContainsString('table_view_toggle.twig', $content, "Template $template should not include view-toggle separately anymore");
         }
     }
 
@@ -148,12 +141,6 @@ class TableUxFeatureTest extends TestCase
         $this->assertIsString($projectMembersTemplate);
         $this->assertStringContainsString('data-sort-key="email"', $projectMembersTemplate);
         $this->assertStringNotContainsString('data-sort-key="role" data-sort-type="text">E-Mail</th>', $projectMembersTemplate);
-
-        $downloadsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/songs/downloads.twig');
-        $this->assertIsString($downloadsTemplate);
-        $this->assertStringContainsString('data-sort-key="mime_type"', $downloadsTemplate);
-        $this->assertStringNotContainsString('data-sort-key="song_title"', $downloadsTemplate);
-        $this->assertStringNotContainsString('data-sort-key="updated_at"', $downloadsTemplate);
 
         $sponsorsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/sponsoring/sponsors/index.twig');
         $this->assertIsString($sponsorsTemplate);
@@ -178,7 +165,6 @@ class TableUxFeatureTest extends TestCase
             'templates/finances/index.twig',
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
-            'templates/songs/downloads.twig',
             'templates/sponsoring/dashboard.twig',
             'templates/projects/index.twig',
             'templates/projects/members.twig',
@@ -253,15 +239,5 @@ class TableUxFeatureTest extends TestCase
         $this->assertIsString($songsTemplate);
         $this->assertStringContainsString('data-table-plugins="songCategory"', $songsTemplate);
         $this->assertStringNotContainsString('method="get" action="/song-library"', $songsTemplate);
-    }
-
-    public function testDownloadsTemplateKeepsFileTableDefaultSortWhenLinksBlockIsAdded(): void
-    {
-        $downloadsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/songs/downloads.twig');
-
-        $this->assertIsString($downloadsTemplate);
-        $this->assertStringContainsString('data-default-sort-key="file_name"', $downloadsTemplate);
-        $this->assertStringContainsString('downloadsSongTable', $downloadsTemplate);
-        $this->assertStringContainsString('downloads-song-links', $downloadsTemplate);
     }
 }

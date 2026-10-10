@@ -784,21 +784,7 @@ body.app-shell {
     }
 }
 
-.downloads-section .accordion-button {
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.downloads-section .accordion-button .badge {
-    margin-left: auto;
-}
-
 @media (max-width: 767.98px) {
-    .downloads-shell {
-        margin-left: -0.5rem;
-        margin-right: -0.5rem;
-    }
-
     .mail-queue-stat-card {
         min-height: auto;
     }
@@ -837,78 +823,6 @@ body.app-shell {
         flex-basis: calc(100% - 2rem);
     }
 
-    .downloads-section {
-        padding: 0.55rem;
-    }
-
-    .downloads-section .dashboard-section-head {
-        margin-bottom: 0.7rem;
-        padding-bottom: 0.65rem;
-    }
-
-    .downloads-surface {
-        padding: 0.35rem !important;
-        border: none;
-        box-shadow: none;
-        background: transparent;
-    }
-
-    .downloads-accordion-body {
-        padding: 0.35rem;
-    }
-
-    .downloads-song-panel {
-        padding: 0.25rem;
-        border-radius: var(--app-radius);
-        box-shadow: none;
-    }
-
-    .downloads-song-panel .dashboard-panel__body {
-        margin-bottom: 0.55rem;
-        gap: 0.35rem;
-    }
-
-    .downloads-section .accordion-item {
-        margin-bottom: 0.6rem !important;
-        box-shadow: none !important;
-    }
-
-    .downloads-section .dashboard-panel__title {
-        flex-wrap: wrap;
-        line-height: 1.3;
-        font-size: 1rem;
-    }
-
-    .downloads-section .dashboard-panel__text {
-        overflow-wrap: anywhere;
-        font-size: 0.9rem;
-    }
-
-    .downloads-section [data-table-engine="true"]:not([data-active-view="table"]) .table-responsive {
-        padding-left: 0;
-        padding-right: 0;
-    }
-
-    .downloads-section [data-table-engine="true"]:not([data-active-view="table"]) .downloads-files-table {
-        width: 100% !important;
-        min-width: 100% !important;
-    }
-
-    .downloads-section [data-table-engine="true"]:not([data-active-view="table"]) .downloads-files-table tr {
-        margin-bottom: 0.5rem;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        width: 100%;
-        border-radius: var(--app-radius);
-    }
-
-    .downloads-section [data-table-engine="true"]:not([data-active-view="table"]) .downloads-files-table td[data-label="Wiedergabe"] {
-        align-items: stretch;
-    }
-
-    .downloads-section [data-table-engine="true"]:not([data-active-view="table"]) .downloads-files-table td[data-label="Aktionen"] .btn {
-        width: auto;
-    }
 }
 
 @media (max-width: 1199.98px) and (min-width: 768px) {
@@ -922,25 +836,6 @@ body.app-shell {
 
     .song-attachment-item .text-truncate {
         flex-basis: calc(100% - 2rem);
-    }
-}
-
-@media (max-width: 430px) {
-    .downloads-shell {
-        margin-left: -0.75rem;
-        margin-right: -0.75rem;
-    }
-
-    .downloads-section {
-        padding: 0.45rem;
-    }
-
-    .downloads-accordion-body {
-        padding: 0.3rem;
-    }
-
-    .downloads-song-panel {
-        padding: 0.2rem;
     }
 }
 
@@ -2459,6 +2354,173 @@ a:hover {
    verteilen. Stattdessen eine Obergrenze, an der text-truncate greifen kann. */
 .attachment-inline-name {
     max-width: min(16rem, 100%);
+}
+
+/* Probenmaterial: Projekt -> Lied -> Dateiliste.
+   Ein Projekt ist eine Karte mit Akzentkante oben in der Vereinsfarbe (wie die übrigen Karten); darin stehen
+   die Lieder nur durch Trennlinien getrennt, nicht in eigenen Karten. Dateien
+   sind Zeilen mit Typ-Symbol, nicht Tabellenzellen: Am Telefon bricht die Zeile
+   um (Aktionen unter den Namen), ohne dass dafür ein zweites Layout nötig wäre. */
+.downloads-shell {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.downloads-accordion {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.downloads-project {
+    border: 1px solid var(--theme-border);
+    border-top: var(--surface-accent);
+    border-radius: var(--app-radius);
+    background: var(--theme-surface);
+    overflow: hidden;
+}
+
+.downloads-project .accordion-button {
+    gap: 0.75rem;
+    background: var(--theme-surface);
+    box-shadow: none;
+}
+
+.downloads-project .accordion-button:not(.collapsed) {
+    color: var(--theme-text);
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.downloads-project__title {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.downloads-project__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.downloads-project__range {
+    color: var(--theme-text-muted);
+    font-size: 0.875rem;
+    font-weight: 400;
+}
+
+.downloads-project__count {
+    flex: none;
+}
+
+.downloads-project__body {
+    padding: 0;
+}
+
+.downloads-song {
+    padding: 1rem 1.25rem;
+}
+
+.downloads-song + .downloads-song {
+    border-top: 1px solid var(--theme-border);
+}
+
+.downloads-song__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.downloads-song__credits {
+    margin: 0.15rem 0 0;
+    color: var(--theme-text-muted);
+    font-size: 0.875rem;
+}
+
+.downloads-files {
+    margin-top: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.downloads-file {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--app-radius);
+    background: var(--theme-surface-muted);
+}
+
+.downloads-file__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--app-radius);
+    background: rgba(var(--theme-primary-rgb), 0.18);
+    color: var(--theme-text);
+    font-size: 1.15rem;
+}
+
+.downloads-file__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.downloads-file__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.downloads-file__meta {
+    color: var(--theme-text-muted);
+    font-size: 0.8125rem;
+}
+
+.downloads-file__player {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.downloads-file__actions {
+    align-self: center;
+}
+
+.downloads-song-links {
+    margin-top: 1rem;
+}
+
+.downloads-link + .downloads-link {
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 575.98px) {
+    .downloads-song {
+        padding: 0.85rem 0.9rem;
+    }
+
+    .downloads-file {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    /* Die Aktionen rücken unter Symbol und Name und bleiben gut greifbar. */
+    .downloads-file__actions {
+        grid-column: 1 / -1;
+    }
+
+    .downloads-file__actions .attachment-actions {
+        display: flex;
+    }
+
+    .downloads-file__actions .attachment-actions .btn {
+        flex: 1 1 0;
+        min-height: 2.75rem;
+    }
 }
 
 /* Noten-Ordner (WebDAV) am Fuß der Downloads-Seite.

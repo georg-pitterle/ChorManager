@@ -22,6 +22,12 @@ class DownloadController
      */
     private const WEBDAV_FLASH_KEY = 'webdav_access_token';
 
+    /**
+     * MIME-Typen, die der MIDI-Abspieler bekommt. Die Seite lädt dessen
+     * Skripte nur, wenn mindestens eine solche Datei darauf steht.
+     */
+    private const MIDI_MIME_TYPES = ['audio/midi', 'audio/x-midi', 'application/x-midi'];
+
     private Twig $view;
     private WebdavAccessService $webdav;
     private LoggerInterface $logger;
@@ -46,13 +52,42 @@ class DownloadController
         return UploadValidator::getAudioMimeTypes();
     }
 
+    /**
+     * Teilt Projekte in laufende und vergangene. Vergangen ist, was ein Enddatum
+     * vor `$today` hat; ohne Enddatum oder mit Ende heute gilt es als laufend.
+     * Die Reihenfolge der Eingabe bleibt in beiden Gruppen erhalten.
+     *
+     * @param iterable<Project> $projects
+     * @param string $today Datum als Y-m-d
+     * @return array{current: list<Project>, past: list<Project>}
+     */
+    public static function splitByEnd(iterable $projects, string $today): array
+    {
+        $current = [];
+        $past = [];
+
+        foreach ($projects as $project) {
+            $end = $project->end_date;
+            if ($end !== null && $end->format('Y-m-d') < $today) {
+                $past[] = $project;
+            } else {
+                $current[] = $project;
+            }
+        }
+
+        return ['current' => $current, 'past' => $past];
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
 
         if ($userId <= 0) {
             return $this->view->render($response, 'songs/downloads.twig', [
-                'projects' => [],
+                'current_projects' => [],
+                'past_projects' => [],
+                'has_midi' => false,
+                'midi_mime_types' => self::MIDI_MIME_TYPES,
                 'active_nav' => 'downloads',
                 'webdav' => null,
             ]);
@@ -77,19 +112,43 @@ class DownloadController
             ->chronological()
             ->get();
 
+        $groups = self::splitByEnd($projects, date('Y-m-d'));
+
         return $this->view->render($response, 'songs/downloads.twig', [
-            'projects' => $projects,
+            'current_projects' => $groups['current'],
+            'past_projects' => $groups['past'],
+            'has_midi' => $this->hasMidi($projects),
+            'midi_mime_types' => self::MIDI_MIME_TYPES,
             'active_nav' => 'downloads',
             'webdav' => $this->webdavState($request, $userId),
         ]);
     }
 
     /**
+     * @param iterable<Project> $projects
+     */
+    private function hasMidi(iterable $projects): bool
+    {
+        foreach ($projects as $project) {
+            foreach ($project->assignedSongs as $song) {
+                foreach ($song->attachments as $attachment) {
+                    if (in_array(strtolower((string) $attachment->mime_type), self::MIDI_MIME_TYPES, true)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Erzeugt ein neues Zugangstoken für den Noten-Ordner und verwirft das alte.
      *
-     * Bewusst ohne Rückfrage: Wer den Knopf drückt, hat entweder noch keinen
-     * Zugang oder will den alten loswerden. Dass dabei jedes Gerät mit dem
-     * bisherigen Token aussteigt, steht an der Schaltfläche.
+     * Das erste Erzeugen braucht keine Rückfrage. Gibt es schon einen Zugang,
+     * fragt die Seite vorher nach (data-confirm am Formular): Das neue Token
+     * sperrt jedes Gerät aus, auf dem noch das bisherige steht, und das lässt
+     * sich nicht zurücknehmen.
      */
     public function rotateWebdavToken(Request $request, Response $response): Response
     {

@@ -1,26 +1,42 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const midiPlayers = document.querySelectorAll('midi-player');
+    wireMidiFallback();
+    wireCopyButtons();
+});
 
-    setTimeout(function () {
-        if (!window.customElements || !window.customElements.get('midi-player')) {
-            document.querySelectorAll('.midi-fallback').forEach(function (el) {
-                el.classList.remove('d-none');
-            });
+/**
+ * Hinweis statt Abspieler, wenn der MIDI-Player nicht zur Verfügung steht.
+ *
+ * Die Skripte stehen als normale script-Tags vor dieser Datei und sind bei
+ * DOMContentLoaded geladen oder gescheitert - ein Warten auf gut Glück ist
+ * nicht nötig. Auf der Seite ohne MIDI-Datei werden sie gar nicht erst
+ * eingebunden, dann gibt es auch keinen Abspieler, der einen Hinweis braucht.
+ */
+function wireMidiFallback() {
+    const midiPlayers = document.querySelectorAll('midi-player');
+    if (midiPlayers.length === 0) {
+        return;
+    }
+
+    function showFallback(player) {
+        const fallback = player.parentElement.querySelector('.midi-fallback');
+        if (fallback) {
+            fallback.classList.remove('d-none');
+        }
+    }
+
+    const defined = window.customElements && window.customElements.get('midi-player');
+
+    midiPlayers.forEach(function (player) {
+        if (!defined) {
+            showFallback(player);
             return;
         }
 
-        midiPlayers.forEach(function (player) {
-            player.addEventListener('error', function () {
-                const fallback = player.parentElement.querySelector('.midi-fallback');
-                if (fallback) {
-                    fallback.classList.remove('d-none');
-                }
-            });
+        player.addEventListener('error', function () {
+            showFallback(player);
         });
-    }, 1200);
-
-    wireCopyButtons();
-});
+    });
+}
 
 /**
  * Kopierknöpfe hinter den Zugangsdaten des Noten-Ordners.

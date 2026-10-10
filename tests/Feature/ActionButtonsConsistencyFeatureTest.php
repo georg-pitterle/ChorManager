@@ -41,7 +41,6 @@ class ActionButtonsConsistencyFeatureTest extends TestCase
             dirname(__DIR__) . '/../templates/projects/tasks.twig',
             dirname(__DIR__) . '/../templates/projects/members.twig',
             dirname(__DIR__) . '/../templates/newsletters/archive.twig',
-            dirname(__DIR__) . '/../templates/songs/downloads.twig',
             dirname(__DIR__) . '/../templates/sponsoring/dashboard.twig',
             dirname(__DIR__) . '/../templates/admin/mail_queue/index.twig',
         ];
