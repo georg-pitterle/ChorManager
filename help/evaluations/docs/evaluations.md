@@ -44,7 +44,7 @@ aufsteigend, um die Ausreißer nach oben zu holen.
 
 - [Anmelde-Auswertung](evaluations-registrations) – Besetzung je Stimmgruppe und Rücklauf
   der Zu- und Absagen, Termin für Termin
-- [Projektmitglieder](evaluations-project-members) – wer im Projekt singt, gruppiert nach
+- [Besetzung](evaluations-project-members) – wer im Projekt singt, gruppiert nach
   Stimmgruppe und Teilstimme
 
 ## Häufige Stolperfallen

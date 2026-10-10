@@ -21,7 +21,7 @@ Die Mitgliederseite eines Projekts listet alle zugeordneten Personen mit Name, E
 
 - **Hinzufügen**: Wähle oben rechts über das Suchfeld eine Person aus und klicke **Hinzufügen**. Bereits **archivierte** Mitglieder werden bei der Zuweisung automatisch wieder aktiviert.
 - **Entfernen**: Über **Entfernen** in der jeweiligen Zeile nimmst du eine Person aus dem Projekt. Es folgt eine Sicherheitsabfrage.
-- **Auswertung anzeigen**: Über die Schaltfläche im Kopf gelangst du zur nach Stimmgruppen gruppierten Auswertung der Projektmitglieder.
+- **Besetzung anzeigen**: Über die Schaltfläche im Kopf gelangst du zur nach Stimmgruppen gruppierten Besetzung des Projekts.
 
 ## 3. Beschränkung auf die eigene Stimmgruppe
 

@@ -1,20 +1,21 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Projektübersicht - {{ app_settings.app_name|default('Chor-Manager') }}
+    Besetzung - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">Projektübersicht</h1>
-            <p class="text-muted mb-0">Mitglieder je Projekt nach Stimmgruppen und Teilstimmen gruppiert.</p>
+            <h1 class="h2 mb-1">Besetzung</h1>
+            <p class="text-muted mb-0">Wer im Projekt singt, nach Stimmgruppen und Teilstimmen.</p>
         </div>
         <div class="page-actions d-flex gap-2">
-            <a href="/evaluations" class="btn btn-outline-secondary"><i class="bi bi-bar-chart"></i> Anwesenheitsquoten</a>
-            <form class="d-flex" method="get" action="/evaluations/project-members">
-                <select class="form-select onchange-submit select-min-220" name="project_id" aria-label="Projekt wählen">
-                    <option value="">-- Projekt wählen --</option>
+            <form class="d-flex gap-2" method="get" action="/evaluations/project-members">
+                <select class="form-select select-min-220" name="project_id" aria-label="Projekt wählen">
+                    {% if not selected_project %}
+                        <option value="">Projekt wählen</option>
+                    {% endif %}
                     {% for p in projects %}
                         <option value="{{ p.id }}"
                                 {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
@@ -22,92 +23,82 @@
                         </option>
                     {% endfor %}
                 </select>
+                <button type="submit" class="btn btn-outline-secondary">Anzeigen</button>
             </form>
+            {% if selected_project %}
+                <a href="/evaluations?project_id={{ selected_project.id }}"
+                   class="btn btn-outline-secondary">Anwesenheitsquoten</a>
+                {% if can_manage_members %}
+                    <a href="/projects/{{ selected_project.id }}/members" class="btn btn-primary">
+                        Mitglieder verwalten
+                    </a>
+                {% endif %}
+            {% endif %}
         </div>
     </section>
 {% endblock page_header %}
 
 {% block content %}
-    {% if selected_project %}
-        <section class="surface-card form-surface mb-4">
-            <div class="card shadow-sm mb-0 border-info border-0">
-                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <h5 class="card-title mb-0">Projekt: {{ selected_project.name }}</h5>
-                        <p class="card-text text-muted small mb-0">Mitglieder gruppiert nach Stimmgruppe und Teilstimme</p>
-                    </div>
-                    {% if can_manage_members %}
-                        <a href="/projects/{{ selected_project.id }}/members"
-                           class="btn btn-primary">
-                            Mitglieder verwalten
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-        </section>
+    {% if selected_project and grouped_members|length > 0 %}
+        <p class="mb-2">
+            {{ member_total }} {{ member_total == 1 ? "Mitglied" : "Mitglieder" }}
+            {% if archived_total > 0 %}, davon {{ archived_total }} archiviert{% endif %}
+        </p>
+        <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Zu einer Stimmgruppe springen">
+            {% for voice_group, count in voice_group_counts %}
+                <a class="btn btn-outline-secondary" href="#voice-group-{{ loop.index }}">
+                    {{ voice_group == "_no_voice_group" ? "Ohne Stimmgruppe" : voice_group }}
+                    {{ count }}
+                </a>
+            {% endfor %}
+        </nav>
 
-        {% if grouped_members|length > 0 %}
+        <div class="dashboard-shell">
             {% for voice_group, sub_voices in grouped_members %}
-                <div class="surface-card card shadow-sm mb-4 border-0 table-shell">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-music-note-beamed"></i>
-                            {% if voice_group == "_no_voice_group" %}
-                                Ohne Stimmgruppe
-                            {% else %}
-                                {{ voice_group }}
-                            {% endif %}
-                        </h5>
+                {% set group_count = voice_group_counts[voice_group] %}
+                <section class="dashboard-section voice-group-section"
+                         id="voice-group-{{ loop.index }}"
+                         aria-labelledby="voice-group-{{ loop.index }}-title">
+                    <div class="dashboard-section-head">
+                        <h2 class="dashboard-section-title" id="voice-group-{{ loop.index }}-title">
+                            {{ voice_group == "_no_voice_group" ? "Ohne Stimmgruppe" : voice_group }}
+                        </h2>
+                        <p class="dashboard-section-lead mb-0">
+                            {{ group_count }} {{ group_count == 1 ? "Mitglied" : "Mitglieder" }}
+                        </p>
                     </div>
-                    <div class="card-body p-0">
+
+                    <div class="surface-card card border-0 table-shell">
                         {% for sub_voice, members in sub_voices %}
-                            <div class="border-bottom {% if not loop.last %}border-bottom{% endif %}">
-                                <div class="px-3 py-2 bg-light">
-                                    <strong>
-                                        {% if sub_voice == "_no_sub_voice" %}
-                                            –
-                                        {% else %}
-                                            {{ sub_voice }}
+                            <h3 class="group-label px-3 pt-3 mb-0">
+                                {{ sub_voice == "_no_sub_voice" ? "Ohne Teilstimme" : sub_voice }}
+                                <span class="fw-normal">&middot; {{ members|length }}</span>
+                            </h3>
+                            <ul class="list-group list-group-flush">
+                                {% for m in members %}
+                                    <li class="list-group-item{{ m.is_active ? "" : " text-muted" }}">
+                                        {{ m|person_name }}
+                                        {% if not m.is_active %}
+                                            <span class="badge text-bg-light border ms-2">Archiviert</span>
                                         {% endif %}
-                                    </strong>
-                                    <span class="badge text-bg-secondary ms-2">{{ members|length }}
-                                        {% if members|length == 1 %}
-                                            Mitglied
-                                        {% else %}
-                                            Mitglieder
-                                        {% endif %}
-                                    </span>
-                                </div>
-                                <ul class="list-group list-group-flush">
-                                    {% for m in members %}
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <span><strong>{{ m|person_name }}</strong></span>
-                                            {% if not m.is_active %}
-                                                <span class="badge text-bg-secondary">Archiviert</span>
-                                            {% endif %}
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                         {% endfor %}
                     </div>
-                </div>
+                </section>
             {% endfor %}
-        {% else %}
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> Diesem Projekt sind noch keine Mitglieder zugeordnet.
-                {% if can_manage_members %}
-                    <a href="/projects/{{ selected_project.id }}/members">Mitglieder hinzufügen</a>
-                {% endif %}
-            </div>
-        {% endif %}
-
-    {% else %}
-        <div class="alert alert-info py-5 text-center shadow-sm">
-            <i class="bi bi-people-fill fs-1 d-block mb-3 text-info"></i>
-            <p class="mb-0">
-                Bitte wählen Sie oben ein Projekt aus, um die Projektmitglieder gruppiert nach Stimmgruppen und Teilstimmen anzuzeigen.
-            </p>
         </div>
+    {% elseif selected_project %}
+        <p class="text-muted text-center py-5 mb-0">
+            Diesem Projekt sind noch keine Mitglieder zugeordnet.
+            {% if can_manage_members %}
+                <a href="/projects/{{ selected_project.id }}/members">Mitglieder hinzufügen</a>
+            {% endif %}
+        </p>
+    {% elseif projects is empty %}
+        <p class="text-muted text-center py-5 mb-0">Für dich ist noch kein Projekt freigegeben.</p>
+    {% else %}
+        <p class="text-muted text-center py-5 mb-0">Wähle oben ein Projekt, um seine Besetzung zu sehen.</p>
     {% endif %}
 {% endblock content %}

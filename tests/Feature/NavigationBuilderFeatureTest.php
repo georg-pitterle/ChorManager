@@ -162,7 +162,7 @@ class NavigationBuilderFeatureTest extends TestCase
             'people' => [
                 '/users' => 'Mitglieder',
                 '/projects' => 'Projekte',
-                '/evaluations/project-members' => 'Projektübersicht',
+                '/evaluations/project-members' => 'Besetzung',
             ],
             'finance' => [
                 '/finances' => 'Kassa',

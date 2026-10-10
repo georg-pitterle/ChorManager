@@ -23,7 +23,7 @@ class NavigationPageTitlesFeatureTest extends TestCase
             'Mitglieder' => ['users/manage.twig', 'Mitglieder', 'Mitglieder'],
             'Probenmaterial' => ['songs/downloads.twig', 'Probenmaterial', 'Probenmaterial'],
             'Projektbesetzung' => ['projects/member_projects.twig', 'Projektbesetzung', 'Projektbesetzung'],
-            'Projektübersicht' => ['evaluations/project_members.twig', 'Projektübersicht', 'Projektübersicht'],
+            'Besetzung' => ['evaluations/project_members.twig', 'Besetzung', 'Besetzung'],
             'Newsletter-Archiv' => ['newsletters/archive.twig', 'Newsletter-Archiv', 'Newsletter-Archiv'],
             'Newsletter versenden' => ['newsletters/index.twig', 'Newsletter versenden', 'Newsletter versenden'],
             'Anwesenheit erfassen' => ['attendance/show.twig', 'Anwesenheit erfassen', 'Anwesenheit erfassen'],

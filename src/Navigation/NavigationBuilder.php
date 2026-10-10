@@ -295,10 +295,10 @@ final class NavigationBuilder
                                 && !$c->can('can_manage_master_data'),
                         ],
                         [
-                            'label' => 'Projektübersicht',
+                            'label' => 'Besetzung',
                             'url' => '/evaluations/project-members',
                             'icon' => 'bi-person-lines-fill',
-                            'keywords' => ['projektmitglieder', 'wer singt mit', 'besetzung'],
+                            'keywords' => ['projektübersicht', 'projektmitglieder', 'wer singt mit'],
                             'prefixes' => ['/evaluations/project-members'],
                             'navKeys' => ['evaluations_project_members'],
                             'visible' => $always,

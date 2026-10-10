@@ -2824,6 +2824,30 @@ a:hover {
     }
 }
 
+/* Grauer Konturknopf: Bootstraps #6c757d liegt auf dem Seitennebel bei 4,17:1. Die
+   gedämpfte Textfarbe des Systems hält 4,5:1 auch dort. */
+.btn-outline-secondary {
+    --bs-btn-color: var(--theme-text-muted);
+    --bs-btn-border-color: var(--theme-text-muted);
+    --bs-btn-hover-bg: var(--theme-text-muted);
+    --bs-btn-hover-border-color: var(--theme-text-muted);
+    --bs-btn-active-bg: var(--theme-text-muted);
+    --bs-btn-active-border-color: var(--theme-text-muted);
+}
+
+/* Sprungziele der Besetzungsansicht liegen unter der festen Topbar nicht verdeckt. */
+.voice-group-section {
+    scroll-margin-top: 5rem;
+}
+
+/* Telefon und Touch: Auswahlfeld und Knöpfe im Seitenkopf erreichen 44 px. */
+@media (max-width: 575.98px), (pointer: coarse) {
+    .page-header .page-actions .form-select,
+    .page-header .page-actions .btn {
+        min-height: 2.75rem;
+    }
+}
+
 /* Touch-Geräte: Aktionsknöpfe in Tabellenzeilen und Listen erreichen die empfohlene
    Zielgröße von 44 px (bei Maus bleibt das kompakte btn-sm). */
 @media (pointer: coarse) {

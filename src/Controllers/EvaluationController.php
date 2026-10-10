@@ -241,10 +241,29 @@ class EvaluationController
             }
         }
 
+        // Die Summen stehen im Kopf der Seite: Wer die Besetzung prüft, will die Balance der
+        // Stimmgruppen sehen, ohne selbst zu zählen. Archivierte zählen mit, werden aber benannt.
+        $voiceGroupCounts = [];
+        $archivedTotal = 0;
+        foreach ($groupedMembers as $voiceGroup => $subVoices) {
+            $voiceGroupCounts[$voiceGroup] = 0;
+            foreach ($subVoices as $members) {
+                $voiceGroupCounts[$voiceGroup] += count($members);
+                foreach ($members as $member) {
+                    if (!$member['is_active']) {
+                        $archivedTotal++;
+                    }
+                }
+            }
+        }
+
         return $this->view->render($response, 'evaluations/project_members.twig', [
             'projects' => $projects,
             'selected_project' => $selectedProject,
             'grouped_members' => $groupedMembers,
+            'voice_group_counts' => $voiceGroupCounts,
+            'member_total' => array_sum($voiceGroupCounts),
+            'archived_total' => $archivedTotal,
             // Der Sprung in die Mitgliederpflege folgt derselben Policy wie die Zielseite:
             // die Auswertung ist breiter sichtbar als die Verwaltung.
             'can_manage_members' => $projectId > 0 && $this->memberPolicy->canViewMembers($projectId),
