@@ -19,10 +19,28 @@
             </nav>
             <h1 class="h2 mb-1">{{ task.name }}</h1>
             <p class="text-muted mb-0">
-                Erstellt von {{ task.createdBy|person_name }} am {{ task.created_at|date('d.m.Y') }}
+                Erstellt von {{ task.createdBy|person_name }} am {{ task.created_at|date("d.m.Y") }}
             </p>
         </div>
         <div class="page-actions">
+            {# Häufigste Handlung zuerst: ein Tipp setzt den Status, ohne das Bearbeiten-Fenster #}
+            {% if task.status == "Abgeschlossen" %}
+                <form action="/tasks/{{ task.id }}/status" method="post">
+                    <input type="hidden" name="status" value="Offen">
+                    <input type="hidden" name="return_to" value="task">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-counterclockwise"></i> Wieder öffnen
+                    </button>
+                </form>
+            {% else %}
+                <form action="/tasks/{{ task.id }}/status" method="post">
+                    <input type="hidden" name="status" value="Abgeschlossen">
+                    <input type="hidden" name="return_to" value="task">
+                    <button type="submit" class="btn btn-primary">
+                        Als erledigt markieren
+                    </button>
+                </form>
+            {% endif %}
             <button type="button"
                     class="btn btn-outline-secondary"
                     data-bs-toggle="modal"
@@ -34,13 +52,30 @@
 {% endblock page_header %}
 
 {% block content %}
+    {% set _status_labels = {"Offen": "Offen", "In Bearbeitung": "In Arbeit", "Abgeschlossen": "Erledigt"} %}
+    {% set _status_badges = {
+        "Offen": "text-bg-secondary",
+        "In Bearbeitung": "text-bg-info",
+        "Abgeschlossen": "text-bg-success",
+    } %}
+    {% set _priority_badges = {"Niedrig": "text-bg-secondary", "Mittel": "text-bg-warning", "Hoch": "text-bg-danger"} %}
+    {% set _due_ymd = task.end_date ? task.end_date|date("Y-m-d") : "" %}
+    {% set _is_open = task.status != "Abgeschlossen" %}
+    {% set _is_overdue = _is_open and _due_ymd != "" and _due_ymd < "now"|date("Y-m-d") %}
+    {% set _me = session.user_id|default(0) %}
+    {% set _assignee_names = [] %}
+    {% for _assignee in task.assignees|sort((a, b) => a.last_name <=> b.last_name) %}
+        {% set _self_mark = _assignee.id == _me ? " (du)" : "" %}
+        {% set _assignee_names = _assignee_names|merge([(_assignee|person_name) ~ _self_mark]) %}
+    {% endfor %}
+
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
     {% if error %}
@@ -49,99 +84,92 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
 
     <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--context"
-                 aria-labelledby="task-detail-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="task-detail-title">Aufgabendetails</h2>
-                <p class="dashboard-section-lead mb-0">Status, Priorität, Zuständigkeit und Inhalte dieser Aufgabe.</p>
-            </div>
-
+        <section class="dashboard-section dashboard-section--context" aria-label="Eckdaten der Aufgabe">
             <div class="surface-card card border-0">
                 <div class="card-body">
-                    <div class="mb-4">
-                        <h6 class="group-label mb-2">Beschreibung</h6>
-                        <div class="p-3 bg-light rounded-3 task-description-html">
-                            {% if task.description %}
-                                {{ task.description|raw }}
-                            {% else %}
-                                <span class="text-muted fst-italic">Keine Beschreibung angegeben.</span>
-                            {% endif %}
+                    <dl class="task-facts mb-0">
+                        <div class="task-fact">
+                            <dt>Status</dt>
+                            <dd>
+                                <span class="badge {{ _status_badges[task.status]|default("text-bg-secondary") }}">
+                                    {{ _status_labels[task.status]|default(task.status) }}
+                                </span>
+                            </dd>
                         </div>
-                    </div>
+                        <div class="task-fact">
+                            <dt>Fällig bis</dt>
+                            <dd>
+                                {% if task.end_date %}
+                                    <span class="{{ _is_overdue ? "text-danger fw-semibold" : "" }}">
+                                        {{ task.end_date|date("d.m.Y") }}
+                                    </span>
+                                    {% if _is_overdue %}
+                                        <span class="badge text-bg-danger ms-1">Überfällig</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Kein Datum</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                        <div class="task-fact">
+                            <dt>Zuständig</dt>
+                            <dd>
+                                {% if _assignee_names|length > 0 %}
+                                    {{ _assignee_names|join(", ") }}
+                                {% else %}
+                                    <span class="text-muted">Niemand zugewiesen</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                        <div class="task-fact">
+                            <dt>Priorität</dt>
+                            <dd>
+                                {% if _priority_badges[task.priority] is defined %}
+                                    <span class="badge {{ _priority_badges[task.priority] }}">{{ task.priority }}</span>
+                                {% else %}
+                                    <span class="text-muted">Nicht festgelegt</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                        {% if task.start_date %}
+                            <div class="task-fact">
+                                <dt>Beginn</dt>
+                                <dd>{{ task.start_date|date("d.m.Y") }}</dd>
+                            </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </section>
 
-                    <div class="row">
-                        <div class="col-sm-6 mb-3">
-                            <span class="text-muted small d-block mb-1">Status</span>
-                            {% if task.status == "Abgeschlossen" %}
-                                <span class="badge text-bg-success fs-6"><i class="bi bi-check-circle"></i> Erledigt</span>
-                            {% elseif task.status == "In Bearbeitung" %}
-                                <span class="badge text-bg-info fs-6"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
-                            {% else %}
-                                <span class="badge text-bg-secondary bg-opacity-75 fs-6"><i class="bi bi-circle"></i> Offen</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-sm-6 mb-3">
-                            <span class="text-muted small d-block mb-1">Priorität</span>
-                            {% if task.priority == "Niedrig" %}
-                                <span class="badge text-bg-secondary fs-6">Niedrig</span>
-                            {% elseif task.priority == "Mittel" %}
-                                <span class="badge text-bg-warning fs-6">Mittel</span>
-                            {% elseif task.priority == "Hoch" %}
-                                <span class="badge text-bg-danger fs-6">Hoch</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-sm-6 mb-3">
-                            <span class="text-muted small d-block mb-1">Zugewiesen an</span>
-                            {% if task.assignees|length > 0 %}
-                                {% for assignee in task.assignees|sort((a, b) => a.last_name <=> b.last_name) %}
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-person-circle fs-4 text-primary me-2"></i>
-                                        <span>{{ assignee|person_name }}</span>
-                                    </div>
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-muted fst-italic">Nicht zugewiesen</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-sm-6 mb-3">
-                            <span class="text-muted small d-block mb-1">Zeitraum</span>
-                            {% if task.start_date or task.end_date %}
-                                <i class="bi bi-calendar-event text-secondary me-1"></i>
-                                {{ task.start_date ? task.start_date|date("d.m.Y") : "?" }} — {{ task.end_date ? task.end_date|date("d.m.Y") : "?" }}
-                            {% else %}
-                                <span class="text-muted fst-italic">Ohne Datum</span>
-                            {% endif %}
-                        </div>
+        <section class="dashboard-section dashboard-section--context" aria-labelledby="task-description-title">
+            <div class="surface-card card border-0">
+                <div class="card-body">
+                    <h2 class="h6 mb-2" id="task-description-title">Beschreibung</h2>
+                    <div class="task-description-html">
+                        {% if task.description %}
+                            {{ task.description|raw }}
+                        {% else %}
+                            <span class="text-muted fst-italic">Keine Beschreibung angegeben.</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="dashboard-section dashboard-section--context"
-                 aria-labelledby="task-comments-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="task-comments-title">Kommentare</h2>
-                <p class="dashboard-section-lead mb-0">Austausch und Rückfragen direkt zur Aufgabe dokumentieren.</p>
-            </div>
-
+        <section class="dashboard-section dashboard-section--context" aria-label="Kommentare">
             {{ include("partials/comments.twig", {
             comments: task.comments,
             submit_url: "/tasks/" ~ task.id ~ "/comments",
             }) }}
         </section>
 
-        <section class="dashboard-section dashboard-section--context"
-                 aria-labelledby="task-assets-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="task-assets-title">Dateien und Verlauf</h2>
-                <p class="dashboard-section-lead mb-0">Anhänge verwalten und Aktivitätenhistorie einsehen.</p>
-            </div>
-
+        <section class="dashboard-section dashboard-section--context" aria-label="Dateien und Verlauf">
             <div class="row">
                 <div class="col-lg-8">
                     {{ include("partials/attachments.twig", {
@@ -151,35 +179,24 @@
                     }) }}
                 </div>
                 <div class="col-lg-4">
-                    {{ include("partials/history.twig", {
-                    activities: task.activities|reverse,
-                    }) }}
-                </div>
-            </div>
-        </section>
-
-        <section class="dashboard-section dashboard-section--actions"
-                 aria-labelledby="task-danger-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="task-danger-title">Gefahrenzone</h2>
-                <p class="dashboard-section-lead mb-0">Löschen entfernt Kommentare, Anhänge und Historie unwiderruflich.</p>
-            </div>
-
-            <div class="surface-card card border-danger">
-                <div class="card-body">
-                    <form action="/tasks/{{ task.id }}/delete"
-                          method="post"
-                          data-confirm="Möchten Sie diese Aufgabe wirklich löschen? Dies kann nicht rückgängig gemacht werden.">
-                        <button type="submit" class="btn btn-outline-danger w-100">
-                            <i class="bi bi-trash"></i> Aufgabe löschen
-                        </button>
-                    </form>
+                    <details class="task-history">
+                        <summary class="task-history-toggle">Verlauf einblenden</summary>
+                        {{ include("partials/history.twig", {
+                        activities: task.activities|reverse,
+                        }) }}
+                    </details>
                 </div>
             </div>
         </section>
     </div>
 
-    <!-- Edit Task Modal -->
+    {# Eigenes Formular, weil das Bearbeiten-Fenster selbst ein Formular ist; der Knopf dort verweist per form-Attribut hierher #}
+    <form id="deleteTaskForm"
+          action="/tasks/{{ task.id }}/delete"
+          method="post"
+          class="d-none"
+          data-confirm="Möchten Sie diese Aufgabe wirklich löschen? Kommentare, Anhänge und Verlauf gehen dabei verloren."></form>
+
     <div class="modal fade"
          id="editTaskModal"
          tabindex="-1"
@@ -194,31 +211,53 @@
                     <button type="button"
                             class="btn-close"
                             data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                            aria-label="Schließen"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="title" class="form-label">Titel der Aufgabe *</label>
+                        <label for="editTaskTitle" class="form-label">Titel der Aufgabe *</label>
                         <input type="text"
                                class="form-control"
-                               id="title"
+                               id="editTaskTitle"
                                name="title"
                                value="{{ task.name }}"
                                required>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="editTaskAssignees" class="form-label">Zuständig (optional)</label>
+                        {% set _assigned_ids = task.assignees|map(a => a.id) %}
+                        <select class="form-select"
+                                id="editTaskAssignees"
+                                name="assigned_user_ids[]"
+                                data-tom-select
+                                data-placeholder="Personen wählen …"
+                                multiple>
+                            {% for u in projectUsers %}
+                                <option value="{{ u.id }}" {{ u.id in _assigned_ids ? "selected" : "" }}>
+                                    {{ u|person_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="assigned_user_ids" class="form-label">Zugewiesen an (optional)</label>
-                            {% set _assigned_ids = task.assignees|map(a => a.id) %}
-                            <select class="form-select"
-                                    id="assigned_user_ids"
-                                    name="assigned_user_ids[]"
-                                    data-tom-select
-                                    data-placeholder="Personen wählen …"
-                                    multiple>
-                                {% for u in projectUsers %}
-                                    <option value="{{ u.id }}" {{ u.id in _assigned_ids ? "selected" : "" }}>{{ u|person_name }}
+                            <label for="editTaskPriority" class="form-label">Priorität</label>
+                            <select class="form-select" id="editTaskPriority" name="priority">
+                                {% for _priority in ["Niedrig", "Mittel", "Hoch"] %}
+                                    <option value="{{ _priority }}" {{ task.priority == _priority ? "selected" : "" }}>
+                                        {{ _priority }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editTaskStatus" class="form-label">Status</label>
+                            <select class="form-select" id="editTaskStatus" name="status">
+                                {% for _value, _label in _status_labels %}
+                                    <option value="{{ _value }}" {{ task.status == _value ? "selected" : "" }}>
+                                        {{ _label }}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -227,61 +266,44 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="priority" class="form-label">Priorität</label>
-                            <select class="form-select" id="priority" name="priority">
-                                <option value="Niedrig" {{ task.priority == "Niedrig" ? "selected" : "" }}>Niedrig
-                                </option>
-                                <option value="Mittel" {{ task.priority == "Mittel" ? "selected" : "" }}>Mittel
-                                </option>
-                                <option value="Hoch" {{ task.priority == "Hoch" ? "selected" : "" }}>Hoch
-                                </option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="status" class="form-label">Status</label>
-                            <select class="form-select" id="status" name="status">
-                                <option value="Offen" {{ task.status == "Offen" ? "selected" : "" }}>Offen
-                                </option>
-                                <option value="In Bearbeitung"
-                                        {{ task.status == "In Bearbeitung" ? "selected" : "" }}>In Arbeit
-                                </option>
-                                <option value="Abgeschlossen"
-                                        {{ task.status == "Abgeschlossen" ? "selected" : "" }}>Erledigt
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="start_date" class="form-label">Startdatum</label>
+                            <label for="editTaskStartDate" class="form-label">Beginn</label>
                             <input type="date"
                                    class="form-control"
-                                   id="start_date"
+                                   id="editTaskStartDate"
                                    name="start_date"
                                    value="{{ task.start_date ? task.start_date|date("Y-m-d") : "" }}">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="due_date" class="form-label">Fälligkeitsdatum</label>
+                            <label for="editTaskDueDate" class="form-label">Fällig bis</label>
                             <input type="date"
                                    class="form-control"
-                                   id="due_date"
+                                   id="editTaskDueDate"
                                    name="due_date"
-                                   value="{{ task.end_date ? task.end_date|date("Y-m-d") : "" }}">
+                                   value="{{ _due_ymd }}">
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="description" class="form-label">Beschreibung</label>
+                        <label for="editTaskDescription" class="form-label">Beschreibung</label>
                         <textarea class="form-control tinymce-editor"
-                                  id="description"
+                                  id="editTaskDescription"
                                   name="description"
                                   rows="5">{{ task.description|raw }}</textarea>
+                    </div>
+
+                    <div class="task-delete-zone">
+                        <p class="text-muted small mb-2">
+                            Löschen entfernt die Aufgabe samt Kommentaren, Anhängen und Verlauf.
+                            Nicht gespeicherte Änderungen hier gehen dabei verloren.
+                        </p>
+                        <button type="submit" form="deleteTaskForm" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i> Aufgabe löschen
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Änderungen Speichern</button>
+                    <button type="submit" class="btn btn-primary">Änderungen speichern</button>
                 </div>
             </form>
         </div>

@@ -507,7 +507,7 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString('tinymce-editor', $tasksTemplate);
         $this->assertStringContainsString('id="description"', $tasksTemplate);
         $this->assertStringContainsString('tinymce-editor', $detailTemplate);
-        $this->assertStringContainsString('id="description"', $detailTemplate);
+        $this->assertStringContainsString('id="editTaskDescription"', $detailTemplate);
         $this->assertStringContainsString('{{ task.description|raw }}', $detailTemplate);
         $this->assertStringContainsString('task-description-html', $detailTemplate);
         $this->assertStringNotContainsString('{{ task.description|nl2br }}', $detailTemplate);
@@ -796,6 +796,119 @@ class TaskFeatureTest extends TestCase
         $this->assertStringNotContainsString('Illuminate\\Support\\Facades\\DB', $controllerContent);
         // Must use Capsule::connection()->transaction() pattern
         $this->assertStringContainsString('Capsule::connection()->transaction(', $controllerContent);
+    }
+
+    /**
+     * Die Aufgabenseite setzt den Status per Formular: Ziel ist die Seite selbst,
+     * nicht JSON, und der Verlauf nennt die Aufgabenseite statt des Kanban-Boards.
+     */
+    public function testUpdateStatusFromTaskPageRedirectsBackAndLogsActivity(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $project = Project::create(['name' => 'Status-Test ' . bin2hex(random_bytes(4))]);
+        $user = User::create([
+            'first_name' => 'Task',
+            'last_name' => 'Status',
+            'email' => 'task.status.' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => PasswordHasher::hash('irrelevant'),
+            'is_active' => 1,
+        ]);
+        $project->users()->attach($user->id);
+        $task = Task::create([
+            'project_id' => $project->id,
+            'name' => 'Statusaufgabe',
+            'status' => 'Offen',
+            'created_by' => $user->id,
+        ]);
+
+        $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
+        $controller = new TaskController(
+            $this->createStub(Twig::class),
+            new HtmlSanitizer(),
+            new TaskPolicy($_SESSION),
+            new NameFormatterService(),
+            new Logger('test')
+        );
+
+        $request = $this->makeRequest(
+            'POST',
+            '/tasks/' . $task->id . '/status',
+            ['status' => 'Abgeschlossen', 'return_to' => 'task']
+        );
+
+        $response = $controller->updateStatus($request, $this->makeResponse(), ['id' => (string) $task->id]);
+
+        $this->assertRedirect($response, '/tasks/' . $task->id);
+        $this->assertSame('Abgeschlossen', $task->fresh()->status);
+        $this->assertSame('Aufgabe als erledigt markiert.', $_SESSION['success']);
+
+        $activity = Activity::where('entity_type', 'task')->where('entity_id', $task->id)->latest('id')->first();
+        $this->assertNotNull($activity);
+        $this->assertStringContainsString('Aufgabenseite', $activity->description);
+        $this->assertStringNotContainsString('Kanban', $activity->description);
+    }
+
+    /**
+     * Fehler vom Formular der Aufgabenseite landen als Meldung auf der Seite,
+     * nicht als rohes JSON im Browser.
+     */
+    public function testUpdateStatusFromTaskPageRedirectsWithErrorInsteadOfJson(): void
+    {
+        Bootstrap::setupTestDatabase();
+
+        $project = Project::create(['name' => 'Status-Fehler ' . bin2hex(random_bytes(4))]);
+        $user = User::create([
+            'first_name' => 'Task',
+            'last_name' => 'Fehler',
+            'email' => 'task.fehler.' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => PasswordHasher::hash('irrelevant'),
+            'is_active' => 1,
+        ]);
+        $project->users()->attach($user->id);
+        $task = Task::create([
+            'project_id' => $project->id,
+            'name' => 'Fehleraufgabe',
+            'status' => 'Offen',
+            'created_by' => $user->id,
+        ]);
+
+        $makeController = function (array $session): TaskController {
+            return new TaskController(
+                $this->createStub(Twig::class),
+                new HtmlSanitizer(),
+                new TaskPolicy($session),
+                new NameFormatterService(),
+                new Logger('test')
+            );
+        };
+        $args = ['id' => (string) $task->id];
+
+        // Ungültiger Status: zurück auf die Aufgabenseite, Status unverändert.
+        $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
+        $response = $makeController($_SESSION)->updateStatus(
+            $this->makeRequest('POST', '/tasks/' . $task->id . '/status', ['status' => 'Quatsch', 'return_to' => 'task']),
+            $this->makeResponse(),
+            $args
+        );
+        $this->assertRedirect($response, '/tasks/' . $task->id);
+        $this->assertSame('Ungültiger Status.', $_SESSION['error']);
+        $this->assertSame('Offen', $task->fresh()->status);
+
+        // Fehlendes Recht: zurück ins Dashboard, Status unverändert.
+        $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => false];
+        $response = $makeController($_SESSION)->updateStatus(
+            $this->makeRequest(
+                'POST',
+                '/tasks/' . $task->id . '/status',
+                ['status' => 'Abgeschlossen', 'return_to' => 'task']
+            ),
+            $this->makeResponse(),
+            $args
+        );
+        $this->assertRedirect($response, '/dashboard');
+        $this->assertSame('Zugriff verweigert.', $_SESSION['error']);
+        $this->assertSame('Offen', $task->fresh()->status);
     }
 
     public function testUploadAttachmentLogsUploadRejectedForOversizedFileWithoutFilename(): void

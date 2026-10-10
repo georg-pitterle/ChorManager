@@ -768,42 +768,35 @@ class TaskController
         $taskId = (int) $args['id'];
         $task = Task::findOrFail($taskId);
 
-        if (!$this->hasTaskAccess($task->project)) {
-            $response->getBody()->write((string) json_encode([
-                'success' => false,
-                'error' => 'Zugriff verweigert.'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-        }
-
         $data = (array) $request->getParsedBody();
         if (empty($data)) {
             $json = $request->getBody()->getContents();
             $data = (array) json_decode($json, true);
         }
 
+        // Die Aufgabenseite sendet ein Formular und erwartet die Seite zurück;
+        // das Kanban-Board ruft per fetch auf und erwartet JSON.
+        $fromTaskPage = ($data['return_to'] ?? null) === 'task';
+
+        if (!$this->hasTaskAccess($task->project)) {
+            return $this->statusError($response, 'Zugriff verweigert.', 403, $fromTaskPage, '/dashboard');
+        }
+
         $statusInput = trim(InputValidator::asString($data['status'] ?? null));
         if (empty($statusInput)) {
-            $response->getBody()->write((string) json_encode([
-                'success' => false,
-                'error' => 'Status erforderlich.'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            return $this->statusError($response, 'Status erforderlich.', 400, $fromTaskPage, "/tasks/{$task->id}");
         }
 
         $newStatus = $this->validateStatus($statusInput);
         if ($newStatus !== $statusInput) {
-            $response->getBody()->write((string) json_encode([
-                'success' => false,
-                'error' => 'Ungültiger Status.'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            return $this->statusError($response, 'Ungültiger Status.', 400, $fromTaskPage, "/tasks/{$task->id}");
         }
 
         $oldStatus = $task->status;
+        $source = $fromTaskPage ? 'die Aufgabenseite' : 'das Kanban-Board';
 
         if ($oldStatus !== $newStatus) {
-            Capsule::connection()->transaction(function () use ($task, $newStatus, $oldStatus) {
+            Capsule::connection()->transaction(function () use ($task, $newStatus, $oldStatus, $source) {
                 $task->update([
                     'status' => $newStatus,
                 ]);
@@ -813,9 +806,16 @@ class TaskController
                     'entity_id'   => $task->id,
                     'user_id'     => $_SESSION['user_id'],
                     'action'      => 'updated',
-                    'description' => "Status von '$oldStatus' auf '$newStatus' geändert via Kanban-Board",
+                    'description' => "Status von '$oldStatus' auf '$newStatus' geändert via $source",
                 ]);
             });
+        }
+
+        if ($fromTaskPage) {
+            $_SESSION['success'] = $newStatus === 'Abgeschlossen'
+                ? 'Aufgabe als erledigt markiert.'
+                : 'Status aktualisiert.';
+            return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
         $response->getBody()->write((string) json_encode([
@@ -824,5 +824,25 @@ class TaskController
             'message' => 'Status erfolgreich aktualisiert.'
         ]));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    }
+
+    /**
+     * Fehlerantwort von updateStatus: Vom Formular der Aufgabenseite kommt eine
+     * Meldung auf der Zielseite zurück, vom Kanban-Board JSON.
+     */
+    private function statusError(
+        Response $response,
+        string $message,
+        int $httpStatus,
+        bool $fromTaskPage,
+        string $redirectTo
+    ): Response {
+        if ($fromTaskPage) {
+            $_SESSION['error'] = $message;
+            return $response->withHeader('Location', $redirectTo)->withStatus(302);
+        }
+
+        $response->getBody()->write((string) json_encode(['success' => false, 'error' => $message]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);
     }
 }
