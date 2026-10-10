@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Util;
 
 /**
- * Session storage location.
+ * Session storage location and start.
  *
  * PHP writes session files into the container's writable layer by default, so
  * every image update or container recreate discards them and logs every user
@@ -45,6 +45,31 @@ class SessionConfig
         }
 
         return ini_set('session.save_path', $path) !== false;
+    }
+
+    /**
+     * Startet die Sitzung, falls noch keine läuft.
+     *
+     * Dieselben drei Zeilen standen an sechs Stellen: in fünf Middlewares und in
+     * der Twig-Fabrik. Jede davon muss die Sitzung notfalls selbst starten, weil
+     * sie auch einzeln läuft - im Test und über einen anderen Einstiegspunkt, wo
+     * die äußerste Middleware gar nicht beteiligt ist. Sechs Abschriften
+     * derselben Regel heißen aber sechs Stellen, an denen eine Korrektur
+     * vergessen werden kann; hier steht sie einmal.
+     *
+     * Geprüft wird auf `PHP_SESSION_NONE` und nicht auf `!PHP_SESSION_ACTIVE`:
+     * Ist die Sitzungsverwaltung abgeschaltet (`PHP_SESSION_DISABLED`), gibt es
+     * nichts zu starten, und `session_start()` würde nur warnen.
+     *
+     * @return bool Ob danach eine Sitzung läuft.
+     */
+    public static function ensureStarted(): bool
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        return session_status() === PHP_SESSION_ACTIVE;
     }
 
     /**

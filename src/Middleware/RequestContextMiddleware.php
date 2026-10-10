@@ -6,6 +6,7 @@ namespace App\Middleware;
 
 use App\Logging\RequestContext;
 use App\Util\ClientIpResolver;
+use App\Util\SessionConfig;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -23,9 +24,7 @@ final class RequestContextMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        SessionConfig::ensureStarted();
 
         $userId = $_SESSION['user_id'] ?? null;
 

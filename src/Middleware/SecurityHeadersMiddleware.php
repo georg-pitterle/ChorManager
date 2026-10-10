@@ -112,6 +112,17 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         return implode('; ', $directives);
     }
 
+    /**
+     * Gefragt wird der Request, nicht `$_SERVER`.
+     *
+     * Die Angabe stand bis hierher aus dem Superglobal, und das ist prozessweit:
+     * Im Testlauf setzt eine Testklasse `HTTPS` und räumt es nicht ab, in einem
+     * dauerhaft laufenden SAPI steht dort der Wert der vorherigen Anfrage. Die
+     * Middleware antwortete dann für eine Klartext-Anfrage mit HSTS - und war je
+     * Anfrage überhaupt nicht prüfbar, weil der Wert nicht am Request hing. Die
+     * Serverwerte des Requests tragen dieselbe Angabe, nur eben die dieser einen
+     * Anfrage; Slim füllt sie beim Einstieg aus `$_SERVER`.
+     */
     private function isHttpsRequest(Request $request): bool
     {
         if (strtolower($request->getUri()->getScheme()) === 'https') {
@@ -123,7 +134,7 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             return true;
         }
 
-        $httpsServerValue = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+        $httpsServerValue = strtolower(trim((string) ($request->getServerParams()['HTTPS'] ?? '')));
         return $httpsServerValue !== '' && $httpsServerValue !== 'off';
     }
 }

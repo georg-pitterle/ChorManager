@@ -7,13 +7,14 @@ namespace App\Middleware;
 use App\Controllers\MailBadgeController;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeService;
+use App\Util\SessionConfig;
 use Carbon\Carbon;
 use Closure;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Log\LoggerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Psr\Log\LoggerInterface;
 
 class MailBadgeRefreshMiddleware implements MiddlewareInterface
 {
@@ -56,9 +57,7 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
     private function refreshIfDue(Request $request): void
     {
         try {
-            if (session_status() === PHP_SESSION_NONE) {
-                session_start();
-            }
+            SessionConfig::ensureStarted();
 
             $forced = $this->isForced($request);
 

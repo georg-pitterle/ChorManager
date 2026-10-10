@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Middleware;
 
 use App\Util\Csrf;
+use App\Util\SessionConfig;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -24,9 +25,7 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        SessionConfig::ensureStarted();
 
         $response = $handler->handle($request);
 

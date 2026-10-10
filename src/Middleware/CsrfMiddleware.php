@@ -8,6 +8,7 @@ use App\Services\Oidc\OidcEndpoints;
 use App\Util\Csrf;
 use App\Util\RequestFormat;
 use App\Util\SafeRedirect;
+use App\Util\SessionConfig;
 use App\Util\SessionExpiredSignal;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -73,9 +74,7 @@ class CsrfMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        SessionConfig::ensureStarted();
 
         Csrf::ensureToken();
 

@@ -14,6 +14,33 @@ use Psr\Http\Message\ResponseInterface;
 
 class SecurityHeadersMiddlewareFeatureTest extends TestCase
 {
+    private ?string $previousAppEnv = null;
+    private ?string $previousHttpsServerValue = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->previousAppEnv = $_ENV['APP_ENV'] ?? null;
+        $this->previousHttpsServerValue = isset($_SERVER['HTTPS']) ? (string) $_SERVER['HTTPS'] : null;
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->previousAppEnv === null) {
+            unset($_ENV['APP_ENV']);
+        } else {
+            $_ENV['APP_ENV'] = $this->previousAppEnv;
+        }
+
+        if ($this->previousHttpsServerValue === null) {
+            unset($_SERVER['HTTPS']);
+        } else {
+            $_SERVER['HTTPS'] = $this->previousHttpsServerValue;
+        }
+
+        parent::tearDown();
+    }
+
     private function cspFor(SecurityHeadersMiddleware $middleware, string $path): string
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', 'http://localhost' . $path);
@@ -155,5 +182,63 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
         // selbst - die Middleware überschreibt diese Entscheidung nicht.
         $this->assertSame('public, max-age=86400', $response->getHeaderLine('Cache-Control'));
         $this->assertFalse($response->hasHeader('Pragma'));
+    }
+
+    /**
+     * @param array<string, string> $serverParams
+     */
+    private function hstsFor(string $uri, array $serverParams = [], array $headers = []): string
+    {
+        $request = (new ServerRequestFactory())->createServerRequest('GET', $uri, $serverParams);
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        $middleware = new SecurityHeadersMiddleware();
+        $response = $middleware->process($request, new class () implements RequestHandlerInterface {
+            public function handle(Request $request): ResponseInterface
+            {
+                return new Response();
+            }
+        });
+
+        return $response->getHeaderLine('Strict-Transport-Security');
+    }
+
+    public function testSendsHstsForTlsRequestsInProduction(): void
+    {
+        $_ENV['APP_ENV'] = 'production';
+
+        $this->assertStringContainsString('max-age=31536000', $this->hstsFor('https://localhost/dashboard'));
+        $this->assertStringContainsString(
+            'max-age=31536000',
+            $this->hstsFor('http://localhost/dashboard', ['HTTPS' => 'on'])
+        );
+    }
+
+    /**
+     * Regressionsschutz: Die Middleware entscheidet anhand des Requests, nicht anhand
+     * von `$_SERVER`.
+     *
+     * `$_SERVER` ist prozessweit. Im Testlauf setzt eine andere Testklasse den Wert und
+     * räumt ihn nicht ab, und in einem dauerhaft laufenden SAPI steht dort der Wert der
+     * vorherigen Anfrage - die Middleware antwortete dann für eine Klartext-Anfrage mit
+     * HSTS und war je Anfrage gar nicht prüfbar. Die Serverwerte des Requests tragen
+     * dieselbe Angabe, nur eben die dieser einen Anfrage.
+     */
+    public function testHstsIgnoresTheServerSuperglobalAndFollowsTheRequest(): void
+    {
+        $_ENV['APP_ENV'] = 'production';
+        $_SERVER['HTTPS'] = 'on';
+
+        $this->assertSame('', $this->hstsFor('http://localhost/dashboard'));
+        $this->assertSame('', $this->hstsFor('http://localhost/dashboard', ['HTTPS' => 'off']));
+    }
+
+    public function testDevelopmentInstallationSendsNoHsts(): void
+    {
+        $_ENV['APP_ENV'] = 'development';
+
+        $this->assertSame('', $this->hstsFor('https://localhost/dashboard'));
     }
 }

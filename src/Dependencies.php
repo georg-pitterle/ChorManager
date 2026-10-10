@@ -147,6 +147,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Events\Dispatcher;
 use Twig\TwigFunction;
 use App\Util\Csrf;
+use App\Util\SessionConfig;
 use App\Util\SessionView;
 use App\Util\UploadValidator;
 use App\Services\NameFormatterService;
@@ -815,9 +816,7 @@ return function (ContainerBuilder $containerBuilder) {
             // Add session to twig global environment
             $environment = $twig->getEnvironment();
             $environment->getExtension(\Twig\Extension\CoreExtension::class)->setTimezone($appTimezone);
-            if (session_status() === PHP_SESSION_NONE) {
-                session_start();
-            }
+            SessionConfig::ensureStarted();
             $environment->addGlobal('settings', $allSettings);
             // Live view instead of a by-value copy of $_SESSION: this factory can
             // run before the request is authenticated (global middleware resolves
