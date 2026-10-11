@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use AddChannelToUserNotificationSettings;
 use AllowLockEntriesInFinanceJournal;
 use AllowNewslettersWithoutProject;
 use CreateFinanceGroupsAndLink;
@@ -16,12 +17,13 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance
 require_once dirname(__DIR__, 2) . '/db/migrations/20260722130000_drop_events_project_id.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260811190000_allow_newsletters_without_project.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_entries_in_finance_journal.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261005090100_add_channel_to_user_notification_settings.php';
 
 /**
- * Vier Migrationen führen einen Schritt aus, der Daten unwiederbringlich
+ * Fünf Migrationen führen einen Schritt aus, der Daten unwiederbringlich
  * beseitigt: zwei werfen im `up()` eine Spalte weg, deren Inhalt vorher
- * woandershin umgeschrieben wurde, zwei müssten im `down()` Zeilen loswerden,
- * die in die engere Spalte nicht mehr passen.
+ * woandershin umgeschrieben wurde, drei müssten im `down()` Zeilen loswerden,
+ * die in den engeren Schlüssel oder die engere Spalte nicht mehr passen.
  *
  * In beiden Fällen ist der Wert danach fort, und nachholen lässt sich das nicht,
  * weil Phinx den Lauf bereits in `phinxlog` verbucht hat. Die Zählung davor ist
@@ -36,6 +38,7 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const BUDGET_TABLE = 'test_guard_budget_categories';
     private const NEWSLETTERS_TABLE = 'test_guard_newsletters';
     private const REVISIONS_TABLE = 'test_guard_finance_revisions';
+    private const SETTINGS_TABLE = 'test_guard_user_notification_settings';
 
     protected function setUp(): void
     {
@@ -89,6 +92,16 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
             self::REVISIONS_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            "CREATE TABLE %s (
+                user_id int(11) NOT NULL,
+                notification_type varchar(64) NOT NULL,
+                channel varchar(16) NOT NULL DEFAULT 'mail',
+                PRIMARY KEY (user_id, notification_type, channel)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            self::SETTINGS_TABLE
         ));
     }
 
@@ -189,6 +202,41 @@ final class DestructiveMigrationGuardTest extends TestCase
         ));
     }
 
+    /**
+     * Der Rückbau von 20261005090100 nimmt die Spalte `channel` zurück. Was an
+     * der Glocke hängt, hat im alten Schlüssel keinen Platz - bisher wurde es
+     * dafür still gelöscht, obwohl es Entscheidungen von Mitgliedern sind.
+     */
+    public function testBellSettingGuardFindsTheSettingThatIsNotAboutMail(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (user_id, notification_type, channel) VALUES
+             (1, 'task_comment', 'mail'), (1, 'task_comment', 'in_app')",
+            self::SETTINGS_TABLE
+        ));
+
+        $this->assertSame(1, $this->countFrom(
+            AddChannelToUserNotificationSettings::BELL_SETTINGS_SQL,
+            ['user_notification_settings' => self::SETTINGS_TABLE],
+            'bell_settings'
+        ));
+    }
+
+    public function testBellSettingGuardStaysQuietWhenEverySettingIsAboutMail(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (user_id, notification_type, channel) VALUES
+             (1, 'task_comment', 'mail'), (2, 'event_cancelled', 'mail')",
+            self::SETTINGS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            AddChannelToUserNotificationSettings::BELL_SETTINGS_SQL,
+            ['user_notification_settings' => self::SETTINGS_TABLE],
+            'bell_settings'
+        ));
+    }
+
     public function testJournalGuardFindsBothTheLockEntryAndTheEntryWithoutBooking(): void
     {
         Capsule::connection()->insert(sprintf(
@@ -221,11 +269,11 @@ final class DestructiveMigrationGuardTest extends TestCase
      *
      * @param array<string, string> $tableMap
      */
-    private function countFrom(string $sql, array $tableMap): int
+    private function countFrom(string $sql, array $tableMap, string $column = 'orphaned'): int
     {
         $row = Capsule::connection()->selectOne(strtr($sql, $tableMap));
 
-        return (int) $row->orphaned;
+        return (int) $row->{$column};
     }
 
     private function dropScratchTables(): void
@@ -236,6 +284,7 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::BUDGET_TABLE,
             self::NEWSLETTERS_TABLE,
             self::REVISIONS_TABLE,
+            self::SETTINGS_TABLE,
         ];
 
         foreach ($tables as $table) {

@@ -26,12 +26,19 @@ use PHPUnit\Framework\TestCase;
  *
  * ## Was als destruktiv gilt
  *
- * Eine Spalte verlieren und eine Tabelle verlieren - aber nur, wenn die
- * Migration sie nicht selbst angelegt hat. Ein `drop()` im `down()` auf eine
+ * Eine Spalte verlieren, eine Tabelle verlieren und Zeilen verlieren
+ * (`DELETE FROM`, `TRUNCATE`) - aber nur, wenn die Migration das Ziel nicht
+ * selbst angelegt hat. Ein `drop()` im `down()` auf eine
  * Tabelle, die das `up()` erzeugt hat, nimmt eine Erzeugung zurück und
  * vernichtet nichts, was vorher da war; dasselbe gilt für `removeColumn()` auf
  * eine Spalte aus dem eigenen `addColumn()`. Solche Umkehrungen erkennt der
- * Test und lässt sie durch.
+ * Test und lässt sie durch; dasselbe gilt für Zeilen aus einer Tabelle, die
+ * derselbe Rumpf erst angelegt hat - sie war vorher leer.
+ *
+ * `DELETE FROM` und `TRUNCATE` kamen nach Lauf 41 dazu. Die Regel in
+ * `/phinx-migration` nannte bis dahin nur Struktur, und die beiden
+ * Migrationen, die heute Zeilen löschen, waren zufällig beide konform - für
+ * eine künftige hätte es dort also kein Netz gegeben.
  *
  * ## Warum MODIFY ... NOT NULL fehlt
  *
@@ -71,6 +78,13 @@ final class DestructiveStepNeedsGuardTest extends TestCase
             'Das INSERT ... SELECT davor überträgt jedes newsletters.event_id IS NOT NULL '
                 . 'ohne weitere Bedingung nach newsletter_recipient_sources, bevor '
                 . 'removeColumn(event_id) folgt.',
+        '20260901122000_drop_plaintext_calendar_subscription_tokens.php' =>
+            'Das DELETE trifft nur Zeilen ohne Hash *und* ohne Klartext. Die sind über '
+                . 'keinen Weg mehr auffindbar und waren schon vor der Migration wertlos; '
+                . 'eine Prüfung davor könnte nur auf genau diese Zeilen anschlagen und '
+                . 'würde den Lauf dauerhaft blockieren. Die Prüfung, auf die es ankommt - '
+                . 'bleibt eine Zeile ohne Hash zurück - steht davor und bewacht das '
+                . 'removeColumn(token).',
     ];
 
     /**
@@ -114,14 +128,16 @@ final class DestructiveStepNeedsGuardTest extends TestCase
                 [$kind, $target] = $step;
 
                 // Im eigenen Rumpf zählt nur, was vor dem Schritt angelegt wurde.
-                $ownHere = $kind === 'table' ? $tables : $columns;
+                // Zeilen aus einer Tabelle zu werfen, die dieser Rumpf selbst
+                // angelegt hat, nimmt niemandem etwas - sie war vorher leer.
+                $ownHere = $kind === 'column' ? $columns : $tables;
                 if (($ownHere[$target] ?? PHP_INT_MAX) < $offset) {
                     continue;
                 }
 
                 // Ein down(), das eine Erzeugung des up() zurücknimmt, vernichtet
                 // nichts, was vor der Migration da war.
-                $ownForward = $kind === 'table' ? $forwardTables : $forwardColumns;
+                $ownForward = $kind === 'column' ? $forwardColumns : $forwardTables;
                 if (!$isForward && isset($ownForward[$target])) {
                     continue;
                 }
@@ -262,6 +278,14 @@ final class DestructiveStepNeedsGuardTest extends TestCase
             'table' => [
                 '/\$this->table\(\s*[\'"](\w+)[\'"]\s*\)\s*(?:\r?\n\s*)?->drop\(\)/',
                 '/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?(\w+)`?/i',
+            ],
+            // Zeilen statt Struktur. Der Name darf interpoliert sein
+            // (`DELETE FROM {$table}`); dann steht der Ausdruck selbst als Ziel
+            // und trifft auf keine selbst angelegte Tabelle - die strengere
+            // Richtung, denn so bleibt die Prüfung verlangt.
+            'rows' => [
+                '/DELETE\s+FROM\s+`?(\{?\$?\w+\}?)`?/i',
+                '/TRUNCATE\s+(?:TABLE\s+)?`?(\{?\$?\w+\}?)`?/i',
             ],
         ];
 

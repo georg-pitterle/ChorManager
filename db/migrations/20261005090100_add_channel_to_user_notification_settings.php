@@ -19,6 +19,19 @@ final class AddChannelToUserNotificationSettings extends AbstractMigration
 {
     private const USER_INDEX = 'idx_user_notification_settings_user';
 
+    /**
+     * Zählt die Entscheidungen, die im alten Schlüssel keinen Platz haben.
+     *
+     * Steht als Konstante bereit, damit DestructiveMigrationGuardTest genau die
+     * Anweisung prüfen kann, die hier auch ausgeführt wird - gleiches Muster wie
+     * AllowNewslettersWithoutProject::PROJECTLESS_NEWSLETTERS_SQL.
+     */
+    public const BELL_SETTINGS_SQL = <<<'SQL'
+        SELECT COUNT(*) AS bell_settings
+        FROM user_notification_settings
+        WHERE channel <> 'mail'
+        SQL;
+
     public function up(): void
     {
         $this->table('user_notification_settings')
@@ -45,9 +58,26 @@ final class AddChannelToUserNotificationSettings extends AbstractMigration
 
     public function down(): void
     {
-        // Glocken-Zeilen haben im alten Schlüssel keinen Platz - sie würden mit
-        // den Mail-Zeilen desselben Anlasses kollidieren.
-        $this->execute("DELETE FROM user_notification_settings WHERE channel <> 'mail'");
+        // Prüfung vor dem destruktiven Schritt: Glocken-Zeilen haben im alten
+        // Schlüssel keinen Platz - sie würden mit den Mail-Zeilen desselben
+        // Anlasses kollidieren. Bisher wurden sie dafür still gelöscht.
+        //
+        // Das ist der falsche Preis für einen Rückbau: Es sind Entscheidungen,
+        // die Mitglieder selbst getroffen haben, und sie stehen nirgends sonst -
+        // mit der Spalte sind sie weg, und zurückschreiben ließen sie sich
+        // danach nirgendwo. Der Lauf bricht deshalb ab und nennt ihre Zahl; wer
+        // wirklich zurück will, entfernt sie vorher bewusst selbst.
+        $bellSettings = (int) ($this->fetchRow(self::BELL_SETTINGS_SQL)['bell_settings'] ?? 0);
+
+        if ($bellSettings > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %d Einstellung(en) betreffen die Glocke. Sie haben im alten '
+                    . 'Schlüssel keinen Platz und wären unwiederbringlich weg. Diese zuerst bewusst '
+                    . 'selbst entfernen.',
+                $bellSettings
+            ));
+        }
+
         $this->table('user_notification_settings')
             ->addIndex(['user_id'], ['name' => self::USER_INDEX])
             ->update();
