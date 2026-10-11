@@ -75,7 +75,9 @@ class EditorLoadingFeatureTest extends TestCase
 
     public function testNewsletterPagesThatOpenEditorDialogsAskForIt(): void
     {
-        foreach (['index', 'archive', 'locked'] as $page) {
+        // Das Archiv öffnet nur noch den Lesedialog (newsletter-archive.js), keinen Editor -
+        // siehe NewsletterArchiveReaderFeatureTest.
+        foreach (['index', 'locked'] as $page) {
             $this->assertTrue(
                 self::loadsEditor(self::read('templates/newsletters/' . $page . '.twig')),
                 'newsletters/' . $page . '.twig lädt Editor-Dialoge nach, braucht den Editor aber sofort.'

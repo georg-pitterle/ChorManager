@@ -215,7 +215,7 @@ test('Newsletter-Versand: Vorlagen und Empfängerkombinationen', async ({ page, 
     // wer außerhalb der Quelle lag, findet ihn dort nicht.
     await asUser(browser, PROJECT_MEMBERS[1].email, async (memberPage) => {
         await memberPage.goto('/newsletters/archive');
-        const archive = await memberPage.locator('#newsletterArchiveTable tbody').innerText();
+        const archive = await memberPage.locator('#newsletterArchiveList').innerText();
         expect(archive).toContain(NEWSLETTER_WITHOUT_TEMPLATE.title);
         expect(archive).toContain(NEWSLETTER_COMBINED.title);
         // An dieser Person ging der Newsletter aus Vorlage vorbei - sie war nicht einzeln gewählt.
@@ -224,7 +224,7 @@ test('Newsletter-Versand: Vorlagen und Empfängerkombinationen', async ({ page, 
 
     await asUser(browser, OUTSIDER.email, async (outsiderPage) => {
         await outsiderPage.goto('/newsletters/archive');
-        const archive = await outsiderPage.locator('#newsletterArchiveTable tbody').innerText();
+        const archive = await outsiderPage.locator('#newsletterArchiveList').innerText();
         // Nicht im Projekt, aber einzeln adressiert: nur der Newsletter aus der Vorlage.
         expect(archive).toContain(NEWSLETTER_WITH_TEMPLATE.title);
         expect(archive).not.toContain(NEWSLETTER_WITHOUT_TEMPLATE.title);
@@ -356,13 +356,13 @@ test('Nachbericht: die Zielgruppe des Termins bekommt den Newsletter, sonst niem
 
     await asUser(browser, CONCERT_AUDIENCE[0].email, async (audiencePage) => {
         await audiencePage.goto('/newsletters/archive');
-        const archive = await audiencePage.locator('#newsletterArchiveTable tbody').innerText();
+        const archive = await audiencePage.locator('#newsletterArchiveList').innerText();
         expect(archive, 'Die Zielgruppe muss den Nachbericht erhalten').toContain(NEWSLETTER_EVENT_REPORT.title);
     });
 
     await asUser(browser, CONCERT_OUTSIDER.email, async (outsiderPage) => {
         await outsiderPage.goto('/newsletters/archive');
-        const archive = await outsiderPage.locator('#newsletterArchiveTable tbody').innerText();
+        const archive = await outsiderPage.locator('#newsletterArchiveList').innerText();
         expect(archive, 'Wer nicht zur Zielgruppe gehört, darf den Nachbericht nicht erhalten')
             .not.toContain(NEWSLETTER_EVENT_REPORT.title);
     });
@@ -422,7 +422,7 @@ test('Wiederverwendung: bewährtes Rundschreiben als Vorlage sichern und erneut 
 
     await asUser(browser, REUSE_RECIPIENT.email, async (recipientPage) => {
         await recipientPage.goto('/newsletters/archive');
-        const archive = await recipientPage.locator('#newsletterArchiveTable tbody').innerText();
+        const archive = await recipientPage.locator('#newsletterArchiveList').innerText();
         expect(archive).toContain(NEWSLETTER_REUSING_TEMPLATE.title);
     });
 });
@@ -477,7 +477,7 @@ test('Späte Zuordnung: der Empfängerkreis wird erst beim Versand aufgelöst', 
     for (const person of [LATE_EARLY_MEMBER, LATE_JOINER]) {
         await asUser(browser, person.email, async (memberPage) => {
             await memberPage.goto('/newsletters/archive');
-            const archive = await memberPage.locator('#newsletterArchiveTable tbody').innerText();
+            const archive = await memberPage.locator('#newsletterArchiveList').innerText();
             expect(
                 archive,
                 `${person.lastName} muss den Newsletter erhalten haben`

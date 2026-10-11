@@ -1,0 +1,19 @@
+{# Angehängte Dateien hat nur die Mail selbst; ohne diese Liste sähe man in Vorschau und
+   Archiv nicht, dass etwas dranhing. in_card: als Kartenabschnitt unter dem Rahmen. #}
+{% if attached_files|default([])|length > 0 %}
+    <div class="{{ in_card|default(false) ? "card-body border-top " : "" }}newsletter-preview-attachments">
+        <h3 class="newsletter-preview-attachments__title"><i class="bi bi-paperclip" aria-hidden="true"></i> Anhänge</h3>
+        <ul class="list-unstyled mb-0">
+            {% for file in attached_files %}
+                <li>
+                    <a href="/attachments/{{ file.id }}/download"
+                       target="_blank"
+                       rel="noopener noreferrer">{{ file.original_name }}</a>
+                    <small class="text-muted">
+                        {{ (file.file_size / 1024)|round(1) ~ " KB" }}
+                    </small>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}

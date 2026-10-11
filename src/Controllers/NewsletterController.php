@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Policies\NewsletterPolicy;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
+use App\Services\EventScheduleFormatter;
 use App\Services\NewsletterAttachmentService;
 use App\Services\NewsletterService;
 use App\Services\NewsletterLockingService;
@@ -393,31 +394,39 @@ class NewsletterController
             ->where('user_id', (int) $userId)
             ->with(['newsletter.createdBy', 'newsletter.project'])
             ->orderBy('sent_at', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
 
-        // Die Liste zeigt denselben Betreff, der in der Mail angekommen ist: Ein Titel mit
-        // Platzhaltern stünde sonst als "{{vorname}}: Probenplan" in der Übersicht, während
-        // die Mail selbst längst den Namen trägt.
         $viewer = User::find((int) $userId);
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
-        $subjects = [];
+        $formatter = new EventScheduleFormatter();
+        $now = new \DateTimeImmutable();
+        $rows = [];
         foreach ($archives as $archive) {
             $newsletter = $archive->newsletter;
-            if ($newsletter === null) {
+            if ($newsletter === null || $archive->sent_at === null) {
                 continue;
             }
 
+            // Die Liste zeigt denselben Betreff, der in der Mail angekommen ist: Ein Titel mit
+            // Platzhaltern stünde sonst als "{{vorname}}: Probenplan" in der Übersicht, während
+            // die Mail selbst längst den Namen trägt.
             $context = $this->placeholderService->contextFor($newsletter, $baseUrl);
-            $subjects[(int) $archive->id] = $this->placeholderService->renderSubject(
-                (string) $newsletter->title,
-                $context,
-                $viewer
-            );
+            $sentAt = \DateTimeImmutable::createFromInterface($archive->sent_at);
+            $rows[] = (object) [
+                'newsletter_id' => (int) $newsletter->id,
+                'subject' => $this->placeholderService->renderSubject((string) $newsletter->title, $context, $viewer),
+                'sent_at' => $sentAt,
+                'weekday' => $formatter->weekday($sentAt),
+                'relative_label' => $formatter->pastRelativeLabel($sentAt, $now),
+                'sender' => $newsletter->createdBy === null ? '' : $this->nameFormatter->formatPerson($newsletter->createdBy),
+                'project' => $newsletter->project?->name,
+            ];
         }
 
         return $this->view->render($response, 'newsletters/archive.twig', [
-            'archives' => $archives,
-            'archive_subjects' => $subjects,
+            'months' => $formatter->groupByMonth($rows, 'sent_at'),
+            'total' => count($rows),
             'active_nav' => 'newsletters_archive',
             'user_id' => $userId,
         ]);
@@ -739,8 +748,23 @@ class NewsletterController
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
         $rendered = $this->personalizedNewsletterContent($newsletter, $previewRecipient, $baseUrl);
 
+        // Wer den Newsletter empfangen hat, liest ihn als Mail: Maßgeblich ist, wann er bei
+        // dieser Person ankam, nicht wann der Entwurf angelegt wurde. Auch wer verwaltet, liest
+        // aus dem eigenen Archiv (reader=1) ohne Vorstandsdaten.
+        $isReader = !$canManage || InputValidator::asString($queryParams['reader'] ?? '0') === '1';
+        $receivedAt = null;
+        if ($isReader && $userId !== null) {
+            $receivedAt = NewsletterArchive::query()
+                ->where('newsletter_id', (int) $newsletter->id)
+                ->where('user_id', (int) $userId)
+                ->value('sent_at');
+        }
+
         return $this->view->render($response, 'newsletters/preview.twig', [
             'newsletter' => $newsletter,
+            'is_reader' => $isReader,
+            'received_at' => $receivedAt,
+            'status_label' => $newsletter->isSent() ? 'Versendet' : 'Entwurf',
             'preview_title' => $rendered['title'],
             'preview_frame_url' => $this->previewFrameUrl($newsletter, $canManage, $requestedRecipientId),
             'preview_recipient_name' => $previewRecipient === null

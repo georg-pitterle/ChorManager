@@ -54,21 +54,40 @@ final class EventScheduleFormatter
     }
 
     /**
-     * Fasst bereits sortierte Termine zu Monaten zusammen; die Reihenfolge
+     * Gegenstück zu relativeLabel() für Vergangenes, etwa einen eben verschickten
+     * Newsletter: "heute", "gestern", "vor 3 Tagen" - danach genügt das Datum.
+     */
+    public function pastRelativeLabel(DateTimeInterface $moment, DateTimeInterface $now): ?string
+    {
+        $day = new \DateTimeImmutable($moment->format('Y-m-d'));
+        $today = new \DateTimeImmutable($now->format('Y-m-d'));
+        $days = (int) $day->diff($today)->format('%r%a');
+
+        return match (true) {
+            $days === 0 => 'heute',
+            $days === 1 => 'gestern',
+            $days > 1 && $days <= self::RELATIVE_DAYS => 'vor ' . $days . ' Tagen',
+            default => null,
+        };
+    }
+
+    /**
+     * Fasst bereits sortierte Einträge zu Monaten zusammen; die Reihenfolge
      * innerhalb und zwischen den Monaten bleibt, wie sie kam.
      *
-     * @param iterable<object> $events Objekte mit `starts_at` als DateTimeInterface
+     * @param iterable<object> $events Objekte mit DateTimeInterface im Feld $dateField
      * @return list<array{key: string, label: string, events: list<object>}>
      */
-    public function groupByMonth(iterable $events): array
+    public function groupByMonth(iterable $events, string $dateField = 'starts_at'): array
     {
         $groups = [];
         foreach ($events as $event) {
-            $key = $event->starts_at->format('Y-m');
+            $date = $event->{$dateField};
+            $key = $date->format('Y-m');
             if (!isset($groups[$key])) {
                 $groups[$key] = [
                     'key' => $key,
-                    'label' => $this->monthLabel($event->starts_at),
+                    'label' => $this->monthLabel($date),
                     'events' => [],
                 ];
             }

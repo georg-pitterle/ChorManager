@@ -1,21 +1,26 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
 
+{# Wer aus dem Archiv liest, sieht den Newsletter wie eine Mail - ohne Entwurfsdaten,
+   Empfängerzahl und Versandstatus, die nur beim Verwalten etwas bedeuten. #}
+{% set _is_reader = is_reader|default(not can_manage_newsletters|default(false)) %}
+{% set _subject = preview_title|default(newsletter.title) %}
+
 {% block title %}
-    Newsletter-Vorschau ({{ preview_title|default(newsletter.title) }}) - {{ app_settings.app_name|default('Chor-Manager') }}
+    {{ _is_reader ? "Newsletter" : "Newsletter-Vorschau" }} ({{ _subject }}) - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">Newsletter-Vorschau</h1>
-            <p class="text-muted mb-0">{{ preview_title|default(newsletter.title) }}</p>
+            <h1 class="h2 mb-1">{{ _is_reader ? "Newsletter" : "Newsletter-Vorschau" }}</h1>
+            <p class="text-muted mb-0">{{ _subject }}</p>
         </div>
         <div class="page-actions">
             {# Ohne Verwaltungsrecht führt die Newsletter-Liste auf 403 - wer den Newsletter nur
                empfangen hat, gehört zurück in sein Archiv. #}
             {% set _status_filter = newsletter.status == "sent" ? "sent" : "draft" %}
             {% set _close_url = "/newsletters?project_id=" ~ newsletter.project_id ~ "&status=" ~ _status_filter %}
-            {% if not can_manage_newsletters|default(false) %}
+            {% if _is_reader %}
                 {% set _close_url = "/newsletters/archive" %}
             {% endif %}
             <a href="{{ _close_url }}"
@@ -27,60 +32,62 @@
 {% endblock page_header %}
 
 {% block content %}
-    <div class="container-fluid px-0">
-        <div class="row">
-            <div class="col-12">
-                <div class="surface-card card border-0">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-1">{{ preview_title|default(newsletter.title) }}</h5>
-                        <small class="text-muted">
-                            Von: {{ newsletter.createdBy|person_name }}
-                            | Erstellt: {{ newsletter.created_at|date("d.m.Y H:i") }}
-                        </small>
-                        {# Nur fremde Empfängerdaten sind erklärungsbedürftig: Dass die eigenen
-                           Daten eingesetzt sind, sieht man am Text selbst. #}
-                        {% set _shows_foreign_data = not preview_is_own_data|default(false) %}
-                        {% set _has_recipient_name = preview_recipient_name|default("") != "" %}
-                        {% if _shows_foreign_data and _has_recipient_name %}
-                            <p class="text-muted small mb-0 mt-2">
-                                Platzhalter sind mit den Daten von {{ preview_recipient_name }} gefüllt.
-                            </p>
-                        {% endif %}
-                    </div>
-                    <div class="card-body p-0">
-                        <iframe src="{{ preview_frame_url }}"
-                                class="newsletter-preview-frame"
-                                title="Newsletter-Vorschau"
-                                sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                                loading="lazy"></iframe>
-                    </div>
-                    {% if attached_files|default([])|length > 0 %}
-                        <div class="card-body border-top newsletter-preview-attachments">
-                            <h6 class="mb-2"><i class="bi bi-paperclip"></i> Anhänge</h6>
-                            <ul class="list-unstyled mb-0">
-                                {% for file in attached_files %}
-                                    <li>
-                                        <a href="/attachments/{{ file.id }}/download"
-                                           target="_blank"
-                                           rel="noopener noreferrer">{{ file.original_name }}</a>
-                                        <small class="text-muted">
-                                            {{ (file.file_size / 1024)|round(1) ~ " KB" }}
-                                        </small>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
-                    <div class="card-footer">
-                        <div class="text-muted text-center">
-                            <small>
-                                Empfänger: <strong class="badge text-bg-info">{{ newsletter.recipient_count }}</strong>
-                                | Status: <strong>{{ newsletter.status }}</strong>
+    {% set _sender = newsletter.createdBy|person_name %}
+    {% if _is_reader and is_modal|default(false) %}
+        {# Im Lesedialog des Archivs stehen Betreff und Versanddatum bereits im Dialogkopf. #}
+        <div class="newsletter-reader" data-newsletter-reader>
+            <iframe src="{{ preview_frame_url }}"
+                    class="newsletter-preview-frame"
+                    title="Newsletter {{ _subject }}"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"></iframe>
+            {{ include("newsletters/partials/preview_attachments.twig") }}
+        </div>
+    {% else %}
+        <div class="container-fluid px-0">
+            <div class="row">
+                <div class="col-12">
+                    <div class="surface-card card border-0">
+                        <div class="card-header bg-light">
+                            <h2 class="h5 mb-1">{{ _subject }}</h2>
+                            <small class="text-muted">
+                                {% if _is_reader %}
+                                    {% if received_at %}Gesendet am {{ received_at|date("d.m.Y H:i") }} · {% endif %}von {{ _sender }}
+                                {% else %}
+                                    Von: {{ _sender }}
+                                    | Erstellt: {{ newsletter.created_at|date("d.m.Y H:i") }}
+                                {% endif %}
                             </small>
+                            {# Nur fremde Empfängerdaten sind erklärungsbedürftig: Dass die eigenen
+                               Daten eingesetzt sind, sieht man am Text selbst. #}
+                            {% set _shows_foreign_data = not preview_is_own_data|default(false) %}
+                            {% set _has_recipient_name = preview_recipient_name|default("") != "" %}
+                            {% if _shows_foreign_data and _has_recipient_name %}
+                                <p class="text-muted small mb-0 mt-2">
+                                    Platzhalter sind mit den Daten von {{ preview_recipient_name }} gefüllt.
+                                </p>
+                            {% endif %}
                         </div>
+                        <div class="card-body p-0">
+                            <iframe src="{{ preview_frame_url }}"
+                                    class="newsletter-preview-frame"
+                                    title="Newsletter-Vorschau"
+                                    sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                                    loading="lazy"></iframe>
+                        </div>
+                        {{ include("newsletters/partials/preview_attachments.twig", {in_card: true}) }}
+                        {% if not _is_reader %}
+                            <div class="card-footer">
+                                <div class="text-muted text-center">
+                                    <small>
+                                        Empfänger: <strong>{{ newsletter.recipient_count }}</strong>
+                                        | Status: <strong>{{ status_label|default(newsletter.status) }}</strong>
+                                    </small>
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 {% endblock content %}

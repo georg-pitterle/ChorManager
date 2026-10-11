@@ -216,7 +216,7 @@ async function main() {
 
         // 11. Meine Newsletter (persönliches Archiv)
         await page.goto(`${BASE_URL}/newsletters/archive`, { waitUntil: 'networkidle' });
-        await page.locator('#newsletterArchiveTable').waitFor({ state: 'visible' });
+        await page.locator('#newsletterArchiveList').waitFor({ state: 'visible' });
         await shotCapped(page, '11-my-newsletters');
 
         console.log('Fertig: alle Newsletter-Screenshots erstellt.');

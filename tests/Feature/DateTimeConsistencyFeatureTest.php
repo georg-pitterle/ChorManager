@@ -71,7 +71,7 @@ class DateTimeConsistencyFeatureTest extends TestCase
         $this->assertIsString($lockedTemplate);
 
         $this->assertStringContainsString('newsletter.created_at|date("d.m.Y H:i")', $indexTemplate);
-        $this->assertStringContainsString('entry.sent_at|date("d.m.Y H:i")', $archiveTemplate);
+        $this->assertStringContainsString('row.sent_at|date("d.m.Y H:i")', $archiveTemplate);
         $this->assertStringContainsString('newsletter.created_at|date("d.m.Y H:i")', $previewTemplate);
         $this->assertStringContainsString('newsletter.locked_at|date("d.m.Y H:i")', $lockedTemplate);
     }

@@ -1,127 +1,127 @@
 {% extends "layout.twig" %}
-{% block editor_scripts %}
-    <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
-{% endblock editor_scripts %}
 
 {% block title %}
-    Newsletter-Archiv - {{ app_settings.app_name|default('Chor-Manager') }}
+    Newsletter-Archiv - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
             <h1 class="h2 mb-1">Newsletter-Archiv</h1>
-            <p class="text-muted mb-0">Hier siehst du nur Newsletter, die an dich versendet wurden.</p>
+            <p class="text-muted mb-0">Alle Newsletter, die an dich versendet wurden – auch wenn die Mail längst gelöscht ist.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/help/newsletter" class="btn btn-outline-secondary">
+                <i class="bi bi-question-circle" aria-hidden="true"></i> Hilfe
+            </a>
         </div>
     </section>
 {% endblock page_header %}
 
 {% block content %}
-    <div class="container-fluid px-0">
-        <div class="dashboard-shell">
-            <section class="dashboard-section dashboard-section--context"
-                     aria-labelledby="newsletter-archive-title">
-                <div class="dashboard-section-head">
-                    <h2 class="dashboard-section-title" id="newsletter-archive-title">Empfangene Newsletter</h2>
-                    <p class="dashboard-section-lead mb-0">{{ archives|length }} versendete Newsletter in deinem Archiv.</p>
-                </div>
+    {% if total == 0 %}
+        <div class="event-empty">
+            <p class="mb-2">Noch keine Newsletter.</p>
+            <p class="text-muted small mb-0">Sobald der Chor dir einen Newsletter schickt, findest du ihn hier.</p>
+        </div>
+    {% else %}
+        {# Die Suche lohnt erst, wenn die Liste nicht mehr auf einen Blick zu überschauen ist. #}
+        {% if total > 8 %}
+            <div class="newsletter-archive__search">
+                <label for="newsletterArchiveSearch" class="visually-hidden">Newsletter durchsuchen</label>
+                <input type="search"
+                       id="newsletterArchiveSearch"
+                       class="form-control"
+                       placeholder="Betreff, Projekt oder Absender suchen"
+                       autocomplete="off">
+            </div>
+            <p class="newsletter-archive__no-match" data-archive-no-match hidden>
+                Kein Newsletter passt zu deiner Suche.
+            </p>
+        {% endif %}
 
-                <div class="surface-card card border-0 table-shell"
-                     data-table-engine="true"
-                     data-table-id="newsletters.archive"
-                     data-default-view="auto"
-                     data-default-page-size="25"
-                     data-page-size-options="25,50,100"
-                     data-default-sort-key="sent"
-                     data-default-sort-dir="desc">
-                    {{ include('partials/table_toolbar.twig') }}
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-striped mb-0 table-responsive-cards"
-                                   id="newsletterArchiveTable">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th data-sort-key="title" data-sort-type="text">Titel</th>
-                                        <th data-sort-key="project" data-sort-type="text">Projekt</th>
-                                        <th data-sort-key="sender" data-sort-type="text">Erstellt von</th>
-                                        <th data-sort-key="sent" data-sort-type="date">Gesendet am</th>
-                                        <th class="text-end">Aktionen</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for entry in archives %}
-                                        {% set newsletter = entry.newsletter %}
-                                        {% if newsletter %}
-                                            {% set sender_name = newsletter.createdBy|person_name %}
-                                            {# Betreff wie in der Mail: mit den Daten der empfangenden Person. #}
-                                            {% set subject = archive_subjects[entry.id]|default(newsletter.title) %}
-                                            <tr data-sort-title="{{ subject|lower }}"
-                                                data-sort-project="{{ newsletter.project.name|default('')|lower }}"
-                                                data-sort-sender="{{ sender_name|lower }}"
-                                                data-sort-sent="{{ entry.sent_at|date('Y-m-d H:i:s') }}">
-                                                <td data-label="Titel" data-card-title>
-                                                    {{ subject }}
-                                                    {% if newsletter.event %}
-                                                        <br>
-                                                        <small class="text-muted">Event: {{ newsletter.event.title }}</small>
-                                                    {% endif %}
-                                                </td>
-                                                <td data-label="Projekt">{{ newsletter.project.name|default("-") }}</td>
-                                                <td data-label="Erstellt von">{{ sender_name|default("-") }}</td>
-                                                <td data-label="Gesendet am">{{ entry.sent_at|date("d.m.Y H:i") }}</td>
-                                                <td data-label="Aktionen" class="text-end">
-                                                    <div class="btn-group"
-                                                         role="group"
-                                                         aria-label="Aktionen für Newsletter {{ subject }}">
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary"
-                                                                data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"
-                                                                data-newsletter-modal-title="Newsletter Vorschau">
-                                                            <i class="bi bi-eye"></i> Vorschau
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+        <div id="newsletterArchiveList">
+            {% for month in months %}
+                <section class="event-plan__month" data-archive-month aria-labelledby="newsletter-month-{{ month.key }}">
+                    <h2 class="event-plan__month-title" id="newsletter-month-{{ month.key }}">{{ month.label }}</h2>
+                    <ol class="event-plan__list newsletter-archive">
+                        {% for row in month.events %}
+                            {% set _sent = row.sent_at|date("d.m.Y H:i") %}
+                            {% set _meta = "Gesendet am " ~ _sent ~ (row.sender ? " · von " ~ row.sender : "") %}
+                            <li class="event-plan__item newsletter-archive__item"
+                                data-archive-item
+                                data-search="{{ [row.subject, row.project, row.sender]|join(" ")|lower }}">
+                                <div class="event-plan__date" aria-hidden="true">
+                                    <span class="event-plan__weekday">{{ row.weekday }}</span>
+                                    <span class="event-plan__day">{{ row.sent_at|date("j") }}</span>
+                                </div>
+                                <div class="event-plan__body">
+                                    <h3 class="newsletter-archive__heading">
+                                        <a href="/newsletters/{{ row.newsletter_id }}/preview?reader=1"
+                                           class="event-plan__title stretched-link"
+                                           data-newsletter-open
+                                           data-newsletter-url="/newsletters/{{ row.newsletter_id }}/preview?modal=1&amp;reader=1"
+                                           data-newsletter-subject="{{ row.subject }}"
+                                           data-newsletter-meta="{{ _meta }}">{{ row.subject }}</a>
+                                    </h3>
+                                    <div class="event-plan__meta">{{ _meta }}</div>
+                                </div>
+                                {% if row.relative_label or row.project %}
+                                    <div class="event-plan__aside">
+                                        {% if row.relative_label %}
+                                            <span class="event-relative">{{ row.relative_label }}</span>
                                         {% endif %}
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="5" class="text-center py-4 text-muted">
-                                                <i class="bi bi-info-circle me-1"></i>
-                                                Es wurden noch keine Newsletter an dich versendet.
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                                        {% if row.project %}
+                                            <span class="badge text-bg-secondary">{{ row.project }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ol>
+                </section>
+            {% endfor %}
         </div>
 
-        <div class="modal fade"
-             id="newsletterActionModal"
+        <div class="modal fade newsletter-reader-modal"
+             id="newsletterReaderModal"
              tabindex="-1"
-             aria-labelledby="newsletterActionModalLabel"
+             aria-labelledby="newsletterReaderTitle"
              aria-hidden="true">
-            <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+                <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                        <div class="newsletter-reader-modal__head">
+                            <h2 class="modal-title newsletter-reader-modal__title"
+                                id="newsletterReaderTitle"
+                                data-reader-title>Newsletter</h2>
+                            <p class="newsletter-reader-modal__meta" data-reader-meta></p>
+                        </div>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
-                    <div class="modal-body p-2 p-md-3">
-                        <div id="newsletterActionContent" class="container-fluid px-0"></div>
+                    <div class="modal-body" data-reader-content></div>
+                    <div class="modal-footer newsletter-reader-modal__nav">
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                data-reader-step="newer">
+                            <i class="bi bi-chevron-left" aria-hidden="true"></i> Neuer
+                        </button>
+                        <span class="newsletter-reader-modal__position" data-reader-position></span>
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                data-reader-step="older">
+                            Älter <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 {% endblock content %}
 
 {% block scripts %}
-    <script src="/js/newsletters.js"></script>
+    <script src="{{ asset_path('/js/newsletter-archive.js') }}"></script>
 {% endblock scripts %}

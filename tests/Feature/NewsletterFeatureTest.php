@@ -230,12 +230,13 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString('id="newsletterActionModal"', $indexTemplate);
         $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $indexTemplate);
 
+        // Das Archiv hat seinen eigenen Lesedialog (newsletter-archive.js), siehe
+        // NewsletterArchiveReaderFeatureTest.
         $this->assertStringContainsString(
-            'data-newsletter-modal-url="/newsletters/{{ newsletter.id }}/preview?modal=1"',
+            'data-newsletter-url="/newsletters/{{ row.newsletter_id }}/preview?modal=1&amp;reader=1"',
             $archiveTemplate
         );
-        $this->assertStringContainsString('id="newsletterActionModal"', $archiveTemplate);
-        $this->assertStringContainsString('<script src="/js/newsletters.js"></script>', $archiveTemplate);
+        $this->assertStringContainsString('id="newsletterReaderModal"', $archiveTemplate);
 
         $extendsLayout = "{% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}";
         $this->assertStringContainsString($extendsLayout, $createTemplate);
