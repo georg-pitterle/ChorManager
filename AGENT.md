@@ -69,6 +69,7 @@ Invoke with `/command-name`:
 - `/phinx-migration` — create and run a Phinx migration for a schema change
 - `/test-runs` — which test command to use, test database mechanics, parallel runs
 - `/rotating-review` — the scheduled section-by-section review and its counter
+- `/log-analysis` — the scheduled daily analysis of the production logs from Grafana
 - `/create-help-topic` — write a help topic under `/help`, including screenshots
 - `/git-commit` — how work lands in git here (checks, message, squash, merge)
 - `/e2e-scenario` — add a Playwright end-to-end scenario

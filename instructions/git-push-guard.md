@@ -28,23 +28,25 @@ The exception covers only that case and only under these conditions:
 The full workflow around this - checks, message, squash, rebase, fast-forward - lives in
 the `git-commit` skill.
 
-## Exception: automated code review and its follow-up
+## Exception: scheduled runs and their follow-up
 
-The scheduled, unattended code review runs in an ephemeral container - without a push its
-results are lost. It is therefore allowed to push, including directly to `main`.
+Two scheduled, unattended runs fall under this exception: the rotating code review
+(`/rotating-review`) and the daily log analysis (`/log-analysis`). Both run in an
+ephemeral container - without a push their results are lost. They are therefore allowed
+to push, including directly to `main`.
 
-The same applies to the follow-up work the review causes. A finding that needed a decision
+The same applies to the follow-up work such a run causes. A finding that needed a decision
 goes into the report instead of into `main`; once the developer has answered it, carrying
 that answer out and pushing it needs no second round of asking. **The answer is the
 go-ahead.** Asking again would put the same decision to the developer twice - once as the
 answer, once as the push - and in the meantime the finished work sits in a container that
 gets reclaimed. That the answer arrives interactively does not turn the work back into an
-ordinary agent run; it is still the review's follow-up.
+ordinary agent run; it is still the run's follow-up.
 
 The exception covers these two cases - the run and its follow-up - and only under these
 conditions:
 
-- Push only commits the review or its follow-up created. Never push unrelated local work.
+- Push only commits the run or its follow-up created. Never push unrelated local work.
 - Never force-push and never rewrite published history (`--force`, `--force-with-lease`,
   amend or rebase of pushed commits stay forbidden on every branch).
 - Push only a green state: the relevant automated tests, `ddev composer phpcs` and - for
