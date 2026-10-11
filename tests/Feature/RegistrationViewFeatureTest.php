@@ -144,6 +144,132 @@ class RegistrationViewFeatureTest extends TestCase
         $this->assertSame(4, $eligibleCount, 'yes+no+maybe+open must sum to the eligible count');
     }
 
+    public function testIndexGroupsEventsByMonthWithWeekdayTypeAndTime(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $_SESSION['user_id'] = (int) $fixture['yes']->id;
+
+        $body = $this->renderIndex();
+
+        $formatter = new \App\Services\EventScheduleFormatter();
+        $startsAt = $fixture['event']->starts_at;
+
+        // Dieselbe Gliederung wie der Terminplan: Monat als Überschrift, Termine als Liste.
+        $this->assertMatchesRegularExpression(
+            '/<h2 class="event-plan__month-title"[^>]*>' . preg_quote($formatter->monthLabel($startsAt), '/') . '<\/h2>/',
+            $body
+        );
+        $this->assertStringContainsString('<ol class="event-plan__list registration-plan">', $body);
+        $this->assertStringContainsString(
+            '<span class="event-plan__weekday">' . $formatter->weekday($startsAt) . '</span>',
+            $body
+        );
+        $this->assertStringContainsString($startsAt->format('H:i') . '–' . $fixture['event']->ends_at->format('H:i') . ' Uhr', $body);
+        $this->assertMatchesRegularExpression('/<span class="badge text-bg-[a-z]+">Probe<\/span>/', $body);
+    }
+
+    public function testIndexMarksUnansweredEventsAndCountsThemInTheSummary(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $_SESSION['user_id'] = (int) $fixture['open']->id;
+
+        $body = $this->renderIndex();
+
+        $this->assertMatchesRegularExpression(
+            '/data-event-id="' . $fixture['event']->id . '"[^>]*data-unanswered="1"/',
+            $body
+        );
+        $this->assertStringContainsString('Antwort fehlt', $body);
+        $text = (string) preg_replace('/\s+/', ' ', strip_tags($body));
+        $this->assertMatchesRegularExpression('/\d+ Termine? warte(t|n) auf deine Antwort/', $text);
+        $this->assertStringContainsString('Noch keine Antwort', $body);
+    }
+
+    public function testIndexThanksTheMemberWhenEverythingIsAnswered(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $_SESSION['user_id'] = (int) $fixture['yes']->id;
+
+        // Nur der Fixture-Termin zählt; fremde Termine aus dem Bestand könnten offen sein.
+        Event::where('id', '!=', $fixture['event']->id)
+            ->where('registration_enabled', true)
+            ->update(['registration_enabled' => false]);
+
+        $body = $this->renderIndex();
+
+        $this->assertStringContainsString('Du hast auf alle Termine geantwortet', $body);
+        $this->assertStringNotContainsString('Antwort fehlt', $body);
+        $this->assertMatchesRegularExpression(
+            '/data-event-id="' . $fixture['event']->id . '"[^>]*data-unanswered="0"/',
+            $body
+        );
+    }
+
+    public function testIndexExposesTheOwnAnswerAsPressedStateNotOnlyAsColor(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $_SESSION['user_id'] = (int) $fixture['maybe']->id;
+
+        $body = $this->renderIndex();
+
+        $this->assertMatchesRegularExpression('/value="maybe"[^>]*aria-pressed="true"/s', $body);
+        $this->assertMatchesRegularExpression('/value="yes"[^>]*aria-pressed="false"/s', $body);
+        $this->assertMatchesRegularExpression('/value="no"[^>]*aria-pressed="false"/s', $body);
+        $this->assertStringContainsString(
+            'role="group" aria-label="Deine Antwort für ' . $fixture['event']->title . '"',
+            $body
+        );
+        $this->assertStringContainsString('Deine Antwort: Vielleicht', $body);
+        // Wer geantwortet hat, kann die Antwort wieder zurücknehmen.
+        $this->assertMatchesRegularExpression('/name="status"[^>]*value="open"/s', $body);
+    }
+
+    public function testIndexKeepsTheOwnAnswerVisibleAfterTheDeadline(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $fixture['event']->update(['registration_deadline' => Carbon::now()->subDay()]);
+        $_SESSION['user_id'] = (int) $fixture['yes']->id;
+
+        $body = $this->renderIndex();
+
+        $this->assertStringContainsString('Du hast zugesagt', $body);
+        $this->assertStringContainsString('Anmeldeschluss vorbei', $body);
+        $this->assertDoesNotMatchRegularExpression(
+            '/registration-self-form"[^>]*data-event-id="' . $fixture['event']->id . '"/',
+            $body
+        );
+    }
+
+    public function testDetailNamesTheEventInTheTitleAndTheMemberInEachProxyGroup(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $manager = $this->createUser('reg-manager', 'Verwalter');
+        $_SESSION['user_id'] = (int) $manager->id;
+        $_SESSION['can_manage_attendance_all'] = true;
+
+        $body = $this->renderDetail((int) $fixture['event']->id);
+
+        $this->assertMatchesRegularExpression(
+            '/<title>\s*' . preg_quote($fixture['event']->title, '/') . ' – Anmeldung/',
+            $body
+        );
+        $name = (new \App\Services\NameFormatterService())->formatPerson($fixture['yes']);
+        $this->assertStringContainsString('role="group" aria-label="Anmeldestatus von ' . $name . '"', $body);
+        $this->assertStringContainsString('Einträge für andere speichern', $body);
+    }
+
+    public function testDetailOwnFormRequiresAChoiceAndOffersWithdrawal(): void
+    {
+        $fixture = $this->createProjectBoundFixture();
+        $_SESSION['user_id'] = (int) $fixture['yes']->id;
+
+        $body = $this->renderDetail((int) $fixture['event']->id);
+
+        $this->assertMatchesRegularExpression('/id="status-yes"[^>]*required/s', $body);
+        $this->assertMatchesRegularExpression('/name="status"[^>]*value="open"[^>]*formnovalidate/s', $body);
+        $this->assertStringContainsString('Antwort zurücknehmen', $body);
+    }
+
     public function testDetailRendersProxyStatusAsSegmentedButtonsForManagers(): void
     {
         $fixture = $this->createProjectBoundFixture();
@@ -204,10 +330,10 @@ class RegistrationViewFeatureTest extends TestCase
         $this->assertStringContainsString('Testalt Anmeldung', $body);
         $this->assertStringContainsString('Ohne Stimmgruppe', $body);
 
-        $this->assertStringContainsString('1 Zusagen', $body);
-        $this->assertStringContainsString('1 Absagen', $body);
-        $this->assertStringContainsString('1 Vielleicht', $body);
-        $this->assertStringContainsString('1 Offen', $body);
+        $this->assertStringContainsString('<span data-count="yes">1</span> Zusagen', $body);
+        $this->assertStringContainsString('<span data-count="no">1</span> Absagen', $body);
+        $this->assertStringContainsString('<span data-count="maybe">1</span> Vielleicht', $body);
+        $this->assertStringContainsString('<span data-count="open">1</span> ohne Antwort', $body);
         $this->assertStringContainsString('Rücklauf: 3 von 4 (75 %)', $body);
 
         // The excluded (inactive / removed-from-project) users must not
@@ -379,10 +505,10 @@ class RegistrationViewFeatureTest extends TestCase
     private function extractIndexCounts(string $body, int $eventId): array
     {
         $pattern = '/href="\/registrations\/' . $eventId . '".*?'
-            . 'registration-badge-yes"><span data-count="yes">(\d+)<\/span> Zusagen<\/span>\s*'
-            . '<span class="badge registration-badge-no"><span data-count="no">(\d+)<\/span> Absagen<\/span>\s*'
-            . '<span class="badge registration-badge-maybe"><span data-count="maybe">(\d+)<\/span> Vielleicht<\/span>\s*'
-            . '<span class="badge registration-badge-open"><span data-count="open">(\d+)<\/span> Offen<\/span>/s';
+            . '<span data-count="yes">(\d+)<\/span> Zusagen.*?'
+            . '<span data-count="no">(\d+)<\/span> Absagen.*?'
+            . '<span data-count="maybe">(\d+)<\/span> Vielleicht.*?'
+            . '<span data-count="open">(\d+)<\/span> ohne Antwort/s';
 
         $this->assertMatchesRegularExpression($pattern, $body, 'registration card for event not found');
         preg_match($pattern, $body, $matches);
@@ -393,6 +519,35 @@ class RegistrationViewFeatureTest extends TestCase
             'maybe' => (int) $matches[3],
             'open' => (int) $matches[4],
         ];
+    }
+
+    private function renderIndex(): string
+    {
+        $controller = new RegistrationController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
+
+        return (string) $controller->index($this->makeRequest('GET', '/registrations'), $this->makeResponse())->getBody();
+    }
+
+    private function renderDetail(int $eventId): string
+    {
+        $controller = new RegistrationController(
+            $this->createTwig(),
+            new AttendanceScopeService(),
+            new NullLogger(),
+            new \App\Services\NameFormatterService()
+        );
+        $result = $controller->detail(
+            $this->makeRequest('GET', '/registrations/' . $eventId),
+            $this->makeResponse(),
+            ['event_id' => (string) $eventId]
+        );
+
+        return (string) $result->getBody();
     }
 
     private function createTwig(): Twig

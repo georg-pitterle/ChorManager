@@ -185,6 +185,104 @@ class RegistrationSaveFeatureTest extends TestCase
         $group->delete();
     }
 
+    public function testSelfWithdrawalDeletesTheOwnRegistration(): void
+    {
+        EventRegistration::create([
+            'event_id' => $this->event->id,
+            'user_id' => $this->user->id,
+            'status' => 'no',
+            'note' => 'Krank',
+            'updated_by' => $this->user->id,
+        ]);
+
+        $request = $this->makeRequest('POST', '/registrations/' . $this->event->id, [
+            'status' => 'open',
+        ]);
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame(0, EventRegistration::where('event_id', $this->event->id)
+            ->where('user_id', $this->user->id)->count());
+        $this->assertSame('Antwort zurückgenommen.', $_SESSION['success'] ?? null);
+    }
+
+    public function testAjaxWithdrawalReturnsNoOwnStatusAndCountsTheMemberAsOpenAgain(): void
+    {
+        EventRegistration::create([
+            'event_id' => $this->event->id,
+            'user_id' => $this->user->id,
+            'status' => 'yes',
+            'updated_by' => $this->user->id,
+        ]);
+        $before = EventRegistration::where('event_id', $this->event->id)->where('status', 'yes')->count();
+
+        $request = $this->makeRequest(
+            'POST',
+            '/registrations/' . $this->event->id,
+            ['status' => 'open'],
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json']
+        );
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = json_decode((string) $response->getBody(), true);
+        $this->assertTrue($payload['success']);
+        $this->assertNull($payload['own_status']);
+        $this->assertSame($before - 1, $payload['counts']['yes']);
+        $this->assertSame(0, EventRegistration::where('event_id', $this->event->id)
+            ->where('user_id', $this->user->id)->count());
+    }
+
+    public function testWithdrawalAfterTheDeadlineIsRejectedAndKeepsTheAnswer(): void
+    {
+        $this->createOwnRegistration('yes');
+        $this->event->update(['registration_deadline' => Carbon::now()->subHour()]);
+
+        $request = $this->makeRequest('POST', '/registrations/' . $this->event->id, [
+            'status' => 'open',
+        ]);
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(1, EventRegistration::where('event_id', $this->event->id)
+            ->where('user_id', $this->user->id)->count());
+    }
+
+    public function testWithdrawalOutsideTheAudienceIsRejectedAndKeepsTheAnswer(): void
+    {
+        $this->createOwnRegistration('yes');
+        $group = VoiceGroup::create(['name' => 'Rückzug-Fremd']);
+        (new \App\Services\EventAudienceService())->setAudience($this->event, [['voice_group' => [(int) $group->id]]]);
+
+        $request = $this->makeRequest('POST', '/registrations/' . $this->event->id, [
+            'status' => 'open',
+        ]);
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(1, EventRegistration::where('event_id', $this->event->id)
+            ->where('user_id', $this->user->id)->count());
+    }
+
+    private function createOwnRegistration(string $status): void
+    {
+        EventRegistration::create([
+            'event_id' => $this->event->id,
+            'user_id' => $this->user->id,
+            'status' => $status,
+            'updated_by' => $this->user->id,
+        ]);
+    }
+
     public function testInvalidStatusRejected(): void
     {
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id, [

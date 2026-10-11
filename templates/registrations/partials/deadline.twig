@@ -1,0 +1,8 @@
+{# Erwartet `event` und `schedule` (RegistrationController::scheduleLabels). #}
+{% if schedule.deadline_is_start %}
+    Anmeldung bis Terminbeginn
+{% else %}
+    {% set _deadline = event.registrationDeadlineAt() %}
+    Anmeldung bis {{ schedule.deadline_weekday }} {{ _deadline|date("d.m.") }}, {{ _deadline|date("H:i") }} Uhr
+    {%- if schedule.deadline_relative %} ({{ schedule.deadline_relative }}){% endif %}
+{% endif %}

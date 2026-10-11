@@ -2191,14 +2191,208 @@ a:hover {
     background-color: var(--bs-secondary);
 }
 
-.registration-proxy-select {
-    width: auto;
-    min-width: 8rem;
+/* Anmeldeliste: baut auf dem Terminplan (.event-plan__*) auf, mit der eigenen Antwort
+   als eigener Zeile unter Titel und Terminart. */
+.registration-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--app-radius-lg);
+    background: var(--surface-fill);
+    color: var(--theme-text);
 }
 
-.registration-proxy-note {
-    width: 14rem;
-    max-width: 100%;
+.registration-summary .bi {
+    color: var(--bs-success);
+    font-size: 1.15rem;
+}
+
+.registration-summary.is-pending {
+    border-color: var(--bs-warning-border-subtle);
+    background: var(--bs-warning-bg-subtle);
+}
+
+.registration-summary.is-pending .bi {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.registration-plan__heading {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.35;
+}
+
+.registration-plan__answer {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1.25rem;
+}
+
+.registration-plan__item.is-unanswered .event-plan__date .event-plan__day {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.registration-missing {
+    display: inline-block;
+    padding: 0.05rem 0.5rem;
+    border: 1px solid var(--bs-warning-border-subtle);
+    border-radius: 999px;
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.registration-answer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.85rem;
+}
+
+.registration-answer__group .btn {
+    min-height: 2.5rem;
+    font-weight: 500;
+}
+
+/* Bootstraps Gelb als Textfarbe erreicht auf Weiß nur rund 1,6:1 - die Outline-Variante
+   von "Vielleicht" nutzt deshalb den dunklen Warnton. */
+.registration-answer__group .btn-outline-warning,
+.attendance-status-group .btn-outline-warning {
+    --bs-btn-color: var(--bs-warning-text-emphasis);
+    --bs-btn-border-color: #e0a800;
+}
+
+.registration-answer__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.85rem;
+    font-size: 0.875rem;
+}
+
+.registration-answer__status {
+    color: var(--theme-text-muted);
+}
+
+.registration-answer__status.is-saved {
+    color: var(--bs-success-text-emphasis);
+}
+
+.registration-answer__status.is-error {
+    color: var(--bs-danger-text-emphasis);
+    font-weight: 600;
+}
+
+.registration-answer__reset {
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+    vertical-align: baseline;
+}
+
+.registration-answer__more {
+    color: var(--theme-text-muted);
+    text-underline-offset: 0.2em;
+}
+
+.registration-answer__more:hover,
+.registration-answer__more:focus-visible {
+    color: var(--bs-link-color);
+}
+
+.registration-final {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.registration-final--yes {
+    border-color: var(--bs-success-border-subtle);
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+}
+
+.registration-final--no {
+    border-color: var(--bs-danger-border-subtle);
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+}
+
+.registration-final--maybe {
+    border-color: var(--bs-warning-border-subtle);
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+}
+
+.registration-final--open {
+    background: var(--theme-surface-muted);
+    color: var(--theme-text-muted);
+}
+
+.registration-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
+    margin: 0;
+    color: var(--theme-text-muted);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.registration-counts [data-count] {
+    color: var(--theme-text);
+    font-weight: 600;
+}
+
+.registration-overview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+
+.registration-overview .registration-counts {
+    font-size: 0.9375rem;
+}
+
+@media (max-width: 767.98px) {
+    .registration-plan__answer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .registration-answer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .registration-answer__group {
+        width: 100%;
+    }
+
+    .registration-answer__group .btn {
+        flex: 1 1 0;
+        min-height: 2.75rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .registration-plan__answer {
+        grid-column: 1 / -1;
+    }
 }
 
 /* Hilfe / How-To-Anleitungen */

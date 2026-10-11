@@ -1,0 +1,16 @@
+{# Rücklauf des Chores als leise Textzeile: Er ist Kontext zur eigenen Antwort,
+   nicht ihre Konkurrenz - deshalb keine Signalfarben wie auf den Antwortknöpfen. #}
+<p class="registration-counts">
+    <span class="registration-counts__item registration-counts__item--yes">
+        <span data-count="yes">{{ yes }}</span> Zusagen
+    </span>
+    <span class="registration-counts__item registration-counts__item--no">
+        <span data-count="no">{{ no }}</span> Absagen
+    </span>
+    <span class="registration-counts__item registration-counts__item--maybe">
+        <span data-count="maybe">{{ maybe }}</span> Vielleicht
+    </span>
+    <span class="registration-counts__item registration-counts__item--open">
+        <span data-count="open">{{ open }}</span> ohne Antwort
+    </span>
+</p>

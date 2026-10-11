@@ -1,0 +1,12 @@
+{# Ein Antwortknopf der Liste. Der gewählte Zustand steht in aria-pressed und in der
+   Statuszeile darunter, nicht nur in der Füllfarbe. Erwartet `row`, `answer_labels`,
+   `status`, `color` und `icon`. #}
+{% set _active = row.own_status == status %}
+<button type="submit"
+        name="status"
+        value="{{ status }}"
+        data-status="{{ status }}"
+        aria-pressed="{{ _active ? "true" : "false" }}"
+        class="btn {{ _active ? "btn-" ~ color : "btn-outline-" ~ color }}">
+    <i class="bi bi-{{ icon }}" aria-hidden="true"></i> {{ answer_labels[status] }}
+</button>

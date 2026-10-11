@@ -1,7 +1,7 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Anmeldung - {{ app_settings.app_name|default("Chor-Manager") }}
+    {{ event.title }} – Anmeldung - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock %}
 
 {% block page_header %}
@@ -9,42 +9,46 @@
         <div>
             <h1 class="h2 mb-1">{{ event.title }}</h1>
             <p class="text-muted mb-0">
-                {{ event.starts_at|date("d.m.Y H:i") }}
-                {% if event.location %} &middot; {{ event.location }}{% endif %}
-                &middot; Anmeldeschluss: {{ event.registrationDeadlineAt()|date("d.m.Y H:i") }}
+                {{ schedule.weekday }} {{ event.starts_at|date("d.m.Y") }},
+                {{ event.starts_at|date("H:i") }}–{{ event.ends_at|date("H:i") }} Uhr
+                {% if event.location %} · {{ event.location }}{% endif %}
+                · <span class="badge text-bg-{{ schedule.type_color }}">{{ schedule.type_name }}</span>
             </p>
+            <p class="text-muted small mb-0">{{ include("registrations/partials/deadline.twig") }}</p>
         </div>
         <div class="page-actions">
-            <a href="/registrations" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Zurück</a>
+            <a href="/registrations" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück
+            </a>
         </div>
     </section>
 {% endblock page_header %}
 
 {% block content %}
-    {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% set answer_labels = {yes: "Zusage", maybe: "Vielleicht", no: "Absage"} %}
+    {% set own_status = own_registration ? own_registration.status : null %}
+
+    {{ include("registrations/partials/flash.twig") }}
 
     <div class="card mb-3">
-        <div class="card-body">
-            <span class="badge registration-badge-yes">{{ counts.yes }} Zusagen</span>
-            <span class="badge registration-badge-no">{{ counts.no }} Absagen</span>
-            <span class="badge registration-badge-maybe">{{ counts.maybe }} Vielleicht</span>
-            <span class="badge registration-badge-open">{{ counts.open }} Offen</span>
-            <span class="ms-2 text-muted small">
+        <div class="card-body registration-overview">
+            {{ include("registrations/partials/counts.twig", {
+                yes: counts.yes, no: counts.no, maybe: counts.maybe, open: counts.open
+            }) }}
+            <span class="text-muted small">
                 Rücklauf: {{ answered }} von {{ total_eligible }} ({{ response_rate }} %)
             </span>
         </div>
     </div>
 
     {% if registration_open %}
-        <div class="card shadow-sm mb-4">
+        <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Meine Anmeldung</h5>
+                <h2 class="h5 mb-0">Meine Antwort</h2>
             </div>
             <div class="card-body">
                 <form method="post" action="/registrations/{{ event.id }}" class="registration-own-form">
-                    {% set own_status = own_registration ? own_registration.status : null %}
-                    <div class="btn-group w-100 mb-2 attendance-status-group"
+                    <div class="btn-group w-100 mb-3 attendance-status-group registration-answer__group"
                          role="group"
                          aria-label="Eigener Anmeldestatus">
                         <input type="radio"
@@ -52,9 +56,10 @@
                                name="status"
                                id="status-yes"
                                value="yes"
+                               required
                                {% if own_status == "yes" %}checked{% endif %}>
                         <label class="btn btn-outline-success" for="status-yes">
-                            <i class="bi bi-check-circle"></i> Zusage
+                            <i class="bi bi-check-circle" aria-hidden="true"></i> Zusage
                         </label>
                         <input type="radio"
                                class="btn-check"
@@ -63,7 +68,7 @@
                                value="maybe"
                                {% if own_status == "maybe" %}checked{% endif %}>
                         <label class="btn btn-outline-warning" for="status-maybe">
-                            <i class="bi bi-question-circle"></i> Vielleicht
+                            <i class="bi bi-question-circle" aria-hidden="true"></i> Vielleicht
                         </label>
                         <input type="radio"
                                class="btn-check"
@@ -72,11 +77,13 @@
                                value="no"
                                {% if own_status == "no" %}checked{% endif %}>
                         <label class="btn btn-outline-danger" for="status-no">
-                            <i class="bi bi-x-circle"></i> Absage
+                            <i class="bi bi-x-circle" aria-hidden="true"></i> Absage
                         </label>
                     </div>
-                    <div class="mb-2 registration-note-field">
-                        <label class="form-label" for="registration-note">Begründung (optional, v. a. bei Absage)</label>
+                    <div class="mb-3 registration-note-field">
+                        <label class="form-label" for="registration-note">
+                            Begründung <span class="text-muted">(optional, hilfreich bei einer Absage)</span>
+                        </label>
                         <input type="text"
                                class="form-control"
                                id="registration-note"
@@ -85,13 +92,29 @@
                                value="{{ own_registration ? own_registration.note : "" }}">
                     </div>
                     <div class="form-action-bar">
-                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <button type="submit" class="btn btn-primary">Antwort speichern</button>
+                        {% if own_registration %}
+                            <button type="submit"
+                                    name="status"
+                                    value="open"
+                                    class="btn btn-link registration-answer__reset"
+                                    formnovalidate>
+                                Antwort zurücknehmen
+                            </button>
+                        {% endif %}
                     </div>
                 </form>
             </div>
         </div>
     {% else %}
-        <div class="alert alert-info">Der Anmeldeschluss ist vorbei — Änderungen sind nicht mehr möglich.</div>
+        <div class="alert alert-info">
+            Der Anmeldeschluss ist vorbei – Änderungen sind nicht mehr möglich.
+            {% if own_status %}
+                Deine Antwort: <strong>{{ answer_labels[own_status] }}</strong>.
+            {% else %}
+                Du hast nicht geantwortet.
+            {% endif %}
+        </div>
     {% endif %}
 
     {% set proxy_mode = can_manage_others and registration_open %}
@@ -104,9 +127,9 @@
     <div class="row">
         {% for group_name, members in voice_groups %}
             <div class="col-md-6 mb-4">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="mb-0">{{ group_name }}</h5>
+                        <h2 class="h5 mb-0">{{ group_name }}</h2>
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for member in members %}
@@ -124,8 +147,11 @@
                                         {% elseif member.status == "maybe" %}
                                             <span class="badge registration-badge-maybe">Vielleicht</span>
                                         {% else %}
-                                            <span class="badge registration-badge-open">Offen</span>
+                                            <span class="badge registration-badge-open">Ohne Antwort</span>
                                         {% endif %}
+                                    {% endif %}
+                                    {% if is_self and _proxy_ok %}
+                                        <small class="text-muted fw-normal">(du – oben unter „Meine Antwort“)</small>
                                     {% endif %}
                                     {% if member.updated_by_name %}
                                         <small class="text-muted fw-normal">(eingetragen von {{ member.updated_by_name }})</small>
@@ -133,10 +159,11 @@
                                 </div>
 
                                 {% if proxy_editable %}
-                                    <div class="btn-group w-100 mb-2 attendance-status-group" role="group">
+                                    <div class="btn-group w-100 mb-2 attendance-status-group"
+                                         role="group" aria-label="Anmeldestatus von {{ member|person_name }}">
                                         {# "Offen" ist der Ausgangszustand und macht ihn wieder
-                                           herstellbar; ohne ihn liesse sich ein einmal gesetzter
-                                           Eintrag nie mehr zuruecknehmen. #}
+                                           herstellbar; ohne ihn ließe sich ein einmal gesetzter
+                                           Eintrag nie mehr zurücknehmen. #}
                                         <input type="radio"
                                                class="btn-check"
                                                name="registration[{{ member.user_id }}]"
@@ -144,7 +171,7 @@
                                                value="open"
                                                {% if member.status not in ["yes", "no", "maybe"] %}checked{% endif %}>
                                         <label class="btn btn-outline-secondary" for="reg_{{ member.user_id }}_open">
-                                            <i class="bi bi-dash-circle"></i> Offen
+                                            <i class="bi bi-dash-circle" aria-hidden="true"></i> Offen
                                         </label>
                                         <input type="radio"
                                                class="btn-check"
@@ -153,7 +180,7 @@
                                                value="yes"
                                                {% if member.status == "yes" %}checked{% endif %}>
                                         <label class="btn btn-outline-success" for="reg_{{ member.user_id }}_yes">
-                                            <i class="bi bi-check-circle"></i> Zusage
+                                            <i class="bi bi-check-circle" aria-hidden="true"></i> Zusage
                                         </label>
                                         <input type="radio"
                                                class="btn-check"
@@ -162,7 +189,7 @@
                                                value="maybe"
                                                {% if member.status == "maybe" %}checked{% endif %}>
                                         <label class="btn btn-outline-warning" for="reg_{{ member.user_id }}_maybe">
-                                            <i class="bi bi-question-circle"></i> Vielleicht
+                                            <i class="bi bi-question-circle" aria-hidden="true"></i> Vielleicht
                                         </label>
                                         <input type="radio"
                                                class="btn-check"
@@ -171,7 +198,7 @@
                                                value="no"
                                                {% if member.status == "no" %}checked{% endif %}>
                                         <label class="btn btn-outline-danger" for="reg_{{ member.user_id }}_no">
-                                            <i class="bi bi-x-circle"></i> Absage
+                                            <i class="bi bi-x-circle" aria-hidden="true"></i> Absage
                                         </label>
                                     </div>
                                     <input type="text"
@@ -195,7 +222,7 @@
     {% if proxy_mode %}
             <div class="form-action-bar">
                 <button type="submit" class="btn btn-primary">
-                    Vertretungseinträge speichern
+                    Einträge für andere speichern
                 </button>
             </div>
         </form>

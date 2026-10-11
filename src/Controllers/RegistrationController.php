@@ -9,6 +9,7 @@ use App\Models\EventRegistration;
 use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
+use App\Services\EventScheduleFormatter;
 use App\Services\NameFormatterService;
 use App\Util\RequestFormat;
 use App\Util\VoiceGroupOrder;
@@ -22,8 +23,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class RegistrationController
 {
-    /** Formularwert, mit dem ein Vertretungseintrag wieder auf "offen" gesetzt wird. */
-    private const PROXY_STATUS_OPEN = 'open';
+    /** Formularwert, mit dem eine Antwort - eigene oder vertretene - wieder auf "offen" gesetzt wird. */
+    private const STATUS_OPEN = 'open';
 
     public function __construct(
         private readonly Twig $view,
@@ -50,28 +51,40 @@ class RegistrationController
             ->orderBy('starts_at', 'asc')
             ->with([
                 'audienceFilters.conditions',
+                'eventType',
                 'registrations' => fn($q) => $q->where('user_id', $userId),
             ])
             ->get();
 
         $eligibleByEvent = $audienceService->eligibleUserIdsForEvents($events);
         $countsByEvent = $this->statusCountsForEvents($events, $eligibleByEvent);
+        $now = Carbon::now();
 
         $rows = [];
+        $unansweredCount = 0;
         foreach ($events as $event) {
             $own = $event->registrations->first();
             $statusCounts = $countsByEvent[(int) $event->id];
+            $isOpen = $event->isRegistrationOpen();
+            // "Antwort fehlt" zählt nur, solange sich noch antworten lässt.
+            $unanswered = $isOpen && $own === null;
+            if ($unanswered) {
+                $unansweredCount++;
+            }
 
-            $rows[] = [
+            $rows[] = (object) ([
                 'event' => $event,
+                // Für die Monatsgruppen des EventScheduleFormatter.
+                'starts_at' => $event->starts_at,
                 'own_status' => $own?->status,
-                'open' => $event->isRegistrationOpen(),
+                'open' => $isOpen,
+                'unanswered' => $unanswered,
                 'eligible_count' => $statusCounts['eligible_count'],
                 'yes_count' => $statusCounts['yes'],
                 'no_count' => $statusCounts['no'],
                 'maybe_count' => $statusCounts['maybe'],
                 'open_count' => $statusCounts['open'],
-            ];
+            ] + $this->scheduleLabels($event, $now));
         }
 
         $success = $_SESSION['success'] ?? null;
@@ -80,9 +93,46 @@ class RegistrationController
 
         return $this->view->render($response, 'registrations/index.twig', [
             'rows' => $rows,
+            'months' => (new EventScheduleFormatter())->groupByMonth($rows),
+            'unanswered_count' => $unansweredCount,
             'success' => $success,
             'error' => $error
         ]);
+    }
+
+    /**
+     * Beschriftung eines Termins wie im Terminplan: Wochentag, relative Angabe,
+     * Terminart und ein lesbarer Anmeldeschluss.
+     *
+     * @return array{
+     *     weekday: string,
+     *     relative_label: ?string,
+     *     type_name: string,
+     *     type_color: string,
+     *     is_highlighted: bool,
+     *     deadline_weekday: string,
+     *     deadline_relative: ?string,
+     *     deadline_is_start: bool
+     * }
+     */
+    private function scheduleLabels(Event $event, Carbon $now): array
+    {
+        $formatter = new EventScheduleFormatter();
+        $eventType = $event->eventType;
+        $deadline = $event->registrationDeadlineAt();
+
+        return [
+            'weekday' => $formatter->weekday($event->starts_at),
+            'relative_label' => $formatter->relativeLabel($event->starts_at, $now),
+            'type_name' => $eventType ? (string) $eventType->name : (string) $event->type,
+            'type_color' => $eventType ? (string) $eventType->color : 'info',
+            'is_highlighted' => $eventType !== null && (bool) $eventType->is_highlighted,
+            'deadline_weekday' => $formatter->weekday($deadline),
+            'deadline_relative' => $deadline->isFuture() ? $formatter->relativeLabel($deadline, $now) : null,
+            // Ohne eigenen Anmeldeschluss gilt der Terminbeginn; ein zweites, gleiches
+            // Datum hilft dann niemandem.
+            'deadline_is_start' => $event->registration_deadline === null,
+        ];
     }
 
     public function detail(Request $request, Response $response, array $args): Response
@@ -154,6 +204,7 @@ class RegistrationController
 
         return $this->view->render($response, 'registrations/detail.twig', [
             'event' => $event,
+            'schedule' => $this->scheduleLabels($event, Carbon::now()),
             'voice_groups' => $voiceGroups,
             'own_registration' => $ownRegistration,
             'counts' => $counts,
@@ -212,6 +263,10 @@ class RegistrationController
         $status = InputValidator::asString($data['status'] ?? null);
         $note = trim(InputValidator::asString($data['note'] ?? null));
 
+        if ($status === self::STATUS_OPEN) {
+            return $this->withdrawOwnRegistration($response, $event, $userId, $expectsJson);
+        }
+
         if (!in_array($status, EventRegistration::STATUSES, true)) {
             if ($expectsJson) {
                 return $this->jsonResponse($response, ['error' => 'Ungültiger Anmeldestatus.'], 422);
@@ -246,22 +301,71 @@ class RegistrationController
         }
 
         if ($expectsJson) {
-            $counts = $this->eligibleStatusCounts($event);
             return $this->jsonResponse($response, [
                 'success' => true,
                 'own_status' => $status,
-                'counts' => [
-                    'yes' => $counts['yes'],
-                    'no' => $counts['no'],
-                    'maybe' => $counts['maybe'],
-                    'open' => $counts['open'],
-                ],
+                'counts' => $this->countsPayload($event),
             ]);
         }
 
         return $response
             ->withHeader('Location', '/registrations/' . $event->id)
             ->withStatus(302);
+    }
+
+    /**
+     * Nimmt die eigene Antwort zurück: "offen" ist das Fehlen einer Zeile, wie bei den
+     * Vertretungseinträgen. Ohne diesen Weg bliebe eine einmal gegebene Antwort für
+     * immer stehen, auch wenn sich die Pläne wieder als ungewiss herausstellen.
+     */
+    private function withdrawOwnRegistration(Response $response, Event $event, int $userId, bool $expectsJson): Response
+    {
+        try {
+            EventRegistration::where('event_id', (int) $event->id)
+                ->where('user_id', $userId)
+                ->delete();
+            $_SESSION['success'] = 'Antwort zurückgenommen.';
+        } catch (\Exception $e) {
+            $this->logger->error('Withdrawing event registration failed.', [
+                'event' => 'registration.withdraw_failed',
+                'event_id' => (int) $event->id,
+                'user_id' => $userId,
+                'exception' => $e,
+            ]);
+
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => 'Die Antwort konnte nicht zurückgenommen werden.'], 500);
+            }
+            $_SESSION['error'] = 'Die Antwort konnte nicht zurückgenommen werden.';
+        }
+
+        if ($expectsJson) {
+            unset($_SESSION['success']);
+            return $this->jsonResponse($response, [
+                'success' => true,
+                'own_status' => null,
+                'counts' => $this->countsPayload($event),
+            ]);
+        }
+
+        return $response
+            ->withHeader('Location', '/registrations/' . $event->id)
+            ->withStatus(302);
+    }
+
+    /**
+     * @return array{yes: int, no: int, maybe: int, open: int}
+     */
+    private function countsPayload(Event $event): array
+    {
+        $counts = $this->eligibleStatusCounts($event);
+
+        return [
+            'yes' => $counts['yes'],
+            'no' => $counts['no'],
+            'maybe' => $counts['maybe'],
+            'open' => $counts['open'],
+        ];
     }
 
     /**
@@ -393,7 +497,7 @@ class RegistrationController
                 // Zeile abgebildet - die Statusspalte kennt nur yes/no/maybe. Ohne
                 // diesen Weg ließe sich ein einmal gesetzter Eintrag nie mehr
                 // zurücknehmen. Die Notiz gehört zum Eintrag und fällt mit ihm weg.
-                if ($status === self::PROXY_STATUS_OPEN) {
+                if ($status === self::STATUS_OPEN) {
                     $userIdsToClear[] = $targetUserId;
                     continue;
                 }
@@ -417,7 +521,7 @@ class RegistrationController
             }
 
             Capsule::commit();
-            $_SESSION['success'] = 'Vertretungseinträge gespeichert.';
+            $_SESSION['success'] = 'Einträge für andere gespeichert.';
         } catch (\Exception $e) {
             Capsule::rollBack();
             $this->logger->error('Saving proxy registrations failed.', [
