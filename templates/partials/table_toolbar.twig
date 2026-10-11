@@ -10,7 +10,13 @@
                 data-table-filter-toggle
                 aria-expanded="false"
                 hidden>Filter</button>
-        <div class="d-flex gap-2 align-items-center" data-table-plugin-slot></div>
+        {# Seitenfilter, die der Server auswertet, stehen mit im Werkzeugkasten statt
+           in einer eigenen Karte darüber - eine Leiste für alles, was die Liste eingrenzt. #}
+        <div class="d-flex gap-2 align-items-center" data-table-plugin-slot>
+            {%- if toolbar_filter_template is defined -%}
+                {{ include(toolbar_filter_template) }}
+            {%- endif -%}
+        </div>
         <div class="dropdown">
             <button type="button"
                     class="btn btn-sm btn-outline-secondary dropdown-toggle"

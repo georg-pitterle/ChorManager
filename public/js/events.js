@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        recurrenceOptions.style.display = repeatCheckbox.checked ? 'block' : 'none';
+        recurrenceOptions.hidden = !repeatCheckbox.checked;
         const seriesEndDate = document.getElementById('series_end_date');
         if (seriesEndDate) {
             if (repeatCheckbox.checked) {
@@ -25,7 +25,29 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        weekdaySelector.style.display = (frequencySelect.value === 'weekly') ? 'block' : 'none';
+        weekdaySelector.hidden = frequencySelect.value !== 'weekly';
+    }
+
+    // Der Anmeldeschluss hat nur eine Bedeutung, wenn die Anmeldung offen ist.
+    const registrationCheckbox = document.getElementById('registration-enabled');
+    const registrationDeadlineField = document.getElementById('registration_deadline_field');
+    if (registrationCheckbox && registrationDeadlineField) {
+        registrationCheckbox.addEventListener('change', function () {
+            registrationDeadlineField.hidden = !registrationCheckbox.checked;
+        });
+    }
+
+    // Der Speichern-Knopf sagt, ob dabei Mails an die Zielgruppe rausgehen.
+    const notifyCheckbox = document.getElementById('notify-members-create');
+    const addEventSubmit = document.getElementById('addEventSubmit');
+    if (notifyCheckbox && addEventSubmit) {
+        const syncSubmitLabel = function () {
+            addEventSubmit.textContent = notifyCheckbox.checked
+                ? addEventSubmit.dataset.notifyLabel
+                : addEventSubmit.dataset.submitLabel;
+        };
+        notifyCheckbox.addEventListener('change', syncSubmitLabel);
+        syncSubmitLabel();
     }
 
     if (repeatCheckbox) {

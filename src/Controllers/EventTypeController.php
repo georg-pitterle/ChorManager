@@ -78,10 +78,12 @@ class EventTypeController
         $data = (array)$request->getParsedBody();
         $name = trim(InputValidator::asString($data['name'] ?? null));
         $color = $this->normalizeColor($data['color'] ?? null);
+        $isHighlighted = !empty($data['is_highlighted']);
 
         $formData = [
             'name' => $name,
             'color' => $color,
+            'is_highlighted' => $isHighlighted,
         ];
 
         if (!$name) {
@@ -93,9 +95,10 @@ class EventTypeController
         try {
             EventType::create([
                 'name' => $name,
-                'color' => $color
+                'color' => $color,
+                'is_highlighted' => $isHighlighted,
             ]);
-            $_SESSION['success'] = 'Event-Typ erfolgreich angelegt.';
+            $_SESSION['success'] = 'Terminart erfolgreich angelegt.';
         } catch (\Exception $e) {
             $this->logger->error('Creating an event type failed.', [
                 'event' => 'event_type.create.failed',
@@ -114,10 +117,12 @@ class EventTypeController
         $data = (array)$request->getParsedBody();
         $name = trim(InputValidator::asString($data['name'] ?? null));
         $color = $this->normalizeColor($data['color'] ?? null);
+        $isHighlighted = !empty($data['is_highlighted']);
 
         $formData = [
             'name' => $name,
             'color' => $color,
+            'is_highlighted' => $isHighlighted,
         ];
 
         if (!$name) {
@@ -130,9 +135,10 @@ class EventTypeController
             $eventType = EventType::findOrFail($id);
             $eventType->update([
                 'name' => $name,
-                'color' => $color
+                'color' => $color,
+                'is_highlighted' => $isHighlighted,
             ]);
-            $_SESSION['success'] = 'Event-Typ erfolgreich aktualisiert.';
+            $_SESSION['success'] = 'Terminart erfolgreich aktualisiert.';
         } catch (\Exception $e) {
             $this->logger->error('Updating an event type failed.', [
                 'event' => 'event_type.update.failed',
@@ -153,7 +159,7 @@ class EventTypeController
         try {
             $eventType = EventType::findOrFail($id);
             $eventType->delete();
-            $_SESSION['success'] = 'Event-Typ erfolgreich gelöscht.';
+            $_SESSION['success'] = 'Terminart erfolgreich gelöscht.';
         } catch (ModelNotFoundException $e) {
             // Der häufigste Weg hierher: Die Seite lag offen, während jemand anderes
             // dieselbe Terminart entfernt hat. Das ist kein Fehler, den der Betrieb

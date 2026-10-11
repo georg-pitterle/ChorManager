@@ -2972,3 +2972,253 @@ a:hover {
         min-height: 2.75rem;
     }
 }
+
+/* ---------------------------------------------------------------------------
+   Terminseite: Filterleiste, Terminplan und hervorgehobene Terminarten.
+   Hervorgehoben wird über die Terminart (Einstellung "Termine dieser Art
+   hervorheben"), nicht über eine Vermutung, was wichtig sein könnte.
+   --------------------------------------------------------------------------- */
+.event-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.event-filters .form-select {
+    width: auto;
+    min-width: 10rem;
+}
+
+.event-filter-bar {
+    margin-bottom: 1rem;
+}
+
+.event-relative {
+    display: inline-block;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(var(--theme-primary-rgb), 0.16);
+    color: var(--theme-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.event-note-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid rgba(var(--theme-primary-rgb), 0.55);
+    border-radius: 999px;
+    background: rgba(var(--theme-primary-rgb), 0.14);
+    color: var(--theme-text);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.event-note-badge .bi {
+    color: var(--theme-primary-strong);
+}
+
+.event-note-badge:hover,
+.event-note-badge:focus-visible {
+    border-color: var(--theme-primary-strong);
+    background: rgba(var(--theme-primary-rgb), 0.24);
+    color: var(--theme-text);
+}
+
+.event-title-link {
+    color: var(--theme-text);
+    text-decoration: underline;
+    text-decoration-color: var(--surface-border);
+    text-underline-offset: 0.2em;
+}
+
+.event-title-link:hover,
+.event-title-link:focus-visible {
+    color: var(--bs-link-color);
+    text-decoration-color: currentColor;
+}
+
+.event-table tr.is-highlighted > td:first-child {
+    box-shadow: inset 4px 0 0 var(--theme-primary);
+}
+
+.event-table tr.is-highlighted .event-title-link {
+    font-size: 1.05em;
+}
+
+/* Nur die Inhaltszellen verblassen: opacity auf der ganzen Zeile bildet einen eigenen
+   Stapelkontext, und das Aktionsmenü der Zeile wäre dann ebenfalls durchscheinend und
+   läge unter der nächsten Zeile. */
+.event-table tr.is-past > td:not(:last-child) {
+    opacity: 0.6;
+}
+
+.event-table td[data-label="Aktionen"] .btn {
+    white-space: nowrap;
+}
+
+.event-table tr.is-next > td {
+    background-color: rgba(var(--theme-primary-rgb), 0.07);
+}
+
+/* Der nächste Termin steht als Antwort auf die häufigste Frage ganz oben. */
+.event-next {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--surface-border);
+    border-left: 4px solid var(--theme-primary);
+    border-radius: var(--app-radius-lg);
+    background: var(--surface-fill);
+    color: var(--theme-text);
+    text-decoration: none;
+}
+
+.event-next:hover,
+.event-next:focus-visible {
+    border-color: var(--theme-primary);
+    color: var(--theme-text);
+}
+
+.event-next__eyebrow {
+    color: var(--theme-text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.event-next__title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.event-next__meta {
+    color: var(--theme-text-muted);
+}
+
+.event-plan__month + .event-plan__month {
+    margin-top: 1.75rem;
+}
+
+.event-plan__month-title {
+    margin-bottom: 0.5rem;
+    color: var(--theme-text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.event-plan__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--app-radius-lg);
+    background: var(--surface-fill);
+}
+
+.event-plan__item {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+}
+
+.event-plan__item + .event-plan__item {
+    border-top: 1px solid var(--surface-border);
+}
+
+.event-plan__date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+}
+
+.event-plan__weekday {
+    color: var(--theme-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.event-plan__day {
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.event-plan__title {
+    color: var(--theme-text);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.event-plan__title:hover,
+.event-plan__title:focus-visible {
+    color: var(--bs-link-color);
+    text-decoration: underline;
+}
+
+.event-plan__meta {
+    color: var(--theme-text-muted);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.event-plan__aside {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.event-plan__item.is-highlighted {
+    box-shadow: inset 4px 0 0 var(--theme-primary);
+    background: rgba(var(--theme-primary-rgb), 0.06);
+}
+
+.event-plan__item.is-highlighted .event-plan__title {
+    font-size: 1.1rem;
+}
+
+.event-plan__item.is-past {
+    opacity: 0.6;
+}
+
+.event-empty {
+    padding: 2rem 1rem;
+    border: 1px dashed var(--surface-border);
+    border-radius: var(--app-radius-lg);
+    background: var(--surface-fill);
+    text-align: center;
+}
+
+@media (max-width: 575.98px) {
+    .event-filters .form-select {
+        flex: 1 1 100%;
+    }
+
+    .event-plan__item {
+        grid-template-columns: 2.5rem minmax(0, 1fr);
+    }
+
+    .event-plan__aside {
+        grid-column: 2;
+        justify-content: flex-start;
+    }
+}

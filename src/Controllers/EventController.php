@@ -25,6 +25,7 @@ use App\Services\CalendarSubscriptionService;
 use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
 use App\Services\EventRecurrenceService;
+use App\Services\EventScheduleFormatter;
 use App\Services\NotificationService;
 use App\Services\Notifications\InAppMessage;
 use App\Services\Notifications\InAppNotificationStore;
@@ -36,6 +37,7 @@ use App\Util\NotificationType;
 use App\Util\InputValidator;
 use App\Util\WallClockOffset;
 use App\Util\SafeRedirect;
+use App\Util\SessionConfig;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Psr\Log\LoggerInterface;
 
@@ -65,6 +67,11 @@ class EventController
      * noch die Anwesenheiten.
      */
     private const RECENT_EVENT_DAYS = 14;
+
+    /** Merkt die zuletzt gewählte Ansicht der Terminseite (Liste, Plan, Kalender) pro Gerät. */
+    private const VIEW_COOKIE = 'events_view';
+
+    private const VIEW_COOKIE_MAX_AGE = 365 * 86400;
 
     private const SERIES_FIELD_GROUPS = ['title', 'location', 'time', 'registration', 'attendance', 'audience'];
 
@@ -360,6 +367,35 @@ class EventController
         );
     }
 
+    /**
+     * Mitglieder lesen die Seite als Terminplan; die Tabelle mit Suche,
+     * Sortierung und Verwaltungsaktionen gibt es nur für die, die Termine
+     * verwalten - und für sie ist sie auch der Einstieg.
+     */
+    private function resolveViewMode(string $requested, bool $canUseTable): string
+    {
+        $allowed = $canUseTable ? ['list', 'plan', 'calendar'] : ['plan', 'calendar'];
+        if (in_array($requested, $allowed, true)) {
+            return $requested;
+        }
+
+        return $canUseTable ? 'list' : 'plan';
+    }
+
+    /**
+     * Pro Gerät, nicht pro Person: Am Handy liegt der Plan nahe, am Rechner die Liste.
+     * Der Server braucht den Wert schon beim Rendern - im Browser gemerkt, sprang die
+     * Seite erst nach dem Laden in die richtige Ansicht.
+     */
+    private function viewCookieHeader(string $viewMode, Request $request): string
+    {
+        $header = self::VIEW_COOKIE . '=' . $viewMode
+            . '; Max-Age=' . self::VIEW_COOKIE_MAX_AGE
+            . '; Path=/events; HttpOnly; SameSite=Lax';
+
+        return SessionConfig::shouldUseSecureCookie($request->getServerParams()) ? $header . '; Secure' : $header;
+    }
+
     public function index(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
@@ -376,9 +412,13 @@ class EventController
             $direction = 'asc';
         }
         $showOldEvents = !empty($queryParams['show_old_events']) ? (int)$queryParams['show_old_events'] : 0;
-        $viewMode = in_array($queryParams['view'] ?? '', ['list', 'calendar'], true)
-            ? $queryParams['view']
-            : 'list';
+        // Eine Ansicht in der Adresse ist eine bewusste Wahl und wird für das Gerät gemerkt;
+        // ohne sie öffnet die Seite die zuletzt gewählte. Ein gemerkter Wert zählt nur,
+        // wenn die Person diese Ansicht überhaupt hat.
+        $requestedView = InputValidator::asString($queryParams['view'] ?? null);
+        $rememberedView = InputValidator::asString($request->getCookieParams()[self::VIEW_COOKIE] ?? null);
+        $viewMode = $this->resolveViewMode($requestedView !== '' ? $requestedView : $rememberedView, $seesAllEvents);
+        $rememberView = $requestedView === $viewMode;
 
         if ($projectId !== null && $projectId > 0 && !$seesAllEvents && !in_array($projectId, $accessibleProjectIds, true)) {
             return $this->denyEventAccess(
@@ -457,10 +497,28 @@ class EventController
             // For template compatibility
             $event->type_name = $eventType ? $eventType->name : $event->type;
             $event->type_color = $eventType ? $eventType->color : 'info';
+            $event->is_highlighted = $eventType !== null && (bool) $eventType->is_highlighted;
             $event->audience_label = $audienceDescriber->summarizeSets($event->audienceConditionSets());
 
             return $event;
         });
+
+        $now = Carbon::now();
+        $scheduleFormatter = new EventScheduleFormatter();
+        foreach ($events as $event) {
+            $event->weekday = $scheduleFormatter->weekday($event->starts_at);
+            $event->relative_label = $scheduleFormatter->relativeLabel($event->starts_at, $now);
+            $event->is_past = $event->ends_at < $now;
+        }
+        // Der nächste Termin richtet sich nach der Zeit, nicht nach der gewählten
+        // Sortierung der Tabelle.
+        $nextEvent = $events
+            ->filter(static fn ($event): bool => !$event->is_past)
+            ->sortBy(static fn ($event) => $event->starts_at->getTimestamp())
+            ->first();
+        $eventMonths = $scheduleFormatter->groupByMonth(
+            $events->sortBy(static fn ($event) => $event->starts_at->getTimestamp())->values()
+        );
 
         $this->hydrateVisibleComments($events, $userId);
 
@@ -505,6 +563,10 @@ class EventController
 
         $calendarSubscription = $this->calendarSubscriptionState($request, $userId);
 
+        if ($rememberView) {
+            $response = $response->withAddedHeader('Set-Cookie', $this->viewCookieHeader($viewMode, $request));
+        }
+
         return $this->view->render($response, 'events/index.twig', [
             'events' => $events,
             'projects' => $projects,
@@ -520,6 +582,10 @@ class EventController
             'error' => $error,
             'create_form' => $createState,
             'view_mode' => $viewMode,
+            'can_use_table' => $seesAllEvents,
+            'has_active_filter' => $projectId !== null || $eventTypeId !== null || $showOldEvents !== 0,
+            'next_event' => $nextEvent,
+            'event_months' => $eventMonths,
             'calendar_events' => $calendarEventsJson,
             'calendar_subscription' => $calendarSubscription,
             'audience_rows' => $createAudience['rows'],

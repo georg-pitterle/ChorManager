@@ -3,32 +3,42 @@
 {% import "macros/modal_form.twig" as modal %}
 
 {% block title %}
-    Events (Termine) - {{ app_settings.app_name|default("Chor-Manager") }}
+    Termine - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
+    {% set _filter_query = {
+        project_id: filters.project_id,
+        event_type_id: filters.event_type_id,
+        show_old_events: filters.show_old_events,
+    }|filter(value => value) %}
+    {% set _filter_suffix = _filter_query is empty ? "" : "&" ~ _filter_query|url_encode %}
+    {% set _views = can_use_table ? [{key: "list", label: "Liste", icon: "bi-table"}] : [] %}
+    {% set _views = _views|merge([
+        {key: "plan", label: "Plan", icon: "bi-list-ul"},
+        {key: "calendar", label: "Kalender", icon: "bi-calendar3"},
+    ]) %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">Events</h1>
-            <p class="text-muted mb-0">Plane Termine, filtere Ergebnisse und bearbeite Serien konsistent an einem Ort.</p>
+            <h1 class="h2 mb-0">Termine</h1>
         </div>
         <div class="page-actions">
             <div class="btn-group me-2" role="group" aria-label="Ansicht wählen">
-                <a href="/events?view=list&project_id={{ filters.project_id|default('') }}&event_type_id={{ filters.event_type_id|default('') }}&show_old_events={{ filters.show_old_events|default('') }}"
-                   class="btn {{ view_mode == 'list' ? 'btn-secondary' : 'btn-outline-secondary' }}">
-                    <i class="bi bi-list-ul"></i> Liste
-                </a>
-                <a href="/events?view=calendar&project_id={{ filters.project_id|default('') }}&event_type_id={{ filters.event_type_id|default('') }}&show_old_events={{ filters.show_old_events|default('') }}"
-                   class="btn {{ view_mode == 'calendar' ? 'btn-secondary' : 'btn-outline-secondary' }}">
-                    <i class="bi bi-calendar3"></i> Kalender
-                </a>
+                {% for _view in _views %}
+                    {% set _active = view_mode == _view.key %}
+                    <a href="/events?view={{ _view.key }}{{ _filter_suffix }}"
+                       class="btn {{ _active ? "btn-secondary" : "btn-outline-secondary" }}"
+                       {% if _active %}aria-current="page"{% endif %}>
+                        <i class="bi {{ _view.icon }}" aria-hidden="true"></i> {{ _view.label }}
+                    </a>
+                {% endfor %}
             </div>
             {% if calendar_subscription %}
                 <button type="button"
                         class="btn btn-outline-secondary me-2"
                         data-bs-toggle="modal"
                         data-bs-target="#calendarSubscriptionModal">
-                    <i class="bi bi-calendar2-week me-1"></i> Kalender abonnieren
+                    <i class="bi bi-calendar2-week me-1" aria-hidden="true"></i> Kalender abonnieren
                 </button>
             {% endif %}
             {% if session.can_manage_events %}
@@ -50,7 +60,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
     {% if error and not create_form.open_modal %}
@@ -59,221 +69,164 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
 
-    <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--actions"
-                 aria-labelledby="events-filter-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="events-filter-title">Filter</h2>
-                <p class="dashboard-section-lead mb-0">Projekt, Event-Typ und Anzeige vergangener Termine steuern.</p>
-            </div>
+    {% if calendar_subscription %}
+        {{ include("partials/calendar_subscription_modal.twig", {
+            calendar_subscription: calendar_subscription,
+            redirect_to: "/events",
+        }, with_context: false) }}
+    {% endif %}
 
-            <div class="surface-card card border-0 filter-surface">
-                <div class="card-body">
-                    <form method="get"
-                          action="/events"
-                          id="event-filter-form"
-                          class="row g-3 align-items-end">
-                        <input type="hidden" name="view" value="{{ view_mode }}">
-                        <div class="col-12 col-md-5 mb-2">
-                            <label for="filter_project" class="form-label">Projekt</label>
-                            <select name="project_id" id="filter_project" class="form-select">
-                                <option value="">Alle Projekte</option>
-                                {% for p in projects %}
-                                    <option value="{{ p.id }}"
-                                            {% if filters.project_id == p.id %}selected{% endif %}>
-                                        {{ p.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-5 mb-2">
-                            <label for="filter_type" class="form-label">Event-Typ</label>
-                            <select name="event_type_id" id="filter_type" class="form-select">
-                                <option value="">Alle Typen</option>
-                                {% for et in event_types %}
-                                    <option value="{{ et.id }}"
-                                            {% if filters.event_type_id == et.id %}selected{% endif %}>
-                                        {{ et.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-2 mb-2">
-                            <div class="form-check">
-                                <input type="checkbox"
-                                       class="form-check-input"
-                                       id="show_old_events"
-                                       name="show_old_events"
-                                       value="1"
-                                       {% if filters.show_old_events %}checked{% endif %}>
-                                <label class="form-check-label small" for="show_old_events">Vergangene Termine anzeigen (bis 1 Jahr)</label>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-2 d-flex align-items-end mb-2">
-                            <a href="/events" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-x-circle"></i> Filter zurücksetzen
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </section>
+    {% if view_mode != "list" %}
+        <div class="event-filter-bar">
+            {{ include("events/partials/filter_form.twig") }}
+        </div>
+    {% endif %}
 
-        {% if calendar_subscription %}
-            {{ include("partials/calendar_subscription_modal.twig", {
-                calendar_subscription: calendar_subscription,
-                redirect_to: "/events",
-            }, with_context: false) }}
-        {% endif %}
+    {% if view_mode == "plan" %}
+        {{ include("events/partials/plan.twig") }}
+    {% endif %}
 
-        {% if view_mode == 'list' %}
-            <section class="dashboard-section dashboard-section--context"
-                     aria-labelledby="events-list-title">
-                <div class="dashboard-section-head">
-                    <h2 class="dashboard-section-title" id="events-list-title">Event-Liste</h2>
-                    <p class="dashboard-section-lead mb-0">{{ events|length }} Einträge im aktuellen Ergebnis.</p>
-                </div>
-
-                <div class="surface-card card border-0 table-shell">
-                    <div class="card-body p-0"
-                         data-table-engine="true"
-                         data-table-id="events.index"
-                         data-default-view="auto"
-                         data-default-page-size="100"
-                         data-page-size-options="25,50,100,200"
-                         data-default-sort-key="starts_at"
-                         data-default-sort-dir="asc">
-                        {{ include('partials/table_toolbar.twig') }}
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0 table-responsive-cards"
-                                   id="eventsTable">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>
-                                        <th data-sort-key="title" data-sort-type="text">Titel</th>
-                                        <th data-sort-key="has_note" data-sort-type="text">Bemerkung</th>
-                                        <th data-sort-key="location" data-sort-type="text">Ort</th>
-                                        <th data-sort-key="type" data-sort-type="text">Typ</th>
-                                        <th data-sort-type="text">Zielgruppe</th>
-                                        <th class="text-end">Aktionen</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for event in events %}
-                                        {% set public_notes_count = event.comments|filter(note => not note.is_private)|length %}
-                                        {% set private_notes_count = event.comments|filter(note => note.is_private)|length %}
-                                        <tr data-sort-starts_at="{{ event.starts_at|date('Y-m-d') }}"
-                                            data-sort-title="{{ event.title|lower }}"
-                                            data-sort-has_note="{{ event.comments|length > 0 ? 'ja' : 'nein' }}"
-                                            data-sort-location="{{ event.location|default('')|lower }}"
-                                            data-sort-type="{{ event.type_name|lower }}">
-                                            <td data-label="Datum / Zeit">
-                                                {{ event.starts_at|date('d.m.Y') }}
-                                                <br>
-                                                <span class="text-muted small">{{ event.starts_at|date('H:i') }} - {{ event.ends_at|date('H:i') }}</span>
-                                                {% if event.series_id %}<i class="bi bi-repeat text-muted ms-1" title="Serientermin"></i>{% endif %}
-                                            </td>
-                                            <td data-label="Titel" data-card-title>{{ event.title }}</td>
-                                            <td data-label="Bemerkung"
-                                                data-has-note="{{ event.comments|length > 0 ? '1' : '0' }}">
-                                                {% if event.comments|length > 0 %}
-                                                    <span class="badge text-bg-success">Ja</span>
-                                                {% else %}
-                                                    <span class="badge text-bg-secondary">Nein</span>
-                                                {% endif %}
-                                            </td>
-                                            <td data-label="Ort">{{ event.location|default('-') }}</td>
-                                            <td data-label="Typ">
-                                                <span class="badge text-bg-{{ event.type_color }}">{{ event.type_name }}</span>
-                                            </td>
-                                            <td data-label="Zielgruppe">{{ event.audience_label|default('Alle') }}</td>
-                                            <td data-label="Aktionen" class="text-end">
-                                                <div class="btn-group">
-                                                    <a href="/events/{{ event.id }}"
+    {% if view_mode == "list" %}
+        <section aria-labelledby="events-list-title">
+            <h2 class="visually-hidden" id="events-list-title">Terminliste</h2>
+            <div class="surface-card card border-0 table-shell">
+                <div class="card-body p-0"
+                     data-table-engine="true"
+                     data-table-id="events.index"
+                     data-default-view="auto"
+                     data-default-page-size="100"
+                     data-page-size-options="25,50,100,200"
+                     data-default-sort-key="starts_at"
+                     data-default-sort-dir="asc">
+                    {{ include("partials/table_toolbar.twig", {toolbar_filter_template: "events/partials/filter_form.twig"}) }}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-responsive-cards event-table"
+                               id="eventsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th data-sort-key="starts_at" data-sort-type="date">Datum / Zeit</th>
+                                    <th data-sort-key="title" data-sort-type="text">Titel</th>
+                                    <th data-sort-key="location" data-sort-type="text">Ort</th>
+                                    <th data-sort-key="type" data-sort-type="text">Typ</th>
+                                    <th data-sort-type="text">Zielgruppe</th>
+                                    <th class="text-end">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set _can_attendance = session.can_manage_own_voice_group or session.can_manage_attendance_all %}
+                                {% for event in events %}
+                                    {% set _row_classes = [] %}
+                                    {% if event.is_highlighted %}{% set _row_classes = _row_classes|merge(["is-highlighted"]) %}{% endif %}
+                                    {% if event.is_past %}{% set _row_classes = _row_classes|merge(["is-past"]) %}{% endif %}
+                                    {% if next_event and next_event.id == event.id %}
+                                        {% set _row_classes = _row_classes|merge(["is-next"]) %}
+                                    {% endif %}
+                                    <tr class="{{ _row_classes|join(" ") }}"
+                                        data-sort-starts_at="{{ event.starts_at|date("Y-m-d H:i") }}"
+                                        data-sort-title="{{ event.title|lower }}"
+                                        data-sort-location="{{ event.location|default("")|lower }}"
+                                        data-sort-type="{{ event.type_name|lower }}">
+                                        <td data-label="Datum / Zeit">
+                                            <span>{{ event.weekday }} {{ event.starts_at|date("d.m.Y") }}</span>
+                                            {% if event.relative_label %}
+                                                <span class="event-relative">{{ event.relative_label }}</span>
+                                            {% endif %}
+                                            <br>
+                                            <span class="text-muted small">{{ event.starts_at|date("H:i") }}–{{ event.ends_at|date("H:i") }}</span>
+                                            {% if event.series_id %}
+                                                <i class="bi bi-repeat text-muted ms-1" title="Serientermin" aria-label="Serientermin"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Titel" data-card-title>
+                                            <a href="/events/{{ event.id }}" class="event-title-link">
+                                                {{ event.title }}
+                                            </a>
+                                            {{ include("events/partials/note_count.twig") }}
+                                        </td>
+                                        <td data-label="Ort">{{ event.location|default("-") }}</td>
+                                        <td data-label="Typ">
+                                            <span class="badge text-bg-{{ event.type_color }}">{{ event.type_name }}</span>
+                                        </td>
+                                        <td data-label="Zielgruppe">{{ event.audience_label|default("Alle") }}</td>
+                                        <td data-label="Aktionen" class="text-end">
+                                            <div class="d-inline-flex gap-1">
+                                                {% if _can_attendance and event.attendance_required %}
+                                                    <a href="/attendance/{{ event.id }}"
                                                        class="btn btn-sm btn-outline-secondary">
-                                                        <i class="bi bi-chat-left-text"></i>
-                                                        Bemerkungen ({{ public_notes_count }}/{{ private_notes_count }})
+                                                        <i class="bi bi-person-check" aria-hidden="true"></i> Anwesenheit
                                                     </a>
-                                                    {% set _can_attendance = session.can_manage_own_voice_group or session.can_manage_attendance_all %}
-                                                    {% if _can_attendance and event.attendance_required %}
-                                                        <a href="/attendance/{{ event.id }}"
-                                                           class="btn btn-sm btn-outline-secondary">
-                                                            <i class="bi bi-person-check"></i> Anwesenheit
-                                                        </a>
-                                                    {% endif %}
-                                                    {% if session.can_manage_events %}
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                                                data-bs-toggle="dropdown"
-                                                                aria-expanded="false"
-                                                                data-bs-boundary="viewport">
-                                                            <span class="visually-hidden">Toggle Dropdown</span>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                {% endif %}
+                                                <div class="dropdown">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-bs-toggle="dropdown"
+                                                            aria-expanded="false"
+                                                            data-bs-boundary="viewport"
+                                                            aria-label="Weitere Aktionen für {{ event.title }}">
+                                                        <i class="bi bi-three-dots" aria-hidden="true"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <a href="/events/{{ event.id }}/edit" class="dropdown-item">
+                                                                <i class="bi bi-pencil me-2" aria-hidden="true"></i> Termin bearbeiten
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <form action="/events/{{ event.id }}/delete"
+                                                                  method="post"
+                                                                  data-confirm="Diesen Termin wirklich löschen? Anwesenheiten und Anmeldungen dieses Termins werden mitgelöscht.">
+                                                                <button type="submit" class="dropdown-item text-danger">
+                                                                    <i class="bi bi-trash me-2" aria-hidden="true"></i> Termin löschen
+                                                                </button>
+                                                            </form>
+                                                        </li>
+                                                        {% if event.series_id %}
                                                             <li>
-                                                                <a href="/events/{{ event.id }}/edit" class="dropdown-item">
-                                                                    <i class="bi bi-pencil me-2"></i> Termin bearbeiten
-                                                                </a>
-                                                            </li>
-                                                            <li>
-                                                                <form action="/events/{{ event.id }}/delete"
+                                                                <form action="/events/{{ event.id }}/delete-series"
                                                                       method="post"
-                                                                      data-confirm="Diesen Termin wirklich löschen? Anwesenheiten und Anmeldungen dieses Termins werden mitgelöscht.">
+                                                                      data-confirm="Alle Termine der Serie ab diesem Termin wirklich löschen? Anwesenheiten und Anmeldungen dieser Termine werden mitgelöscht.">
                                                                     <button type="submit" class="dropdown-item text-danger">
-                                                                        <i class="bi bi-trash me-2"></i> Termin löschen
+                                                                        <i class="bi bi-repeat me-2" aria-hidden="true"></i> Serie löschen
                                                                     </button>
                                                                 </form>
                                                             </li>
-                                                            {% if event.series_id %}
-                                                                <li>
-                                                                    <form action="/events/{{ event.id }}/delete-series"
-                                                                          method="post"
-                                                                          data-confirm="Alle Termine der Serie ab diesem Termin wirklich löschen? Anwesenheiten und Anmeldungen dieser Termine werden mitgelöscht.">
-                                                                        <button type="submit" class="dropdown-item text-danger">
-                                                                            <i class="bi bi-repeat me-2"></i> Serie löschen
-                                                                        </button>
-                                                                    </form>
-                                                                </li>
-                                                            {% endif %}
-                                                        </ul>
-                                                    {% endif %}
+                                                        {% endif %}
+                                                    </ul>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="7" class="text-center text-muted py-4">Keine Termine geplant.</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            {{ include("events/partials/empty_state.twig") }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </section>
-        {% endif %}
+            </div>
+        </section>
+    {% endif %}
 
-        {% if view_mode == 'calendar' %}
-            <section class="dashboard-section dashboard-section--context"
-                     aria-labelledby="events-calendar-title">
-                <div class="dashboard-section-head">
-                    <h2 class="dashboard-section-title" id="events-calendar-title">Kalender</h2>
-                    <p class="dashboard-section-lead mb-0">Monats- und Wochenübersicht aller gefilterten Termine.</p>
+    {% if view_mode == "calendar" %}
+        <section aria-labelledby="events-calendar-title">
+            <h2 class="visually-hidden" id="events-calendar-title">Kalender</h2>
+            <div class="surface-card card border-0">
+                <div class="card-body">
+                    <div id="event-calendar"
+                         data-calendar-events="{{ calendar_events|e("html_attr") }}"
+                         {% if session.can_manage_events %}data-calendar-admin="1"{% endif %}></div>
                 </div>
-                <div class="surface-card card border-0">
-                    <div class="card-body">
-                        <div id="event-calendar"
-                             data-calendar-events="{{ calendar_events|e('html_attr') }}"
-                             {% if session.can_manage_events %}data-calendar-admin="1"{% endif %}></div>
-                    </div>
-                </div>
-            </section>
-        {% endif %}
-    </div>
+            </div>
+        </section>
+    {% endif %}
 
     {% if session.can_manage_events %}
         <!-- Add Event Modal -->
@@ -290,7 +243,7 @@
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body">
                         {{ modal.show_modal_error(error, create_form.error, 'event_create') }}
@@ -350,7 +303,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="location" class="form-label">Ort (Optional)</label>
+                            <label for="location" class="form-label">Ort (optional)</label>
                             <input type="text"
                                    class="form-control"
                                    id="location"
@@ -367,10 +320,11 @@
                             }) }}
                         </div>
 
-{% set _notify_default_checked = create_form.form.notify_members is not defined %}
+                        {% set _notify_default_checked = create_form.form.notify_members is not defined %}
+                        {% set _notify_checked = _notify_default_checked or create_form.form.notify_members %}
                         {# Das versteckte Feld sagt dem Server, dass dieses Formular
-                           die Frage ueberhaupt gestellt hat. Ohne es waere ein fehlendes
-                           Haekchen nicht von einem alten Formular zu unterscheiden, das
+                           die Frage überhaupt gestellt hat. Ohne es wäre ein fehlendes
+                           Häkchen nicht von einem alten Formular zu unterscheiden, das
                            die Frage gar nicht kennt - und dann entschiede der Zufall,
                            ob benachrichtigt wird. #}
                         <input type="hidden" name="notify_members_present" value="1">
@@ -380,7 +334,7 @@
                                    id="notify-members-create"
                                    name="notify_members"
                                    value="1"
-                                   {% if _notify_default_checked or create_form.form.notify_members %}checked{% endif %}>
+                                   {% if _notify_checked %}checked{% endif %}>
                             <label class="form-check-label" for="notify-members-create">Mitglieder benachrichtigen</label>
                             <div class="form-text">
                                 Schickt der Zielgruppe eine Mail. Bei einer reinen Korrektur besser abwählen.
@@ -407,7 +361,9 @@
                                        {% if create_form.form.registration_enabled %}checked{% endif %}>
                                 <label class="form-check-label" for="registration-enabled">Anmeldung freischalten</label>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3"
+                                 id="registration_deadline_field"
+                                 {% if not create_form.form.registration_enabled %}hidden{% endif %}>
                                 <label for="registration-deadline" class="form-label">
                                     Anmeldeschluss (optional, sonst Terminbeginn)
                                 </label>
@@ -432,7 +388,7 @@
                         </div>
 
                         <div id="recurrence_options"
-                             {% if not create_form.form.repeat %}style="display:none;"{% endif %}>
+                             {% if not create_form.form.repeat %}hidden{% endif %}>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label for="events-index-recurrence-interval" class="form-label">Wiederhole jeden</label>
@@ -468,7 +424,7 @@
 
                             <div id="weekday_selector"
                                  class="mb-3"
-                                 {% if create_form.form.frequency != 'weekly' %}style="display:none;"{% endif %}>
+                                 {% if create_form.form.frequency != 'weekly' %}hidden{% endif %}>
                                 <label class="form-label">am</label>
                                 <div class="d-flex flex-wrap gap-1">
                                     {% for day in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
@@ -497,7 +453,14 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        {# Wer speichert, soll sehen, dass dabei Mails rausgehen. #}
+                        <button type="submit"
+                                class="btn btn-primary"
+                                id="addEventSubmit"
+                                data-submit-label="Speichern"
+                                data-notify-label="Speichern und benachrichtigen">
+                            {{ _notify_checked ? "Speichern und benachrichtigen" : "Speichern" }}
+                        </button>
                     </div>
                 </form>
             </div>

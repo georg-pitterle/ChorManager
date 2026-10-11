@@ -1,0 +1,61 @@
+<div class="event-plan" data-event-plan>
+    {% if next_event %}
+        {% set _next_classes = next_event.is_highlighted ? "event-next is-highlighted" : "event-next" %}
+        <a href="/events/{{ next_event.id }}" class="{{ _next_classes }}" data-next-event>
+            <span class="event-next__eyebrow">
+                Als Nächstes{% if next_event.relative_label %} · {{ next_event.relative_label }}{% endif %}
+            </span>
+            <span class="event-next__title">{{ next_event.title }}</span>
+            <span class="event-next__meta">
+                {{ next_event.weekday }} {{ next_event.starts_at|date("d.m.") }},
+                {{ next_event.starts_at|date("H:i") }}–{{ next_event.ends_at|date("H:i") }} Uhr
+                {% if next_event.location %} · {{ next_event.location }}{% endif %}
+            </span>
+        </a>
+    {% endif %}
+
+    {% for month in event_months %}
+        <section class="event-plan__month" aria-labelledby="event-month-{{ month.key }}">
+            <h2 class="event-plan__month-title" id="event-month-{{ month.key }}">{{ month.label }}</h2>
+            <ol class="event-plan__list">
+                {% for event in month.events %}
+                    {% set _item_classes = ["event-plan__item"] %}
+                    {% if event.is_highlighted %}{% set _item_classes = _item_classes|merge(["is-highlighted"]) %}{% endif %}
+                    {% if event.is_past %}{% set _item_classes = _item_classes|merge(["is-past"]) %}{% endif %}
+                    {% set _is_next = next_event and next_event.id == event.id %}
+                    {% if _is_next %}{% set _item_classes = _item_classes|merge(["is-next"]) %}{% endif %}
+                    <li class="{{ _item_classes|join(" ") }}">
+                        <div class="event-plan__date" aria-hidden="true">
+                            <span class="event-plan__weekday">{{ event.weekday }}</span>
+                            <span class="event-plan__day">{{ event.starts_at|date("j") }}</span>
+                        </div>
+                        <div class="event-plan__body">
+                            <a href="/events/{{ event.id }}" class="event-plan__title">
+                                <span class="visually-hidden">{{ event.weekday }} {{ event.starts_at|date("d.m.") }}:</span>
+                                {{ event.title }}
+                            </a>
+                            {{ include("events/partials/note_count.twig") }}
+                            <div class="event-plan__meta">
+                                {{ event.starts_at|date("H:i") }}–{{ event.ends_at|date("H:i") }}
+                                {% if event.location %} · {{ event.location }}{% endif %}
+                                {% if event.series_id %}
+                                    <i class="bi bi-repeat ms-1" title="Serientermin" aria-label="Serientermin"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="event-plan__aside">
+                            {% if event.relative_label %}
+                                <span class="event-relative">{{ event.relative_label }}</span>
+                            {% endif %}
+                            <span class="badge text-bg-{{ event.type_color }}">{{ event.type_name }}</span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ol>
+        </section>
+    {% else %}
+        <div class="event-empty">
+            {{ include("events/partials/empty_state.twig") }}
+        </div>
+    {% endfor %}
+</div>

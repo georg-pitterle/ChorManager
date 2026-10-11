@@ -11,7 +11,11 @@ class EventType extends Model
 {
     public $timestamps = false;
     protected $table = 'event_types';
-    protected $fillable = ['name', 'color'];
+    protected $fillable = ['name', 'color', 'is_highlighted'];
+
+    protected $casts = [
+        'is_highlighted' => 'boolean',
+    ];
 
     public function events(): HasMany
     {

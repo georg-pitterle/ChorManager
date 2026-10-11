@@ -1,0 +1,9 @@
+{# Bemerkungen sind oft Ansagen an alle ("Noten mitbringen") - der Hinweis steht deshalb
+   mit Wort und Akzentfarbe neben dem Titel und führt direkt zu ihnen. #}
+{% set _note_count = event.comments|length %}
+{% if _note_count > 0 %}
+    <a href="/events/{{ event.id }}#notes" class="event-note-badge">
+        <i class="bi bi-chat-left-text-fill" aria-hidden="true"></i>
+        {{ _note_count }} {{ _note_count == 1 ? "Bemerkung" : "Bemerkungen" }}
+    </a>
+{% endif %}

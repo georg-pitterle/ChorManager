@@ -1,0 +1,9 @@
+{% if has_active_filter %}
+    <p class="mb-1 fw-semibold">Kein Termin passt zur Auswahl.</p>
+    <a href="/events?view={{ view_mode }}" class="small">Auswahl zurücksetzen</a>
+{% else %}
+    <p class="mb-1 fw-semibold">Keine Termine geplant.</p>
+    {% if session.can_manage_events %}
+        <p class="small text-muted mb-0">Neue Termine legst du über „Termin erstellen“ an.</p>
+    {% endif %}
+{% endif %}

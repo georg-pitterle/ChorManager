@@ -1,0 +1,29 @@
+<form method="get" action="/events" id="event-filter-form" class="event-filters">
+    <input type="hidden" name="view" value="{{ view_mode }}">
+    <label for="filter_project" class="visually-hidden">Projekt</label>
+    <select name="project_id" id="filter_project" class="form-select form-select-sm">
+        <option value="">Alle Projekte</option>
+        {% for p in projects %}
+            <option value="{{ p.id }}" {% if filters.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+    </select>
+    <label for="filter_type" class="visually-hidden">Termin-Typ</label>
+    <select name="event_type_id" id="filter_type" class="form-select form-select-sm">
+        <option value="">Alle Typen</option>
+        {% for et in event_types %}
+            <option value="{{ et.id }}" {% if filters.event_type_id == et.id %}selected{% endif %}>{{ et.name }}</option>
+        {% endfor %}
+    </select>
+    <div class="form-check mb-0 text-nowrap">
+        <input type="checkbox"
+               class="form-check-input"
+               id="show_old_events"
+               name="show_old_events"
+               value="1"
+               {% if filters.show_old_events %}checked{% endif %}>
+        <label class="form-check-label small" for="show_old_events">Vergangene (bis 1 Jahr)</label>
+    </div>
+    <noscript>
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Anwenden</button>
+    </noscript>
+</form>

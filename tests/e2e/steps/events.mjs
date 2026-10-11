@@ -4,11 +4,12 @@ import { expect } from '@playwright/test';
 //  - Termin anlegen: Modal #addEventModal, Formular POST /events mit den Feldern title,
 //    starts_at (Datum), start_time / end_time (Uhrzeit), event_type_id (Select mit den
 //    geseedeten Typen Probe/Auftritt/Sondertermin) und der Checkbox attendance_required
-//    (standardmäßig aktiv). Absenden über den Button "Speichern".
+//    (standardmäßig aktiv). Absenden über den Button "Speichern" bzw. "Speichern und
+//    benachrichtigen", solange die Benachrichtigung angehakt ist.
 //  - Ein neuer Termin startet mit einer Zielgruppen-Zeile "Alle Mitglieder". Optional lassen
 //    sich stattdessen Einzelpersonen wählen (event.audienceUsers, siehe pickAudienceUsers).
-//  - Die Termin-ID wird über die Auswahlliste auf /attendance ermittelt, nicht über die
-//    Terminliste: dort trägt der Link auf /events/{id} den Text "Bemerkungen (x/y)".
+//  - Die Termin-ID wird über die Auswahlliste auf /attendance ermittelt; das Formular dort
+//    führt direkt zur Anwesenheitsliste.
 //  - Anwesenheit: /attendance/{id}, je Person eine Radiogruppe name="attendance[{userId}]".
 //    Die Radios selbst sind visuell versteckt (.btn-check), geklickt wird das zugehörige Label.
 
@@ -64,8 +65,7 @@ async function pickAudienceUsers(modal, labels) {
  * Setzt den Anwesenheitsstatus für einzelne Personen und speichert die Liste.
  *
  * Der Termin wird über die Auswahlliste auf /attendance gefunden: Dort steht der Titel im
- * Optionstext. In der Terminliste selbst trägt der Link auf /events/{id} den Text
- * "Bemerkungen (x/y)" statt des Titels und taugt deshalb nicht zum Nachschlagen.
+ * Optionstext, und die Auswahl führt direkt zur Anwesenheitsliste.
  *
  * @param {string} eventTitle
  * @param {Array<{name: string, status: 'present'|'excused'|'unexcused'}>} entries

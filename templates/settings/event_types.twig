@@ -41,7 +41,14 @@
                         <div class="col">
                             <div class="card h-100 shadow-sm border-0">
                                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-{{ type.color }} fs-6">{{ type.name }}</span>
+                                    <span class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-{{ type.color }} fs-6">{{ type.name }}</span>
+                                        {% if type.is_highlighted %}
+                                            <span class="text-muted small" title="Termine dieser Art werden hervorgehoben">
+                                                <i class="bi bi-star-fill text-warning" aria-hidden="true"></i> Hervorgehoben
+                                            </span>
+                                        {% endif %}
+                                    </span>
                                     <div>
                                         <button class="btn btn-sm btn-outline-secondary"
                                                 data-bs-toggle="modal"
@@ -71,7 +78,7 @@
                                     <form method="post" action="/event-types/{{ type.id }}/update">
                                         <div class="modal-content border-0 shadow">
                                             <div class="modal-header">
-                                                <h5 class="modal-title">Event-Typ bearbeiten</h5>
+                                                <h5 class="modal-title">Termin-Typ bearbeiten</h5>
                                                 <button type="button"
                                                         class="btn-close"
                                                         data-bs-dismiss="modal"
@@ -123,6 +130,19 @@
                                                         </option>
                                                     </select>
                                                 </div>
+                                                <div class="form-check mb-3">
+                                                    {% set _edit_highlighted = edit_form.is_highlighted is defined ? edit_form.is_highlighted : type.is_highlighted %}
+                                                    <input type="checkbox"
+                                                           class="form-check-input"
+                                                           name="is_highlighted"
+                                                           value="1"
+                                                           id="settings-event-types-highlighted-{{ loop.index }}"
+                                                           {% if _edit_highlighted %}checked{% endif %}>
+                                                    <label class="form-check-label" for="settings-event-types-highlighted-{{ loop.index }}">
+                                                        Termine dieser Art hervorheben
+                                                    </label>
+                                                    <div class="form-text">Für Konzerte, Auftritte und andere Termine, die aus der Probenroutine herausstechen sollen.</div>
+                                                </div>
                                             </div>
                                             <div class="modal-footer pb-0 border-0">
                                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -142,14 +162,14 @@
                                     <form method="post" action="/event-types/{{ type.id }}/delete">
                                         <div class="modal-content border-0 shadow">
                                             <div class="modal-header">
-                                                <h5 class="modal-title">Event-Typ löschen</h5>
+                                                <h5 class="modal-title">Termin-Typ löschen</h5>
                                                 <button type="button"
                                                         class="btn-close"
                                                         data-bs-dismiss="modal"
                                                         aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
-                                                Möchtest du den Event-Typ <strong>{{ type.name }}</strong> wirklich löschen?
+                                                Möchtest du den Termin-Typ <strong>{{ type.name }}</strong> wirklich löschen?
                                                 <p class="text-danger mt-2 small">
                                                     <i class="bi bi-exclamation-triangle-fill"></i> Bestehende Events mit diesem Typ werden auf "null" gesetzt!
                                                 </p>
@@ -184,7 +204,7 @@
             <form method="post" action="/event-types">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header">
-                        <h5 class="modal-title">Neuen Event-Typ anlegen</h5>
+                        <h5 class="modal-title">Neuen Termin-Typ anlegen</h5>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
@@ -235,6 +255,16 @@
                                     Schwarz (Dark)
                                 </option>
                             </select>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   name="is_highlighted"
+                                   value="1"
+                                   id="settings-event-types-highlighted-v2"
+                                   {% if modal_form_create.form.is_highlighted|default(false) %}checked{% endif %}>
+                            <label class="form-check-label" for="settings-event-types-highlighted-v2">Termine dieser Art hervorheben</label>
+                            <div class="form-text">Für Konzerte, Auftritte und andere Termine, die aus der Probenroutine herausstechen sollen.</div>
                         </div>
                     </div>
                     <div class="modal-footer pb-0 border-0">

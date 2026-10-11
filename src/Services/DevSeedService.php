@@ -641,7 +641,8 @@ class DevSeedService
         $definitions = [
             ['name' => 'Probe', 'color' => 'info'],
             ['name' => 'Registerprobe', 'color' => 'secondary'],
-            ['name' => 'Auftritt', 'color' => 'danger'],
+            // Auftritte stechen aus der Probenroutine heraus und werden in der Terminliste hervorgehoben.
+            ['name' => 'Auftritt', 'color' => 'danger', 'is_highlighted' => true],
             ['name' => 'Sondertermin', 'color' => 'warning'],
             ['name' => 'Sitzung', 'color' => 'primary'],
         ];
@@ -651,6 +652,11 @@ class DevSeedService
             $type = EventType::firstOrCreate(['name' => $def['name']], $def);
             if ($type->wasRecentlyCreated) {
                 $this->report['counts']['event_types']++;
+            }
+            // Die Grundtypen legt schon die Erstmigration an, firstOrCreate übernimmt
+            // die Hervorhebung dann nicht.
+            if (!empty($def['is_highlighted']) && !$type->is_highlighted) {
+                $type->update(['is_highlighted' => true]);
             }
             $types[$type->name] = $type;
         }

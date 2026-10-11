@@ -664,8 +664,9 @@ class EventFeatureTest extends TestCase
         $creatorIndexBody = $this->renderEventsIndex(['show_old_events' => '1']);
         $creatorBody = $this->renderEventDetail($event->id);
 
-        $this->assertStringContainsString('data-label="Bemerkung"', $creatorIndexBody);
-        $this->assertStringContainsString('data-has-note="1"', $creatorIndexBody);
+        // Die Liste zählt nur, was die Person auch lesen darf: die öffentliche und
+        // die eigene private Bemerkung, nicht die fremde private.
+        $this->assertMatchesRegularExpression('/class="event-note-badge"[^>]*>(?:(?!<\/a>).)*2 Bemerkungen\s*</s', $creatorIndexBody);
         $this->assertStringNotContainsString('Öffentliche Bemerkung', $creatorIndexBody);
         $this->assertStringNotContainsString('Meine private Bemerkung', $creatorIndexBody);
         $this->assertStringNotContainsString('Fremde private Bemerkung', $creatorIndexBody);
@@ -796,14 +797,14 @@ class EventFeatureTest extends TestCase
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
 
-        $this->assertStringContainsString('dropdown-toggle-split', $body);
+        $this->assertStringContainsString('Weitere Aktionen für Editable Index Event', $body);
         $this->assertStringContainsString('Termin bearbeiten', $body);
     }
 
     public function testEventsIndexHidesEditControlForHighRoleLevelWithoutEventPermission(): void
     {
         // Same route-gate mismatch as above, exercised on the list view's
-        // split-button dropdown: role_level alone must never unlock it.
+        // actions dropdown: role_level alone must never unlock it.
         $this->createEvent('High Level Non Editor Index Event', '-1 days');
 
         $_SESSION['can_manage_users'] = false;
@@ -812,7 +813,7 @@ class EventFeatureTest extends TestCase
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
 
-        $this->assertStringNotContainsString('dropdown-toggle-split', $body);
+        $this->assertStringNotContainsString('Weitere Aktionen für', $body);
         $this->assertStringNotContainsString('Termin bearbeiten', $body);
     }
 
