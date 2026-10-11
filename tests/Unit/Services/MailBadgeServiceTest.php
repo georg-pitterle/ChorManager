@@ -17,6 +17,9 @@ class MailBadgeServiceTest extends TestCase
     private ?string $originalEnvValue = null;
     private bool $hadEnvValue = false;
 
+    /** @var list<resource> */
+    private array $openServerEnds = [];
+
     protected function setUp(): void
     {
         $this->hadEnvValue = array_key_exists(self::ENV_KEY, $_ENV);
@@ -30,6 +33,13 @@ class MailBadgeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->openServerEnds as $server) {
+            if (is_resource($server)) {
+                fclose($server);
+            }
+        }
+        $this->openServerEnds = [];
+
         if ($this->hadEnvValue) {
             $_ENV[self::ENV_KEY] = $this->originalEnvValue;
             $_SERVER[self::ENV_KEY] = $this->originalEnvValue;
@@ -174,6 +184,277 @@ class MailBadgeServiceTest extends TestCase
                 'Wert: ' . $value
             );
         }
+    }
+
+    /**
+     * Ein Host, den die Absicherung gegen Zugriffe ins interne Netz abweist.
+     *
+     * Ohne Grund im Protokoll sah das genauso aus wie ein falsches Passwort, obwohl
+     * hier gar keine Verbindung aufgebaut wurde.
+     */
+    public function testRefreshLogsWhyTheHostWasRejected(): void
+    {
+        $logger = $this->recordingLogger();
+        $service = new MailBadgeService(new MailCredentialCryptoService(), $logger, 1);
+
+        $account = $this->accountWithEncryption(new MailCredentialCryptoService(), 'ssl');
+        $account->imap_host = '127.0.0.1';
+
+        $this->assertFalse($service->refresh($account));
+
+        $record = $this->singleFailure($logger);
+        $this->assertSame('host_rejected', $record['reason']);
+        $this->assertStringContainsString('non-public address', (string) $record['detail']);
+        $this->assertSame('127.0.0.1', $record['imap_host']);
+    }
+
+    /**
+     * Ein Verbindungsfehler trägt die Meldung des Betriebssystems mit - nur sie
+     * unterscheidet "abgewiesen" von "nicht erreichbar".
+     */
+    public function testRefreshLogsTheSocketErrorWhenTheConnectionFails(): void
+    {
+        $logger = $this->recordingLogger();
+        $service = new MailBadgeService(new MailCredentialCryptoService(), $logger, 1);
+
+        $account = $this->accountWithEncryption(new MailCredentialCryptoService(), 'ssl');
+        $account->imap_host = '127.0.0.1';
+        // Port 1 ist auf dem Loopback zuverlässig geschlossen.
+        $account->imap_port = 1;
+
+        $this->withPrivateHostsAllowed(function () use ($service, $account): void {
+            $this->assertFalse($service->refresh($account));
+        });
+
+        $record = $this->singleFailure($logger);
+        $this->assertSame('connect_failed', $record['reason']);
+        $this->assertNotSame('', (string) $record['detail']);
+        $this->assertArrayHasKey('errno', $record);
+        $this->assertSame(1, $record['imap_port']);
+    }
+
+    /**
+     * Ein Server, der sofort mit BYE ablehnt - etwa bei zu vielen gleichzeitigen
+     * Verbindungen. Bisher ging der Dienst darüber hinweg und scheiterte erst beim
+     * LOGIN, mit einem Fehler, der in die falsche Richtung zeigte.
+     */
+    public function testRefreshLogsAGreetingThatRefusesTheConnection(): void
+    {
+        $record = $this->failureAgainstServer('ssl', ["* BYE Too many connections\r\n"]);
+
+        $this->assertSame('greeting_failed', $record['reason']);
+        $this->assertSame('* BYE Too many connections', $record['detail']);
+    }
+
+    public function testRefreshLogsAGreetingTimeout(): void
+    {
+        $record = $this->failureAgainstServer('ssl', []);
+
+        $this->assertSame('greeting_failed', $record['reason']);
+        $this->assertSame('timed_out', $record['detail']);
+    }
+
+    public function testRefreshLogsAConnectionClosedBeforeTheGreeting(): void
+    {
+        $record = $this->failureAgainstServer('ssl', [], true);
+
+        $this->assertSame('greeting_failed', $record['reason']);
+        $this->assertSame('connection_closed', $record['detail']);
+    }
+
+    public function testRefreshLogsARejectedStarttls(): void
+    {
+        $record = $this->failureAgainstServer('tls', [
+            "* OK IMAP ready\r\n",
+            "A0 NO STARTTLS not available\r\n",
+        ]);
+
+        $this->assertSame('starttls_failed', $record['reason']);
+        $this->assertSame('A0 NO STARTTLS not available', $record['detail']);
+    }
+
+    /**
+     * Die Antwort des Servers auf LOGIN nennt den Grund - und das Passwort darf
+     * dabei an keiner Stelle des Protokolleintrags auftauchen.
+     */
+    public function testRefreshLogsTheServerAnswerToARejectedLoginWithoutThePassword(): void
+    {
+        $record = $this->failureAgainstServer('ssl', [
+            "* OK IMAP ready\r\n",
+            "A1 NO [AUTHENTICATIONFAILED] Invalid credentials\r\n",
+        ]);
+
+        $this->assertSame('login_failed', $record['reason']);
+        $this->assertSame('A1 NO [AUTHENTICATIONFAILED] Invalid credentials', $record['detail']);
+        $this->assertStringNotContainsString('irrelevant-password', (string) json_encode($record));
+    }
+
+    public function testRefreshLogsTheServerAnswerToAFailedStatus(): void
+    {
+        $record = $this->failureAgainstServer('ssl', [
+            "* OK IMAP ready\r\n",
+            "A1 OK logged in\r\n",
+            "A2 NO Mailbox does not exist\r\n",
+        ]);
+
+        $this->assertSame('status_failed', $record['reason']);
+        $this->assertSame('A2 NO Mailbox does not exist', $record['detail']);
+    }
+
+    public function testRefreshLogsAStatusAnswerWithoutStatusLine(): void
+    {
+        $record = $this->failureAgainstServer('ssl', [
+            "* OK IMAP ready\r\n",
+            "A1 OK logged in\r\n",
+            "A2 OK done\r\n",
+        ]);
+
+        $this->assertSame('status_failed', $record['reason']);
+        $this->assertSame('status_line_missing', $record['detail']);
+    }
+
+    /**
+     * Eine Serverantwort landet nur gekürzt und ohne Steuerzeichen im Protokoll: Sie
+     * kommt von außen und darf weder die Zeile sprengen noch das Log fluten.
+     */
+    public function testRefreshShortensAndCleansTheServerAnswer(): void
+    {
+        $record = $this->failureAgainstServer('ssl', ["* BYE \x1b[31m" . str_repeat('x', 500) . "\r\n"]);
+
+        $this->assertSame('greeting_failed', $record['reason']);
+        $detail = (string) $record['detail'];
+        $this->assertStringStartsWith('* BYE [31mxxx', $detail);
+        $this->assertLessThanOrEqual(200, mb_strlen($detail));
+    }
+
+    /**
+     * Alles Unerwartete - hier ein Passwort, das sich nicht entschlüsseln lässt -
+     * kommt mit der Ausnahme selbst ins Protokoll, nicht nur mit "fehlgeschlagen".
+     */
+    public function testRefreshLogsAnUnexpectedExceptionWithTheException(): void
+    {
+        $logger = $this->recordingLogger();
+        $service = new MailBadgeService(
+            new MailCredentialCryptoService(),
+            $logger,
+            1,
+            $this->scriptedServer(["* OK IMAP ready\r\n"])
+        );
+
+        $account = $this->accountWithEncryption(new MailCredentialCryptoService(), 'ssl');
+        $account->imap_host = '1.1.1.1';
+        $account->imap_password_enc = 'kaputter-chiffretext';
+
+        $this->assertFalse($service->refresh($account));
+
+        $record = $this->singleFailure($logger);
+        $this->assertSame('unexpected_exception', $record['reason']);
+        $this->assertInstanceOf(\Throwable::class, $record['exception']);
+    }
+
+    /**
+     * @param list<string> $serverLines
+     * @return array<string, mixed>
+     */
+    private function failureAgainstServer(string $encryption, array $serverLines, bool $closeAfterwards = false): array
+    {
+        $logger = $this->recordingLogger();
+        $crypto = new MailCredentialCryptoService();
+        $service = new MailBadgeService(
+            $crypto,
+            $logger,
+            1,
+            $this->scriptedServer($serverLines, $closeAfterwards)
+        );
+
+        $account = $this->accountWithEncryption($crypto, $encryption);
+        // Eine öffentliche Adresse, damit die Prüfung des Hosts durchgeht; verbunden
+        // wird über den eingesetzten Verbinder, nicht übers Netz.
+        $account->imap_host = '1.1.1.1';
+
+        $this->assertFalse($service->refresh($account));
+        $this->assertSame(7, $account->mail_last_unseen_count);
+
+        return $this->singleFailure($logger);
+    }
+
+    /**
+     * Ein IMAP-Server aus der Konserve: Seine Antworten liegen schon im Puffer, bevor
+     * der Dienst die erste Zeile liest. Was der Dienst schreibt, bleibt ungelesen.
+     *
+     * @param list<string> $serverLines
+     */
+    private function scriptedServer(array $serverLines, bool $closeAfterwards = false): \Closure
+    {
+        return function () use ($serverLines, $closeAfterwards) {
+            $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertIsArray($pair);
+            [$client, $server] = $pair;
+
+            foreach ($serverLines as $line) {
+                fwrite($server, $line);
+            }
+
+            if ($closeAfterwards) {
+                fclose($server);
+            } else {
+                // Offen halten, solange der Test läuft - sonst läse der Dienst ein
+                // Verbindungsende statt einer Zeitüberschreitung.
+                $this->openServerEnds[] = $server;
+            }
+
+            return $client;
+        };
+    }
+
+    private function withPrivateHostsAllowed(\Closure $callback): void
+    {
+        $key = 'MAIL_ALLOW_PRIVATE_HOSTS';
+        $hadValue = array_key_exists($key, $_ENV);
+        $previous = $_ENV[$key] ?? null;
+        $_ENV[$key] = '1';
+
+        try {
+            $callback();
+        } finally {
+            if ($hadValue) {
+                $_ENV[$key] = $previous;
+            } else {
+                unset($_ENV[$key]);
+            }
+        }
+    }
+
+    private function recordingLogger(): NullLogger
+    {
+        return new class extends NullLogger {
+            /** @var array<int, array<string, mixed>> */
+            public array $records = [];
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->records[] = $context;
+            }
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function singleFailure(NullLogger $logger): array
+    {
+        /** @var array<int, array<string, mixed>> $records */
+        $records = $logger->records ?? [];
+        $failures = array_values(array_filter(
+            $records,
+            static fn (array $context): bool => ($context['event'] ?? null) === 'mail_badge.refresh.failed'
+        ));
+
+        $this->assertCount(1, $failures, 'Genau ein Protokolleintrag pro gescheitertem Abgleich.');
+        $this->assertArrayHasKey('reason', $failures[0], 'Ein Fehlschlag ohne Grund hilft niemandem.');
+        $this->assertSame(1, $failures[0]['user_id']);
+
+        return $failures[0];
     }
 
     private function accountWithEncryption(
