@@ -40,9 +40,15 @@ Versendete Newsletter lassen sich nicht mehr bearbeiten oder löschen – als Ak
 
 Unter **Kommunikation → Newsletter-Archiv** findest du alle Newsletter, die an dich versendet wurden. Dieser Menüpunkt ist für alle angemeldeten Personen sichtbar, sobald das Newsletter-Modul aktiviert ist – dafür brauchst du kein besonderes Recht.
 
-![Meine Newsletter](images/newsletter/11-my-newsletters.png)
+![Newsletter-Archiv nach Monaten gegliedert](images/newsletter/11-my-newsletters.png)
 
-Das Archiv ist an deine Person gebunden, nicht an deine aktuelle Projektmitgliedschaft: Ein Newsletter bleibt dir erhalten, auch wenn du das Projekt später verlässt. Über **Vorschau** liest du ihn jederzeit erneut, ohne die E-Mail suchen zu müssen.
+Die Newsletter stehen nach Monaten gegliedert, die neuesten zuerst. Jede Zeile nennt den Betreff, wann und von wem er gesendet wurde, und – falls zugeordnet – das Projekt; bei den letzten Tagen steht zusätzlich „heute“, „gestern“ oder „vor 3 Tagen“. Ab neun Newslettern erscheint oben ein Suchfeld, das Betreff, Projekt und Absender durchsucht.
+
+Ein Klick auf eine Zeile öffnet den Newsletter in einem Lesefenster: oben Betreff und Versanddatum, darunter die Mail selbst und ihre Anhänge. Mit **Neuer** und **Älter** – oder den Pfeiltasten – blätterst du zum nächsten Newsletter, ohne das Fenster zu schließen; „2 von 19“ zeigt, wo du gerade bist. Hast du gesucht, blätterst du nur durch die Treffer.
+
+![Lesefenster mit Blätterknöpfen](images/newsletter/12-archive-reader.png)
+
+Das Archiv ist an deine Person gebunden, nicht an deine aktuelle Projektmitgliedschaft: Ein Newsletter bleibt dir erhalten, auch wenn du das Projekt später verlässt, und du liest ihn jederzeit erneut, ohne die E-Mail suchen zu müssen.
 
 ## Anleitungen
 

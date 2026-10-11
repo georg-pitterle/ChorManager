@@ -219,6 +219,19 @@ async function main() {
         await page.locator('#newsletterArchiveList').waitFor({ state: 'visible' });
         await shotCapped(page, '11-my-newsletters');
 
+        // 12. Lesedialog des Archivs: der zweite Newsletter, damit "Neuer" und "Älter"
+        // beide bedienbar sind. Der Inhalt kommt per fetch und steckt in einem eigenen
+        // Mail-Rahmen - deshalb zusätzlich auf dessen body warten.
+        await clickAndWaitForEvent(
+            page,
+            page.locator('[data-newsletter-open]').nth(1),
+            '#newsletterReaderModal',
+            'shown.bs.modal'
+        );
+        await page.locator('#newsletterReaderModal .newsletter-preview-frame').waitFor({ state: 'visible' });
+        await page.frameLocator('#newsletterReaderModal .newsletter-preview-frame').locator('body').waitFor({ state: 'visible' });
+        await shotViewport(page, '12-archive-reader');
+
         console.log('Fertig: alle Newsletter-Screenshots erstellt.');
     } finally {
         await browser.close();

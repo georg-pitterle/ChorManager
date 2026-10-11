@@ -31,6 +31,17 @@ async function shot(page, name, { fullPage = true } = {}) {
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
 }
 
+// Lange Listen: Kopf, Werkzeugleiste und einige Zeilen genügen, der Rest wäre nur Höhe.
+async function shotCapped(page, name, maxHeight = 1400) {
+    const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+    const height = Math.min(fullHeight, maxHeight);
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    // clip wirkt ohne fullPage nur innerhalb des Sichtfensters; erst fullPage rendert die
+    // ganze Seite, die dann auf die gewünschte Höhe zugeschnitten wird.
+    await page.screenshot({ path: filePath, fullPage: true, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
+}
+
 async function login(page) {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
     await page.locator('#emailInput').fill(LOGIN_EMAIL);
@@ -78,7 +89,7 @@ async function main() {
         // 1. Terminliste
         await page.goto(`${BASE_URL}/events?view=list`, { waitUntil: 'networkidle' });
         await page.locator('#eventsTable').waitFor({ state: 'visible' });
-        await shot(page, '01-list');
+        await shotCapped(page, '01-list');
 
         // 2. Kalenderansicht
         await page.goto(`${BASE_URL}/events?view=calendar`, { waitUntil: 'networkidle' });
@@ -87,6 +98,11 @@ async function main() {
         await page.locator('#event-calendar .event-calendar-toolbar').waitFor({ state: 'visible' });
         await page.locator('#event-calendar [role="grid"]').waitFor({ state: 'visible' });
         await shot(page, '02-calendar');
+
+        // 2a. Terminplan: nächster Termin oben, darunter Monatsgruppen
+        await page.goto(`${BASE_URL}/events?view=plan`, { waitUntil: 'networkidle' });
+        await page.locator('[data-event-plan]').waitFor({ state: 'visible' });
+        await shotCapped(page, '14-plan');
 
         // 3. Modal: Neuen Termin anlegen (inkl. Wiederholung aufgeklappt)
         await page.goto(`${BASE_URL}/events?view=list`, { waitUntil: 'networkidle' });
@@ -109,15 +125,20 @@ async function main() {
         // 4. Termin bearbeiten (Serientermin, zeigt Serien-Checkbox)
         const seriesRow = page.locator('#eventsTable tbody tr').filter({ has: page.locator('i.bi-repeat') }).first();
         const editHref = await seriesRow.locator('a', { hasText: 'Termin bearbeiten' }).first();
-        await seriesRow.locator('button.dropdown-toggle').click();
+        await seriesRow.locator('button[data-bs-toggle="dropdown"]').click();
         await editHref.click();
         await page.waitForLoadState('networkidle');
         await page.locator('#update_series').waitFor({ state: 'visible' });
         await shot(page, '04-edit-event');
 
-        // 5. Termin-Detail mit Bemerkungen
+        // 5. Termin-Detail: bevorzugt ein Termin mit Bemerkungs-Abzeichen, sonst der erste.
+        // Der Seed hängt Bemerkungen nur an Termine, die älter als ein Jahr sind - die zeigt
+        // die Liste auch mit "Vergangene" nicht, dann bleibt es beim ersten Termin.
         await page.goto(`${BASE_URL}/events?view=list`, { waitUntil: 'networkidle' });
-        await page.locator('#eventsTable tbody tr').first().locator('a.btn-outline-secondary').first().click();
+        const rows = page.locator('#eventsTable tbody tr');
+        const rowsWithNotes = rows.filter({ has: page.locator('.event-note-badge') });
+        const detailRow = (await rowsWithNotes.count()) > 0 ? rowsWithNotes.first() : rows.first();
+        await detailRow.locator('a.event-title-link').click();
         await page.waitForLoadState('networkidle');
         await shot(page, '05-event-detail');
 
@@ -191,12 +212,17 @@ async function main() {
 
         // 9. Anmeldungen-Übersicht
         await page.goto(`${BASE_URL}/registrations`, { waitUntil: 'networkidle' });
-        await shot(page, '09-registrations-list');
+        await page.locator('[data-registration-card]').first().waitFor({ state: 'visible' });
+        await shotCapped(page, '09-registrations-list');
 
         // 10. Anmeldung-Detail (Vertretung/Proxy-Ansicht als Admin)
-        const detailLink = page.locator('.registration-card a.btn-outline-secondary', { hasText: 'Details' }).first();
-        await detailLink.click();
-        await page.waitForLoadState('networkidle');
+        // Ein noch offener Termin, damit die Detailseite das Antwortformular zeigt.
+        const registrationHref = await page.locator('[data-registration-card]')
+            .filter({ has: page.locator('form.registration-self-form') })
+            .first()
+            .locator('a.event-plan__title')
+            .getAttribute('href');
+        await page.goto(`${BASE_URL}${registrationHref}`, { waitUntil: 'networkidle' });
         await shot(page, '10-registration-detail');
 
         console.log('Fertig: alle Termine-Screenshots erstellt.');

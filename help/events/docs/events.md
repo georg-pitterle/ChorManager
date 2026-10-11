@@ -1,26 +1,50 @@
 # Termine
 
-Im Bereich **Termine** planst du alle Proben, Auftritte, Sitzungen und sonstigen Ereignisse deines Chors. Du siehst Termine als Liste oder im Kalender, kannst wiederkehrende Serien anlegen, die Zielgruppe eines Termins einschränken und einen persönlichen Kalenderlink zum Abonnieren erzeugen.
+Im Bereich **Termine** planst du alle Proben, Auftritte, Sitzungen und sonstigen Ereignisse deines Chors. Du siehst Termine als Terminplan, im Kalender oder – mit Verwaltungsrecht – als Tabelle, kannst wiederkehrende Serien anlegen, die Zielgruppe eines Termins einschränken und einen persönlichen Kalenderlink zum Abonnieren erzeugen.
 
-> **Berechtigung:** Termine ansehen kann jedes eingeloggte Mitglied. Termine anlegen, bearbeiten oder löschen sowie Termin-Typen verwalten darf nur, wer das Recht **"Termine verwalten"** hat. Siehst du die entsprechenden Buttons nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
+> **Berechtigung:** Termine ansehen kann jedes eingeloggte Mitglied. Termine anlegen, bearbeiten oder löschen, die Tabellenansicht **Liste** sowie Termin-Typen verwalten gibt es nur mit dem Recht **"Termine verwalten"**. Siehst du die entsprechenden Buttons nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
-## 1. Terminliste
+## 1. Ansichten
 
-Unter **Termine → Termine** siehst du standardmäßig die Liste aller Termine. Über die Filter oben kannst du nach Projekt und Termin-Typ einschränken und vergangene Termine ein- oder ausblenden.
+Unter **Termine → Termine** wählst du oben rechts die Ansicht:
 
-![Terminliste mit Filtern](images/events/01-list.png)
+- **Plan** – der Terminplan, gedacht zum Lesen. Ohne das Recht "Termine verwalten" startest du hier.
+- **Kalender** – Monats-, Wochen- oder Terminübersicht.
+- **Liste** – die Tabelle mit Suche, Sortierung und den Verwaltungsaktionen. Sie gibt es nur mit dem Recht "Termine verwalten", und für diese Personen ist sie auch der Einstieg.
 
-Jede Zeile zeigt Datum/Zeit, Titel, ob Bemerkungen vorhanden sind, Ort, Typ und Zielgruppe. Ein Wiederholungssymbol neben der Uhrzeit kennzeichnet Serientermine. Über den Button **Bemerkungen** gelangst du zur Detailseite, über **Anwesenheit** (falls für dich sichtbar) zur Anwesenheitsliste dieses Termins.
+Die zuletzt gewählte Ansicht merkt sich die Seite pro Gerät: Am Handy kann der Plan offen sein, am Rechner die Liste.
 
-## 2. Kalenderansicht
+In allen Ansichten schränkst du die Termine nach **Projekt** und **Typ** ein; mit **Vergangene (bis 1 Jahr)** blendest du zusätzlich die Termine des letzten Jahres ein. Ohne diesen Haken zeigt die Seite die kommenden Termine und die der letzten zwei Wochen. Zurück zu allen Terminen geht es über **Alle Projekte** und **Alle Typen**.
 
-Über den Umschalter **Liste / Kalender** oben rechts wechselst du zur Monats-, Wochen- oder Terminübersichtsansicht.
+Termine einer Terminart, die als hervorgehoben markiert ist (z. B. Auftritte, siehe [Termin-Typen](events-event-types)), tragen in Plan und Liste einen farbigen Balken am Rand und heben sich so von den regelmäßigen Proben ab.
+
+## 2. Terminplan
+
+Der Plan zeigt ganz oben den nächsten Termin mit einer relativen Angabe wie „morgen“ oder „in 3 Tagen“. Darunter folgen die Termine nach Monaten gegliedert, jeweils mit Wochentag, Uhrzeit, Ort und Terminart.
+
+![Terminplan mit dem nächsten Termin und Monatsgruppen](images/events/14-plan.png)
+
+Ein Klick auf einen Termintitel öffnet die Detailseite. Ein Wiederholungssymbol kennzeichnet Serientermine.
+
+## 3. Terminliste
+
+Die Liste zeigt dieselben Termine als Tabelle. Projekt, Typ und „Vergangene“ stehen dort in der Werkzeugleiste über der Tabelle, neben Suche, Sortierung und Seitengröße.
+
+![Terminliste mit Werkzeugleiste](images/events/01-list.png)
+
+Jede Zeile zeigt Datum mit Wochentag und Uhrzeit, Titel, Ort, Typ und Zielgruppe. Für die nächsten Tage steht unter dem Datum zusätzlich „in 2 Tagen“ o. ä.; vergangene Termine erscheinen blasser. Der Titel führt zur Detailseite, **Anwesenheit** (falls für dich sichtbar) zur Anwesenheitsliste dieses Termins, und das Menü **…** am Zeilenende enthält die Verwaltungsaktionen.
+
+Hat ein Termin Bemerkungen, steht neben dem Titel ein Hinweis wie **2 Bemerkungen** – in Plan und Liste. Ein Klick darauf springt direkt zu den Bemerkungen auf der Detailseite. Gezählt werden die öffentlichen Bemerkungen und deine eigenen privaten.
+
+## 4. Kalenderansicht
+
+Über **Kalender** oben rechts wechselst du zur Monats-, Wochen- oder Terminübersichtsansicht.
 
 ![Kalenderansicht der Termine](images/events/02-calendar.png)
 
 Ein Klick auf einen Termin im Kalender öffnet dessen Detailseite. Mit dem Recht "Termine verwalten" öffnet ein Klick auf einen freien Tag direkt das Formular für einen neuen Termin an diesem Datum.
 
-## 3. Termin anlegen
+## 5. Termin anlegen
 
 Über **Termin erstellen** öffnest du das Formular für einen neuen Termin: Titel, Datum, Start-/Endzeit, Typ und optional ein Ort sind Pflicht bzw. gängige Angaben.
 
@@ -32,12 +56,13 @@ Zusätzlich kannst du festlegen:
 
 > **Hinweis:** Die Auswahl der Zielgruppe hat sich geändert. Eine Zielgruppe besteht jetzt aus Zeilen mit den Feldern Rolle, Stimmgruppe, Untergruppe, Projekt und Mitglied: Mehrere Werte in einem Feld genügen einzeln, mehrere Felder müssen alle zutreffen (z. B. „Stimmgruppe Sopran“ **und** „Projekt Frühjahrskonzert“), mehrere Zeilen gelten nebeneinander. Für alle Mitglieder gilt ein Termin nur noch mit dem Häkchen „Alle Mitglieder“; ein neuer Termin startet damit. Diese Seite wird noch überarbeitet.
 - **Anwesenheitsliste führen**: Aktiviert die Anwesenheitserfassung für diesen Termin (siehe [Anwesenheit erfassen](events-attendance)).
-- **Anmeldung freischalten** (wenn das Anmeldungsmodul aktiv ist): Mitglieder können zu-/absagen (siehe [Anmeldungen](events-registrations)). Der Anmeldeschluss ist frei wählbar, sonst gilt der Terminbeginn.
+- **Mitglieder benachrichtigen**: Schickt der Zielgruppe eine Mail über den neuen Termin. Solange der Haken gesetzt ist, heißt der Knopf **Speichern und benachrichtigen**; bei einer reinen Korrektur nimmst du den Haken besser weg.
+- **Anmeldung freischalten** (wenn das Anmeldungsmodul aktiv ist): Mitglieder können zu-/absagen (siehe [Anmeldungen](events-registrations)). Erst mit diesem Haken erscheint das Feld für den Anmeldeschluss; bleibt es leer, gilt der Terminbeginn.
 - **Termin wiederholen**: Legt eine Serie an – Intervall (täglich/wöchentlich/monatlich/jährlich), bei wöchentlicher Wiederholung zusätzlich die Wochentage, sowie ein Enddatum der Serie.
 
-## 4. Termin bearbeiten und löschen
+## 6. Termin bearbeiten und löschen
 
-Mit dem Recht "Termine verwalten" öffnest du über das Dropdown-Menü am Zeilenende einer Terminzeile **Termin bearbeiten** oder **Termin löschen**.
+Mit dem Recht "Termine verwalten" öffnest du in der Liste über das Menü **…** am Zeilenende **Termin bearbeiten** oder **Termin löschen**. Auf der Detailseite gibt es dafür den Knopf **Termin bearbeiten**.
 
 ![Formular zum Bearbeiten eines Termins](images/events/04-edit-event.png)
 
@@ -47,19 +72,19 @@ Darunter wählst du unter **"Was wird übertragen?"** die Bereiche aus, die tats
 
 Der Anmeldeschluss wird bei Serien nie als fester Zeitpunkt übernommen, sondern als **Vorlauf** zum jeweiligen Terminbeginn: Trägst du beim bearbeiteten Termin zwei Tage vorher ein, gilt bei jedem Folgetermin ebenfalls "zwei Tage vorher". Das gilt genauso beim Anlegen einer Serie.
 
-Über **Serie löschen** im Dropdown-Menü der Liste entfernst du alle Termine der Serie ab dem gewählten Termin.
+Über **Serie löschen** im Menü **…** der Liste entfernst du alle Termine der Serie ab dem gewählten Termin.
 
-## 5. Termin-Detail und Bemerkungen
+## 7. Termin-Detail und Bemerkungen
 
-Ein Klick auf einen Termin öffnet die Detailseite mit Datum, Ort und den Bemerkungen zu diesem Termin.
+Ein Klick auf einen Termintitel – in Plan, Liste oder Kalender – öffnet die Detailseite mit Datum, Ort und den Bemerkungen zu diesem Termin.
 
 ![Termin-Detailseite mit Bemerkungen](images/events/05-event-detail.png)
 
 Jedes Mitglied kann Bemerkungen hinzufügen und dabei wählen, ob sie **öffentlich** (für alle mit Zugriff auf den Termin sichtbar) oder **privat** (nur für dich selbst) sind. Eigene private Bemerkungen kannst du jederzeit bearbeiten oder löschen; öffentliche Bemerkungen können nur Personen mit dem Recht "Termine verwalten" moderieren.
 
-## 6. Kalender abonnieren
+## 8. Kalender abonnieren
 
-Über den Button **Kalender abonnieren** (auf der Terminliste und auf der Detailseite) erhältst du einen persönlichen, dauerhaften Link im iCal-Format.
+Über den Button **Kalender abonnieren** (auf der Terminseite und auf der Detailseite) erhältst du einen persönlichen, dauerhaften Link im iCal-Format.
 
 ![Modal mit dem persönlichen Kalenderabo-Link](images/events/06-calendar-subscription-modal.png)
 
@@ -79,9 +104,9 @@ Dazu wählst du die Darstellung: als **ganztägiger Termin** am Fälligkeitstag 
 
 Aufgenommen werden nur Aufgaben, die dir zugewiesen sind, ein Fälligkeitsdatum tragen und noch nicht abgeschlossen sind. Beide Links nutzen denselben Zugang: Erzeugst du eine neue Adresse, gilt die alte für Termine **und** Aufgaben nicht mehr.
 
-## 7. Termin-Typen
+## 9. Termin-Typen
 
-Jeder Termin trägt einen Typ – Probe, Auftritt, Sitzung –, und dieser Typ bestimmt die Farbe in Liste und Kalender sowie den Filter darüber. Gepflegt werden die Typen unter **Administration → Termin-Typen**; der Menüpunkt braucht dasselbe Recht wie das Anlegen von Terminen.
+Jeder Termin trägt einen Typ – Probe, Auftritt, Sitzung –, und dieser Typ bestimmt die Farbe in Plan, Liste und Kalender, den Filter darüber und ob seine Termine hervorgehoben werden. Gepflegt werden die Typen unter **Administration → Termin-Typen**; der Menüpunkt braucht dasselbe Recht wie das Anlegen von Terminen.
 
 ![Übersicht der Termin-Typen mit Farbcodierung](images/events/07-event-types.png)
 

@@ -243,7 +243,9 @@ async function shotCapped(page, name, maxHeight = 1400) {
     const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
     const height = Math.min(fullHeight, maxHeight);
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
-    await page.screenshot({ path: filePath, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    // clip wirkt ohne fullPage nur innerhalb des Sichtfensters (das Bild bliebe 900px hoch);
+    // erst fullPage rendert die ganze Seite, die dann zugeschnitten wird.
+    await page.screenshot({ path: filePath, fullPage: true, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 ```
