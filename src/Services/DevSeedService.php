@@ -1440,41 +1440,95 @@ class DevSeedService
             return;
         }
 
-        $eventIds = Event::query()->orderBy('id')->pluck('id')->all();
-        if ($eventIds === []) {
+        // Rohwerte statt Model-Casts: noteEventIds() vergleicht Zeichenketten im Format Y-m-d H:i:s.
+        $startsById = Event::query()->toBase()->pluck('starts_at', 'id')->all();
+        if ($startsById === []) {
             return;
         }
 
-        $definitions = [
+        $selection = self::noteEventIds($startsById, new DateTimeImmutable(), 36);
+
+        $historyDefinitions = [
             ['comment' => 'Bitte 15 Minuten vor Beginn da sein.', 'is_private' => false],
             ['comment' => 'Raumschlüssel liegt beim Portier bereit.', 'is_private' => false],
             ['comment' => 'Eigene Anfahrt mit dem Vorstand abstimmen.', 'is_private' => true],
             ['comment' => 'Nach dem Termin kurzes Nachgespräch mit der Chorleitung.', 'is_private' => true],
         ];
-
-        $targetIds = array_slice($eventIds, 0, min(count($eventIds), 36));
-        foreach ($targetIds as $index => $eventId) {
+        foreach ($selection['history'] as $index => $eventId) {
             $noteCount = ($index % 3 === 0) ? 2 : 1;
             for ($slot = 0; $slot < $noteCount; $slot++) {
-                $definition = $definitions[($index + $slot) % count($definitions)];
-                $author = $activeUsers[($index + $slot) % count($activeUsers)];
-
-                $note = Comment::updateOrCreate(
-                    [
-                        'entity_type' => 'event',
-                        'entity_id' => $eventId,
-                        'user_id' => $author->id,
-                        'comment' => $definition['comment'],
-                    ],
-                    [
-                        'is_private' => $definition['is_private'],
-                    ]
-                );
-
-                if ($note->wasRecentlyCreated) {
-                    $this->report['counts']['event_notes']++;
-                }
+                $definition = $historyDefinitions[($index + $slot) % count($historyDefinitions)];
+                $this->seedEventNote($eventId, $activeUsers[($index + $slot) % count($activeUsers)], $definition);
             }
+        }
+
+        // Kommende Termine bekommen öffentliche Ansagen, damit jede Person das Abzeichen sieht.
+        $upcomingDefinitions = [
+            ['comment' => 'Bitte die Noten zum neuen Stück mitbringen.', 'is_private' => false],
+            ['comment' => 'Wir beginnen pünktlich mit dem Einsingen.', 'is_private' => false],
+            ['comment' => 'Kleidung: schwarz, Mappe einheitlich.', 'is_private' => false],
+        ];
+        foreach ($selection['upcoming'] as $index => $eventId) {
+            $noteCount = ($index % 2 === 0) ? 2 : 1;
+            for ($slot = 0; $slot < $noteCount; $slot++) {
+                $definition = $upcomingDefinitions[($index + $slot) % count($upcomingDefinitions)];
+                $this->seedEventNote($eventId, $activeUsers[($index + $slot) % count($activeUsers)], $definition);
+            }
+        }
+    }
+
+    /**
+     * Welche Termine im Seed Bemerkungen tragen: die ältesten nach ID (Historie) und jeder
+     * zweite der nächsten acht kommenden, beginnend mit dem nächsten. Ohne die kommenden
+     * zeigten Liste und Plan das Bemerkungs-Abzeichen nie.
+     *
+     * @param array<int, string> $startsById Beginn je Termin-ID im Format Y-m-d H:i:s
+     * @return array{history: list<int>, upcoming: list<int>}
+     */
+    public static function noteEventIds(array $startsById, DateTimeImmutable $now, int $historyLimit): array
+    {
+        $ids = array_map('intval', array_keys($startsById));
+        sort($ids);
+        $history = array_slice($ids, 0, $historyLimit);
+
+        $nowValue = $now->format('Y-m-d H:i:s');
+        $upcomingStarts = array_filter(
+            $startsById,
+            static fn (string $startsAt, int $id): bool => $startsAt > $nowValue && !in_array($id, $history, true),
+            ARRAY_FILTER_USE_BOTH
+        );
+        asort($upcomingStarts);
+        $nextIds = array_slice(array_keys($upcomingStarts), 0, 8);
+
+        $upcoming = [];
+        foreach ($nextIds as $position => $id) {
+            if ($position % 2 === 0) {
+                $upcoming[] = (int) $id;
+            }
+        }
+
+        return ['history' => $history, 'upcoming' => $upcoming];
+    }
+
+    /**
+     * @param array{comment: string, is_private: bool} $definition
+     */
+    private function seedEventNote(int $eventId, User $author, array $definition): void
+    {
+        $note = Comment::updateOrCreate(
+            [
+                'entity_type' => 'event',
+                'entity_id' => $eventId,
+                'user_id' => $author->id,
+                'comment' => $definition['comment'],
+            ],
+            [
+                'is_private' => $definition['is_private'],
+            ]
+        );
+
+        if ($note->wasRecentlyCreated) {
+            $this->report['counts']['event_notes']++;
         }
     }
 
