@@ -13,6 +13,7 @@ use App\Models\Sponsorship;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
+use App\Services\EntityCleanupService;
 use App\Services\Notifications\InAppNotificationStore;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -217,17 +218,24 @@ class SponsorController
         try {
             $sponsor = Sponsor::findOrFail($id);
 
-            // `attachments` ist polymorph und hat keinen Fremdschlüssel: was die
-            // Datenbank per Kaskade wegräumt (die Vereinbarungen), nimmt seine
-            // Anhänge nicht mit. Ohne diese beiden Zeilen blieben die Dateien als
-            // unerreichbare BLOB-Zeilen liegen - die Bestätigung verspricht
-            // aber, dass alle verknüpften Daten mitgehen.
+            // `attachments` und `user_notifications` sind polymorph und haben
+            // keinen Fremdschlüssel: was die Datenbank per Kaskade wegräumt (die
+            // Vereinbarungen), nimmt sie nicht mit. Ohne diese Zeilen blieben die
+            // Dateien als unerreichbare BLOB-Zeilen liegen und die Wiedervorlage
+            // aus NotificationReminderService stünde weiter in der Glocke, mit
+            // einem Link ins Nichts - die Bestätigung verspricht aber, dass alle
+            // verknüpften Daten mitgehen.
+            //
+            // Über den gemeinsamen Dienst und nicht über eigene Abfragen: Welche
+            // Tabellen so auf ihr Objekt zeigen, gehört an eine Stelle, sonst
+            // laufen die Kopien wieder auseinander.
+            $cleanup = new EntityCleanupService($this->attachments);
             $sponsorshipIds = Sponsorship::where('sponsor_id', $id)->pluck('id')->all();
-            $this->attachments->deleteAllForEntities(
+            $cleanup->purgeForEntities(
                 SponsorshipController::ENTITY_TYPE,
                 array_map('intval', $sponsorshipIds)
             );
-            $this->attachments->deleteAllForEntities(self::ENTITY_TYPE, [$id]);
+            $cleanup->purgeForEntity(self::ENTITY_TYPE, $id);
 
             $sponsor->delete();
             $_SESSION['success'] = 'Sponsor erfolgreich gelöscht.';

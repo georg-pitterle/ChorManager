@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Controllers\NewsletterController;
 use App\Controllers\SongLibraryController;
+use App\Controllers\SponsorController;
 use App\Controllers\TaskController;
 use App\Models\Activity;
 use App\Models\Attachment;
@@ -16,8 +17,11 @@ use App\Models\EventSeries;
 use App\Models\Newsletter;
 use App\Models\Project;
 use App\Models\Song;
+use App\Models\Sponsor;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserNotification;
+use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\EntityAttachmentService;
@@ -45,10 +49,11 @@ use Tests\Unit\Bootstrap;
 /**
  * Was beim Löschen einer Entität an Anhängseln mitgehen muss.
  *
- * `attachments`, `comments` und `activities` zeigen über entity_type/entity_id
- * auf ihr Objekt. Ein Fremdschlüssel geht dabei nicht, weil das Ziel je Zeile
- * in einer anderen Tabelle steht - die Datenbank kann also nichts mitnehmen,
- * und das Aufräumen bleibt am löschenden Codepfad hängen.
+ * `attachments`, `comments`, `activities` und `user_notifications` zeigen über
+ * entity_type/entity_id auf ihr Objekt. Ein Fremdschlüssel geht dabei nicht,
+ * weil das Ziel je Zeile in einer anderen Tabelle steht - die Datenbank kann
+ * also nichts mitnehmen, und das Aufräumen bleibt am löschenden Codepfad
+ * hängen.
  *
  * Genau das lief auseinander: Sponsor, Vereinbarung, Lied und Aufgabe räumten
  * ihre Anhänge ab, die Notizen einer Aufgabe und eines Termins sowie die
@@ -93,6 +98,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
             'can_manage_events' => true,
             'can_manage_newsletters' => true,
             'can_manage_song_library' => true,
+            'can_manage_sponsoring' => true,
         ];
     }
 
@@ -121,6 +127,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->attach('task', $taskId);
         $this->note('task', $taskId);
         $this->history('task', $taskId);
+        $this->bell('task', $taskId);
 
         $this->taskController()->delete(
             $this->makeRequest('POST', '/tasks/' . $taskId . '/delete'),
@@ -140,6 +147,12 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
             $this->countActivities('task', $taskId),
             'Der Verlauf einer gelöschten Aufgabe bleibt sonst liegen.'
         );
+        $this->assertSame(
+            0,
+            $this->countBellEntries('task', $taskId),
+            'Die Glocken-Einträge einer gelöschten Aufgabe führen sonst ins Leere - '
+                . 'und der Kommentartext bleibt in der Glocke aller Beteiligten lesbar.'
+        );
     }
 
     public function testDeletingAnEventTakesItsNotesAlong(): void
@@ -148,6 +161,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $eventId = (int) $event->id;
 
         $this->note('event', $eventId);
+        $this->bell('event', $eventId);
 
         $this->eventController()->delete(
             $this->makeRequest('POST', '/events/' . $eventId . '/delete'),
@@ -160,6 +174,11 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
             0,
             $this->countComments('event', $eventId),
             'Die Notizen eines gelöschten Termins bleiben sonst liegen.'
+        );
+        $this->assertSame(
+            0,
+            $this->countBellEntries('event', $eventId),
+            'Die Glocken-Einträge eines gelöschten Termins führen sonst ins Leere.'
         );
     }
 
@@ -238,6 +257,38 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
     }
 
     /**
+     * Die Wiedervorlagen aus NotificationReminderService hängen als
+     * Glocken-Einträge am Sponsor. Der Löschweg räumte bisher nur die Anhänge
+     * ab und ging am gemeinsamen Dienst vorbei.
+     */
+    public function testDeletingASponsorTakesItsBellEntriesAlong(): void
+    {
+        $sponsor = Sponsor::create([
+            'type' => 'organization',
+            'name' => 'Musikhaus Klang ' . bin2hex(random_bytes(4)),
+            'created_by_user_id' => $this->user->id,
+        ]);
+        $sponsorId = (int) $sponsor->id;
+
+        $this->attach('sponsor', $sponsorId);
+        $this->bell('sponsor', $sponsorId);
+
+        $this->sponsorController()->delete(
+            $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsorId . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $sponsorId]
+        );
+
+        $this->assertNull(Sponsor::find($sponsorId), 'Der Sponsor selbst muss weg sein.');
+        $this->assertSame(0, $this->countAttachments('sponsor', $sponsorId));
+        $this->assertSame(
+            0,
+            $this->countBellEntries('sponsor', $sponsorId),
+            'Die Wiedervorlage eines gelöschten Sponsors führt sonst ins Leere.'
+        );
+    }
+
+    /**
      * Der Dienst selbst: Er fasst nur die genannten Kennungen an und lässt die
      * Anhängsel anderer Entitäten desselben Typs unberührt.
      */
@@ -249,13 +300,23 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->attach('task', $removedId);
         $this->note('task', $removedId);
         $this->history('task', $removedId);
+        $this->bell('task', $removedId);
         $this->attach('task', $kept);
+        $this->bell('task', $kept);
 
         $removed = (new EntityCleanupService())->purgeForEntities('task', [$removedId]);
 
-        $this->assertSame(['attachments' => 1, 'comments' => 1, 'activities' => 1], $removed);
+        $this->assertSame(
+            ['attachments' => 1, 'comments' => 1, 'activities' => 1, 'notifications' => 1],
+            $removed
+        );
         $this->assertSame(0, $this->countAttachments('task', $removedId));
         $this->assertSame(1, $this->countAttachments('task', $kept), 'Eine fremde Aufgabe darf nichts verlieren.');
+        $this->assertSame(
+            1,
+            $this->countBellEntries('task', $kept),
+            'Die Glocke einer fremden Aufgabe darf nichts verlieren.'
+        );
     }
 
     public function testTheCleanupDoesNothingWithoutIds(): void
@@ -265,7 +326,10 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
 
         $removed = (new EntityCleanupService())->purgeForEntities('task', []);
 
-        $this->assertSame(['attachments' => 0, 'comments' => 0, 'activities' => 0], $removed);
+        $this->assertSame(
+            ['attachments' => 0, 'comments' => 0, 'activities' => 0, 'notifications' => 0],
+            $removed
+        );
         $this->assertSame(1, $this->countAttachments('task', $taskId));
     }
 
@@ -338,6 +402,16 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         );
     }
 
+    private function sponsorController(): SponsorController
+    {
+        return new SponsorController(
+            $this->twig(),
+            new SponsoringPolicy($_SESSION),
+            new EntityAttachmentService(new NullLogger()),
+            new NullLogger()
+        );
+    }
+
     private function twig(): Twig
     {
         $twig = $this->createStub(Twig::class);
@@ -401,6 +475,27 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
             'description' => 'Angelegt.',
             'created_at' => Carbon::now()->toDateTimeString(),
         ]);
+    }
+
+    private function bell(string $entityType, int $entityId, ?int $commentId = null): void
+    {
+        UserNotification::create([
+            'user_id' => $this->user->id,
+            'notification_type' => 'task_comment',
+            'actor_user_id' => $this->user->id,
+            'title' => 'Neuer Kommentar',
+            'body' => 'Bitte Noten mitbringen.',
+            'link' => '/' . $entityType . 's/' . $entityId,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'comment_id' => $commentId,
+            'created_at' => Carbon::now()->toDateTimeString(),
+        ]);
+    }
+
+    private function countBellEntries(string $entityType, int $entityId): int
+    {
+        return UserNotification::where('entity_type', $entityType)->where('entity_id', $entityId)->count();
     }
 
     private function countAttachments(string $entityType, int $entityId): int
