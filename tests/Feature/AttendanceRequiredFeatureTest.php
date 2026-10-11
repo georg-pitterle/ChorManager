@@ -372,7 +372,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $body = (string) $response->getBody();
 
         $this->assertStringContainsString(
-            'Termine im Projekt: 1',
+            '1 Pflichttermin bisher',
             $body,
             'totalEvents must count only the attendance_required=true event, not both project events'
         );

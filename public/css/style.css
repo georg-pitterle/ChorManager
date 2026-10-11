@@ -3416,3 +3416,201 @@ a:hover {
         justify-content: flex-start;
     }
 }
+
+/* =====================================================================
+   Anwesenheitsquoten (/evaluations)
+   ===================================================================== */
+
+/* Drei Zustände einer Quote, jeder mit eigener Form (Icon) - Farbe allein trüge keine
+   Bedeutung. Die Töne halten auf Weiß und auf dem Zebrastreifen mindestens 4,5:1. */
+:root {
+    --quota-good: #146c43;
+    --quota-medium: #806000;
+    --quota-low: #a52834;
+    --quota-medium-fill: #c99a06;
+    --quota-track: #e6eaf0;
+}
+
+.quota {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.quota .bi {
+    font-size: 0.85em;
+}
+
+.quota--good {
+    color: var(--quota-good);
+}
+
+.quota--medium {
+    color: var(--quota-medium);
+}
+
+.quota--low {
+    color: var(--quota-low);
+}
+
+.quota-explainer {
+    max-width: 72ch;
+}
+
+.quota-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Zusammenfassung je Stimmgruppe: eine Zeile pro Gruppe, der Balken ist das Diagramm.
+   Name | Balken | Quote | Personen - am Telefon Name und Quote oben, darunter Balken
+   und Personenzahl. */
+.quota-summary__row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 11rem) minmax(6rem, 1fr) 6.5rem 13.5rem;
+    grid-template-areas: "name track value meta";
+    align-items: center;
+    gap: 0.4rem 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.quota-summary__row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.quota-summary__row:first-child {
+    padding-top: 0;
+}
+
+.quota-summary__name {
+    grid-area: name;
+    font-weight: 600;
+}
+
+.quota-summary__track {
+    grid-area: track;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--quota-track);
+    overflow: hidden;
+}
+
+.quota-summary__bar {
+    display: block;
+    height: 100%;
+    width: var(--quota-value, 0%);
+    border-radius: inherit;
+}
+
+.quota-summary__bar--good {
+    background: var(--quota-good);
+}
+
+.quota-summary__bar--medium {
+    background: var(--quota-medium-fill);
+}
+
+.quota-summary__bar--low {
+    background: var(--quota-low);
+}
+
+.quota-summary__value {
+    grid-area: value;
+    text-align: right;
+}
+
+.quota-summary__meta {
+    grid-area: meta;
+    color: var(--theme-text-muted);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 767.98px) {
+    .quota-summary__row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "name value"
+            "track track"
+            "meta meta";
+    }
+}
+
+/* Karten am Telefon: Name und Quote in der Kopfzeile, die Stimmgruppe darunter, die vier
+   Zähler nebeneinander - eine Person braucht damit rund ein Drittel der Höhe einer
+   Karte mit einem Wertepaar pro Zeile. */
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.15rem 0.5rem;
+    padding: 0.65rem 0.75rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td {
+    display: block;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    text-align: left !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td::before {
+    display: block;
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    overflow-wrap: normal;
+    hyphens: manual;
+}
+
+/* Vier Zähler auf 390 px: die langen Beschriftungen bekommen feste Trennstellen, statt
+   sich auf ein Silbentrennungs-Wörterbuch des Browsers zu verlassen. */
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td[data-label="Entschuldigt"]::before {
+    content: "Ent\AD schuldigt";
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td[data-label="Unentschuldigt"]::before {
+    content: "Unent\AD schuldigt";
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td[data-card-title] {
+    grid-column: 1 / 4;
+    grid-row: 1;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td.quota-table__quota {
+    grid-column: 4;
+    grid-row: 1;
+    align-self: center;
+    text-align: right !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td.quota-table__voice {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-bottom: 0.4rem;
+    color: var(--theme-text-muted);
+    font-size: 0.9rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td.quota-table__quota::before,
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td.quota-table__voice::before {
+    content: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td[colspan] {
+    grid-column: 1 / -1;
+}
+
+/* Die ID-Regeln oben überstimmen zwei Regeln der Engine; beide hier wiederhergestellt:
+   leere Werte ("-") belegen keine Zeile, die Keine-Treffer-Meldung steht mittig. */
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody td[data-card-empty] {
+    display: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody .table-no-results td {
+    text-align: center !important;
+}

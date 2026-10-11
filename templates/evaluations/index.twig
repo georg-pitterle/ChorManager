@@ -1,19 +1,51 @@
 {% extends "layout.twig" %}
 
+{#
+    Quote mit Zustand: Farbe allein trägt keine Bedeutung, deshalb kommen Form (Icon) und
+    für Screenreader ein Wort dazu. Ohne geltenden Termin gibt es keine Quote, nur einen Strich.
+#}
+{% macro quota(value, low, good) %}
+    {% if value is null %}
+        <span class="text-muted">&ndash;<span class="visually-hidden"> keine Quote, kein Termin galt</span></span>
+    {% else %}
+        {% if value >= good %}
+            {% set state = {modifier: "good", icon: "bi-check-circle-fill", label: "gut"} %}
+        {% elseif value >= low %}
+            {% set state = {modifier: "medium", icon: "bi-dash-circle-fill", label: "mittel"} %}
+        {% else %}
+            {% set state = {modifier: "low", icon: "bi-exclamation-triangle-fill", label: "niedrig"} %}
+        {% endif %}
+        <span class="quota quota--{{ state.modifier }}">
+            <i class="bi {{ state.icon }}" aria-hidden="true"></i>
+            {{ value|number_format(1, ",", ".") }}&nbsp;%<span class="visually-hidden"> ({{ state.label }})</span>
+        </span>
+    {% endif %}
+{% endmacro %}
+
 {% block title %}
-    Auswertungen - {{ app_settings.app_name|default('Chor-Manager') }}
+    Anwesenheitsquoten - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">Auswertungen / Statistiken</h1>
-            <p class="text-muted mb-0">Anwesenheitsdaten projektbezogen analysieren und vergleichen.</p>
+            <h1 class="h2 mb-1">Anwesenheitsquoten</h1>
+            <p class="text-muted mb-0">
+                {% if selected_project and total_events > 0 %}
+                    {{ total_events }} {{ total_events == 1 ? "Pflichttermin" : "Pflichttermine" }} bisher
+                    &middot; Stand {{ "now"|date("d.m.Y") }}
+                {% else %}
+                    Wer wie oft bei den Pflichtterminen eines Projekts war.
+                {% endif %}
+            </p>
         </div>
-        <div class="page-actions">
-            <form class="d-flex" method="get" action="/evaluations">
-                <select class="form-select onchange-submit" name="project_id" aria-label="Projekt wählen">
-                    <option value="">-- Projekt wählen --</option>
+        <div class="page-actions d-flex gap-2">
+            <form class="d-flex gap-2" method="get" action="/evaluations">
+                <select class="form-select select-min-220 onchange-submit" name="project_id"
+                        aria-label="Projekt wählen">
+                    {% if not selected_project %}
+                        <option value="">Projekt wählen</option>
+                    {% endif %}
                     {% for p in projects %}
                         <option value="{{ p.id }}"
                                 {% if selected_project and selected_project.id == p.id %}selected{% endif %}>
@@ -21,102 +53,131 @@
                         </option>
                     {% endfor %}
                 </select>
+                <noscript><button type="submit" class="btn btn-outline-secondary">Anzeigen</button></noscript>
             </form>
+            {% if selected_project %}
+                <a href="/evaluations/project-members?project_id={{ selected_project.id }}"
+                   class="btn btn-outline-secondary">Besetzung</a>
+            {% endif %}
+            <a href="/help/evaluations" class="btn btn-outline-secondary">
+                <i class="bi bi-question-circle" aria-hidden="true"></i> Hilfe
+            </a>
         </div>
     </section>
 {% endblock page_header %}
 
 {% block content %}
-    {% if selected_project %}
-        <section class="surface-card form-surface mb-4">
-            <div class="card shadow-sm mb-0 border-info border-0">
-                <div class="card-body">
-                    <h5 class="card-title">Statistik für Projekt: {{ selected_project.name }}</h5>
-                    <p class="card-subtitle mb-2 text-muted">Termine im Projekt: {{ total_events }}</p>
+    {% if selected_project and stats|length > 0 %}
+        <p class="quota-explainer text-muted mb-4">
+            Die Quote rechnet die Anwesenheit gegen alle stattgefundenen Pflichttermine, die für die
+            Person gelten. Termine ohne geführte Liste zählen mit; wie viele erfasst sind, steht unter
+            <strong>Erfasst</strong>.
+        </p>
+
+        <section class="dashboard-section mb-4" aria-labelledby="quota-by-voice-group-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="quota-by-voice-group-title">Nach Stimmgruppe</h2>
+                <p class="dashboard-section-lead mb-0">
+                    Durchschnitt der Quoten. Gut ab {{ quota_good }}&nbsp;%, niedrig unter {{ quota_low }}&nbsp;%.
+                </p>
+            </div>
+            <ul class="quota-summary list-unstyled mb-0">
+                {% for group in voice_group_summary %}
+                    {% set group_medium = group.average >= quota_low ? "medium" : "low" %}
+                    {% set group_state = group.average >= quota_good ? "good" : group_medium %}
+                    <li class="quota-summary__row">
+                        <span class="quota-summary__name">{{ group.name }}</span>
+                        <span class="quota-summary__track" aria-hidden="true">
+                            {% if group.average is not null %}
+                                <span class="quota-summary__bar quota-summary__bar--{{ group_state }}"
+                                      style="--quota-value: {{ group.average }}%"></span>
+                            {% endif %}
+                        </span>
+                        <span class="quota-summary__value">{{ _self.quota(group.average, quota_low, quota_good) }}</span>
+                        <span class="quota-summary__meta">
+                            {{ group.member_count }} {{ group.member_count == 1 ? "Person" : "Personen" }}
+                            {% if group.below_low > 0 %}
+                                &middot; <span class="text-danger fw-semibold">{{ group.below_low }} unter {{ quota_low }}&nbsp;%</span>
+                            {% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section aria-labelledby="quota-by-member-title">
+            <h2 class="visually-hidden" id="quota-by-member-title">Nach Person</h2>
+            <div class="surface-card card border-0 table-shell"
+                 data-table-engine="true"
+                 data-table-id="evaluations.index"
+                 data-default-view="auto"
+                 data-default-page-size="100"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="name">
+                {{ include("partials/table_toolbar.twig") }}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 table-responsive-cards quota-table"
+                               id="evaluationsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th data-sort-key="name" data-sort-type="text">Name</th>
+                                    <th data-sort-key="voice" data-sort-type="number">Stimmgruppe</th>
+                                    <th class="text-center" data-sort-key="present" data-sort-type="number">Anwesend</th>
+                                    <th class="text-center" data-sort-key="excused" data-sort-type="number">Entschuldigt</th>
+                                    <th class="text-center" data-sort-key="unexcused" data-sort-type="number">Unentschuldigt</th>
+                                    <th class="text-center" data-sort-key="recorded" data-sort-type="number">Erfasst</th>
+                                    <th class="text-end" data-sort-key="percentage" data-sort-type="number">Quote</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in stats %}
+                                    <tr data-sort-name="{{ stat|person_name|lower }}"
+                                        data-sort-voice="{{ stat.voice_group_rank }}"
+                                        data-sort-present="{{ stat.present_count }}"
+                                        data-sort-excused="{{ stat.excused_count }}"
+                                        data-sort-unexcused="{{ stat.unexcused_count }}"
+                                        data-sort-recorded="{{ stat.total_recorded }}"
+                                        data-sort-percentage="{{ stat.percentage ?? 101 }}">
+                                        <td data-label="Name" data-card-title>{{ stat|person_name }}</td>
+                                        <td data-label="Stimmgruppe" class="quota-table__voice">
+                                            {{ stat.voice_group_name|default("-") }}
+                                        </td>
+                                        <td data-label="Anwesend" class="text-center">{{ stat.present_count }}</td>
+                                        <td data-label="Entschuldigt" class="text-center">{{ stat.excused_count }}</td>
+                                        <td data-label="Unentschuldigt"
+                                            class="text-center{{ stat.unexcused_count > 0 ? " text-danger fw-semibold" : "" }}">
+                                            {{ stat.unexcused_count }}
+                                        </td>
+                                        <td data-label="Erfasst" class="text-center text-muted">
+                                            {{ stat.total_recorded }} / {{ stat.total_events }}
+                                        </td>
+                                        <td data-label="Quote" class="text-end quota-table__quota">
+                                            {{ _self.quota(stat.percentage, quota_low, quota_good) }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
-
-        <div class="surface-card card border-0 table-shell"
-             data-table-engine="true"
-             data-table-id="evaluations.index"
-             data-default-view="auto"
-             data-default-page-size="100"
-             data-page-size-options="25,50,100,200"
-             data-default-sort-key="name">
-            {{ include('partials/table_toolbar.twig') }}
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0 table-responsive-cards"
-                           id="evaluationsTable">
-                        <thead class="table-dark">
-                            <tr>
-                                <th data-sort-key="name" data-sort-type="text">Name</th>
-                                <th data-sort-key="voice" data-sort-type="text">Stimmgruppe</th>
-                                <th class="text-center" data-sort-key="present" data-sort-type="number">Anwesend</th>
-                                <th class="text-center" data-sort-key="excused" data-sort-type="number">Entschuldigt</th>
-                                <th class="text-center" data-sort-key="unexcused" data-sort-type="number">Unentschuldigt</th>
-                                <th class="text-center" data-sort-key="recorded" data-sort-type="number"
-                                    title="Termine mit geführter Anwesenheitsliste">Erfasst</th>
-                                <th class="text-end" data-sort-key="percentage" data-sort-type="number">Quote</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for stat in stats %}
-                                <tr data-sort-name="{{ stat|person_name|lower }}"
-                                    data-sort-voice="{{ (stat.voice_group_name|default('-'))|lower }}"
-                                    data-sort-present="{{ stat.present_count|default(0) }}"
-                                    data-sort-excused="{{ stat.excused_count|default(0) }}"
-                                    data-sort-unexcused="{{ stat.unexcused_count|default(0) }}"
-                                    data-sort-recorded="{{ stat.total_recorded|default(0) }}"
-                                    data-sort-percentage="{{ stat.percentage|default(0) }}">
-                                    <td data-label="Name" data-card-title>
-                                        {{ stat|person_name }}
-                                    </td>
-                                    <td data-label="Stimmgruppe">{{ stat.voice_group_name|default('-') }}</td>
-                                    <td data-label="Anwesend" class="text-center text-success">{{ stat.present_count|default('0') }}</td>
-                                    <td data-label="Entschuldigt" class="text-center text-warning">{{ stat.excused_count|default('0') }}</td>
-                                    <td data-label="Unentschuldigt" class="text-center text-danger">{{ stat.unexcused_count|default('0') }}</td>
-                                    {# Macht die Bezugsgröße der Quote sichtbar: gerechnet wird gegen
-                                       alle stattgefundenen Pflichttermine, erfasst wurden ggf. weniger. #}
-                                    <td data-label="Erfasst" class="text-center text-muted">{{ stat.total_recorded|default('0') }} / {{ stat.total_events|default(total_events) }}</td>
-                                    <td data-label="Quote" class="text-end">
-                                        {% set bar_color = stat.percentage >= 75 ? 'bg-success' : (stat.percentage >= 50 ? 'bg-warning' : 'bg-danger') %}
-                                        <div class="d-flex align-items-center justify-content-end">
-                                            <span class="me-2 fw-bold {% if stat.percentage >= 75 %} text-success {% elseif stat.percentage >= 50 %} text-warning {% else %} text-danger {% endif %}">{{ stat.percentage }}%</span>
-                                            <div class="progress progress-sm">
-                                                <div class="progress-bar progress-bar-dynamic {{ bar_color }}"
-                                                     role="progressbar"
-                                                     style="--progress-value: {{ stat.percentage }}%"
-                                                     aria-valuenow="{{ stat.percentage }}"
-                                                     aria-valuemin="0"
-                                                     aria-valuemax="100"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% else %}
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">
-                                        Keine Statistiken für dieses Projekt verfügbar. Möglicherweise haben noch keine Termine stattgefunden oder es sind keine Mitglieder aktiv.
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
+    {% elseif selected_project and empty_reason == "no_events" %}
+        <p class="text-muted text-center py-5 mb-0">
+            In diesem Projekt hat noch kein Pflichttermin stattgefunden. Die Quoten erscheinen nach dem
+            ersten Termin mit Anwesenheitspflicht.
+        </p>
+    {% elseif selected_project %}
+        <p class="text-muted text-center py-5 mb-0">
+            Diesem Projekt sind noch keine aktiven Mitglieder zugeordnet.
+            {% if can_manage_members %}
+                <a href="/projects/{{ selected_project.id }}/members">Mitglieder hinzufügen</a>
+            {% endif %}
+        </p>
+    {% elseif projects is empty %}
+        <p class="text-muted text-center py-5 mb-0">Für dich ist noch kein Projekt freigegeben.</p>
     {% else %}
-        <div class="alert alert-info py-5 text-center shadow-sm">
-            <i class="bi bi-bar-chart-fill fs-1 d-block mb-3 text-info"></i>
-            Willkommen im Auswertungsbereich. Bitte wählen Sie oben rechts ein Projekt aus, um die entsprechenden Anwesenheitsquoten der Chormitglieder anzuzeigen.
-        </div>
+        <p class="text-muted text-center py-5 mb-0">Wähle oben ein Projekt, um seine Anwesenheitsquoten zu sehen.</p>
     {% endif %}
-
-    {% block scripts %}
-        <script src="/js/evaluations.js"></script>
-    {% endblock scripts %}
-
 {% endblock content %}

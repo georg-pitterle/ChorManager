@@ -17,7 +17,9 @@ class EvaluationFeatureTest extends TestCase
 
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EvaluationController.php');
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString('TableQueryParams::from', $controllerContent);
+        // Sortiert und gesucht wird im Browser (Tabellen-Engine); serverseitige
+        // Tabellenparameter wurden gebaut, aber nie gelesen.
+        $this->assertStringNotContainsString('TableQueryParams::from', $controllerContent);
         // Die Projektauswahl liegt seit der Zusammenlegung in ProjectQuery - dort teilen
         // Termine und Auswertungen dieselbe Abfrage, statt je eine Kopie zu halten.
         $this->assertStringContainsString(

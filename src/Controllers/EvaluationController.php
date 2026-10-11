@@ -17,7 +17,6 @@ use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
-use App\Util\TableQueryParams;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Log\LoggerInterface;
@@ -94,16 +93,20 @@ class EvaluationController
         $user->save();
     }
 
+    /**
+     * Ab hier gilt eine Quote als niedrig. Die Vorlage färbt mit derselben
+     * Schwelle, die Stimmgruppen-Zusammenfassung zählt mit ihr.
+     */
+    private const QUOTA_LOW = 50;
+
+    /** Ab hier gilt eine Quote als gut. */
+    private const QUOTA_GOOD = 75;
+
+    private const NO_VOICE_GROUP = 'Ohne Stimmgruppe';
+
     public function index(Request $request, Response $response): Response
     {
         $params = $request->getQueryParams();
-        $tableParams = TableQueryParams::from(
-            $params,
-            array_merge(
-                $this->nameFormatter->orderColumns(),
-                ['percentage', 'present_count', 'excused_count', 'unexcused_count', 'total_recorded']
-            )
-        );
         $projectId = (int)($params['project_id'] ?? 0);
         $userId = (int)($_SESSION['user_id'] ?? 0);
         $projects = $this->projectQuery->getAccessibleProjects($userId, $this->canSeeAllProjects());
@@ -116,6 +119,7 @@ class EvaluationController
         $stats = [];
         $selectedProject = null;
         $totalEvents = 0;
+        $emptyReason = null;
 
         if ($projectId > 0) {
             if (!in_array($projectId, $accessibleProjectIds, true)) {
@@ -164,6 +168,10 @@ class EvaluationController
 
                     foreach ($users as $user) {
                         $vgName = $user->voiceGroups->pluck('name')->implode(', ');
+                        // Die Relation sortiert nach voice_groups.id, und das ist die
+                        // Chor-Reihenfolge (Sopran, Alt, Tenor, Bass). Die erste Gruppe
+                        // ordnet die Person ein, wie in der Besetzung.
+                        $primaryVoiceGroup = $user->voiceGroups->first();
                         $ownEvents = $eventIdsByUser[(int) $user->id] ?? [];
                         $ownTotal = count($ownEvents);
                         $attendances = $user->attendances
@@ -182,13 +190,17 @@ class EvaluationController
                         // Abwesenheit - sie darf die Quote der übrigen aber auch nicht
                         // schönrechnen. Wie viele Termine tatsächlich erfasst wurden, steht
                         // daneben in der Spalte "Erfasst" und macht den Unterschied sichtbar.
-                        $percentage = $ownTotal > 0 ? round(($present / $ownTotal) * 100, 1) : 0;
+                        // Gilt für jemanden kein einziger Termin, gibt es keine Quote:
+                        // 0 % behauptete ein Fehlen, das nie stattfand.
+                        $percentage = $ownTotal > 0 ? round(($present / $ownTotal) * 100, 1) : null;
 
                         $stats[] = [
                             'user_id' => (int) $user->id,
                             'first_name' => $user->first_name,
                             'last_name' => $user->last_name,
                             'voice_group_name' => $vgName,
+                            'primary_voice_group' => $primaryVoiceGroup?->name ?? self::NO_VOICE_GROUP,
+                            'voice_group_rank' => $primaryVoiceGroup !== null ? (int) $primaryVoiceGroup->id : PHP_INT_MAX,
                             'present_count' => $present,
                             'excused_count' => $excused,
                             'unexcused_count' => $unexcused,
@@ -198,6 +210,13 @@ class EvaluationController
                         ];
                     }
                 }
+
+                // Der Leerzustand nennt den Grund, statt zwei Möglichkeiten zu raten.
+                if ($totalEvents === 0) {
+                    $emptyReason = 'no_events';
+                } elseif ($stats === []) {
+                    $emptyReason = 'no_members';
+                }
             }
         }
 
@@ -206,8 +225,55 @@ class EvaluationController
             'selected_project' => $selectedProject,
             'stats' => $stats,
             'total_events' => $totalEvents,
-            'table_params' => $tableParams,
+            'voice_group_summary' => $this->summarizeByVoiceGroup($stats),
+            'empty_reason' => $emptyReason,
+            'quota_low' => self::QUOTA_LOW,
+            'quota_good' => self::QUOTA_GOOD,
+            'can_manage_members' => $selectedProject !== null
+                && $this->memberPolicy->canViewMembers((int) $selectedProject->id),
         ]);
+    }
+
+    /**
+     * Quoten je Stimmgruppe: beantwortet "Steht die Besetzung?", ohne dass jemand
+     * 60 Zeilen im Kopf zusammenzählt.
+     *
+     * Reihenfolge wie im Chor (Sopran, Alt, Tenor, Bass), "Ohne Stimmgruppe" zuletzt.
+     * Wer keine Quote hat, weil für ihn kein Termin galt, zählt als Mitglied, geht
+     * aber nicht in den Durchschnitt ein.
+     *
+     * @param list<array<string, mixed>> $stats
+     * @return list<array{name: string, member_count: int, average: ?float, below_low: int}>
+     */
+    private function summarizeByVoiceGroup(array $stats): array
+    {
+        usort(
+            $stats,
+            static fn (array $a, array $b): int => $a['voice_group_rank'] <=> $b['voice_group_rank']
+        );
+
+        $groups = [];
+        foreach ($stats as $stat) {
+            $name = (string) $stat['primary_voice_group'];
+            $groups[$name] ??= ['quotas' => [], 'member_count' => 0];
+            $groups[$name]['member_count']++;
+            if ($stat['percentage'] !== null) {
+                $groups[$name]['quotas'][] = (float) $stat['percentage'];
+            }
+        }
+
+        $summary = [];
+        foreach ($groups as $name => $group) {
+            $quotas = $group['quotas'];
+            $summary[] = [
+                'name' => $name,
+                'member_count' => $group['member_count'],
+                'average' => $quotas === [] ? null : round(array_sum($quotas) / count($quotas), 1),
+                'below_low' => count(array_filter($quotas, static fn (float $quota): bool => $quota < self::QUOTA_LOW)),
+            ];
+        }
+
+        return $summary;
     }
 
     public function projectMembers(Request $request, Response $response): Response

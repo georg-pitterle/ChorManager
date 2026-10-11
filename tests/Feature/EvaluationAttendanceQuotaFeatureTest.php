@@ -30,6 +30,7 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
 {
     use AudienceFixtures;
     use TestHttpHelpers;
+    use TwigViewStubs;
 
     private EvaluationController $controller;
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
@@ -265,6 +266,198 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
 
         $this->assertSame(0, $data['total_events']);
         $this->assertSame([], $data['stats'], 'Ohne stattgefundene Termine gibt es nichts auszuwerten.');
+    }
+
+    /**
+     * Die Frage vor dem Konzert lautet "Steht die Besetzung?" - je Stimmgruppe,
+     * in der Reihenfolge, in der ein Chor seine Stimmen aufzählt, und wer ohne
+     * Stimmgruppe ist, ganz hinten.
+     */
+    public function testVoiceGroupSummaryFollowsChoirOrderAndAveragesQuotas(): void
+    {
+        $suffix = uniqid();
+        $project = Project::create(['name' => 'Quotenprojekt ' . $suffix]);
+        // Kennungs-Reihenfolge ist die Chor-Reihenfolge: die zuerst angelegte
+        // Gruppe steht vorn, auch wenn ihr Name alphabetisch hinten liegt.
+        $high = \App\Models\VoiceGroup::create(['name' => 'Zhoch ' . $suffix]);
+        $low = \App\Models\VoiceGroup::create(['name' => 'Atief ' . $suffix]);
+
+        $full = $this->projectMember($project, 'voll-' . $suffix, (int) $low->id);
+        $half = $this->projectMember($project, 'halb-' . $suffix, (int) $high->id);
+        $never = $this->projectMember($project, 'nie-' . $suffix, (int) $high->id);
+        $loose = $this->projectMember($project, 'ohne-' . $suffix, null);
+
+        foreach ([8, 4] as $index => $daysAgo) {
+            $event = $this->projectEvent($project, Carbon::now()->subDays($daysAgo));
+            Attendance::create(['event_id' => $event->id, 'user_id' => $full->id, 'status' => 'present']);
+            Attendance::create(['event_id' => $event->id, 'user_id' => $loose->id, 'status' => 'present']);
+            Attendance::create([
+                'event_id' => $event->id,
+                'user_id' => $half->id,
+                'status' => $index === 0 ? 'present' : 'excused',
+            ]);
+            Attendance::create(['event_id' => $event->id, 'user_id' => $never->id, 'status' => 'unexcused']);
+        }
+
+        $data = $this->renderIndex((int) $project->id);
+
+        $this->assertSame(
+            [
+                ['name' => $high->name, 'member_count' => 2, 'average' => 25.0, 'below_low' => 1],
+                ['name' => $low->name, 'member_count' => 1, 'average' => 100.0, 'below_low' => 0],
+                ['name' => 'Ohne Stimmgruppe', 'member_count' => 1, 'average' => 100.0, 'below_low' => 0],
+            ],
+            $data['voice_group_summary'],
+            'Genau 50 % liegt nicht unter der Schwelle.'
+        );
+
+        $this->assertLessThan(
+            $this->statFor($data, (int) $full->id)['voice_group_rank'],
+            $this->statFor($data, (int) $half->id)['voice_group_rank'],
+            'Sortiert wird in Chor-Reihenfolge, nicht nach dem Alphabet.'
+        );
+        $this->assertGreaterThan(
+            $this->statFor($data, (int) $full->id)['voice_group_rank'],
+            $this->statFor($data, (int) $loose->id)['voice_group_rank'],
+            'Ohne Stimmgruppe steht hinten.'
+        );
+    }
+
+    /**
+     * Gilt für jemanden keiner der stattgefundenen Termine, gibt es keine Quote -
+     * eine rote 0 % würde ein Fehlen behaupten, das es nicht gab. Der
+     * Stimmgruppen-Durchschnitt darf sie deshalb auch nicht mitrechnen.
+     */
+    public function testMemberWithoutApplicableEventHasNoQuota(): void
+    {
+        $suffix = uniqid();
+        ['project' => $project, 'member' => $alto] = $this->projectWithOneMember($suffix);
+        $soprano = \App\Models\VoiceGroup::create(['name' => 'Quotensopran ' . $suffix]);
+        $singer = $this->projectMember($project, 'sopran-' . $suffix, (int) $soprano->id);
+
+        $sopranoOnly = Event::create([
+            'title' => 'Stimmprobe Sopran ' . $suffix,
+            'starts_at' => Carbon::now()->subDays(2),
+            'ends_at' => Carbon::now()->subDays(2)->addHours(2),
+            'type' => 'Probe',
+            'registration_enabled' => false,
+            'attendance_required' => true,
+        ]);
+        $this->giveAudience('event_id', (int) $sopranoOnly->id, [
+            'voice_group' => [(int) $soprano->id],
+            'project' => [(int) $project->id],
+        ]);
+        Attendance::create(['event_id' => $sopranoOnly->id, 'user_id' => $singer->id, 'status' => 'present']);
+
+        $data = $this->renderIndex((int) $project->id);
+
+        $this->assertNull($this->statFor($data, (int) $alto->id)['percentage']);
+        $this->assertSame(
+            ['name' => 'Ohne Stimmgruppe', 'member_count' => 1, 'average' => null, 'below_low' => 0],
+            end($data['voice_group_summary'])
+        );
+    }
+
+    public function testEmptyReasonNamesMissingEvents(): void
+    {
+        $suffix = uniqid();
+        ['project' => $project] = $this->projectWithOneMember($suffix);
+        $this->projectEvent($project, Carbon::now()->addDays(5));
+
+        $data = $this->renderIndex((int) $project->id);
+
+        $this->assertSame('no_events', $data['empty_reason']);
+        $this->assertSame([], $data['voice_group_summary']);
+    }
+
+    public function testEmptyReasonNamesMissingMembers(): void
+    {
+        $project = Project::create(['name' => 'Leeres Quotenprojekt ' . uniqid()]);
+        $this->projectEvent($project, Carbon::now()->subDays(3));
+
+        $data = $this->renderIndex((int) $project->id);
+
+        $this->assertSame(1, $data['total_events']);
+        $this->assertSame('no_members', $data['empty_reason']);
+    }
+
+    public function testEmptyReasonIsNullWhenThereIsSomethingToShow(): void
+    {
+        $suffix = uniqid();
+        ['project' => $project] = $this->projectWithOneMember($suffix);
+        $this->projectEvent($project, Carbon::now()->subDays(3));
+
+        $this->assertNull($this->renderIndex((int) $project->id)['empty_reason']);
+    }
+
+    /**
+     * Die Vorlage selbst: ohne geltenden Termin ein Strich statt "0,0 %", die
+     * Zusammenfassung mit deutschem Zahlformat und der Leerzustand mit Grund.
+     */
+    public function testPageRendersDashForMissingQuotaAndNamesTheEmptyReason(): void
+    {
+        $nameFormatter = new NameFormatterService();
+        $controller = new EvaluationController(
+            $this->createAppTwig('/evaluations'),
+            new ProjectQuery($nameFormatter),
+            $nameFormatter
+        );
+
+        $suffix = uniqid();
+        ['project' => $project, 'member' => $alto] = $this->projectWithOneMember($suffix);
+        $soprano = \App\Models\VoiceGroup::create(['name' => 'Quotensopran ' . $suffix]);
+        $singer = $this->projectMember($project, 'sopran-' . $suffix, (int) $soprano->id);
+        $sopranoOnly = Event::create([
+            'title' => 'Stimmprobe Sopran ' . $suffix,
+            'starts_at' => Carbon::now()->subDays(2),
+            'ends_at' => Carbon::now()->subDays(2)->addHours(2),
+            'type' => 'Probe',
+            'registration_enabled' => false,
+            'attendance_required' => true,
+        ]);
+        $this->giveAudience('event_id', (int) $sopranoOnly->id, [
+            'voice_group' => [(int) $soprano->id],
+            'project' => [(int) $project->id],
+        ]);
+        Attendance::create(['event_id' => $sopranoOnly->id, 'user_id' => $singer->id, 'status' => 'present']);
+
+        $body = (string) $controller->index(
+            $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $project->id]),
+            $this->makeResponse()
+        )->getBody();
+
+        $this->assertStringContainsString('1 Pflichttermin bisher', $body);
+        $this->assertStringContainsString('100,0&nbsp;%', $body, 'Quote im deutschen Zahlformat.');
+        $this->assertStringContainsString('keine Quote, kein Termin galt', $body);
+        $this->assertDoesNotMatchRegularExpression('/(?<!\d)0,0&nbsp;%/', $body, 'Ohne geltenden Termin keine 0 %.');
+        $this->assertStringContainsString('Nach Stimmgruppe', $body);
+
+        $emptyProject = Project::create(['name' => 'Leeres Quotenprojekt ' . $suffix]);
+        $this->projectEvent($emptyProject, Carbon::now()->subDays(1));
+        $emptyBody = (string) $controller->index(
+            $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $emptyProject->id]),
+            $this->makeResponse()
+        )->getBody();
+
+        $this->assertStringContainsString('noch keine aktiven Mitglieder zugeordnet', $emptyBody);
+        $this->assertStringNotContainsString('id="evaluationsTable"', $emptyBody);
+    }
+
+    private function projectMember(Project $project, string $suffix, ?int $voiceGroupId): User
+    {
+        $member = User::create([
+            'first_name' => 'Quote',
+            'last_name' => 'Mitglied ' . $suffix,
+            'email' => 'quota-member-' . $suffix . '@example.test',
+            'password' => PasswordHasher::hash('test123'),
+            'is_active' => true,
+        ]);
+        Capsule::table('project_users')->insert(['project_id' => $project->id, 'user_id' => $member->id]);
+        if ($voiceGroupId !== null) {
+            Capsule::table('user_voice_groups')->insert(['user_id' => $member->id, 'voice_group_id' => $voiceGroupId]);
+        }
+
+        return $member;
     }
 
     /**
