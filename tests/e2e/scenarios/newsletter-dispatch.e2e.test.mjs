@@ -362,7 +362,9 @@ test('Nachbericht: die Zielgruppe des Termins bekommt den Newsletter, sonst niem
 
     await asUser(browser, CONCERT_OUTSIDER.email, async (outsiderPage) => {
         await outsiderPage.goto('/newsletters/archive');
-        const archive = await outsiderPage.locator('#newsletterArchiveList').innerText();
+        // Ohne einen einzigen Newsletter zeigt das Archiv statt der Liste nur einen
+        // Leer-Hinweis - gelesen wird deshalb der ganze Inhaltsbereich.
+        const archive = await outsiderPage.locator('#main-content').innerText();
         expect(archive, 'Wer nicht zur Zielgruppe gehört, darf den Nachbericht nicht erhalten')
             .not.toContain(NEWSLETTER_EVENT_REPORT.title);
     });

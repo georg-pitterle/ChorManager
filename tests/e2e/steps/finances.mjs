@@ -246,7 +246,8 @@ export async function uploadStatement(page, filePath) {
     const table = page.locator('.finance-import-table');
     await table.waitFor({ state: 'visible' });
 
-    const rows = await table.locator('tbody tr').count();
+    // Die Tabellen-Engine hängt eine versteckte Zeile "keine Treffer" an; sie ist kein Auszug-Eintrag.
+    const rows = await table.locator('tbody tr:not(.table-no-results)').count();
     const importable = await table.locator('input[name="selected[]"]:not([disabled])').count();
     const duplicates = await page.getByText('bereits importiert').count();
     const suggestedAccount = await page.locator('select[name="finance_account_id"]')
