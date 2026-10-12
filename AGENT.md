@@ -74,3 +74,4 @@ Invoke with `/command-name`:
 - `/git-commit` — how work lands in git here (checks, message, squash, merge)
 - `/e2e-scenario` — add a Playwright end-to-end scenario
 - `/squash-branch` — squash all branch commits since `main` into one clean commit
+- `/dependency-update` — update Composer, npm, Docker images, ddev runtimes and Actions; majors only after asking
