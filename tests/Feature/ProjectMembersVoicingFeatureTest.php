@@ -210,6 +210,39 @@ class ProjectMembersVoicingFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Besetzungsplan statt Endlosliste: Die Stimmgruppen stehen als Spalten
+     * nebeneinander, damit die Balance auf einen Blick zu sehen ist. Vorher war
+     * jeder Name eine gerahmte Listenzeile und die Gruppen standen untereinander.
+     */
+    public function testVoiceGroupsSitSideBySideAsACastBoard(): void
+    {
+        $source = $this->template();
+
+        $this->assertStringContainsString('class="cast-board"', $source);
+        $this->assertStringContainsString('cast-names', $source);
+        $this->assertStringNotContainsString('list-group-item', $source, 'Namen ohne gerahmte Einzelzeilen.');
+
+        $css = file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css');
+        $this->assertIsString($css);
+        // Die Grundregel selbst, nicht nur die Laptop-Variante: Auch am Telefon stehen
+        // die Spalten nebeneinander, sobald zwei hineinpassen.
+        $this->assertSame(1, preg_match('/^\.cast-board\s*\{([^}]*)\}/m', $css, $base));
+        $this->assertMatchesRegularExpression('/grid-template-columns:\s*repeat\(auto-fit/', $base[1]);
+    }
+
+    /**
+     * Hat eine Stimmgruppe gar keine Teilstimmen, ist "Ohne Teilstimme" als einzige
+     * Zwischenüberschrift nur eine Zeile Rauschen.
+     */
+    public function testASoleWithoutSubVoiceLabelIsOmitted(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/sub_voices\|length > 1 or sub_voice != "_no_sub_voice"/',
+            $this->template()
+        );
+    }
+
     public function testOutlineSecondaryButtonKeepsReadableContrastOnThePageBackground(): void
     {
         $css = file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css');

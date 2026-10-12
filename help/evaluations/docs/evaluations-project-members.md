@@ -13,15 +13,22 @@ nach Teilstimme.
 
 Klickpfad: **Mitglieder & Projekte → Besetzung**.
 
-Oben rechts wählst du das Projekt und bestätigst mit **Anzeigen**. Darunter steht die
-Gesamtzahl der Mitglieder mit der Zahl je Stimmgruppe; ein Klick auf eine Stimmgruppe
-springt direkt zu ihr. Die Stimmgruppen folgen in ihrer festen Reihenfolge — Sopran, Alt,
-Tenor, Bass —, innerhalb jeder Gruppe stehen die Teilstimmen mit der Anzahl ihrer
-Mitglieder.
+Oben rechts wählst du das Projekt; die Seite wechselt sofort. Darunter steht die
+Gesamtzahl der Mitglieder mit der Zahl je Stimmgruppe.
 
-![Projektmitglieder nach Stimmgruppen](images/evaluations/04-project-members.png)
+Die Besetzung selbst ist ein Plan in Spalten: Jede Stimmgruppe hat eine Spalte, in ihrer
+festen Reihenfolge — Sopran, Alt, Tenor, Bass. Am Laptop stehen sie nebeneinander, so
+siehst du die Balance des Chors auf einen Blick; die große Zahl im Spaltenkopf ist die
+Anzahl der Stimmgruppe. Am Handy stehen zwei Spalten nebeneinander, ein Klick auf eine
+Stimmgruppe oben springt direkt zu ihrer Spalte.
 
-Archivierte Mitglieder bleiben mit dem Hinweis **Archiviert** stehen, damit eine
+Innerhalb einer Spalte stehen die Teilstimmen als kleine Zwischenüberschrift mit der
+Anzahl ihrer Mitglieder, darunter die Namen. Hat eine Stimmgruppe keine Teilstimmen,
+folgen die Namen direkt dem Spaltenkopf.
+
+![Besetzung als Plan mit einer Spalte je Stimmgruppe](images/evaluations/04-project-members.png)
+
+Archivierte Mitglieder bleiben grau mit dem Hinweis **Archiviert** stehen, damit eine
 vergangene Besetzung nachvollziehbar bleibt.
 
 **Anwesenheitsquoten** neben der Projektauswahl wechselt mit demselben Projekt in die
@@ -43,5 +50,6 @@ Projekts. Fehlt die Schaltfläche, fehlt das Recht dazu.
   wende dich an den Administrator.
 - **Jemand steht unter der falschen Stimme.** Die Gruppierung kommt aus der Stimmgruppe
   des Mitglieds, nicht aus dem Projekt — korrigiert wird sie in der Mitgliederverwaltung.
-- **Mitglied ohne Teilstimme.** Es erscheint in seiner Stimmgruppe unter **Ohne
-  Teilstimme**. Die Teilstimme wird beim Mitglied gesetzt.
+- **Mitglied ohne Teilstimme.** Hat seine Stimmgruppe Teilstimmen, erscheint es dort unter
+  **Ohne Teilstimme**; sonst steht es ohne Zwischenüberschrift in der Spalte. Die
+  Teilstimme wird beim Mitglied gesetzt.

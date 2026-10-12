@@ -41,52 +41,59 @@
 
 {% block content %}
     {% if selected_project and grouped_members|length > 0 %}
-        <p class="mb-2">
-            {{ member_total }} {{ member_total == 1 ? "Mitglied" : "Mitglieder" }}
-            {% if archived_total > 0 %}, davon {{ archived_total }} archiviert{% endif %}
-        </p>
-        <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Zu einer Stimmgruppe springen">
-            {% for voice_group, count in voice_group_counts %}
-                <a class="btn btn-outline-secondary" href="#voice-group-{{ loop.index }}">
-                    {{ voice_group == "_no_voice_group" ? "Ohne Stimmgruppe" : voice_group }}
-                    {{ count }}
-                </a>
-            {% endfor %}
-        </nav>
+        {# Kopfzeile des Besetzungsplans: Summe und je Stimmgruppe ein Sprunglink. Am
+           Handy führt er zur Spalte, am Laptop stehen ohnehin alle nebeneinander. #}
+        <div class="cast-summary">
+            <p class="mb-0">
+                {{ member_total }} {{ member_total == 1 ? "Mitglied" : "Mitglieder" }}
+                {% if archived_total > 0 %}, davon {{ archived_total }} archiviert{% endif %}
+            </p>
+            <nav class="d-flex flex-wrap gap-2" aria-label="Zu einer Stimmgruppe springen">
+                {% for voice_group, count in voice_group_counts %}
+                    <a class="btn btn-sm btn-outline-secondary" href="#voice-group-{{ loop.index }}">
+                        {{ voice_group == "_no_voice_group" ? "Ohne Stimmgruppe" : voice_group }}
+                        {{ count }}
+                    </a>
+                {% endfor %}
+            </nav>
+        </div>
 
-        <div class="dashboard-shell">
+        {# Besetzungsplan: die Stimmgruppen als Spalten nebeneinander, damit die Balance
+           auf einen Blick zu sehen ist. Namen als dichte Liste ohne Trennrahmen. #}
+        <div class="cast-board">
             {% for voice_group, sub_voices in grouped_members %}
                 {% set group_count = voice_group_counts[voice_group] %}
-                <section class="dashboard-section voice-group-section"
+                <section class="surface-card card border-0 voice-group-section cast-column"
                          id="voice-group-{{ loop.index }}"
                          aria-labelledby="voice-group-{{ loop.index }}-title">
-                    <div class="dashboard-section-head">
-                        <h2 class="dashboard-section-title" id="voice-group-{{ loop.index }}-title">
+                    <header class="cast-column-head">
+                        <h2 class="cast-column-title" id="voice-group-{{ loop.index }}-title">
                             {{ voice_group == "_no_voice_group" ? "Ohne Stimmgruppe" : voice_group }}
                         </h2>
-                        <p class="dashboard-section-lead mb-0">
-                            {{ group_count }} {{ group_count == 1 ? "Mitglied" : "Mitglieder" }}
-                        </p>
-                    </div>
-
-                    <div class="surface-card card border-0 table-shell">
-                        {% for sub_voice, members in sub_voices %}
-                            <h3 class="group-label px-3 pt-3 mb-0">
+                        <span class="cast-column-count"
+                              title="{{ group_count }} {{ group_count == 1 ? "Mitglied" : "Mitglieder" }}">
+                            {{ group_count }}
+                        </span>
+                    </header>
+                    {% for sub_voice, members in sub_voices %}
+                        {# "Ohne Teilstimme" als einzige Zwischenüberschrift wäre nur Rauschen. #}
+                        {% if sub_voices|length > 1 or sub_voice != "_no_sub_voice" %}
+                            <h3 class="group-label cast-sub-voice">
                                 {{ sub_voice == "_no_sub_voice" ? "Ohne Teilstimme" : sub_voice }}
                                 <span class="fw-normal">&middot; {{ members|length }}</span>
                             </h3>
-                            <ul class="list-group list-group-flush">
-                                {% for m in members %}
-                                    <li class="list-group-item{{ m.is_active ? "" : " text-muted" }}">
-                                        {{ m|person_name }}
-                                        {% if not m.is_active %}
-                                            <span class="badge text-bg-light border ms-2">Archiviert</span>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% endfor %}
-                    </div>
+                        {% endif %}
+                        <ul class="cast-names list-unstyled mb-0">
+                            {% for m in members %}
+                                <li class="{{ m.is_active ? "" : "text-muted" }}">
+                                    {{ m|person_name }}
+                                    {% if not m.is_active %}
+                                        <span class="badge text-bg-light border">Archiviert</span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endfor %}
                 </section>
             {% endfor %}
         </div>

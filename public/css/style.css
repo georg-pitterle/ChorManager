@@ -3464,6 +3464,75 @@ a:hover {
     scroll-margin-top: 5rem;
 }
 
+/* Besetzung: Summe und Sprunglinks in einer Zeile über dem Plan. */
+.cast-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+/* Besetzungsplan: Stimmgruppen als Spalten. Am Laptop stehen Sopran, Alt, Tenor und Bass
+   nebeneinander, am Telefon zwei Spalten; Spalten sind so hoch wie ihr Inhalt. */
+.cast-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+    align-items: start;
+    gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+    .cast-board {
+        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+        gap: 1rem;
+    }
+}
+
+.cast-column {
+    padding: 0.75rem 0.85rem 0.85rem;
+}
+
+.cast-column-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.cast-column-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Die Kopfzahl ist das Ergebnis der Spalte: Sie trägt, der Name daneben benennt. */
+.cast-column-count {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.cast-sub-voice {
+    margin: 0.65rem 0 0.15rem;
+}
+
+.cast-names li {
+    padding: 0.15rem 0;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.cast-names .badge {
+    margin-left: 0.25rem;
+    font-size: 0.7rem;
+    vertical-align: 0.1em;
+}
+
 /* Telefon und Touch: Auswahlfeld und Knöpfe im Seitenkopf erreichen 44 px. */
 @media (max-width: 575.98px), (pointer: coarse) {
     .page-header .page-actions .form-select,

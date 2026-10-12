@@ -82,9 +82,9 @@ async function main() {
         await page.locator('table').first().waitFor({ state: 'visible' });
         await shotCapped(page, '03-registrations-past');
 
-        // 4. Projektmitglieder nach Stimmgruppen
+        // 4. Besetzung: Plan mit einer Spalte je Stimmgruppe
         await page.goto(`${BASE_URL}/evaluations/project-members`, { waitUntil: 'networkidle' });
-        await page.locator('.table-shell').first().waitFor({ state: 'visible' });
+        await page.locator('.cast-board').waitFor({ state: 'visible' });
         await shotCapped(page, '04-project-members');
 
         console.log('Fertig: alle Auswertungs-Screenshots erstellt.');
