@@ -14,6 +14,7 @@ use App\Services\Files\FileResponseFactory;
 use App\Services\Files\FileService;
 use App\Services\NameFormatterService;
 use App\Util\AttachmentPreview;
+use App\Util\RequestFormat;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -197,7 +198,7 @@ final class FileController
         try {
             $isFavorite = $this->favorites->toggle($this->actor(), $type, $id);
         } catch (FileManagementException $exception) {
-            if ($this->wantsJson($request)) {
+            if (RequestFormat::expectsJson($request)) {
                 return $this->json($response, ['ok' => false, 'error' => $exception->getMessage()], $exception->status);
             }
             $_SESSION['error'] = $exception->getMessage();
@@ -205,7 +206,7 @@ final class FileController
             return $this->redirect($response, '/files');
         }
 
-        if ($this->wantsJson($request)) {
+        if (RequestFormat::expectsJson($request)) {
             return $this->json($response, ['ok' => true, 'favorite' => $isFavorite]);
         }
 

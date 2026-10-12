@@ -119,6 +119,14 @@ class BackupController
         try {
             $file = $this->backupService->getFile($id);
         } catch (\Throwable $exception) {
+            // Protokolliert wie beim Löschen und Wiederherstellen: Ein Backup, das
+            // in der Liste steht und sich nicht ausliefern lässt, ist ein Befund -
+            // die gefangene Ausnahme blieb hier als einziger der vier Wege ungenutzt.
+            $this->logger->error('Backup download failed.', [
+                'event' => 'backup.download.failed',
+                'id' => $id,
+                'exception' => $exception,
+            ]);
             $response->getBody()->write('Backup nicht gefunden.');
             return $response->withStatus(404);
         }

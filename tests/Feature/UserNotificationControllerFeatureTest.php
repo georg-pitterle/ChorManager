@@ -176,6 +176,33 @@ final class UserNotificationControllerFeatureTest extends TestCase
     }
 
     /**
+     * Derselbe Aufruf, nur mit dem anderen Hinweis: notification-bell.js schickt
+     * heute `Accept`, andere Stellen der Oberfläche schicken stattdessen
+     * `X-Requested-With`. Beides zählt - und zwar hier genauso wie in der
+     * CsrfMiddleware, die über denselben Aufruf entscheidet, ob eine Abweisung
+     * als JSON oder als Weiterleitung kommt.
+     */
+    public function testReadAllAnswersJsonForAnXmlHttpRequestWithoutAcceptHeader(): void
+    {
+        $this->entry($this->anna);
+
+        $response = $this->controller()->readAll(
+            $this->makeRequest(
+                'POST',
+                '/notifications/read-all',
+                [],
+                [],
+                ['X-Requested-With' => 'XMLHttpRequest']
+            ),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(['unread_count' => 0], json_decode((string) $response->getBody(), true));
+        $this->assertArrayNotHasKey('success', $_SESSION);
+    }
+
+    /**
      * „Alle als gelesen“ ändert Daten - ohne Token weist die CSRF-Middleware
      * die Anfrage ab, bevor der Controller sie sieht.
      */

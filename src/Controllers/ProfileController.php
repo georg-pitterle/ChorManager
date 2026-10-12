@@ -23,6 +23,7 @@ use App\Util\Csrf;
 use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use App\Util\OutboundConnectionGuard;
+use App\Util\RequestFormat;
 use App\Util\InputValidator;
 use Psr\Log\LoggerInterface;
 
@@ -149,17 +150,6 @@ class ProfileController
             'smtp_encryption' => trim((string)($data['smtp_encryption'] ?? '')),
             'external_webmail_url' => trim((string)($data['external_webmail_url'] ?? '')),
         ];
-    }
-
-    /**
-     * True when the client explicitly asked for a JSON response (the async
-     * mailbox form's fetch() calls always send this). Non-JS/legacy form
-     * submissions never send it, so they keep using the redirect+session-flash
-     * path unchanged.
-     */
-    private function wantsJsonResponse(Request $request): bool
-    {
-        return str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json');
     }
 
     /**
@@ -409,7 +399,7 @@ class ProfileController
 
     public function updateMailbox(Request $request, Response $response): Response
     {
-        $wantsJson = $this->wantsJsonResponse($request);
+        $wantsJson = RequestFormat::expectsJson($request);
         $userId = (int)$_SESSION['user_id'];
         $data = (array)$request->getParsedBody();
 
@@ -534,7 +524,7 @@ class ProfileController
 
     public function testMailboxConnection(Request $request, Response $response): Response
     {
-        $wantsJson = $this->wantsJsonResponse($request);
+        $wantsJson = RequestFormat::expectsJson($request);
         $data = (array)$request->getParsedBody();
         if (!$wantsJson) {
             $_SESSION['mailbox_form_old'] = array_diff_key($data, ['imap_password' => true]);

@@ -10,7 +10,6 @@ use App\Services\Audience\AudienceFormInput;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileManagementException;
 use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Gemeinsames der Controller der Dateiverwaltung: wer handelt, wie eine
@@ -75,12 +74,6 @@ trait FileControllerSupport
         }
 
         return $this->redirect($response, is_string($backTo) ? $backTo : $backTo());
-    }
-
-    private function wantsJson(Request $request): bool
-    {
-        return str_contains($request->getHeaderLine('Accept'), 'application/json')
-            || $request->getHeaderLine('X-Requested-With') === 'XMLHttpRequest';
     }
 
     private function notFound(Response $response): Response

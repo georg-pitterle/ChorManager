@@ -489,7 +489,12 @@ class FinanceController
         }
 
         $data = (array) $request->getParsedBody();
-        $selected = array_map('intval', (array) ($data['selected'] ?? []));
+        // Doppelte Kennungen fallen weg: Die Vorschau schickt je Zeile ein
+        // Kästchen, zweimal dieselbe kommt also nur aus einem zusammengebauten
+        // Beitrag. Beide Durchgänge trügen dieselbe `import_hash`, und der
+        // UNIQUE-Index darauf brächte die Transaktion zu Fall - mitsamt allen
+        // einwandfreien Zeilen daneben, statt die Dublette still zu übergehen.
+        $selected = array_values(array_unique(array_map('intval', (array) ($data['selected'] ?? []))));
         $postedGroups = (array) ($data['group'] ?? []);
 
         $account = $this->resolveAccount($data);

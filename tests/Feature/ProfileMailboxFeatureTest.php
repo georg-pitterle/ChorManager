@@ -371,6 +371,34 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertArrayNotHasKey('mailbox_form_old', $_SESSION);
     }
 
+    /**
+     * profile-mailbox.js schickt heute `Accept`, andere Stellen der Oberfläche
+     * schicken stattdessen nur `X-Requested-With`. Entscheidend ist, dass diese
+     * Maske dieselbe Antwort gibt wie die CsrfMiddleware und die AuthMiddleware
+     * vor ihr: Beide zählen beide Kopfzeilen, und ein abweichender Controller
+     * schickte demselben `fetch` eine Weiterleitung statt JSON.
+     */
+    public function testConnectionTestReturnsJsonForAnXmlHttpRequestWithoutAcceptHeader(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/profile/mailbox/test',
+            ['imap_host' => '', 'imap_port' => '993', 'imap_encryption' => 'ssl'],
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest']
+        );
+
+        $response = $this->controller->testMailboxConnection($request, $this->makeResponse());
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+        $body = json_decode((string) $response->getBody(), true);
+        $this->assertIsArray($body);
+        $this->assertFalse($body['success']);
+        $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertArrayNotHasKey('mailbox_form_old', $_SESSION);
+    }
+
     public function testConnectionTestWithJsonAcceptReturnsJsonOnBlockedHost(): void
     {
         $request = $this->makeRequest(

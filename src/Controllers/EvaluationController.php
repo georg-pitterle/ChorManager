@@ -541,7 +541,7 @@ class EvaluationController
 
         $counts = [];
         $rows = Attendance::whereIn('event_id', $eventIds)
-            ->where('status', 'present')
+            ->where('status', Attendance::STATUS_PRESENT)
             ->groupBy('event_id')
             ->get([Capsule::raw('event_id'), Capsule::raw('COUNT(*) as present_count')]);
 

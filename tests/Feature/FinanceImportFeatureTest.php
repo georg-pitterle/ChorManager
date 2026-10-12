@@ -238,6 +238,29 @@ final class FinanceImportFeatureTest extends TestCase
         $this->assertSame($first->running_number + 1, $imported[1]->running_number);
     }
 
+    /**
+     * Dieselbe Zeile zweimal ausgewählt bleibt eine Buchung.
+     *
+     * Die Vorschau schickt je Zeile ein Kästchen, doppelt kann die Liste also
+     * nur ankommen, wenn der Beitrag zusammengebaut wurde - und genau dagegen
+     * ist die Übernahme gebaut: Sie liest Betrag und Datum ausschließlich aus
+     * dem Sitzungsvorrat. Die Kennungen kamen trotzdem ungeprüft durch, und
+     * beide Durchgänge trugen dieselbe `import_hash`. Der UNIQUE-Index hielt die
+     * zweite Zeile auf - aber als Ausnahme mitten in der Transaktion, und damit
+     * fiel der ganze Import aus, auch die zwanzig einwandfreien Zeilen daneben.
+     */
+    public function testConfirmImportsARowSelectedTwiceOnlyOnce(): void
+    {
+        $this->preview();
+
+        $response = $this->confirm([0, 0, 1]);
+
+        $this->assertRedirect($response, '/finances');
+        $this->assertStringContainsString('2 Buchungen importiert', (string) $_SESSION['success']);
+        $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertSame(2, $this->imported()->count());
+    }
+
     public function testAlreadyImportedRowsAreFlaggedAndNeverInsertedTwice(): void
     {
         $this->preview();

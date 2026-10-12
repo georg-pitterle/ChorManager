@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\UserNotification;
 use App\Services\Notifications\InAppNotificationStore;
 use App\Util\NotificationType;
+use App\Util\RequestFormat;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -93,7 +94,7 @@ class UserNotificationController
     {
         $this->store->markAllRead($this->userId());
 
-        if (str_contains($request->getHeaderLine('Accept'), 'application/json')) {
+        if (RequestFormat::expectsJson($request)) {
             return $this->json($response, ['unread_count' => 0]);
         }
 

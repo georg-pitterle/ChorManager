@@ -51,6 +51,49 @@ final class RequestFormatFeatureTest extends TestCase
     }
 
     /**
+     * Derselbe Anspruch, nur ohne Liste: Die beiden Kopfzeilen, aus denen sich
+     * die Erkennung speist, liest ausschließlich RequestFormat.
+     *
+     * Die Liste darüber nennt Dateien und ließ damit genau die Stellen durch,
+     * die ihre Abschrift anders benannten: ProfileController hieß sie
+     * `wantsJsonResponse()` und las nur `Accept`, FileControllerSupport
+     * `wantsJson()` und verglich `X-Requested-With` buchstabengenau,
+     * UserNotificationController legte sie gar nicht in eine Methode. Alle drei
+     * entschieden damit anders als AuthMiddleware, CsrfMiddleware und
+     * RoleMiddleware vor ihnen: Ein `fetch`, das nur `X-Requested-With`
+     * mitschickt, bekam von der Middleware JSON und vom Controller eine
+     * Weiterleitung - also die Anmelde- oder Formularseite als HTML in einem
+     * Aufruf, der JSON auswertet.
+     *
+     * Diese Prüfung kennt keine Liste und erfasst deshalb auch die nächste
+     * Abschrift, wie sie auch heißt.
+     */
+    public function testOnlyRequestFormatReadsTheTwoHeadersTheDetectionRestsOn(): void
+    {
+        $srcDir = dirname(__DIR__, 2) . '/src';
+        $allowed = $srcDir . '/Util/RequestFormat.php';
+
+        $offenders = [];
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($srcDir));
+        foreach ($files as $file) {
+            if (!$file->isFile() || $file->getExtension() !== 'php' || $file->getPathname() === $allowed) {
+                continue;
+            }
+
+            $source = (string) file_get_contents($file->getPathname());
+            if (preg_match("/getHeaderLine\\(\\s*['\\\"](X-Requested-With|Accept)['\\\"]/i", $source) === 1) {
+                $offenders[] = $file->getPathname();
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'Diese Dateien lesen X-Requested-With oder Accept selbst, statt RequestFormat::expectsJson() zu fragen.'
+        );
+    }
+
+    /**
      * Ein `fetch`-Aufruf kann mit einer Weiterleitung nichts anfangen. Deshalb
      * müssen alle Stellen, die zwischen JSON und Weiterleitung entscheiden,
      * dieselbe Erkennung benutzen - und keine davon eine eigene Abschrift.
