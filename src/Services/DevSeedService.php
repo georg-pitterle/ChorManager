@@ -1744,21 +1744,24 @@ class DevSeedService
         $startDate = new DateTimeImmutable(sprintf('%d-01-01', (int) date('Y') - 2));
         $endDate = new DateTimeImmutable(sprintf('%d-12-31', (int) date('Y')));
 
+        // Beschreibung und Gruppe als Paar: Vorher liefen beide Listen unabhängig
+        // im Kreis, und "Verpflegung" stand unter "Raummiete" - das verfälschte
+        // jeden Blick auf Gruppen und Budget in Dev.
         $descriptionsIncome = [
-            'Mitgliedsbeitrag',
-            'Konzertkarten',
-            'Förderung Gemeinde',
-            'Spende Privatperson',
-            'Sponsoring',
+            ['Mitgliedsbeitrag', 'Mitgliedsbeiträge'],
+            ['Konzertkarten', 'Konzert'],
+            ['Förderung Gemeinde', 'Förderung'],
+            ['Spende Privatperson', 'Sonstiges'],
+            ['Sponsoring', 'Förderung'],
         ];
 
         $descriptionsExpense = [
-            'Raummiete Probe',
-            'Notenmaterial',
-            'Technikmiete',
-            'Reisekosten',
-            'Verpflegung',
-            'Druckkosten',
+            ['Raummiete Probe', 'Raummiete'],
+            ['Notenmaterial', 'Notenmaterial'],
+            ['Technikmiete', 'Technik'],
+            ['Reisekosten', 'Reise'],
+            ['Verpflegung', 'Konzert'],
+            ['Druckkosten', 'Konzert'],
         ];
 
         $groups = [
@@ -1857,7 +1860,7 @@ class DevSeedService
             $paymentDate = $isOpenItem ? null : $invoiceDate->modify('+' . mt_rand(0, 20) . ' days');
 
             $project = $projects[$i % count($projects)];
-            $descriptionBase = $isIncome
+            [$descriptionBase, $groupName] = $isIncome
                 ? $descriptionsIncome[$i % count($descriptionsIncome)]
                 : $descriptionsExpense[$i % count($descriptionsExpense)];
 
@@ -1878,7 +1881,6 @@ class DevSeedService
             // Dev sofort sichtbar, wenn derselbe Auszug erneut eingelesen wird.
             $isImported = $paymentMethod === 'bank_transfer' && $i % 12 === 0;
 
-            $groupName = $groups[$i % count($groups)];
             $finance = Finance::create([
                 'running_number' => $runningNumber,
                 'invoice_date' => $invoiceDate->format('Y-m-d'),

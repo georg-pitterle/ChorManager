@@ -117,7 +117,7 @@ async function main() {
         await page.locator('#financesTable').waitFor({ state: 'visible' });
         await shotCapped(page, '01-kassabuch');
 
-        // 02. Modal: Neuer Eintrag
+        // 02. Modal: Neue Buchung
         await clickAndWaitForEvent(
             page,
             page.locator('.page-actions [data-bs-target="#financeModal"]'),
@@ -132,7 +132,9 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 03. Modal: Kassabuch-Konfiguration (Geschäftsjahr-Beginn)
+        // 03. Modal: Kassabuch-Einstellungen (Geschäftsjahr-Beginn, Abschluss)
+        // Import und Einstellungen stehen im Menü "Mehr" der Kopfzeile.
+        await page.locator('.page-actions [data-finance-more-menu]').click();
         await clickAndWaitForEvent(
             page,
             page.locator('.page-actions [data-bs-target="#settingsModal"]'),
@@ -227,6 +229,7 @@ async function main() {
         // === Kontoauszug-Import ===
 
         // 12. Modal: CSV auswählen.
+        await page.locator('.page-actions [data-finance-more-menu]').click();
         await clickAndWaitForEvent(
             page,
             page.locator('.page-actions [data-bs-target="#financeImportModal"]'),

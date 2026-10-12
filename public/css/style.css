@@ -1432,13 +1432,12 @@ thead th {
     width: 1%;
 }
 
-/* Spalten, die in der Tabellenansicht nur ein Icon zeigen: so schmal wie der
-   Inhalt. In der Kartenansicht setzt die Table-Engine display/width neu, dort
-   greift die Breitenbegrenzung nicht mehr. */
-.finances-table .finance-icon-column {
-    width: 1%;
-    white-space: nowrap;
-    text-align: center;
+/* Beträge in langen Spalten: gleich breite Ziffern, damit die Kommastellen
+   untereinander stehen. */
+.finances-table .finance-amount-cell,
+.finance-balance-list,
+.finance-sum-bar {
+    font-variant-numeric: tabular-nums;
 }
 
 /* Die Beschreibung ist die elastische Spalte: sie nimmt den Rest der Breite auf
@@ -1455,16 +1454,197 @@ thead th {
     gap: 0.35rem;
 }
 
-/* Buchungsart: in der Tabellenansicht nur das Icon, damit die Spalte schmal
-   bleibt. Der Klartext bleibt im DOM (Tabellensuche, Screenreader) und wird in
-   der Kartenansicht wieder eingeblendet, wo die Breite keine Rolle spielt. */
-.finances-table .finance-type-label {
-    display: none;
+/* Beschreibung mit Büroklammer: der Belegknopf rückt an den rechten Rand der Zelle,
+   statt eine eigene, fast immer leere Spalte zu belegen. */
+.finances-table .finance-description {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
-[data-table-engine="true"][data-active-view="cards"] .finances-table .finance-type-label {
-    display: inline;
-    margin-left: 0.25rem;
+.finances-table .finance-attachment-menu .btn {
+    white-space: nowrap;
+}
+
+/* Der Teil-Knopf "Weitere Aktionen" war 22 px breit - zu schmal für den Daumen. */
+.finances-table .finance-more-actions {
+    padding-inline: 0.65rem;
+}
+
+.finances-table .finance-empty-cell {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--theme-text-muted);
+}
+
+.finance-lock-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.75rem;
+    white-space: nowrap;
+}
+
+/* Kassastand je Konto: Konto, Rechenweg und Stand in einer Zeile. Der Stand trägt,
+   der Rechenweg ist leiser - er erklärt die Zahl, er konkurriert nicht mit ihr. */
+.finance-balance-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: baseline;
+    gap: 0.25rem 1.5rem;
+    padding: 0.85rem 1.25rem;
+}
+
+.finance-balance-row + .finance-balance-row {
+    border-top: 1px solid var(--theme-border);
+}
+
+.finance-balance-account {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.finance-balance-account .bi {
+    color: var(--theme-text-muted);
+}
+
+.finance-balance-formula {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    color: var(--theme-text-muted);
+    font-size: 0.9rem;
+}
+
+.finance-balance-closing {
+    min-width: 8rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: right;
+}
+
+.finance-balance-row--total {
+    background: var(--theme-surface-muted);
+}
+
+@media (max-width: 575.98px) {
+    .finance-balance-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 0.75rem 1rem;
+    }
+
+    .finance-balance-formula {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-content: flex-start;
+    }
+
+    .finance-balance-closing {
+        min-width: 0;
+    }
+}
+
+/* Summe der Treffer unter der Buchungsliste (public/js/finances.js). */
+.finance-sum-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 0.5rem 1.25rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--theme-border);
+}
+
+.finance-sum-label {
+    margin-right: auto;
+    color: var(--theme-text-muted);
+    font-size: 0.9rem;
+}
+
+.finance-sum-parts {
+    display: inline-flex;
+    gap: 1rem;
+}
+
+.finance-sum-total {
+    font-size: 1.05rem;
+}
+
+/* Kassabuch am Telefon: Beschreibung und Betrag als Kopfzeile der Karte, die
+   Eckdaten zu zweit darunter. Mit einem Wertepaar pro Zeile war eine Buchung
+   rund 580 px hoch und der Betrag stand an siebter Stelle. */
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.3rem 0.75rem;
+    padding: 0.75rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 0 0.35rem;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0.875rem;
+    text-align: left !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td::before {
+    flex: none;
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-description-cell {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-amount-cell {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: right !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-description-cell::before,
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-amount-cell::before,
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-actions-cell::before {
+    content: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-actions-cell {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td.finance-actions-cell .btn-group {
+    width: auto;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td[colspan] {
+    display: block;
+    grid-column: 1 / -1;
+    text-align: center !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .finances-table tbody td[data-card-empty] {
+    display: none;
 }
 
 .finance-import-table .finance-amount-column,

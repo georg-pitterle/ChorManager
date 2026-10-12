@@ -20,6 +20,7 @@ use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
+use App\Services\ModalFormService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Http\Message\UploadedFileInterface;
@@ -37,6 +38,23 @@ class FinanceController
     /** Seconds a parsed statement stays available for confirmation. */
     private const IMPORT_TTL = 3600;
     private const IMPORT_SESSION_KEY = 'finance_import';
+
+    /** Sitzungsbereich des Buchungsdialogs (ModalFormService). */
+    private const BOOKING_FORM_SCOPE = 'finance_booking';
+
+    /** Felder, die ein abgewiesener Buchungsdialog zurückbekommt. */
+    private const BOOKING_FORM_FIELDS = [
+        'id', 'invoice_date', 'payment_date', 'payment_open', 'description',
+        'group_name', 'type', 'finance_account_id', 'amount',
+    ];
+
+    /**
+     * Felder, die nach "Speichern und nächste" für den nächsten Beleg stehen
+     * bleiben. Beschreibung und Betrag gehören zum gerade gespeicherten Beleg.
+     */
+    private const BOOKING_STICKY_FIELDS = [
+        'invoice_date', 'payment_date', 'payment_open', 'group_name', 'type', 'finance_account_id',
+    ];
 
     private Twig $view;
     private BudgetService $budgetService;
@@ -188,6 +206,14 @@ class FinanceController
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        // Abgewiesene Eingaben oder die Vorgaben für den nächsten Beleg: Der Dialog
+        // öffnet damit beim Laden wieder, statt die Kassierin von vorn tippen zu lassen.
+        $bookingForm = new ModalFormService(self::BOOKING_FORM_SCOPE);
+        $bookingFormState = $bookingForm->getState();
+        $bookingForm->clear();
+        $bookingFormId = (int) ($bookingFormState['form']['id'] ?? 0);
+        $closedUntil = $this->journal->closedUntil();
+
         return $this->view->render($response, 'finances/index.twig', [
             'finances' => $finances,
             'open_items' => $openItems,
@@ -196,13 +222,81 @@ class FinanceController
             'groups' => $groups,
             'success' => $success,
             'error' => $error,
+            'booking_form' => $bookingFormState,
+            // Die bearbeitete Buchung samt Belegen: Der wieder geöffnete Dialog soll
+            // dieselbe Belegliste zeigen wie beim ersten Öffnen.
+            'booking_form_item' => $bookingFormId > 0
+                ? Finance::with(['attachments' => $attachmentMetadata])->find($bookingFormId)
+                : null,
             'fiscal_start' => $startDate->format('d.m.Y'),
             'fiscal_end' => $endDate->format('d.m.Y'),
             'fiscal_setting' => $startStr,
-            'closed_until_value' => $this->journal->closedUntil()?->format('Y-m-d') ?? '',
+            'closed_until_value' => $closedUntil?->format('Y-m-d') ?? '',
+            'closed_until_label' => $closedUntil?->format('d.m.Y'),
             'available_years' => $availableYears,
             'selected_year' => $selectedYear,
         ]);
+    }
+
+    /**
+     * Weist eine Buchung ab, ohne die Eingaben zu verlieren: Die Meldung steht im
+     * wieder geöffneten Dialog, alle Felder tragen, was die Kassierin getippt hat.
+     * Dateien kann der Browser nicht vorbelegen - darauf weist die Meldung hin.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function rejectBooking(Request $request, Response $response, string $message, array $data): Response
+    {
+        if ($this->hasUploadedReceipts($request)) {
+            $message .= ' Ausgewählte Belege bitte erneut anhängen.';
+        }
+
+        $form = [];
+        foreach (self::BOOKING_FORM_FIELDS as $field) {
+            $form[$field] = InputValidator::asString($data[$field] ?? null);
+        }
+
+        // Die Meldung steht zusätzlich wie bisher in $_SESSION['error']; das Template
+        // zeigt sie aber nur im Dialog, wenn sie dieselbe ist.
+        (new ModalFormService(self::BOOKING_FORM_SCOPE))->setError($message, $form);
+
+        return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    /**
+     * "Speichern und nächste": Konto, Art, Daten und Gruppe bleiben für den
+     * nächsten Beleg vom Stapel stehen, der Dialog öffnet nach dem Neuladen von
+     * selbst. Ein einfaches Speichern räumt den Dialog dagegen ab, ebenso jedes
+     * Bearbeiten - dort gibt es keinen nächsten Beleg.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function prepareNextBooking(array $data, ?int $id): void
+    {
+        $bookingForm = new ModalFormService(self::BOOKING_FORM_SCOPE);
+        $bookingForm->clear();
+        if ($id !== null || empty($data['save_and_next'])) {
+            return;
+        }
+
+        $sticky = [];
+        foreach (self::BOOKING_STICKY_FIELDS as $field) {
+            $sticky[$field] = InputValidator::asString($data[$field] ?? null);
+        }
+        $bookingForm->remember($sticky);
+    }
+
+    private function hasUploadedReceipts(Request $request): bool
+    {
+        $files = $request->getUploadedFiles()['attachments'] ?? [];
+        $files = is_array($files) ? $files : [$files];
+        foreach ($files as $file) {
+            if ($file instanceof UploadedFileInterface && $file->getError() !== UPLOAD_ERR_NO_FILE) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function save(Request $request, Response $response): Response
@@ -212,14 +306,22 @@ class FinanceController
 
         $amount = self::normalizeAmountInput(InputValidator::asString($data['amount'] ?? '0'));
         if (!is_numeric($amount) || (float) $amount <= 0) {
-            $_SESSION['error'] = 'Ungültiger Betrag. Bitte eine positive Zahl eingeben.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking(
+                $request,
+                $response,
+                'Ungültiger Betrag. Bitte eine positive Zahl eingeben.',
+                $data
+            );
         }
 
         $type = InputValidator::asString($data['type'] ?? null);
         if (!in_array($type, ['income', 'expense'], true)) {
-            $_SESSION['error'] = 'Ungültige Buchungsart. Bitte "Einnahme" oder "Ausgabe" wählen.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking(
+                $request,
+                $response,
+                'Ungültige Buchungsart. Bitte "Einnahme" oder "Ausgabe" wählen.',
+                $data
+            );
         }
 
         // Die Datumsfelder werden als Zeichenkette verglichen und gespeichert. Ohne
@@ -227,19 +329,25 @@ class FinanceController
         // sobald der SQL-Modus nicht strikt ist.
         $invoiceDate = InputValidator::asString($data['invoice_date'] ?? null);
         if (!self::isValidDate($invoiceDate)) {
-            $_SESSION['error'] = 'Bitte ein gültiges Rechnungsdatum angeben.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking($request, $response, 'Bitte ein gültiges Rechnungsdatum angeben.', $data);
         }
 
-        $paymentDate = !empty($data['payment_date']) ? (string) $data['payment_date'] : null;
+        // "Noch nicht bezahlt" schlägt ein Zahldatum: Das Datumsfeld ist mit heute
+        // vorbelegt, ein offener Posten ist der Sonderfall und muss angehakt werden.
+        $paymentDate = empty($data['payment_open']) && !empty($data['payment_date'])
+            ? InputValidator::asString($data['payment_date'])
+            : null;
         if ($paymentDate !== null && !self::isValidDate($paymentDate)) {
-            $_SESSION['error'] = 'Bitte ein gültiges Zahlungsdatum angeben.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking($request, $response, 'Bitte ein gültiges Zahlungsdatum angeben.', $data);
         }
 
         if ($paymentDate !== null && $paymentDate < $invoiceDate) {
-            $_SESSION['error'] = 'Das Zahlungsdatum darf nicht vor dem Rechnungsdatum liegen.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking(
+                $request,
+                $response,
+                'Das Zahlungsdatum darf nicht vor dem Rechnungsdatum liegen.',
+                $data
+            );
         }
 
         // Pflichtfeld auch serverseitig: das `required` im Formular hält nur die
@@ -247,29 +355,33 @@ class FinanceController
         // niemandem mehr zuzuordnen.
         $description = trim(InputValidator::asString($data['description'] ?? null));
         if ($description === '') {
-            $_SESSION['error'] = 'Bitte eine Beschreibung angeben.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking($request, $response, 'Bitte eine Beschreibung angeben.', $data);
         }
 
         $account = $this->resolveAccount($data);
         if ($account === null) {
-            $_SESSION['error'] = 'Bitte ein Konto auswählen. Konten werden unter "Konten" verwaltet.';
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            return $this->rejectBooking(
+                $request,
+                $response,
+                'Bitte ein Konto auswählen. Konten werden unter "Konten" verwaltet.',
+                $data
+            );
         }
 
         // Eine Zahlung vor dem Stichtag des Kontos wäre bereits im Anfangsbestand
         // enthalten und würde den Kassabericht doppelt belasten.
         $openingDate = FinanceAccountService::openingDate($account);
         if ($paymentDate !== null && $openingDate !== '' && $paymentDate < $openingDate) {
-            $_SESSION['error'] = sprintf(
+            return $this->rejectBooking($request, $response, sprintf(
                 'Das Zahlungsdatum liegt vor dem Stichtag des Kontos "%s" (%s). '
                     . 'Solche Zahlungen stecken bereits im Anfangsbestand.',
                 $account->name,
                 Carbon::parse($openingDate)->format('d.m.Y')
-            );
-            return $response->withHeader('Location', '/finances')->withStatus(302);
+            ), $data);
         }
 
+        $finance = null;
+        $committed = false;
         try {
             $groupNameRaw = trim(InputValidator::asString($data['group_name'] ?? null));
             $groupName = $groupNameRaw !== '' ? $groupNameRaw : null;
@@ -291,7 +403,6 @@ class FinanceController
                 'payment_method' => $account->paymentMethod(),
             ];
 
-            $finance = null;
             $lockError = null;
             Capsule::connection()->transaction(
                 function () use ($id, &$recordData, &$finance, &$lockError): void {
@@ -325,12 +436,16 @@ class FinanceController
                 }
             );
 
+            $committed = $lockError === null;
             if ($lockError !== null) {
-                $_SESSION['error'] = $this->lockMessage();
-                return $response->withHeader('Location', '/finances')->withStatus(302);
+                return $this->rejectBooking($request, $response, $this->lockMessage(), $data);
             }
 
-            $_SESSION['success'] = $id ? 'Eintrag erfolgreich aktualisiert.' : 'Neuer Eintrag erfolgreich verbucht.';
+            $_SESSION['success'] = sprintf(
+                $id ? 'Buchung %d geändert.' : 'Buchung %d verbucht.',
+                (int) $finance->running_number
+            );
+            $this->prepareNextBooking($data, $id);
 
             // Belege über den gemeinsamen Dienst, wie jeder andere Anhang.
             $uploadResult = $this->attachments->storeUploads(
@@ -351,7 +466,18 @@ class FinanceController
                 'finance_id' => $id,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Fehler beim Speichern. Bitte versuchen Sie es erneut.';
+            // Erst wenn nichts verbucht ist, darf der Dialog mit den Eingaben
+            // zurückkommen - sonst entstünde beim zweiten Versuch eine Dublette.
+            if (!$committed) {
+                unset($_SESSION['success']);
+                return $this->rejectBooking(
+                    $request,
+                    $response,
+                    'Die Buchung konnte nicht gespeichert werden. Bitte noch einmal versuchen.',
+                    $data
+                );
+            }
+            $_SESSION['error'] = 'Die Buchung ist verbucht, danach ging aber etwas schief. Bitte die Liste prüfen.';
         }
         return $response->withHeader('Location', '/finances')->withStatus(302);
     }

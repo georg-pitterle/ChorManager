@@ -8,7 +8,7 @@ und zur Ablage kannst du ein Geschäftsjahr als PDF herunterladen.
 > **"Finanzen nur lesen"** (oder **"Finanzen lesen und schreiben"**) hat.
 > Siehst du den Menüpunkt **Kassa** nicht, frag den Administrator unter
 > **Administration → Rollen & Rechte**. Nur mit dem Recht **"Finanzen lesen und schreiben"**
-> kannst du Einträge anlegen, bearbeiten und stornieren; mit "Finanzen nur lesen"
+> kannst du Buchungen anlegen, bearbeiten und stornieren; mit "Finanzen nur lesen"
 > siehst du das Kassabuch, aber ohne die Schaltflächen zum Ändern.
 
 ## 1. Einstieg
@@ -17,17 +17,34 @@ Klickpfad: **Finanzen → Kassa**. Der Menüpunkt **Kassa** erscheint nur, wenn 
 Finanzmodul aktiv ist und deine Rolle das Recht "Finanzen nur lesen" oder
 "Finanzen lesen und schreiben" besitzt.
 
-Das Kassabuch listet alle Buchungen des laufenden Geschäftsjahres mit laufender
-Nummer, Rechnungs- und Zahldatum, Beschreibung, Gruppe, Betrag und Konto
-(Barkassa oder Bankkonto). Oben rechts wählst du im Feld **Jahr** das Geschäftsjahr;
-über **Suche** und die Tabellenleiste kannst du filtern und sortieren.
+Ganz oben steht der **Kassastand**: je Konto der Anfangsbestand, die Einnahmen
+(+), die Ausgaben (−) und rechts der Stand mit allen Zahlungen bis zum Ende des
+Geschäftsjahres. Bei mehreren Konten folgt eine Zeile **Gesamt**. Offene Posten
+zählen nicht mit. Über **"Mit Bargeld und Kontoauszug abstimmen"** kommst du zum
+ausführlichen Kassabericht in der Auswertung.
+
+Darunter listet das Kassabuch alle Buchungen des gewählten Geschäftsjahres mit
+laufender Nummer, Rechnungs- und Zahldatum, Beschreibung, Gruppe, Betrag und Konto
+(Barkassa oder Bankkonto). Ob eine Buchung Einnahme oder Ausgabe ist, zeigt der
+Betrag: Einnahmen stehen grün mit **+**, Ausgaben rot mit **−**. Hat eine Buchung
+Belege, steht neben der Beschreibung eine Büroklammer mit ihrer Anzahl.
+
+Oben rechts wählst du im Feld **Jahr** das Geschäftsjahr; über **Suche** und die
+Tabellenleiste kannst du filtern und sortieren. Unter der Liste steht die **Summe
+der Treffer**: Einnahmen, Ausgaben und Saldo genau der Buchungen, die Suche und
+Filter übrig lassen. Suchst du etwa nach einer Gruppe, siehst du sofort, was sie
+eingebracht oder gekostet hat.
+
+Selten gebrauchte Funktionen – Konten, Änderungsjournal, CSV-Export und, mit
+Schreibrecht, Kontoauszug-Import und Einstellungen – findest du oben rechts im
+Menü **"Mehr"**.
 
 > **Wann zählt eine Buchung zu welchem Jahr?** Maßgeblich ist das **Zahldatum**,
 > nicht das Rechnungsdatum – eine Rechnung vom 20. August, die erst am
 > 10. September bezahlt wird, zählt zum neuen Geschäftsjahr. Das entspricht dem
 > Zufluss-Abfluss-Prinzip einer Einnahmen-Ausgaben-Rechnung.
 
-![Kassabuch mit Buchungsliste](images/finance/01-kassabuch.png)
+![Kassabuch mit Kassastand und Buchungsliste](images/finance/01-kassabuch.png)
 
 ### Offene Posten
 
@@ -38,28 +55,45 @@ Zahldatum nachträgst, wandert die Buchung ins passende Geschäftsjahr.
 
 ![Abschnitt Offene Posten unterhalb der Buchungsliste](images/finance/11-open-items.png)
 
-### Neuen Eintrag erfassen
+### Neue Buchung erfassen
 
-Mit **"Neuer Eintrag"** (nur mit dem Recht "Finanzen lesen und schreiben")
-öffnest du das Formular. Pflichtfelder sind Rechnungsdatum, Beschreibung,
-Ein-/Ausgang, Konto und Betrag. Das **Zahldatum** bleibt leer, solange die
-Rechnung offen ist. Optional ordnest du den Eintrag einer **Gruppe** zu (oder
-legst über "+ Neue Gruppe eingeben…" eine neue an) und lädst **Anhänge** (Belege
-als Bild oder PDF) hoch.
+Mit **"Neue Buchung"** (nur mit dem Recht "Finanzen lesen und schreiben")
+öffnest du das Formular. Die Felder stehen in der Reihenfolge, in der du einen
+Beleg liest:
 
-Bereits hochgeladene Belege erreichst du in der Kassabuch-Liste über das
-Büroklammer-Symbol der Zeile. Dort steht je Datei ein Augen-Symbol für die
+1. **Art**: Ausgabe oder Einnahme, per Klick umschalten.
+2. **Betrag** in Euro, z. B. `12,50` oder `1.234,00`.
+3. **Beschreibung**.
+4. **Konto**: Das Formular schlägt das Konto vor, auf das du zuletzt gebucht hast.
+5. **Rechnungsdatum** und **Zahldatum**: Beide sind mit dem heutigen Datum
+   vorbelegt. Ist die Rechnung noch nicht bezahlt, hake **"Noch nicht bezahlt
+   (offener Posten)"** an – dann landet die Buchung bei den offenen Posten.
+6. Optional eine **Gruppe** (oder über "+ Neue Gruppe eingeben…" eine neue) und
+   **Belege** als Bild oder PDF.
+
+Hast du einen ganzen Stapel Belege vor dir, nimm **"Speichern und nächste"**:
+Die Buchung wird gespeichert und das Formular öffnet sich gleich wieder. Art,
+Konto, Daten und Gruppe bleiben stehen, nur Betrag und Beschreibung trägst du
+neu ein.
+
+Stimmt etwas nicht – etwa ein Tippfehler im Betrag –, öffnet sich das Formular
+wieder mit allen Eingaben und der Meldung, was zu korrigieren ist. Nur
+ausgewählte Belege musst du dann erneut anhängen, weil der Browser Dateien nicht
+vorbelegen kann.
+
+Bereits hochgeladene Belege erreichst du in der Kassabuch-Liste über die
+Büroklammer neben der Beschreibung. Dort steht je Datei ein Augen-Symbol für die
 **Vorschau** – sie öffnet die Datei in einem Fenster, ohne dass du sie
 herunterladen musst – und ein Pfeil-Symbol für den **Download**. Bei Dateien,
 die sich im Browser nicht anzeigen lassen (etwa Word- oder Excel-Dokumente),
 entfällt die Vorschau und es bleibt der Download.
 
-![Formular für einen neuen Kassabuch-Eintrag](images/finance/02-new-entry-modal.png)
+![Formular für eine neue Buchung](images/finance/02-new-entry-modal.png)
 
 ### Konten (Zahlungskreise)
 
 Jede Buchung gehört zu genau einem Konto – der Barkassa oder einem Bankkonto.
-Unter **Kassabuch → Konten** legst du diese Zahlungskreise an. Je Konto erfasst
+Im Kassabuch unter **Mehr → Konten** legst du diese Zahlungskreise an. Je Konto erfasst
 du:
 
 - **Name** und **Art** (Bar oder Bank),
@@ -74,7 +108,7 @@ prüfen die Rechnungsprüfer.
 
 Konten mit Buchungen lassen sich nicht löschen. Wird ein Konto nicht mehr
 benutzt, setze es auf **inaktiv**: Bestehende Buchungen bleiben erhalten, das
-Konto steht aber bei neuen Einträgen nicht mehr zur Auswahl.
+Konto steht aber bei neuen Buchungen nicht mehr zur Auswahl.
 
 ![Kontenliste mit Anfangsbestand und aktuellem Bestand](images/finance/09-accounts.png)
 
@@ -82,8 +116,10 @@ Konto steht aber bei neuen Einträgen nicht mehr zur Auswahl.
 
 ### Korrigieren und stornieren
 
-Buchungen lassen sich nicht löschen. Eine falsche Buchung wird über
-**Aktionen → Stornieren** aufgehoben: Das System legt automatisch eine
+Buchungen lassen sich nicht löschen. Eine falsche Buchung wird über den kleinen
+Pfeil neben dem Stift der Zeile und **Stornieren** aufgehoben. Die Rückfrage
+nennt Nummer, Beschreibung und Betrag, damit du die richtige Buchung erwischst.
+Das System legt dann automatisch eine
 Gegenbuchung mit umgekehrter Richtung und gleichem Betrag an
 ("Storno zu Nr. 42: …"). Original und Storno bleiben beide im Kassabuch stehen
 und sind mit **storniert** bzw. **Storno** gekennzeichnet; in Summe heben sie
@@ -101,7 +137,7 @@ ursprünglichen Inhalt nicht unkenntlich machen. Aus demselben Grund wird jede
 
 ### Änderungsjournal
 
-Unter **Kassabuch → Journal** siehst du, wer wann welche Buchung angelegt,
+Im Kassabuch unter **Mehr → Änderungsjournal** siehst du, wer wann welche Buchung angelegt,
 geändert oder storniert hat – bei Änderungen mit dem alten und dem neuen Wert.
 Auch das Verschieben des Buchungsabschlusses steht dort, als Eintrag
 **Abschluss** ohne Bezug zu einer einzelnen Buchung. Das Journal ist für alle
@@ -117,7 +153,9 @@ wurde. Nur Einträge, die ohne Person entstanden sind, stehen als **System**.
 ### Geschäftsjahr abschließen
 
 Ist ein Jahr geprüft und in der Generalversammlung entlastet, trägst du unter
-**"Konfiguration"** bei **Buchungen abgeschlossen bis** das Enddatum ein.
+**Mehr → Einstellungen** bei **Buchungen abgeschlossen bis** das Enddatum ein.
+Solange eine Sperre gilt, steht im Kopf des Kassabuchs neben dem Geschäftsjahr
+**"Abgeschlossen bis …"** mit einem Schloss.
 Zahlungen bis zu diesem Tag lassen sich danach nicht mehr ändern; auch neue
 Buchungen in diesem Zeitraum werden abgelehnt. Nötige Korrekturen laufen dann
 über eine Stornobuchung, die automatisch auf den ersten wieder offenen Tag
@@ -128,18 +166,18 @@ einschließlich einer Rückdatierung, die einen bereits geprüften Zeitraum wied
 
 ### Beginn des Geschäftsjahres einstellen
 
-Über **"Konfiguration"** (ebenfalls nur mit Schreibrecht) legst du fest, an
+Unter **Mehr → Einstellungen** (ebenfalls nur mit Schreibrecht) legst du fest, an
 welchem Tag das Geschäftsjahr beginnt. Das Geschäftsjahr rechnet sich automatisch
-vom eingestellten Startdatum bis zum Tag davor im Folgejahr. Format: **DD.MM.**
+vom eingestellten Startdatum bis zum Tag davor im Folgejahr. Format: **TT.MM.**
 (z. B. `01.09.` für den 1. September).
 
-![Konfiguration des Geschäftsjahr-Beginns](images/finance/03-settings-modal.png)
+![Kassabuch-Einstellungen mit Geschäftsjahr-Beginn und Abschluss](images/finance/03-settings-modal.png)
 
 ## 2. Kontoauszug importieren
 
 Statt jede Bankbewegung abzutippen, kannst du die **Umsatzübersicht** aus dem
-Online-Banking als CSV-Datei hochladen. Der Button **"Import"** steht im
-Kassabuch neben "Konfiguration" und ist nur mit dem Recht
+Online-Banking als CSV-Datei hochladen. Den Eintrag **"Kontoauszug importieren"**
+findest du im Kassabuch unter **Mehr**; er ist nur mit dem Recht
 **"Finanzen lesen und schreiben"** sichtbar.
 
 Der Ablauf hat zwei Schritte:
@@ -151,7 +189,7 @@ Der Ablauf hat zwei Schritte:
    mit Buchungsdatum, Zahldatum, Beschreibung, Ein-/Ausgang und Betrag. Du
    kannst einzelne Zeilen abwählen und jeder Zeile eine **Gruppe** zuordnen.
    Erst **"… Zeilen übernehmen"** legt die Buchungen an – mit fortlaufender
-   Nummer wie bei manuell erfassten Einträgen. Über **"Abbrechen"** verwirfst du
+   Nummer wie bei manuell erfassten Buchungen. Über **"Abbrechen"** verwirfst du
    den Import vollständig.
 
 ![Fenster zum Auswählen der CSV-Datei](images/finance/12-import-modal.png)
@@ -200,7 +238,7 @@ Der Endbestand des einen Jahres ist automatisch der Anfangsbestand des nächsten
 
 ## 4. Kassabuch als CSV exportieren
 
-Der Button **"CSV"** im Kassabuch lädt alle Buchungen des gewählten
+Der Eintrag **Mehr → Als CSV exportieren** im Kassabuch lädt alle Buchungen des gewählten
 Geschäftsjahres als Tabelle herunter – gedacht für Rechnungsprüfer und
 Steuerberater, die mit Excel oder LibreOffice weiterrechnen wollen. Dafür
 genügt das Recht **"Finanzen nur lesen"**.
@@ -255,11 +293,12 @@ Möchtest du ein anderes Geschäftsjahr ausdrucken, stelle zuerst das
   Bewegungen und Kennzahlen.
 - **Beginn des Geschäftsjahres.** Welcher Zeitraum ein Geschäftsjahr umfasst,
   richtet sich nach dem eingestellten Geschäftsjahr-Beginn. Passt der Zeitraum
-  nicht, lässt sich der Beginn im Kassabuch unter **"Konfiguration"** ändern
+  nicht, lässt sich der Beginn im Kassabuch unter **Mehr → Einstellungen** ändern
   (Recht "Finanzen lesen und schreiben" nötig).
 - **Buchung fehlt in der Auswertung.** Fast immer fehlt das Zahldatum. Ohne
   Zahldatum steht die Buchung unter **Offene Posten** und zählt in kein
-  Geschäftsjahr. Ebenso möglich: Die Zahlung fiel in ein anderes Geschäftsjahr
+  Geschäftsjahr. Prüfe, ob beim Erfassen versehentlich **"Noch nicht bezahlt"**
+  angehakt war. Ebenso möglich: Die Zahlung fiel in ein anderes Geschäftsjahr
   als die Rechnung – dann zählt sie dort.
 - **Import wird abgelehnt.** Der Import erwartet eine semikolongetrennte
   CSV-Datei mit den Spalten *Buchungsdatum* und *Betrag* sowie dem Datumsformat
@@ -268,4 +307,4 @@ Möchtest du ein anderes Geschäftsjahr ausdrucken, stelle zuerst das
 - **Fremdwährungen.** Es werden nur EUR-Buchungen übernommen; Zeilen in anderen
   Währungen erscheinen in der Vorschau gesperrt mit Hinweis.
 - **Bareinnahmen.** Der Import setzt die Zahlungsart immer auf "Überweisung".
-  Bargeldbewegungen erfasst du weiterhin über **"Neuer Eintrag"**.
+  Bargeldbewegungen erfasst du weiterhin über **"Neue Buchung"**.

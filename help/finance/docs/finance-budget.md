@@ -61,6 +61,6 @@ passende Gruppe, legst du sie direkt über "+ Neue Gruppe eingeben…" an.
   Gruppe der Kategorie und das gewählte Jahr.
 - **Haushaltsjahr = Geschäftsjahr.** Der Zeitraum richtet sich nach demselben
   Geschäftsjahr-Beginn wie das Kassabuch. Diesen stellst du im Kassabuch unter
-  **"Konfiguration"** ein (siehe [Finanzen](finance)).
+  **Mehr → Einstellungen** ein (siehe [Finanzen](finance)).
 - **Kategorie löschen ist endgültig.** Beim Löschen einer Kategorie werden auch
   alle ihre Posten entfernt. Die Buchungen im Kassabuch bleiben unberührt.

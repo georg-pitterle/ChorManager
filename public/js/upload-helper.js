@@ -293,9 +293,28 @@ window.uploadHelper = (() => {
      * @param {HTMLFormElement} form - Form to monitor
      * @param {number} targetSize - Target size in bytes
      */
+    /**
+     * form.submit() lässt den auslösenden Knopf weg. Trägt er Name und Wert (etwa
+     * "Speichern und nächste" im Kassabuch), käme beim Server nie an, welcher Knopf
+     * gedrückt wurde - deshalb hier als verstecktes Feld nachreichen.
+     */
+    const carrySubmitter = (form, submitter) => {
+        form.querySelectorAll('input[data-upload-submitter]').forEach(node => node.remove());
+        if (!submitter || !submitter.name) {
+            return;
+        }
+        const carrier = document.createElement('input');
+        carrier.type = 'hidden';
+        carrier.name = submitter.name;
+        carrier.value = submitter.value;
+        carrier.setAttribute('data-upload-submitter', '');
+        form.appendChild(carrier);
+    };
+
     const setupFormCompression = (form, targetSize = TARGET_SIZE) => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            carrySubmitter(form, e.submitter || null);
 
             const hardLimitFromData = Number.parseInt(form.dataset.uploadHardLimitBytes || '', 10);
             const hardLimitBytes = Number.isFinite(hardLimitFromData) && hardLimitFromData > 0

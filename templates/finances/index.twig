@@ -1,9 +1,83 @@
 {% extends "layout.twig" %}
 
+{% import _self as cashbook %}
+
 {% set can_write_finances = session.can_manage_finances %}
 
+{# Belege einer Buchung als Büroklammer an der Beschreibung. Eine eigene Spalte
+   zeigte in fast jeder Zeile nur einen Strich und kostete Breite. #}
+{% macro attachment_menu(item) %}
+    {% if item.attachments|length > 0 %}
+        <div class="btn-group finance-attachment-menu">
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    data-bs-boundary="viewport"
+                    title="Belege">
+                <i class="bi bi-paperclip" aria-hidden="true"></i>
+                {{ item.attachments|length }}
+                <span class="visually-hidden">Belege</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% for att in item.attachments %}
+                    <li class="dropdown-item-text d-flex justify-content-between align-items-center gap-3">
+                        <span class="text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
+                        {{ include("partials/attachment_actions.twig", {
+                            attachment_id: att.id,
+                            attachment_name: att.original_name,
+                            attachment_mime: att.mime_type,
+                            attachment_size: att.file_size,
+                        }, false) }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{# Betrag mit Vorzeichen: echtes Minus (U+2212), kein Leerzeichen dahinter. Das
+   Wort davor ist für die Tabellensuche ("Ausgabe") und für Vorleseprogramme. #}
+{% macro signed_amount(item) %}
+    {%- set _income = item.type == "income" -%}
+    <span class="visually-hidden">{{ _income ? "Einnahme" : "Ausgabe" }} </span>
+    {{- _income ? "+" : "−" }}{{ item.amount|number_format(2, ",", ".") }} €
+{%- endmacro %}
+
+{# Daten für den Bearbeiten-Dialog. Ob ein Beleg eine Vorschau bekommt, entscheidet
+   der Server über attachment_previewable() - dieselbe Quelle wie im Baustein
+   partials/attachment_actions.twig, damit der Dialog keine eigenen Regeln bekommt.
+   Zusammengebaut wird die Belegliste in public/js/finances.js. #}
+{% macro edit_payload(item) %}
+    {%- set _atts = [] -%}
+    {%- for _att in item.attachments -%}
+        {%- set _att_row = {
+            id: _att.id,
+            name: _att.original_name,
+            mime: _att.mime_type,
+            size: _att.file_size,
+            previewable: attachment_previewable(_att.mime_type),
+        } -%}
+        {%- set _atts = _atts|merge([_att_row]) -%}
+    {%- endfor -%}
+    {%- set _payload = {
+        id: item.id,
+        invoice_date: item.invoice_date|date("Y-m-d"),
+        payment_date: item.payment_date ? item.payment_date|date("Y-m-d") : null,
+        description: item.description,
+        group_name: item.group_name,
+        type: item.type,
+        payment_method: item.payment_method,
+        finance_account_id: item.finance_account_id,
+        amount: item.amount,
+        running_number: item.running_number,
+        attachments: _atts,
+    } -%}
+    {{- _payload|json_encode|e("html_attr") -}}
+{%- endmacro %}
+
 {% block title %}
-    Kassabuch - {{ app_settings.app_name|default('Chor-Manager') }}
+    Kassabuch - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -12,6 +86,12 @@
             <h1 class="h2 mb-1">Kassabuch</h1>
             <p class="text-muted mb-0">
                 Geschäftsjahr: <strong>{{ fiscal_start }} – {{ fiscal_end }}</strong>
+                {% if closed_until_label %}
+                    <span class="finance-lock-note">
+                        <i class="bi bi-lock" aria-hidden="true"></i>
+                        Abgeschlossen bis {{ closed_until_label }}
+                    </span>
+                {% endif %}
             </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
@@ -22,47 +102,70 @@
                     <label for="finances-index-year" class="text-muted small mb-0 text-nowrap">Jahr:</label>
                     <select name="year" class="form-select form-select-sm w-auto onchange-submit" id="finances-index-year">
                         {% for year, label in available_years %}
-                            <option value="{{ year }}" {{ year == selected_year ? 'selected' : '' }}>{{ label }}
+                            <option value="{{ year }}" {{ year == selected_year ? "selected" : "" }}>{{ label }}
                             </option>
                         {% endfor %}
                     </select>
                 </form>
             {% endif %}
-            {% if can_write_finances %}
-                <button type="button"
-                        class="btn btn-outline-secondary"
-                        data-bs-toggle="modal"
-                        data-bs-target="#settingsModal">
-                    <i class="bi bi-gear"></i> Konfiguration
-                </button>
-                <button type="button"
-                        class="btn btn-outline-secondary"
-                        data-bs-toggle="modal"
-                        data-bs-target="#financeImportModal">
-                    <i class="bi bi-upload"></i> Import
-                </button>
-            {% endif %}
-            <a href="/finances/accounts" class="btn btn-outline-secondary">
-                <i class="bi bi-safe"></i> Konten
-            </a>
-            <a href="/finances/journal" class="btn btn-outline-secondary">
-                <i class="bi bi-clock-history"></i> Journal
-            </a>
-            <a href="/finances/export?year={{ selected_year }}"
-               class="btn btn-outline-secondary">
-                <i class="bi bi-filetype-csv"></i> CSV
-            </a>
             <a href="/finances/report?year={{ selected_year }}"
                class="btn btn-outline-secondary">
-                <i class="bi bi-graph-up"></i> Auswertung
+                <i class="bi bi-graph-up" aria-hidden="true"></i> Auswertung
             </a>
+            {# Selten gebraucht, deshalb gesammelt: Konten, Journal, Export und - mit
+               Schreibrecht - Import und Einstellungen. #}
+            <div class="dropdown">
+                <button type="button"
+                        class="btn btn-outline-secondary dropdown-toggle w-100"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        data-finance-more-menu>
+                    Mehr
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="/finances/accounts">
+                            <i class="bi bi-safe me-2" aria-hidden="true"></i>Konten
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="/finances/journal">
+                            <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Änderungsjournal
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="/finances/export?year={{ selected_year }}">
+                            <i class="bi bi-filetype-csv me-2" aria-hidden="true"></i>Als CSV exportieren
+                        </a>
+                    </li>
+                    {% if can_write_finances %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <button type="button"
+                                    class="dropdown-item"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#financeImportModal">
+                                <i class="bi bi-upload me-2" aria-hidden="true"></i>Kontoauszug importieren
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button"
+                                    class="dropdown-item"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#settingsModal">
+                                <i class="bi bi-gear me-2" aria-hidden="true"></i>Einstellungen
+                            </button>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
             {% if can_write_finances %}
                 <button type="button"
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#financeModal"
                         data-action="reset-finance-modal">
-                    Neuer Eintrag
+                    Neue Buchung
                 </button>
             {% endif %}
         </div>
@@ -70,32 +173,84 @@
 {% endblock page_header %}
 
 {% block content %}
+    {% set _form = booking_form.form|default({}) %}
+    {% set _form_message = booking_form.message|default(null) %}
+
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
-    {% if error %}
+    {# Eine abgewiesene Buchung meldet sich im wieder geöffneten Dialog, nicht doppelt hier. #}
+    {% if error and error != _form_message %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ error }}
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
 
     <div class="dashboard-shell">
+        {% if account_statement.accounts|length > 0 %}
+            {# Die erste Frage beim Öffnen: Stimmt die Kassa? Deshalb steht der Stand je
+               Konto über der Liste und nicht erst in der Auswertung. #}
+            <section class="dashboard-section dashboard-section--context"
+                     aria-labelledby="finances-balance-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="finances-balance-title">Kassastand</h2>
+                    <p class="dashboard-section-lead mb-0">
+                        Mit allen Zahlungen bis {{ fiscal_end }}. Offene Posten zählen nicht mit.
+                    </p>
+                </div>
+                <div class="surface-card card border-0">
+                    <ul class="finance-balance-list list-unstyled mb-0">
+                        {% for row in account_statement.accounts %}
+                            <li class="finance-balance-row">
+                                <div class="finance-balance-account">
+                                    <i class="bi {{ row.account.type == "cash" ? "bi-cash-coin" : "bi-bank" }}"
+                                       aria-hidden="true"></i>
+                                    <span>{{ row.account.name }}</span>
+                                </div>
+                                <div class="finance-balance-formula">
+                                    {{ row.opening|number_format(2, ",", ".") }} €
+                                    <span class="text-success">+{{ row.income|number_format(2, ",", ".") }} €</span>
+                                    <span class="text-danger">−{{ row.expense|number_format(2, ",", ".") }} €</span>
+                                </div>
+                                <div class="finance-balance-closing {{ row.closing < 0 ? "text-danger" : "" }}">
+                                    {{ row.closing < 0 ? "−" : "" }}{{ row.closing|abs|number_format(2, ",", ".") }} €
+                                </div>
+                            </li>
+                        {% endfor %}
+                        {% if account_statement.accounts|length > 1 %}
+                            {% set _total = account_statement.totals.closing %}
+                            <li class="finance-balance-row finance-balance-row--total">
+                                <div class="finance-balance-account">Gesamt</div>
+                                <div class="finance-balance-formula"></div>
+                                <div class="finance-balance-closing {{ _total < 0 ? "text-danger" : "" }}">
+                                    {{ _total < 0 ? "−" : "" }}{{ _total|abs|number_format(2, ",", ".") }} €
+                                </div>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <p class="small mb-0">
+                    <a href="/finances/report?year={{ selected_year }}">Mit Bargeld und Kontoauszug abstimmen</a>
+                </p>
+            </section>
+        {% endif %}
+
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="finances-list-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="finances-list-title">Buchungen</h2>
                 <p class="dashboard-section-lead mb-0">
-                    {{ finances|length }} Zahlungen im aktuellen Geschäftsjahr, abgegrenzt nach Zahldatum. Suche und Sortierung über die Tabellenleiste.
+                    {{ finances|length }} Buchungen mit Zahldatum in diesem Geschäftsjahr.
                 </p>
             </div>
 
@@ -107,7 +262,7 @@
                  data-page-size-options="25,50,100,200"
                  data-default-sort-key="payment_date"
                  data-default-sort-dir="desc">
-                {{ include('partials/table_toolbar.twig') }}
+                {{ include("partials/table_toolbar.twig") }}
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table"
@@ -132,31 +287,28 @@
                                         data-sort-key="description"
                                         data-sort-type="text">Beschreibung</th>
                                     <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
-                                    {# Kopf bleibt Text: das Sortier-Icon der Engine ist selbst ein
-                                       Doppelpfeil, ein Pfeil-Icon daneben liest sich als Dublette. #}
-                                    <th class="finance-icon-column" data-sort-key="type" data-sort-type="text">Art</th>
+                                    {# Die Buchungsart steckt im Vorzeichen und in der Farbe des
+                                       Betrags; eine eigene Icon-Spalte musste man sich merken. #}
                                     <th class="text-end finance-amount-column"
                                         data-sort-key="amount"
                                         data-sort-type="number">Betrag</th>
-                                    <th data-sort-key="payment_method" data-sort-type="text">Konto</th>
-                                    <th class="finance-icon-column" title="Anhänge">
-                                        <i class="bi bi-paperclip" aria-hidden="true"></i>
-                                        <span class="visually-hidden">Anhänge</span>
-                                    </th>
+                                    <th data-sort-key="account" data-sort-type="text">Konto</th>
                                     {% if can_write_finances %}<th class="text-end finance-actions-column">Aktionen</th>{% endif %}
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in finances %}
+                                    {% set _income = item.type == "income" %}
+                                    {% set _account_name = item.financeAccount ? item.financeAccount.name : (item.payment_method == "cash" ? "Bar" : "Überweisung") %}
                                     <tr data-sort-running_number="{{ item.running_number }}"
-                                        data-sort-invoice_date="{{ item.invoice_date|date('Y-m-d') }}"
-                                        data-sort-payment_date="{{ item.payment_date ? item.payment_date|date('Y-m-d') : '9999-12-31' }}"
+                                        data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
+                                        data-sort-payment_date="{{ item.payment_date|date("Y-m-d") }}"
                                         data-sort-description="{{ item.description|lower }}"
-                                        data-sort-group_name="{{ item.group_name|default('')|lower }}"
-                                        data-sort-type="{{ item.type == 'income' ? 'eingang' : 'ausgang' }}"
-                                        data-sort-amount="{{ item.type == 'income' ? item.amount : -item.amount }}"
-                                        data-sort-payment_method="{{ item.payment_method == 'cash' ? 'bar' : 'ueberweisung' }}">
-                                        <td data-label="Lfd. Nr.">
+                                        data-sort-group_name="{{ item.group_name|default("")|lower }}"
+                                        data-sort-amount="{{ _income ? item.amount : -item.amount }}"
+                                        data-sort-account="{{ _account_name|lower }}"
+                                        data-finance-amount="{{ _income ? item.amount : -item.amount }}">
+                                        <td data-label="Lfd. Nr." class="finance-number-cell">
                                             {{ item.running_number }}
                                             {% if item.is_reversal %}
                                                 <span class="badge text-bg-secondary">Storno</span>
@@ -164,39 +316,26 @@
                                                 <span class="badge text-bg-secondary">storniert</span>
                                             {% endif %}
                                         </td>
-                                        <td data-label="Rechnungsdatum">{{ item.invoice_date|date('d.m.Y') }}</td>
-                                        <td data-label="Zahldatum">
-                                            {{ item.payment_date ? item.payment_date|date('d.m.Y') : '<span class="text-danger small">Offen</span>'|raw }}
+                                        <td data-label="Rechnungsdatum" class="finance-date-cell">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                        <td data-label="Zahldatum" class="finance-date-cell">{{ item.payment_date|date("d.m.Y") }}</td>
+                                        <td data-label="Beschreibung" class="finance-description-cell">
+                                            <div class="finance-description">
+                                                <span>{{ item.description }}</span>
+                                                {{ cashbook.attachment_menu(item) }}
+                                            </div>
                                         </td>
-                                        <td data-label="Beschreibung">{{ item.description }}</td>
-                                        <td data-label="Gruppe">
+                                        <td data-label="Gruppe" {% if not item.group_name %}data-card-empty{% endif %}>
                                             {% if item.group_name %}
                                                 <span class="badge text-bg-light rounded-pill border">{{ item.group_name }}</span>
                                             {% else %}
                                                 <span class="text-muted small">—</span>
                                             {% endif %}
                                         </td>
-                                        {# In der Tabelle zählt jede Spaltenbreite, dort bleibt nur das
-                                           Icon; in der Karte ist Platz für den Klartext. Das Wort steht
-                                           immer im DOM, damit die Tabellensuche es weiter findet. #}
-                                        <td data-label="Art" class="finance-icon-column">
-                                            {% if item.type == "income" %}
-                                                <span class="badge text-bg-success" title="Eingang">
-                                                    <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
-                                                    <span class="finance-type-label">Eingang</span>
-                                                </span>
-                                            {% else %}
-                                                <span class="badge text-bg-danger" title="Ausgang">
-                                                    <i class="bi bi-box-arrow-up" aria-hidden="true"></i>
-                                                    <span class="finance-type-label">Ausgang</span>
-                                                </span>
-                                            {% endif %}
-                                        </td>
                                         <td data-label="Betrag"
-                                            class="finance-amount-cell text-end {{ item.type == 'income' ? 'text-success' : 'text-danger' }}">
-                                            {{ item.type == 'income' ? '+' : '-' }} {{ item.amount|number_format(2, ',', '.') }} €
+                                            class="finance-amount-cell text-end {{ _income ? "text-success" : "text-danger" }}">
+                                            {{ cashbook.signed_amount(item) }}
                                         </td>
-                                        <td data-label="Konto">
+                                        <td data-label="Konto" class="finance-account-cell">
                                             {# Icon und Name als eine Flex-Einheit: sonst ist die
                                                Mindestbreite der Spalte nur das längste Einzelwort und
                                                das Icon rutscht in eine eigene Zeile. #}
@@ -206,79 +345,23 @@
                                                 {% else %}
                                                     <i class="bi bi-bank" aria-hidden="true"></i>
                                                 {% endif %}
-                                                <span>{{ item.financeAccount ? item.financeAccount.name : (item.payment_method == "cash" ? "Bar" : "Überweisung") }}</span>
+                                                <span>{{ _account_name }}</span>
                                             </span>
                                         </td>
-                                        <td data-label="Anhänge" class="finance-icon-column">
-                                            {% if item.attachments|length > 0 %}
-                                                <div class="btn-group">
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-info dropdown-toggle"
-                                                            data-bs-toggle="dropdown"
-                                                            aria-expanded="false"
-                                                            data-bs-boundary="viewport">
-                                                        <i class="bi bi-paperclip"></i> ({{ item.attachments|length }})
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end">
-                                                        {% for att in item.attachments %}
-                                                            <li class="dropdown-item-text d-flex justify-content-between align-items-center gap-3">
-                                                                <span class="text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
-                                                                {{ include("partials/attachment_actions.twig", {
-                                                                    attachment_id: att.id,
-                                                                    attachment_name: att.original_name,
-                                                                    attachment_mime: att.mime_type,
-                                                                    attachment_size: att.file_size,
-                                                                }, false) }}
-                                                            </li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                </div>
-                                            {% else %}
-                                                <span class="text-muted small">—</span>
-                                            {% endif %}
-                                        </td>
-                                        {# Die Anhangsliste des Bearbeiten-Dialogs baut public/js/finances.js
-                                           im Browser zusammen. Ob ein Anhang eine Vorschau bekommt, entscheidet
-                                           trotzdem der Server: attachment_previewable() ist dieselbe Quelle wie
-                                           im Baustein, damit die Liste im Dialog nicht eigene Regeln bekommt. #}
-                                        {% set _item_atts = [] %}
-                                        {% for _att in item.attachments %}
-                                            {% set _att_row = {
-                                                id: _att.id,
-                                                name: _att.original_name,
-                                                mime: _att.mime_type,
-                                                size: _att.file_size,
-                                                previewable: attachment_previewable(_att.mime_type),
-                                            } %}
-                                            {% set _item_atts = _item_atts|merge([_att_row]) %}
-                                        {% endfor %}
-                                        {% set _item_payload = {
-                                                                                    id: item.id,
-                                                                                    invoice_date: item.invoice_date|date("Y-m-d"),
-                                                                                    payment_date: item.payment_date ? item.payment_date|date("Y-m-d") : null,
-                                                                                    description: item.description,
-                                                                                    group_name: item.group_name,
-                                                                                    type: item.type,
-                                                                                    payment_method: item.payment_method,
-                                                                                    finance_account_id: item.finance_account_id,
-                                                                                    amount: item.amount,
-                                                                                    running_number: item.running_number,
-                                                                                    attachments: _item_atts,
-                                                                                } %}
                                         {% if can_write_finances %}
                                             <td data-label="Aktionen" class="finance-actions-cell text-end">
                                                 <div class="btn-group"
                                                      role="group"
-                                                     aria-label="Finanzaktionen für {{ item.running_number }}">
+                                                     aria-label="Aktionen für Buchung {{ item.running_number }}">
                                                     <button class="btn btn-sm btn-outline-secondary"
                                                             data-action="edit-finance"
-                                                            data-finance-item="{{ _item_payload|json_encode|e('html_attr') }}"
+                                                            data-finance-item="{{ cashbook.edit_payload(item) }}"
                                                             title="Bearbeiten">
                                                         <i class="bi bi-pencil" aria-hidden="true"></i>
                                                         <span class="visually-hidden">Bearbeiten</span>
                                                     </button>
                                                     <button type="button"
-                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split finance-more-actions"
                                                             data-bs-toggle="dropdown"
                                                             aria-expanded="false"
                                                             data-bs-boundary="viewport">
@@ -288,16 +371,17 @@
                                                         <li>
                                                             {% set _reversible = not item.is_reversal and not item.is_reversed %}
                                                             {% if _reversible %}
+                                                                {% set _signed = (_income ? "+" : "−") ~ item.amount|number_format(2, ",", ".") ~ " €" %}
                                                                 <form action="/finances/{{ item.id }}/reverse"
                                                                       method="post"
-                                                                      data-confirm="Eintrag {{ item.running_number }} stornieren? Es wird eine Gegenbuchung angelegt.">
+                                                                      data-confirm="Buchung {{ item.running_number }} „{{ item.description }}“ über {{ _signed }} stornieren? Es entsteht eine Gegenbuchung, die Buchung selbst bleibt stehen.">
                                                                     <button type="submit" class="dropdown-item text-danger">
-                                                                        <i class="bi bi-arrow-counterclockwise me-2"></i> Stornieren
+                                                                        <i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i> Stornieren
                                                                     </button>
                                                                 </form>
                                                             {% else %}
                                                                 <span class="dropdown-item text-muted">
-                                                                    <i class="bi bi-lock me-2"></i> Bereits storniert
+                                                                    <i class="bi bi-lock me-2" aria-hidden="true"></i> Bereits storniert
                                                                 </span>
                                                             {% endif %}
                                                         </li>
@@ -308,9 +392,17 @@
                                     </tr>
                                 {% else %}
                                     <tr>
-                                        <td colspan="{{ can_write_finances ? 10 : 9 }}"
-                                            class="text-center text-muted py-4">
-                                            Keine Einträge in diesem Geschäftsjahr gefunden.
+                                        <td colspan="{{ can_write_finances ? 8 : 7 }}" class="finance-empty-cell">
+                                            <p class="mb-2">Noch keine Buchungen in diesem Geschäftsjahr.</p>
+                                            {% if can_write_finances %}
+                                                <button type="button"
+                                                        class="btn btn-primary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#financeModal"
+                                                        data-action="reset-finance-modal">
+                                                    Erste Buchung erfassen
+                                                </button>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -318,6 +410,19 @@
                         </table>
                     </div>
                 </div>
+                {% if finances|length > 0 %}
+                    {# Summe der Treffer: folgt Suche und Filter der Tabellenleiste, damit
+                       "Was hat das Konzert gekostet?" ohne Taschenrechner geht.
+                       Gerechnet wird in public/js/finances.js. #}
+                    <div class="finance-sum-bar" data-finance-sum hidden>
+                        <span class="finance-sum-label">Summe der Treffer</span>
+                        <span class="finance-sum-parts">
+                            <span class="text-success" data-finance-sum-income></span>
+                            <span class="text-danger" data-finance-sum-expense></span>
+                        </span>
+                        <strong class="finance-sum-total" data-finance-sum-total></strong>
+                    </div>
+                {% endif %}
             </div>
         </section>
 
@@ -345,17 +450,20 @@
                             <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th data-sort-key="running_number" data-sort-type="number">Lfd. Nr.</th>
-                                        <th data-sort-key="invoice_date" data-sort-type="date">Rechnungsdatum</th>
+                                        <th data-sort-key="running_number"
+                                            data-sort-type="number"
+                                            data-sort-label="Lfd. Nr.">Nr.</th>
+                                        <th data-sort-key="invoice_date"
+                                            data-sort-type="date"
+                                            data-sort-label="Rechnungsdatum"
+                                            title="Rechnungsdatum">Rechnung</th>
                                         <th class="finance-description-column"
-                                        data-sort-key="description"
-                                        data-sort-type="text">Beschreibung</th>
+                                            data-sort-key="description"
+                                            data-sort-type="text">Beschreibung</th>
                                         <th data-sort-key="group_name" data-sort-type="text">Gruppe</th>
-                                        <th data-sort-key="type" data-sort-type="text">Art</th>
                                         <th class="text-end finance-amount-column"
                                             data-sort-key="amount"
                                             data-sort-type="number">Betrag</th>
-                                        <th class="finance-icon-column">Anhänge</th>
                                         {% if can_write_finances %}
                                             <th class="text-end finance-actions-column">Aktionen</th>
                                         {% endif %}
@@ -363,89 +471,42 @@
                                 </thead>
                                 <tbody>
                                     {% for item in open_items %}
+                                        {% set _income = item.type == "income" %}
                                         <tr data-sort-running_number="{{ item.running_number }}"
                                             data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
                                             data-sort-description="{{ item.description|lower }}"
                                             data-sort-group_name="{{ item.group_name|default("")|lower }}"
-                                            data-sort-type="{{ item.type == "income" ? "eingang" : "ausgang" }}"
-                                            data-sort-amount="{{ item.type == "income" ? item.amount : -item.amount }}">
-                                            <td data-label="Lfd. Nr.">{{ item.running_number }}</td>
-                                            <td data-label="Rechnungsdatum">{{ item.invoice_date|date("d.m.Y") }}</td>
-                                            <td data-label="Beschreibung">{{ item.description }}</td>
-                                            <td data-label="Gruppe">{{ item.group_name|default("-") }}</td>
-                                            <td data-label="Art">
-                                                {% if item.type == "income" %}
-                                                    <span class="badge text-bg-success">Eingang</span>
-                                                {% else %}
-                                                    <span class="badge text-bg-danger">Ausgang</span>
-                                                {% endif %}
+                                            data-sort-amount="{{ _income ? item.amount : -item.amount }}">
+                                            <td data-label="Lfd. Nr." class="finance-number-cell">{{ item.running_number }}</td>
+                                            <td data-label="Rechnungsdatum" class="finance-date-cell">{{ item.invoice_date|date("d.m.Y") }}</td>
+                                            <td data-label="Beschreibung" class="finance-description-cell">
+                                                <div class="finance-description">
+                                                    <span>{{ item.description }}</span>
+                                                    {{ cashbook.attachment_menu(item) }}
+                                                </div>
                                             </td>
-                                            <td data-label="Betrag" class="text-end finance-amount-column">
-                                                {{ item.amount|number_format(2, ",", ".") }} €
-                                            </td>
-                                            <td data-label="Anhänge" class="finance-icon-column">
-                                                {% if item.attachments|length > 0 %}
-                                                    <div class="btn-group">
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-info dropdown-toggle"
-                                                                data-bs-toggle="dropdown"
-                                                                aria-expanded="false"
-                                                                data-bs-boundary="viewport">
-                                                            <i class="bi bi-paperclip"></i> ({{ item.attachments|length }})
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end">
-                                                            {% for att in item.attachments %}
-                                                                <li class="dropdown-item-text d-flex justify-content-between align-items-center gap-3">
-                                                                    <span class="text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
-                                                                    {{ include("partials/attachment_actions.twig", {
-                                                                        attachment_id: att.id,
-                                                                        attachment_name: att.original_name,
-                                                                        attachment_mime: att.mime_type,
-                                                                        attachment_size: att.file_size,
-                                                                    }, false) }}
-                                                                </li>
-                                                            {% endfor %}
-                                                        </ul>
-                                                    </div>
+                                            <td data-label="Gruppe" {% if not item.group_name %}data-card-empty{% endif %}>
+                                                {% if item.group_name %}
+                                                    <span class="badge text-bg-light rounded-pill border">{{ item.group_name }}</span>
                                                 {% else %}
                                                     <span class="text-muted small">—</span>
                                                 {% endif %}
                                             </td>
-                                            {# Wie in der Haupttabelle: die Anhangsliste des Dialogs baut
-                                               public/js/finances.js, die Vorschau-Entscheidung kommt
-                                               serverseitig über attachment_previewable(). #}
-                                            {% set _open_atts = [] %}
-                                            {% for _att in item.attachments %}
-                                                {% set _open_att_row = {
-                                                    id: _att.id,
-                                                    name: _att.original_name,
-                                                    mime: _att.mime_type,
-                                                    size: _att.file_size,
-                                                    previewable: attachment_previewable(_att.mime_type),
-                                                } %}
-                                                {% set _open_atts = _open_atts|merge([_open_att_row]) %}
-                                            {% endfor %}
+                                            <td data-label="Betrag"
+                                                class="finance-amount-cell text-end {{ _income ? "text-success" : "text-danger" }}">
+                                                {{ cashbook.signed_amount(item) }}
+                                            </td>
                                             {% if can_write_finances %}
-                                                <td data-label="Aktionen" class="text-end finance-actions-column">
+                                                <td data-label="Aktionen" class="finance-actions-cell text-end">
                                                     <button type="button"
                                                             class="btn btn-sm btn-outline-secondary"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#financeModal"
                                                             data-action="edit-finance"
-                                                            data-finance-item="{{ {
-                                                                id: item.id,
-                                                                invoice_date: item.invoice_date|date("Y-m-d"),
-                                                                payment_date: "",
-                                                                description: item.description,
-                                                                group_name: item.group_name,
-                                                                type: item.type,
-                                                                amount: item.amount,
-                                                                payment_method: item.payment_method,
-                                                                finance_account_id: item.finance_account_id,
-                                                                attachments: _open_atts
-                                                            }|json_encode|e("html_attr") }}"
-                                                            aria-label="Buchung bearbeiten">
-                                                        <i class="bi bi-pencil"></i>
+                                                            data-finance-item="{{ cashbook.edit_payload(item) }}"
+                                                            title="Bearbeiten">
+                                                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                                                        <span class="visually-hidden">Buchung bearbeiten</span>
                                                     </button>
                                                 </td>
                                             {% endif %}
@@ -461,11 +522,17 @@
     </div>
 
     {% if can_write_finances %}
+        {% set _editing = _form.id|default("") != "" %}
+        {% set _type = _form.type|default("expense") %}
+        {% set _group = _form.group_name|default("") %}
+        {% set _group_known = _group == "" or _group in groups %}
         <div class="modal fade"
              id="financeModal"
              tabindex="-1"
              aria-labelledby="financeModalLabel"
-             aria-hidden="true">
+             aria-hidden="true"
+             data-open-on-load="{{ booking_form.open_modal|default(false) ? "1" : "0" }}"
+             {% if _editing and booking_form_item %}data-finance-reload-item="{{ cashbook.edit_payload(booking_form_item) }}"{% endif %}>
             <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/save"
                       method="post"
@@ -474,31 +541,70 @@
                       data-upload-compress="true"
                       class="modal-content border-0 shadow">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="financeModalLabel">Eintrag speichern</h5>
+                        <h5 class="modal-title" id="financeModalLabel">
+                            {% if _editing %}
+                                Buchung {{ booking_form_item ? booking_form_item.running_number ~ " " : "" }}bearbeiten
+                            {% else %}
+                                Neue Buchung
+                            {% endif %}
+                        </h5>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body">
-                        <input type="hidden" name="id" id="finance_id" value="">
+                        {% if _form_message %}
+                            <div class="alert alert-danger" role="alert" data-finance-form-error>
+                                {{ _form_message }}
+                            </div>
+                        {% endif %}
+
+                        <input type="hidden" name="id" id="finance_id" value="{{ _form.id|default("") }}">
+
+                        {# Reihenfolge wie auf dem Beleg: was, wie viel, wofür, woher, wann. #}
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6 mb-2">Art *</legend>
+                            <div class="btn-group w-100 finance-type-toggle" role="group">
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="type"
+                                       id="type_expense"
+                                       value="expense"
+                                       autocomplete="off"
+                                       {% if _type != "income" %}checked{% endif %}>
+                                <label class="btn btn-outline-secondary" for="type_expense">
+                                    <i class="bi bi-dash-lg" aria-hidden="true"></i> Ausgabe
+                                </label>
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="type"
+                                       id="type_income"
+                                       value="income"
+                                       autocomplete="off"
+                                       {% if _type == "income" %}checked{% endif %}>
+                                <label class="btn btn-outline-secondary" for="type_income">
+                                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Einnahme
+                                </label>
+                            </div>
+                        </fieldset>
 
                         <div class="mb-3">
-                            <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
-                            <input type="date"
-                                   class="form-control"
-                                   id="invoice_date"
-                                   name="invoice_date"
-                                   required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="payment_date" class="form-label">Zahldatum</label>
-                            <input type="date"
-                                   class="form-control"
-                                   id="payment_date"
-                                   name="payment_date">
-                            <div class="form-text">Leer lassen, wenn die Rechnung noch offen ist.</div>
+                            <label for="amount" class="form-label">Betrag *</label>
+                            <div class="input-group">
+                                <input type="text"
+                                       class="form-control finance-amount-input"
+                                       id="amount"
+                                       name="amount"
+                                       inputmode="decimal"
+                                       pattern="\s*[0-9][0-9.\s]*(,[0-9]{1,2})?\s*"
+                                       title="Betrag in Euro, z. B. 12,50 oder 1.234,00"
+                                       placeholder="0,00"
+                                       value="{{ _form.amount|default("") }}"
+                                       autocomplete="off"
+                                       required>
+                                <span class="input-group-text">€</span>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -507,7 +613,59 @@
                                    class="form-control"
                                    id="description"
                                    name="description"
+                                   value="{{ _form.description|default("") }}"
                                    required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="finance_account_id" class="form-label">Konto *</label>
+                            <select class="form-select"
+                                    id="finance_account_id"
+                                    name="finance_account_id"
+                                    required>
+                                {% for account in accounts %}
+                                    <option value="{{ account.id }}"{% if _form.finance_account_id|default("") == account.id ~ "" %} selected{% endif %}>
+                                        {{ account.name }} ({{ account.type == "cash" ? "Bar" : "Bank" }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Bargeldkassen und Bankkonten stehen unter <a href="/finances/accounts">Konten</a>.
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-2">
+                            <div class="col-sm-6">
+                                <label for="invoice_date" class="form-label">Rechnungsdatum *</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="invoice_date"
+                                       name="invoice_date"
+                                       value="{{ _form.invoice_date|default("") }}"
+                                       required>
+                            </div>
+                            <div class="col-sm-6">
+                                <label for="payment_date" class="form-label">Zahldatum</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="payment_date"
+                                       name="payment_date"
+                                       value="{{ _form.payment_date|default("") }}">
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="payment_open"
+                                   name="payment_open"
+                                   value="1"
+                                   {% if _form.payment_open|default("") != "" %}checked{% endif %}>
+                            <label class="form-check-label" for="payment_open">
+                                Noch nicht bezahlt (offener Posten)
+                            </label>
+                            <div class="form-text">
+                                Ein offener Posten zählt erst mit dem Zahldatum zum Geschäftsjahr.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -516,78 +674,53 @@
                             </label>
                             <select class="form-select" id="group_select">
                                 <option value="">— Keine Gruppe —</option>
-                                {% for g in groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
-                                <option value="__new__">+ Neue Gruppe eingeben…</option>
+                                {% for g in groups %}
+                                    <option value="{{ g }}"{% if g == _group %} selected{% endif %}>{{ g }}</option>
+                                {% endfor %}
+                                <option value="__new__"{% if not _group_known %} selected{% endif %}>+ Neue Gruppe eingeben…</option>
                             </select>
                             <input type="text"
-                                   class="form-control mt-2 d-none"
+                                   class="form-control mt-2 {{ _group_known ? "d-none" : "" }}"
                                    id="group_name"
                                    name="group_name"
+                                   value="{{ _group }}"
                                    placeholder="Name der neuen Gruppe"
                                    autocomplete="off"
-                                   aria-label="Name der neuen Gruppe">
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="type" class="form-label">Ein-/Ausgang *</label>
-                                <select class="form-select" id="type" name="type" required>
-                                    <option value="income">Einnahme</option>
-                                    <option value="expense" selected>Ausgabe</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="finance_account_id" class="form-label">Konto *</label>
-                                <select class="form-select"
-                                        id="finance_account_id"
-                                        name="finance_account_id"
-                                        required>
-                                    {% for account in accounts %}
-                                        <option value="{{ account.id }}">
-                                            {{ account.name }} ({{ account.type == "cash" ? "Bar" : "Bank" }})
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                                <div class="form-text">
-                                    Zahlungskreise werden unter <a href="/finances/accounts">Konten</a> verwaltet.
-                                </div>
-                            </div>
+                                   aria-label="Name der neuen Gruppe"
+                                   {% if not _group_known %}required{% endif %}>
                         </div>
 
                         <div class="mb-3">
-                            <label for="amount" class="form-label">Betrag (€) *</label>
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control"
-                                       id="amount"
-                                       name="amount"
-                                       placeholder="0,00"
-                                       required>
-                                <span class="input-group-text">€</span>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="attachments" class="form-label">Anhänge hochladen</label>
+                            <label for="attachments" class="form-label">Belege anhängen</label>
                             <input type="file"
                                    class="form-control"
                                    id="attachments"
                                    name="attachments[]"
                                    multiple>
-                            <div class="form-text">Bilder oder PDFs zur Belegung (mehrere möglich).</div>
+                            <div class="form-text">Bilder oder PDFs, mehrere möglich.</div>
                         </div>
 
                         <div id="existing_attachments_section" class="mb-3 d-none">
-                            <label class="form-label">Vorhandene Anhänge</label>
+                            <span class="form-label d-block">Vorhandene Belege</span>
                             <div id="existing_attachments_list"
                                  class="list-group list-group-flush border rounded">
                                 <!-- Wird per JS befüllt -->
                             </div>
                         </div>
                     </div>
+                    {# "Speichern" steht im DOM vorn: Enter in einem Feld löst den ersten
+                       Submit-Knopf aus, und das soll das gewöhnliche Speichern sein.
+                       Die sichtbare Reihenfolge legen die order-Klassen fest. #}
                     <div class="modal-footer pb-0 border-0">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <button type="submit" class="btn btn-primary order-last" data-finance-save>Speichern</button>
+                        <button type="button" class="btn btn-outline-secondary order-first" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit"
+                                class="btn btn-outline-secondary {{ _editing ? "d-none" : "" }}"
+                                name="save_and_next"
+                                value="1"
+                                data-finance-save-next>
+                            Speichern und nächste
+                        </button>
                     </div>
                 </form>
             </div>
@@ -596,21 +729,22 @@
         <div class="modal fade"
              id="settingsModal"
              tabindex="-1"
+             aria-labelledby="settingsModalLabel"
              aria-hidden="true">
             <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/settings"
                       method="post"
                       class="modal-content border-0 shadow">
                     <div class="modal-header bg-light">
-                        <h5 class="modal-title">Kassabuch Konfiguration</h5>
+                        <h5 class="modal-title" id="settingsModalLabel">Kassabuch-Einstellungen</h5>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info py-2 small">
-                            <i class="bi bi-info-circle me-1"></i> Das Geschäftsjahr berechnet sich automatisch vom eingestellten Startdatum bis zum Tag davor im Folgejahr.
+                            <i class="bi bi-info-circle me-1" aria-hidden="true"></i> Das Geschäftsjahr berechnet sich automatisch vom eingestellten Startdatum bis zum Tag davor im Folgejahr.
                         </div>
                         <div class="mb-3">
                             <label for="fiscal_year_start" class="form-label">Beginn des Geschäftsjahres</label>
@@ -619,10 +753,10 @@
                                    id="fiscal_year_start"
                                    name="fiscal_year_start"
                                    value="{{ fiscal_setting }}"
-                                   placeholder="DD.MM."
+                                   placeholder="TT.MM."
                                    required>
                             <div class="form-text">
-                                Format: <b>DD.MM.</b> (z.B. "01.09." für 1. September)
+                                Format <b>TT.MM.</b>, z. B. „01.09.“ für den 1. September.
                             </div>
                         </div>
 
@@ -642,7 +776,7 @@
                     </div>
                     <div class="modal-footer border-0">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                        <button type="submit" class="btn btn-primary">Konfiguration Speichern</button>
+                        <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
                     </div>
                 </form>
             </div>
@@ -651,6 +785,7 @@
         <div class="modal fade"
              id="financeImportModal"
              tabindex="-1"
+             aria-labelledby="financeImportModalLabel"
              aria-hidden="true">
             <div class="modal-dialog modal-dialog-scrollable">
                 <form action="/finances/import/preview"
@@ -658,15 +793,15 @@
                       enctype="multipart/form-data"
                       class="modal-content border-0 shadow">
                     <div class="modal-header bg-light">
-                        <h5 class="modal-title">Kontoauszug importieren</h5>
+                        <h5 class="modal-title" id="financeImportModalLabel">Kontoauszug importieren</h5>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info py-2 small">
-                            <i class="bi bi-info-circle me-1"></i> Umsatzübersicht als CSV aus dem Online-Banking hochladen. Vor der Übernahme wird eine Vorschau angezeigt, es wird noch nichts verbucht.
+                            <i class="bi bi-info-circle me-1" aria-hidden="true"></i> Umsatzübersicht als CSV aus dem Online-Banking hochladen. Vor der Übernahme wird eine Vorschau angezeigt, es wird noch nichts verbucht.
                         </div>
                         <div class="mb-3">
                             <label for="statement" class="form-label">CSV-Datei *</label>

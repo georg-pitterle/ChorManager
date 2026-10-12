@@ -143,7 +143,7 @@ test('Offene Posten: ohne Zahldatum kein Kassavorgang, nach Nachtragen im Jahr',
     const modal = page.locator('#financeModal');
     await modal.waitFor({ state: 'visible' });
     await modal.locator('input[name="payment_date"]').fill(fiscalDay(fiscal, 12));
-    await submitAndWait(page, modal.locator('button[type="submit"]'));
+    await submitAndWait(page, modal.locator('[data-finance-save]'));
 
     expect(await openItemDescriptions(page)).not.toContain('Notenlieferung Musikverlag');
     expect(await readYearEndBalance(page, account.name)).toBeCloseTo(account.openingBalanceValue - 199, 2);
@@ -255,7 +255,7 @@ test('Jahressperre: abgeschlossener Zeitraum lehnt Änderungen ab', async ({ pag
         const modal = page.locator('#financeModal');
         await modal.waitFor({ state: 'visible' });
         await modal.locator('input[name="amount"]').fill('999,00');
-        await submitAndWait(page, modal.locator('button[type="submit"]'));
+        await submitAndWait(page, modal.locator('[data-finance-save]'));
 
         await expect(page.locator('.alert-danger')).toContainText('abgeschlossen');
         expect(await readYearEndBalance(page, account.name))

@@ -16,6 +16,68 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+/** Schlüssel für das zuletzt gebuchte Konto (nur Bequemlichkeit, pro Browser). */
+const LAST_ACCOUNT_KEY = 'finances.lastAccountId';
+
+/**
+ * Heutiges Datum im Formularformat, nach der Uhr des Geräts.
+ *
+ * Nicht toISOString(): das rechnet in UTC, und kurz nach Mitternacht stand
+ * dadurch in Österreich der Vortag im Feld - im Extremfall im alten
+ * Geschäftsjahr.
+ */
+function localIsoDate(date = new Date()) {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
+const euroFormat = new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Betrag mit echtem Minuszeichen, wie ihn das Template ausgibt. */
+function formatSignedEuro(value, forceSign = false) {
+    const sign = value < 0 ? '−' : (forceSign && value > 0 ? '+' : '');
+
+    return `${sign}${euroFormat.format(Math.abs(value))} €`;
+}
+
+function readLastAccountId() {
+    try {
+        return window.localStorage.getItem(LAST_ACCOUNT_KEY);
+    } catch (_error) {
+        return null;
+    }
+}
+
+function rememberLastAccountId(value) {
+    try {
+        window.localStorage.setItem(LAST_ACCOUNT_KEY, value);
+    } catch (_error) {
+        // Ohne Speicher beginnt der Dialog eben mit dem ersten Konto.
+    }
+}
+
+function setBookingType(type) {
+    const radio = document.getElementById(type === 'income' ? 'type_income' : 'type_expense');
+    if (radio) radio.checked = true;
+}
+
+function setPaymentOpen(isOpen) {
+    const open = document.getElementById('payment_open');
+    if (open) open.checked = isOpen;
+}
+
+/** Die Meldung eines abgewiesenen Speicherns gehört nur zu genau diesem Versuch. */
+function clearFormError() {
+    document.querySelectorAll('[data-finance-form-error]').forEach(alert => alert.remove());
+}
+
+function setSaveNextVisible(visible) {
+    const button = document.querySelector('[data-finance-save-next]');
+    if (button) button.classList.toggle('d-none', !visible);
+}
+
 function handleGroupSelect(sel) {
     const txt = document.getElementById('group_name');
     if (sel.value === '__new__') {
@@ -45,6 +107,105 @@ function bindFinanceUiHandlers() {
     });
 
     document.addEventListener('click', handleEditFinanceClick);
+
+    // "Noch nicht bezahlt" und ein Zahldatum schließen einander aus: Wer ein Datum
+    // einträgt, meint "bezahlt"; wer anhakt, meint "noch offen".
+    const paymentOpen = document.getElementById('payment_open');
+    const paymentDate = document.getElementById('payment_date');
+    if (paymentOpen && paymentDate) {
+        paymentOpen.addEventListener('change', function () {
+            if (paymentOpen.checked) paymentDate.value = '';
+        });
+        paymentDate.addEventListener('input', function () {
+            if (paymentDate.value) paymentOpen.checked = false;
+        });
+    }
+
+    const form = document.getElementById('finance-form');
+    const account = document.getElementById('finance_account_id');
+    if (form && account) {
+        form.addEventListener('submit', function () {
+            rememberLastAccountId(account.value);
+        });
+    }
+
+    openFinanceModalAfterReload();
+    bindFinanceSum();
+}
+
+/**
+ * Abgewiesene Eingaben oder "Speichern und nächste": Der Server hat den Dialog
+ * schon befüllt, hier wird er nur geöffnet - ohne Zurücksetzen.
+ */
+function openFinanceModalAfterReload() {
+    const modalElement = document.getElementById('financeModal');
+    if (!modalElement || modalElement.getAttribute('data-open-on-load') !== '1') {
+        return;
+    }
+    if (!window.bootstrap || !window.bootstrap.Modal) {
+        return;
+    }
+
+    // Eine abgewiesene Bearbeitung: die Felder hat der Server befüllt, die
+    // Belegliste entsteht wie beim ersten Öffnen hier im Browser.
+    const reloadItem = modalElement.getAttribute('data-finance-reload-item');
+    if (reloadItem) {
+        try {
+            renderExistingAttachments(JSON.parse(reloadItem).attachments || []);
+        } catch (_error) {
+            // Ohne Belegliste bleibt der Dialog trotzdem bedienbar.
+        }
+    }
+
+    modalElement.addEventListener('shown.bs.modal', function () {
+        const amount = document.getElementById('amount');
+        const hasError = modalElement.querySelector('[data-finance-form-error]') !== null;
+        // Nach einem Fehler bleibt der Blick auf der Meldung; sonst geht es mit dem
+        // Betrag des nächsten Belegs weiter.
+        if (amount && !hasError) amount.focus();
+    }, { once: true });
+    window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+}
+
+/**
+ * Summe der Buchungen, die Suche und Filter der Tabellenleiste übrig lassen.
+ * Die Tabellen-Engine meldet nach jedem Filtern die Treffer über
+ * `chor-table:applied` (siehe public/js/table-engine.js).
+ */
+function bindFinanceSum() {
+    const bar = document.querySelector('[data-finance-sum]');
+    const table = document.getElementById('financesTable');
+    const container = table ? table.closest('[data-table-engine="true"]') : null;
+    if (!bar || !container) {
+        return;
+    }
+
+    const bookingRows = rows => rows.filter(row => row.hasAttribute('data-finance-amount'));
+    const render = function (rows) {
+        let income = 0;
+        let expense = 0;
+        rows.forEach(function (row) {
+            // In Cent: mit Gleitkomma bliebe bei Buchung plus Storno "−0,00 €" stehen.
+            const cents = Math.round(Number.parseFloat(row.getAttribute('data-finance-amount') || '0') * 100);
+            if (Number.isNaN(cents)) return;
+            if (cents >= 0) income += cents; else expense += cents;
+        });
+
+        bar.querySelector('[data-finance-sum-income]').textContent = formatSignedEuro(income / 100, true);
+        bar.querySelector('[data-finance-sum-expense]').textContent = formatSignedEuro(expense / 100);
+        bar.querySelector('[data-finance-sum-total]').textContent = formatSignedEuro((income + expense) / 100, true);
+        bar.hidden = rows.length === 0;
+    };
+
+    container.addEventListener('chor-table:applied', function (event) {
+        render(bookingRows(event.detail.filteredRows));
+    });
+
+    if (container.chorTableLastApplied) {
+        render(bookingRows(container.chorTableLastApplied.filteredRows));
+    } else {
+        render(Array.from(table.querySelectorAll('tbody tr[data-finance-amount]')));
+    }
 }
 
 function normalizeFinanceDate(value) {
@@ -85,11 +246,18 @@ function resetFinanceModal() {
     const financeId = document.getElementById('finance_id');
     if (financeId) financeId.value = '';
 
+    clearFormError();
+    setSaveNextVisible(true);
+
+    // Bezahlt ist der Normalfall: beide Daten auf heute, ein offener Posten muss
+    // ausdrücklich angehakt werden.
+    const today = localIsoDate();
     const invoiceDate = document.getElementById('invoice_date');
-    if (invoiceDate) invoiceDate.value = new Date().toISOString().split('T')[0];
+    if (invoiceDate) invoiceDate.value = today;
 
     const paymentDate = document.getElementById('payment_date');
-    if (paymentDate) paymentDate.value = '';
+    if (paymentDate) paymentDate.value = today;
+    setPaymentOpen(false);
 
     const desc = document.getElementById('description');
     if (desc) desc.value = '';
@@ -104,11 +272,18 @@ function resetFinanceModal() {
         txt.value = '';
     }
 
-    const type = document.getElementById('type');
-    if (type) type.value = 'expense';
+    setBookingType('expense');
 
     const account = document.getElementById('finance_account_id');
-    if (account) account.selectedIndex = 0;
+    if (account) {
+        const lastAccountId = readLastAccountId();
+        const known = lastAccountId && Array.from(account.options).some(option => option.value === lastAccountId);
+        if (known) {
+            account.value = lastAccountId;
+        } else {
+            account.selectedIndex = 0;
+        }
+    }
 
     const amt = document.getElementById('amount');
     if (amt) amt.value = '';
@@ -123,13 +298,17 @@ function resetFinanceModal() {
     if (attList) attList.innerHTML = '';
 
     const label = document.getElementById('financeModalLabel');
-    if (label) label.innerText = 'Neuer Eintrag';
+    if (label) label.innerText = 'Neue Buchung';
 }
 
 function editFinance(item) {
+    clearFormError();
+    setSaveNextVisible(false);
     document.getElementById('finance_id').value = item.id;
     document.getElementById('invoice_date').value = normalizeFinanceDate(item.invoice_date);
-    document.getElementById('payment_date').value = normalizeFinanceDate(item.payment_date);
+    const paymentDate = normalizeFinanceDate(item.payment_date);
+    document.getElementById('payment_date').value = paymentDate;
+    setPaymentOpen(paymentDate === '');
     document.getElementById('description').value = item.description;
 
     const sel = document.getElementById('group_select');
@@ -148,22 +327,35 @@ function editFinance(item) {
         txt.value = gVal;
     }
 
-    document.getElementById('type').value = item.type;
+    setBookingType(item.type);
     const accountSelect = document.getElementById('finance_account_id');
     if (accountSelect && item.finance_account_id) {
         accountSelect.value = String(item.finance_account_id);
     }
-    document.getElementById('amount').value = parseFloat(item.amount).toLocaleString('de-DE', { minimumFractionDigits: 2 });
+    document.getElementById('amount').value = euroFormat.format(Number.parseFloat(item.amount));
 
-    // Attachments
+    document.getElementById('attachments').value = '';
+    renderExistingAttachments(item.attachments || []);
+
+    document.getElementById('financeModalLabel').innerText = 'Buchung ' + item.running_number + ' bearbeiten';
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+        var myModal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('financeModal'));
+        myModal.show();
+    }
+}
+
+function renderExistingAttachments(attachments) {
     const attSection = document.getElementById('existing_attachments_section');
     const attList = document.getElementById('existing_attachments_list');
+    if (!attSection || !attList) {
+        return;
+    }
     attList.innerHTML = '';
-    document.getElementById('attachments').value = '';
 
-    if (item.attachments && item.attachments.length > 0) {
+    if (attachments.length > 0) {
         attSection.classList.remove('d-none');
-        item.attachments.forEach(att => {
+        attachments.forEach(att => {
             const div = document.createElement('div');
             div.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
             // Dasselbe Knopfpaar wie der Baustein partials/attachment_actions.twig,
@@ -197,9 +389,10 @@ function editFinance(item) {
                             <span class="visually-hidden">Herunterladen</span>
                         </a>
                     </div>
-                    <form action="/finances/attachments/${att.id}/delete" method="POST" class="m-0" data-confirm="Anhang wirklich löschen?">
-                        <button type="submit" class="btn btn-sm btn-link text-danger p-0">
-                            <i class="bi bi-x-circle"></i>
+                    <form action="/finances/attachments/${att.id}/delete" method="POST" class="m-0" data-confirm="Beleg „${escapeHtml(att.name)}“ wirklich löschen?">
+                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Beleg löschen">
+                            <i class="bi bi-x-circle" aria-hidden="true"></i>
+                            <span class="visually-hidden">Beleg löschen</span>
                         </button>
                     </form>
                 </div>
@@ -208,13 +401,6 @@ function editFinance(item) {
         });
     } else {
         attSection.classList.add('d-none');
-    }
-
-    document.getElementById('financeModalLabel').innerText = 'Eintrag ' + item.running_number + ' bearbeiten';
-
-    if (window.bootstrap && window.bootstrap.Modal) {
-        var myModal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('financeModal'));
-        myModal.show();
     }
 }
 

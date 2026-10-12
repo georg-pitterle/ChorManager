@@ -3,9 +3,13 @@
 // Verifizierte Selektoren:
 //  - templates/finances/index.twig
 //      Buchungs-Modal #financeModal, Formular POST /finances/save
-//      Felder: invoice_date, payment_date, description, group_name (Textfeld, per
-//      #group_select auf "__new__" sichtbar), type, finance_account_id, amount
-//      Konfigurations-Modal #settingsModal, Formular POST /finances/settings,
+//      Felder: invoice_date, payment_date (mit heute vorbelegt), payment_open
+//      (Checkbox "Noch nicht bezahlt"), description, group_name (Textfeld, per
+//      #group_select auf "__new__" sichtbar), type (Umschalter: label[for=type_income]
+//      bzw. label[for=type_expense]), finance_account_id, amount
+//      Menü "Mehr" in der Kopfzeile: [data-finance-more-menu]; darin Import und
+//      Einstellungen
+//      Einstellungs-Modal #settingsModal, Formular POST /finances/settings,
 //      Felder fiscal_year_start + closed_until
 //      Import-Modal #financeImportModal, Formular POST /finances/import/preview,
 //      Datei-Feld name="statement"
@@ -129,6 +133,15 @@ export async function readAccount(page, name) {
 }
 
 /**
+ * Eintrag aus dem Menü "Mehr" der Kopfzeile öffnen. Import und Einstellungen
+ * stehen dort, weil sie selten gebraucht werden.
+ */
+export async function openFromMoreMenu(page, modalSelector) {
+    await page.click('.page-actions [data-finance-more-menu]');
+    await page.click(`.page-actions [data-bs-target="${modalSelector}"]`);
+}
+
+/**
  * Buchung über das Kassabuch-Modal erfassen.
  * booking: { invoiceDate, paymentDate?, description, type, accountName, amount, group? }
  * Ohne paymentDate entsteht ein offener Posten.
@@ -140,11 +153,15 @@ export async function createBooking(page, booking) {
     await modal.waitFor({ state: 'visible' });
 
     await modal.locator('input[name="invoice_date"]').fill(booking.invoiceDate);
+    // Das Zahldatum ist mit heute vorbelegt; ein offener Posten wird angehakt.
     if (booking.paymentDate) {
         await modal.locator('input[name="payment_date"]').fill(booking.paymentDate);
+    } else {
+        await modal.locator('#payment_open').check();
     }
     await modal.locator('input[name="description"]').fill(booking.description);
-    await modal.locator('select[name="type"]').selectOption(booking.type);
+    // Die Radios selbst sind als Umschalter versteckt (btn-check); geklickt wird das Label.
+    await modal.locator(`label[for="type_${booking.type}"]`).click();
     // Die Option trägt "<Name> (Bank|Bar)" samt Umbruch/Einrückung aus dem Template;
     // selectOption akzeptiert nur exakte Labels, daher über den Text die value lesen.
     const accountSelect = modal.locator('select[name="finance_account_id"]');
@@ -162,7 +179,7 @@ export async function createBooking(page, booking) {
         await modal.locator('#group_name').fill(booking.group);
     }
 
-    await submitAndWait(page, modal.locator('button[type="submit"]'));
+    await submitAndWait(page, modal.locator('[data-finance-save]'));
 }
 
 /** Zeile der Buchungsliste anhand ihrer laufenden Nummer. */
@@ -186,7 +203,8 @@ export async function openItemDescriptions(page) {
         return [];
     }
 
-    return (await section.locator('td[data-label="Beschreibung"]').allInnerTexts())
+    // Nur der Text, ohne den Belegknopf an der Beschreibung.
+    return (await section.locator('td[data-label="Beschreibung"] .finance-description > span:first-child').allInnerTexts())
         .map((text) => text.trim());
 }
 
@@ -221,7 +239,7 @@ export async function canReverse(page, runningNumber) {
 /** Buchungen bis zu diesem Tag abschließen; leerer String hebt die Sperre auf. */
 export async function setClosedUntil(page, isoDate) {
     await page.goto('/finances');
-    await page.click('.page-actions [data-bs-target="#settingsModal"]');
+    await openFromMoreMenu(page, '#settingsModal');
     const modal = page.locator('#settingsModal');
     await modal.waitFor({ state: 'visible' });
 
@@ -235,7 +253,7 @@ export async function setClosedUntil(page, isoDate) {
  */
 export async function uploadStatement(page, filePath) {
     await page.goto('/finances');
-    await page.click('.page-actions [data-bs-target="#financeImportModal"]');
+    await openFromMoreMenu(page, '#financeImportModal');
     const modal = page.locator('#financeImportModal');
     await modal.waitFor({ state: 'visible' });
 
