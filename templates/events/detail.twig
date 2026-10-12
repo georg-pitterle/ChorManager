@@ -80,10 +80,12 @@
 
                         <p class="mb-2">{{ note.comment|nl2br }}</p>
 
-                        {% set can_edit_private_note = note.is_private and note.user_id == session.user_id %}
-                        {% set can_edit_public_note = (not note.is_private) and session.can_manage_events %}
+                        {# Deckungsgleich mit EventController::canManageEventNote(): die eigene
+                           Bemerkung immer, eine fremde öffentliche nur mit Terminverwaltung. #}
+                        {% set is_own_note = note.user_id == session.user_id %}
+                        {% set can_moderate_note = (not note.is_private) and session.can_manage_events %}
 
-                        {% if can_edit_private_note or can_edit_public_note %}
+                        {% if is_own_note or can_moderate_note %}
                             <form action="/events/{{ event.id }}/notes/{{ note.id }}/update"
                                   method="post"
                                   class="mb-2">

@@ -1715,14 +1715,29 @@ class EventController
             ->first();
     }
 
+    /**
+     * Die eigene Bemerkung gehört ihrem Verfasser - öffentlich wie privat.
+     *
+     * Zuvor galt das nur für die private: Eine öffentliche war nach dem
+     * Absenden allein der Terminverwaltung überlassen, und wer sich vertippte,
+     * konnte seine eigene Zeile nur noch von jemand anderem richten lassen.
+     * Die Reihenfolge der drei Prüfungen trägt die ganze Regel: Das eigene
+     * Verfasserrecht steht vor allem anderen, danach verschließt `is_private`
+     * eine fremde Bemerkung auch der Verwaltung, und erst dann entscheidet bei
+     * einer fremden öffentlichen das Recht zur Terminverwaltung.
+     */
     private function canManageEventNote(Comment $note, Event $event): bool
     {
         if ($note->entity_type !== 'event') {
             return false;
         }
 
+        if ((int) $note->user_id === (int) ($_SESSION['user_id'] ?? 0)) {
+            return true;
+        }
+
         if ((bool) $note->is_private) {
-            return (int) $note->user_id === (int) ($_SESSION['user_id'] ?? 0);
+            return false;
         }
 
         return $this->canEditEvent($event);

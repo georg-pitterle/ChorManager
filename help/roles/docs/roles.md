@@ -59,7 +59,7 @@ Dieses Recht ist die auf die eigene Stimmgruppe beschränkte Variante der Projek
 
 ### Termine verwalten
 
-Mit diesem Recht darf die Rolle Termine anlegen, bearbeiten und löschen, öffentliche Bemerkungen zu Terminen moderieren und die verfügbaren Termin-Typen pflegen. Das macht diese Rolle zur zentralen Ansprechperson für die Terminplanung des Chors.
+Mit diesem Recht darf die Rolle Termine anlegen, bearbeiten und löschen, fremde öffentliche Bemerkungen zu Terminen moderieren und die verfügbaren Termin-Typen pflegen. Die eigene Bemerkung darf jedes Mitglied ohne dieses Recht selbst bearbeiten und löschen. Das macht diese Rolle zur zentralen Ansprechperson für die Terminplanung des Chors.
 
 ### Anwesenheit/Anmeldung verwalten (alle Mitglieder)
 

@@ -80,7 +80,7 @@ Ein Klick auf einen Termintitel – in Plan, Liste oder Kalender – öffnet die
 
 ![Termin-Detailseite mit Bemerkungen](images/events/05-event-detail.png)
 
-Jedes Mitglied kann Bemerkungen hinzufügen und dabei wählen, ob sie **öffentlich** (für alle mit Zugriff auf den Termin sichtbar) oder **privat** (nur für dich selbst) sind. Eigene private Bemerkungen kannst du jederzeit bearbeiten oder löschen; öffentliche Bemerkungen können nur Personen mit dem Recht "Termine verwalten" moderieren.
+Jedes Mitglied kann Bemerkungen hinzufügen und dabei wählen, ob sie **öffentlich** (für alle mit Zugriff auf den Termin sichtbar) oder **privat** (nur für dich selbst) sind. Deine eigenen Bemerkungen kannst du jederzeit bearbeiten oder löschen, öffentliche wie private. Fremde öffentliche Bemerkungen können nur Personen mit dem Recht "Termine verwalten" moderieren; fremde private Bemerkungen sieht ohnehin niemand außer ihrem Verfasser.
 
 ## 8. Kalender abonnieren
 

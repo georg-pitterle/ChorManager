@@ -1050,7 +1050,18 @@ class EventFeatureTest extends TestCase
         $this->assertNotNull(Comment::find($note->id));
     }
 
-    public function testPublicEventNoteCannotBeUpdatedOrDeleted(): void
+    /**
+     * Die eigene Bemerkung gehört ihrem Verfasser, öffentlich wie privat.
+     *
+     * Vorher war genau das die Ausnahme: Eine private Bemerkung durfte der
+     * Verfasser jederzeit ändern, seine öffentliche nicht mehr - die war allein
+     * der Terminverwaltung überlassen. Wer sich vertippte, konnte seine eigene
+     * Zeile also nur noch von jemand anderem richten lassen. Die Asymmetrie war
+     * in Controller und Vorlage deckungsgleich umgesetzt und damit nicht als
+     * Versehen erkennbar; aufgelöst wurde sie als Antwort auf die Rückfrage aus
+     * Review-Lauf 42.
+     */
+    public function testPublicEventNoteCanBeUpdatedAndDeletedByItsAuthor(): void
     {
         $user = $this->createUser('public-owner');
         $_SESSION['user_id'] = (int) $user->id;
@@ -1069,7 +1080,7 @@ class EventFeatureTest extends TestCase
             'entity_type' => 'event',
             'entity_id' => $event->id,
             'user_id' => $user->id,
-            'comment' => 'Öffentlich und fix',
+            'comment' => 'Öffentlich und mit Tippfehler',
             'is_private' => false,
         ]);
 
@@ -1080,7 +1091,7 @@ class EventFeatureTest extends TestCase
             new ProjectQuery(new NameFormatterService())
         );
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
-            'content' => 'Sollte nie gespeichert werden',
+            'content' => 'Öffentlich und berichtigt',
         ]);
         $updateResult = $controller->updateNote(
             $updateRequest,
@@ -1088,7 +1099,10 @@ class EventFeatureTest extends TestCase
             ['id' => (string) $event->id, 'note_id' => (string) $note->id]
         );
 
-        $this->assertSame(403, $updateResult->getStatusCode());
+        $this->assertRedirect($updateResult, '/events/' . $event->id);
+
+        $note->refresh();
+        $this->assertSame('Öffentlich und berichtigt', $note->comment);
 
         $deleteRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete');
         $deleteResult = $controller->deleteNote(
@@ -1097,10 +1111,126 @@ class EventFeatureTest extends TestCase
             ['id' => (string) $event->id, 'note_id' => (string) $note->id]
         );
 
+        $this->assertRedirect($deleteResult, '/events/' . $event->id);
+        $this->assertNull(Comment::find($note->id));
+    }
+
+    /**
+     * Die Grenze der neuen Regel: Sie gilt für die eigene Bemerkung, nicht für
+     * jede öffentliche. Eine fremde bleibt der Terminverwaltung überlassen.
+     */
+    public function testPublicEventNoteOfSomeoneElseStaysUntouchableWithoutEventManagement(): void
+    {
+        $author = $this->createUser('public-foreign-author');
+        $otherUser = $this->createUser('public-foreign-reader');
+
+        $event = Event::create([
+            'title' => 'Foreign Public Note Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+        $this->openToEveryone($event);
+
+        $note = Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $author->id,
+            'comment' => 'Fremde öffentliche Bemerkung',
+            'is_private' => false,
+        ]);
+
+        $_SESSION['user_id'] = (int) $otherUser->id;
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = false;
+
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
+        $updateResult = $controller->updateNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+                'content' => 'Manipulationsversuch',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $updateResult->getStatusCode());
+
+        $deleteResult = $controller->deleteNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
         $this->assertSame(403, $deleteResult->getStatusCode());
 
         $note->refresh();
-        $this->assertSame('Öffentlich und fix', $note->comment);
+        $this->assertSame('Fremde öffentliche Bemerkung', $note->comment);
+        $this->assertNotNull(Comment::find($note->id));
+    }
+
+    /**
+     * Die zweite Grenze: Eine fremde PRIVATE Bemerkung bleibt auch der
+     * Terminverwaltung verschlossen. Sie ist für sie nicht einmal sichtbar, und
+     * die neue Reihenfolge der Prüfungen in canManageEventNote() darf daran
+     * nichts ändern - "eigene Bemerkung" kommt zuerst, "privat" unmittelbar
+     * danach und vor dem Verwaltungsrecht.
+     */
+    public function testPrivateEventNoteOfSomeoneElseStaysUntouchableForEventManagers(): void
+    {
+        $owner = $this->createUser('private-owner-3');
+        $manager = $this->createUser('private-manager-3');
+
+        $event = Event::create([
+            'title' => 'Private Note Versus Manager Event',
+            'starts_at' => '2026-05-01 19:00:00',
+            'ends_at' => '2026-05-01 21:00:00',
+            'type' => 'Probe',
+        ]);
+        $this->openToEveryone($event);
+
+        $note = Comment::create([
+            'entity_type' => 'event',
+            'entity_id' => $event->id,
+            'user_id' => $owner->id,
+            'comment' => 'Nur für mich',
+            'is_private' => true,
+        ]);
+
+        $_SESSION['user_id'] = (int) $manager->id;
+        $_SESSION['can_manage_users'] = false;
+        $_SESSION['can_manage_events'] = true;
+
+        $controller = new EventController(
+            $this->createTwig(),
+            new NameFormatterService(),
+            new NullLogger(),
+            new ProjectQuery(new NameFormatterService())
+        );
+        $updateResult = $controller->updateNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
+                'content' => 'Von der Verwaltung angefasst',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $updateResult->getStatusCode());
+
+        $deleteResult = $controller->deleteNote(
+            $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/delete'),
+            $this->makeResponse(),
+            ['id' => (string) $event->id, 'note_id' => (string) $note->id]
+        );
+
+        $this->assertSame(403, $deleteResult->getStatusCode());
+
+        $note->refresh();
+        $this->assertSame('Nur für mich', $note->comment);
         $this->assertNotNull(Comment::find($note->id));
     }
 
