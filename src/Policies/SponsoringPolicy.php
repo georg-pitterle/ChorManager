@@ -144,6 +144,30 @@ class SponsoringPolicy
     }
 
     /**
+     * Darf eine Gegenleistung dieser Vereinbarung abgehakt werden?
+     *
+     * Wer die Vereinbarung ändern darf, ohnehin. Dazu die zuständige Person:
+     * Sie bringt das Logo ins Programmheft oder legt die Freikarten zurück -
+     * dieselbe schmale Erweiterung wie bei canCompleteFollowUp(). Alle
+     * Beitragenden abhaken zu lassen bleibt ausgeschlossen, sonst wäre der Haken
+     * keine Aussage mehr darüber, wer sich darum gekümmert hat.
+     */
+    public function canTickBenefits(Sponsorship $sponsorship): bool
+    {
+        if ($this->canEditSponsorship($sponsorship)) {
+            return true;
+        }
+
+        if (!$this->canContribute() || $this->userId <= 0) {
+            return false;
+        }
+
+        $assignedUserId = $sponsorship->assigned_user_id;
+
+        return $assignedUserId !== null && (int) $assignedUserId === $this->userId;
+    }
+
+    /**
      * Darf der Betrag und die Anhänge dieser Vereinbarung gesehen werden?
      *
      * Bewusst eine eigene Frage, obwohl die Bedingung heute dieselbe ist wie

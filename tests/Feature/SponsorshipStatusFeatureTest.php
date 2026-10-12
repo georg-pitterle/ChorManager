@@ -148,7 +148,7 @@ class SponsorshipStatusFeatureTest extends TestCase
             // aus seiner zugesagten Vereinbarung.
             $this->assertGreaterThanOrEqual(1, $captured['total_active']);
             $this->assertGreaterThanOrEqual(1200.0, $captured['total_amount']);
-            $this->assertGreaterThanOrEqual(300.0, $captured['pipeline']);
+            $this->assertGreaterThanOrEqual(300.0, $captured['requested_amount']);
         } finally {
             $this->cleanUp($sponsor);
         }

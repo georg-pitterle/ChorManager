@@ -11,11 +11,16 @@ use Psr\Log\NullLogger;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Models\Project;
 use App\Models\Sponsor;
+use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
+use App\Models\SponsorshipBenefit;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
 use App\Util\AmountNormalizer;
+use App\Util\BenefitList;
+use Carbon\Carbon;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use App\Util\SponsorshipStatus;
 use App\Util\InputValidator;
 
@@ -26,6 +31,7 @@ class SponsorshipController
     public const PROJECT_ERROR = 'Vereinbarungen lassen sich nur zu einem laufenden Projekt erfassen.';
     public const ASSIGNEE_ERROR = 'Die zuständige Person muss ein aktives Mitglied sein.';
     public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';
+    public const PAID_AT_ERROR = 'Bitte ein gültiges Datum für "Bezahlt am" angeben.';
 
     /** Anhänge, die an einer Vereinbarung hängen: Verträge, Angebote. */
     public const ENTITY_TYPE = 'sponsorship';
@@ -113,23 +119,66 @@ class SponsorshipController
 
         $period = $this->prefillPeriodFromProject($data, $projectId);
 
+        $benefits = BenefitList::parse($data['benefits'] ?? null);
+        if ($benefits['error'] !== null) {
+            $_SESSION['error'] = $benefits['error'];
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
+        $paidAt = self::validatePaidAt($data['paid_at'] ?? null);
+        if ($paidAt === false) {
+            $_SESSION['error'] = self::PAID_AT_ERROR;
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
+        $packageId = !empty($data['package_id']) ? (int) $data['package_id'] : null;
+
         try {
-            $sponsorship = Sponsorship::create([
+            $sponsorship = Capsule::connection()->transaction(function () use (
+                $sponsorId,
+                $projectId,
+                $packageId,
+                $assignee,
+                $normalizedAmount,
+                $paidAt,
+                $status,
+                $period,
+                $data,
+                $benefits
+            ): Sponsorship {
+                $sponsorship = Sponsorship::create([
                 'sponsor_id'       => $sponsorId,
                 'project_id'       => $projectId,
-                'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
+                'package_id'       => $packageId,
                 'assigned_user_id' => $assignee['value'],
                 'created_by_user_id' => $this->policy->currentUserId(),
                 'amount'           => $normalizedAmount,
+                'paid_at'          => $paidAt,
                 'status'           => $status,
                 'start_date'       => $period['start_date'],
                 'end_date'         => $period['end_date'],
                 'notes'            => trim(InputValidator::asString($data['notes'] ?? null)) ?: null,
-            ]);
+                ]);
+
+                // Fehlt das Feld ganz (Formular ohne JavaScript-Vorschlag, ältere
+                // Aufrufe), gilt die Vorgabe des Pakets. Ein mitgeschicktes leeres
+                // Feld ist dagegen eine Entscheidung: keine Gegenleistung.
+                // Kopiert, nicht verwiesen: was ausgehandelt ist, ändert sich
+                // nicht mit dem Paket.
+                $items = $benefits['items'];
+                if ($items === null) {
+                    $items = $packageId !== null
+                        ? (SponsorPackage::find($packageId)?->benefits()->pluck('description')->all() ?? [])
+                        : [];
+                }
+                $this->syncBenefits($sponsorship, $items);
+
+                return $sponsorship;
+            });
 
             $this->handleAttachments($request, $sponsorship->id);
 
-            $_SESSION['success'] = 'Vereinbarung erfolgreich angelegt.';
+            $_SESSION['success'] = 'Vereinbarung angelegt.';
         } catch (\Exception $e) {
             // Der Grund gehört ins Protokoll, nicht vor die Augen des
             // Sponsoring-Teams: Hier stand früher der rohe SQLSTATE-Text des
@@ -191,23 +240,55 @@ class SponsorshipController
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
             }
 
+            $benefits = BenefitList::parse($data['benefits'] ?? null);
+            if ($benefits['error'] !== null) {
+                $_SESSION['error'] = $benefits['error'];
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
+            // Fehlt das Feld, bleibt der Zahlungsstand unverändert - ältere
+            // Formulare und Aufrufe ohne das Feld sollen ihn nicht löschen.
+            $paidAt = array_key_exists('paid_at', $data)
+                ? self::validatePaidAt($data['paid_at'])
+                : $sponsorship->paid_at?->format('Y-m-d');
+            if ($paidAt === false) {
+                $_SESSION['error'] = self::PAID_AT_ERROR;
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
             // Beim Ändern wird der Zeitraum NICHT aus dem Projekt nachgefüllt:
             // ein leeres Feld ist hier eine bewusste Eingabe ("unbefristet"),
             // und eine Vorbelegung machte das Leeren unmöglich.
-            $sponsorship->update([
+            Capsule::connection()->transaction(function () use (
+                $sponsorship,
+                $projectId,
+                $data,
+                $assignee,
+                $normalizedAmount,
+                $paidAt,
+                $status,
+                $benefits
+            ): void {
+                $sponsorship->update([
                 'project_id'       => $projectId,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => $assignee['value'],
                 'amount'           => $normalizedAmount,
+                'paid_at'          => $paidAt,
                 'status'           => $status,
                 'start_date'       => !empty($data['start_date']) ? (string) $data['start_date'] : null,
                 'end_date'         => !empty($data['end_date']) ? (string) $data['end_date'] : null,
                 'notes'            => trim(InputValidator::asString($data['notes'] ?? null)) ?: null,
-            ]);
+                ]);
+
+                if ($benefits['items'] !== null) {
+                    $this->syncBenefits($sponsorship, $benefits['items']);
+                }
+            });
 
             $this->handleAttachments($request, $sponsorship->id);
 
-            $_SESSION['success'] = 'Vereinbarung erfolgreich aktualisiert.';
+            $_SESSION['success'] = 'Vereinbarung gespeichert.';
         } catch (ModelNotFoundException $e) {
             // Der häufigste Weg hierher: Die Seite lag offen, während jemand
             // anderes dieselbe Vereinbarung entfernt hat. Kein Betriebsfehler.
@@ -338,6 +419,97 @@ class SponsorshipController
         return $response
             ->withHeader('Location', '/sponsoring/sponsors/' . $sponsorship->sponsor_id)
             ->withStatus(302);
+    }
+
+    /**
+     * Eine Gegenleistung abhaken oder den Haken zurücknehmen.
+     *
+     * Das Formular schickt den gewünschten Zustand (`delivered` = 1 oder 0),
+     * nicht "umdrehen": Bei einem Doppelklick oder von einer veralteten Seite
+     * aus nähme ein Umschalten einen Haken still wieder zurück. Gilt der
+     * Zustand schon, ändert sich nichts - auch nicht, wer abgehakt hat.
+     *
+     * Zurück geht es dorthin, wo geklickt wurde: aufs Dashboard, wenn die
+     * Liste der offenen Leistungen der Ausgangspunkt war, sonst zum Sponsor.
+     */
+    public function toggleBenefit(Request $request, Response $response, array $args): Response
+    {
+        $benefit = SponsorshipBenefit::with('sponsorship')->find((int) $args['id']);
+        if ($benefit === null || $benefit->sponsorship === null) {
+            $_SESSION['error'] = 'Die Gegenleistung wurde nicht gefunden.';
+            return $response->withHeader('Location', '/sponsoring')->withStatus(302);
+        }
+
+        if (!$this->policy->canTickBenefits($benefit->sponsorship)) {
+            return $this->deny($response);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $wantDelivered = InputValidator::asString($data['delivered'] ?? '1') === '1';
+        $isDelivered = $benefit->delivered_at !== null;
+
+        if ($wantDelivered !== $isDelivered) {
+            $benefit->update([
+                'delivered_at' => $wantDelivered ? Carbon::today()->format('Y-m-d') : null,
+                'delivered_by_user_id' => $wantDelivered ? $this->policy->currentUserId() : null,
+            ]);
+        }
+
+        $query = $request->getQueryParams();
+        $target = ($query['redirect_to'] ?? '') === 'dashboard'
+            ? '/sponsoring'
+            : '/sponsoring/sponsors/' . $benefit->sponsorship->sponsor_id;
+
+        return $response->withHeader('Location', $target)->withStatus(302);
+    }
+
+    /**
+     * Gleicht die Leistungen einer Vereinbarung mit der neuen Liste ab.
+     *
+     * Eine Zeile, deren Text gleich bleibt, behält ihren Haken - sonst müsste
+     * nach jeder Korrektur der Liste alles neu abgehakt werden. Neue Zeilen
+     * kommen offen hinzu, gestrichene verschwinden.
+     *
+     * @param list<string> $items
+     */
+    private function syncBenefits(Sponsorship $sponsorship, array $items): void
+    {
+        $existing = $sponsorship->benefits()->get();
+        $kept = [];
+
+        foreach ($items as $index => $description) {
+            $match = $existing->first(
+                static fn (SponsorshipBenefit $benefit): bool => $benefit->description === $description
+                    && !in_array($benefit->id, $kept, true)
+            );
+
+            if ($match !== null) {
+                $match->update(['sort_order' => $index]);
+                $kept[] = $match->id;
+                continue;
+            }
+
+            $created = $sponsorship->benefits()->create(['description' => $description, 'sort_order' => $index]);
+            $kept[] = $created->id;
+        }
+
+        $sponsorship->benefits()->whereNotIn('id', $kept === [] ? [0] : $kept)->delete();
+    }
+
+    /**
+     * "Bezahlt am": leer heißt "noch offen" (null), ein gültiges Datum wird
+     * übernommen, alles andere ist ein Fehler (false).
+     */
+    private static function validatePaidAt(mixed $value): string|false|null
+    {
+        $date = trim(InputValidator::asString($value));
+        if ($date === '') {
+            return null;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+
+        return $parsed !== false && $parsed->format('Y-m-d') === $date ? $date : false;
     }
 
     private function deny(Response $response): Response

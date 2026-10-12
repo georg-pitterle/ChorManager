@@ -71,6 +71,23 @@ final class SponsorshipStatus
         return self::COLORS;
     }
 
+    /**
+     * Badge-Klassen je Status mit lesbarer Schrift - aus demselben Grund wie in
+     * SponsorEngagementState::badgeClasses(): "Erinnert" stand mit `bg-warning`
+     * weiß auf Gelb.
+     *
+     * @return array<string, string>
+     */
+    public static function badgeClasses(): array
+    {
+        $classes = [];
+        foreach (self::COLORS as $status => $color) {
+            $classes[$status] = 'text-bg-' . $color;
+        }
+
+        return $classes;
+    }
+
     public static function isValid(string $status): bool
     {
         return isset(self::LABELS[$status]);

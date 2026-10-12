@@ -1,31 +1,90 @@
 {% extends "layout.twig" %}
 
 {% block title %}
-    Sponsoring-Pakete - {{ app_settings.app_name|default('Chor-Manager') }}
+    Sponsoring-Pakete - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">
-                Sponsoring-Pakete
-            </h1>
-            <p class="text-muted mb-0">Pakete, Mindestbeträge und Farben zentral verwalten.</p>
+            <h1 class="h2 mb-1">Sponsoring-Pakete</h1>
+            <p class="text-muted mb-0">
+                Was ein Sponsor ab welchem Betrag bekommt. Neue Vereinbarungen übernehmen die Gegenleistungen ihres Pakets.
+            </p>
         </div>
-        <div class="page-actions">
-            <a href="/sponsoring" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Zurück zum Dashboard</a>
-        </div>
+        {% if can_manage_all %}
+            <div class="page-actions">
+                <button type="button"
+                        class="btn btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#newPackageModal">
+                    Neues Paket
+                </button>
+            </div>
+        {% endif %}
     </section>
 {% endblock page_header %}
 
+{% macro package_fields(prefix, pkg, color_options) %}
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label for="{{ prefix }}-name" class="form-label">
+                Name <span class="text-danger">*</span>
+            </label>
+            <input type="text"
+                   name="name"
+                   class="form-control"
+                   value="{{ pkg.name|default("") }}"
+                   required
+                   id="{{ prefix }}-name">
+        </div>
+        <div class="col-md-3">
+            <label for="{{ prefix }}-min-amount" class="form-label">Mindestbetrag (€)</label>
+            <input type="number"
+                   name="min_amount"
+                   class="form-control"
+                   step="0.01"
+                   min="0"
+                   value="{{ pkg.min_amount|default("") }}"
+                   id="{{ prefix }}-min-amount">
+        </div>
+        <div class="col-md-3">
+            <label for="{{ prefix }}-color" class="form-label">Farbe</label>
+            <select name="color" class="form-select" id="{{ prefix }}-color">
+                {% for option in color_options %}
+                    <option value="{{ option.value }}" {{ option.value == pkg.color|default("info") ? "selected" : "" }}>{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12">
+            <label for="{{ prefix }}-description" class="form-label">Beschreibung</label>
+            <textarea name="description" class="form-control" rows="2" id="{{ prefix }}-description">{{ pkg.description|default("") }}</textarea>
+        </div>
+        <div class="col-12">
+            <label for="{{ prefix }}-benefits" class="form-label">Gegenleistungen</label>
+            <textarea name="benefits"
+                      class="form-control"
+                      rows="5"
+                      id="{{ prefix }}-benefits">{{ (pkg.benefits ?? [])|map(b => b.description)|join("\n") }}</textarea>
+            <div class="form-text">
+                Eine pro Zeile, z. B. „Logo im Programmheft“ oder „2 Freikarten“. Bestehende Vereinbarungen behalten ihre eigene Liste.
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+{% import _self as forms %}
+
 {% block content %}
+    {{ include("sponsoring/partials/subnav.twig", {subnav_active: "packages"}) }}
+
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
     {% if error %}
@@ -34,13 +93,8 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
-    {% endif %}
-
-    {% if can_manage_all %}
-        <form id="createPackageForm" method="post" action="/sponsoring/packages">
-        </form>
     {% endif %}
 
     <div class="dashboard-shell">
@@ -50,9 +104,9 @@
                 <h2 class="dashboard-section-title" id="packages-list-title">Paketübersicht</h2>
                 <p class="dashboard-section-lead mb-0">
                     {% if can_manage_all %}
-                        Pakete bearbeiten oder neue Pakete direkt in der Tabelle anlegen.
+                        Sortiert nach Mindestbetrag.
                     {% else %}
-                        Übersicht der Pakete. Anlegen und Ändern übernimmt die Sponsoring-Verwaltung.
+                        Anlegen und Ändern übernimmt die Sponsoring-Verwaltung.
                     {% endif %}
                 </p>
             </div>
@@ -63,187 +117,138 @@
                  data-default-view="auto"
                  data-default-page-size="100"
                  data-page-size-options="25,50,100,200"
-                 data-default-sort-key="name">
-                {{ include('partials/table_toolbar.twig') }}
+                 data-default-sort-key="min_amount">
+                {{ include("partials/table_toolbar.twig") }}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-responsive-cards"
                            id="sponsorPackagesTable">
                         <thead class="table-light">
                             <tr>
-                                <th data-sort-key="name" data-sort-type="text">Name</th>
-                                <th>Beschreibung</th>
-                                <th data-sort-key="min_amount" data-sort-type="number">Mindestbetrag</th>
-                                <th data-sort-key="color" data-sort-type="text">Farbe</th>
-                                <th></th>
+                                <th data-sort-key="name" data-sort-type="text">Paket</th>
+                                <th data-sort-key="min_amount" data-sort-type="number" class="text-end">Ab</th>
+                                <th>Gegenleistungen</th>
+                                {% if can_manage_all %}
+                                    <th class="text-end"><span class="visually-hidden">Aktionen</span></th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
                             {% for pkg in packages %}
                                 <tr data-sort-name="{{ pkg.name|lower }}"
-                                    data-sort-min_amount="{{ pkg.min_amount }}"
-                                    data-sort-color="{{ pkg.color|lower }}">
-                                    <td data-label="Name" data-card-title>
-                                        <span class="badge bg-{{ pkg.color }} fs-6">{{ pkg.name }}</span>
-                                    </td>
-                                    <td data-label="Beschreibung" data-card-block class="small text-muted">{{ pkg.description ?? '–' }}</td>
-                                    <td data-label="Mindestbetrag" class="text-nowrap">{{ pkg.min_amount|number_format(2, ",", ".") }} €</td>
-                                    <td data-label="Farbe">
-                                        <span class="badge bg-{{ pkg.color }}">{{ pkg.color }}</span>
-                                    </td>
-                                    <td data-label="Aktionen" class="text-end text-nowrap">
-                                        {% if can_manage_all %}
-                                        <div class="btn-group"
-                                             role="group"
-                                             aria-label="Aktionen für Paket {{ pkg.name }}">
-                                            <button class="btn btn-sm btn-outline-secondary"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#editPackageModal{{ pkg.id }}">
-                                                <i class="bi bi-pencil"></i> Bearbeiten
-                                            </button>
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                                    data-bs-toggle="dropdown"
-                                                    aria-expanded="false"
-                                                    data-bs-boundary="viewport">
-                                                <span class="visually-hidden">Weitere Aktionen</span>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                <li>
-                                                    <form method="post"
-                                                          action="/sponsoring/packages/{{ pkg.id }}/delete"
-                                                          data-confirm="Paket {{ pkg.name }} löschen?">
-                                                        <button type="submit" class="dropdown-item text-danger">
-                                                            <i class="bi bi-trash me-2"></i> Löschen
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                        {% else %}
-                                            <span class="text-muted small">–</span>
+                                    data-sort-min_amount="{{ pkg.min_amount }}">
+                                    <td data-label="Paket" data-card-title>
+                                        <span class="badge {{ pkg.badge_class }} fs-6">{{ pkg.name }}</span>
+                                        {% if pkg.description %}
+                                            <div class="small text-muted mt-1">{{ pkg.description }}</div>
                                         {% endif %}
                                     </td>
+                                    <td data-label="Ab" class="text-end text-nowrap amount-cell">{{ pkg.min_amount|number_format(2, ",", ".") }} €</td>
+                                    <td data-label="Gegenleistungen" data-card-block>
+                                        {% if pkg.benefits|length > 0 %}
+                                            <ul class="package-benefits">
+                                                {% for benefit in pkg.benefits %}<li>{{ benefit.description }}</li>{% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-muted small">Keine vorgegeben</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if can_manage_all %}
+                                        <td data-label="Aktionen" class="text-end text-nowrap">
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Aktionen für Paket {{ pkg.name }}">
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editPackageModal{{ pkg.id }}">
+                                                    Bearbeiten
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        data-bs-boundary="viewport">
+                                                    <span class="visually-hidden">Weitere Aktionen</span>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <form method="post"
+                                                              action="/sponsoring/packages/{{ pkg.id }}/delete"
+                                                              data-confirm="Paket {{ pkg.name }} löschen?">
+                                                            <button type="submit" class="dropdown-item text-danger">
+                                                                <i class="bi bi-trash me-2" aria-hidden="true"></i> Löschen
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    {% endif %}
                                 </tr>
                             {% else %}
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">Noch keine Pakete angelegt.</td>
+                                    <td colspan="{{ can_manage_all ? 4 : 3 }}" class="text-center text-muted py-4">
+                                        Noch keine Pakete angelegt.
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
-                        {% if can_manage_all %}
-                        <tfoot>
-                            <tr class="table-light">
-                                <td data-label="Name">
-                                    <input type="text"
-                                           name="name"
-                                           form="createPackageForm"
-                                           class="form-control form-control-sm"
-                                           placeholder="Name *"
-                                           required
-                                           aria-label="Name des neuen Pakets">
-                                </td>
-                                <td data-label="Beschreibung">
-                                    <input type="text"
-                                           name="description"
-                                           form="createPackageForm"
-                                           class="form-control form-control-sm"
-                                           placeholder="Beschreibung"
-                                           aria-label="Beschreibung des neuen Pakets">
-                                </td>
-                                <td data-label="Mindestbetrag">
-                                    <input type="number"
-                                           name="min_amount"
-                                           form="createPackageForm"
-                                           class="form-control form-control-sm"
-                                           step="0.01"
-                                           min="0"
-                                           placeholder="0.00"
-                                           aria-label="Mindestbetrag des neuen Pakets">
-                                </td>
-                                <td data-label="Farbe">
-                                    <select name="color"
-                                            form="createPackageForm"
-                                            class="form-select form-select-sm"
-                                            aria-label="Farbe des neuen Pakets">
-                                        {% for c in ['info', 'primary', 'success', 'warning', 'danger', 'secondary', 'dark'] %}
-                                            <option value="{{ c }}">{{ c }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td data-label="Aktionen" class="text-end">
-                                    <button type="submit" form="createPackageForm" class="btn btn-primary btn-sm">
-                                        Hinzufügen
-                                    </button>
-                                </td>
-                            </tr>
-                        </tfoot>
-                        {% endif %}
                     </table>
                 </div>
             </div>
         </section>
     </div>
 
-    {% for pkg in can_manage_all ? packages : [] %}
+    {% if can_manage_all %}
         <div class="modal fade"
-             id="editPackageModal{{ pkg.id }}"
+             id="newPackageModal"
              tabindex="-1"
+             aria-labelledby="newPackageModalLabel"
              aria-hidden="true">
-            <div class="modal-dialog modal-dialog-scrollable">
-                <form method="post" action="/sponsoring/packages/{{ pkg.id }}">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Paket bearbeiten</h5>
-                            <button type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label for="packages-index-name-{{ loop.index }}" class="form-label">
-                                    Name <span class="text-danger">*</span>
-                                </label>
-                                <input type="text"
-                                       name="name"
-                                       class="form-control"
-                                       value="{{ pkg.name }}"
-                                       required
-                                       id="packages-index-name-{{ loop.index }}">
-                            </div>
-                            <div class="mb-3">
-                                <label for="packages-index-description-{{ loop.index }}" class="form-label">Beschreibung</label>
-                                <textarea name="description" class="form-control" rows="2" id="packages-index-description-{{ loop.index }}">{{ pkg.description }}</textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="packages-index-min-amount-{{ loop.index }}" class="form-label">Mindestbetrag (€)</label>
-                                <input type="number"
-                                       name="min_amount"
-                                       class="form-control"
-                                       step="0.01"
-                                       min="0"
-                                       value="{{ pkg.min_amount }}"
-                                       id="packages-index-min-amount-{{ loop.index }}">
-                            </div>
-                            <div class="mb-3">
-                                <label for="packages-index-color-{{ loop.index }}" class="form-label">Farbe</label>
-                                <select name="color" class="form-select" id="packages-index-color-{{ loop.index }}">
-                                    {% for c in ['primary', 'success', 'warning', 'danger', 'info', 'secondary', 'dark'] %}
-                                        <option value="{{ c }}" {{ c == pkg.color ? 'selected' : '' }}>{{ c }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-primary">
-                                Speichern
-                            </button>
-                        </div>
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <form method="post" action="/sponsoring/packages" class="modal-content border-0 shadow">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newPackageModalLabel">Neues Paket</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ forms.package_fields("packages-new", {}, color_options) }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Anlegen</button>
                     </div>
                 </form>
             </div>
         </div>
-    {% endfor %}
+
+        {% for pkg in packages %}
+            <div class="modal fade"
+                 id="editPackageModal{{ pkg.id }}"
+                 tabindex="-1"
+                 aria-labelledby="editPackageModalLabel{{ pkg.id }}"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <form method="post" action="/sponsoring/packages/{{ pkg.id }}" class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editPackageModalLabel{{ pkg.id }}">Paket {{ pkg.name }} bearbeiten</h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Schließen"></button>
+                        </div>
+                        <div class="modal-body">
+                            {{ forms.package_fields("packages-" ~ pkg.id, pkg, color_options) }}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
 {% endblock content %}

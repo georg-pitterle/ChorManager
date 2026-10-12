@@ -570,6 +570,12 @@ return function (App $app) {
                             [SponsorshipController::class, 'deleteAttachment']
                         );
 
+                        // Gegenleistung abhaken - wer darf, entscheidet die Policy.
+                        $sponsoringGroup->post(
+                            '/sponsorship-benefits/{id:[0-9]+}/toggle',
+                            [SponsorshipController::class, 'toggleBenefit']
+                        );
+
                         // Kontakthistorie
                         $sponsoringGroup->post('/contacts', [SponsoringContactController::class, 'create']);
                         $sponsoringGroup->post(

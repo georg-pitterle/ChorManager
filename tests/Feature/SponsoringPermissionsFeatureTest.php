@@ -586,7 +586,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             // Summen ueber alle Vereinbarungen bleiben dem Vollrecht vorbehalten.
             $this->assertFalse($data['sees_totals']);
             $this->assertNull($data['total_amount']);
-            $this->assertNull($data['pipeline']);
+            $this->assertNull($data['requested_amount']);
             $this->assertTrue($data['shows_own_only']);
 
             $_SESSION['can_manage_sponsoring'] = true;

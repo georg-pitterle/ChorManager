@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Util\SponsorPackageColor;
 use Illuminate\Database\Eloquent\Model;
 
 class SponsorPackage extends Model
@@ -28,6 +29,30 @@ class SponsorPackage extends Model
     protected $casts = [
         'min_amount' => 'decimal:2',
     ];
+
+    /**
+     * Was das Paket an Gegenleistungen vorsieht - die Vorgabe für neue
+     * Vereinbarungen mit diesem Paket.
+     */
+    public function benefits()
+    {
+        return $this->hasMany(SponsorPackageBenefit::class, 'package_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Abzeichen-Klassen des Pakets mit lesbarer Schrift (`text-bg-*`).
+     * Als Attribut, damit jedes Template `pkg.badge_class` schreibt und keines
+     * die Klasse selbst aus der Farbe zusammensetzt.
+     */
+    public function getBadgeClassAttribute(): string
+    {
+        return SponsorPackageColor::badgeClass($this->color);
+    }
+
+    public function getColorLabelAttribute(): string
+    {
+        return SponsorPackageColor::label($this->color);
+    }
 
     public function sponsorships()
     {

@@ -30,6 +30,26 @@ async function shot(page, name, { fullPage = true } = {}) {
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
 }
 
+/**
+ * Lange Seiten (Dashboard, Sponsor-Detail): Kopf und erste Inhalte, auf maxHeight
+ * beschnitten. Kürzere Seiten werden nicht gestreckt.
+ */
+async function shotCapped(page, name, maxHeight = 1400) {
+    const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+    const height = Math.min(fullHeight, maxHeight);
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await page.screenshot({ path: filePath, fullPage: true, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
+}
+
+/** Ein einzelner Abschnitt der Seite, ohne Kopf und Seitenleiste. */
+async function shotElement(locator, name) {
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await locator.scrollIntoViewIfNeeded();
+    await locator.screenshot({ path: filePath });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
+}
+
 async function login(page) {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
     await page.locator('#emailInput').fill(LOGIN_EMAIL);
@@ -57,25 +77,6 @@ async function clickAndWaitForEvent(page, triggerLocator, eventTargetSelector, e
     await eventPromise;
 }
 
-/**
- * Das gebündelte bootstrap.bundle.min.js feuert `shown.bs.tab` bereits, bevor
- * die "show"-Klasse gesetzt und die Opacity-Transition der Tab-Pane
- * abgeschlossen ist. Daher hier direkt auf den tatsächlichen Render-Zustand
- * pollen (waitForFunction), statt auf das Event zu vertrauen.
- */
-async function clickAndWaitForTabPane(page, triggerLocator, paneSelector) {
-    await triggerLocator.click();
-    await page.waitForFunction((selector) => {
-        const el = document.querySelector(selector);
-        if (!el) {
-            return false;
-        }
-        return el.classList.contains('show')
-            && el.classList.contains('active')
-            && parseFloat(getComputedStyle(el).opacity) >= 0.99;
-    }, paneSelector);
-}
-
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
@@ -93,10 +94,10 @@ async function main() {
     try {
         await login(page);
 
-        // 1. Sponsoring-Dashboard
+        // 1. Sponsoring-Dashboard: Arbeitslisten
         await page.goto(`${BASE_URL}/sponsoring`, { waitUntil: 'networkidle' });
-        await page.locator('.dashboard-shell').waitFor({ state: 'visible' });
-        await shot(page, '01-dashboard');
+        await page.locator('.sponsoring-board').waitFor({ state: 'visible' });
+        await shotCapped(page, '01-dashboard');
 
         // 2. Sponsorenübersicht
         await page.goto(`${BASE_URL}/sponsoring/sponsors`, { waitUntil: 'networkidle' });
@@ -118,31 +119,34 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 4. Sponsor-Detail: Stammdaten
+        // 4. Sponsor-Detail: Steckbrief und erste Vereinbarung
         //
-        // Bewusst nicht der erste Eintrag: bei einem Sponsor mit Generalabsage
-        // ("Keine Anfragen erwünscht") blendet die Oberfläche die Knöpfe zum
-        // Anlegen aus, und die folgenden Schritte fänden ihre Dialoge nicht.
+        // Bewusst "Musikhaus Weber": Der Seed gibt ihm eine bezahlte Gold-Zusage
+        // mit teils erbrachten Gegenleistungen und keine Generalabsage - bei einer
+        // Generalabsage blendet die Seite die Knöpfe zum Anlegen aus.
         await page
-            .locator('#sponsorsTable tbody tr:not([data-state="blocked"])')
+            .locator('#sponsorsTable td[data-label="Name"] a', { hasText: 'Musikhaus Weber' })
             .first()
-            .locator('td[data-label="Name"] a')
             .click();
         await page.waitForLoadState('networkidle');
-        await page.locator('#pane-stammdaten').waitFor({ state: 'visible' });
-        await shot(page, '04-sponsor-detail-master-data');
+        await page.locator('.sponsor-profile').waitFor({ state: 'visible' });
+        await shotCapped(page, '04-sponsor-detail', 1300);
 
-        // 5. Sponsor-Detail: Vereinbarungen
-        await clickAndWaitForTabPane(page, page.locator('#tab-vereinbarungen'), '#pane-vereinbarungen');
-        await shot(page, '05-sponsor-detail-agreements');
+        // 5. Eine Vereinbarung als Karte
+        await shotElement(page.locator('.agreement-card').first(), '05-sponsor-detail-agreement');
 
-        // 6. Modal: Neue Vereinbarung
+        // 6. Modal: Neue Vereinbarung - mit Paket, damit die vorgeschlagenen
+        //    Gegenleistungen zu sehen sind
         await clickAndWaitForEvent(
             page,
-            page.locator('#pane-vereinbarungen [data-bs-target="#newSponsorshipModal"]'),
+            page.locator('.page-actions [data-bs-target="#newSponsorshipModal"]'),
             '#newSponsorshipModal',
             'shown.bs.modal'
         );
+        const packageSelect = page.locator('#newSponsorshipModal [data-sponsorship-package]');
+        const goldValue = await packageSelect.locator('option', { hasText: 'Gold' }).first().getAttribute('value');
+        await packageSelect.selectOption(goldValue);
+        await page.locator('#newSponsorshipModal [data-sponsorship-benefits]').scrollIntoViewIfNeeded();
         await shot(page, '06-new-agreement-modal', { fullPage: false });
         await clickAndWaitForEvent(
             page,
@@ -151,14 +155,17 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 7. Sponsor-Detail: Kontakthistorie
-        await clickAndWaitForTabPane(page, page.locator('#tab-kontakte'), '#pane-kontakte');
-        await shot(page, '07-sponsor-detail-contacts');
+        // 7. Kontakthistorie
+        await shotElement(
+            page.locator('section[aria-labelledby="sponsor-contacts-title"]'),
+            '07-sponsor-detail-contacts'
+        );
 
         // 8. Modal: Kontakt protokollieren
+        await page.evaluate(() => window.scrollTo(0, 0));
         await clickAndWaitForEvent(
             page,
-            page.locator('#pane-kontakte [data-bs-target="#newContactModal"]'),
+            page.locator('.page-actions [data-bs-target="#newContactModal"]'),
             '#newContactModal',
             'shown.bs.modal'
         );
@@ -170,10 +177,35 @@ async function main() {
             'hidden.bs.modal'
         );
 
+        // 11. Modal: Stammdaten bearbeiten (über "Mehr")
+        await page.locator('.page-actions .dropdown-toggle').click();
+        await clickAndWaitForEvent(
+            page,
+            page.locator('.page-actions [data-bs-target="#editSponsorModal"]'),
+            '#editSponsorModal',
+            'shown.bs.modal'
+        );
+        await shot(page, '11-edit-master-data-modal', { fullPage: false });
+        await clickAndWaitForEvent(
+            page,
+            page.locator('#editSponsorModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
+            '#editSponsorModal',
+            'hidden.bs.modal'
+        );
+
         // 9. Paketverwaltung
         await page.goto(`${BASE_URL}/sponsoring/packages`, { waitUntil: 'networkidle' });
         await page.locator('#sponsorPackagesTable').waitFor({ state: 'visible' });
         await shot(page, '09-packages');
+
+        // 12. Modal: Paket bearbeiten mit Gegenleistungen
+        await clickAndWaitForEvent(
+            page,
+            page.locator('#sponsorPackagesTable [data-bs-target^="#editPackageModal"]').last(),
+            '.modal.fade[id^="editPackageModal"]:last-of-type',
+            'shown.bs.modal'
+        );
+        await shot(page, '12-edit-package-modal', { fullPage: false });
 
         // 10. Zentrale Anhangsammlung
         await page.goto(`${BASE_URL}/sponsoring/attachments`, { waitUntil: 'networkidle' });

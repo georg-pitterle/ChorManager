@@ -160,8 +160,9 @@ class TableUxFeatureTest extends TestCase
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
             // songs/downloads.twig nicht: Die Seite hat keine Tabelle mehr, sondern je Lied
-            // eine Dateiliste (siehe DownloadsPageLayoutFeatureTest).
-            'templates/sponsoring/dashboard.twig',
+            // eine Dateiliste (siehe DownloadsPageLayoutFeatureTest). Ebenso
+            // sponsoring/dashboard.twig: kurze Arbeitslisten statt Tabellen
+            // (siehe SponsoringFeatureTest::testSponsoringDashboardShowsCompactWorkLists).
             'templates/projects/index.twig',
             'templates/projects/members.twig',
             'templates/projects/tasks.twig',
@@ -183,7 +184,6 @@ class TableUxFeatureTest extends TestCase
             'templates/finances/index.twig',
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
-            'templates/sponsoring/dashboard.twig',
             'templates/projects/index.twig',
             'templates/projects/members.twig',
             'templates/projects/tasks.twig',
@@ -228,7 +228,6 @@ class TableUxFeatureTest extends TestCase
             'templates/finances/index.twig',
             'templates/evaluations/index.twig',
             'templates/events/index.twig',
-            'templates/sponsoring/dashboard.twig',
             'templates/projects/index.twig',
             'templates/projects/members.twig',
             'templates/projects/tasks.twig',

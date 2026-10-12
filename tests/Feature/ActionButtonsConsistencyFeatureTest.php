@@ -40,7 +40,8 @@ class ActionButtonsConsistencyFeatureTest extends TestCase
             dirname(__DIR__) . '/../templates/roles/_overview.twig',
             dirname(__DIR__) . '/../templates/projects/tasks.twig',
             dirname(__DIR__) . '/../templates/projects/members.twig',
-            dirname(__DIR__) . '/../templates/sponsoring/dashboard.twig',
+            // sponsoring/dashboard.twig nicht mehr: dort stehen kurze Arbeitslisten
+            // mit je einem Knopf, keine Tabellen mit Aktionsspalte.
             dirname(__DIR__) . '/../templates/admin/mail_queue/index.twig',
         ];
 

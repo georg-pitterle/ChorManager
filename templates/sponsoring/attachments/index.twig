@@ -12,7 +12,7 @@
                     <li class="breadcrumb-item">
                         <a href="/sponsoring">Sponsoring</a>
                     </li>
-                    <li class="breadcrumb-item active">Anhänge</li>
+                    <li class="breadcrumb-item active" aria-current="page">Anhänge</li>
                 </ol>
             </nav>
             <h1 class="h2 mb-1">
@@ -20,21 +20,19 @@
             </h1>
             <p class="text-muted mb-0">Verträge, Logos und Unterlagen aus allen Vereinbarungen an einem Ort.</p>
         </div>
-        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/sponsoring" class="btn btn-outline-secondary"><i class="bi bi-house me-1"></i> Dashboard</a>
-            <a href="/sponsoring/sponsors" class="btn btn-outline-secondary"><i class="bi bi-people me-1"></i> Sponsoren</a>
-        </div>
     </section>
 {% endblock page_header %}
 
 {% block content %}
+    {{ include("sponsoring/partials/subnav.twig", {subnav_active: "attachments"}) }}
+
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
     {% if error %}
@@ -43,7 +41,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
 

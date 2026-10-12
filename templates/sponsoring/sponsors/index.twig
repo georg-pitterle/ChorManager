@@ -10,11 +10,9 @@
             <h1 class="h2 mb-1">
                 Sponsoren
             </h1>
-            <p class="text-muted mb-0">Sponsorenstammdaten und Vereinbarungen verwalten.</p>
+            <p class="text-muted mb-0">Vor einer Anfrage nachsehen, ob schon jemand an der Firma dran ist.</p>
         </div>
-        <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-            <a href="/sponsoring" class="btn btn-outline-secondary"><i class="bi bi-house me-1"></i> Dashboard</a>
-            <a href="/sponsoring/attachments" class="btn btn-outline-secondary"><i class="bi bi-paperclip me-1"></i> Anhänge</a>
+        <div class="page-actions">
             <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createSponsorModal">
@@ -25,13 +23,15 @@
 {% endblock page_header %}
 
 {% block content %}
+    {{ include("sponsoring/partials/subnav.twig", {subnav_active: "sponsors"}) }}
+
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ success }}
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
     {% if error %}
@@ -40,7 +40,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
 
@@ -50,7 +50,7 @@
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="sponsor-list-title">Sponsorenübersicht</h2>
                 <p class="dashboard-section-lead mb-0">
-                    {{ sponsors|length }} Einträge im aktuellen Ergebnis. Suche und Zustandsfilter über die Tabellenleiste.
+                    {{ sponsors|length }} {{ sponsors|length == 1 ? "Sponsor" : "Sponsoren" }}. Der Zustandsfilter steht in der Tabellenleiste.
                 </p>
             </div>
 
@@ -70,10 +70,13 @@
                         <thead class="table-light">
                             <tr>
                                 <th data-sort-key="sponsor_name" data-sort-type="text">Name</th>
-                                <th data-sort-key="category" data-sort-type="text">Typ</th>
                                 <th data-sort-key="state" data-sort-type="text">Zustand</th>
-                                <th>E-Mail</th>
-                                <th>Telefon</th>
+                                <th data-sort-key="package" data-sort-type="text">Paket</th>
+                                {% if sees_totals %}
+                                    <th data-sort-key="accepted_amount" data-sort-type="number" class="text-end">Zugesagt</th>
+                                {% endif %}
+                                <th data-sort-key="next_follow_up" data-sort-type="date">Nächste Frist</th>
+                                <th>Kontakt</th>
                                 <th data-sort-key="sponsorship_count" data-sort-type="number">Vereinbarungen</th>
                                 <th class="text-end">Aktionen</th>
                             </tr>
@@ -81,34 +84,49 @@
                         <tbody>
                             {% for sponsor in sponsors %}
                                 {% set sponsor_state = sponsor_states[sponsor.id] %}
+                                {% set row = sponsor_rows[sponsor.id] %}
                                 <tr data-sort-sponsor_name="{{ sponsor.name|lower }}"
-                                    data-sort-category="{{ sponsor.type == 'organization' ? 'organisation' : 'einzelperson' }}"
+                                    data-sort-package="{{ row.package_name|default("")|lower }}"
+                                    data-sort-accepted_amount="{{ row.accepted_amount|default(0) }}"
+                                    data-sort-next_follow_up="{{ row.next_follow_up_sort }}"
                                     data-sort-state="{{ sponsor_state }}"
                                     data-state="{{ sponsor_state }}"
                                     data-sort-sponsorship_count="{{ sponsor.sponsorships|length }}">
                                     <td data-label="Name" data-card-title>
                                         <a href="/sponsoring/sponsors/{{ sponsor.id }}"
                                            class="text-decoration-none">{{ sponsor.name }}</a>
-                                        {% if sponsor.contact_person %}<div class="text-muted small">{{ sponsor.contact_person }}</div>{% endif %}
-                                    </td>
-                                    <td data-label="Typ">
-                                        {% if sponsor.type == 'organization' %}
-                                            <i class="bi bi-building" title="Organisation"></i>
-                                        {% else %}
-                                            <i class="bi bi-person" title="Einzelperson"></i>
-                                        {% endif %}
+                                        <div class="text-muted small">
+                                            {{ sponsor.type == "organization" ? "Organisation" : "Einzelperson" }}{% if sponsor.contact_person %} · {{ sponsor.contact_person }}{% endif %}
+                                        </div>
                                     </td>
                                     <td data-label="Zustand">
                                         <span class="badge {{ state_badges[sponsor_state] }}">{{ state_labels[sponsor_state] }}</span>
                                     </td>
-                                    <td data-label="E-Mail">
-                                        {% if sponsor.email %}
-                                            <a href="mailto:{{ sponsor.email }}" class="text-decoration-none small">{{ sponsor.email }}</a>
+                                    <td data-label="Paket">
+                                        {% if row.package_name %}
+                                            <span class="badge {{ row.package_badge }}">{{ row.package_name }}</span>
                                         {% else %}
-                                            –
+                                            <span class="text-muted">–</span>
                                         {% endif %}
                                     </td>
-                                    <td data-label="Telefon" class="small">{{ sponsor.phone ?? '–' }}</td>
+                                    {% if sees_totals %}
+                                        <td data-label="Zugesagt" class="text-end text-nowrap amount-cell">
+                                            {{ row.accepted_amount > 0 ? row.accepted_amount|number_format(2, ",", ".") ~ " €" : "–" }}
+                                        </td>
+                                    {% endif %}
+                                    <td data-label="Nächste Frist" class="text-nowrap">
+                                        {% if row.next_follow_up_display %}
+                                            {{ row.next_follow_up_display }}
+                                            {% if row.next_follow_up_overdue %}<span class="due-chip due-chip--overdue">überfällig</span>{% endif %}
+                                        {% else %}
+                                            <span class="text-muted">–</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Kontakt" class="small">
+                                        {% if sponsor.phone %}<a href="tel:{{ sponsor.phone|replace({" ": "", "/": "", "-": ""}) }}" class="d-block text-nowrap">{{ sponsor.phone }}</a>{% endif %}
+                                        {% if sponsor.email %}<a href="mailto:{{ sponsor.email }}" class="d-block text-truncate">{{ sponsor.email }}</a>{% endif %}
+                                        {% if not sponsor.phone and not sponsor.email %}<span class="text-muted">–</span>{% endif %}
+                                    </td>
                                     <td data-label="Vereinbarungen"
                                         data-sort-key="sponsorship_count"
                                         data-sort-value="{{ sponsor.sponsorships|length }}">
@@ -120,8 +138,8 @@
                                              aria-label="Aktionen für Sponsor {{ sponsor.name }}">
                                             <a href="/sponsoring/sponsors/{{ sponsor.id }}"
                                                class="btn btn-sm btn-outline-secondary"
-                                               title="Details">
-                                                <i class="bi bi-eye"></i> Details
+                                               title="Öffnen">
+                                                Öffnen
                                             </a>
                                             {% if can_manage_all %}
                                                 <button type="button"
@@ -137,7 +155,7 @@
                                                               action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
                                                               data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Alle verknüpften Daten werden ebenfalls gelöscht.">
                                                             <button type="submit" class="dropdown-item text-danger">
-                                                                <i class="bi bi-trash me-2"></i> Löschen
+                                                                <i class="bi bi-trash me-2" aria-hidden="true"></i> Löschen
                                                             </button>
                                                         </form>
                                                     </li>
@@ -148,7 +166,9 @@
                                 </tr>
                             {% else %}
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">Keine Sponsoren gefunden.</td>
+                                    <td colspan="{{ sees_totals ? 8 : 7 }}" class="text-center text-muted py-4">
+                                        Noch keine Sponsoren. Mit „Neuer Sponsor“ legst du den ersten an.
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -162,25 +182,24 @@
     <div class="modal fade"
          id="createSponsorModal"
          tabindex="-1"
+         aria-labelledby="createSponsorModalLabel"
          aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form method="post" action="/sponsoring/sponsors">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="bi bi-person-plus me-2"></i>Neuer Sponsor
-                        </h5>
+                        <h5 class="modal-title" id="createSponsorModalLabel">Neuer Sponsor</h5>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="sponsors-index-type" class="form-label">Typ</label>
                                 <select name="type" class="form-select" id="sponsors-index-type">
-                                    <option value="organization">Organisation / Firma</option>
+                                    <option value="organization">Organisation oder Firma</option>
                                     <option value="person">Einzelperson</option>
                                 </select>
                             </div>
@@ -191,7 +210,8 @@
                                            role="switch"
                                            id="create_sponsor_requests_blocked"
                                            name="requests_blocked"
-                                           value="1">
+                                           value="1"
+                                           data-reveals="#create-sponsor-blocked-note-field">
                                     <label class="form-check-label" for="create_sponsor_requests_blocked">Keine Anfragen erwünscht</label>
                                 </div>
                             </div>
@@ -211,7 +231,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label for="sponsors-index-phone" class="form-label">Telefon</label>
-                                <input type="text" name="phone" class="form-control" id="sponsors-index-phone">
+                                <input type="tel" name="phone" class="form-control" id="sponsors-index-phone">
                             </div>
                             <div class="col-md-6">
                                 <label for="sponsors-index-website" class="form-label">Website</label>
@@ -225,12 +245,11 @@
                                 <label for="sponsors-index-address" class="form-label">Adresse</label>
                                 <textarea name="address" class="form-control" rows="2" id="sponsors-index-address"></textarea>
                             </div>
-                            <div class="col-12">
-                                <label for="sponsors-index-requests-blocked-note" class="form-label">Begründung zur Absage</label>
+                            <div class="col-12 d-none" id="create-sponsor-blocked-note-field">
+                                <label for="sponsors-index-requests-blocked-note" class="form-label">Warum keine Anfragen mehr?</label>
                                 <textarea name="requests_blocked_note"
                                           class="form-control"
                                           rows="2"
-                                          placeholder="Nur nötig, wenn keine Anfragen mehr erwünscht sind"
                                           id="sponsors-index-requests-blocked-note"></textarea>
                             </div>
                         </div>
@@ -250,4 +269,5 @@
 {% block scripts %}
     {{ parent() }}
     <script src="/js/table-plugins/sponsors-state-plugin.js"></script>
+    <script src="/js/sponsorship-form.js"></script>
 {% endblock scripts %}

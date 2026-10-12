@@ -1,0 +1,24 @@
+{# Unternavigation des Sponsoring-Bereichs. Vorher verlinkte jede Teilseite andere
+   Geschwister - das Dashboard alle, die Sponsorenliste zwei, die Pakete nur zurück -,
+   und wer nicht über das Dashboard ging, fand die Pakete nicht.
+
+   Parameter:
+     subnav_active  overview | sponsors | packages | attachments #}
+{% set _subnav_items = [
+    {key: "overview", href: "/sponsoring", label: "Übersicht"},
+    {key: "sponsors", href: "/sponsoring/sponsors", label: "Sponsoren"},
+    {key: "packages", href: "/sponsoring/packages", label: "Pakete"},
+    {key: "attachments", href: "/sponsoring/attachments", label: "Anhänge"},
+] %}
+<nav class="sponsoring-subnav" aria-label="Sponsoring">
+    <ul class="sponsoring-subnav-list">
+        {% for item in _subnav_items %}
+            {% set _is_active = item.key == subnav_active|default("") %}
+            <li>
+                <a class="sponsoring-subnav-link{{ _is_active ? " is-active" : "" }}"
+                   href="{{ item.href }}"
+                   {% if _is_active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+</nav>

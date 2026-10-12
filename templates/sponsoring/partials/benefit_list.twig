@@ -1,0 +1,35 @@
+{# Gegenleistungen einer Vereinbarung als Abhakliste - auf dem Dashboard und beim
+   Sponsor dieselbe Darstellung. Ob abgehakt werden darf, hat der Controller je
+   Zeile entschieden (SponsoringPolicy::canTickBenefits); das Template fragt nur das
+   Kennzeichen ab.
+
+   Parameter:
+     benefits  Liste aus {id, description, may_tick, toggle_url, delivered_display}
+               delivered_display ist null, solange die Leistung offen ist. #}
+<ul class="benefit-list">
+    {% for benefit in benefits %}
+        {% set _done = benefit.delivered_display|default(null) is not null %}
+        <li class="benefit-item{{ _done ? " is-done" : "" }}">
+            {% if benefit.may_tick %}
+                <form method="post" action="{{ benefit.toggle_url }}" class="benefit-form">
+                    <input type="hidden" name="delivered" value="{{ _done ? "0" : "1" }}">
+                    <button type="submit"
+                            class="benefit-toggle"
+                            aria-pressed="{{ _done ? "true" : "false" }}"
+                            title="{{ _done ? "Wieder als offen markieren" : "Als erbracht abhaken" }}">
+                        <i class="bi {{ _done ? "bi-check-square-fill" : "bi-square" }}" aria-hidden="true"></i>
+                        <span>{{ benefit.description }}</span>
+                    </button>
+                </form>
+            {% else %}
+                <span class="benefit-static">
+                    <i class="bi {{ _done ? "bi-check-square-fill" : "bi-square" }}" aria-hidden="true"></i>
+                    <span>{{ benefit.description }}</span>
+                </span>
+            {% endif %}
+            {% if _done %}
+                <span class="benefit-done-date">erbracht am {{ benefit.delivered_display }}</span>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

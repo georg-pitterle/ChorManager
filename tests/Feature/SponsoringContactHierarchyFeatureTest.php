@@ -107,20 +107,22 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
         $this->assertStringNotContainsString("'#' ~ contact.sponsorship.id", $template);
     }
 
-    public function testContactModalLivesOutsideTheTabPanesSoTheShortcutCanOpenIt(): void
+    /**
+     * Aus einem ausgeblendeten Tab heraus geöffnet zeigte Bootstrap nur den
+     * Hintergrund. Die Tabs gibt es nicht mehr, die Regel bleibt: Das Modal
+     * steht hinter allen Inhaltsabschnitten, in keinem davon.
+     */
+    public function testContactModalLivesOutsideTheContentSectionsSoTheShortcutCanOpenIt(): void
     {
         $template = file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
         $this->assertIsString($template);
 
         $modalPosition = strpos($template, 'id="newContactModal"');
-        $lastPanePosition = strrpos($template, 'class="tab-pane fade"');
+        $lastSectionEnd = strrpos($template, '</section>');
 
         $this->assertIsInt($modalPosition);
-        $this->assertIsInt($lastPanePosition);
-
-        // Aus einem ausgeblendeten Tab heraus geöffnet zeigte Bootstrap nur den
-        // Hintergrund: das Modal muss hinter allen Tab-Bereichen stehen.
-        $this->assertGreaterThan($lastPanePosition, $modalPosition);
+        $this->assertIsInt($lastSectionEnd);
+        $this->assertGreaterThan($lastSectionEnd, $modalPosition);
         $this->assertStringNotContainsString(
             'id="newContactModal"',
             substr($template, 0, strpos($template, '</section>') ?: 0)

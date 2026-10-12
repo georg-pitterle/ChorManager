@@ -12,24 +12,14 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Slim\Views\Twig;
 use App\Models\SponsorPackage;
 use App\Policies\SponsoringPolicy;
+use App\Util\BenefitList;
 use App\Util\InputValidator;
+use App\Util\SponsorPackageColor;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class SponsorPackageController
 {
     private const AMOUNT_ERROR = 'Ungültiger Mindestbetrag. Bitte eine Zahl ab 0 eingeben.';
-
-    /**
-     * Die Farben, die das Formular anbietet - und damit die einzigen, für die
-     * Bootstrap eine `bg-*`-Klasse kennt. Ein abweichender Wert stammt nicht aus
-     * der Oberfläche; gespeichert ergäbe er eine Klasse, die Bootstrap nicht
-     * kennt, und das Abzeichen des Pakets bliebe für immer ungefärbt. Gleiche
-     * Liste und gleiche Begründung wie in EventTypeController.
-     *
-     * @var list<string>
-     */
-    private const ALLOWED_COLORS = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark'];
-
-    private const DEFAULT_COLOR = 'info';
 
     private Twig $view;
     private SponsoringPolicy $policy;
@@ -42,16 +32,9 @@ class SponsorPackageController
         $this->logger = $logger ?? new NullLogger();
     }
 
-    private function normalizeColor(mixed $value): string
-    {
-        $color = InputValidator::asString($value);
-
-        return in_array($color, self::ALLOWED_COLORS, true) ? $color : self::DEFAULT_COLOR;
-    }
-
     public function index(Request $request, Response $response): Response
     {
-        $packages = SponsorPackage::orderBy('min_amount')->get();
+        $packages = SponsorPackage::with('benefits')->orderBy('min_amount')->get();
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
@@ -59,6 +42,7 @@ class SponsorPackageController
         return $this->view->render($response, 'sponsoring/packages/index.twig', [
             'packages' => $packages,
             'can_manage_all' => $this->policy->canManageAll(),
+            'color_options' => SponsorPackageColor::options(),
             'success'  => $success,
             'error'    => $error,
             'active_nav' => 'sponsoring',
@@ -83,14 +67,23 @@ class SponsorPackageController
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
         }
 
+        $benefits = BenefitList::parse($data['benefits'] ?? null);
+        if ($benefits['error'] !== null) {
+            $_SESSION['error'] = $benefits['error'];
+            return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+        }
+
         try {
-            SponsorPackage::create([
-                'name'        => $name,
-                'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
-                'min_amount'  => $minAmount,
-                'color'       => $this->normalizeColor($data['color'] ?? null),
-            ]);
-            $_SESSION['success'] = 'Paket erfolgreich angelegt.';
+            Capsule::connection()->transaction(function () use ($name, $data, $minAmount, $benefits): void {
+                $package = SponsorPackage::create([
+                    'name'        => $name,
+                    'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
+                    'min_amount'  => $minAmount,
+                    'color'       => SponsorPackageColor::normalize($data['color'] ?? null),
+                ]);
+                $this->replaceBenefits($package, $benefits['items'] ?? []);
+            });
+            $_SESSION['success'] = 'Paket angelegt.';
         } catch (\Exception $e) {
             // Wie in SponsorshipController: Der Treibertext gehört ins Protokoll,
             // der Doppelpunkt dahinter war der Rest, den sein Ausbau hinterließ.
@@ -123,15 +116,27 @@ class SponsorPackageController
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
         }
 
+        $benefits = BenefitList::parse($data['benefits'] ?? null);
+        if ($benefits['error'] !== null) {
+            $_SESSION['error'] = $benefits['error'];
+            return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+        }
+
         try {
             $package = SponsorPackage::findOrFail($id);
-            $package->update([
-                'name'        => $name,
-                'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
-                'min_amount'  => $minAmount,
-                'color'       => $this->normalizeColor($data['color'] ?? null),
-            ]);
-            $_SESSION['success'] = 'Paket erfolgreich aktualisiert.';
+            Capsule::connection()->transaction(function () use ($package, $name, $data, $minAmount, $benefits): void {
+                $package->update([
+                    'name'        => $name,
+                    'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
+                    'min_amount'  => $minAmount,
+                    'color'       => SponsorPackageColor::normalize($data['color'] ?? null),
+                ]);
+                // Fehlt das Feld ganz, bleibt die Liste, wie sie ist.
+                if ($benefits['items'] !== null) {
+                    $this->replaceBenefits($package, $benefits['items']);
+                }
+            });
+            $_SESSION['success'] = 'Paket gespeichert.';
         } catch (ModelNotFoundException $e) {
             // Der häufigste Weg hierher: Die Seite lag offen, während jemand
             // anderes dasselbe Paket entfernt hat. Kein Betriebsfehler.
@@ -147,6 +152,21 @@ class SponsorPackageController
         }
 
         return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+    }
+
+    /**
+     * Die Vorgabe eines Pakets ersetzen. Bestehende Vereinbarungen bleiben
+     * unberührt: sie haben ihre Leistungen beim Anlegen kopiert, und was
+     * ausgehandelt ist, ändert sich nicht mit dem Paket.
+     *
+     * @param list<string> $items
+     */
+    private function replaceBenefits(SponsorPackage $package, array $items): void
+    {
+        $package->benefits()->delete();
+        foreach ($items as $index => $description) {
+            $package->benefits()->create(['description' => $description, 'sort_order' => $index]);
+        }
     }
 
     public function delete(Request $request, Response $response, array $args): Response

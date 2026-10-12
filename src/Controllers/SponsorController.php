@@ -57,7 +57,16 @@ class SponsorController
         // Nur Statusspalte laden: mehr braucht weder der abgeleitete Zustand
         // noch die Zähler-Spalte der Tabelle, und die Notizen der Vereinbarungen
         // wären bei vielen Sponsoren reiner Ballast.
-        $sponsors = Sponsor::with('sponsorships:id,sponsor_id,status')
+        $sponsors = Sponsor::with([
+            'sponsorships:id,sponsor_id,package_id,status,amount,created_at',
+            'sponsorships.package',
+            // Nur offene Wiedervorlagen: die Spalte "Nächste Frist" braucht die
+            // früheste davon, alles Erledigte wäre Ballast.
+            'contacts' => static fn ($query) => $query
+                ->select(['id', 'sponsor_id', 'follow_up_date'])
+                ->where('follow_up_done', 0)
+                ->whereNotNull('follow_up_date'),
+        ])
             ->orderBy('name')
             ->get();
 
@@ -69,6 +78,8 @@ class SponsorController
             'sponsors'       => $sponsors,
             'can_manage_all' => $this->policy->canManageAll(),
             'sponsor_states' => $this->buildSponsorStates($sponsors),
+            'sponsor_rows'   => $this->buildSponsorRows($sponsors),
+            'sees_totals'    => $this->policy->canSeeFinancialTotals(),
             'state_options'  => SponsorEngagementState::options(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
             'state_labels'   => SponsorEngagementState::labels(),
@@ -76,6 +87,56 @@ class SponsorController
             'error'          => $error,
             'active_nav'     => 'sponsoring',
         ]);
+    }
+
+    /**
+     * Was die Sponsorenliste je Zeile über die Stammdaten hinaus zeigt.
+     *
+     * - Paket: das der maßgeblichen Vereinbarung - eine Zusage vor einer
+     *   laufenden Anfrage, sonst die jüngste.
+     * - Nächste Frist: die früheste offene Wiedervorlage.
+     * - Zugesagt: Summe der Zusagen, nur für das Vollrecht. Wie die Summen auf
+     *   dem Dashboard lässt sie sich keiner Urheberschaft zuordnen.
+     *
+     * @param iterable<Sponsor> $sponsors
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildSponsorRows(iterable $sponsors): array
+    {
+        $seesTotals = $this->policy->canSeeFinancialTotals();
+        $rank = [
+            SponsorshipStatus::ACCEPTED => 0,
+            SponsorshipStatus::REQUESTED => 1,
+            SponsorshipStatus::REMINDED => 1,
+        ];
+        $rows = [];
+
+        foreach ($sponsors as $sponsor) {
+            $leading = $sponsor->sponsorships
+                ->sortBy([
+                    static fn ($a, $b): int => ($rank[$a->status] ?? 2) <=> ($rank[$b->status] ?? 2),
+                    static fn ($a, $b): int => (string) $b->created_at <=> (string) $a->created_at,
+                ])
+                ->first();
+            $nextFollowUp = $sponsor->contacts
+                ->sortBy(static fn ($contact): string => $contact->follow_up_date->format('Y-m-d'))
+                ->first();
+            $accepted = $sponsor->sponsorships->where('status', SponsorshipStatus::ACCEPTED);
+
+            $rows[(int) $sponsor->id] = [
+                'package_name' => $leading?->package?->name,
+                'package_badge' => $leading?->package?->badge_class,
+                'next_follow_up_display' => $nextFollowUp?->follow_up_date->format('d.m.Y'),
+                'next_follow_up_sort' => $nextFollowUp?->follow_up_date->format('Y-m-d') ?? '9999-12-31',
+                'next_follow_up_overdue' => $nextFollowUp !== null
+                    && $nextFollowUp->follow_up_date->format('Y-m-d') < date('Y-m-d'),
+                'accepted_amount' => $seesTotals
+                    ? (float) $accepted->sum(static fn ($sponsorship): float => (float) $sponsorship->amount)
+                    : null,
+            ];
+        }
+
+        return $rows;
     }
 
     public function create(Request $request, Response $response): Response
@@ -117,6 +178,7 @@ class SponsorController
             'sponsorships.assignedUser',
             'sponsorships.attachments' => $metadataOnly,
             'sponsorships.contacts.user',
+            'sponsorships.benefits',
             'attachments' => $metadataOnly,
             'contacts.user',
             'contacts.sponsorship.package',
@@ -132,7 +194,7 @@ class SponsorController
 
         $users    = User::where('is_active', 1)->orderBy('last_name')->get();
         $projects = $this->policy->selectableProjects();
-        $packages = SponsorPackage::orderBy('min_amount')->get();
+        $packages = SponsorPackage::with('benefits')->orderBy('min_amount')->get();
 
         $contactPermissions = $this->buildContactPermissions($sponsor);
 
@@ -166,11 +228,52 @@ class SponsorController
             'packages'       => $packages,
             'status_options' => SponsorshipStatus::options(),
             'status_labels'  => SponsorshipStatus::labels(),
-            'status_colors'  => SponsorshipStatus::colors(),
+            'status_badges'  => SponsorshipStatus::badgeClasses(),
+            'benefit_rows'   => $this->buildBenefitRows($sponsor),
+            'next_follow_up' => $this->nextOpenFollowUp($sponsor),
             'success'        => $success,
             'error'          => $error,
             'active_nav'     => 'sponsoring',
         ]);
+    }
+
+    /**
+     * Leistungen je Vereinbarung, schon mit der Entscheidung, ob diese Person
+     * abhaken darf - das Template fragt nur noch das Kennzeichen ab, wie bei
+     * visible_details.
+     *
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function buildBenefitRows(Sponsor $sponsor): array
+    {
+        $rows = [];
+        foreach ($sponsor->sponsorships as $sponsorship) {
+            $mayTick = $this->policy->canTickBenefits($sponsorship);
+            $rows[(int) $sponsorship->id] = $sponsorship->benefits
+                ->map(static fn ($benefit): array => [
+                    'id' => (int) $benefit->id,
+                    'description' => (string) $benefit->description,
+                    'may_tick' => $mayTick,
+                    'toggle_url' => '/sponsoring/sponsorship-benefits/' . $benefit->id . '/toggle',
+                    'delivered_display' => $benefit->delivered_at?->format('d.m.Y'),
+                ])
+                ->values()
+                ->all();
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Die nächste offene Wiedervorlage zu diesem Sponsor, für den Steckbrief
+     * oben auf der Seite - oder null, wenn nichts ansteht.
+     */
+    private function nextOpenFollowUp(Sponsor $sponsor): ?\App\Models\SponsoringContact
+    {
+        return $sponsor->contacts
+            ->filter(static fn ($contact): bool => !$contact->follow_up_done && $contact->follow_up_date !== null)
+            ->sortBy(static fn ($contact): string => $contact->follow_up_date->format('Y-m-d'))
+            ->first();
     }
 
     public function update(Request $request, Response $response, array $args): Response
@@ -361,7 +464,14 @@ class SponsorController
         }
 
         if ($website !== null) {
-            if (mb_strlen($website) > self::MAX_WEBSITE_LENGTH || filter_var($website, FILTER_VALIDATE_URL) === false) {
+            // Nur Web-Adressen: FILTER_VALIDATE_URL nimmt auch javascript:-URLs an,
+            // und der Steckbrief zeigt die Website als klickbaren Link.
+            $scheme = strtolower((string) parse_url($website, PHP_URL_SCHEME));
+            if (
+                mb_strlen($website) > self::MAX_WEBSITE_LENGTH
+                || filter_var($website, FILTER_VALIDATE_URL) === false
+                || !in_array($scheme, ['http', 'https'], true)
+            ) {
                 return $fail('Bitte eine gültige Website-URL angeben.');
             }
         }

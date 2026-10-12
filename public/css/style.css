@@ -4001,3 +4001,482 @@ a:hover {
 [data-table-engine="true"][data-active-view="cards"] #evaluationsTable tbody .table-no-results td {
     text-align: center !important;
 }
+
+/* =====================================================================
+   Sponsoring
+   Unternavigation, Arbeitslisten auf dem Dashboard, Steckbrief und
+   Vereinbarungskarten beim Sponsor. Kritik vom Oktober 2026: Das Modul war
+   Kachelwand plus Tabellen; jetzt beantwortet jede Seite zuerst die Frage,
+   wegen der man sie öffnet.
+   ===================================================================== */
+
+/* Unternavigation: Unterstrich statt gefüllter Pille - eine gefüllte Pille in
+   heller Vereinsfarbe hätte weiße Schrift auf Gelb gezeigt. Am Telefon wischbar. */
+.sponsoring-subnav {
+    margin: -0.25rem 0 1.25rem;
+    border-bottom: 1px solid var(--theme-border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.sponsoring-subnav::-webkit-scrollbar {
+    display: none;
+}
+
+.sponsoring-subnav-list {
+    display: flex;
+    gap: 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sponsoring-subnav-link {
+    display: inline-block;
+    padding: 0.65rem 0.1rem;
+    color: var(--theme-text-muted);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: inset 0 -2px 0 transparent;
+}
+
+.sponsoring-subnav-link:hover {
+    color: var(--theme-text);
+}
+
+.sponsoring-subnav-link.is-active {
+    color: var(--theme-text);
+    font-weight: 600;
+    box-shadow: inset 0 -3px 0 var(--theme-primary);
+}
+
+.sponsoring-summary strong {
+    color: var(--theme-text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Dashboard: zwei Spalten am Laptop, eine am Telefon. Die Panels sind so hoch wie
+   ihr Inhalt; was wenig zu tun hat, nimmt wenig Platz. */
+.sponsoring-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 992px) {
+    .sponsoring-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+.sponsoring-panel {
+    padding: 1rem 1.15rem 0.5rem;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: var(--app-radius, 0.5rem);
+}
+
+.sponsoring-panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.sponsoring-panel-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.sponsoring-panel-count {
+    color: var(--theme-text-muted);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.sponsoring-panel-lead {
+    margin: 0.2rem 0 0.5rem;
+    color: var(--theme-text-muted);
+    font-size: 0.875rem;
+}
+
+.sponsoring-panel-empty {
+    margin: 0;
+    padding: 0.75rem 0 1rem;
+    color: var(--theme-text-muted);
+}
+
+/* Arbeitsliste: eine Zeile je Aufgabe, Titel links, Handlung rechts. */
+.work-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.work-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0;
+    border-top: 1px solid var(--theme-border);
+}
+
+.work-item--stacked {
+    display: block;
+}
+
+.work-item-main {
+    min-width: 0;
+}
+
+.work-item-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.5rem;
+    font-weight: 600;
+}
+
+.work-item-text {
+    margin: 0.15rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.work-item-meta {
+    margin: 0.15rem 0 0;
+    color: var(--theme-text-muted);
+    font-size: 0.85rem;
+}
+
+.work-item-action {
+    flex: none;
+    margin: 0;
+}
+
+.work-item-amount {
+    flex: none;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Fälligkeit in Worten. Farbe allein hieß vorher: rot für "heute oder früher",
+   gelb für alles andere. */
+.due-chip {
+    display: inline-block;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.due-chip--overdue {
+    background: #fde8e8;
+    color: #9b1c1c;
+}
+
+.due-chip--today {
+    background: #fff4d6;
+    color: #6b4e00;
+}
+
+.due-chip--soon {
+    background: var(--theme-surface-muted);
+    color: var(--theme-text-muted);
+}
+
+/* Gegenleistungen als Abhakliste: der ganze Text ist das Klickziel. */
+.benefit-list {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.benefit-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.6rem;
+}
+
+.benefit-form {
+    margin: 0;
+}
+
+.benefit-toggle,
+.benefit-static {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+    color: var(--theme-text);
+    text-align: left;
+}
+
+.benefit-toggle {
+    min-height: 2.25rem;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.benefit-toggle:hover span {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
+.benefit-toggle .bi,
+.benefit-static .bi {
+    color: var(--theme-text-muted);
+}
+
+.benefit-item.is-done .bi {
+    color: #198754;
+}
+
+.benefit-item.is-done .benefit-toggle span,
+.benefit-item.is-done .benefit-static span {
+    color: var(--theme-text-muted);
+}
+
+.benefit-done-date {
+    color: var(--theme-text-muted);
+    font-size: 0.8rem;
+}
+
+/* Sponsor-Detail: Steckbrief als Definitionsliste in Spalten. */
+.sponsor-head-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sponsor-profile {
+    padding: 1rem 1.25rem;
+}
+
+.sponsor-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.85rem 1.5rem;
+    margin: 0;
+}
+
+.sponsor-facts dt {
+    margin-bottom: 0.15rem;
+    color: var(--theme-text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.sponsor-facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.sponsor-address,
+.sponsor-notes,
+.agreement-notes {
+    white-space: pre-line;
+}
+
+.sponsor-notes {
+    margin: 1rem 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--theme-border);
+}
+
+/* Vereinbarung als eine Karte - am Telefon zerfiel sie vorher in drei
+   (Daten, Anhänge, Kontakte). */
+.agreement-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.agreement-card {
+    padding: 1rem 1.25rem;
+}
+
+.agreement-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 1.5rem;
+}
+
+.agreement-title {
+    margin: 0 0 0.3rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.agreement-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.agreement-money {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    text-align: right;
+}
+
+.agreement-amount {
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.agreement-paid {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.agreement-paid.is-paid {
+    color: #146c43;
+}
+
+.agreement-paid.is-open {
+    color: #9b1c1c;
+}
+
+.agreement-meta {
+    margin: 0.5rem 0 0;
+    color: var(--theme-text-muted);
+    font-size: 0.875rem;
+}
+
+.agreement-block {
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--theme-border);
+}
+
+.agreement-block .group-label {
+    margin-bottom: 0.25rem;
+}
+
+.agreement-notes,
+.agreement-files,
+.agreement-contacts {
+    margin: 0;
+}
+
+.agreement-files li,
+.sponsor-files li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+}
+
+.agreement-contacts li {
+    padding: 0.15rem 0;
+}
+
+.agreement-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.agreement-actions form {
+    margin: 0;
+}
+
+.agreement-owner-note {
+    margin: 1rem 0 0;
+    color: var(--theme-text-muted);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 575.98px) {
+    .agreement-money {
+        align-items: flex-start;
+        text-align: left;
+    }
+}
+
+/* Kontaktverlauf als Liste: Kopfzeile, Text, Fußzeile mit Frist und Aktionen. */
+.contact-history {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.contact-entry {
+    padding: 0.8rem 0;
+    border-top: 1px solid var(--theme-border);
+}
+
+.contact-entry:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.contact-entry-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.contact-entry-date {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.contact-entry-type .bi {
+    color: var(--theme-text-muted);
+}
+
+.contact-entry-text {
+    margin: 0.25rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.contact-entry-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.contact-entry-foot:empty {
+    display: none;
+}
+
+.contact-entry-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
+}
+
+/* Pakete: Gegenleistungen als kurze Liste in der Zeile, Beträge rechtsbündig. */
+.package-benefits {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.9rem;
+}
+
+.amount-cell {
+    font-variant-numeric: tabular-nums;
+}

@@ -146,30 +146,23 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringContainsString('data-label="Aktionen"', $templateContent);
     }
 
-    public function testSponsoringDashboardTemplateUsesResponsiveTableEngine(): void
+    /**
+     * Das Dashboard trägt kurze Arbeitslisten, keine Datentabellen. Mit der
+     * Tabellen-Engine stand dort eine Werkzeugleiste mit "Seite 1 / 1" über sechs
+     * Zeilen, und am Telefon wurde jede Zeile zur Karte mit Wertepaaren - die
+     * Seite war bei 390 px über 7.000 px hoch.
+     */
+    public function testSponsoringDashboardShowsCompactWorkLists(): void
     {
         $templatePath = dirname(__DIR__) . '/../templates/sponsoring/dashboard.twig';
         $templateContent = file_get_contents($templatePath);
 
         $this->assertIsString($templateContent);
-        $this->assertStringContainsString('data-table-id="sponsoring.dashboard.followups"', $templateContent);
-        $this->assertStringContainsString('data-table-id="sponsoring.dashboard.recent_contacts"', $templateContent);
-        $this->assertStringContainsString('data-default-view="auto"', $templateContent);
-        $this->assertStringContainsString('partials/table_toolbar.twig', $templateContent);
-        $this->assertStringContainsString('table-responsive-cards', $templateContent);
-        $this->assertStringContainsString('data-sort-key="follow_up_date"', $templateContent);
-        $this->assertStringContainsString('data-sort-key="agreement_amount"', $templateContent);
-        $this->assertStringContainsString('data-sort-key="contact_type"', $templateContent);
-        $this->assertStringContainsString('data-sort-key="owner_name"', $templateContent);
-        $this->assertStringContainsString('data-sort-follow_up_date="{{ contact.follow_up_date_sort }}"', $templateContent);
-        $this->assertStringContainsString('data-sort-agreement_amount="{{ contact.agreement_amount_sort }}"', $templateContent);
-        $this->assertStringContainsString('data-sort-contact_date="{{ contact.contact_date_sort }}"', $templateContent);
-        $this->assertStringContainsString('data-sort-contact_type="{{ contact.contact_type_sort }}"', $templateContent);
-        $this->assertStringContainsString('data-label="Datum"', $templateContent);
-        $this->assertStringContainsString('data-label="Zusammenfassung"', $templateContent);
+        $this->assertStringNotContainsString('data-table-engine', $templateContent);
+        $this->assertStringNotContainsString('partials/table_toolbar.twig', $templateContent);
+        $this->assertStringContainsString('class="work-list"', $templateContent);
         $this->assertStringContainsString('Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.', $templateContent);
-        $this->assertStringContainsString('class="table-summary-cell"', $templateContent);
-        $this->assertStringContainsString('class="table-summary-content"', $templateContent);
+        $this->assertStringContainsString('sponsoring/partials/benefit_list.twig', $templateContent);
     }
 
     public function testSponsorDetailTemplateProvidesContactEditControls(): void

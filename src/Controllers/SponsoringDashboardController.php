@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Models\Sponsorship;
+use App\Models\SponsorshipBenefit;
 use App\Models\SponsoringContact;
 use App\Policies\SponsoringPolicy;
 use App\Services\NameFormatterService;
@@ -43,7 +44,13 @@ class SponsoringDashboardController
 
         $totalAmount = (float) Sponsorship::where('status', SponsorshipStatus::ACCEPTED)->sum('amount');
 
-        $pipeline = (float) Sponsorship::whereIn('status', SponsorshipStatus::OPEN)->sum('amount');
+        $requestedAmount = (float) Sponsorship::whereIn('status', SponsorshipStatus::OPEN)->sum('amount');
+
+        // Zugesagt heißt noch nicht bezahlt: Das Dashboard nennt die Lücke
+        // ausdrücklich, statt nur die Zusagen zu addieren.
+        $unpaidAmount = (float) Sponsorship::where('status', SponsorshipStatus::ACCEPTED)
+            ->whereNull('paid_at')
+            ->sum('amount');
 
         $today = Carbon::today();
         $todayIso = $today->format('Y-m-d');
@@ -67,10 +74,10 @@ class SponsoringDashboardController
             ->where('follow_up_date', '<=', $in7Days);
 
         $upcomingFollowUps = $this->policy->restrictFollowUpsToOwnWorkload($followUpQuery)
-            ->with(['sponsor', 'user', 'sponsorship.package'])
+            ->with(['sponsor', 'user', 'sponsorship.package', 'sponsorship.project'])
             ->orderBy('follow_up_date')
             ->get()
-            ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $todayIso))
+            ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $today))
             ->values()
             ->all();
 
@@ -85,7 +92,7 @@ class SponsoringDashboardController
             ->where($restrictToOwn)
             ->orderBy('contact_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(5)
             ->get()
             ->map(fn(SponsoringContact $contact): array => $this->mapRecentContact($contact))
             ->values()
@@ -101,7 +108,10 @@ class SponsoringDashboardController
             // verstecken.
             'sees_totals'       => $seesTotals,
             'total_amount'      => $seesTotals ? $totalAmount : null,
-            'pipeline'          => $seesTotals ? $pipeline : null,
+            'requested_amount'  => $seesTotals ? $requestedAmount : null,
+            'unpaid_amount'     => $seesTotals ? $unpaidAmount : null,
+            'open_benefits'     => $this->openBenefits(),
+            'unpaid'            => $seesTotals ? $this->unpaidCommitments() : [],
             'shows_own_only'    => $ownUserId !== null,
             'open_follow_ups'   => $openFollowUps,
             'upcoming_follow_ups' => $upcomingFollowUps,
@@ -110,8 +120,105 @@ class SponsoringDashboardController
         ]);
     }
 
-    private function mapUpcomingFollowUp(SponsoringContact $contact, string $todayIso): array
+    /**
+     * Zugesagte Vereinbarungen mit noch nicht erbrachten Gegenleistungen - die
+     * Liste, die vor jedem Konzert gebraucht wird: Welche Logos gehören ins
+     * Programmheft, wer bekommt Freikarten?
+     *
+     * Für alle mit Sponsoring-Zugang, wie die Leistungen selbst. Abhaken darf je
+     * Vereinbarung, wen die Policy lässt; das steht an jeder Zeile.
+     *
+     * Sortiert nach dem Ende der Vereinbarung: was bald vorbei ist, muss zuerst
+     * erledigt sein. Ohne Enddatum ganz hinten.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function openBenefits(): array
     {
+        $sponsorships = Sponsorship::with([
+            'sponsor',
+            'project',
+            'package',
+            'benefits' => static fn ($query) => $query->whereNull('delivered_at'),
+        ])
+            ->where('status', SponsorshipStatus::ACCEPTED)
+            ->whereHas('benefits', static fn ($query) => $query->whereNull('delivered_at'))
+            ->orderByRaw('end_date IS NULL, end_date')
+            ->get();
+
+        $rows = [];
+        foreach ($sponsorships as $sponsorship) {
+            $mayTick = $this->policy->canTickBenefits($sponsorship);
+            $rows[] = [
+                'sponsor_name' => $sponsorship->sponsor ? (string) $sponsorship->sponsor->name : '-',
+                'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id,
+                'project_name' => $sponsorship->project ? (string) $sponsorship->project->name : 'Ohne Projekt',
+                'package_name' => $sponsorship->package ? (string) $sponsorship->package->name : null,
+                'package_badge' => $sponsorship->package?->badge_class,
+                'end_date_display' => $sponsorship->end_date?->format('d.m.Y'),
+                'benefits' => $sponsorship->benefits
+                    ->map(static fn (SponsorshipBenefit $benefit): array => [
+                        'id' => (int) $benefit->id,
+                        'description' => (string) $benefit->description,
+                        'may_tick' => $mayTick,
+                        'toggle_url' => '/sponsoring/sponsorship-benefits/' . $benefit->id
+                            . '/toggle?redirect_to=dashboard',
+                    ])
+                    ->values()
+                    ->all(),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Zusagen, bei denen das Geld noch nicht da ist. Nur für das Vollrecht -
+     * es sind Beträge über alle Vereinbarungen, wie die Summen.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function unpaidCommitments(): array
+    {
+        // Eine reine Sachleistung (0 €) wartet auf kein Geld und stünde sonst
+        // für immer in der Liste.
+        return Sponsorship::with(['sponsor', 'project'])
+            ->where('status', SponsorshipStatus::ACCEPTED)
+            ->whereNull('paid_at')
+            ->where('amount', '>', 0)
+            ->orderByRaw('start_date IS NULL, start_date')
+            ->get()
+            ->map(static fn (Sponsorship $sponsorship): array => [
+                'sponsor_name' => $sponsorship->sponsor ? (string) $sponsorship->sponsor->name : '-',
+                'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id,
+                'project_name' => $sponsorship->project ? (string) $sponsorship->project->name : 'Ohne Projekt',
+                'amount' => (float) $sponsorship->amount,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Wie dringend eine Wiedervorlage ist, in Worten statt nur als Farbe.
+     *
+     * @return array{label: string, state: string}
+     */
+    public static function dueLabel(Carbon $followUpDate, Carbon $today): array
+    {
+        $days = (int) $today->copy()->startOfDay()->diffInDays($followUpDate->copy()->startOfDay(), false);
+
+        return match (true) {
+            $days < -1 => ['label' => 'seit ' . abs($days) . ' Tagen überfällig', 'state' => 'overdue'],
+            $days === -1 => ['label' => 'seit gestern überfällig', 'state' => 'overdue'],
+            $days === 0 => ['label' => 'heute fällig', 'state' => 'today'],
+            $days === 1 => ['label' => 'morgen', 'state' => 'soon'],
+            default => ['label' => 'in ' . $days . ' Tagen', 'state' => 'soon'],
+        };
+    }
+
+    private function mapUpcomingFollowUp(SponsoringContact $contact, Carbon $today): array
+    {
+        $todayIso = $today->format('Y-m-d');
         $statusLabels = SponsorshipStatus::labels();
 
         $followUpDate = $contact->follow_up_date;
@@ -134,15 +241,23 @@ class SponsoringDashboardController
             // Ein eigener Kontakt kann an einer fremden Vereinbarung hängen -
             // deren Betrag gehört trotzdem nicht auf dieses Dashboard.
             if ($this->policy->canSeeSponsorshipDetails($sponsorship)) {
-                $amountDisplay = number_format($amount, 2, ',', '.') . ' EUR';
+                $amountDisplay = number_format($amount, 2, ',', '.') . ' €';
             } else {
                 $amountDisplay = '-';
                 $amount = 0.0;
             }
         }
 
+        $due = $followUpDate !== null
+            ? self::dueLabel(Carbon::parse($followUpDate->format('Y-m-d')), $today)
+            : ['label' => '', 'state' => 'soon'];
+
         return [
             'follow_up_date_display' => $followUpDate ? $followUpDate->format('d.m.Y') : '-',
+            'due_label' => $due['label'],
+            'due_state' => $due['state'],
+            'summary' => $this->policy->canSeeContactDetails($contact) ? (string) ($contact->summary ?? '') : null,
+            'project_name' => $sponsorship?->project ? (string) $sponsorship->project->name : null,
             'follow_up_date_sort' => $followUpDateSort,
             'sponsor_name' => $sponsor ? (string) $sponsor->name : '-',
             'sponsor_url' => $sponsor ? '/sponsoring/sponsors/' . $sponsor->id : '',

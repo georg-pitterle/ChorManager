@@ -67,8 +67,77 @@
         });
     }
 
+    const euro = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" });
+
+    // Das Paket gibt Gegenleistungen und Mindestbetrag vor. Beides wird nur
+    // vorgeschlagen - wie beim Zeitraum überschreibt die Vorgabe keine eigene
+    // Eingabe. Liegt der Betrag darunter, erscheint ein Hinweis statt einer
+    // Sperre: Sachleistungen oder Kulanz liegen bewusst einmal darunter.
+    function bindPackageSelect(select) {
+        const form = select.closest("form");
+        if (!form) {
+            return;
+        }
+
+        const benefits = form.querySelector("[data-sponsorship-benefits]");
+        const amount = form.querySelector("[data-sponsorship-amount]");
+        const hint = form.querySelector("[data-sponsorship-min-hint]");
+
+        function selectedOption() {
+            return select.options[select.selectedIndex] || null;
+        }
+
+        function updateMinHint() {
+            if (!hint || !amount) {
+                return;
+            }
+
+            const option = selectedOption();
+            const minimum = option ? Number.parseFloat(option.dataset.minAmount || "0") : 0;
+            const value = Number.parseFloat(amount.value || "");
+            const below = minimum > 0 && !Number.isNaN(value) && value < minimum;
+
+            hint.textContent = below ? "Unter dem Mindestbetrag des Pakets (" + euro.format(minimum) + ")." : "";
+            hint.classList.toggle("d-none", !below);
+        }
+
+        select.addEventListener("change", function () {
+            const option = selectedOption();
+            if (option && benefits) {
+                applySuggestion(benefits, option.dataset.benefits || "");
+            }
+            if (option && amount && option.dataset.minAmount) {
+                applySuggestion(amount, Number.parseFloat(option.dataset.minAmount).toFixed(2));
+            }
+            updateMinHint();
+        });
+
+        if (amount) {
+            amount.addEventListener("input", updateMinHint);
+        }
+        updateMinHint();
+    }
+
+    // Ein Schalter blendet das Feld ein, das nur mit ihm Sinn ergibt - etwa die
+    // Begründung zu "Keine Anfragen erwünscht". Vorher stand das Feld immer da
+    // und erklärte sich per Platzhalter selbst für meist überflüssig.
+    function bindReveal(toggle) {
+        const target = document.querySelector(toggle.dataset.reveals || "");
+        if (!target) {
+            return;
+        }
+
+        const sync = function () {
+            target.classList.toggle("d-none", !toggle.checked);
+        };
+        toggle.addEventListener("change", sync);
+        sync();
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll("[data-sponsorship-project]").forEach(bindProjectSelect);
+        document.querySelectorAll("[data-sponsorship-package]").forEach(bindPackageSelect);
+        document.querySelectorAll("[data-reveals]").forEach(bindReveal);
         bindContactShortcuts();
     });
 })(document);

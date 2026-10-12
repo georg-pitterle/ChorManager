@@ -147,6 +147,6 @@ final class SponsoringAmountValidationTest extends TestCase
 
         $package = SponsorPackage::orderBy('id', 'desc')->firstOrFail();
         $this->assertSame(0.0, (float) $package->min_amount);
-        $this->assertSame('Paket erfolgreich angelegt.', $_SESSION['success']);
+        $this->assertSame('Paket angelegt.', $_SESSION['success']);
     }
 }

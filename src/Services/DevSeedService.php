@@ -65,8 +65,10 @@ use App\Models\Song;
 use App\Models\SongResource;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
+use App\Models\SponsorPackageBenefit;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
+use App\Models\SponsorshipBenefit;
 use App\Models\SheetArchive;
 use App\Models\SheetArchiveLineItem;
 use App\Models\SubVoice;
@@ -203,8 +205,10 @@ class DevSeedService
                 'user_notification_settings' => 0,
                 'user_notifications' => 0,
                 'sponsor_packages' => 0,
+                'sponsor_package_benefits' => 0,
                 'sponsors' => 0,
                 'sponsorships' => 0,
+                'sponsorship_benefits' => 0,
                 'sponsoring_contacts' => 0,
                 'sponsor_attachments' => 0,
                 'sponsor_logo_attachments' => 0,
@@ -370,8 +374,10 @@ class DevSeedService
             'user_notification_settings',
             'user_notifications',
             'sponsoring_contacts',
+            'sponsorship_benefits',
             'sponsorships',
             'sponsors',
+            'sponsor_package_benefits',
             'sponsor_packages',
             'newsletter_recipients',
             'newsletter_recipient_sources',
@@ -2856,29 +2862,47 @@ class DevSeedService
                 'description' => 'Kleines Einstiegspaket mit Logo auf ausgewählten Werbemitteln.',
                 'min_amount' => 500.00,
                 'color' => 'secondary',
+                'benefits' => ['Nennung im Programmheft', 'Dankeschön auf der Website'],
             ],
             [
                 'name' => 'Silber',
                 'description' => 'Sichtbarkeit bei Konzerten, Website und Programmheft.',
                 'min_amount' => 1200.00,
                 'color' => 'info',
+                'benefits' => ['Logo im Programmheft', 'Logo auf der Website', '2 Freikarten'],
             ],
             [
                 'name' => 'Gold',
                 'description' => 'Erweiterte Präsenz mit Ansprache bei Veranstaltungen.',
                 'min_amount' => 2500.00,
                 'color' => 'warning',
+                'benefits' => [
+                    'Logo im Programmheft',
+                    'Logo auf der Website',
+                    'Nennung bei der Ansage',
+                    '4 Freikarten',
+                ],
             ],
             [
                 'name' => 'Hauptsponsor',
                 'description' => 'Exklusive Hauptpartnerschaft für Saison oder Projekt.',
                 'min_amount' => 5000.00,
                 'color' => 'danger',
+                'benefits' => [
+                    'Ganzseitige Anzeige im Programmheft',
+                    'Banner im Konzertsaal',
+                    'Nennung bei der Ansage',
+                    'Logo auf Plakaten und Flyern',
+                    '10 Freikarten',
+                ],
             ],
         ];
 
         $packages = [];
         foreach ($definitions as $definition) {
+            $benefits = $definition['benefits'];
+            unset($definition['benefits']);
+
             $package = SponsorPackage::updateOrCreate(
                 ['name' => $definition['name']],
                 $definition
@@ -2886,6 +2910,19 @@ class DevSeedService
 
             if ($package->wasRecentlyCreated) {
                 $this->report['counts']['sponsor_packages']++;
+            }
+
+            // Gegenleistungen nur, solange das Paket noch keine hat - ein zweiter
+            // Seed-Lauf soll eine in Dev gepflegte Liste nicht überschreiben.
+            if (!$package->benefits()->exists()) {
+                foreach ($benefits as $index => $description) {
+                    SponsorPackageBenefit::create([
+                        'package_id' => $package->id,
+                        'description' => $description,
+                        'sort_order' => $index,
+                    ]);
+                    $this->report['counts']['sponsor_package_benefits']++;
+                }
             }
 
             $packages[$package->name] = $package;
@@ -3042,6 +3079,7 @@ class DevSeedService
                     'assigned_user_offset' => 0,
                     'amount' => 3200.00,
                     'status' => 'accepted',
+                    'paid' => '-7 months',
                     'start_date' => '-8 months',
                     'end_date' => '+4 months',
                     'notes' => 'Aktive Saisonpartnerschaft inklusive Logo auf allen Konzertmedien.',
@@ -3124,6 +3162,7 @@ class DevSeedService
                     'assigned_user_offset' => 7,
                     'amount' => 800.00,
                     'status' => 'accepted',
+                    'paid' => '-3 months',
                     'start_date' => '-4 months',
                     'end_date' => '+8 months',
                     'notes' => 'Private Förderzusage mit jährlicher Verlängerungsoption.',
@@ -3234,11 +3273,69 @@ class DevSeedService
                     $this->report['counts']['sponsorships']++;
                 }
 
+                $this->seedSponsorshipBenefitsAndPayment($sponsorship, $package, $item, $activeUsers);
+
                 $sponsorships[$sponsorName . '-' . $index] = $sponsorship;
             }
         }
 
         return $sponsorships;
+    }
+
+    /**
+     * Gegenleistungen und Zahlungsstand einer Vereinbarung, wie das Formular sie
+     * anlegt: die Liste des Pakets als Kopie.
+     *
+     * Damit Dashboard und Sponsor-Detail in Dev etwas zeigen, ist bei Zusagen
+     * ein Teil schon erbracht und ein Teil offen, und nicht jede Zusage ist
+     * bezahlt ('paid' in der Definition). Abgeschlossene Vereinbarungen sind
+     * erbracht und bezahlt.
+     *
+     * @param array<string, mixed> $item
+     * @param array<int, User> $activeUsers
+     */
+    private function seedSponsorshipBenefitsAndPayment(
+        Sponsorship $sponsorship,
+        SponsorPackage $package,
+        array $item,
+        array $activeUsers
+    ): void {
+        $status = (string) $item['status'];
+        $paidOffset = $item['paid'] ?? null;
+        if ($status === 'closed') {
+            $paidOffset ??= (string) $item['start_date'];
+        }
+        if ($paidOffset !== null && $sponsorship->paid_at === null) {
+            $sponsorship->update([
+                'paid_at' => (new DateTimeImmutable())->modify((string) $paidOffset)->format('Y-m-d'),
+            ]);
+        }
+
+        if ($sponsorship->benefits()->exists()) {
+            return;
+        }
+
+        $descriptions = $package->benefits()->pluck('description')->all();
+        $deliveredCount = match ($status) {
+            'closed' => count($descriptions),
+            'accepted' => intdiv(count($descriptions), 2),
+            default => 0,
+        };
+        $deliveredBy = $activeUsers[(int) $item['assigned_user_offset'] % max(1, count($activeUsers))] ?? null;
+
+        foreach ($descriptions as $index => $description) {
+            $delivered = $index < $deliveredCount;
+            SponsorshipBenefit::create([
+                'sponsorship_id' => $sponsorship->id,
+                'description' => $description,
+                'sort_order' => $index,
+                'delivered_at' => $delivered
+                    ? (new DateTimeImmutable())->modify('-' . (14 + $index * 7) . ' days')->format('Y-m-d')
+                    : null,
+                'delivered_by_user_id' => $delivered ? $deliveredBy?->id : null,
+            ]);
+            $this->report['counts']['sponsorship_benefits']++;
+        }
     }
 
     private function seedSponsoringContacts(array $sponsors, array $sponsorships, array $activeUsers): void

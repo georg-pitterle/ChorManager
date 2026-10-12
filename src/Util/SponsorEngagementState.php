@@ -110,9 +110,13 @@ final class SponsorEngagementState
     }
 
     /**
-     * Vollständige Badge-Klassen je Zustand. Der helle Zustand braucht
-     * zusätzlich Schrift- und Rahmenfarbe, sonst steht weiß auf weiß; diese
-     * Kenntnis stand vorher als Bedingung in zwei Templates.
+     * Vollständige Badge-Klassen je Zustand.
+     *
+     * `text-bg-*` statt `bg-*`: Bootstrap wählt damit die Schriftfarbe passend
+     * zum Hintergrund. Mit `bg-warning` stand "Anfrage läuft" weiß auf Gelb
+     * (1,63:1) - ausgerechnet der Zustand, nach dem man vor einer Anfrage sucht.
+     * Der helle Zustand bekommt zusätzlich einen Rahmen, sonst verschwindet er
+     * auf der weißen Karte.
      *
      * @return array<string, string>
      */
@@ -121,8 +125,8 @@ final class SponsorEngagementState
         $classes = [];
         foreach (self::COLORS as $state => $color) {
             $classes[$state] = $color === 'light'
-                ? 'bg-light text-dark border'
-                : 'bg-' . $color;
+                ? 'text-bg-light border'
+                : 'text-bg-' . $color;
         }
 
         return $classes;
@@ -130,7 +134,7 @@ final class SponsorEngagementState
 
     public static function badgeClass(string $state): string
     {
-        return self::badgeClasses()[$state] ?? 'bg-secondary';
+        return self::badgeClasses()[$state] ?? 'text-bg-secondary';
     }
 
     public static function isValid(string $state): bool

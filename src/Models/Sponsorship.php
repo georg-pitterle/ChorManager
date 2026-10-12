@@ -18,6 +18,7 @@ class Sponsorship extends Model
         'assigned_user_id',
         'created_by_user_id',
         'amount',
+        'paid_at',
         'status',
         'start_date',
         'end_date',
@@ -26,6 +27,7 @@ class Sponsorship extends Model
 
     protected $casts = [
         'amount'     => 'decimal:2',
+        'paid_at'    => 'date',
         'start_date' => 'date',
         'end_date'   => 'date',
     ];
@@ -58,6 +60,14 @@ class Sponsorship extends Model
     public function createdByUser()
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * Die zugesagten Gegenleistungen, in der ausgehandelten Reihenfolge.
+     */
+    public function benefits()
+    {
+        return $this->hasMany(SponsorshipBenefit::class, 'sponsorship_id')->orderBy('sort_order')->orderBy('id');
     }
 
     public function contacts()
