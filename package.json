@@ -11,14 +11,14 @@
   },
   "dependencies": {
     "bootstrap": "5.3.8",
-    "bootstrap-icons": "1.13.1",
-    "fullcalendar": "7.1.0",
+    "bootstrap-icons": "1.13.2",
+    "fullcalendar": "7.1.2",
     "html-midi-player": "1.6.0",
-    "pdfjs-dist": "6.3.289",
+    "pdfjs-dist": "6.4.299",
     "sortablejs": "^1.15.7",
     "temporal-polyfill": "1.0.5",
-    "tinymce": "8.9.1",
-    "tinymce-i18n": "26.9.14",
+    "tinymce": "8.9.3",
+    "tinymce-i18n": "26.9.28",
     "tom-select": "^2.4.3"
   },
   "overrides": {
@@ -27,7 +27,7 @@
     "static-eval": "^2.1.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "^1.64.0"
   },
   "allowScripts": {
     "core-js@3.50.0": true,
