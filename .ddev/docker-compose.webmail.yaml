@@ -50,7 +50,7 @@
 #     DDEV auto-loads any .ddev/.env* file for compose variable substitution.
 services:
   webmail:
-    image: ghcr.io/kimusan/tachyon:v3.2.2
+    image: ghcr.io/kimusan/tachyon:v3.2.8
     container_name: ddev-${DDEV_SITENAME}-webmail
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}

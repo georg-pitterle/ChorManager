@@ -160,7 +160,7 @@ Beide Credential-Variablen sind in `.env.example` bewusst leer gelassen; echte W
 
 ### Infrastruktur (DDEV / lokal)
 
-Der Webmail-Container läuft als DDEV-Add-on-Service (`.ddev/docker-compose.webmail.yaml`, Image `ghcr.io/kimusan/tachyon:v3.2.2`). DDEV routet `/webmail/` via `.ddev/nginx_full/nginx-site.conf` per Reverse-Proxy an den Container, `/tachyon/` liefert dessen statische Assets. Das Auto-Login-Plugin liegt in `.ddev/webmail-plugins/chormanager-sso/` und wird beim Container-Start automatisch aktiviert. Details stehen direkt in diesen Dateien.
+Der Webmail-Container läuft als DDEV-Add-on-Service (`.ddev/docker-compose.webmail.yaml`, Image `ghcr.io/kimusan/tachyon:v3.2.8`). DDEV routet `/webmail/` via `.ddev/nginx_full/nginx-site.conf` per Reverse-Proxy an den Container, `/tachyon/` liefert dessen statische Assets. Das Auto-Login-Plugin liegt in `.ddev/webmail-plugins/chormanager-sso/` und wird beim Container-Start automatisch aktiviert. Details stehen direkt in diesen Dateien.
 
 **Wichtig:** DDEV liest beim `docker compose`-Interpolation `${VAR}` **nicht** die project-eigene `.env`. `WEBMAIL_SSO_SECRET` wird daher über `.ddev/.env.webmail` (gitignored) in den Container gebracht. Diese Datei muss lokal angelegt werden; Vorlage: `.env.example`.
 
