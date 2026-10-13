@@ -30,20 +30,19 @@ class SheetArchiveService
         // Validate input
         $this->validateLineItems($lineItems);
 
-        // Find or create archive record
-        $archive = SheetArchive::firstOrCreate(
+        // Kopfdaten anlegen oder fortschreiben. Vorher standen dieselben zwei Werte
+        // zweimal da - einmal als Vorgabe für `firstOrCreate()`, einmal in einem
+        // `update()` unmittelbar danach, weil `firstOrCreate()` einen bestehenden
+        // Satz unverändert zurückgibt. `updateOrCreate()` ist genau diese Kombination
+        // und kommt ohne die zweite Abschrift aus, die bei einer Änderung sonst
+        // mitgepflegt werden müsste.
+        $archive = SheetArchive::updateOrCreate(
             ['song_id' => $songId],
             [
                 'archive_number' => $archiveNumber ? trim($archiveNumber) : null,
                 'location' => $location ? trim($location) : null,
             ]
         );
-
-        // Update metadata
-        $archive->update([
-            'archive_number' => $archiveNumber ? trim($archiveNumber) : null,
-            'location' => $location ? trim($location) : null,
-        ]);
 
         // Merge duplicate categories and filter empty entries
         $mergedItems = $this->mergeAndFilterLineItems($lineItems);
@@ -113,8 +112,14 @@ class SheetArchiveService
                 throw new InvalidArgumentException('voice_category must not exceed 100 characters');
             }
 
-            // Validate format (allow letters, numbers, spaces, common punctuation, umlauts)
-            if (!preg_match('/^[\p{L}\p{N}\s\-\.\/\(\)äöüßÄÖÜ]+$/u', $category)) {
+            // Buchstaben, Ziffern, Leerraum und die übliche Zeichensetzung. Umlaute
+            // standen hier zusätzlich aufgezählt - `\p{L}` deckt sie längst ab, und
+            // die Aufzählung ließ den Eindruck entstehen, andere Schriften bräuchten
+            // einen eigenen Eintrag.
+            //
+            // `!== 1` statt `!`: Bei ungültigem UTF-8 gibt preg_match() false zurück,
+            // und das muss wie "Format nicht erfüllt" wirken, nicht wie ein Treffer.
+            if (preg_match('/^[\p{L}\p{N}\s\-\.\/\(\)]+$/u', $category) !== 1) {
                 throw new InvalidArgumentException('voice_category contains invalid characters');
             }
 
@@ -155,10 +160,20 @@ class SheetArchiveService
         }
 
         // Convert back to indexed array format
+        //
+        // `(string)` ist nicht nur Form: Eine rein numerische Stimmkategorie ist
+        // erlaubt (validateLineItems() lässt `\p{N}` durch - etwa eine Regalnummer
+        // als Kategorie), und PHP macht aus einem Zahlen-String als Array-Schlüssel
+        // stillschweigend einen int. Ohne die Rückwandlung bekam der Aufrufer dort
+        // eine Zahl statt des eingegebenen Textes, und das `trim()` beim Schreiben
+        // der Positionen scheiterte unter `strict_types` mit einem TypeError. Der
+        // ist ein `Error`, den das `catch (\Exception)` im SheetArchiveController
+        // nicht fängt: 500 ohne JSON-Antwort, und die Kopfdaten des Archivs standen
+        // schon in der Datenbank, während keine einzige Position dazu geschrieben war.
         $result = [];
         foreach ($merged as $category => $count) {
             $result[] = [
-                'voice_category' => $category,
+                'voice_category' => (string) $category,
                 'count' => $count,
             ];
         }

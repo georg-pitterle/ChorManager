@@ -437,6 +437,67 @@ final class NotificationServiceFeatureTest extends TestCase
     }
 
     /**
+     * Der Versand und die Auskunft über die eigenen Einstellungen müssen
+     * dieselbe Antwort geben - für jeden Anlass und beide Kanäle, auch ohne
+     * hinterlegte Zeile.
+     *
+     * Heute tragen alle Anlässe `'default' => true`, und damit stimmt beides
+     * auch dann, wenn der Versand die Vorgabe gar nicht liest. Dieser Test
+     * wacht über den Tag, an dem ein Anlass mit `'default' => false` dazukommt:
+     * Wer ihn nie eingeschaltet hat, darf ihn dann nicht trotzdem bekommen.
+     */
+    public function testTheDispatchAgreesWithTheStoredSettingsForEveryType(): void
+    {
+        $service = $this->service(['tasks' => true, 'sponsoring' => true]);
+        $userId = (int) $this->anna->id;
+
+        foreach (NotificationType::all() as $type) {
+            $wantsMail = $service->wantsNotification($userId, $type, NotificationChannel::MAIL);
+            $reached = $service->eligibleRecipients($type, [$this->anna])
+                ->contains(static fn (User $user): bool => (int) $user->id === $userId);
+
+            $this->assertSame(
+                $wantsMail,
+                $reached,
+                'Versand und Einstellung müssen übereinstimmen: ' . $type
+            );
+
+            $this->assertSame(
+                $wantsMail,
+                $service->settingsFor($userId)[$type][NotificationChannel::MAIL],
+                'Auch das Profilformular muss dasselbe sagen: ' . $type
+            );
+        }
+    }
+
+    /**
+     * Die Gegenprobe mit hinterlegter Zeile: Eine ausdrückliche Zusage auf dem
+     * Mailkanal muss den Versand erreichen, eine Absage nicht - unabhängig
+     * davon, was die Vorgabe des Anlasses sagt.
+     */
+    public function testAnExplicitDecisionBeatsTheDefault(): void
+    {
+        $type = NotificationType::PROJECT_MEMBER_ADDED;
+        $service = $this->service();
+
+        foreach ([true, false] as $decision) {
+            UserNotificationSetting::query()->where('user_id', $this->anna->id)->delete();
+            UserNotificationSetting::create([
+                'user_id' => $this->anna->id,
+                'notification_type' => $type,
+                'channel' => NotificationChannel::MAIL,
+                'enabled' => $decision,
+            ]);
+
+            $this->assertSame(
+                $decision,
+                $service->eligibleRecipients($type, [$this->anna])->isNotEmpty(),
+                'Die hinterlegte Entscheidung muss den Versand bestimmen.'
+            );
+        }
+    }
+
+    /**
      * @param array<string, bool> $modules
      */
     private function service(array $modules = ['tasks' => true, 'sponsoring' => true]): NotificationService

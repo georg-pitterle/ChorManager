@@ -135,6 +135,53 @@ class SheetArchiveServiceTest extends TestCase
         $this->service->saveArchiveData($this->testSongId, null, null, $lineItems);
     }
 
+    /**
+     * Eine rein numerische Stimmkategorie ("42" als Regalnummer) ist erlaubt -
+     * validateLineItems() lässt \p{N} durch. Beim Zusammenlegen wird die
+     * Kategorie aber zum Array-Schlüssel, und PHP macht aus dem Zahlen-String
+     * stillschweigend einen int. Das Zurueckschreiben rief dann trim() mit einem
+     * int auf, und das ist unter strict_types ein TypeError - also ein Error, den
+     * das catch (\Exception) im SheetArchiveController nicht fängt: 500 ohne
+     * JSON-Antwort, und die Kopfdaten des Archivs standen schon in der Datenbank,
+     * während keine einzige Position dazu geschrieben war.
+     */
+    public function testNumericVoiceCategoryIsStored(): void
+    {
+        $result = $this->service->saveArchiveData(
+            $this->testSongId,
+            null,
+            null,
+            [['voice_category' => '42', 'count' => 3]]
+        );
+
+        $this->assertCount(1, $result->lineItems);
+        $this->assertSame('42', $result->lineItems[0]->voice_category);
+        $this->assertSame(3, (int) $result->lineItems[0]->count);
+    }
+
+    /**
+     * Gegenprobe zum Zusammenlegen: Auch rein numerische Kategorien müssen
+     * aufsummiert werden und dürfen dabei keine zweite Zeile erzeugen.
+     */
+    public function testNumericVoiceCategoriesAreMerged(): void
+    {
+        $result = $this->service->saveArchiveData(
+            $this->testSongId,
+            null,
+            null,
+            [
+                ['voice_category' => '42', 'count' => 2],
+                ['voice_category' => '42', 'count' => 5],
+                ['voice_category' => 'Sopran', 'count' => 1],
+            ]
+        );
+
+        $this->assertCount(2, $result->lineItems);
+        $numeric = $result->lineItems->where('voice_category', '42')->first();
+        $this->assertNotNull($numeric, 'Die numerische Kategorie muss als Zeile ankommen.');
+        $this->assertSame(7, (int) $numeric->count);
+    }
+
     public function testGetAllVoiceCategories(): void
     {
         $this->service->saveArchiveData(

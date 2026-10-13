@@ -255,6 +255,19 @@ class NotificationService
     }
 
     /**
+     * Wer diesen Anlass auf diesem Kanal haben will: die eigene Entscheidung,
+     * ersatzweise die Vorgabe des Anlasses.
+     *
+     * Dieselbe Regel wie in `wantsNotification()` und `settingsFor()`, nur für
+     * alle Empfänger auf einmal. Vorher stand hier die kürzere Fassung "wer
+     * keine abbestellende Zeile hat, bekommt es" - richtig nur, solange jeder
+     * Anlass `'default' => true` trägt, denn `storeSettings()` löscht die Zeile,
+     * sobald sie sich mit der Vorgabe deckt. Ein Anlass mit
+     * `'default' => false` ginge damit an alle, die ihn nie eingeschaltet haben,
+     * während das Profilformular und `wantsNotification()` das Gegenteil sagen -
+     * und widersprechen dürfen die drei Instanzen laut Klassenkommentar gerade
+     * nicht. Die Vorgabe hier mitzulesen kostet keine zweite Abfrage.
+     *
      * @param array<int, User> $users nach `user_id`
      * @return list<User>
      */
@@ -264,31 +277,38 @@ class NotificationService
             return [];
         }
 
-        $optedOut = $this->optedOutUserIds($type, $channel, array_keys($users));
+        $stored = $this->storedDecisions($type, $channel, array_keys($users));
+        $default = NotificationType::defaultEnabled($type);
 
         return array_values(array_filter(
             $users,
-            static fn (User $user): bool => !in_array((int) $user->id, $optedOut, true)
+            static fn (User $user): bool => $stored[(int) $user->id] ?? $default
         ));
     }
 
     /**
-     * Wer diesen Anlass auf diesem Kanal abbestellt hat. Eine Abfrage für alle
-     * Empfänger statt einer je Person - bei einem Chortermin sind das schnell
-     * hundert.
+     * Die hinterlegten Entscheidungen zu diesem Anlass und Kanal. Eine Abfrage
+     * für alle Empfänger statt einer je Person - bei einem Chortermin sind das
+     * schnell hundert. Wer keine Zeile hat, fehlt hier und bekommt oben die
+     * Vorgabe.
      *
      * @param list<int> $userIds
-     * @return list<int>
+     * @return array<int, bool>
      */
-    private function optedOutUserIds(string $type, string $channel, array $userIds): array
+    private function storedDecisions(string $type, string $channel, array $userIds): array
     {
-        return array_map('intval', UserNotificationSetting::query()
+        $rows = UserNotificationSetting::query()
             ->where('notification_type', $type)
             ->where('channel', $channel)
             ->whereIn('user_id', $userIds)
-            ->where('enabled', false)
-            ->pluck('user_id')
-            ->all());
+            ->get(['user_id', 'enabled']);
+
+        $decisions = [];
+        foreach ($rows as $row) {
+            $decisions[(int) $row->user_id] = (bool) $row->enabled;
+        }
+
+        return $decisions;
     }
 
     /**

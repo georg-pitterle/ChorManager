@@ -15,9 +15,17 @@ use Carbon\Carbon;
  */
 class PendingRegistrationSummaryService
 {
-    public function __construct(private ?EventAudienceService $audienceService = null)
-    {
-        $this->audienceService = $audienceService ?? new EventAudienceService();
+    /**
+     * Vorgabewert statt Zuweisung im Rumpf: Die Eigenschaft war nur deshalb
+     * `?EventAudienceService`, weil der Parameter `null` zuließ - sie trägt aber
+     * nie null, und jeder Zugriff darauf sah für eine statische Prüfung wie ein
+     * Zugriff auf möglicherweise null aus. `new` im Vorgabewert ist derselbe
+     * Weg, den EventAudienceService und NewsletterRecipientService für ihre
+     * eigenen Abhängigkeiten gehen.
+     */
+    public function __construct(
+        private readonly EventAudienceService $audienceService = new EventAudienceService()
+    ) {
     }
 
     /**
