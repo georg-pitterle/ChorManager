@@ -17,6 +17,7 @@ class RememberLogin extends Model
         'token_hash',
         'expires_at',
         'created_at',
+        'chain_started_at',
         'last_used_at',
         'user_agent',
         'ip_address'
@@ -36,6 +37,7 @@ class RememberLogin extends Model
     protected $casts = [
         'expires_at' => 'datetime',
         'created_at' => 'datetime',
+        'chain_started_at' => 'datetime',
         'last_used_at' => 'datetime',
     ];
 }

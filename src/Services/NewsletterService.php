@@ -122,7 +122,7 @@ class NewsletterService
             // Bewusst Throwable statt Exception: Ein TypeError aus einer Vorlage
             // oder einem Platzhalter ist ein Error und lief hier vorbei - der
             // Newsletter stand danach als versendet da, ohne dass je eine Mail
-            // eingereiht wurde, und liess sich weder senden noch bearbeiten.
+            // eingereiht wurde, und ließ sich weder senden noch bearbeiten.
             $this->releaseClaim($newsletter);
             throw $e;
         }

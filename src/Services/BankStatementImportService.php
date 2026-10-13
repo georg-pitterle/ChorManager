@@ -19,7 +19,20 @@ class BankStatementImportService
     private const DESCRIPTION_MAX_LENGTH = 255;
     private const DELIMITER = ';';
 
-    /** MIME types a browser realistically reports for a .csv file. */
+    /**
+     * MIME-Typen, die ein Browser für eine .csv-Datei realistisch meldet.
+     *
+     * Das ist ein grober Filter und keine Typprüfung: `application/octet-stream`
+     * steht in der Liste, weil Browser und Betriebssysteme das für alles melden,
+     * was sie nicht kennen - und damit kommt praktisch jeder Inhalt durch. Die
+     * eigentliche Hürde ist die Endung `.csv` in validateUpload().
+     *
+     * Enger gefasst wurde die Liste bewusst nicht (Antwort zu Lauf 43): Sie
+     * brächte keine Sicherheit dazu, weil der Inhalt ohnehin nur als CSV
+     * gelesen, nie gespeichert und nie ausgeführt wird und ein unpassendes
+     * Format an der Kopfzeilenprüfung in parse() scheitert. Sie kostete aber
+     * Uploads, die auf manchen Rechnern grundlos abgewiesen würden.
+     */
     private const ALLOWED_MIME_TYPES = [
         'text/csv',
         'text/plain',
@@ -49,6 +62,9 @@ class BankStatementImportService
      *
      * The global UploadValidator allow-list is deliberately not reused here: it does
      * not contain text/csv, and widening it would loosen every attachment upload.
+     *
+     * Entscheidend ist die Endung; der MIME-Abgleich darunter ist nur ein grober
+     * Filter, siehe ALLOWED_MIME_TYPES.
      */
     public static function validateUpload(string $filename, int $sizeBytes, string $mimeType): ?string
     {

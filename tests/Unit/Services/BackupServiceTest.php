@@ -210,6 +210,7 @@ final class BackupServiceTest extends TestCase
             'token_hash' => PasswordHasher::hash('irrelevant'),
             'expires_at' => date('Y-m-d H:i:s', time() + 86400),
             'created_at' => date('Y-m-d H:i:s'),
+            'chain_started_at' => date('Y-m-d H:i:s'),
         ]);
 
         $service = $this->makeService();

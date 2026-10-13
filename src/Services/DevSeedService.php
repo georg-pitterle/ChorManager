@@ -2185,9 +2185,17 @@ class DevSeedService
             $this->report['counts']['password_resets']++;
         }
 
+        // Drei Lagen, damit beide Fristen Daten hinter sich haben: ein
+        // abgelaufenes Token (Index 0-9), ein gültiges aus einer frischen Kette
+        // (Index 10-24) und eines, dessen Token noch lange gilt, dessen Kette
+        // aber über der Höchstdauer liegt (Index 25-29). Die dritte Lage ist der
+        // einzige Weg, die Obergrenze aus Migration 20261013120000 an echten
+        // Daten zu sehen - ohne sie sieht jede Kette gleich jung aus.
         $selectedRememberUsers = array_slice($this->shuffled($users), 0, 30);
         foreach ($selectedRememberUsers as $index => $user) {
+            $chainOverdue = $index >= 25;
             $expiresAt = (new DateTimeImmutable())->modify(($index < 10 ? '-2' : '+30') . ' days');
+            $chainStartedAt = (new DateTimeImmutable())->modify($chainOverdue ? '-200 days' : '-3 days');
 
             RememberLogin::create([
                 'user_id' => $user->id,
@@ -2195,6 +2203,7 @@ class DevSeedService
                 'token_hash' => PasswordHasher::hash(bin2hex(random_bytes(32))),
                 'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
                 'created_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'chain_started_at' => $chainStartedAt->format('Y-m-d H:i:s'),
                 'last_used_at' => null,
                 'user_agent' => 'SeedAgent/1.0',
                 'ip_address' => '127.0.0.1',

@@ -128,6 +128,7 @@ final class RememberLoginRestoreServiceFeatureTest extends TestCase
             'token_hash' => PasswordHasher::hash(bin2hex(random_bytes(32))),
             'expires_at' => date('Y-m-d H:i:s', time() - 3600),
             'created_at' => date('Y-m-d H:i:s', time() - 7200),
+            'chain_started_at' => date('Y-m-d H:i:s', time() - 7200),
         ]);
 
         $this->service()->restoreFromCookie($this->request());
