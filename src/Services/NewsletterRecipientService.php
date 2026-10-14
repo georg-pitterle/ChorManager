@@ -27,7 +27,8 @@ class NewsletterRecipientService
 
     public function __construct(
         private readonly AudienceFilterService $filters = new AudienceFilterService(),
-        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer()
+        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer(),
+        private readonly EventAudienceService $events = new EventAudienceService()
     ) {
     }
 
@@ -151,8 +152,8 @@ class NewsletterRecipientService
      * irgendwo stand, woran es lag.
      *
      * Massgeblich ist deshalb dieselbe Zielgruppe, über die auch Einladung und
-     * Anwesenheitsliste laufen. `eligibleUsersQuery()` filtert `is_active`
-     * bereits selbst.
+     * Anwesenheitsliste laufen. `EventAudienceService::eligibleUsersQuery()`
+     * filtert `is_active` bereits selbst.
      *
      * @param int $eventId
      * @return Collection<int, User>
@@ -164,7 +165,7 @@ class NewsletterRecipientService
             return new Collection();
         }
 
-        return $event->eligibleUsersQuery()->get();
+        return $this->events->eligibleUsersQuery($event)->get();
     }
 
     /**

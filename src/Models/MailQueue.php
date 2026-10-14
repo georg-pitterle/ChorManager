@@ -63,6 +63,50 @@ class MailQueue extends Model
     ];
 
     /**
+     * Die Mailarten, die die Warteschlange führt. Die Werte spiegeln das ENUM
+     * aus den Migrationen 20260419130000, 20260719180000 und 20260830142000.
+     *
+     * Wie bei `status` und `delivery_status` auch: Vorher standen die fünf
+     * Werte nur als Zeichenketten in MailQueueService, MailDeliveryService, im
+     * Seed und zweimal als Twig-Zuordnung in den Vorlagen. Ein Tippfehler an
+     * einer davon wäre still geblieben, denn das ENUM weist einen unbekannten
+     * Wert nicht in jedem Modus ab.
+     */
+    public const MAIL_TYPE_NEWSLETTER = 'newsletter';
+    public const MAIL_TYPE_INVITATION = 'invitation';
+    public const MAIL_TYPE_PASSWORD_RESET = 'password_reset';
+    public const MAIL_TYPE_REGISTRATION_REMINDER = 'registration_reminder';
+    public const MAIL_TYPE_NOTIFICATION = 'notification';
+
+    /** @var list<string> */
+    public const SUPPORTED_MAIL_TYPES = [
+        self::MAIL_TYPE_NEWSLETTER,
+        self::MAIL_TYPE_INVITATION,
+        self::MAIL_TYPE_PASSWORD_RESET,
+        self::MAIL_TYPE_REGISTRATION_REMINDER,
+        self::MAIL_TYPE_NOTIFICATION,
+    ];
+
+    /**
+     * Beschriftung je Mailart für die Oberfläche.
+     *
+     * Steht hier und nicht in den Vorlagen: Die Zuordnung stand in
+     * `admin/mail_queue/index.twig` und `admin/mail_queue/show.twig` wortgleich
+     * zweimal da und kannte nur drei der fünf Mailarten. `registration_reminder`
+     * und `notification` fielen deshalb durch den `default`-Filter und standen
+     * in der deutschen Oberfläche als englischer Schlüssel.
+     *
+     * @var array<string, string>
+     */
+    public const MAIL_TYPE_LABELS = [
+        self::MAIL_TYPE_NEWSLETTER => 'Newsletter',
+        self::MAIL_TYPE_INVITATION => 'Einladung',
+        self::MAIL_TYPE_PASSWORD_RESET => 'Passwort zurücksetzen',
+        self::MAIL_TYPE_REGISTRATION_REMINDER => 'Anmelde-Erinnerung',
+        self::MAIL_TYPE_NOTIFICATION => 'Benachrichtigung',
+    ];
+
+    /**
      * Mailarten, deren fertiger Text ein Geheimnis trägt: Der Einmal-Link einer
      * Passwort-Zurücksetzung und einer Einladung steht ausgeschrieben im HTML.
      * Nach der Zustellung hat er in der Warteschlange nichts mehr verloren -
@@ -75,8 +119,8 @@ class MailQueue extends Model
      * @var list<string>
      */
     public const SECRET_BODY_MAIL_TYPES = [
-        'password_reset',
-        'invitation',
+        self::MAIL_TYPE_PASSWORD_RESET,
+        self::MAIL_TYPE_INVITATION,
     ];
 
     /**

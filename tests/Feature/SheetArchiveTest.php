@@ -166,6 +166,46 @@ class SheetArchiveTest extends TestCase
         $this->assertSame([], $queries, 'Geladene Positionen duerfen keine weitere Abfrage ausloesen.');
     }
 
+    /**
+     * Die Summe wurde in einer Objekt-Eigenschaft zwischengespeichert, die
+     * nichts je wieder geleert hat - auch `load()` nicht. Wer die Positionen
+     * nachlud und erneut fragte, bekam die Zahl von vorher zurück.
+     *
+     * Aufgefallen war es nie, weil der einzige Schreibweg
+     * (SheetArchiveService::saveArchiveData) ein frisches Objekt zurückgibt und
+     * damit an der Eigenschaft vorbeikommt. Die Falle lag für den nächsten
+     * Aufrufer bereit, der das nicht tut.
+     */
+    public function testTotalCountFolgtNachgeladenenPositionen(): void
+    {
+        $archive = SheetArchive::create([
+            'song_id' => $this->song->id,
+            'archive_number' => 'ARCH-006',
+            'location' => 'Cabinet F',
+        ]);
+
+        SheetArchiveLineItem::create([
+            'sheet_archive_id' => $archive->id,
+            'voice_category' => 'Sopran',
+            'count' => 3,
+            'sort_order' => 0,
+        ]);
+
+        $loaded = SheetArchive::with('lineItems')->findOrFail($archive->id);
+        $this->assertSame(3, $loaded->getTotalCount());
+
+        SheetArchiveLineItem::create([
+            'sheet_archive_id' => $archive->id,
+            'voice_category' => 'Alt',
+            'count' => 5,
+            'sort_order' => 1,
+        ]);
+
+        $loaded->load('lineItems');
+
+        $this->assertSame(8, $loaded->getTotalCount());
+    }
+
     public function testArchiveCanBeCascadeDeleted(): void
     {
         $archive = SheetArchive::create([

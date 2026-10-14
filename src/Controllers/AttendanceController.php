@@ -11,6 +11,7 @@ use Slim\Views\Twig;
 use App\Models\Event;
 use App\Models\Attendance;
 use App\Services\AttendanceScopeService;
+use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use App\Util\InputValidator;
@@ -124,7 +125,7 @@ class AttendanceController
                 $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
 
                 // Only members within the event's audience scope may appear.
-                $users = $event->eligibleUsersQuery();
+                $users = (new EventAudienceService())->eligibleUsersQuery($event);
 
                 // Ohne das Recht für alle Mitglieder bleibt nur der eigene Stimmgruppen-Scope.
                 // Eine leere Liste braucht keinen Sonderfall: whereIn() setzt dafür
@@ -238,7 +239,7 @@ class AttendanceController
             );
         }
 
-        $eligibleUserIds = $event->eligibleUsersQuery()
+        $eligibleUserIds = (new EventAudienceService())->eligibleUsersQuery($event)
             ->pluck('id')
             ->map(static fn($id): int => (int) $id)
             ->all();

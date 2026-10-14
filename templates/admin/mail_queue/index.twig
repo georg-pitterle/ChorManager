@@ -30,7 +30,6 @@
         failed: "bg-warning text-dark",
         dead: "bg-danger",
     } %}
-    {% set type_labels = {newsletter: "Newsletter", invitation: "Einladung", password_reset: "Passwort zurücksetzen"} %}
     {% set has_entries = entries|length > 0 %}
 
     <div class="mail-queue-overview-grid mb-4">
@@ -122,7 +121,7 @@
                                     <tr data-sort-id="{{ entry.id }}"
                                         data-queue-status="{{ entry.status|default('')|lower }}"
                                         data-queue-type="{{ entry.mail_type|default('')|lower }}"
-                                        data-sort-type="{{ type_labels[entry.mail_type]|default(entry.mail_type|default('Unbekannt'))|lower }}"
+                                        data-sort-type="{{ type_labels[entry.mail_type]|default(entry.mail_type|default("Unbekannt"))|lower }}"
                                         data-sort-recipient="{{ entry.recipient_email ?: '—' }}"
                                         data-sort-status="{{ status_labels[entry.status]|default(entry.status|default('Unbekannt'))|lower }}"
                                         data-sort-attempts="{{ entry.attempts }}"
@@ -131,7 +130,7 @@
                                         data-sort-next-attempt="{{ next_attempt_value }}">
                                         <td data-label="ID">{{ entry.id }}</td>
                                         <td data-label="Typ">
-                                            <span class="badge text-bg-info">{{ type_labels[entry.mail_type]|default(entry.mail_type|default('Unbekannt')) }}</span>
+                                            <span class="badge text-bg-info">{{ type_labels[entry.mail_type]|default(entry.mail_type|default("Unbekannt")) }}</span>
                                         </td>
                                         <td data-label="Empfänger">{{ entry.recipient_email ?: '—' }}</td>
                                         <td data-label="Status">

@@ -34,7 +34,8 @@ class SponsorshipController
     public const PAID_AT_ERROR = 'Bitte ein gültiges Datum für "Bezahlt am" angeben.';
 
     /** Anhänge, die an einer Vereinbarung hängen: Verträge, Angebote. */
-    public const ENTITY_TYPE = 'sponsorship';
+    /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
+    public const ENTITY_TYPE = Sponsorship::ENTITY_TYPE;
 
     private SponsoringPolicy $policy;
     private EntityAttachmentService $attachments;

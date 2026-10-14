@@ -93,7 +93,7 @@ export const NEWSLETTER_LOCKED = {
 // --- Newsletter an die Zielgruppe eines Termins ----------------------------------------------
 // Praxisfall: Ein Dankeschön zum Auftritt geht an die, für die der Termin galt - nicht an alle.
 // Die Quelle "Veranstaltungsteilnehmer" löst seit Review-Lauf 22 die Zielgruppe des Termins auf
-// (Event::eligibleUsersQuery), nicht die Anwesenheitsliste.
+// (EventAudienceService::eligibleUsersQuery), nicht die Anwesenheitsliste.
 
 export const CONCERT_EVENT = {
     title: 'E2E Herbstkonzert für den Nachbericht',

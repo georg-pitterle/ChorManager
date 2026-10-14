@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEntityAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Sponsorship extends Model
 {
+    use HasEntityAttachments;
+
+    /** Der Wert, unter dem Anhänge an dieser Vereinbarung hängen. */
+    public const ENTITY_TYPE = 'sponsorship';
+
     protected $table = 'sponsorships';
     public $timestamps = true;
 
@@ -73,10 +79,5 @@ class Sponsorship extends Model
     public function contacts()
     {
         return $this->hasMany(SponsoringContact::class, 'sponsorship_id');
-    }
-
-    public function attachments()
-    {
-        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'sponsorship');
     }
 }

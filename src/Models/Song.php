@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEntityAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Song extends Model
 {
+    use HasEntityAttachments;
+
+    /** Der Wert, unter dem Anhänge an diesem Lied hängen. */
+    public const ENTITY_TYPE = 'song';
+
     protected $table = 'songs';
     public $timestamps = false;
 
@@ -28,11 +34,6 @@ class Song extends Model
     protected $casts = [
         'created_at' => 'datetime',
     ];
-
-    public function attachments()
-    {
-        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'song');
-    }
 
     public function categories()
     {

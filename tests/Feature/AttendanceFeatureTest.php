@@ -63,7 +63,7 @@ class AttendanceFeatureTest extends TestCase
         $this->assertStringContainsString('$event = Event::find($eventId);', $controllerContent);
         $this->assertStringContainsString('if (!$this->canAccessAttendanceEvent($event)) {', $controllerContent);
         $this->assertStringContainsString('$this->scopeService->getManageableUserIds()', $controllerContent);
-        $this->assertStringContainsString('$event->eligibleUsersQuery()', $controllerContent);
+        $this->assertStringContainsString('->eligibleUsersQuery($event)', $controllerContent);
         $this->assertStringContainsString('AttendanceScopeService', $controllerContent);
         $this->assertStringContainsString('private function canAccessAttendanceEvent(Event $event): bool', $controllerContent);
     }

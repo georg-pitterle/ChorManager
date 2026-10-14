@@ -64,7 +64,12 @@ class SheetArchiveService
             }
         });
 
-        return $archive->fresh();
+        // Mit den Positionen zurück: Der Aufrufer zeigt sie ohnehin an, und
+        // getTotalCount() summiert dann über die geladene Beziehung statt eine
+        // eigene Abfrage zu stellen. Vorher hing das daran, dass der Controller
+        // die Positionen vor der Summe anfasste - eine Reihenfolge im
+        // Array-Literal, die niemand als Voraussetzung gelesen hätte.
+        return $archive->fresh(['lineItems']);
     }
 
     /**

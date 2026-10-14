@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEntityAttachments;
+use App\Models\Concerns\HasEntityComments;
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
+    use HasEntityAttachments;
+    use HasEntityComments;
+
+    /** Der Wert, unter dem Notizen, Anhänge und Verlauf an dieser Aufgabe hängen. */
+    public const ENTITY_TYPE = 'task';
+
     protected $table = 'tasks';
     public $timestamps = false;
 
@@ -51,37 +59,10 @@ class Task extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /**
-     * Notizen der Aufgabe. Private Notizen bleiben hier aussen vor - gleiche
-     * Grenze und gleiche Begründung wie bei Event::comments(): Die Relation kennt
-     * die angemeldete Person nicht und könnte eine fremde private Notiz nicht von
-     * der eigenen unterscheiden. Ohne die Grenze hinge es am Aufrufer, ob eine
-     * fremde private Notiz in der Ausgabe landet - und `withCount('comments')`
-     * in der Aufgabenliste hätte sie sogar mitgerechnet.
-     *
-     * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
-     * Comment::visibleTo() bewusst selbst.
-     *
-     * Reihenfolge wie bei Event::comments() - die drei teilen sich mit
-     * partials/comments.twig dieselbe Darstellung und dürfen nicht
-     * unterschiedlich herum stehen.
-     */
-    public function comments()
-    {
-        return $this->hasMany(Comment::class, 'entity_id')
-            ->where('entity_type', 'task')
-            ->where('is_private', false)
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc');
-    }
-
-    public function attachments()
-    {
-        return $this->hasMany(Attachment::class, 'entity_id')->where('entity_type', 'task');
-    }
-
     public function activities()
     {
-        return $this->hasMany(Activity::class, 'entity_id')->where('entity_type', 'task')->orderBy('created_at', 'desc');
+        return $this->hasMany(Activity::class, 'entity_id')
+            ->where('entity_type', self::ENTITY_TYPE)
+            ->orderBy('created_at', 'desc');
     }
 }

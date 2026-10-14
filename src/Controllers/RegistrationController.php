@@ -438,7 +438,7 @@ class RegistrationController
 
         // Vertretungseinträge sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
         // auf die Zielgruppe des Termins - sonst entstünden Anmeldungen für Unbeteiligte.
-        $eligibleUserIds = $event->eligibleUsersQuery()
+        $eligibleUserIds = (new EventAudienceService())->eligibleUsersQuery($event)
             ->pluck('id')
             ->map(static fn($id): int => (int) $id)
             ->all();
@@ -651,7 +651,7 @@ class RegistrationController
      */
     private function eligibleUsers(Event $event)
     {
-        return $event->eligibleUsersQuery()
+        return (new EventAudienceService())->eligibleUsersQuery($event)
             ->with([
                 'voiceGroups',
                 'eventRegistrations' => fn($q) => $q->where('event_id', (int) $event->id),

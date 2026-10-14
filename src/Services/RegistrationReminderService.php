@@ -17,7 +17,8 @@ class RegistrationReminderService
     public function __construct(
         private readonly MailQueueService $mailQueueService,
         private readonly Twig $view,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly EventAudienceService $audience = new EventAudienceService()
     ) {
     }
 
@@ -145,7 +146,7 @@ class RegistrationReminderService
      */
     private function unregisteredEligibleUsers(Event $event): array
     {
-        $query = $event->eligibleUsersQuery()
+        $query = $this->audience->eligibleUsersQuery($event)
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->whereDoesntHave('eventRegistrations', function ($q) use ($event) {

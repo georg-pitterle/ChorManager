@@ -32,7 +32,8 @@ class SponsorController
     private const MAX_BLOCK_NOTE_LENGTH = 2000;
 
     /** Anhänge, die unmittelbar am Sponsor hängen: Logo, Mediadaten, Rahmenvertrag. */
-    public const ENTITY_TYPE = 'sponsor';
+    /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
+    public const ENTITY_TYPE = Sponsor::ENTITY_TYPE;
 
     private Twig $view;
     private SponsoringPolicy $policy;

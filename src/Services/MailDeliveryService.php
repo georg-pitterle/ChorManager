@@ -135,7 +135,7 @@ class MailDeliveryService
                 continue;
             }
 
-            if ($isDead && $entry->mail_type === 'newsletter') {
+            if ($isDead && $entry->mail_type === MailQueue::MAIL_TYPE_NEWSLETTER) {
                 $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_FAILED);
             }
 
@@ -202,7 +202,7 @@ class MailDeliveryService
                     'error_message' => null,
                 ]);
 
-                if ($entry->mail_type === 'newsletter') {
+                if ($entry->mail_type === MailQueue::MAIL_TYPE_NEWSLETTER) {
                     $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_SENT);
                 }
 
@@ -236,7 +236,7 @@ class MailDeliveryService
                 ]);
 
                 // Sync to NewsletterRecipient if applicable
-                if ($entry->mail_type === 'newsletter') {
+                if ($entry->mail_type === MailQueue::MAIL_TYPE_NEWSLETTER) {
                     $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_SENT);
                 }
             } else {
@@ -265,7 +265,7 @@ class MailDeliveryService
      */
     private function attachmentsFor(MailQueue $entry): array
     {
-        if ($entry->mail_type !== 'newsletter') {
+        if ($entry->mail_type !== MailQueue::MAIL_TYPE_NEWSLETTER) {
             return [];
         }
 
@@ -306,7 +306,7 @@ class MailDeliveryService
             ]);
 
             // Sync to NewsletterRecipient if applicable
-            if ($entry->mail_type === 'newsletter') {
+            if ($entry->mail_type === MailQueue::MAIL_TYPE_NEWSLETTER) {
                 $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_FAILED);
             }
         }
@@ -386,7 +386,7 @@ class MailDeliveryService
      */
     private function syncNewsletterRecipient(MailQueue $entry, string $status): void
     {
-        if ($entry->mail_type !== 'newsletter') {
+        if ($entry->mail_type !== MailQueue::MAIL_TYPE_NEWSLETTER) {
             return;
         }
 

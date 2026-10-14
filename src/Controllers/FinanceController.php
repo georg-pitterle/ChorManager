@@ -33,7 +33,8 @@ use App\Util\InputValidator;
 class FinanceController
 {
     /** Belege, die an der Buchung hängen. */
-    public const ENTITY_TYPE = 'finance';
+    /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
+    public const ENTITY_TYPE = Finance::ENTITY_TYPE;
 
     /** Seconds a parsed statement stays available for confirmation. */
     private const IMPORT_TTL = 3600;

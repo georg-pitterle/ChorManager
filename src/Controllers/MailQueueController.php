@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Models\MailQueue;
 use App\Services\MailQueueAdminService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -61,6 +62,7 @@ class MailQueueController
                 'page' => $page,
                 'page_count' => $pageCount,
                 'per_page' => $perPage,
+                'type_labels' => MailQueue::MAIL_TYPE_LABELS,
             ]
         );
     }
@@ -80,7 +82,7 @@ class MailQueueController
         return $this->view->render(
             $response,
             'admin/mail_queue/show.twig',
-            ['entry' => $entry]
+            ['entry' => $entry, 'type_labels' => MailQueue::MAIL_TYPE_LABELS]
         );
     }
 

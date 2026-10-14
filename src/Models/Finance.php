@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEntityAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Finance extends Model
 {
+    use HasEntityAttachments;
+
+    /** Der Wert, unter dem Anhänge an dieser Buchung hängen. */
+    public const ENTITY_TYPE = 'finance';
+
     protected $table = 'finances';
     public $timestamps = false;
 
@@ -31,11 +37,6 @@ class Finance extends Model
         'payment_date' => 'date',
         'amount' => 'decimal:2',
     ];
-
-    public function attachments()
-    {
-        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'finance');
-    }
 
     /** @return \Illuminate\Database\Eloquent\Relations\BelongsTo */
     public function financeGroup()

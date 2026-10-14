@@ -19,8 +19,6 @@ class SheetArchive extends Model
         'location',
     ];
 
-    private ?int $totalCountCache = null;
-
     public function song(): BelongsTo
     {
         return $this->belongsTo(Song::class, 'song_id', 'id');
@@ -32,25 +30,24 @@ class SheetArchive extends Model
     }
 
     /**
-     * Calculate the total quantity count from all line items.
-     *
-     * Caches result during request lifecycle to prevent N+1 queries.
-     * Use formatArchiveResponse() to calculate once for API responses.
+     * Gesamtzahl der Exemplare über alle Positionen.
      *
      * Sind die Positionen bereits geladen, wird über sie summiert. Die eigene
      * Abfrage hätte den Eager-Load sonst wirkungslos gemacht und wäre einmal
      * pro Archiv gelaufen.
+     *
+     * Ohne Zwischenspeicher. Vorher lag die Summe in einer Objekt-Eigenschaft,
+     * die nichts je wieder geleert hat - auch `load()` nicht: Wer die Positionen
+     * nachlud und erneut fragte, bekam die Zahl von vorher. Der Zwischenspeicher
+     * kaufte dabei nichts ein, denn im einzigen Pfad, der die Summe zweimal
+     * braucht, sind die Positionen geladen und das Summieren kostet keine
+     * Abfrage. Gespart hätte er nur dort, wo sie es nicht sind - und genau dort
+     * war er falsch.
      */
     public function getTotalCount(): int
     {
-        if ($this->totalCountCache !== null) {
-            return $this->totalCountCache;
-        }
-
-        $this->totalCountCache = $this->relationLoaded('lineItems')
+        return $this->relationLoaded('lineItems')
             ? (int) $this->lineItems->sum('count')
             : (int) $this->lineItems()->sum('count');
-
-        return $this->totalCountCache;
     }
 }

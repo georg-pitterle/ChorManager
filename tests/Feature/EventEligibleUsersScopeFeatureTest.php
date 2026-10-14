@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
+use App\Services\EventAudienceService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -43,7 +44,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
 
         $this->assertSame(
             (int) User::where('is_active', 1)->count(),
-            (int) $event->eligibleUsersQuery()->count()
+            (int) (new EventAudienceService())->eligibleUsersQuery($event)->count()
         );
     }
 
@@ -156,7 +157,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
         $this->createUser();
         $event = $this->openToEveryone($this->createEvent());
 
-        $user = $event->eligibleUsersQuery()->first();
+        $user = (new EventAudienceService())->eligibleUsersQuery($event)->first();
 
         $this->assertNotNull($user);
         $this->assertSame(User::LIST_COLUMNS, array_keys($user->getAttributes()));
@@ -168,7 +169,7 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
      */
     private function eligibleIds(Event $event): array
     {
-        return $event->fresh()->eligibleUsersQuery()
+        return (new EventAudienceService())->eligibleUsersQuery($event->fresh())
             ->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
     }
 

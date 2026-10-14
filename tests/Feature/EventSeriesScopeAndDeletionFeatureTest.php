@@ -204,6 +204,7 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
         );
 
         // Gezählt wird es trotzdem nicht - dafür sorgt der is_active-Filter der Auflösung.
-        $this->assertCount(0, $this->events[1]->fresh()->eligibleUsersQuery()->get());
+        $eligible = (new EventAudienceService())->eligibleUsersQuery($this->events[1]->fresh());
+        $this->assertCount(0, $eligible->get());
     }
 }

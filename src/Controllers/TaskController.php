@@ -33,7 +33,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 class TaskController
 {
     /** Anhänge, die an der Aufgabe hängen. */
-    public const ENTITY_TYPE = 'task';
+    /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
+    public const ENTITY_TYPE = Task::ENTITY_TYPE;
 
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;

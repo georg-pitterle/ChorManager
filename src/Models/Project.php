@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEntityAttachments;
+use App\Models\Concerns\HasEntityComments;
 use Illuminate\Database\Eloquent\Model;
 
 class Project extends Model
 {
+    use HasEntityAttachments;
+    use HasEntityComments;
+
+    /** Der Wert, unter dem Notizen und Anhänge an diesem Projekt hängen. */
+    public const ENTITY_TYPE = 'project';
+
     protected $table = 'projects';
     public $timestamps = false; // Add created_at/updated_at to schema if true
 
@@ -85,32 +93,5 @@ class Project extends Model
     public function tasks()
     {
         return $this->hasMany(Task::class, 'project_id', 'id');
-    }
-
-    /**
-     * Notizen des Projekts. Private Notizen bleiben hier aussen vor - gleiche
-     * Grenze und gleiche Begründung wie bei Event::comments(): Die Relation kennt
-     * die angemeldete Person nicht und könnte eine fremde private Notiz nicht von
-     * der eigenen unterscheiden.
-     *
-     * Wer auch die eigenen privaten Notizen braucht, setzt die Relation mit
-     * Comment::visibleTo() bewusst selbst.
-     *
-     * Reihenfolge wie bei Event::comments() - die drei teilen sich mit
-     * partials/comments.twig dieselbe Darstellung und dürfen nicht
-     * unterschiedlich herum stehen.
-     */
-    public function comments()
-    {
-        return $this->hasMany(Comment::class, 'entity_id', 'id')
-            ->where('entity_type', 'project')
-            ->where('is_private', false)
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc');
-    }
-
-    public function attachments()
-    {
-        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'project');
     }
 }

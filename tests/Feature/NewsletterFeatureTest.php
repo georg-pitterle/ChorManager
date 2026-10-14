@@ -334,7 +334,7 @@ class NewsletterFeatureTest extends TestCase
         $recipientService = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterRecipientService.php');
 
         $this->assertIsString($recipientService);
-        $this->assertStringContainsString('eligibleUsersQuery()', $recipientService);
+        $this->assertStringContainsString('eligibleUsersQuery($event)', $recipientService);
         $this->assertStringNotContainsString("->where('status', 'present')", $recipientService);
         $this->assertStringNotContainsString("->where('attended', 1)", $recipientService);
     }

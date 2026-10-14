@@ -21,7 +21,8 @@ use Slim\Views\Twig;
 class SongLibraryController
 {
     /** Anhänge, die am Lied hängen: Noten, Übungsaufnahmen, Begleitstimmen. */
-    public const ENTITY_TYPE = 'song';
+    /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
+    public const ENTITY_TYPE = Song::ENTITY_TYPE;
 
     private Twig $view;
     private LoggerInterface $logger;

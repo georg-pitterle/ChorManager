@@ -57,7 +57,7 @@ class EventAudienceFilterFeatureTest extends TestCase
             'project' => [(int) $project->id],
         ]);
 
-        $eligible = $event->eligibleUsersQuery()->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $eligible = (new EventAudienceService())->eligibleUsersQuery($event)->pluck('id')->map(fn ($id): int => (int) $id)->all();
         $this->assertSame([(int) $inBoth->id], $eligible);
 
         $service = new EventAudienceService();

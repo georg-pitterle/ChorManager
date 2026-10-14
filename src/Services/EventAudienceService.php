@@ -69,11 +69,42 @@ class EventAudienceService
     }
 
     /**
+     * Abfrage der Mitglieder, die für diesen Termin zählen: aktive Mitglieder,
+     * auf die mindestens eine Zeile der Zielgruppe passt (innerhalb einer Zeile
+     * ODER je Kategorie, UND über die Kategorien). Ein Termin ohne jede Zeile
+     * trifft niemanden - "alle Mitglieder" ist eine Zeile ohne Bedingungen.
+     *
+     * Das ist die eine Stelle, an der die Frage "wer zählt für diesen Termin"
+     * beantwortet wird; jeder Aufrufer baut darauf auf, statt die Bedingung
+     * erneut zu formulieren.
+     *
+     * Stand vorher als `Event::eligibleUsersQuery()` am Modell und baute sich
+     * den AudienceFilterService dort mit `new` selbst. Damit griff die
+     * Datenschicht in die Dienstschicht, an der Dependency Injection vorbei, und
+     * das Modell trug Wissen über die Auflösung von Zielgruppen, das nirgends
+     * sonst in `src/Models` steht. Hier liegt der Dienst ohnehin schon bereit.
+     *
+     * Geladen werden nur User::LIST_COLUMNS. Die Aufrufer reichen die Modelle
+     * unverändert an Templates und Mail-Erzeugung weiter; der Passwort-Hash hat
+     * dort nichts verloren. Wer eine weitere Spalte braucht, nimmt sie in
+     * LIST_COLUMNS auf - nicht in einen eigenen select() an der Aufrufstelle,
+     * sonst fällt die Grenze wieder auseinander.
+     *
+     * @return Builder<User>
+     */
+    public function eligibleUsersQuery(Event $event): Builder
+    {
+        return $this->filters
+            ->membersQueryForSets($event->audienceConditionSets())
+            ->select(array_map(static fn (string $column): string => 'users.' . $column, User::LIST_COLUMNS));
+    }
+
+    /**
      * @return Collection<int, User>
      */
     public function resolveEligibleUsers(Event $event): Collection
     {
-        return $event->eligibleUsersQuery()->get();
+        return $this->eligibleUsersQuery($event)->get();
     }
 
     /**
@@ -116,7 +147,7 @@ class EventAudienceService
 
     public function isUserEligible(Event $event, int $userId): bool
     {
-        return $event->eligibleUsersQuery()
+        return $this->eligibleUsersQuery($event)
             ->where('users.id', $userId)
             ->exists();
     }

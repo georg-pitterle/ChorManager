@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasEntityAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Sponsor extends Model
 {
+    use HasEntityAttachments;
+
+    /** Der Wert, unter dem Anhänge an diesem Sponsor hängen - Logos, Mediadaten, allgemeine Unterlagen. */
+    public const ENTITY_TYPE = 'sponsor';
+
     protected $table = 'sponsors';
     public $timestamps = true;
 
@@ -42,15 +48,5 @@ class Sponsor extends Model
     public function contacts()
     {
         return $this->hasMany(SponsoringContact::class, 'sponsor_id');
-    }
-
-    /**
-     * Anhänge am Sponsor selbst - Logos, Mediadaten, allgemeine Unterlagen, die
-     * zu keiner einzelnen Vereinbarung gehören. Gleiches Muster wie
-     * Sponsorship::attachments().
-     */
-    public function attachments()
-    {
-        return $this->hasMany(Attachment::class, 'entity_id', 'id')->where('entity_type', 'sponsor');
     }
 }

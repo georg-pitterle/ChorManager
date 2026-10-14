@@ -28,7 +28,7 @@ use Tests\Unit\Bootstrap;
  * senden, ohne dass irgendwo stand, woran es lag.
  *
  * Massgeblich ist jetzt dieselbe Zielgruppe, über die auch die Einladung und
- * die Anwesenheitsliste laufen (`Event::eligibleUsersQuery()`). Damit meint
+ * die Anwesenheitsliste laufen (`EventAudienceService::eligibleUsersQuery()`). Damit meint
  * dieselbe Auswahl im Formular auch überall dasselbe.
  */
 final class NewsletterEventAudienceRecipientsFeatureTest extends TestCase

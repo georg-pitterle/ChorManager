@@ -29,7 +29,7 @@ class MailQueueService
         int $recipientId
     ): MailQueue {
         return $this->enqueueGenericMail(
-            mailType: 'newsletter',
+            mailType: MailQueue::MAIL_TYPE_NEWSLETTER,
             recipientEmail: $recipientEmail,
             subject: $subject,
             bodyHtml: $bodyHtml,
@@ -59,7 +59,7 @@ class MailQueueService
         string $invitationToken
     ): MailQueue {
         return $this->enqueueGenericMail(
-            mailType: 'invitation',
+            mailType: MailQueue::MAIL_TYPE_INVITATION,
             recipientEmail: $recipientEmail,
             subject: $subject,
             bodyHtml: $bodyHtml,
@@ -89,7 +89,7 @@ class MailQueueService
         string $resetToken
     ): MailQueue {
         return $this->enqueueGenericMail(
-            mailType: 'password_reset',
+            mailType: MailQueue::MAIL_TYPE_PASSWORD_RESET,
             recipientEmail: $recipientEmail,
             subject: $subject,
             bodyHtml: $bodyHtml,
@@ -119,7 +119,7 @@ class MailQueueService
         int $eventId
     ): MailQueue {
         return $this->enqueueGenericMail(
-            mailType: 'registration_reminder',
+            mailType: MailQueue::MAIL_TYPE_REGISTRATION_REMINDER,
             recipientEmail: $recipientEmail,
             subject: $subject,
             bodyHtml: $bodyHtml,
@@ -143,7 +143,7 @@ class MailQueueService
         int $newsletterId
     ): MailQueue {
         return $this->enqueueGenericMail(
-            mailType: 'newsletter',
+            mailType: MailQueue::MAIL_TYPE_NEWSLETTER,
             recipientEmail: $recipientEmail,
             subject: $subject,
             bodyHtml: $bodyHtml,
@@ -173,7 +173,7 @@ class MailQueueService
         ?array $entity = null
     ): MailQueue {
         return $this->enqueueGenericMail(
-            mailType: 'notification',
+            mailType: MailQueue::MAIL_TYPE_NOTIFICATION,
             recipientEmail: $recipientEmail,
             subject: $subject,
             bodyHtml: $bodyHtml,

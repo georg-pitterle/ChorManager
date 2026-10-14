@@ -2689,7 +2689,7 @@ class DevSeedService
 
         if ($newsletterRecipient !== null) {
             $entries[] = [
-                'mail_type' => 'newsletter',
+                'mail_type' => MailQueue::MAIL_TYPE_NEWSLETTER,
                 'recipient_email' => $sampleUser->email,
                 'subject' => 'Queue: ' . ($draftNewsletter->title ?? 'Newsletter'),
                 'body_html' => '<p>Seeded queued newsletter.</p>',
@@ -2711,7 +2711,7 @@ class DevSeedService
 
         if ($sentNewsletter !== null) {
             $entries[] = [
-                'mail_type' => 'newsletter',
+                'mail_type' => MailQueue::MAIL_TYPE_NEWSLETTER,
                 'recipient_email' => $sampleUser->email,
                 'subject' => 'Queue: Sent sample',
                 'body_html' => '<p>Seeded sent newsletter queue entry.</p>',
@@ -2736,7 +2736,7 @@ class DevSeedService
         // Warteschlangen-Verwaltung nachlesbar bleibt. Ohne diesen Eintrag wäre
         // das in Dev nirgends zu sehen.
         $entries[] = [
-            'mail_type' => 'password_reset',
+            'mail_type' => MailQueue::MAIL_TYPE_PASSWORD_RESET,
             'recipient_email' => $sampleUser->email,
             'subject' => 'Queue: Passwort zurücksetzen (zugestellt)',
             'body_html' => null,
@@ -2755,7 +2755,7 @@ class DevSeedService
         ];
 
         $entries[] = [
-            'mail_type' => 'password_reset',
+            'mail_type' => MailQueue::MAIL_TYPE_PASSWORD_RESET,
             'recipient_email' => $sampleUser->email,
             'subject' => 'Queue: Passwort zurücksetzen',
             'body_html' => '<p>Seeded failed password reset mail.</p>',
@@ -2775,7 +2775,7 @@ class DevSeedService
         ];
 
         $entries[] = [
-            'mail_type' => 'invitation',
+            'mail_type' => MailQueue::MAIL_TYPE_INVITATION,
             'recipient_email' => 'invalid-seed-address',
             'subject' => 'Queue: Einladung',
             'body_html' => '<p>Seeded dead-letter invitation.</p>',
@@ -2797,7 +2797,7 @@ class DevSeedService
         $reminderEvent = Event::query()->orderByDesc('id')->first();
         if ($reminderEvent !== null) {
             $entries[] = [
-                'mail_type' => 'registration_reminder',
+                'mail_type' => MailQueue::MAIL_TYPE_REGISTRATION_REMINDER,
                 'recipient_email' => $sampleUser->email,
                 'subject' => 'Erinnerung: Anmeldung zu ' . $reminderEvent->title,
                 'body_html' => '<p>Seeded queued registration reminder.</p>',
@@ -4925,7 +4925,7 @@ class DevSeedService
 
         // Deckt sich mit NewsletterRecipientService::getEventAudience(), damit
         // recipient_count der tatsächlich aufgelösten Personenzahl entspricht.
-        $eventAudienceUserIds = $audienceEvent->eligibleUsersQuery()->pluck('id')->all();
+        $eventAudienceUserIds = (new EventAudienceService())->eligibleUsersQuery($audienceEvent)->pluck('id')->all();
 
         if ($eventAudienceUserIds === []) {
             $this->report['warnings'][] = 'Die Zielgruppe des gewählten Termins ist leer, '
