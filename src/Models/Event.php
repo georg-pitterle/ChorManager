@@ -57,9 +57,18 @@ class Event extends Model
         return $this->hasMany(Attendance::class, 'event_id', 'id');
     }
 
+    /**
+     * Zielgruppen-Zeilen, aufsteigend nach `id` - die Reihenfolge, in der sie
+     * angelegt wurden. Die Sortierung steht hier und nicht erst beim Nachladen
+     * in HasAudienceConditionSets: Sonst kommt die vorab geladene Zielgruppe in
+     * der Reihenfolge der Datenbank und die nachgeladene nach `id`, und
+     * derselbe Termin bekommt je nach Aufrufer zwei verschiedene
+     * Zielgruppen-Beschreibungen.
+     */
     public function audienceFilters(): HasMany
     {
-        return $this->hasMany(AudienceFilter::class, 'event_id', 'id');
+        return $this->hasMany(AudienceFilter::class, 'event_id', 'id')
+            ->orderBy('audience_filters.id');
     }
 
     /**

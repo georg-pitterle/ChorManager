@@ -319,6 +319,52 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
+     * Eine Methode mit dem Präfix `scope` gehört Eloquent - auch eine private.
+     *
+     * `hasNamedScope()` fragt nur `method_exists()`, und das findet auch eine
+     * private Methode. Ein `->toKeyColumns()` auf dem Query Builder gilt damit
+     * als benannter Scope; Eloquent ruft ihn aus `Model::callNamedScope()` auf,
+     * wo die private Methode der Unterklasse nicht sichtbar ist, und landet
+     * über `__call()` in einer BadMethodCallException über einen Namen, den es
+     * nie gab. Aus einem klaren "diese Methode gibt es nicht" wird so ein
+     * Irrweg durch zwei Weiterleitungen.
+     *
+     * Ein privater Helfer heißt deshalb nicht `scope...`. Wer wirklich einen
+     * Scope schreibt, macht ihn öffentlich.
+     *
+     * @param class-string<Model> $class
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
+    public function testScopeMethodenSindNichtPrivat(string $class): void
+    {
+        $problems = [];
+
+        foreach ((new ReflectionClass($class))->getMethods() as $method) {
+            if ($method->getDeclaringClass()->getName() !== $class) {
+                continue;
+            }
+
+            if (!str_starts_with($method->getName(), 'scope') || $method->getName() === 'scope') {
+                continue;
+            }
+
+            if ($method->isPublic()) {
+                continue;
+            }
+
+            $problems[] = sprintf(
+                '%s::%s() ist nicht öffentlich, trägt aber das für Scopes reservierte Präfix. '
+                    . 'hasNamedScope() meldet den Scope trotzdem, und der Aufruf scheitert erst '
+                    . 'tief in Eloquent.',
+                $class,
+                $method->getName()
+            );
+        }
+
+        self::assertSame([], $problems, implode("\n", $problems));
+    }
+
+    /**
      * Schützt davor, dass der Relationstest oben leer durchläuft, weil die
      * Reflexion keine einzige Relation mehr erkennt.
      */

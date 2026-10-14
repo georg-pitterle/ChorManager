@@ -27,13 +27,18 @@ trait HasAudienceConditionSets
      * dem Austausch der Zielgruppe landet deshalb wieder beim gespeicherten
      * Stand und nicht beim eben verworfenen.
      *
+     * Beide Wege liefern dieselbe Reihenfolge: Die Sortierung nach `id` steht in
+     * `audienceFilters()` selbst und gilt damit auch für die vorab geladene
+     * Beziehung. Vorher stand sie nur hier am Nachladen, und ein vorab geladener
+     * Termin bekam die Zeilen in der Reihenfolge der Datenbank.
+     *
      * @return list<array<string, list<int>>>
      */
     public function audienceConditionSets(): array
     {
         $filters = $this->relationLoaded('audienceFilters')
             ? $this->audienceFilters
-            : $this->audienceFilters()->with('conditions')->orderBy('id')->get();
+            : $this->audienceFilters()->with('conditions')->get();
 
         return $filters->map(static fn (AudienceFilter $filter): array => $filter->conditionSet())->values()->all();
     }

@@ -33,10 +33,17 @@ class NewsletterTemplate extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    /** Zielgruppen-Zeilen; dazu kommen die Termine aus recipientSources(). */
+    /**
+     * Zielgruppen-Zeilen; dazu kommen die Termine aus recipientSources().
+     *
+     * Aufsteigend nach `id` - gleiche Begründung wie bei Event::audienceFilters():
+     * Ohne die Sortierung steht die vorab geladene Zielgruppe anders herum als
+     * die in HasAudienceConditionSets nachgeladene.
+     */
     public function audienceFilters(): HasMany
     {
-        return $this->hasMany(AudienceFilter::class, 'newsletter_template_id', 'id');
+        return $this->hasMany(AudienceFilter::class, 'newsletter_template_id', 'id')
+            ->orderBy('audience_filters.id');
     }
 
     /** Nur noch "Zielgruppe eines Termins" (event_attendees). */

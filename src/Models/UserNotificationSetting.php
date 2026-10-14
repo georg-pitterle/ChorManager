@@ -83,7 +83,7 @@ class UserNotificationSetting extends Model
      */
     protected function setKeysForSaveQuery($query)
     {
-        return $this->scopeToKeyColumns($query);
+        return $this->applyKeyColumns($query);
     }
 
     /**
@@ -94,7 +94,7 @@ class UserNotificationSetting extends Model
      */
     protected function setKeysForSelectQuery($query)
     {
-        return $this->scopeToKeyColumns($query);
+        return $this->applyKeyColumns($query);
     }
 
     /**
@@ -104,10 +104,19 @@ class UserNotificationSetting extends Model
      * Gelesen wird der ursprüngliche Wert, damit auch eine Zeile mit geändertem
      * Schlüssel dort landet, wo sie herkam.
      *
+     * Heißt bewusst nicht mehr `scopeToKeyColumns()`: Das Präfix `scope` gehört
+     * Eloquent. `hasNamedScope()` fragt nur `method_exists()` und findet auch
+     * eine private Methode, meldet also einen benannten Scope `toKeyColumns`,
+     * den `Model::callNamedScope()` anschließend nicht aufrufen kann - private
+     * Methoden der Unterklasse sind dort nicht sichtbar. Ein Vertipper auf dem
+     * Query Builder wäre damit nicht an "diese Methode gibt es nicht"
+     * gescheitert, sondern zwei Weiterleitungen später an einem Namen, der nie
+     * gemeint war.
+     *
      * @param Builder<static> $query
      * @return Builder<static>
      */
-    private function scopeToKeyColumns($query)
+    private function applyKeyColumns($query)
     {
         foreach (self::KEY_COLUMNS as $column) {
             $query->where($column, $this->getOriginal($column, $this->getAttribute($column)));
