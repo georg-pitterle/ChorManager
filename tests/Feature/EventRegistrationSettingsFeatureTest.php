@@ -225,6 +225,11 @@ class EventRegistrationSettingsFeatureTest extends TestCase
         $currentDeadline = Carbon::parse($current->registration_deadline)->format('Y-m-d H:i');
         $futureDeadline = Carbon::parse($future->registration_deadline)->format('Y-m-d H:i');
 
+        // Das Formularfeld kennt nur Minuten. Derselbe Wert geht in die Anfrage
+        // und in die Erwartung - zweimal gerechnet unterschieden sie sich um die
+        // abgeschnittenen Sekunden.
+        $submittedDeadline = Carbon::now()->addDays(1)->format('Y-m-d\TH:i');
+
         try {
             $request = $this->makeRequest('POST', '/events/' . $current->id, [
                 'title' => $current->title,
@@ -235,7 +240,7 @@ class EventRegistrationSettingsFeatureTest extends TestCase
                 'update_series' => '1',
                 'registration_enabled' => '1',
                 'attendance_required' => '1',
-                'registration_deadline' => Carbon::now()->addDays(1)->format('Y-m-d\TH:i'),
+                'registration_deadline' => $submittedDeadline,
             ]);
 
             $response = $this->controller()->update($request, $this->makeResponse(), [
@@ -262,17 +267,48 @@ class EventRegistrationSettingsFeatureTest extends TestCase
             // ...und den Anmeldeschluss als Vorlauf zum jeweiligen Terminbeginn.
             // Frueher blieb er unangetastet - der eingegebene Wert verschwand
             // dann kommentarlos, obwohl die Erfolgsmeldung erschien.
-            $expectedLeadSeconds = Carbon::now()->addDay()->getTimestamp()
-                - Carbon::parse($current->starts_at)->getTimestamp();
+            //
+            // Geprüft wird der Vorlauf nach der Uhr an der Wand, nicht in
+            // verstrichenen Sekunden: "zwei Tage vorher, 19:00" soll bei jedem
+            // Termin der Serie 19:00 bleiben, auch wenn zwischen zwei Terminen
+            // die Zeitumstellung liegt. Genau dafür rechnet der Controller über
+            // WallClockOffset.
+            //
+            // Die Erwartung geht bewusst nicht selbst über WallClockOffset.
+            // Täte sie es, verschöbe eine kaputte Umstellung beide Seiten
+            // gleich und der Test blieb grün. Sie vergleicht stattdessen die
+            // Vorläufe zweier Termine miteinander - gleich sein müssen sie nach
+            // der Uhr, und das hält die Regel ohne das Produktivwerkzeug fest.
+            //
+            // In echten Sekunden gerechnet war diese Erwartung um eine Stunde
+            // daneben, sobald ein Termin der Serie hinter der Umstellung lag:
+            // der Lauf wurde dann allein durch das Kalenderdatum rot, ohne dass
+            // sich am Code etwas geändert hatte.
+            $wallClockGap = static function (string $start, string $deadline): int {
+                $utc = new \DateTimeZone('UTC');
 
-            $this->assertSame(
-                Carbon::parse($freshCurrent->starts_at)->addSeconds($expectedLeadSeconds)->format('Y-m-d H:i'),
-                Carbon::parse($freshCurrent->registration_deadline)->format('Y-m-d H:i')
+                return (new \DateTimeImmutable($deadline, $utc))->getTimestamp()
+                    - (new \DateTimeImmutable($start, $utc))->getTimestamp();
+            };
+
+            $requestedGap = $wallClockGap(
+                Carbon::parse($current->starts_at)->format('Y-m-d H:i:s'),
+                Carbon::parse($submittedDeadline)->format('Y-m-d H:i:s')
             );
-            $this->assertSame(
-                Carbon::parse($freshFuture->starts_at)->addSeconds($expectedLeadSeconds)->format('Y-m-d H:i'),
-                Carbon::parse($freshFuture->registration_deadline)->format('Y-m-d H:i')
+
+            $currentGap = $wallClockGap(
+                Carbon::parse($freshCurrent->starts_at)->format('Y-m-d H:i:s'),
+                Carbon::parse($freshCurrent->registration_deadline)->format('Y-m-d H:i:s')
             );
+            $futureGap = $wallClockGap(
+                Carbon::parse($freshFuture->starts_at)->format('Y-m-d H:i:s'),
+                Carbon::parse($freshFuture->registration_deadline)->format('Y-m-d H:i:s')
+            );
+
+            // Der eingegebene Vorlauf landet unverändert am bearbeiteten Termin.
+            $this->assertSame($requestedGap, $currentGap);
+            // Und jeder Folgetermin bekommt denselben Vorlauf nach der Uhr.
+            $this->assertSame($requestedGap, $futureGap);
 
             // Jeder Termin behaelt einen eigenen Anmeldeschluss; sie fallen
             // ausdruecklich nicht auf denselben Zeitpunkt zusammen.

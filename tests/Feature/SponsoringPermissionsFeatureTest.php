@@ -19,7 +19,10 @@ use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsoringDashboardController;
 use App\Models\Attachment;
 use App\Services\NameFormatterService;
+use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
+use App\Policies\TaskPolicy;
+use App\Services\AttachmentAccessRegistry;
 use App\Util\PasswordHasher;
 use App\Util\SponsorshipStatus;
 use PHPUnit\Framework\TestCase;
@@ -564,6 +567,74 @@ class SponsoringPermissionsFeatureTest extends TestCase
         }
     }
 
+    /**
+     * Die Anhänge am Sponsor folgen derselben Regel wie die an einer
+     * Vereinbarung: Wer sie nicht herunterladen darf, bekommt auch ihre Namen
+     * nicht zu sehen.
+     *
+     * Die Auslieferungsroute hielt sich daran schon - AttachmentAccessRegistry
+     * fragt dafür SponsoringPolicy::canSeeSponsorDetails(). Die Detailseite
+     * fragte nicht: sie listete jeden Dateinamen samt Herunterladen-Knopf, und
+     * der Knopf endete dann in einer Abweisung. Ein Dateiname wie
+     * "Vertrag_Muster_15000.pdf" verrät dabei genau die Zahl, die eine
+     * Bildschirmhöhe darüber verdeckt ist.
+     */
+    public function testSponsorAttachmentNamesStayHiddenFromWhoeverMayNotDownloadThem(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+        $file = $this->makeAttachment('sponsor', (int) $sponsor->id);
+
+        try {
+            // Die Route weist den Abruf ab - der Sponsor gehört der Beitragenden nicht.
+            $this->assertFalse($this->attachmentRegistry()->mayAccess($file));
+
+            // Also darf die Seite den Namen gar nicht erst anbieten.
+            $this->assertFalse($this->sponsorDetailData((int) $sponsor->id)['sees_sponsor_details']);
+
+            // Für das Vollrecht gilt beides andersherum.
+            $_SESSION['can_manage_sponsoring'] = true;
+            $this->assertTrue($this->attachmentRegistry()->mayAccess($file));
+            $this->assertTrue($this->sponsorDetailData((int) $sponsor->id)['sees_sponsor_details']);
+        } finally {
+            $file->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    /**
+     * Und das Template hält sich daran: keine Ausgabe aus `sponsor.attachments`
+     * ohne das Kennzeichen. Strukturell geprüft wie bei den Beträgen, damit
+     * eine spätere Umstellung der Liste die Regel nicht still verliert.
+     */
+    public function testSponsorDetailTemplateGuardsTheSponsorAttachmentList(): void
+    {
+        $path = dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig';
+        $template = file_get_contents($path);
+        $this->assertIsString($template);
+
+        $lines = explode("\n", $template);
+        $unguarded = [];
+        $guarded = false;
+
+        foreach ($lines as $index => $line) {
+            if (str_contains($line, 'sees_sponsor_details')) {
+                $guarded = true;
+                continue;
+            }
+
+            if (str_contains($line, 'sponsor.attachments') and !$guarded) {
+                $unguarded[] = ($index + 1) . ': ' . trim($line);
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $unguarded,
+            'Diese Zeilen geben Sponsor-Anhänge aus, bevor die Policy gefragt wurde.'
+        );
+    }
+
     public function testDashboardShowsAContributorOnlyTheirOwnContactsAndNoTotals(): void
     {
         $this->loginAsContributor();
@@ -825,6 +896,17 @@ class SponsoringPermissionsFeatureTest extends TestCase
             'file_size'     => strlen($content),
             'file_content'  => $content,
         ]);
+    }
+
+    private function attachmentRegistry(): AttachmentAccessRegistry
+    {
+        return new AttachmentAccessRegistry(
+            new SponsoringPolicy($_SESSION),
+            new TaskPolicy($_SESSION),
+            ['sponsoring' => true],
+            new NewsletterPolicy($_SESSION),
+            $_SESSION
+        );
     }
 
     private function loginAsContributor(): void

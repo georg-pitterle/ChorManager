@@ -207,6 +207,11 @@ class SponsorController
             'sponsor'        => $sponsor,
             'can_manage_all' => $this->policy->canManageAll(),
             'can_edit_sponsor' => $this->policy->canEditSponsor($sponsor),
+            // Dieselbe Frage, die AttachmentAccessRegistry::maySeeSponsor() beim
+            // Abruf stellt. Ohne sie listete die Seite jeden Dateinamen samt
+            // Herunterladen-Knopf, und der Knopf endete in einer Abweisung - der
+            // Name selbst verriet dabei schon, was die Datei enthält.
+            'sees_sponsor_details' => $this->policy->canSeeSponsorDetails($sponsor),
             'current_user_id' => $this->policy->currentUserId(),
             'sponsor_state'  => SponsorEngagementState::forSponsor($sponsor),
             'state_labels'   => SponsorEngagementState::labels(),

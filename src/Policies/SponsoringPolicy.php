@@ -134,13 +134,7 @@ class SponsoringPolicy
             return true;
         }
 
-        if (!$this->canContribute() || $this->userId <= 0) {
-            return false;
-        }
-
-        $assignedUserId = $contact->sponsorship?->assigned_user_id;
-
-        return $assignedUserId !== null && (int) $assignedUserId === $this->userId;
+        return $this->isAssignee($contact->sponsorship?->assigned_user_id);
     }
 
     /**
@@ -158,13 +152,7 @@ class SponsoringPolicy
             return true;
         }
 
-        if (!$this->canContribute() || $this->userId <= 0) {
-            return false;
-        }
-
-        $assignedUserId = $sponsorship->assigned_user_id;
-
-        return $assignedUserId !== null && (int) $assignedUserId === $this->userId;
+        return $this->isAssignee($sponsorship->assigned_user_id);
     }
 
     /**
@@ -248,10 +236,10 @@ class SponsoringPolicy
         }
 
         $userId = $this->userId;
-        // Dieselbe Bedingung wie in canCompleteFollowUp(): ohne Beitragsrecht
-        // oder ohne Anmeldung zählt die Zuständigkeit nicht. Bleibt dann
-        // `user_id = 0`, und das trifft auf keine Zeile zu.
-        $includeAssigned = $this->canContribute() && $userId > 0;
+        // Dieselbe Bedingung wie in canCompleteFollowUp() - sie steht dafür in
+        // assignmentCounts(). Trifft sie nicht zu, bleibt `user_id = 0`, und
+        // das trifft auf keine Zeile zu.
+        $includeAssigned = $this->assignmentCounts();
 
         return $query->where(function ($sub) use ($userId, $includeAssigned): void {
             $sub->where('user_id', $userId);
@@ -384,6 +372,40 @@ class SponsoringPolicy
             ->where(function ($sub) use ($today): void {
                 $sub->whereNull('end_date')->orWhere('end_date', '>=', $today);
             });
+    }
+
+    /**
+     * Ist die handelnde Person die an einer Vereinbarung eingetragene
+     * Zuständige?
+     *
+     * Die Frage steht an zwei Entscheidungen - Wiedervorlage abhaken
+     * (canCompleteFollowUp()) und Gegenleistung abhaken (canTickBenefits()) -
+     * und war dort Zeile für Zeile dieselbe. Die Entscheidungen bleiben
+     * getrennt: jede beantwortet weiterhin selbst, wem sie darüber hinaus
+     * zustimmt. Nur ihre gemeinsame Teilfrage steht jetzt an einer Stelle.
+     */
+    private function isAssignee(mixed $assignedUserId): bool
+    {
+        if (!$this->assignmentCounts()) {
+            return false;
+        }
+
+        return $assignedUserId !== null && (int) $assignedUserId === $this->userId;
+    }
+
+    /**
+     * Zählt eine eingetragene Zuständigkeit für diese Sitzung überhaupt? Ohne
+     * Beitragsrecht oder ohne Anmeldung nicht - die Zuständigkeit ist eine
+     * Erweiterung für Beitragende, kein eigener Zugang.
+     *
+     * Eigene Methode, weil restrictFollowUpsToOwnWorkload() dieselbe Bedingung
+     * braucht, dort aber nicht über isAssignee() gehen kann: Die Liste
+     * entscheidet nicht über eine Zeile, sondern darüber, ob die Abfrage den
+     * zweiten Zweig überhaupt bekommt.
+     */
+    private function assignmentCounts(): bool
+    {
+        return $this->canContribute() && $this->userId > 0;
     }
 
     private function canEditOwned(mixed $ownerId): bool

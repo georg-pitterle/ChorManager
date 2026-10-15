@@ -460,7 +460,9 @@
                 <p class="dashboard-section-lead mb-0">Logo, Mediadaten oder Unterlagen, die zu keiner einzelnen Vereinbarung gehören.</p>
             </div>
 
-            {% if sponsor.attachments|length > 0 %}
+            {# Dateinamen und Links nur mit Einsicht - dieselbe Regel wie bei den
+               Belegen einer Vereinbarung und beim Abruf selbst. #}
+            {% if sponsor.attachments|length > 0 and sees_sponsor_details %}
                 <ul class="list-unstyled mb-3 sponsor-files">
                     {% for att in sponsor.attachments %}
                         <li>
@@ -487,6 +489,11 @@
                         </li>
                     {% endfor %}
                 </ul>
+            {% elseif sponsor.attachments|length > 0 %}
+                <p class="text-muted mb-3">
+                    <i class="bi bi-paperclip" aria-hidden="true"></i>
+                    {{ sponsor.attachments|length }} {{ sponsor.attachments|length == 1 ? "Anhang" : "Anhänge" }}
+                </p>
             {% else %}
                 <p class="text-muted">Noch keine Anhänge.</p>
             {% endif %}
