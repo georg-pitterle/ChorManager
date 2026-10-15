@@ -220,6 +220,9 @@ return function (App $app) {
             $group->get('/notifications/{id:[0-9]+}/open', [UserNotificationController::class, 'open']);
             $group->post('/notifications/read-all', [UserNotificationController::class, 'readAll']);
             if ($settings['modules']['webmail'] ?? false) {
+                // GET nur als Auffangnetz: Die installierte App öffnet ein Formular mit
+                // target="_blank" außerhalb ihres Fensters und verliert dabei den POST.
+                $group->get('/profile/webmail/start', [WebmailController::class, 'launch']);
                 $group->post('/profile/webmail/start', [WebmailController::class, 'start']);
             }
 

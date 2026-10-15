@@ -23,7 +23,7 @@
    verschwindet, wenn alles gelesen ist. #}
 {% if _unseen_count is not null %}
     {% if settings.modules.webmail %}
-        <form action="/profile/webmail/start" method="post" class="m-0 me-3" target="_blank">
+        <form action="/profile/webmail/start" data-webmail-launch method="post" class="m-0 me-3" target="_blank">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit"
                     class="btn btn-link text-white p-0 mail-badge-trigger"

@@ -30,6 +30,22 @@ class WebmailController
         $this->ssoTokenService = $ssoTokenService;
     }
 
+    /**
+     * GET auf den Startpunkt: Kein SSO, denn ein Login per GET ließe sich von fremden
+     * Seiten auslösen. Stattdessen zurück ins Profil, mit einem Hinweis.
+     */
+    public function launch(Request $request, Response $response): Response
+    {
+        $this->logger->info('Webmail start requested via GET, redirected to profile.', [
+            'event' => 'webmail.start.get_redirected',
+            'user_id' => (int) ($_SESSION['user_id'] ?? 0),
+        ]);
+        $_SESSION['warning'] = 'Das Postfach konnte nicht direkt geöffnet werden. '
+            . 'Bitte öffne es über „Webmail öffnen“ erneut.';
+
+        return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
     public function start(Request $request, Response $response): Response
     {
         $userId = (int) $_SESSION['user_id'];

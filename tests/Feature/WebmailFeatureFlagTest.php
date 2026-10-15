@@ -143,7 +143,7 @@ final class WebmailFeatureFlagTest extends TestCase
         // Fall 1: Flag an -> SSO-Formular, oeffnet in neuem Tab.
         $this->assertStringContainsString('{% if settings.modules.webmail %}', $template);
         $this->assertStringContainsString(
-            '<form action="/profile/webmail/start" method="post" class="m-0 me-3" target="_blank">',
+            '<form action="/profile/webmail/start" data-webmail-launch method="post" class="m-0 me-3" target="_blank">',
             $template
         );
 

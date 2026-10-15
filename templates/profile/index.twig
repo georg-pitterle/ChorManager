@@ -585,7 +585,7 @@
 
                     {% if settings.modules.webmail and webmail_available %}
                         <hr>
-                        <form action="/profile/webmail/start" method="post" target="_blank" rel="noopener noreferrer">
+                        <form action="/profile/webmail/start" data-webmail-launch method="post" target="_blank" rel="noopener noreferrer">
                             <div class="d-flex justify-content-end">
                                 <button type="submit" class="btn btn-success">
                                     <i class="bi bi-box-arrow-up-right"></i> Webmail öffnen

@@ -7,6 +7,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Message\ResponseInterface as Response;
+use App\Handlers\LoggingErrorHandler;
 use App\Util\AppEnvironment;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
@@ -65,6 +66,11 @@ return function (App $app): void {
     // oder einer der nebenbei laufenden Middlewares verließ `$app->handle()`
     // ungefangen - ohne Fehlerseite und ohne Protokollzeile.
     $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
+    if ($logger !== null) {
+        $errorMiddleware->setDefaultErrorHandler(
+            new LoggingErrorHandler($app->getCallableResolver(), $app->getResponseFactory(), $logger)
+        );
+    }
     $defaultErrorHandler = $errorMiddleware->getDefaultErrorHandler();
 
     // ModelNotFoundException zählt hier wie eine unbekannte Route.

@@ -108,6 +108,61 @@ final class WebmailControllerFeatureTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Aus der installierten App (PWA) heraus öffnet der Browser ein Formular mit
+     * `target="_blank"` außerhalb der App - und schickt dabei GET statt POST. Bisher
+     * endete das in einem 405 mit Fehlerseite. Jetzt landet man im Profil, mit
+     * einem Hinweis, wie das Postfach aufgeht.
+     */
+    public function testLaunchViaGetRedirectsToProfileWithHintInsteadOfFailing(): void
+    {
+        $request = $this->makeRequest('GET', '/profile/webmail/start');
+
+        $response = $this->controller->launch($request, $this->makeResponse());
+
+        $this->assertRedirect($response, '/profile');
+        $this->assertNotEmpty($_SESSION['warning'] ?? null);
+    }
+
+    public function testGetOnStartRouteIsRegisteredWithoutStartingSso(): void
+    {
+        $routes = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
+
+        $this->assertStringContainsString(
+            "\$group->get('/profile/webmail/start', [WebmailController::class, 'launch']);",
+            $routes
+        );
+        $this->assertStringContainsString(
+            "\$group->post('/profile/webmail/start', [WebmailController::class, 'start']);",
+            $routes
+        );
+    }
+
+    /**
+     * In der installierten App geht das Postfach im selben Fenster auf: Ohne
+     * `target` bleibt es ein POST, und `/webmail/` liegt im Geltungsbereich der App.
+     */
+    public function testWebmailFormsDropTheirTargetInsideTheInstalledApp(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $script = (string) file_get_contents($root . '/public/js/webmail-launch.js');
+        $layout = (string) file_get_contents($root . '/templates/layout.twig');
+
+        $this->assertStringContainsString('(display-mode: standalone)', $script);
+        $this->assertStringContainsString('navigator.standalone', $script);
+        $this->assertStringContainsString("removeAttribute('target')", $script);
+        $this->assertStringContainsString("asset_path('/js/webmail-launch.js')", $layout);
+
+        foreach (['/templates/partials/navigation/user_menu.twig', '/templates/profile/index.twig'] as $file) {
+            $template = (string) file_get_contents($root . $file);
+            $this->assertMatchesRegularExpression(
+                '#<form action="/profile/webmail/start"[^>]*data-webmail-launch#',
+                $template,
+                $file
+            );
+        }
+    }
+
     public function testStartWithoutMailAccountRedirectsToProfileWithError(): void
     {
         $request = $this->makeRequest('POST', '/profile/webmail/start');
