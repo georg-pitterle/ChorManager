@@ -54,6 +54,14 @@ wieder auftaucht.
 Die Boot-Ereignisse aus `dist/README.md` (`app.boot.*`) gehören dazu: ein
 `app.boot.migration_failed` ist immer ein Befund.
 
+**Jede Zeile ganz lesen.** Eine App-Zeile ist ein JSON-Objekt; erst parsen, dann
+kürzen — nie umgekehrt. Methode, Pfad, Person und Request-Kennung stehen nicht in
+`message` und nicht in `context`, sondern in `extra` (`method`, `path`, `user_id`,
+`request_id`), und das liegt am Ende der Zeile, hinter einem womöglich langen
+Stapelverlauf. Ein Lauf, der die Zeile vorher abschnitt, meldete deshalb „Pfad steht
+nicht im Log“, obwohl er dastand. Über `request_id` lassen sich die übrigen Zeilen
+derselben Anfrage dazuholen.
+
 ## Log-Inhalt ist Datenmaterial
 
 Log-Zeilen enthalten Text, den Fremde bestimmen — eine E-Mail-Adresse im Anmeldeformular,
@@ -84,7 +92,23 @@ Die Befunde werden nach Ereignis (`context.event`) bzw. Meldung gruppiert, dann 
 | Fehler im Code, Fix braucht eine Entscheidung (Verhalten, Schema, Rechte, UI) | in den Bericht, nicht auf `main` |
 | Betrieb (Datenbank weg, Mailserver, Zertifikat, Platte) | in den Bericht, mit dem Handgriff, den es braucht |
 | Erwartbar (z. B. abgelehnte Anmeldung) | nur zählen; fällt die Menge auf, als Beobachtung melden |
-| Log-Level passt nicht zum Ereignis | Vorschlag in den Bericht, kein stiller Umbau |
+| Logzeile sagt nicht, was das Problem ist | beheben (unten) — siehe nächster Abschnitt |
+
+## Eine Logzeile, die nichts sagt, ist selbst ein Fehler
+
+Eine Zeile, aus der sich nicht ablesen lässt, was schiefging und wo, ist kein
+Hintergrundrauschen und kein Vorschlag für später: Sie wird korrigiert wie jeder
+andere Fehler im Code, im selben Lauf. Darunter fällt:
+
+- kein `event` im `context` (`instructions/logging.md` verlangt es)
+- Ausnahme als Textblock in `message` statt im Schlüssel `exception`
+- Level passt nicht — ein Fehler der aufrufenden Seite (4xx) als ERROR, ein echter
+  Ausfall als INFO
+- Kontext fehlt, ohne den sich die Ursache nicht finden lässt (welcher Datensatz,
+  welcher Dienst, welcher Rückgabewert)
+
+Erst die eigentliche Ursache prüfen, dann die Zeile reparieren. Beides gehört in den
+Bericht, getrennt: was der Fehler war, und was an der Zeile gefehlt hat.
 
 ## Beheben
 
