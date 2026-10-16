@@ -103,7 +103,7 @@ final class InviteArchivedMemberFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class),
             $this->createStub(MailQueueService::class),
             new NullLogger(),
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
 
         return $controller->invite(

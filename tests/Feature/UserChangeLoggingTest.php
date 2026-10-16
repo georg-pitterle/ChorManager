@@ -300,7 +300,7 @@ final class UserChangeLoggingTest extends TestCase
             new ProjectPersistence(),
             $this->createStub(MailQueueService::class),
             $logger,
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
 
         $controller->create(
@@ -345,7 +345,7 @@ final class UserChangeLoggingTest extends TestCase
             new ProjectPersistence(),
             $this->createStub(MailQueueService::class),
             $logger,
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
     }
 

@@ -36,19 +36,51 @@ use App\Models\User;
  */
 class UserEditPolicy
 {
+    private bool $canEditUsers;
+    private bool $canManageOwnVoiceGroup;
+    private bool $canManageProjectMembers;
+    private int $actorLevel;
+    /** @var array<int, int> */
+    private array $ownVoiceGroupIds;
+
     /**
-     * True when the session may open the edit form for the target at all.
+     * Die Sitzung kommt von außen - siehe
+     * tests/Unit/Policies/PoliciesReceiveTheSessionTest.
+     *
+     * Sie stand hier zuvor an jeder Methode als erster Parameter, während die
+     * vier übrigen Policies sie im Konstruktor nehmen. Zwei Wege zur selben
+     * Angabe: Beim Lesen musste man erst nachsehen, welcher hier gerade gilt,
+     * und als Parameter ließ sich eine andere Sitzung hineingeben als die der
+     * anfragenden Person. Mit dem Konstruktor kann die Prüfung gar nicht mehr
+     * für jemand anderen antworten.
      *
      * @param array<string, mixed> $session
      */
-    public function canEdit(array $session, User $target): bool
+    public function __construct(array $session)
+    {
+        // Auf Wahrheitswert prüfen, nicht strikt auf true - Middleware und
+        // Controller lesen dieselben Sitzungsschlüssel ebenfalls nur truthy.
+        $this->canEditUsers = (bool) ($session['can_edit_users'] ?? false);
+        $this->canManageOwnVoiceGroup = (bool) ($session['can_manage_own_voice_group'] ?? false);
+        $this->canManageProjectMembers = (bool) ($session['can_manage_project_members'] ?? false);
+        $this->actorLevel = (int) ($session['role_level'] ?? 0);
+        $this->ownVoiceGroupIds = array_values(array_map(
+            static fn ($id): int => (int) $id,
+            (array) ($session['voice_group_ids'] ?? [])
+        ));
+    }
+
+    /**
+     * True when the session may open the edit form for the target at all.
+     */
+    public function canEdit(User $target): bool
     {
         // Das Formular öffnet, wer darin irgendetwas schreiben darf. Die
         // Projektzuordnung hängt im selben Formular - ohne diesen zweiten Weg
         // blieben Projekte für einen reinen Projektmitglieder-Verwalter über die
         // Mitgliederliste unerreichbar, obwohl update() den POST akzeptiert.
-        return $this->canEditProfile($session, $target)
-            || $this->canEditProjects($session, $target);
+        return $this->canEditProfile($target)
+            || $this->canEditProjects($target);
     }
 
     /**
@@ -61,36 +93,30 @@ class UserEditPolicy
      * eines archivierten Mitglieds ließ sich zwar nicht mehr öffnen, ein direkt
      * abgesetzter POST auf /users/{id} schrieb die Projektzuordnung aber
      * weiterhin.
-     *
-     * @param array<string, mixed> $session
      */
-    public function canEditProjects(array $session, User $target): bool
+    public function canEditProjects(User $target): bool
     {
-        return $this->passesBaseGuards($session, $target)
-            && !empty($session['can_manage_project_members']);
+        return $this->passesBaseGuards($target)
+            && $this->canManageProjectMembers;
     }
 
     /**
      * True when the session may write the member's own data - first name, last name,
      * roles and voice groups. Die E-Mail-Adresse hängt an canEditEmail().
-     *
-     * @param array<string, mixed> $session
      */
-    public function canEditProfile(array $session, User $target): bool
+    public function canEditProfile(User $target): bool
     {
-        return $this->passesBaseGuards($session, $target)
-            && $this->holdsProfileRight($session, $target);
+        return $this->passesBaseGuards($target)
+            && $this->holdsProfileRight($target);
     }
 
     /**
      * True when the session may write the member's e-mail address.
-     *
-     * @param array<string, mixed> $session
      */
-    public function canEditEmail(array $session, User $target): bool
+    public function canEditEmail(User $target): bool
     {
-        return $this->passesBaseGuards($session, $target)
-            && !empty($session['can_edit_users']);
+        return $this->passesBaseGuards($target)
+            && $this->canEditUsers;
     }
 
     /**
@@ -102,13 +128,11 @@ class UserEditPolicy
      * Mitglied stilllegen, aber nicht mehr zurückholen. Hierarchie und Rechte
      * gelten wie beim Bearbeiten - canEditProfile() ist genau diese Stufe plus
      * "Ziel ist aktiv".
-     *
-     * @param array<string, mixed> $session
      */
-    public function canArchive(array $session, User $target): bool
+    public function canArchive(User $target): bool
     {
-        return !$this->targetOutranksActor($session, $target)
-            && $this->holdsProfileRight($session, $target);
+        return !$this->targetOutranksActor($target)
+            && $this->holdsProfileRight($target);
     }
 
     /**
@@ -128,12 +152,11 @@ class UserEditPolicy
      * war, sonst steckten die vor dieser Regel archivierten Mitglieder mit ihren
      * alten Rollen für immer im Archiv fest.
      *
-     * @param array<string, mixed> $session
      * @param int $minimalRoleLevel niedrigstes vergebenes Level, siehe Role::minimalHierarchyLevel()
      */
-    public function canDeactivate(array $session, User $target, int $minimalRoleLevel): bool
+    public function canDeactivate(User $target, int $minimalRoleLevel): bool
     {
-        return $this->canArchive($session, $target)
+        return $this->canArchive($target)
             && !$this->holdsRoleAboveMinimalLevel($target, $minimalRoleLevel);
     }
 
@@ -167,26 +190,22 @@ class UserEditPolicy
      * damit still das Bearbeiten eines archivierten Mitglieds freigegeben. Die
      * Abweisung ist die sichere Richtung und fällt sofort auf, weil sie den
      * erlaubten Fall sperrt statt den verbotenen zu öffnen.
-     *
-     * @param array<string, mixed> $session
      */
-    private function passesBaseGuards(array $session, User $target): bool
+    private function passesBaseGuards(User $target): bool
     {
         if ((int) ($target->is_active ?? 0) !== 1) {
             return false;
         }
 
-        return !$this->targetOutranksActor($session, $target);
+        return !$this->targetOutranksActor($target);
     }
 
     /**
      * The two rights that unlock the member's own data.
-     *
-     * @param array<string, mixed> $session
      */
-    private function holdsProfileRight(array $session, User $target): bool
+    private function holdsProfileRight(User $target): bool
     {
-        if (!empty($session['can_edit_users'])) {
+        if ($this->canEditUsers) {
             return true;
         }
 
@@ -196,12 +215,11 @@ class UserEditPolicy
         // jedem Mitgliederverwalter ohne dieses Recht einen Bearbeiten-Link auf die
         // eigene Stimmgruppe angeboten, den das Speichern mit "Keine Berechtigung"
         // quittiert.
-        if (empty($session['can_manage_own_voice_group'])) {
+        if (!$this->canManageOwnVoiceGroup) {
             return false;
         }
 
-        $ownGroupIds = $this->sessionVoiceGroupIds($session);
-        if ($ownGroupIds === []) {
+        if ($this->ownVoiceGroupIds === []) {
             return false;
         }
 
@@ -210,7 +228,7 @@ class UserEditPolicy
             ->map(static fn ($id): int => (int) $id)
             ->all();
 
-        return array_intersect($ownGroupIds, $targetGroupIds) !== [];
+        return array_intersect($this->ownVoiceGroupIds, $targetGroupIds) !== [];
     }
 
     /**
@@ -224,12 +242,9 @@ class UserEditPolicy
      * Policy sonst nicht berührt - Einladen und Deaktivieren. Sie dort ein zweites
      * Mal aus der Sitzung zusammenzusetzen hieße: zwei Quellen für dieselbe
      * Sicherheitsregel, die beim nächsten Eingriff auseinanderlaufen.
-     *
-     * @param array<string, mixed> $session
      */
-    public function targetOutranksActor(array $session, User $target): bool
+    public function targetOutranksActor(User $target): bool
     {
-        $actorLevel = (int) ($session['role_level'] ?? 0);
         $targetLevel = 0;
 
         foreach ($target->roles as $role) {
@@ -239,17 +254,6 @@ class UserEditPolicy
             }
         }
 
-        return $targetLevel > $actorLevel;
-    }
-
-    /**
-     * @param array<string, mixed> $session
-     * @return array<int, int>
-     */
-    private function sessionVoiceGroupIds(array $session): array
-    {
-        $ids = (array) ($session['voice_group_ids'] ?? []);
-
-        return array_values(array_map(static fn ($id): int => (int) $id, $ids));
+        return $targetLevel > $this->actorLevel;
     }
 }

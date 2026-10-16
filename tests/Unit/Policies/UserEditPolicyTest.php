@@ -14,6 +14,19 @@ use PHPUnit\Framework\TestCase;
 final class UserEditPolicyTest extends TestCase
 {
     /**
+     * Die Policy bekommt die Sitzung im Konstruktor, wie ihre vier Geschwister.
+     * Dass sie hier je Prüfung neu gebaut wird, ist der Punkt: Mehrere Tests
+     * stellen dieselbe Frage für zwei verschiedene Sitzungen, und welche gerade
+     * gilt, steht jetzt an der Konstruktion statt im Aufruf.
+     *
+     * @param array<string, mixed> $session
+     */
+    private function policy(array $session): UserEditPolicy
+    {
+        return new UserEditPolicy($session);
+    }
+
+    /**
      * @param array<int> $voiceGroupIds
      * @param array<int> $roleLevels
      */
@@ -48,42 +61,38 @@ final class UserEditPolicyTest extends TestCase
 
     public function testGlobalEditPermissionAllowsEditing(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_users' => true];
 
-        $this->assertTrue($policy->canEdit($session, $this->makeUser(7, [])));
+        $this->assertTrue($this->policy($session)->canEdit($this->makeUser(7, [])));
     }
 
     public function testManagerWithoutEditPermissionCannotEdit(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => false, 'can_manage_users' => true];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [1])));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [1])));
     }
 
     public function testVoiceGroupRepresentativeCanEditOwnVoiceGroupMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_own_voice_group' => true,
             'voice_group_ids' => [2, 3],
         ];
 
-        $this->assertTrue($policy->canEdit($session, $this->makeUser(7, [3])));
+        $this->assertTrue($this->policy($session)->canEdit($this->makeUser(7, [3])));
     }
 
     public function testVoiceGroupRepresentativeCannotEditForeignMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_own_voice_group' => true,
             'voice_group_ids' => [2],
         ];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [5])));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [5])));
     }
 
     /**
@@ -92,7 +101,6 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testSharedVoiceGroupWithoutCapabilityFlagCannotEdit(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_users' => true,
@@ -100,22 +108,19 @@ final class UserEditPolicyTest extends TestCase
             'voice_group_ids' => [2],
         ];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [2])));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [2])));
     }
 
     public function testArchivedMemberIsNeverEditable(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_users' => true];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [1], 0)));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [1], 0)));
     }
 
     public function testEmptySessionCannotEdit(): void
     {
-        $policy = new UserEditPolicy();
-
-        $this->assertFalse($policy->canEdit([], $this->makeUser(7, [1])));
+        $this->assertFalse($this->policy([])->canEdit($this->makeUser(7, [1])));
     }
 
     /**
@@ -125,7 +130,6 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testProjectMemberManagerMayOpenTheEditForm(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_users' => true,
@@ -133,7 +137,7 @@ final class UserEditPolicyTest extends TestCase
             'voice_group_ids' => [],
         ];
 
-        $this->assertTrue($policy->canEdit($session, $this->makeUser(7, [1])));
+        $this->assertTrue($this->policy($session)->canEdit($this->makeUser(7, [1])));
     }
 
     /**
@@ -143,7 +147,6 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testProjectMemberManagerMayNotEditProfileFields(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_users' => true,
@@ -151,12 +154,11 @@ final class UserEditPolicyTest extends TestCase
             'voice_group_ids' => [],
         ];
 
-        $this->assertFalse($policy->canEditProfile($session, $this->makeUser(7, [1])));
+        $this->assertFalse($this->policy($session)->canEditProfile($this->makeUser(7, [1])));
     }
 
     public function testProjectMemberManagerCannotOpenFormForHigherRankedMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_project_members' => true,
@@ -164,56 +166,50 @@ final class UserEditPolicyTest extends TestCase
             'voice_group_ids' => [],
         ];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [1], 1, [80])));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [1], 1, [80])));
     }
 
     public function testGlobalEditPermissionAllowsProfileEditing(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_users' => true];
 
-        $this->assertTrue($policy->canEditProfile($session, $this->makeUser(7, [])));
+        $this->assertTrue($this->policy($session)->canEditProfile($this->makeUser(7, [])));
     }
 
     public function testVoiceGroupRepresentativeMayEditProfileOfOwnGroupMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_own_voice_group' => true,
             'voice_group_ids' => [2],
         ];
 
-        $this->assertTrue($policy->canEditProfile($session, $this->makeUser(7, [2])));
+        $this->assertTrue($this->policy($session)->canEditProfile($this->makeUser(7, [2])));
     }
 
     public function testArchivedMemberIsNeverProfileEditable(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_users' => true];
 
-        $this->assertFalse($policy->canEditProfile($session, $this->makeUser(7, [1], 0)));
+        $this->assertFalse($this->policy($session)->canEditProfile($this->makeUser(7, [1], 0)));
     }
 
     public function testHigherRankedMemberIsNotEditableDespiteGlobalEditPermission(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_users' => true, 'role_level' => 80];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [1], 1, [100])));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [1], 1, [100])));
     }
 
     public function testSameRankedMemberStaysEditable(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_users' => true, 'role_level' => 100];
 
-        $this->assertTrue($policy->canEdit($session, $this->makeUser(7, [1], 1, [100, 50])));
+        $this->assertTrue($this->policy($session)->canEdit($this->makeUser(7, [1], 1, [100, 50])));
     }
 
     public function testVoiceGroupRepresentativeCannotEditHigherRankedOwnGroupMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_own_voice_group' => true,
@@ -221,7 +217,7 @@ final class UserEditPolicyTest extends TestCase
             'role_level' => 10,
         ];
 
-        $this->assertFalse($policy->canEdit($session, $this->makeUser(7, [2], 1, [50])));
+        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [2], 1, [50])));
     }
 
     /**
@@ -230,14 +226,13 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testProjectMemberManagerMayEditProjectsOfActiveMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_project_members' => true,
             'voice_group_ids' => [],
         ];
 
-        $this->assertTrue($policy->canEditProjects($session, $this->makeUser(7, [1])));
+        $this->assertTrue($this->policy($session)->canEditProjects($this->makeUser(7, [1])));
     }
 
     /**
@@ -247,19 +242,17 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testProjectMemberManagerMayNotEditProjectsOfArchivedMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_project_members' => true,
             'voice_group_ids' => [],
         ];
 
-        $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1], 0)));
+        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 0)));
     }
 
     public function testProjectMemberManagerMayNotEditProjectsOfHigherRankedMember(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_project_members' => true,
@@ -267,19 +260,18 @@ final class UserEditPolicyTest extends TestCase
             'role_level' => 10,
         ];
 
-        $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1], 1, [50])));
+        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 1, [50])));
     }
 
     public function testWithoutProjectMemberRightNoProjectEditing(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_project_members' => false,
             'voice_group_ids' => [],
         ];
 
-        $this->assertFalse($policy->canEditProjects($session, $this->makeUser(7, [1])));
+        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1])));
     }
 
     /**
@@ -289,14 +281,13 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testTargetOutranksActorFollowsTheHighestRoleOfTheTarget(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['role_level' => 50];
 
-        $this->assertTrue($policy->targetOutranksActor($session, $this->makeUser(7, [], 1, [10, 80])));
-        $this->assertFalse($policy->targetOutranksActor($session, $this->makeUser(7, [], 1, [10, 50])));
-        $this->assertFalse($policy->targetOutranksActor($session, $this->makeUser(7, [], 1, [])));
+        $this->assertTrue($this->policy($session)->targetOutranksActor($this->makeUser(7, [], 1, [10, 80])));
+        $this->assertFalse($this->policy($session)->targetOutranksActor($this->makeUser(7, [], 1, [10, 50])));
+        $this->assertFalse($this->policy($session)->targetOutranksActor($this->makeUser(7, [], 1, [])));
         // Ohne role_level in der Sitzung zählt jede Rolle über 0 als höher gereiht.
-        $this->assertTrue($policy->targetOutranksActor([], $this->makeUser(7, [], 1, [1])));
+        $this->assertTrue($this->policy([])->targetOutranksActor($this->makeUser(7, [], 1, [1])));
     }
 
     /**
@@ -307,28 +298,26 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testArchivePermissionIgnoresTheArchivedStateButNotTheHierarchy(): void
     {
-        $policy = new UserEditPolicy();
         $globalSession = ['can_edit_users' => true];
 
-        $this->assertTrue($policy->canArchive($globalSession, $this->makeUser(7, [1], 0)));
-        $this->assertFalse($policy->canEditProfile($globalSession, $this->makeUser(7, [1], 0)));
+        $this->assertTrue($this->policy($globalSession)->canArchive($this->makeUser(7, [1], 0)));
+        $this->assertFalse($this->policy($globalSession)->canEditProfile($this->makeUser(7, [1], 0)));
 
         $outranked = ['can_edit_users' => true, 'role_level' => 10];
-        $this->assertFalse($policy->canArchive($outranked, $this->makeUser(7, [1], 0, [50])));
+        $this->assertFalse($this->policy($outranked)->canArchive($this->makeUser(7, [1], 0, [50])));
     }
 
     public function testArchivePermissionOfAVoiceGroupRepresentativeStaysInTheirGroup(): void
     {
-        $policy = new UserEditPolicy();
         $session = [
             'can_edit_users' => false,
             'can_manage_own_voice_group' => true,
             'voice_group_ids' => [2],
         ];
 
-        $this->assertTrue($policy->canArchive($session, $this->makeUser(7, [2], 0)));
-        $this->assertFalse($policy->canArchive($session, $this->makeUser(8, [5], 0)));
-        $this->assertFalse($policy->canArchive([], $this->makeUser(9, [2], 0)));
+        $this->assertTrue($this->policy($session)->canArchive($this->makeUser(7, [2], 0)));
+        $this->assertFalse($this->policy($session)->canArchive($this->makeUser(8, [5], 0)));
+        $this->assertFalse($this->policy([])->canArchive($this->makeUser(9, [2], 0)));
     }
 
     /**
@@ -340,7 +329,6 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testAMemberWithoutALoadedActiveStateStaysUntouchable(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'can_manage_project_members' => true];
 
         $partiallyLoaded = new User();
@@ -349,10 +337,10 @@ final class UserEditPolicyTest extends TestCase
         $partiallyLoaded->setRelation('roles', new Collection([]));
 
         $this->assertNull($partiallyLoaded->is_active);
-        $this->assertFalse($policy->canEdit($session, $partiallyLoaded));
-        $this->assertFalse($policy->canEditProfile($session, $partiallyLoaded));
-        $this->assertFalse($policy->canEditProjects($session, $partiallyLoaded));
-        $this->assertFalse($policy->canEditEmail($session, $partiallyLoaded));
+        $this->assertFalse($this->policy($session)->canEdit($partiallyLoaded));
+        $this->assertFalse($this->policy($session)->canEditProfile($partiallyLoaded));
+        $this->assertFalse($this->policy($session)->canEditProjects($partiallyLoaded));
+        $this->assertFalse($this->policy($session)->canEditEmail($partiallyLoaded));
     }
 
     /**
@@ -363,17 +351,16 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testArchivingRequiresTheMemberToHoldNoRoleAboveTheMinimalLevel(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'role_level' => 90];
 
         // Ohne Rolle und mit genau der niedrigsten Rolle: archivierbar.
-        $this->assertTrue($policy->canDeactivate($session, $this->makeUser(7, [], 1, []), 0));
-        $this->assertTrue($policy->canDeactivate($session, $this->makeUser(7, [], 1, [0]), 0));
+        $this->assertTrue($this->policy($session)->canDeactivate($this->makeUser(7, [], 1, []), 0));
+        $this->assertTrue($this->policy($session)->canDeactivate($this->makeUser(7, [], 1, [0]), 0));
 
         // Eine Rolle darüber sperrt das Archivieren, obwohl die Befugnis besteht.
         $elevated = $this->makeUser(7, [], 1, [0, 30]);
-        $this->assertTrue($policy->canArchive($session, $elevated));
-        $this->assertFalse($policy->canDeactivate($session, $elevated, 0));
+        $this->assertTrue($this->policy($session)->canArchive($elevated));
+        $this->assertFalse($this->policy($session)->canDeactivate($elevated, 0));
     }
 
     /**
@@ -382,11 +369,10 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testTheMinimalLevelIsNotAssumedToBeZero(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'role_level' => 90];
 
-        $this->assertTrue($policy->canDeactivate($session, $this->makeUser(7, [], 1, [10]), 10));
-        $this->assertFalse($policy->canDeactivate($session, $this->makeUser(7, [], 1, [20]), 10));
+        $this->assertTrue($this->policy($session)->canDeactivate($this->makeUser(7, [], 1, [10]), 10));
+        $this->assertFalse($this->policy($session)->canDeactivate($this->makeUser(7, [], 1, [20]), 10));
     }
 
     /**
@@ -395,14 +381,11 @@ final class UserEditPolicyTest extends TestCase
      */
     public function testTheRoleRuleDoesNotReplaceThePermissionCheck(): void
     {
-        $policy = new UserEditPolicy();
-
-        $this->assertFalse((new UserEditPolicy())->canDeactivate([], $this->makeUser(7, [], 1, []), 0));
-        $this->assertFalse($policy->canDeactivate(
-            ['can_edit_users' => true, 'role_level' => 10],
-            $this->makeUser(7, [], 1, [50]),
-            0
-        ));
+        $this->assertFalse($this->policy([])->canDeactivate($this->makeUser(7, [], 1, []), 0));
+        $this->assertFalse(
+            $this->policy(['can_edit_users' => true, 'role_level' => 10])
+                ->canDeactivate($this->makeUser(7, [], 1, [50]), 0)
+        );
     }
 
     /**
@@ -410,12 +393,21 @@ final class UserEditPolicyTest extends TestCase
      * ihre alten Rollen. Sie müssen zurückholbar bleiben, sonst stecken sie für
      * immer im Archiv fest - deshalb greift die Regel nur in die Archivier-
      * Richtung, nicht in canArchive() selbst.
+     *
+     * Dass ein solches Konto über die Projektzuordnung samt alter Rollen
+     * zurückkommt (ProjectPersistence::addProjectMember() reaktiviert, und
+     * ProjectMemberPolicy kennt bewusst keine Hierarchie), war im Review von
+     * Lauf 45 eine offene Frage. Entschieden wurde: so lassen. Die Anwendung
+     * geht erst jetzt erstmals in Betrieb, es gibt also keinen solchen
+     * Bestand - und beide Wege ins Archiv (UserController::deactivate() und
+     * die Sammelaktion) erzwingen die Regel oben, bevor ein Konto stillgelegt
+     * wird. Künftig kann ein archiviertes Konto damit nichts Erhöhtes mehr
+     * tragen, das beim Zurückholen jemanden überragen könnte.
      */
     public function testRestoringStaysPossibleForAnArchivedMemberWithAnElevatedRole(): void
     {
-        $policy = new UserEditPolicy();
         $session = ['can_edit_users' => true, 'role_level' => 90];
 
-        $this->assertTrue($policy->canArchive($session, $this->makeUser(7, [], 0, [30])));
+        $this->assertTrue($this->policy($session)->canArchive($this->makeUser(7, [], 0, [30])));
     }
 }

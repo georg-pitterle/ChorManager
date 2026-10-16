@@ -92,7 +92,7 @@ final class UserLastManagerGuardFeatureTest extends TestCase
             new ProjectPersistence(),
             $this->createStub(MailQueueService::class),
             $logger,
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
     }
 

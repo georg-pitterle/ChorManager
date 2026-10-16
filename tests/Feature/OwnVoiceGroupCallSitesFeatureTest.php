@@ -196,7 +196,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class),
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
     }
 
@@ -331,7 +331,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $projectPersistence,
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
     }
 
@@ -578,7 +578,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
             $this->createStub(ProjectPersistence::class),
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
     }
 

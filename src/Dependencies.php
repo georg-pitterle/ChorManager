@@ -769,7 +769,7 @@ return function (ContainerBuilder $containerBuilder) {
         TaskPolicy::class => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
 
         NewsletterPolicy::class => static fn (): NewsletterPolicy => new NewsletterPolicy($_SESSION),
-        UserEditPolicy::class => \DI\autowire(),
+        UserEditPolicy::class => static fn (): UserEditPolicy => new UserEditPolicy($_SESSION),
         AttachmentResponseFactory::class => \DI\autowire(),
         // Die Registry braucht das Modul-Array aus den Settings; PHP-DI kann
         // einen einfachen Array-Parameter nicht selbst auflösen.

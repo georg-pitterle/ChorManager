@@ -117,7 +117,7 @@ class UserProjectScopeFeatureTest extends TestCase
             $projectPersistence,
             $mailQueueService,
             $logger,
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
 
         $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
@@ -196,7 +196,7 @@ class UserProjectScopeFeatureTest extends TestCase
             $projectPersistence,
             $mailQueueService,
             $logger,
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
 
         $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [

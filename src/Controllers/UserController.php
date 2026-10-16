@@ -146,11 +146,11 @@ class UserController
         $canArchiveMember = [];
         $minimalRoleLevel = $this->minimalRoleLevel();
         foreach ($users as $user) {
-            if ($this->userEditPolicy->canEdit($_SESSION, $user)) {
+            if ($this->userEditPolicy->canEdit($user)) {
                 $canEditMember[(int) $user->id] = true;
             }
 
-            if ($this->userEditPolicy->canDeactivate($_SESSION, $user, $minimalRoleLevel)) {
+            if ($this->userEditPolicy->canDeactivate($user, $minimalRoleLevel)) {
                 $canArchiveMember[(int) $user->id] = true;
             }
         }
@@ -339,9 +339,9 @@ class UserController
         // canEditProfile() erlaubt das Schreiben der Mitgliedsdaten,
         // canEditProjects() das der Projektzuordnung. Die Basisprüfungen der Policy
         // - archiviertes Ziel, höher gereihtes Ziel - gelten damit auf jeder Stufe.
-        $canEditProjects = $this->userEditPolicy->canEditProjects($_SESSION, $targetUser);
-        $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
-        $canEditEmail = $this->userEditPolicy->canEditEmail($_SESSION, $targetUser);
+        $canEditProjects = $this->userEditPolicy->canEditProjects($targetUser);
+        $canEditProfile = $this->userEditPolicy->canEditProfile($targetUser);
+        $canEditEmail = $this->userEditPolicy->canEditEmail($targetUser);
 
         if (!$canEditProfile && !$canEditProjects) {
             $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
@@ -562,7 +562,7 @@ class UserController
         }
 
         // Mirror update()'s guards: never expose an editable form the actor could not save.
-        if (!$this->userEditPolicy->canEdit($_SESSION, $targetUser)) {
+        if (!$this->userEditPolicy->canEdit($targetUser)) {
             $response->getBody()->write(
                 '<div class="modal-content"><div class="modal-body">'
                 . '<div class="alert alert-danger mb-0">Keine Berechtigung, dieses Mitglied zu bearbeiten.</div>'
@@ -579,7 +579,7 @@ class UserController
         // Deckt sich mit der Schreibprüfung in update(): ohne dieses Recht zeigt das
         // Formular nur die Projektzuordnung, damit niemand Felder ausfüllt, die beim
         // Speichern stillschweigend verworfen würden.
-        $canEditProfile = $this->userEditPolicy->canEditProfile($_SESSION, $targetUser);
+        $canEditProfile = $this->userEditPolicy->canEditProfile($targetUser);
 
         $roles = Role::orderBy('hierarchy_level', 'desc')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
@@ -614,7 +614,7 @@ class UserController
             'can_edit_profile' => $canEditProfile,
             // Adresse und Einladung hängen an der Mitgliederverwaltung, nicht am
             // Bearbeiten-Recht: siehe UserEditPolicy::canEditEmail().
-            'can_edit_email' => $this->userEditPolicy->canEditEmail($_SESSION, $targetUser),
+            'can_edit_email' => $this->userEditPolicy->canEditEmail($targetUser),
             'can_invite' => (bool) $canManageUsers,
             'can_manage_project_members' => $canManageProjectMembers,
             'edit_state' => $editState,
@@ -843,7 +843,7 @@ class UserController
      */
     private function outranksActor(User $targetUser): bool
     {
-        return $this->userEditPolicy->targetOutranksActor($_SESSION, $targetUser);
+        return $this->userEditPolicy->targetOutranksActor($targetUser);
     }
 
     /**
@@ -880,7 +880,7 @@ class UserController
             return false;
         }
 
-        return $this->userEditPolicy->canDeactivate($_SESSION, $targetUser, $this->minimalRoleLevel());
+        return $this->userEditPolicy->canDeactivate($targetUser, $this->minimalRoleLevel());
     }
 
     /**
@@ -908,7 +908,7 @@ class UserController
      */
     private function canArchiveTargetUser(User $targetUser): bool
     {
-        return $this->userEditPolicy->canArchive($_SESSION, $targetUser);
+        return $this->userEditPolicy->canArchive($targetUser);
     }
 
     /**

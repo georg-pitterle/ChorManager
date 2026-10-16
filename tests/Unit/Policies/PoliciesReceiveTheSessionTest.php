@@ -7,17 +7,19 @@ namespace Tests\Unit\Policies;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Keine Policy greift selbst in `$_SESSION`.
+ * Jede Policy bekommt die Sitzung von außen, und zwar im Konstruktor.
  *
- * Drei der vier Policies lasen die Sitzung im Konstruktor aus dem Superglobal,
- * `UserEditPolicy` bekam sie als Parameter. Zwei Wege zur selben Angabe: der
- * eine ließ sich im Test nur über das Setzen eines Superglobals steuern, der
- * andere sauber übergeben - und beim Lesen musste man erst nachsehen, welcher
- * Weg hier gerade gilt.
+ * Die Reihe hatte zwei Abweichungen hintereinander. Zuerst lasen drei Policies
+ * die Sitzung selbst aus dem Superglobal; das ließ sich im Test nur über das
+ * Setzen eines Superglobals steuern. Danach blieb `UserEditPolicy` als
+ * einzige, die sie an jeder Methode als ersten Parameter nahm - zwei Wege zur
+ * selben Angabe, und beim Lesen musste man erst nachsehen, welcher hier gerade
+ * gilt. Als Parameter ließ sich außerdem eine andere Sitzung hineingeben als
+ * die der anfragenden Person.
  *
- * Jetzt bekommt jede Policy die Sitzung von außen. Diese Prüfung hält das
- * fest, weil ein einzelnes `$_SESSION[...]` in einer neuen Methode sonst
- * niemandem auffällt.
+ * Beide Abweichungen sind weg, und beide hält diese Prüfung fest: ein
+ * einzelnes `$_SESSION[...]` in einer neuen Methode fällt sonst niemandem auf,
+ * und eine sechste Policy mit Sitzungs-Parameter genauso wenig.
  */
 class PoliciesReceiveTheSessionTest extends TestCase
 {
@@ -66,6 +68,73 @@ class PoliciesReceiveTheSessionTest extends TestCase
                 $_SESSION = $previous;
             }
         }
+    }
+
+    /**
+     * Die Sitzung kommt im Konstruktor, nicht an der Methode.
+     *
+     * Geprüft über Reflection und nicht über den Quelltext, weil es hier um die
+     * Signatur geht: Ein Konstruktor, der die Sitzung nimmt, und keine
+     * öffentliche Methode, die sie noch einmal als Parameter annimmt. Nur so
+     * kann eine Prüfung gar nicht mehr für jemand anderen antworten als für
+     * die Person, für die die Policy gebaut wurde.
+     */
+    public function testJedePolicyNimmtDieSitzungImKonstruktor(): void
+    {
+        $withoutSessionConstructor = [];
+        $withSessionParameter = [];
+
+        foreach ($this->policyClasses() as $class) {
+            $reflection = new \ReflectionClass($class);
+
+            $constructor = $reflection->getConstructor();
+            $parameters = $constructor === null ? [] : $constructor->getParameters();
+            $takesSession = $parameters !== [] && $parameters[0]->getName() === 'session';
+
+            if (!$takesSession) {
+                $withoutSessionConstructor[] = $reflection->getShortName();
+            }
+
+            foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+                if ($method->isConstructor() || $method->getDeclaringClass()->getName() !== $class) {
+                    continue;
+                }
+
+                foreach ($method->getParameters() as $parameter) {
+                    if ($parameter->getName() === 'session') {
+                        $withSessionParameter[] = $reflection->getShortName() . '::' . $method->getName();
+                    }
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $withoutSessionConstructor,
+            'Diese Policy nimmt die Sitzung nicht im Konstruktor.'
+        );
+        $this->assertSame(
+            [],
+            $withSessionParameter,
+            'Diese Methode nimmt die Sitzung noch einmal als Parameter.'
+        );
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private function policyClasses(): array
+    {
+        $classes = [];
+
+        foreach ($this->policyFiles() as $path) {
+            /** @var class-string $class */
+            $class = 'App\\Policies\\' . basename($path, '.php');
+            $this->assertTrue(class_exists($class), $class . ' ist nicht ladbar.');
+            $classes[] = $class;
+        }
+
+        return $classes;
     }
 
     /**

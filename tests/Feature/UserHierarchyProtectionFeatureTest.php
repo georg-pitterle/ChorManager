@@ -104,7 +104,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
             $projectPersistence,
             $this->createStub(MailQueueService::class),
             $this->createStub(LoggerInterface::class),
-            new UserEditPolicy()
+            new UserEditPolicy($_SESSION)
         );
     }
 
