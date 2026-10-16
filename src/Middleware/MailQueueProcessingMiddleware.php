@@ -6,6 +6,7 @@ namespace App\Middleware;
 
 use App\Models\AppSetting;
 use App\Services\MailDeliveryService;
+use App\Util\AfterResponse;
 use App\Util\OpportunisticRunGate;
 use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -20,15 +21,25 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
 
     public function __construct(
         private readonly MailDeliveryService $deliveryService,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AfterResponse $afterResponse
     ) {
     }
 
+    /**
+     * Versendet wird erst, wenn die Antwort beim Browser und die Sitzung
+     * freigegeben ist. Vorher lief der Versand vor dem Controller, mitten in der
+     * Anfrage: Ein Mailserver, der nicht antwortete, hielt so Seite und
+     * Sitzung fest, bis alle PHP-FPM-Prozesse auf die Sitzungssperre warteten
+     * und die Anwendung stand.
+     */
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $this->processQueueIfDue();
+        $response = $handler->handle($request);
 
-        return $handler->handle($request);
+        $this->afterResponse->defer(fn () => $this->processQueueIfDue());
+
+        return $response;
     }
 
     private function processQueueIfDue(): void

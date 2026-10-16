@@ -141,6 +141,12 @@ Verfügbare Variablen:
 - `SMTP_ENCRYPTION` (`tls`, `ssl`, `none`; Dev-Standard: `none`)
 - `SMTP_FROM_EMAIL` (Dev-Standard: `noreply@chor.local`)
 - `SMTP_FROM_NAME` (Dev-Standard: `Chor-Manager`)
+- `SMTP_TIMEOUT` (Sekunden für Verbindung und jede SMTP-Antwort; Standard: `30`)
+
+Versendet wird über den Queue-Worker und nebenbei aus Seitenaufrufen (Betriebsart
+`hybrid`). Aus Seitenaufrufen erst, nachdem die Antwort beim Browser ist und die Sitzung
+freigegeben wurde - ein hängender Mailserver blockiert so weder die Seite noch weitere
+Klicks derselben Person.
 
 ### Scaleway-Bounces
 

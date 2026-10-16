@@ -39,6 +39,13 @@ class Mailer
     private const ENCRYPTION_REQUIRED_ERROR = 'invalid_config: SMTP requires SMTP_ENCRYPTION=tls'
         . ' or ssl when APP_ENV=production; refusing to send credentials in the clear.';
 
+    /**
+     * Großzügig für einen gesunden Server, der auch nach dem Datenteil einer
+     * großen Newsletter-Mail meist binnen Sekunden antwortet, und kurz genug,
+     * dass ein toter den Worker nicht minutenlang blockiert.
+     */
+    private const DEFAULT_SMTP_TIMEOUT_SECONDS = 30;
+
     private PHPMailer $mail;
     private ?string $lastError = null;
     private bool $useSmtp = false;
@@ -91,6 +98,24 @@ class Mailer
         }
 
         $this->mail->Port = (int) EnvHelper::read('SMTP_PORT', '1025');
+
+        // PHPMailer wartet von Haus aus 300 Sekunden auf Verbindung und jede
+        // Antwort. Ein falscher Port, der die Verbindung annimmt und dann
+        // schweigt, hielt den Versand damit minutenlang fest - und
+        // `max_execution_time` beendet ihn nicht, weil Warten auf einen Socket
+        // unter Linux nicht als Laufzeit zählt. Timeout gilt für den
+        // Verbindungsaufbau und jedes einzelne Lesen, Timelimit für eine ganze
+        // mehrzeilige Antwort.
+        $timeout = $this->smtpTimeout();
+        $this->mail->Timeout = $timeout;
+        $this->mail->getSMTPInstance()->Timelimit = 2 * $timeout;
+    }
+
+    private function smtpTimeout(): int
+    {
+        $timeout = (int) EnvHelper::read('SMTP_TIMEOUT', (string) self::DEFAULT_SMTP_TIMEOUT_SECONDS);
+
+        return $timeout > 0 ? $timeout : self::DEFAULT_SMTP_TIMEOUT_SECONDS;
     }
 
     private function smtpEncryption(): string

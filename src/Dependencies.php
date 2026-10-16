@@ -64,6 +64,7 @@ use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
 use App\Controllers\ScalewayWebhookController;
 use App\Services\Scaleway\SnsMessageVerifier;
+use App\Util\AfterResponse;
 use App\Controllers\EventTypeController;
 use App\Controllers\MailQueueController;
 use App\Controllers\VoiceGroupController;
@@ -253,6 +254,9 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         ScalewayWebhookController::class => \DI\autowire(),
+        // Eine Instanz je Anfrage (PHP-DI hält sie als Singleton): Alles, was
+        // nach der Antwort laufen soll, landet in derselben Warteschlange.
+        AfterResponse::class => fn (): AfterResponse => AfterResponse::forCurrentRequest(),
         ProcessMailQueueCommand::class => \DI\autowire(),
         // Nicht `autowire()`: Der Logger-Parameter hat einen Vorgabewert, und PHP-DI
         // füllt optionale Parameter nicht aus dem Container. Die Sperre liefe dann

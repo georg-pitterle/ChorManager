@@ -50,6 +50,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `SMTP_ENCRYPTION`      | SMTP encryption (`tls`, `ssl`, `none`) | `tls`           | No       |
 | `SMTP_FROM_EMAIL`      | Sender email address                   | -               | **Yes**  |
 | `SMTP_FROM_NAME`       | Sender display name                    | `Chor-Manager`  | No       |
+| `SMTP_TIMEOUT`         | Seconds to wait for connect and each SMTP reply | `30`   | No       |
 | `SCALEWAY_TEM_TOPIC_ARN` | Topics and Events topic of the Scaleway TEM webhook; empty disables `/mail/delivery/scaleway` | - | No |
 | `REMEMBER_ME_DAYS`     | Remember-me cookie lifetime in days    | `30`            | No       |
 | `INVITATION_HANDOFF_URL`   | Optional http(s) URL linked in the invitation e-mail | -    | No       |
