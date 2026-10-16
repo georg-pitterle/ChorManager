@@ -222,6 +222,7 @@ class DevSeedService
                 'newsletter_archive' => 0,
                 'newsletter_attachments' => 0,
                 'mail_queue' => 0,
+                'mail_delivery_events' => 0,
                 'calendar_subscription_tokens' => 0,
                 'webdav_access_tokens' => 0,
                 'oidc_signing_keys' => 0,
@@ -385,6 +386,7 @@ class DevSeedService
             'newsletters',
             'newsletter_template_recipient_sources',
             'newsletter_templates',
+            'mail_delivery_events',
             'mail_queue',
             'budget_items',
             'budget_categories',
@@ -2822,6 +2824,86 @@ class DevSeedService
             if ($model->exists) {
                 $this->report['counts']['mail_queue']++;
             }
+        }
+
+        $this->seedScalewayDeliveryEvents($sampleUser);
+    }
+
+    /**
+     * Zwei über Scaleway TEM versandte Mails mit Rückmeldung aus dem Webhook:
+     * eine zugestellt, eine hart abgewiesen. Der Weg führt über den
+     * MailEventMapperService wie beim echten Webhook, damit Ereignis und
+     * Zustand der Mail zusammenpassen.
+     */
+    private function seedScalewayDeliveryEvents(User $sampleUser): void
+    {
+        $mapper = new MailEventMapperService();
+        $samples = [
+            [
+                'recipient' => (string) $sampleUser->email,
+                'tem_type' => 'email_delivered',
+                'normalized' => 'delivered',
+                'response' => [250, '2.0.0 OK'],
+            ],
+            [
+                'recipient' => 'ehemaliges.mitglied@example.test',
+                'tem_type' => 'email_dropped',
+                'normalized' => 'bounced',
+                'response' => [550, '5.1.1 The email account that you tried to reach does not exist'],
+            ],
+        ];
+
+        foreach ($samples as $index => $sample) {
+            $sentAt = new DateTimeImmutable('-' . (6 - $index) . ' hours');
+            $messageId = '<seed-scaleway-' . $index . '@chormanager.local>';
+
+            $queue = MailQueue::create([
+                'mail_type' => MailQueue::MAIL_TYPE_NEWSLETTER,
+                'recipient_email' => $sample['recipient'],
+                'subject' => 'Probenplan Herbst',
+                'body_html' => '<p>Seeded Scaleway newsletter.</p>',
+                'payload_json' => ['seed' => 'scaleway-webhook'],
+                'status' => 'sent',
+                'delivery_status' => MailQueue::DELIVERY_STATUS_ACCEPTED,
+                'provider_name' => 'smtp',
+                'provider_message_id' => $messageId,
+                'attempts' => 1,
+                'max_attempts' => 3,
+                'last_attempt_at' => $sentAt->format('Y-m-d H:i:s'),
+                'sent_at' => $sentAt->format('Y-m-d H:i:s'),
+                'is_retryable' => false,
+            ]);
+            $this->report['counts']['mail_queue']++;
+
+            $occurredAt = $sentAt->modify('+2 minutes');
+            $temEvent = [
+                'id' => 'seed-tem-event-' . $index,
+                'type' => $sample['tem_type'],
+                'created_at' => $occurredAt->format(DATE_RFC3339),
+                'email_id' => 'seed-tem-email-' . $index,
+                'email_to' => $sample['recipient'],
+                'email_headers' => [['key' => 'Message-Id', 'value' => $messageId]],
+                'email_response_code' => $sample['response'][0],
+                'email_response_message' => $sample['response'][1],
+            ];
+
+            $mapper->mapEvent([
+                'mail_queue_id' => (int) $queue->id,
+                'provider_name' => 'scaleway',
+                'provider_message_id' => $messageId,
+                'source_channel' => 'webhook',
+                'event_type_normalized' => $sample['normalized'],
+                'event_type_raw' => $sample['tem_type'],
+                'idempotency_key' => 'scaleway:seed-tem-event-' . $index,
+                'occurred_at' => $occurredAt->format('Y-m-d H:i:s'),
+                'received_at' => $occurredAt->format('Y-m-d H:i:s'),
+                'raw_payload' => (string) json_encode([
+                    'Type' => 'Notification',
+                    'MessageId' => 'seed-sns-' . $index,
+                    'Message' => json_encode($temEvent),
+                ]),
+            ]);
+            $this->report['counts']['mail_delivery_events']++;
         }
     }
 

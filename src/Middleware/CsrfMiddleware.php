@@ -35,6 +35,9 @@ class CsrfMiddleware implements MiddlewareInterface
     private const EXEMPT_PATHS = [
         '/mail/delivery/webhook',
         '/mail/delivery/dsn',
+        // Scaleway Topics and Events, ausgewiesen über die SNS-Signatur und das
+        // konfigurierte Topic (SnsMessageVerifier).
+        '/mail/delivery/scaleway',
         // Der Token-Endpunkt des OIDC-Providers. Absender ist die
         // angeschlossene Anwendung von Server zu Server, kein Browser: Es gibt
         // keine Sitzung und damit keinen Token, den sie mitschicken könnte.

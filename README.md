@@ -142,6 +142,29 @@ Verfügbare Variablen:
 - `SMTP_FROM_EMAIL` (Dev-Standard: `noreply@chor.local`)
 - `SMTP_FROM_NAME` (Dev-Standard: `Chor-Manager`)
 
+### Scaleway-Bounces
+
+Läuft der Versand über Scaleway Transactional Email (TEM), meldet Scaleway Zustellungen und
+Bounces an `POST /mail/delivery/scaleway`. TEM ruft keinen Webhook direkt auf, sondern
+veröffentlicht in ein Topic von Scaleway Topics and Events; der Endpunkt prüft die
+SNS-Signatur gegen Scaleways CA (`resources/scaleway/sns-trust-chain.pem`, gültig bis 2032)
+und nimmt nur Nachrichten aus dem Topic in `SCALEWAY_TEM_TOPIC_ARN` an.
+
+Einrichtung:
+
+1. In Topics and Events ein Topic anlegen und dessen ARN als `SCALEWAY_TEM_TOPIC_ARN` setzen.
+2. Zum Topic ein **HTTPS**-Abonnement auf `https://<APP_URL>/mail/delivery/scaleway` anlegen.
+3. Abonnement bestätigen: Die Bestätigungsnachricht landet im Log als
+   `mail.webhook.scaleway.subscription_confirmation`; deren `subscribe_url` in der Konsole
+   unter *Confirm subscription* eintragen.
+4. Im TEM-Projekt einen Webhook mit diesem Topic (`sns_arn`) anlegen, mindestens mit
+   `email_delivered`, `email_dropped`, `email_mailbox_not_found`, `email_blocklisted`,
+   `email_spam`; optional `email_deferred`.
+
+Zuordnung zur Mail über die `Message-ID` aus `email_headers`. Ereignisse ohne passende Mail
+(z. B. `blocklist_created`) werden quittiert und als `mail.webhook.scaleway.unmatched`
+geloggt, abgewiesene Nachrichten als `mail.webhook.scaleway.rejected` mit Grund.
+
 
 ## Webmail-Integration (Tachyon)
 

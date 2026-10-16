@@ -82,6 +82,13 @@ return function (ContainerBuilder $containerBuilder) {
                 'wopi_base_url' => EnvHelper::read('OFFICE_WOPI_BASE_URL', ''),
                 'discovery_cache' => __DIR__ . '/../var/cache/office-discovery.json',
             ],
+            // Rückmeldungen von Scaleway Transactional Email über Topics and Events.
+            // Ohne Topic-ARN weist der Endpunkt jede Nachricht ab.
+            'scaleway_webhook' => [
+                'topic_arn' => EnvHelper::read('SCALEWAY_TEM_TOPIC_ARN', ''),
+                'trust_chain' => __DIR__ . '/../resources/scaleway/sns-trust-chain.pem',
+                'certificate_cache_dir' => __DIR__ . '/../var/cache/scaleway-sns',
+            ],
             'backup' => [
                 'dir' => EnvHelper::read('BACKUP_DIR', __DIR__ . '/../var/backups'),
                 'max_manual' => (int) EnvHelper::read('BACKUP_MAX_MANUAL', '5'),

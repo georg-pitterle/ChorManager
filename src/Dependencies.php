@@ -62,6 +62,8 @@ use App\Services\MailEventMapperService;
 use App\Services\ProviderWebhookVerifier;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
+use App\Controllers\ScalewayWebhookController;
+use App\Services\Scaleway\SnsMessageVerifier;
 use App\Controllers\EventTypeController;
 use App\Controllers\MailQueueController;
 use App\Controllers\VoiceGroupController;
@@ -240,6 +242,17 @@ return function (ContainerBuilder $containerBuilder) {
         ProviderWebhookVerifier::class => \DI\autowire(),
         MailDeliveryWebhookController::class => \DI\autowire(),
         MailDeliveryDsnController::class => \DI\autowire(),
+        SnsMessageVerifier::class => function (ContainerInterface $c): SnsMessageVerifier {
+            $settings = $c->get('settings')['scaleway_webhook'];
+
+            return new SnsMessageVerifier(
+                (string) $settings['topic_arn'],
+                $settings['trust_chain'],
+                SnsMessageVerifier::httpFetcher(),
+                $settings['certificate_cache_dir']
+            );
+        },
+        ScalewayWebhookController::class => \DI\autowire(),
         ProcessMailQueueCommand::class => \DI\autowire(),
         // Nicht `autowire()`: Der Logger-Parameter hat einen Vorgabewert, und PHP-DI
         // füllt optionale Parameter nicht aus dem Container. Die Sperre liefe dann

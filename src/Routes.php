@@ -43,6 +43,7 @@ use App\Controllers\NewsletterTemplateController;
 use App\Controllers\MailQueueController;
 use App\Controllers\MailDeliveryWebhookController;
 use App\Controllers\MailDeliveryDsnController;
+use App\Controllers\ScalewayWebhookController;
 use App\Controllers\SheetArchiveController;
 use App\Controllers\BudgetController;
 use App\Controllers\BackupController;
@@ -171,6 +172,9 @@ return function (App $app) {
     // Provider feedback ingest endpoints (public, verified/trusted channels)
     $app->post('/mail/delivery/webhook', [MailDeliveryWebhookController::class, 'ingest']);
     $app->post('/mail/delivery/dsn', [MailDeliveryDsnController::class, 'ingest']);
+    // Scaleway Transactional Email, zugestellt über ein Topic von Scaleway Topics
+    // and Events. Signatur und Topic prüft SnsMessageVerifier.
+    $app->post('/mail/delivery/scaleway', [ScalewayWebhookController::class, 'ingest']);
 
     // OpenID-Connect-Provider. Öffentlich ist alles außer /oidc/authorize - das
     // liegt weiter unten in der geschützten Gruppe, denn genau dort entscheidet
