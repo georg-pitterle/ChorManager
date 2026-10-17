@@ -154,7 +154,15 @@ Läuft der Versand über Scaleway Transactional Email (TEM), meldet Scaleway Zus
 Bounces an `POST /mail/delivery/scaleway`. TEM ruft keinen Webhook direkt auf, sondern
 veröffentlicht in ein Topic von Scaleway Topics and Events; der Endpunkt prüft die
 SNS-Signatur gegen Scaleways CA (`resources/scaleway/sns-trust-chain.pem`, gültig bis 2032)
-und nimmt nur Nachrichten aus dem Topic in `SCALEWAY_TEM_TOPIC_ARN` an.
+und nimmt nur Nachrichten aus dem Topic in `SCALEWAY_TEM_TOPIC_ARN` an. Signiert sein muss
+mit SHA-256 (`SignatureVersion` 2); das ältere SHA-1-Verfahren wird abgewiesen.
+
+Angenommen wird außerdem nur, was höchstens eine Stunde alt ist — sonst ließe sich eine
+einmal mitgeschnittene Nachricht beliebig oft erneut einliefern, denn ihre Signatur altert
+nicht. Bis zu fünf Minuten Vorsprung sind erlaubt, damit die Uhren nicht exakt gleich laufen
+müssen. Geht die Uhr des Servers mehr als das falsch, wird **jede** Rückmeldung mit
+`stale` oder `timestamp_in_future` abgewiesen — bei plötzlicher Funkstille also zuerst die
+Systemzeit prüfen.
 
 Einrichtung:
 

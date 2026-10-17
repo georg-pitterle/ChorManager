@@ -60,11 +60,17 @@ final class SnsMessageVerifierTest extends TestCase
         $this->assertNull($this->verifier()->rejectionReason($message));
     }
 
-    public function testSignatureVersionOneIsAccepted(): void
+    /**
+     * SignatureVersion 1 signiert mit SHA-1. Das Verfahren gilt als gebrochen,
+     * und Scaleway schickt ohnehin Version 2 - angenommen wird es deshalb nicht
+     * mehr, auch wenn die Signatur für sich gültig wäre.
+     */
+    public function testSignatureVersionOneIsRejected(): void
     {
         $message = $this->signer()->notification(['type' => 'email_delivered'], 'sns-v1', '1');
 
-        $this->assertNull($this->verifier()->rejectionReason($message));
+        $this->assertSame('signature_version_unsupported', $this->verifier()->rejectionReason($message));
+        $this->assertSame(0, $this->fetchCount);
     }
 
     public function testSignedSubscriptionConfirmationIsAccepted(): void
@@ -95,7 +101,7 @@ final class SnsMessageVerifierTest extends TestCase
             'MessageId' => 'foreign-1',
             'TopicArn' => 'arn:scw:sns:fr-par:other-project:their-topic',
             'Message' => '{"type":"email_delivered"}',
-            'Timestamp' => '2026-10-16T08:00:00.000Z',
+            'Timestamp' => SnsTestSigner::timestamp(),
             'SignatureVersion' => '2',
             'SigningCertURL' => SnsTestSigner::CERT_URL,
         ]);
@@ -217,6 +223,74 @@ final class SnsMessageVerifierTest extends TestCase
         $message['SignatureVersion'] = '3';
 
         $this->assertSame('signature_version_unsupported', $this->verifier()->rejectionReason($message));
+    }
+
+    /**
+     * Eine einmal mitgeschnittene gültige Nachricht ließe sich sonst beliebig
+     * oft erneut einliefern. Geprüft wird vor dem Zertifikat-Abruf: Eine
+     * abgelaufene Nachricht soll keine Anfrage ins Netz auslösen.
+     */
+    public function testStaleMessageIsRejected(): void
+    {
+        $message = $this->signer()->notification(
+            ['type' => 'email_delivered'],
+            'sns-stale',
+            '2',
+            SnsTestSigner::timestamp(-7200)
+        );
+
+        $this->assertSame('stale', $this->verifier()->rejectionReason($message));
+        $this->assertSame(0, $this->fetchCount);
+    }
+
+    public function testMessageInsideTheFreshnessWindowIsAccepted(): void
+    {
+        $message = $this->signer()->notification(
+            ['type' => 'email_delivered'],
+            'sns-fresh',
+            '2',
+            SnsTestSigner::timestamp(-1800)
+        );
+
+        $this->assertNull($this->verifier()->rejectionReason($message));
+    }
+
+    public function testMessageFromTheFutureIsRejected(): void
+    {
+        $message = $this->signer()->notification(
+            ['type' => 'email_delivered'],
+            'sns-future',
+            '2',
+            SnsTestSigner::timestamp(3600)
+        );
+
+        $this->assertSame('timestamp_in_future', $this->verifier()->rejectionReason($message));
+        $this->assertSame(0, $this->fetchCount);
+    }
+
+    /**
+     * Die Uhren von Scaleway und uns laufen nie genau gleich. Ein paar Sekunden
+     * Vorsprung dürfen keine echte Nachricht kosten.
+     */
+    public function testSmallClockSkewIntoTheFutureIsTolerated(): void
+    {
+        $message = $this->signer()->notification(
+            ['type' => 'email_delivered'],
+            'sns-skew',
+            '2',
+            SnsTestSigner::timestamp(60)
+        );
+
+        $this->assertNull($this->verifier()->rejectionReason($message));
+    }
+
+    public function testUnreadableTimestampIsRejected(): void
+    {
+        $message = $this->signer()->notification(['type' => 'email_delivered']);
+        $message['Timestamp'] = 'übermorgen';
+
+        $this->assertSame('timestamp_invalid', $this->verifier()->rejectionReason($message));
+        $this->assertSame(0, $this->fetchCount);
     }
 
     public function testBundledTrustChainIsScalewaysMnqCa(): void

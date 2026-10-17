@@ -45,6 +45,19 @@ final class SnsTestSigner
         $this->leafPem = $leafPem;
     }
 
+    /**
+     * Ein Zeitstempel in Scaleways Format, standardmäßig jetzt.
+     *
+     * Fest verdrahtet stand hier ein Datum, das mit jedem Tag weiter in der
+     * Vergangenheit lag. Solange niemand das Alter prüft, fällt das nicht auf -
+     * seit der Frischeprüfung im Verifier wäre jede Nachricht der Suite
+     * schlagartig abgelaufen.
+     */
+    public static function timestamp(int $offsetSeconds = 0): string
+    {
+        return gmdate('Y-m-d\\TH:i:s', time() + $offsetSeconds) . '.000Z';
+    }
+
     public function caPem(): string
     {
         return $this->caPem;
@@ -72,14 +85,18 @@ final class SnsTestSigner
      * @param array<string, mixed> $temEvent
      * @return array<string, string>
      */
-    public function notification(array $temEvent, string $messageId = 'sns-msg-1', string $version = '2'): array
-    {
+    public function notification(
+        array $temEvent,
+        string $messageId = 'sns-msg-1',
+        string $version = '2',
+        ?string $timestamp = null
+    ): array {
         return $this->sign([
             'Type' => 'Notification',
             'MessageId' => $messageId,
             'TopicArn' => self::TOPIC_ARN,
             'Message' => (string) json_encode($temEvent, JSON_UNESCAPED_SLASHES),
-            'Timestamp' => '2026-10-16T08:00:00.000Z',
+            'Timestamp' => $timestamp ?? self::timestamp(),
             'SignatureVersion' => $version,
             'SigningCertURL' => self::CERT_URL,
         ]);
@@ -88,7 +105,7 @@ final class SnsTestSigner
     /**
      * @return array<string, string>
      */
-    public function subscriptionConfirmation(): array
+    public function subscriptionConfirmation(?string $timestamp = null): array
     {
         return $this->sign([
             'Type' => 'SubscriptionConfirmation',
@@ -97,7 +114,7 @@ final class SnsTestSigner
             'TopicArn' => self::TOPIC_ARN,
             'Message' => 'You have chosen to subscribe to the topic.',
             'SubscribeURL' => 'https://sns.mnq.fr-par.scaleway.com/?Action=ConfirmSubscription&Token=confirm-token',
-            'Timestamp' => '2026-10-16T08:00:00.000Z',
+            'Timestamp' => $timestamp ?? self::timestamp(),
             'SignatureVersion' => '2',
             'SigningCertURL' => self::CERT_URL,
         ]);

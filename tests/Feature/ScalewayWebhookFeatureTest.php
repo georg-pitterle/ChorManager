@@ -285,7 +285,7 @@ final class ScalewayWebhookFeatureTest extends TestCase
             'MessageId' => 'broken-1',
             'TopicArn' => SnsTestSigner::TOPIC_ARN,
             'Message' => 'kein json',
-            'Timestamp' => '2026-10-16T08:00:00.000Z',
+            'Timestamp' => SnsTestSigner::timestamp(),
             'SignatureVersion' => '2',
             'SigningCertURL' => SnsTestSigner::CERT_URL,
         ]);

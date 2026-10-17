@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Scaleway;
 
 use Closure;
+use DateTimeImmutable;
+use Exception;
 
 /**
  * Prüft, ob eine Nachricht von Scaleway Topics and Events wirklich aus unserem
@@ -38,10 +40,30 @@ final class SnsMessageVerifier
         'Type', 'MessageId', 'TopicArn', 'Message', 'Timestamp', 'SignatureVersion', 'Signature', 'SigningCertURL',
     ];
 
+    /**
+     * Nur SHA-256. Version 1 signiert mit SHA-1 und wurde hier anfangs
+     * mitgenommen, weil AWS sie jahrelang verschickt hat. SHA-1 gilt als
+     * gebrochen, und Scaleway stellt seine Nachrichten mit Version 2 zu - die
+     * ältere Fassung war damit nur ein Weg, die schwächere Prüfung zu
+     * erzwingen, denn welche es sein soll, steht in der Nachricht selbst.
+     */
     private const ALGORITHM_BY_SIGNATURE_VERSION = [
-        '1' => OPENSSL_ALGO_SHA1,
         '2' => OPENSSL_ALGO_SHA256,
     ];
+
+    /**
+     * Wie alt eine Nachricht höchstens sein darf. Ohne diese Grenze ließe sich
+     * eine einmal mitgeschnittene gültige Nachricht beliebig oft erneut
+     * einliefern: Die Signatur bleibt ja gültig, sie altert nicht.
+     */
+    private const MAX_MESSAGE_AGE_SECONDS = 3600;
+
+    /**
+     * Wie viel Vorsprung die Gegenseite haben darf. Zwei Uhren laufen nie genau
+     * gleich; ohne Spielraum verlöre eine echte Nachricht ihr Rennen gegen die
+     * eigene Systemzeit.
+     */
+    private const MAX_CLOCK_SKEW_SECONDS = 300;
 
     /**
      * Die Adresse des Zertifikats kommt aus der Nachricht, also von außen.
@@ -100,6 +122,15 @@ final class SnsMessageVerifier
             return 'topic_mismatch';
         }
 
+        // Vor dem Zertifikat-Abruf: Eine abgelaufene Nachricht soll keine
+        // Anfrage ins Netz auslösen. Der Zeitstempel ist hier noch ungeprüft,
+        // aber das schadet nicht - wer ihn fälscht, scheitert eine Zeile
+        // weiter an der Signatur, die ihn mitdeckt.
+        $staleness = $this->freshnessRejection($message['Timestamp']);
+        if ($staleness !== null) {
+            return $staleness;
+        }
+
         $algorithm = self::ALGORITHM_BY_SIGNATURE_VERSION[$message['SignatureVersion']] ?? null;
         if ($algorithm === null) {
             return 'signature_version_unsupported';
@@ -123,6 +154,26 @@ final class SnsMessageVerifier
         $verified = openssl_verify($this->stringToSign($message), $signature, $certificate, $algorithm);
 
         return $verified === 1 ? null : 'signature_invalid';
+    }
+
+    /**
+     * Null, solange die Nachricht im Zeitfenster liegt; sonst der Grund.
+     */
+    private function freshnessRejection(string $timestamp): ?string
+    {
+        try {
+            $sentAt = new DateTimeImmutable($timestamp);
+        } catch (Exception) {
+            return 'timestamp_invalid';
+        }
+
+        $ageSeconds = time() - $sentAt->getTimestamp();
+
+        if ($ageSeconds > self::MAX_MESSAGE_AGE_SECONDS) {
+            return 'stale';
+        }
+
+        return $ageSeconds < -self::MAX_CLOCK_SKEW_SECONDS ? 'timestamp_in_future' : null;
     }
 
     /**
