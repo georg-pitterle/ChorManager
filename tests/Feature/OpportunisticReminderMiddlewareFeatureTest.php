@@ -146,6 +146,57 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
         $this->assertNotSame('', $failureEvent);
     }
 
+    /**
+     * Eine Datenbank-Störung (z. B. der db-Container startet beim Ausrollen neu)
+     * ist bei der Nebenbei-Arbeit erwartbar und kein Fehler: Sie geht wie bei der
+     * Mailqueue als WARNING `….opportunistic.skipped` ins Protokoll.
+     *
+     * @param class-string<OpportunisticReminderMiddleware> $middlewareClass
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('skippedProvider')]
+    public function testDatabaseOutageIsLoggedAsSkippedWarning(string $middlewareClass, string $skippedEvent): void
+    {
+        $handler = new TestHandler();
+        $middleware = new $middlewareClass(
+            static function (): never {
+                throw new \Illuminate\Database\QueryException(
+                    'default',
+                    'select 1',
+                    [],
+                    new \PDOException('SQLSTATE[HY000] [2002] Connection refused')
+                );
+            },
+            new Logger('test', [$handler])
+        );
+
+        $response = $middleware->process($this->request(), $this->passthroughHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertFalse($handler->hasErrorRecords(), 'Eine Datenbank-Störung ist kein ERROR.');
+        $records = array_values(array_filter(
+            $handler->getRecords(),
+            static fn (\Monolog\LogRecord $record): bool => ($record->context['event'] ?? null) === $skippedEvent
+        ));
+        $this->assertCount(1, $records, 'Erwartetes Ereignis: ' . $skippedEvent);
+        $this->assertSame('WARNING', $records[0]->level->getName());
+        $this->assertArrayHasKey('exception', $records[0]->context);
+    }
+
+    /**
+     * @return iterable<string, array{class-string<OpportunisticReminderMiddleware>, string}>
+     */
+    public static function skippedProvider(): iterable
+    {
+        yield 'Anmelde-Erinnerung' => [
+            RegistrationReminderMiddleware::class,
+            'registration_reminder.opportunistic.skipped',
+        ];
+        yield 'Benachrichtigungs-Erinnerung' => [
+            NotificationReminderMiddleware::class,
+            'notification_reminder.opportunistic.skipped',
+        ];
+    }
+
     private function neverCalledFactory(): Closure
     {
         return static function (): never {

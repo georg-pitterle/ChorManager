@@ -23,4 +23,9 @@ class NotificationReminderMiddleware extends OpportunisticReminderMiddleware
     {
         return 'notification_reminder.opportunistic.failed';
     }
+
+    protected function skippedEvent(): string
+    {
+        return 'notification_reminder.opportunistic.skipped';
+    }
 }

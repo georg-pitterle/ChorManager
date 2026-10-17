@@ -21,4 +21,9 @@ class RegistrationReminderMiddleware extends OpportunisticReminderMiddleware
     {
         return 'registration_reminder.opportunistic.failed';
     }
+
+    protected function skippedEvent(): string
+    {
+        return 'registration_reminder.opportunistic.skipped';
+    }
 }
