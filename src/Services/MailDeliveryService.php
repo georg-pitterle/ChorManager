@@ -7,18 +7,26 @@ namespace App\Services;
 use App\Exceptions\MailQueueEntryNotClaimableException;
 use App\Models\MailQueue;
 use App\Models\NewsletterRecipient;
+use App\Models\User;
 use Carbon\Carbon;
 use Exception;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Throwable;
 
 class MailDeliveryService
 {
     private Mailer $mailer;
     private NewsletterAttachmentService $attachments;
+    private LoggerInterface $logger;
 
-    public function __construct(Mailer $mailer, ?NewsletterAttachmentService $attachments = null)
-    {
+    public function __construct(
+        Mailer $mailer,
+        ?NewsletterAttachmentService $attachments = null,
+        ?LoggerInterface $logger = null
+    ) {
         $this->mailer = $mailer;
+        $this->logger = $logger ?? new NullLogger();
 
         // Der Dienst ist zustandslos und liest nur. Der Vorgabewert hält die
         // Aufrufer frei, die den Versand ohne Newsletter-Bezug bauen - etwa
@@ -239,6 +247,10 @@ class MailDeliveryService
                 if ($entry->mail_type === MailQueue::MAIL_TYPE_NEWSLETTER) {
                     $this->syncNewsletterRecipient($entry, NewsletterRecipient::STATUS_SENT);
                 }
+
+                if ($entry->mail_type === MailQueue::MAIL_TYPE_INVITATION) {
+                    $this->recordInvitationSent($entry, $now);
+                }
             } else {
                 // Soft failure: might be retryable
                 $this->handleFailure($entry, 'send_failed', $this->mailer->getLastError() ?? 'Unknown error');
@@ -252,12 +264,36 @@ class MailDeliveryService
     }
 
     /**
-     * Handle mail send failure with retry logic.
+     * Hält am Mitglied fest, dass der Mailserver seine Einladung angenommen hat.
      *
-     * @param MailQueue $entry
-     * @param string $errorCode
-     * @param string $errorMessage
+     * Erst hier und nicht beim Einreihen: Eine eingereihte Mail kann scheitern
+     * oder bei abgeschaltetem Versand nie hinausgehen. Zugeordnet wird über die
+     * Mitglieder-ID im Payload, nicht über die Empfängeradresse - die kann sich
+     * seit dem Einreihen geändert haben.
      */
+    private function recordInvitationSent(MailQueue $entry, Carbon $sentAt): void
+    {
+        $userId = (int) (($entry->payload_json ?? [])['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return;
+        }
+
+        // Die Mail ist zu diesem Zeitpunkt schon draußen. Ein Fehler hier darf
+        // nicht in die Fehlerbehandlung von sendEntry() durchschlagen: Die
+        // zugestellte Mail stünde dann als gescheitert da und ginge beim
+        // nächsten Versuch ein zweites Mal hinaus.
+        try {
+            User::query()->whereKey($userId)->update(['invitation_sent_at' => $sentAt]);
+        } catch (Throwable $e) {
+            $this->logger->warning('Invitation send time could not be recorded.', [
+                'event' => 'invitation.sent_at.record_failed',
+                'user_id' => $userId,
+                'mail_queue_id' => (int) $entry->id,
+                'exception' => $e,
+            ]);
+        }
+    }
+
     /**
      * Die angehängten Dateien einer eingereihten Newsletter-Mail, sonst nichts.
      *
@@ -277,6 +313,13 @@ class MailDeliveryService
         return $this->attachments->attachedFiles((int) $payload['newsletter_id']);
     }
 
+    /**
+     * Handle mail send failure with retry logic.
+     *
+     * @param MailQueue $entry
+     * @param string $errorCode
+     * @param string $errorMessage
+     */
     private function handleFailure(MailQueue $entry, string $errorCode, string $errorMessage): void
     {
         $entry->update([

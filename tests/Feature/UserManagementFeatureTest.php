@@ -55,7 +55,8 @@ class UserManagementFeatureTest extends TestCase
         $this->assertIsString($plugin);
 
         $this->assertStringContainsString('$user->project_count = count($user->project_ids);', $controller);
-        $this->assertStringContainsString('$user->project_participations = $this->buildProjectParticipations($user);', $controller);
+        // Die Projekt-Historie steht im Bearbeiten-Dialog; die Liste baut sie nicht mehr.
+        $this->assertStringNotContainsString('buildProjectParticipations', $controller);
         $this->assertStringNotContainsString("'status_label' => \$isArchived ? 'Archiviert' : 'Aktiv',", $controller);
         $this->assertStringNotContainsString("'is_archived' => \$isArchived,", $controller);
         $this->assertStringNotContainsString('private function isArchivedProject(Project $project): bool', $controller);
@@ -66,8 +67,7 @@ class UserManagementFeatureTest extends TestCase
         // UserListEagerLoadFeatureTest.
         $this->assertStringContainsString("->with(['roles', 'voiceGroups', 'projects'])", $query);
         $this->assertStringContainsString('User::select(User::LIST_COLUMNS)', $query);
-        $this->assertStringContainsString('user.project_participations', $twig);
-        $this->assertStringContainsString('participation.name', $twig);
+        $this->assertStringNotContainsString('user.project_participations', $twig);
         $this->assertStringContainsString('data-role-options="{{ role_options_attr|replace({', $twig);
         $this->assertStringContainsString('{% set role_filter_ids = "|" %}', $twig);
         $this->assertStringContainsString('data-role="{{ role_filter_ids }}"', $twig);

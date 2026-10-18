@@ -63,12 +63,31 @@ test('Trefferzahl: gefiltert nennt Treffer von Gesamt', () => {
     assert.equal(formatResultCount(0, 81), '0 von 81 Einträgen');
 });
 
+test('Trefferzahl: eine Tabelle darf ihre Einträge beim Namen nennen', () => {
+    const nouns = { one: 'Mitglied', many: 'Mitglieder', of: 'Mitgliedern' };
+    assert.equal(formatResultCount(81, 81, nouns), '81 Mitglieder');
+    assert.equal(formatResultCount(1, 1, nouns), '1 Mitglied');
+    assert.equal(formatResultCount(12, 81, nouns), '12 von 81 Mitgliedern');
+});
+
+test('Trefferzahl: unvollständige Namen fallen auf „Einträge“ zurück', () => {
+    assert.equal(formatResultCount(81, 81, { one: 'Mitglied' }), '81 Einträge');
+    assert.equal(formatResultCount(12, 81, {}), '12 von 81 Einträgen');
+});
+
 test('Filterzahl: zählt nur belegte Plugin-Filter', () => {
     assert.equal(countActiveFilters({}), 0);
     assert.equal(countActiveFilters(null), 0);
     assert.equal(countActiveFilters({ usersManage: { role: '', voice: '' } }), 0);
     assert.equal(countActiveFilters({ usersManage: { role: 'admin', voice: '' } }), 1);
     assert.equal(countActiveFilters({ usersManage: { role: 'admin' }, usersGroup: { group: 'alt' } }), 2);
+});
+
+test('Filterzahl: ein Ansichtsschalter (Wahr/Falsch) ist kein Filter', () => {
+    // Gruppieren nach Stimme änderte die Darstellung, zählte am Telefon aber als
+    // "Filter (1)" - obwohl jede Auswahl auf "Alle" stand.
+    assert.equal(countActiveFilters({ usersGroup: { groupActive: true } }), 0);
+    assert.equal(countActiveFilters({ usersManage: { role: '3' }, usersGroup: { groupActive: true } }), 1);
 });
 
 test('Blätterleiste: erst bei mehr als einer Seite sichtbar', () => {

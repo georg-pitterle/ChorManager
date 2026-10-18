@@ -237,7 +237,15 @@ return function (ContainerBuilder $containerBuilder) {
             return new Mailer($c->get(LoggerInterface::class));
         },
         MailQueueService::class => \DI\autowire(),
-        MailDeliveryService::class => \DI\autowire(),
+        // Ausdrücklich gebaut: \DI\autowire() ließe den optionalen Logger auf
+        // null stehen, siehe DependenciesContainerWiringTest.
+        MailDeliveryService::class => function (ContainerInterface $c): MailDeliveryService {
+            return new MailDeliveryService(
+                $c->get(Mailer::class),
+                $c->get(NewsletterAttachmentService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         MailQueueAdminService::class => \DI\autowire(),
         MailEventMapperService::class => \DI\autowire(),
         ProviderWebhookVerifier::class => \DI\autowire(),

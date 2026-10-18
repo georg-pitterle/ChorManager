@@ -1,0 +1,37 @@
+{# Erscheint erst mit der Auswahl (users.js) und läuft beim Scrollen mit. #}
+{# Vorher stand ein ausgegrauter roter Knopf dauerhaft im Seitenkopf. #}
+<div class="user-selection-bar d-none"
+     id="userSelectionBar"
+     role="status"
+     aria-live="polite">
+    <p class="user-selection-bar__summary mb-0">
+        <span id="userSelectionCount">0 ausgewählt</span>
+        <span id="bulkCrossPageHint" class="d-none"></span>
+        <button type="button" class="btn btn-sm btn-link p-0 ms-2" id="clearUserSelection">Auswahl aufheben</button>
+    </p>
+    <div class="user-selection-bar__actions">
+        {% if session.can_manage_users %}
+            <form action="/users/bulk-invite"
+                  method="post"
+                  id="bulkInviteForm"
+                  data-confirm="Einladung an die ausgewählten Mitglieder senden?">
+                <input type="hidden" name="user_ids" class="js-bulk-user-ids" value="">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Einladung senden</button>
+            </form>
+        {% endif %}
+        <form action="/users/bulk-deactivate"
+              method="post"
+              id="bulkDeactivateForm"
+              data-confirm="Ausgewählte Mitglieder archivieren?">
+            <input type="hidden"
+                   name="user_ids"
+                   id="bulkUserIds"
+                   class="js-bulk-user-ids"
+                   value="">
+            <button type="submit"
+                    class="btn btn-sm btn-outline-danger"
+                    id="bulkDeactivateButton"
+                    disabled>Archivieren</button>
+        </form>
+    </div>
+</div><!-- /userSelectionBar -->

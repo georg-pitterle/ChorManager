@@ -4,6 +4,18 @@ document.addEventListener('DOMContentLoaded', function () {
         return meta ? meta.getAttribute('content') || '' : '';
     }
 
+    // Knopf oder Menüeintrag: Nur ein Knopf bekommt die Konturfarbe. Ein Eintrag im
+    // Zeilenmenü sähe mit Knopfklassen wie ein Fremdkörper aus; dort zählt der Text.
+    function setTone(btn, tone) {
+        if (btn.classList.contains('dropdown-item')) {
+            btn.classList.toggle('text-success', tone === 'success');
+            btn.classList.toggle('text-danger', tone === 'danger');
+            return;
+        }
+        btn.classList.remove('btn-outline-secondary', 'btn-outline-success', 'btn-outline-danger');
+        btn.classList.add('btn-outline-' + tone);
+    }
+
     function handleInviteClick(e) {
         var btn = e.target.closest('.js-invite-btn');
         if (!btn) {
@@ -15,6 +27,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         e.preventDefault();
+
+        // Eine erneute Einladung entwertet den alten Link. Nur dann fragen; eine
+        // erste Einladung geht ohne Umweg hinaus.
+        if (btn.dataset.inviteConfirm && !window.confirm(btn.dataset.inviteConfirm)) {
+            return;
+        }
+
         var url = btn.dataset.inviteUrl;
         if (!url) {
             return;
@@ -49,26 +68,20 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(function (data) {
                 if (data.success) {
-                    btn.classList.remove('btn-outline-secondary');
-                    btn.classList.remove('btn-outline-danger');
-                    btn.classList.add('btn-outline-success');
+                    setTone(btn, 'success');
                     btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Bereits gesendet - erneut senden';
                     btn.dataset.invitePending = '0';
                     btn.disabled = false;
                     return;
                 }
 
-                btn.classList.remove('btn-outline-secondary');
-                btn.classList.remove('btn-outline-success');
-                btn.classList.add('btn-outline-danger');
+                setTone(btn, 'danger');
                 btn.textContent = data.message || 'Fehler';
                 btn.dataset.invitePending = '0';
                 btn.disabled = false;
             })
             .catch(function () {
-                btn.classList.remove('btn-outline-secondary');
-                btn.classList.remove('btn-outline-success');
-                btn.classList.add('btn-outline-danger');
+                setTone(btn, 'danger');
                 btn.textContent = 'Fehler beim Senden';
                 btn.dataset.invitePending = '0';
                 btn.disabled = false;
@@ -84,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!checkbox) {
             return;
         }
-        var container = checkbox.closest('.border');
+        var container = checkbox.closest('.voice-group-choice');
         if (!container) {
             return;
         }
@@ -94,10 +107,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (checkbox.checked) {
             selector.classList.remove('d-none');
-            selector.style.display = 'block';
         } else {
             selector.classList.add('d-none');
-            selector.style.display = 'none';
             var subVoiceSelect = selector.querySelector('select');
             if (subVoiceSelect) {
                 subVoiceSelect.value = '';
@@ -105,22 +116,30 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Bulk archive selection must respect the active table filter: only members that
-    // match the current filter may ever be submitted, and "select all" covers the whole
+    // Bulk selection must respect the active table filter: only members that match
+    // the current filter may ever be submitted, and "select all" covers the whole
     // filtered set across pagination pages (not just the visible page). The table engine
     // exposes the filtered rows via the 'chor-table:applied' event and the
     // container.chorTableLastApplied snapshot.
+    //
+    // Die Sammelaktionen stehen in einer eigenen Leiste, die erst mit der Auswahl
+    // erscheint. Beide Formulare (Einladen, Archivieren) tragen dieselben Kennungen.
     const selectAll = document.getElementById('selectAllUsers');
     const hidden = document.getElementById('bulkUserIds');
     const button = document.getElementById('bulkDeactivateButton');
     const bulkForm = document.getElementById('bulkDeactivateForm');
+    const inviteForm = document.getElementById('bulkInviteForm');
+    const inviteButton = inviteForm ? inviteForm.querySelector('button[type="submit"]') : null;
+    const selectionBar = document.getElementById('userSelectionBar');
+    const selectionCount = document.getElementById('userSelectionCount');
+    const clearSelection = document.getElementById('clearUserSelection');
     const crossPageHint = document.getElementById('bulkCrossPageHint');
     const usersTable = document.getElementById('usersTable');
     const tableContainer = usersTable ? usersTable.closest('[data-table-engine]') : null;
 
     if (hidden && button) {
         const selectedIds = new Set();
-        const baseConfirm = bulkForm ? (bulkForm.getAttribute('data-confirm') || '') : '';
+        const idInputs = Array.from(document.querySelectorAll('.js-bulk-user-ids'));
 
         function enabledCheckbox(row) {
             const cb = row.querySelector('.user-row-select');
@@ -135,25 +154,52 @@ document.addEventListener('DOMContentLoaded', function () {
             return Array.from(document.querySelectorAll('#usersTable tbody tr'));
         }
 
-        function updateCrossPageHint(count, offPageCount) {
-            // Only warn when the selection actually reaches rows on other (hidden) pages,
+        function updateSelectionBar(count, offPageCount, notArchivable, alreadyInvited, usesApp) {
+            // Only mention other pages when the selection actually reaches hidden rows,
             // not merely because the table happens to be paginated.
-            const show = offPageCount > 0;
+            const offPage = offPageCount > 0;
 
+            if (selectionBar) {
+                selectionBar.classList.toggle('d-none', count === 0);
+            }
+            if (selectionCount) {
+                selectionCount.textContent = count + ' ausgewählt';
+            }
             if (crossPageHint) {
-                crossPageHint.textContent = show
-                    ? 'Achtung: Die Auswahl umfasst ' + count + ' Mitglieder – auch auf anderen Seiten.'
+                crossPageHint.textContent = offPage
+                    ? '– davon ' + offPageCount + ' auf anderen Seiten'
                     : '';
-                crossPageHint.classList.toggle('d-none', !show);
+                crossPageHint.classList.toggle('d-none', !offPage);
             }
 
-            if (bulkForm) {
-                bulkForm.setAttribute(
-                    'data-confirm',
-                    show
-                        ? count + ' Mitglieder (auch auf anderen Seiten) wirklich archivieren?'
-                        : baseConfirm
-                );
+            // Die Rückfragen nennen vorher, was nachher passiert (users-bulk-confirm.js).
+            const texts = window.ChorUsersBulk
+                ? window.ChorUsersBulk.confirmTexts({
+                    count: count,
+                    offPage: offPageCount,
+                    notArchivable: notArchivable,
+                    alreadyInvited: alreadyInvited,
+                    usesApp: usesApp
+                })
+                : null;
+            if (bulkForm && texts) {
+                bulkForm.setAttribute('data-confirm', texts.archive);
+            }
+            if (inviteForm && texts) {
+                inviteForm.setAttribute('data-confirm', texts.invite);
+            }
+
+            // Trifft eine Aktion niemanden - drei ausgewählt, alle drei nutzen die App
+            // schon -, ist sie gesperrt statt eine Rückfrage zu einer leeren Aktion.
+            button.disabled = !texts || texts.archivable === 0;
+            button.title = button.disabled && count > 0
+                ? 'Keins der ausgewählten Mitglieder lässt sich archivieren.'
+                : '';
+            if (inviteButton) {
+                inviteButton.disabled = !texts || texts.invitable === 0;
+                inviteButton.title = inviteButton.disabled && count > 0
+                    ? 'Alle ausgewählten Mitglieder nutzen die App schon.'
+                    : '';
             }
         }
 
@@ -173,23 +219,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Reflect selection onto the checkboxes, including hidden rows on other pages.
             let offPageSelected = 0;
+            let notArchivable = 0;
+            let alreadyInvited = 0;
+            let usesApp = 0;
             filteredCheckboxes.forEach(function (cb) {
                 cb.checked = selectedIds.has(cb.value);
                 const row = cb.closest('tr');
-                if (cb.checked && row && row.hidden) {
+                if (!cb.checked || !row) {
+                    return;
+                }
+                if (row.hidden) {
                     offPageSelected += 1;
+                }
+                if (row.dataset.archivable !== '1') {
+                    notArchivable += 1;
+                }
+                // Wer die App schon nutzt, überspringt der Server; die übrigen
+                // mit früherer Einladung bekommen einen neuen Link.
+                if (row.dataset.usesApp === '1') {
+                    usesApp += 1;
+                } else if ((row.dataset.invitation || '').indexOf('|sent|') !== -1) {
+                    alreadyInvited += 1;
                 }
             });
 
-            hidden.value = Array.from(selectedIds).join(',');
-            button.disabled = selectedIds.size === 0;
+            const value = Array.from(selectedIds).join(',');
+            idInputs.forEach(function (input) { input.value = value; });
 
             if (selectAll) {
                 selectAll.checked = filteredCheckboxes.length > 0 && selectedIds.size === filteredCheckboxes.length;
                 selectAll.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredCheckboxes.length;
             }
 
-            updateCrossPageHint(selectedIds.size, offPageSelected);
+            updateSelectionBar(selectedIds.size, offPageSelected, notArchivable, alreadyInvited, usesApp);
         }
 
         if (selectAll) {
@@ -221,6 +283,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             recompute();
         });
+
+        if (clearSelection) {
+            clearSelection.addEventListener('click', function () {
+                selectedIds.clear();
+                recompute();
+            });
+        }
 
         if (tableContainer) {
             tableContainer.addEventListener('chor-table:applied', recompute);

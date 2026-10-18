@@ -198,7 +198,10 @@ class UserQuery
      */
     private function orderedListQuery(int $isActive, ?array $voiceGroupIds = null): Collection
     {
-        $query = User::select(User::LIST_COLUMNS)
+        // Einladung und letzte Anmeldung nur hier und nicht in LIST_COLUMNS: Den
+        // Filter "Einladung" und den Hinweis "Einladung offen" gibt es allein in
+        // der Mitgliederliste.
+        $query = User::select([...User::LIST_COLUMNS, 'invitation_sent_at', 'last_login_at'])
             ->with(['roles', 'voiceGroups', 'projects'])
             ->where('is_active', $isActive);
 

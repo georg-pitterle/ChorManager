@@ -123,7 +123,7 @@ class InviteUserTest extends TestCase
         $this->assertIsString($content);
         $this->assertStringContainsString('name="submit_action"', $content);
         $this->assertStringContainsString('value="save_and_invite"', $content);
-        $this->assertStringContainsString('Speichern und Einladungs-E-Mail senden', $content);
+        $this->assertStringContainsString('>Speichern und einladen<', $content);
     }
 
     public function testInviteFetchSendsCsrfHeader(): void

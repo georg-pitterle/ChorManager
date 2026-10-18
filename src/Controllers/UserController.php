@@ -23,6 +23,7 @@ use App\Models\AppSetting;
 use App\Models\InvitationToken;
 use App\Services\Mailer;
 use App\Services\MailQueueService;
+use App\Services\NameFormatterService;
 use App\Util\AppUrlResolver;
 use App\Util\InvitationHandoffLink;
 use App\Util\MailBranding;
@@ -49,6 +50,9 @@ class UserController
 
     /** Merker für minimalRoleLevel(); null heißt "noch nicht ermittelt". */
     private ?int $minimalRoleLevel = null;
+
+    /** Erst bei Bedarf gebaut: nur die Meldungen der Sammelaktionen nennen Namen. */
+    private ?NameFormatterService $nameFormatter = null;
 
     public function __construct(
         Twig $view,
@@ -96,7 +100,7 @@ class UserController
             $users = $this->userQuery->getUsersForVoiceGroups($myVgs);
         }
 
-        $roles = Role::orderBy('hierarchy_level', 'desc')->get();
+        $roles = Role::orderBy('hierarchy_level')->orderBy('name')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
         $subVoices = SubVoice::orderBy('name')->get();
         $projects = Project::query()->chronological()->get();
@@ -104,7 +108,6 @@ class UserController
         foreach ($users as $user) {
             $user->project_ids = $user->projects->pluck('id')->toArray();
             $user->project_count = count($user->project_ids);
-            $user->project_participations = $this->buildProjectParticipations($user);
             $user->voice_group_ids = $user->voiceGroups->pluck('id')->toArray();
             $pivots = [];
             foreach ($user->voiceGroups as $vg) {
@@ -177,7 +180,31 @@ class UserController
             'can_edit_member' => $canEditMember,
             'can_archive_member' => $canArchiveMember,
             'open_edit_user_id' => $openEditUserId,
+            'default_role_ids' => $this->defaultRoleIds($roles, $minimalRoleLevel),
         ]);
+    }
+
+    /**
+     * Die Rolle, die der Anlegen-Dialog vorkreuzt: die einfache Mitgliedschaft.
+     *
+     * Rollen sind pro Installation frei, einen festen Namen gibt es nicht. Als
+     * einfache Mitgliedschaft gilt die Rolle auf der niedrigsten Stufe - so hält
+     * es auch die Archivier-Regel. Teilen sich zwei Rollen diese Stufe, ist nicht
+     * eindeutig, welche gemeint ist; dann bleibt nichts vorgekreuzt.
+     *
+     * @param iterable<Role> $roles
+     * @return list<int>
+     */
+    private function defaultRoleIds(iterable $roles, int $minimalRoleLevel): array
+    {
+        $lowest = [];
+        foreach ($roles as $role) {
+            if ((int) $role->hierarchy_level === $minimalRoleLevel) {
+                $lowest[] = (int) $role->id;
+            }
+        }
+
+        return count($lowest) === 1 ? $lowest : [];
     }
 
     public function create(Request $request, Response $response): Response
@@ -283,7 +310,15 @@ class UserController
                 self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices)
             );
 
-            if ($submitAction === 'save_and_invite') {
+            // Gleich ins laufende Projekt setzen statt anlegen, suchen, bearbeiten.
+            // Dieselbe Rechteregel wie in update().
+            if (($_SESSION['can_edit_users'] ?? false) || ($_SESSION['can_manage_project_members'] ?? false)) {
+                $this->projectPersistence->setUserProjects((int) $user->id, (array) ($data['projects'] ?? []));
+            }
+
+            // Einladen nur mit Mitgliederverwaltung - dieselbe Regel wie invite()
+            // und bulkInvite(). Ohne das Recht wird angelegt, aber nichts verschickt.
+            if ($submitAction === 'save_and_invite' && $canManageUsers) {
                 $inviteResult = $this->sendInvitationEmail($user, $request);
                 if ($inviteResult['success']) {
                     $_SESSION['success'] = 'Mitglied erfolgreich angelegt und Einladungs-E-Mail gesendet.';
@@ -581,7 +616,7 @@ class UserController
         // Speichern stillschweigend verworfen würden.
         $canEditProfile = $this->userEditPolicy->canEditProfile($targetUser);
 
-        $roles = Role::orderBy('hierarchy_level', 'desc')->get();
+        $roles = Role::orderBy('hierarchy_level')->orderBy('name')->get();
         $voiceGroups = VoiceGroup::orderBy('id')->get();
         $subVoices = SubVoice::orderBy('name')->get();
         $projects = Project::query()->chronological()->get();
@@ -618,6 +653,7 @@ class UserController
             'can_invite' => (bool) $canManageUsers,
             'can_manage_project_members' => $canManageProjectMembers,
             'edit_state' => $editState,
+            'default_role_ids' => $this->defaultRoleIds($roles, $this->minimalRoleLevel()),
         ]);
     }
 
@@ -626,7 +662,7 @@ class UserController
         $userId = (int) $args['id'];
 
         if ($userId === (int) ($_SESSION['user_id'] ?? 0)) {
-            $_SESSION['error'] = 'Du kannst deinen eigenen Account nicht deaktivieren.';
+            $_SESSION['error'] = 'Du kannst dein eigenes Konto nicht archivieren.';
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
@@ -640,7 +676,7 @@ class UserController
         // auf dem die Liste einen Archivieren-Knopf anbieten konnte, den der
         // Klick danach abwies.
         if (!$this->canArchiveTargetUser($targetUser)) {
-            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.';
+            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu archivieren.';
             return $response->withHeader('Location', '/users')->withStatus(302);
         }
 
@@ -665,7 +701,7 @@ class UserController
             'user_id' => (int) $targetUser->id,
         ]);
 
-        $_SESSION['success'] = 'Mitglied wurde archiviert (deaktiviert).';
+        $_SESSION['success'] = 'Mitglied wurde archiviert. Im Archiv lässt es sich jederzeit wiederherstellen.';
         return $response->withHeader('Location', '/users')->withStatus(302);
     }
 
@@ -686,22 +722,22 @@ class UserController
         }
 
         $processed = 0;
-        $failed = [];
+        $skipped = [];
 
         foreach ($ids as $id) {
             if ($id === (int) ($_SESSION['user_id'] ?? 0)) {
-                $failed[] = $id;
+                $skipped[] = 'dein eigenes Konto';
                 continue;
             }
 
             $targetUser = $this->userQuery->findIncludingArchived($id);
             if (!$targetUser) {
-                $failed[] = $id;
+                $skipped[] = 'ein nicht mehr vorhandenes Mitglied';
                 continue;
             }
 
             if (!$this->canDeactivateTargetUser($targetUser)) {
-                $failed[] = $id;
+                $skipped[] = $this->skippedMember($targetUser, $this->archiveSkipReason($targetUser));
                 continue;
             }
 
@@ -716,13 +752,131 @@ class UserController
             $processed++;
         }
 
-        $_SESSION['success'] = sprintf(
-            'Bulk-Aktion abgeschlossen: %d deaktiviert, %d fehlgeschlagen.',
-            $processed,
-            count($failed)
-        );
+        $_SESSION['success'] = sprintf('%d archiviert.', $processed) . $this->skippedSummary($skipped);
 
         return $response->withHeader('Location', '/users')->withStatus(302);
+    }
+
+    /**
+     * Einladung an die ausgewählten Mitglieder.
+     *
+     * Dieselben Regeln wie invite(): nur mit Mitgliederverwaltung, kein
+     * archiviertes und kein ranghöheres Konto. Das eigene Konto fällt ebenfalls
+     * heraus - die Einladung setzte das eigene Passwort zurück. Was nicht geht,
+     * wird übersprungen und gezählt; ein Fehlschlag beim Einreihen ebenso.
+     */
+    public function bulkInvite(Request $request, Response $response): Response
+    {
+        if (!($_SESSION['can_manage_users'] ?? false)) {
+            $_SESSION['error'] = 'Du hast keine Berechtigung, Einladungen zu verschicken.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $sourceIds = $data['user_ids'] ?? [];
+        if (is_string($sourceIds)) {
+            $sourceIds = explode(',', $sourceIds);
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $sourceIds))));
+
+        if ($ids === []) {
+            $_SESSION['error'] = 'Keine Mitglieder ausgewählt.';
+            return $response->withHeader('Location', '/users')->withStatus(302);
+        }
+
+        $sent = 0;
+        $skipped = [];
+        $actorId = (int) ($_SESSION['user_id'] ?? 0);
+
+        foreach ($ids as $id) {
+            if ($id === $actorId) {
+                $skipped[] = 'dein eigenes Konto';
+                continue;
+            }
+
+            $targetUser = $this->userQuery->findIncludingArchived($id);
+            if (!$targetUser) {
+                $skipped[] = 'ein nicht mehr vorhandenes Mitglied';
+                continue;
+            }
+
+            if (!(bool) $targetUser->is_active) {
+                $skipped[] = $this->skippedMember($targetUser, 'archiviert');
+                continue;
+            }
+
+            if ($this->outranksActor($targetUser)) {
+                $skipped[] = $this->skippedMember($targetUser, 'keine Berechtigung');
+                continue;
+            }
+
+            if ($targetUser->usesApp()) {
+                $skipped[] = $this->skippedMember($targetUser, 'nutzt die App schon');
+                continue;
+            }
+
+            if ($this->sendInvitationEmail($targetUser, $request)['success']) {
+                $sent++;
+            } else {
+                $skipped[] = $this->skippedMember($targetUser, 'Versand fehlgeschlagen');
+            }
+        }
+
+        $_SESSION['success'] = sprintf(
+            'Einladung an %d %s verschickt.',
+            $sent,
+            $sent === 1 ? 'Mitglied' : 'Mitglieder'
+        ) . $this->skippedSummary($skipped);
+
+        return $response->withHeader('Location', '/users')->withStatus(302);
+    }
+
+    /**
+     * Warum eine Sammelaktion ein Mitglied nicht archiviert hat - in derselben
+     * Reihenfolge wie die Prüfungen in deactivate(). Die Meldung zählte vorher
+     * nur "1 übersprungen", und wer wissen wollte, wen es traf, musste die
+     * Auswahl Zeile für Zeile nachprüfen.
+     */
+    private function archiveSkipReason(User $targetUser): string
+    {
+        if (!$this->canArchiveTargetUser($targetUser)) {
+            return 'keine Berechtigung';
+        }
+
+        if ($this->isLastUserManager($targetUser)) {
+            return 'letzte Person mit Mitgliederverwaltung';
+        }
+
+        if ($this->userEditPolicy->holdsRoleAboveMinimalLevel($targetUser, $this->minimalRoleLevel())) {
+            return 'hält noch eine erweiterte Rolle';
+        }
+
+        return 'keine Berechtigung';
+    }
+
+    private function skippedMember(User $targetUser, string $reason): string
+    {
+        $this->nameFormatter ??= new NameFormatterService();
+
+        return $this->nameFormatter->formatPerson($targetUser) . ' (' . $reason . ')';
+    }
+
+    /**
+     * "Übersprungen: A (Grund), B (Grund) und 3 weitere." - höchstens fünf
+     * Namen, damit die Meldung bei einer großen Auswahl lesbar bleibt.
+     *
+     * @param list<string> $skipped
+     */
+    private function skippedSummary(array $skipped): string
+    {
+        if ($skipped === []) {
+            return '';
+        }
+
+        $shown = array_slice($skipped, 0, 5);
+        $rest = count($skipped) - count($shown);
+
+        return ' Übersprungen: ' . implode(', ', $shown) . ($rest > 0 ? ' und ' . $rest . ' weitere' : '') . '.';
     }
 
     public function restore(Request $request, Response $response, array $args): Response
@@ -752,19 +906,6 @@ class UserController
 
         $_SESSION['success'] = 'Mitglied wurde erfolgreich wiederhergestellt.';
         return $response->withHeader('Location', '/users?archived=1')->withStatus(302);
-    }
-
-    private function buildProjectParticipations(User $user): array
-    {
-        return $user->projects
-            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
-            ->map(function (Project $project): array {
-                return [
-                    'name' => (string) $project->name,
-                ];
-            })
-            ->values()
-            ->all();
     }
 
     /**

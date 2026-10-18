@@ -316,7 +316,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/users');
         $this->assertSame(
-            'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.',
+            'Du hast keine Berechtigung, dieses Mitglied zu archivieren.',
             $_SESSION['error'] ?? null
         );
     }

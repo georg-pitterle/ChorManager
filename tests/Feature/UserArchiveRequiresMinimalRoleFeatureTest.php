@@ -162,7 +162,10 @@ final class UserArchiveRequiresMinimalRoleFeatureTest extends TestCase
         );
 
         $this->assertSame(1, (int) $this->target->fresh()->is_active);
-        $this->assertStringContainsString('1 fehlgeschlagen', (string) ($_SESSION['success'] ?? ''));
+        $this->assertSame(
+            '0 archiviert. Übersprungen: Zu Archivieren (hält noch eine erweiterte Rolle).',
+            $_SESSION['success'] ?? null
+        );
     }
 
     /**
@@ -211,5 +214,54 @@ final class UserArchiveRequiresMinimalRoleFeatureTest extends TestCase
         $this->assertArrayHasKey('can_archive_member', $data);
         $this->assertArrayNotHasKey((int) $this->target->id, $data['can_archive_member']);
         $this->assertArrayHasKey((int) $lowOnly->id, $data['can_archive_member']);
+    }
+
+    /**
+     * Wer ein Mitglied anlegt, wählt fast immer die einfache Mitgliedschaft. Der
+     * Dialog kreuzt sie deshalb vor - aber nur, wenn eindeutig ist, welche Rolle
+     * das ist: Die Rollen sind pro Installation frei.
+     */
+    public function testTheCreateDialogPreselectsTheSingleLowestRole(): void
+    {
+        $data = $this->indexData();
+
+        $this->assertSame([(int) $this->baseRole->id], $data['default_role_ids'] ?? null);
+    }
+
+    /**
+     * Die Grundrolle zuerst, die mächtigste zuletzt. Absteigend sortiert stand
+     * die Rolle mit allen Rechten als erstes Kästchen oben links - genau dort,
+     * wo ein Fehlklick am leichtesten passiert.
+     */
+    public function testRolesAreOfferedFromBasicToPowerful(): void
+    {
+        $levels = array_map(
+            static fn ($role): int => (int) $role->hierarchy_level,
+            iterator_to_array($this->indexData()['roles'])
+        );
+
+        $sorted = $levels;
+        sort($sorted);
+        $this->assertSame($sorted, array_values($levels));
+    }
+
+    public function testTwoRolesOnTheLowestLevelPreselectNothing(): void
+    {
+        Role::create(['name' => 'Auch singend ' . bin2hex(random_bytes(3)), 'hierarchy_level' => 5]);
+
+        $data = $this->indexData();
+
+        $this->assertSame([], $data['default_role_ids'] ?? null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function indexData(): array
+    {
+        $this->controller()->index($this->makeRequest('GET', '/users'), $this->makeResponse());
+        $this->assertNotSame([], $this->renderCalls);
+
+        return $this->renderCalls[0][1];
     }
 }

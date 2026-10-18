@@ -264,11 +264,18 @@
         return /^[\s\-\u2013\u2014]*$/.test(String(text || ''));
     }
 
-    function formatResultCount(matching, total) {
+    // Eine Tabelle darf ihre Einträge beim Namen nennen ("81 Mitglieder"). Nur wenn
+    // alle drei Formen da sind - Einzahl, Mehrzahl und der Dativ für "12 von 81 …" -,
+    // sonst bliebe ein halbdeutscher Satz stehen.
+    function formatResultCount(matching, total, nouns) {
+        const named = nouns && nouns.one && nouns.many && nouns.of;
+        const one = named ? nouns.one : 'Eintrag';
+        const many = named ? nouns.many : 'Einträge';
+        const of = named ? nouns.of : 'Einträgen';
         if (matching === total) {
-            return total + (total === 1 ? ' Eintrag' : ' Einträge');
+            return total + ' ' + (total === 1 ? one : many);
         }
-        return matching + ' von ' + total + ' Einträgen';
+        return matching + ' von ' + total + ' ' + of;
     }
 
     // Anzahl belegter Filterwerte über alle Plugins; zeigt am Telefon „Filter (n)“.
@@ -279,8 +286,10 @@
         return Object.keys(pluginFilters).reduce(function (sum, pluginName) {
             const value = pluginFilters[pluginName];
             if (value && typeof value === 'object') {
+                // Wahr/Falsch ist ein Ansichtsschalter (etwa "nach Stimme gruppieren"),
+                // kein Filter: er ändert die Darstellung, nicht die Treffermenge.
                 return sum + Object.keys(value).filter(function (key) {
-                    return normalizeText(value[key]) !== '';
+                    return typeof value[key] !== 'boolean' && normalizeText(value[key]) !== '';
                 }).length;
             }
             return sum + (normalizeText(value) !== '' ? 1 : 0);
@@ -792,6 +801,9 @@
                     // aus dessen data-Attributen, statt eigene Kopien zu pflegen.
                     root: container,
                     pluginSlot: pluginSlot,
+                    // Platz im Menü "Ansicht" für Plugins, die nur die Darstellung
+                    // ändern (etwa das Gruppieren) und nicht zwischen die Filter gehören.
+                    viewSlot: container.querySelector('[data-table-view-slot]'),
                     onPluginStateChange: onPluginStateChange,
                     matchCell: matchCell,
                     createSelectGroup: createSelectGroup
@@ -1077,7 +1089,11 @@
             syncFilterToggle();
 
             if (resultCountLabel) {
-                resultCountLabel.textContent = formatResultCount(matchingCount, rows.length);
+                resultCountLabel.textContent = formatResultCount(matchingCount, rows.length, {
+                    one: container.dataset.countOne,
+                    many: container.dataset.countMany,
+                    of: container.dataset.countOf
+                });
             }
 
             if (filterClearButton) {

@@ -35,6 +35,35 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringNotContainsString(".app-topbar__brand-name {\n        display: none;", $styleContent);
     }
 
+    /**
+     * Statt "Chor-Manag…" steht nur das Logo da, wenn der Name nicht ganz passt.
+     * Gemessen wird im Browser (topbar-brand.js); per Media-Query ließe sich das
+     * nicht entscheiden, weil die Namenslänge pro Installation eine andere ist.
+     */
+    public function testTheBrandNameHidesOnlyWhenItDoesNotFit(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $layout = (string) file_get_contents($root . '/templates/layout.twig');
+        $style = (string) file_get_contents($root . '/public/css/style.css');
+
+        $this->assertStringContainsString("<script src=\"{{ asset_path('/js/topbar-brand.js') }}\"></script>", $layout);
+        $this->assertMatchesRegularExpression('/\.app-topbar__brand-name\.is-overflowing \{\s*display: none;/', $style);
+        $this->assertStringNotContainsString('line-clamp', $style);
+    }
+
+    /**
+     * Die Seitenleiste klappt ohne Animation. Animiert wurden Breite und linker
+     * Rand - beides zwingt den Browser, in jedem Bild das ganze Layout neu zu
+     * berechnen, und der Inhalt rutschte sichtbar mit.
+     */
+    public function testTheSidebarDoesNotAnimateLayoutProperties(): void
+    {
+        $style = (string) file_get_contents(dirname(__DIR__, 2) . '/public/css/style.css');
+
+        $this->assertStringNotContainsString('transition: width', $style);
+        $this->assertStringNotContainsString('transition: margin-left', $style);
+    }
+
     public function testTopbarCssDefinesVisibleMenuToggleStyling(): void
     {
         $stylePath = dirname(__DIR__) . '/../public/css/style.css';

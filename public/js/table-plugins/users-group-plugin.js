@@ -4,39 +4,47 @@
     }
 
     var LS_GROUP_KEY = 'chorte.users.manage.groupByVoice';
-    var LS_OPEN_KEY = 'chorte.users.manage.accordionOpen';
+    // Gemerkt werden die zugeklappten Gruppen, nicht die offenen: Eine Gruppe
+    // steht offen, bis man sie zuklappt. Vorher war alles zu, und nach dem
+    // Umschalten schien die Liste verschwunden.
+    var LS_CLOSED_KEY = 'chorte.users.manage.accordionClosed';
 
     window.ChorTableEngine.registerFilterPlugin('usersGroup', function (context) {
         var groupActive = false;
         var stateRef = null;
         var hasExplicitState = false;
         var toggleButtonEl = null;
-        var openBlockIds = new Set();
+        var closedBlockIds = new Set();
         var accordionEl = null;
         var observer = null;
         var rafPending = false;
 
+        // Ein Umschalter mit zwei Seiten statt eines Knopfs, der seine Beschriftung
+        // wechselt: "Listenansicht" nannte den Zustand, in dem man gerade nicht war.
         function syncToggleButtonLabel() {
             if (!toggleButtonEl) {
                 return;
             }
-            toggleButtonEl.textContent = groupActive ? 'Listenansicht' : 'Nach Stimme gruppieren';
+            toggleButtonEl.listButton.classList.toggle('active', !groupActive);
+            toggleButtonEl.listButton.setAttribute('aria-pressed', groupActive ? 'false' : 'true');
+            toggleButtonEl.voiceButton.classList.toggle('active', groupActive);
+            toggleButtonEl.voiceButton.setAttribute('aria-pressed', groupActive ? 'true' : 'false');
         }
 
         function readLocalStorage() {
             try {
                 var val = window.localStorage.getItem(LS_GROUP_KEY);
                 groupActive = val === '1';
-                var openVal = window.localStorage.getItem(LS_OPEN_KEY);
-                if (openVal) {
-                    var arr = JSON.parse(openVal);
+                var closedVal = window.localStorage.getItem(LS_CLOSED_KEY);
+                if (closedVal) {
+                    var arr = JSON.parse(closedVal);
                     if (Array.isArray(arr)) {
-                        openBlockIds = new Set(arr);
+                        closedBlockIds = new Set(arr);
                     }
                 }
             } catch (e) {
                 groupActive = false;
-                openBlockIds = new Set();
+                closedBlockIds = new Set();
             }
         }
 
@@ -50,9 +58,9 @@
             } catch (e) { /* quota exceeded — silently ignore */ }
         }
 
-        function persistOpenBlocks() {
+        function persistClosedBlocks() {
             try {
-                window.localStorage.setItem(LS_OPEN_KEY, JSON.stringify(Array.from(openBlockIds)));
+                window.localStorage.setItem(LS_CLOSED_KEY, JSON.stringify(Array.from(closedBlockIds)));
             } catch (e) { /* quota exceeded */ }
         }
 
@@ -227,7 +235,7 @@
 
             if (typeof memberCount === 'number') {
                 var countBadge = document.createElement('span');
-                countBadge.className = 'badge text-bg-secondary';
+                countBadge.className = 'badge text-bg-light border';
                 countBadge.dataset = countBadge.dataset || {};
                 countBadge.dataset['usersGroupCountBadge'] = collapseId;
                 countBadge.textContent = String(memberCount);
@@ -265,7 +273,11 @@
                 ? originalTable.querySelector('thead')
                 : null;
             if (thead) {
-                table.appendChild(thead.cloneNode(true));
+                var headClone = thead.cloneNode(true);
+                // Der Kopf der Gesamttabelle ist im Gruppenmodus ausgeblendet;
+                // die Kopie gehört sichtbar über ihre Gruppe.
+                headClone.hidden = false;
+                table.appendChild(headClone);
             }
 
             var tbody = document.createElement('tbody');
@@ -297,15 +309,15 @@
             accordion.addEventListener('show.bs.collapse', function (e) {
                 var blockId = e.target && e.target.dataset ? e.target.dataset.blockId : null;
                 if (blockId) {
-                    openBlockIds.add(blockId);
-                    persistOpenBlocks();
+                    closedBlockIds.delete(blockId);
+                    persistClosedBlocks();
                 }
             });
             accordion.addEventListener('hide.bs.collapse', function (e) {
                 var blockId = e.target && e.target.dataset ? e.target.dataset.blockId : null;
                 if (blockId) {
-                    openBlockIds.delete(blockId);
-                    persistOpenBlocks();
+                    closedBlockIds.add(blockId);
+                    persistClosedBlocks();
                 }
             });
 
@@ -319,7 +331,7 @@
 
                 hasAny = true;
                 var vgCollapseId = makeCollapseId('vg', vg.id);
-                var isVgOpen = openBlockIds.has(vgCollapseId);
+                var isVgOpen = !closedBlockIds.has(vgCollapseId);
                 var subVoices = subVoiceMap[vg.id] || [];
 
                 var innerAccordion = document.createElement('div');
@@ -331,7 +343,7 @@
                 });
                 if (unassignedRows.length > 0) {
                     var noSvId = makeCollapseId('nosv', vg.id);
-                    var isNoSvOpen = openBlockIds.has(noSvId);
+                    var isNoSvOpen = !closedBlockIds.has(noSvId);
                     var noSvContent = cloneTableForRows(originalTable, unassignedRows);
                     var noSvItem = createAccordionItem(
                         'hdr-' + noSvId, noSvId,
@@ -349,7 +361,7 @@
                     if (svRows.length === 0) return;
 
                     var svCollapseId = makeCollapseId('sv', sv.id);
-                    var isSvOpen = openBlockIds.has(svCollapseId);
+                    var isSvOpen = !closedBlockIds.has(svCollapseId);
                     var svContent = cloneTableForRows(originalTable, svRows);
                     var svItem = createAccordionItem(
                         'hdr-' + svCollapseId, svCollapseId,
@@ -390,7 +402,7 @@
             if (noGroupRows.length > 0) {
                 hasAny = true;
                 var ngId = 'ug-no-group';
-                var isNgOpen = openBlockIds.has(ngId);
+                var isNgOpen = !closedBlockIds.has(ngId);
                 var ngContent = cloneTableForRows(originalTable, noGroupRows);
                 var ngItem = createAccordionItem('hdr-' + ngId, ngId, 'Ohne Zuordnung', ngContent, isNgOpen, noGroupRows.length);
                 accordion.appendChild(ngItem);
@@ -406,6 +418,12 @@
             return accordion;
         }
 
+        function setHeadHidden(tableShell, hidden) {
+            var table = queryFirstOrTag(tableShell, 'table', 'table');
+            var thead = table ? queryFirstOrTag(table, 'thead', 'thead') : null;
+            if (thead) thead.hidden = hidden;
+        }
+
         function destroyAccordion(tableShell) {
             if (accordionEl && accordionEl.remove) {
                 accordionEl.remove();
@@ -415,11 +433,15 @@
             // Re-show tbody
             var tbody = queryFirstOrTag(tableShell, 'tbody', 'tbody');
             if (tbody) tbody.hidden = false;
+            setHeadHidden(tableShell, false);
         }
 
         function activateGroup(tableShell) {
             var tbody = queryFirstOrTag(tableShell, 'tbody', 'tbody');
             if (tbody) tbody.hidden = true;
+            // Jede Gruppe bringt ihren eigenen Tabellenkopf mit; der Kopf der
+            // ausgeblendeten Gesamttabelle stand sonst leer über allen Gruppen.
+            setHeadHidden(tableShell, true);
 
             if (accordionEl) {
                 if (accordionEl.remove) accordionEl.remove();
@@ -428,8 +450,12 @@
 
             accordionEl = buildAccordion(tableShell);
             var table = queryFirstOrTag(tableShell, 'table', 'table');
-            if (table && table._parent) {
-                table._parent.insertBefore(accordionEl, table);
+            // `_parent` gibt es nur in den Test-Attrappen; im echten DOM heißt es
+            // parentNode. Ohne diesen Zweig landeten die Gruppen am Ende des
+            // Rahmens - hinter der unteren Blätterleiste.
+            var tableParent = table ? (table._parent || table.parentNode) : null;
+            if (tableParent && tableParent.insertBefore) {
+                tableParent.insertBefore(accordionEl, table);
             } else if (tableShell.appendChild) {
                 tableShell.appendChild(accordionEl);
             }
@@ -484,16 +510,35 @@
                 readLocalStorage();
             }
 
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-sm btn-outline-secondary';
-            btn.dataset = btn.dataset || {};
-            btn.dataset['usersGroupToggle'] = '';
-            toggleButtonEl = btn;
+            var btn = document.createElement('div');
+            btn.className = 'btn-group btn-group-sm view-switch';
+            btn.setAttribute('role', 'group');
+            btn.setAttribute('aria-label', 'Darstellung der Liste');
+
+            function makeSide(label, active) {
+                var side = document.createElement('button');
+                side.type = 'button';
+                side.className = 'btn btn-outline-secondary';
+                side.textContent = label;
+                side.addEventListener('click', function () {
+                    if (groupActive === active) {
+                        return;
+                    }
+                    setGroupActive(active);
+                });
+                btn.appendChild(side);
+                return side;
+            }
+
+            var listButton = makeSide('Liste', false);
+            var voiceButton = makeSide('Nach Stimme', true);
+            voiceButton.dataset = voiceButton.dataset || {};
+            voiceButton.dataset['usersGroupToggle'] = '';
+            toggleButtonEl = { listButton: listButton, voiceButton: voiceButton };
             syncToggleButtonLabel();
 
-            btn.addEventListener('click', function () {
-                groupActive = !groupActive;
+            function setGroupActive(next) {
+                groupActive = next;
                 persistGroupActive();
                 syncToggleButtonLabel();
                 if (groupActive) {
@@ -501,10 +546,13 @@
                 } else {
                     deactivateGroup(tableShell);
                 }
-            });
+            }
 
-            if (context.pluginSlot && context.pluginSlot.appendChild) {
-                context.pluginSlot.appendChild(btn);
+            // Gruppieren ändert die Darstellung, nicht die Treffermenge: Der
+            // Umschalter steht neben dem Menü "Ansicht", nicht zwischen den Filtern.
+            var slot = context.viewSlot || context.pluginSlot;
+            if (slot && slot.appendChild) {
+                slot.appendChild(btn);
             }
 
             if (groupActive && tableShell) {
@@ -536,10 +584,10 @@
                 if (stateRef && typeof stateRef === 'object') {
                     stateRef.groupActive = false;
                 }
-                openBlockIds = new Set();
+                closedBlockIds = new Set();
                 try {
                     window.localStorage.removeItem(LS_GROUP_KEY);
-                    window.localStorage.removeItem(LS_OPEN_KEY);
+                    window.localStorage.removeItem(LS_CLOSED_KEY);
                 } catch (e) { /* ignore */ }
                 syncToggleButtonLabel();
                 if (tableShell) {

@@ -136,6 +136,7 @@ class AuthController
             session_regenerate_id(true);
             Csrf::rotate();
             $this->sessionAuthService->setAuthenticatedUser($user);
+            User::recordLogin((int) $user->id);
             unset($_SESSION[self::ATTENDANCE_SELECTED_EVENT_SESSION_KEY]);
 
             if ($remember) {
@@ -255,6 +256,7 @@ class AuthController
             session_regenerate_id(true);
             Csrf::rotate();
             $this->sessionAuthService->setAuthenticatedUser($user->load(['roles', 'voiceGroups']));
+            User::recordLogin((int) $user->id);
 
             $_SESSION['success'] = 'Administratorkonto erfolgreich erstellt!';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);

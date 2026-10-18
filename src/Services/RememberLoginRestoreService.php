@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Queries\UserQuery;
 use App\Util\Csrf;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -72,6 +73,7 @@ class RememberLoginRestoreService
         session_regenerate_id(true);
         Csrf::rotate();
         $this->sessionAuthService->setAuthenticatedUser($user);
+        User::recordLogin((int) $user->id);
 
         // Das Token gilt genau einmal: Wer es vorzeigt, bekommt ein neues, und
         // das alte ist danach wertlos. Ein abgegriffenes Cookie taugt damit nur

@@ -240,6 +240,7 @@ return function (App $app) {
                     $userGroup->post('/{id:[0-9]+}', [UserController::class, 'update']);
                     $userGroup->post('/deactivate/{id:[0-9]+}', [UserController::class, 'deactivate']);
                     $userGroup->post('/bulk-deactivate', [UserController::class, 'bulkDeactivate']);
+                    $userGroup->post('/bulk-invite', [UserController::class, 'bulkInvite']);
                     $userGroup->post('/restore/{id:[0-9]+}', [UserController::class, 'restore']);
                     $userGroup->post('/{id:[0-9]+}/invite', [UserController::class, 'invite']);
                 }

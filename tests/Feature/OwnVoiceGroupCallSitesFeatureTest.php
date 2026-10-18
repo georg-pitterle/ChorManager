@@ -248,10 +248,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         );
 
         $this->assertRedirect($result, '/users');
-        $this->assertSame(
-            'Bulk-Aktion abgeschlossen: 1 deaktiviert, 0 fehlgeschlagen.',
-            $_SESSION['success'] ?? null
-        );
+        $this->assertSame('1 archiviert.', $_SESSION['success'] ?? null);
     }
 
     public function testVoiceGroupRepWithOnlyFlagCannotBulkDeactivateOutsideGroupMember(): void
@@ -280,10 +277,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         );
 
         $this->assertRedirect($result, '/users');
-        $this->assertSame(
-            'Bulk-Aktion abgeschlossen: 0 deaktiviert, 1 fehlgeschlagen.',
-            $_SESSION['success'] ?? null
-        );
+        // Wer übersprungen wurde, steht mit Namen und Grund in der Meldung.
+        $this->assertStringStartsWith('0 archiviert. Übersprungen: ', (string) ($_SESSION['success'] ?? ''));
+        $this->assertStringEndsWith(' (keine Berechtigung).', (string) ($_SESSION['success'] ?? ''));
     }
 
     // --- UserController::update() behavioral coverage (line ~282: capability
@@ -497,7 +493,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         );
 
         $this->assertRedirect($result, '/users');
-        $this->assertSame('Mitglied wurde archiviert (deaktiviert).', $_SESSION['success'] ?? null);
+        $this->assertSame('Mitglied wurde archiviert. Im Archiv lässt es sich jederzeit wiederherstellen.', $_SESSION['success'] ?? null);
     }
 
     public function testDeactivateDeniesVoiceGroupRepWithOnlyFlagForOutsideGroupMember(): void
@@ -527,7 +523,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/users');
         $this->assertSame(
-            'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.',
+            'Du hast keine Berechtigung, dieses Mitglied zu archivieren.',
             $_SESSION['error'] ?? null
         );
     }
@@ -559,7 +555,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/users');
         $this->assertSame(
-            'Du hast keine Berechtigung, dieses Mitglied zu deaktivieren.',
+            'Du hast keine Berechtigung, dieses Mitglied zu archivieren.',
             $_SESSION['error'] ?? null
         );
     }

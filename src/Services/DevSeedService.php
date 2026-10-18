@@ -162,6 +162,8 @@ class DevSeedService
                 'voice_groups' => 0,
                 'sub_voices' => 0,
                 'users' => 0,
+                'users_with_last_login' => 0,
+                'users_with_invitation_sent' => 0,
                 'user_roles' => 0,
                 'user_voice_groups' => 0,
                 'user_mail_accounts' => 0,
@@ -304,6 +306,7 @@ class DevSeedService
             $this->seedMailQueue($users['active']);
             $this->seedUserMailAccounts($users['active'], new MailCredentialCryptoService());
             $this->seedAuthData($users['all']);
+            $this->seedAccountActivity($users['all']);
             $this->seedAppSettings();
         });
 
@@ -1256,9 +1259,15 @@ class DevSeedService
         // Festes Secret statt eines Zufallswerts: Im Dev soll die Anwendung
         // ohne Umweg über bin/oidc_admin.php ansprechbar sein. Gespeichert ist
         // auch hier nur der Hash.
+        //
+        // Vorhandenen Client übernehmen statt neu anlegen: Im Modus append
+        // steht er vom letzten Lauf noch da, und ein create() brach am
+        // eindeutigen `client_id` ab - mit ihm der ganze Seed-Lauf. Die Werte
+        // gehen dabei auf den Seed-Stand zurück, damit das Secret im Bericht
+        // stimmt.
         $clientSecret = 'dev-secret-nextcloud';
-        $client = OidcClient::create([
-            'client_id' => 'dev-nextcloud',
+        $client = OidcClient::firstOrNew(['client_id' => 'dev-nextcloud']);
+        $client->fill([
             'client_secret_hash' => PasswordHasher::hash($clientSecret),
             'name' => 'Nextcloud',
             'redirect_uris' => OidcClient::encodeUriList([
@@ -1269,10 +1278,15 @@ class DevSeedService
             ]),
             'is_trusted' => true,
             'is_active' => true,
-            'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
-        $this->report['counts']['oidc_clients']++;
+        if (!$client->exists) {
+            $client->created_at = date('Y-m-d H:i:s');
+        }
+        $client->save();
+        if ($client->wasRecentlyCreated) {
+            $this->report['counts']['oidc_clients']++;
+        }
         $this->report['oidc']['client_id'] = 'dev-nextcloud';
         $this->report['oidc']['client_secret'] = $clientSecret;
 
@@ -1297,7 +1311,14 @@ class DevSeedService
             return;
         }
 
-        (new OidcSigningKeyService($crypto))->generateKey();
+        // Ein schon aktiver Schlüssel bleibt: Jeder append-Lauf löste sonst den
+        // bisherigen ab, und die Schlüssel stapelten sich in der Tabelle.
+        $keyService = new OidcSigningKeyService($crypto);
+        if ($keyService->activeKey() !== null) {
+            return;
+        }
+
+        $keyService->generateKey();
         $this->report['counts']['oidc_signing_keys']++;
     }
 
@@ -2211,6 +2232,59 @@ class DevSeedService
                 'ip_address' => '127.0.0.1',
             ]);
             $this->report['counts']['remember_logins']++;
+        }
+    }
+
+    /**
+     * Letzte Anmeldung und Einladungsversand, gestreut über alle Lagen, die der
+     * Bearbeiten-Dialog unterscheidet (Migration 20261017120000):
+     *
+     * - jedes zehnte Mitglied: nie eingeladen, nie angemeldet - von Hand
+     *   angelegt, ohne Konto zu nutzen;
+     * - zwei von zehn: frisch eingeladen, aber noch nicht angemeldet;
+     * - der Rest: vor Monaten eingeladen und seither aktiv, Archivierte zuletzt
+     *   vor langer Zeit.
+     *
+     * Feste Abstände statt Zufall: Dieselbe Seed-Nummer soll dieselben Lagen
+     * ergeben, damit sich ein Befund in Dev nachstellen lässt.
+     *
+     * @param array<int, User> $users
+     */
+    private function seedAccountActivity(array $users): void
+    {
+        $now = new DateTimeImmutable();
+        $trackedSince = new DateTimeImmutable(User::ACTIVITY_TRACKED_SINCE);
+
+        foreach ($users as $index => $user) {
+            $slot = $index % 10;
+            $invitationSentAt = null;
+            $lastLoginAt = null;
+
+            if ($slot === 1 || $slot === 2) {
+                // Frisch eingeladen, aber nie vor Beginn der Erfassung: Nur dann
+                // zeigt die Liste "Einladung offen" (User::invitationPending()).
+                $invitationSentAt = max(
+                    $now->modify('-' . (1 + $index % 6) . ' hours'),
+                    $trackedSince->modify('+' . ($index % 50) . ' minutes')
+                );
+            } elseif ($slot !== 0) {
+                $invitationSentAt = $now->modify('-' . (60 + $index * 3) . ' days');
+                $lastLoginAt = (bool) $user->is_active
+                    ? $now->modify('-' . ($index % 45) . ' days -' . ($index % 11) . ' hours')
+                    : $now->modify('-' . (200 + $index) . ' days');
+            }
+
+            User::query()->whereKey($user->id)->update([
+                'invitation_sent_at' => $invitationSentAt?->format('Y-m-d H:i:s'),
+                'last_login_at' => $lastLoginAt?->format('Y-m-d H:i:s'),
+            ]);
+
+            if ($invitationSentAt !== null) {
+                $this->report['counts']['users_with_invitation_sent']++;
+            }
+            if ($lastLoginAt !== null) {
+                $this->report['counts']['users_with_last_login']++;
+            }
         }
     }
 

@@ -54,7 +54,8 @@ final class UserBulkFilteredSelectionFeatureTest extends TestCase
 
     public function testManageTemplateHasCrossPageHintElement(): void
     {
-        $twig = $this->read('templates/users/manage.twig');
+        // Die Auswahlleiste steht seit Oktober 2026 in einem eigenen Partial.
+        $twig = $this->read('templates/partials/user_selection_bar.twig');
 
         $this->assertStringContainsString('id="bulkCrossPageHint"', $twig);
     }

@@ -28,6 +28,7 @@ use App\Persistence\UserPersistence;
 use App\Queries\ProjectQuery;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\BackupService;
+use App\Services\MailDeliveryService;
 use App\Services\Mailer;
 use App\Services\MailCredentialCryptoService;
 use App\Services\RememberLoginService;
@@ -126,6 +127,19 @@ final class DependenciesContainerWiringTest extends TestCase
 
         $this->assertInstanceOf(Mailer::class, $mailer);
         $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($mailer));
+    }
+
+    /**
+     * Dieselbe Falle am Queue-Worker: Mit \DI\autowire() bliebe der Logger
+     * null, und invitation.sent_at.record_failed käme nie im Log an.
+     */
+    public function testMailDeliveryServiceResolvesWithRealLogger(): void
+    {
+        $container = $this->buildContainer();
+
+        $service = $container->get(MailDeliveryService::class);
+
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($service));
     }
 
     /**

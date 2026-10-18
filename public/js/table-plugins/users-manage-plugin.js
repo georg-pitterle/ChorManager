@@ -4,7 +4,15 @@
     }
 
     window.ChorTableEngine.registerFilterPlugin('usersManage', function (context) {
-        let state = { role: '', voice: '', project: '' };
+        const emptyState = { role: '', voice: '', project: '', invitation: '' };
+        // Feste Auswahl statt Optionsliste aus dem Template: Es gibt nur diese
+        // zwei Lagen, und die Werte stehen so auch im data-invitation der Zeilen.
+        const invitationOptions = [
+            { value: 'sent', label: 'gesendet' },
+            { value: 'not_sent', label: 'nicht gesendet' },
+            { value: 'pending', label: 'offen' }
+        ];
+        let state = Object.assign({}, emptyState);
         let controls = null;
 
         function normalizeText(value) {
@@ -34,10 +42,10 @@
                     seen[id] = true;
                     return { value: id, label: label };
                 })
-                .filter(function (entry) { return entry !== null; })
-                .sort(function (a, b) {
-                    return a.label.localeCompare(b.label, 'de', { sensitivity: 'base' });
-                });
+                // Reihenfolge wie im Template: Stimmgruppen Sopran, Alt, Tenor, Bass,
+                // Rollen nach Stufe, Projekte nach Saison. Alphabetisch sortiert
+                // stand Alt vor Sopran, und die Liste wirkte wie ein fremdes Programm.
+                .filter(function (entry) { return entry !== null; });
         }
 
         function createSelect(labelText, options, key) {
@@ -95,24 +103,51 @@
             const projectOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.projectOptions : '');
             const roleSelectControl = createSelect('Rolle', roleOptions, 'role');
             const voiceSelectControl = createSelect('Stimme', voiceOptions, 'voice');
-            const projectSelectControl = createSelect('Projekt', projectOptions, 'project');
+            // Im Archiv kein Projekt-Filter: Archivierte sind in keinem laufenden
+            // Projekt, die Auswahl führte nur ins Leere. Ein aus der aktiven Liste
+            // gemerkter Projektfilter darf dort auch nicht unsichtbar weiterwirken.
+            const isArchive = tableContainer.dataset.showArchived === '1';
+            const projectSelectControl = isArchive ? null : createSelect('Projekt', projectOptions, 'project');
+            if (isArchive) {
+                state.project = '';
+            }
 
             root.appendChild(roleSelectControl.group);
             root.appendChild(voiceSelectControl.group);
-            root.appendChild(projectSelectControl.group);
+            if (projectSelectControl) {
+                root.appendChild(projectSelectControl.group);
+            }
+
+            // Nur für die Mitgliederverwaltung - dieselbe Bedingung wie der
+            // Abschnitt "Kontoaktivität" im Bearbeiten-Dialog.
+            const invitationSelectControl = tableContainer.dataset.invitationFilter === '1'
+                ? createSelect('Einladung', invitationOptions, 'invitation')
+                : null;
+            if (invitationSelectControl) {
+                root.appendChild(invitationSelectControl.group);
+            }
             context.pluginSlot.appendChild(root);
 
             controls = {
                 root: root,
                 role: roleSelectControl.select,
                 voice: voiceSelectControl.select,
-                project: projectSelectControl.select,
+                project: projectSelectControl ? projectSelectControl.select : null,
                 reset: function () {
                     roleSelectControl.select.value = '';
                     voiceSelectControl.select.value = '';
-                    projectSelectControl.select.value = '';
+                    if (projectSelectControl) {
+                        projectSelectControl.select.value = '';
+                    }
+                    if (invitationSelectControl) {
+                        invitationSelectControl.select.value = '';
+                    }
                 }
             };
+
+            if (invitationSelectControl && state.invitation) {
+                invitationSelectControl.select.value = state.invitation;
+            }
 
             if (state.role) {
                 roleSelectControl.select.value = state.role;
@@ -120,7 +155,7 @@
             if (state.voice) {
                 voiceSelectControl.select.value = state.voice;
             }
-            if (state.project) {
+            if (state.project && projectSelectControl) {
                 projectSelectControl.select.value = state.project;
             }
         }
@@ -129,7 +164,8 @@
             return function (row) {
                 return rowHasToken(row, 'role', state.role)
                     && rowHasToken(row, 'voice', state.voice)
-                    && rowHasToken(row, 'project', state.project);
+                    && rowHasToken(row, 'project', state.project)
+                    && rowHasToken(row, 'invitation', state.invitation);
             };
         }
 
@@ -138,10 +174,10 @@
             getPredicate: getPredicate,
             getState: function () { return state; },
             setState: function (nextState) {
-                state = Object.assign({ role: '', voice: '', project: '' }, nextState || {});
+                state = Object.assign({}, emptyState, nextState || {});
             },
             reset: function () {
-                state = { role: '', voice: '', project: '' };
+                state = Object.assign({}, emptyState);
                 if (controls) {
                     controls.reset();
                 }

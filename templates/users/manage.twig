@@ -4,38 +4,38 @@
 {% import "macros/person.twig" as person %}
 
 {% block title %}
-    Mitglieder - {{ app_settings.app_name|default('Chor-Manager') }}
+    Mitglieder - {% if show_archived %}Archiv - {% endif %}{{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">Mitglieder</h1>
-            <p class="text-muted mb-0">Mitglieder, Rollen, Stimmen und Projektzuordnungen zentral verwalten.</p>
+            {% if show_archived %}
+                <h1 class="h2 mb-1">Archivierte Mitglieder</h1>
+            {% else %}
+                <h1 class="h2 mb-1">Mitglieder</h1>
+            {% endif %}
+            {# Im Archiv erklärt der Satz, was archiviert heißt - er bleibt. Der #}
+            {# Untertitel der aktiven Liste kostet am Telefon zwei Zeilen vor dem #}
+            {# ersten Mitglied und entfällt dort. #}
+            {% if show_archived %}
+                <p class="text-muted mb-0">
+                    Archivierte Mitglieder können sich nicht anmelden. Wiederherstellen macht sie wieder aktiv.
+                </p>
+            {% else %}
+                <p class="text-muted mb-0 d-none d-sm-block">Wer im Chor singt, mit Stimme, Rolle und Projekten.</p>
+            {% endif %}
         </div>
         <div class="page-actions d-flex gap-2 align-items-center">
+            <a href="/help/members" class="btn btn-outline-secondary" title="Hilfe zur Mitgliederverwaltung">
+                <i class="bi bi-question-circle" aria-hidden="true"></i><span class="d-none d-sm-inline"> Hilfe</span>
+            </a>
             {% if show_archived %}
-                <a href="/users" class="btn btn-outline-secondary">
-                    <i class="bi bi-people"></i> Aktive anzeigen
-                </a>
+                <a href="/users" class="btn btn-outline-secondary">Zurück zu den Mitgliedern</a>
             {% else %}
                 {% if session.can_manage_users %}
-                    <a href="/users?archived=1" class="btn btn-outline-secondary">
-                        <i class="bi bi-archive"></i> Archivierte anzeigen
-                    </a>
+                    <a href="/users?archived=1" class="btn btn-outline-secondary">Archiv</a>
                 {% endif %}
-                <form action="/users/bulk-deactivate"
-                      method="post"
-                      id="bulkDeactivateForm"
-                      data-confirm="Ausgewählte Mitglieder wirklich archivieren?">
-                    <input type="hidden" name="user_ids" id="bulkUserIds" value="">
-                    <button type="submit"
-                            class="btn btn-outline-danger"
-                            id="bulkDeactivateButton"
-                            disabled>
-                        <i class="bi bi-person-x"></i> Auswahl archivieren
-                    </button>
-                </form>
                 <button type="button"
                         class="btn btn-primary"
                         data-bs-toggle="modal"
@@ -54,7 +54,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
     {% if error and not has_modal_error %}
@@ -63,7 +63,7 @@
             <button type="button"
                     class="btn-close"
                     data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
         </div>
     {% endif %}
 
@@ -80,247 +80,264 @@
         {% for role in roles %}{{ role.id }}::{{ role.name }}||{% endfor %}
     {% endset %}
 
-    <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--context"
-                 aria-labelledby="users-list-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="users-list-title">Mitgliederübersicht</h2>
-                <p class="dashboard-section-lead mb-0">
-                    {{ users|length }} Einträge im aktuellen Ergebnis. Filter über die Tabellenleiste.
-                </p>
-            </div>
+    {# Im Archiv sagt eine Projektzahl nichts: archivierte Mitglieder sind aus allen #}
+    {# laufenden Projekten heraus. Die Spalte und ihr Dialog entfallen dort. #}
+    {% set _today = "now"|date("Y-m-d") %}
+    {% set _running_total = projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today)|length %}
+    {% set show_projects = (can_manage_project_members or can_edit_users) and not show_archived and _running_total > 0 %}
+    {% set column_count = 3 + (show_archived ? 0 : 1) + (show_projects ? 1 : 0) + 1 %}
 
-            <div class="surface-card card border-0 table-shell"
-                 data-table-engine="true"
-                 data-table-id="users.manage"
-                 data-default-view="auto"
-                 data-table-plugins="usersManage,usersGroup"
-                 data-voice-options="{{ voice_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
-                 data-sub-voice-options="{{ sub_voice_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
-                 data-project-options="{{ project_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
-                 data-role-options="{{ role_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
-                 data-show-archived="{{ show_archived ? '1' : '0' }}"
-                 data-default-page-size="100"
-                 data-page-size-options="25,50,100,200"
-                 data-default-sort-key="name">
-                {{ include('partials/table_toolbar.twig') }}
-                <div id="bulkCrossPageHint"
-                     class="alert alert-warning py-2 mb-0 rounded-0 d-none"
-                     role="status"
-                     aria-live="polite"></div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-striped mb-0 table-responsive-cards"
-                               id="usersTable">
-                            <thead class="table-dark">
-                                <tr>
-                                    {% if not show_archived %}
-                                        <th>
-                                            <input type="checkbox"
-                                                   id="selectAllUsers"
-                                                   aria-label="Alle Mitglieder auswählen">
-                                        </th>
-                                    {% endif %}
-                                    <th data-sort-key="name" data-sort-type="text">Name</th>
-                                    <th data-sort-key="email" data-sort-type="text">E-Mail</th>
-                                    <th data-sort-key="role" data-sort-type="text">Rolle</th>
-                                    <th data-sort-key="voice" data-sort-type="text">Stimme</th>
-                                    {% if can_manage_project_members or can_edit_users %}
-                                        <th data-sort-key="project_count"
-                                            data-sort-type="number"
-                                            data-sort-initial-dir="desc">Projekte</th>
-                                    {% endif %}
-                                    <th class="text-end">Aktionen</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in users %}
-                                    {% set role_filter = "" %}
-                                    {% set role_filter_ids = "|" %}
-                                    {% for role in user.roles %}
-                                        {% set role_filter = role_filter ~ ' ' ~ role.name|lower %}
-                                        {% set role_filter_ids = role_filter_ids ~ role.id ~ '|' %}
-                                    {% endfor %}
-                                    {% set voice_filter = "" %}
-                                    {% set voice_filter_ids = "|" %}
-                                    {% for group_id in user.voice_group_ids %}
-                                        {% for g in voice_groups %}
-                                            {% if g.id == group_id %}
-                                                {% set voice_filter_ids = voice_filter_ids ~ g.id ~ '|' %}
-                                                {% set sv_id = user.voice_group_pivots[group_id] %}
-                                                {% if sv_id %}
-                                                    {% for sv in sub_voices %}
-                                                        {% if sv.id == sv_id %}
-                                                            {% set voice_filter = voice_filter ~ ' ' ~ g.name|lower ~ ' ' ~ sv.name|lower %}
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                {% else %}
-                                                    {% set voice_filter = voice_filter ~ ' ' ~ g.name|lower %}
-                                                {% endif %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endfor %}
-                                    {% set project_filter = "" %}
-                                    {% set project_filter_ids = "|" %}
-                                    {% for pid in user.project_ids %}
-                                        {% set project_filter_ids = project_filter_ids ~ pid ~ '|' %}
-                                        {% for p in projects %}
-                                            {% if p.id == pid %}
-                                                {% set project_filter = project_filter ~ ' ' ~ p.name|lower %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endfor %}
-                                    <tr data-role="{{ role_filter_ids }}"
-                                        data-voice="{{ voice_filter_ids }}"
-                                        data-project="{{ project_filter_ids }}"
-                                        data-sort-name="{{ user|person_name|lower }}"
-                                        data-sort-email="{{ user.email|lower }}"
-                                        data-sort-role="{{ role_filter|trim }}"
-                                        data-sort-voice="{{ voice_filter|trim }}"
-                                        data-sort-project_count="{{ user.project_count }}">
-                                        {% if not show_archived %}
-                                            <td data-label="Auswahl">
-                                                <input type="checkbox"
-                                                       class="user-row-select"
-                                                       value="{{ user.id }}"
-                                                       {% if user.id == session.user_id %}disabled{% endif %}
-                                                       aria-label="Mitglied auswählen">
-                                            </td>
-                                        {% endif %}
-                                        <td data-label="Name" data-card-title>{{ person.member_link(user, user.id, can_edit_member) }}</td>
-                                        <td data-label="E-Mail">{{ user.email }}</td>
-                                        <td data-label="Rolle">
-                                            {% for role in user.roles %}<span class="badge text-bg-secondary me-1">{{ role.name }}</span>{% endfor %}
-                                        </td>
-                                        <td data-label="Stimme">
-                                            {% if user.voice_group_ids|length > 0 %}
-                                                {% for group_id in user.voice_group_ids %}
-                                                    {% for g in voice_groups %}
-                                                        {% if g.id == group_id %}
-                                                            <span class="d-inline-block border p-1 rounded mb-1 text-nowrap">
-                                                                {{ g.name }}
-                                                                {% set sv_id = user.voice_group_pivots[group_id] %}
-                                                                {% if sv_id %}
-                                                                    {% for sv in sub_voices %}
-                                                                        {% if sv.id == sv_id %}<small class="text-muted">({{ sv.name }})</small>{% endif %}
-                                                                    {% endfor %}
-                                                                {% endif %}
-                                                            </span>
-                                                            <br>
-                                                        {% endif %}
-                                                    {% endfor %}
+    <section aria-label="Mitgliederliste">
+        <div class="surface-card card border-0 table-shell users-table-shell"
+             data-table-engine="true"
+             data-table-id="users.manage"
+             data-default-view="auto"
+             data-table-plugins="usersManage,usersGroup"
+             data-voice-options="{{ voice_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
+             data-sub-voice-options="{{ sub_voice_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
+             data-project-options="{{ project_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
+             data-role-options="{{ role_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
+             data-show-archived="{{ show_archived ? "1" : "0" }}"
+             data-invitation-filter="{{ session.can_manage_users and not show_archived ? "1" : "0" }}"
+             data-default-page-size="100"
+             data-page-size-options="25,50,100,200"
+             data-default-sort-key="name"
+             data-count-one="{{ show_archived ? "archiviertes Mitglied" : "Mitglied" }}"
+             data-count-many="{{ show_archived ? "archivierte Mitglieder" : "Mitglieder" }}"
+             data-count-of="{{ show_archived ? "archivierten Mitgliedern" : "Mitgliedern" }}">
+            {{ include("partials/table_toolbar.twig") }}
+            {% if not show_archived %}
+                {{ include("partials/user_selection_bar.twig") }}
+            {% endif %}
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-responsive-cards users-table"
+                           id="usersTable">
+                        <thead class="table-dark">
+                            <tr>
+                                {% if not show_archived %}
+                                    <th>
+                                        <input type="checkbox"
+                                               id="selectAllUsers"
+                                               aria-label="Alle Mitglieder auswählen">
+                                    </th>
+                                {% endif %}
+                                <th data-sort-key="name" data-sort-type="text">Name</th>
+                                <th data-sort-key="voice" data-sort-type="text">Stimme</th>
+                                {% if show_projects %}
+                                    <th data-sort-key="project_count"
+                                        data-sort-type="number"
+                                        data-sort-initial-dir="desc">Laufendes Projekt</th>
+                                {% endif %}
+                                <th data-sort-key="email" data-sort-type="text">E-Mail</th>
+                                <th class="text-end">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                                {% set role_filter = "" %}
+                                {% set role_filter_ids = "|" %}
+                                {% for role in user.roles %}
+                                    {% set role_filter = role_filter ~ " " ~ role.name|lower %}
+                                    {% set role_filter_ids = role_filter_ids ~ role.id ~ "|" %}
+                                {% endfor %}
+                                {# Nur, wer mehr ist als einfaches Mitglied, bekommt ein Schlagwort - #}
+                                {# unter dem Namen, damit es auch auf der Karte am Telefon steht. #}
+                                {% set _extra_roles = user.roles|filter(r => r.id not in default_role_ids|default([])) %}
+                                {# Angezeigt wird die genaueste Angabe: die Unterstimme, sonst die #}
+                                {# Stimmgruppe. "Bass (Bass 1)" sagte dasselbe zweimal. #}
+                                {% set voice_filter = "" %}
+                                {% set voice_filter_ids = "|" %}
+                                {% set voice_labels = [] %}
+                                {% for group_id in user.voice_group_ids %}
+                                    {% for g in voice_groups %}
+                                        {% if g.id == group_id %}
+                                            {% set voice_filter_ids = voice_filter_ids ~ g.id ~ "|" %}
+                                            {% set sv_id = user.voice_group_pivots[group_id] %}
+                                            {% set voice_label = g.name %}
+                                            {% if sv_id %}
+                                                {% for sv in sub_voices %}
+                                                    {% if sv.id == sv_id %}
+                                                        {% set voice_filter = voice_filter ~ " " ~ g.name|lower ~ " " ~ sv.name|lower %}
+                                                        {% set voice_label = sv.name %}
+                                                    {% endif %}
                                                 {% endfor %}
                                             {% else %}
-                                                -
+                                                {% set voice_filter = voice_filter ~ " " ~ g.name|lower %}
+                                            {% endif %}
+                                            {% set voice_labels = voice_labels|merge([voice_label]) %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                                {% set project_filter_ids = "|" %}
+                                {% for pid in user.project_ids %}
+                                    {% set project_filter_ids = project_filter_ids ~ pid ~ "|" %}
+                                {% endfor %}
+                                {# "6 Projekte" stand fast überall, weil alle Saisonen mitzählten. #}
+                                {# Die Zelle nennt jetzt das laufende Projekt; der Dialog zeigt alle. #}
+                                {% set _current_projects = user.projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today) %}
+                                {% set _is_self = user.id == session.user_id %}
+                                {% set _role_ok = can_archive_member[user.id]|default(false) %}
+                                {% set _may_archive = _role_ok and not _is_self %}
+                                {% set _pending = session.can_manage_users and not show_archived and user.invitationPending() %}
+                                {% set _invitation_tokens = (user.invitation_sent_at ? "sent" : "not_sent") ~ (_pending ? "|pending" : "") %}
+                                <tr data-role="{{ role_filter_ids }}"
+                                    data-voice="{{ voice_filter_ids }}"
+                                    data-project="{{ project_filter_ids }}"
+                                    data-invitation="|{{ _invitation_tokens }}|"
+                                    data-archivable="{{ _may_archive ? "1" : "0" }}"
+                                    data-sort-name="{{ user|person_name|lower }}"
+                                    data-sort-email="{{ user.email|lower }}"
+                                    data-sort-role="{{ role_filter|trim }}"
+                                    data-sort-voice="{{ voice_filter|trim }}"
+                                    data-uses-app="{{ user.usesApp() ? "1" : "0" }}"
+                                    data-sort-project_count="{{ _current_projects|length }}">
+                                    {% if not show_archived %}
+                                        <td data-label="Auswahl" class="user-cell-select">
+                                            <input type="checkbox"
+                                                   class="user-row-select"
+                                                   value="{{ user.id }}"
+                                                   {% if _is_self %}disabled title="Dein eigenes Konto lässt sich nicht gesammelt archivieren oder einladen."{% endif %}
+                                                   aria-label="{{ user|person_name }} auswählen">
+                                        </td>
+                                    {% endif %}
+                                    <td data-label="Name" data-card-title class="user-cell-name">
+                                        {{ person.member_link(user, user.id, can_edit_member) }}
+                                        {# Rollen und Einladungsstand in einer Zeile, damit die Zeilen #}
+                                        {# nicht zwischen zwei Höhen springen. #}
+                                        {% if _extra_roles is not empty or _pending %}
+                                            <span class="user-meta">
+                                                {% for role in _extra_roles %}<span class="badge text-bg-light border">{{ role.name }}</span>{% endfor %}
+                                                {% if _pending %}<span class="user-status">Einladung offen</span>{% endif %}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Stimme" class="user-cell-voice">
+                                        {% if voice_labels is not empty %}
+                                            {{ voice_labels|join(", ") }}
+                                        {% else %}
+                                            <span class="text-muted">Keine Stimme</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if show_projects %}
+                                        {# Leise "dabei", gelb "nicht dabei". Leere Zellen sahen kaputt aus, #}
+                                        {# ein Link für eine Abwesenheit wie eine Aktion. Wer nur in einem #}
+                                        {# von mehreren laufenden Projekten ist, bekommt dessen Namen. #}
+                                        {% set _in_all_running = _current_projects|length == _running_total %}
+                                        <td data-label="Laufendes Projekt" class="user-cell-projects">
+                                            {% if _in_all_running %}
+                                                <span class="text-muted">dabei</span>
+                                            {% elseif _current_projects is empty %}
+                                                <span class="badge text-bg-warning">nicht dabei</span>
+                                            {% else %}
+                                                <span class="text-muted">{{ _current_projects|map(p => p.name)|join(", ") }}</span>
                                             {% endif %}
                                         </td>
-                                        {% if can_manage_project_members or can_edit_users %}
-                                            <td data-label="Projekte">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-info"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#userProjectsModal{{ user.id }}"
-                                                        aria-label="Projektteilnahmen von {{ user.first_name }} {{ user.last_name }} anzeigen">
-                                                    {{ user.project_count }}
-                                                </button>
-                                            </td>
+                                    {% endif %}
+                                    <td data-label="E-Mail" class="user-cell-email">{{ user.email }}</td>
+                                    <td data-label="Aktionen" class="text-end user-cell-actions">
+                                        {% set _archive_block_reason = "" %}
+                                        {% if _is_self %}
+                                            {% set _archive_block_reason = "Dein eigenes Konto kannst du nicht archivieren." %}
+                                        {% elseif not _role_ok %}
+                                            {% set _archive_block_reason = "Erst alle Rollen bis auf die einfache Mitgliedschaft abnehmen." %}
                                         {% endif %}
-                                        <td data-label="Aktionen" class="text-end">
-                                            {% set _is_self = user.id == session.user_id %}
-                                            {% set _role_ok = can_archive_member[user.id]|default(false) %}
-                                            {% set _may_archive = _role_ok and not _is_self %}
-                                            {% set _archive_title = "Archivieren" %}
-                                            {% if _is_self %}
-                                                {% set _archive_title = "Du kannst deinen eigenen Account nicht deaktivieren" %}
-                                            {% elseif not _role_ok %}
-                                                {% set _archive_title = "Erst alle Rollen bis auf die einfache Mitgliedschaft abnehmen" %}
-                                            {% endif %}
-                                            {% if show_archived %}
-                                                <div class="btn-group"
-                                                     role="group"
-                                                     aria-label="Aktionen für {{ user.first_name }} {{ user.last_name }}">
-                                                    <form action="/users/restore/{{ user.id }}"
+                                        {% if show_archived %}
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Aktionen für {{ user|person_name }}">
+                                                <form action="/users/restore/{{ user.id }}"
+                                                      method="post"
+                                                      data-confirm="{{ user|person_name }} wiederherstellen? Die Person kann sich danach wieder anmelden.">
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Wiederherstellen</button>
+                                                </form>
+                                            </div>
+                                        {% else %}
+                                            <div class="btn-group"
+                                                 role="group"
+                                                 aria-label="Aktionen für {{ user|person_name }}">
+                                                {% if can_edit_users %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary js-edit-user"
+                                                            data-user-id="{{ user.id }}">
+                                                        Bearbeiten
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                            data-bs-toggle="dropdown"
+                                                            aria-expanded="false"
+                                                            data-bs-boundary="viewport">
+                                                        <span class="visually-hidden">Weitere Aktionen</span>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        {% if session.can_manage_users and not _is_self %}
+                                                            <li>
+                                                                <button type="button"
+                                                                        class="dropdown-item js-invite-btn"
+                                                                        data-invite-url="/users/{{ user.id }}/invite"
+                                                                        data-invite-confirm="{{ user.invitation_sent_at ? "Einladung erneut an " ~ user|person_name ~ " senden? Der Link vom " ~ user.invitation_sent_at|date("d.m.Y") ~ " verliert seine Gültigkeit." }}">
+                                                                    {{ user.invitation_sent_at ? "Einladung erneut senden" : "Einladung senden" }}
+                                                                </button>
+                                                            </li>
+                                                        {% endif %}
+                                                        <li>
+                                                            <form action="/users/deactivate/{{ user.id }}"
+                                                                  method="post"
+                                                                  data-confirm="{{ user|person_name }} archivieren? Die Person kann sich danach nicht mehr anmelden. Im Archiv lässt sie sich jederzeit wiederherstellen.">
+                                                                <button type="submit"
+                                                                        class="dropdown-item{{ _may_archive ? " text-danger" }}"
+                                                                        {% if not _may_archive %}disabled{% endif %}>
+                                                                    Archivieren
+                                                                </button>
+                                                            </form>
+                                                        </li>
+                                                        {% if not _may_archive %}
+                                                            <li><span class="dropdown-item-text user-archive-hint">{{ _archive_block_reason }}</span></li>
+                                                            {% if not _is_self %}
+                                                                <li><button type="button" class="dropdown-item js-edit-user" data-user-id="{{ user.id }}">Rollen bearbeiten …</button></li>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </ul>
+                                                {% else %}
+                                                    <form action="/users/deactivate/{{ user.id }}"
                                                           method="post"
-                                                          data-confirm="Mitglied {{ user.first_name }} {{ user.last_name }} wirklich wiederherstellen?">
+                                                          data-confirm="{{ user|person_name }} archivieren? Die Person kann sich danach nicht mehr anmelden. Im Archiv lässt sie sich jederzeit wiederherstellen.">
                                                         <button type="submit"
-                                                                class="btn btn-sm btn-outline-secondary"
-                                                                title="Wiederherstellen">
-                                                            <i class="bi bi-person-check-fill"></i> Wiederherstellen
+                                                                class="btn btn-sm btn-outline-danger"
+                                                                {% if not _may_archive %}disabled{% endif %}>
+                                                            Archivieren
                                                         </button>
                                                     </form>
-                                                </div>
-                                            {% else %}
-                                                <div class="btn-group"
-                                                     role="group"
-                                                     aria-label="Aktionen für {{ user.first_name }} {{ user.last_name }}">
-                                                    {% if can_edit_users %}
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary js-edit-user"
-                                                                data-user-id="{{ user.id }}"
-                                                                title="Bearbeiten">
-                                                            <i class="bi bi-pencil-fill"></i> Bearbeiten
-                                                        </button>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                                                data-bs-toggle="dropdown"
-                                                                aria-expanded="false"
-                                                                data-bs-boundary="viewport">
-                                                            <span class="visually-hidden">Weitere Aktionen</span>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end">
-                                                            <li>
-                                                                <form action="/users/deactivate/{{ user.id }}"
-                                                                      method="post"
-                                                                      data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
-                                                                    <button type="submit"
-                                                                            class="dropdown-item text-danger"
-                                                                            title="{{ _archive_title }}"
-                                                                            {% if not _may_archive %}disabled{% endif %}>
-                                                                        <i class="bi bi-person-x-fill me-2"></i> Deaktivieren
-                                                                    </button>
-                                                                </form>
-                                                            </li>
-                                                        </ul>
-                                                    {% else %}
-                                                        <form action="/users/deactivate/{{ user.id }}"
-                                                              method="post"
-                                                              data-confirm="Möchtest du dieses Mitglied wirklich archivieren (deaktivieren)?">
-                                                            <button type="submit"
-                                                                    class="btn btn-sm btn-outline-danger"
-                                                                    title="{{ _archive_title }}"
-                                                                    {% if not _may_archive %}disabled{% endif %}>
-                                                                <i class="bi bi-person-x-fill me-2"></i> Deaktivieren
-                                                            </button>
-                                                        </form>
-                                                    {% endif %}
-                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% if not can_edit_users and not _may_archive %}
+                                                <span class="d-block small text-muted user-archive-hint">{{ _archive_block_reason }}</span>
                                             {% endif %}
-                                        </td>
-                                    </tr>
-                                {% else %}
-                                    <tr>
-                                        <td colspan="{{ (can_manage_project_members or can_edit_users) ? (show_archived ? 6 : 7) : (show_archived ? 5 : 6) }}"
-                                            class="text-center py-4 text-muted">
-                                            {% if show_archived %}
-                                                Keine archivierten Mitglieder gefunden.
-                                            {% else %}
-                                                Keine aktiven Mitglieder gefunden.
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="{{ column_count }}" class="text-center py-4 text-muted">
+                                        {% if show_archived %}
+                                            Keine archivierten Mitglieder.
+                                        {% else %}
+                                            Keine aktiven Mitglieder gefunden.
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </section>
-    </div>
+        </div>
+    </section>
 
     <!-- Add User Modal -->
     <div class="modal fade"
          id="addUserModal"
-         data-open-create-modal="{{ modal_form_create.open_modal ? '1' : '0' }}"
+         data-open-create-modal="{{ modal_form_create.open_modal ? "1" : "0" }}"
          tabindex="-1"
          aria-labelledby="addUserModalLabel"
          aria-hidden="true">
@@ -330,14 +347,14 @@
                   class="modal-content"
                   autocomplete="off">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addUserModalLabel">Neues Mitglied anlegen</h5>
+                    <h2 class="modal-title h5" id="addUserModalLabel">Neues Mitglied anlegen</h2>
                     <button type="button"
                             class="btn-close"
                             data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                            aria-label="Schließen"></button>
                 </div>
                 <div class="modal-body">
-                    {{ modal.show_modal_error(error, modal_form_create.error, 'user_create') }}
+                    {{ modal.show_modal_error(error, modal_form_create.error, "user_create") }}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="first_name" class="form-label">Vorname *</label>
@@ -345,7 +362,7 @@
                                    class="form-control"
                                    id="first_name"
                                    name="first_name"
-                                   value="{{ modal_form_create.form.first_name|default('') }}"
+                                   value="{{ modal_form_create.form.first_name|default("") }}"
                                    required>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -354,7 +371,7 @@
                                    class="form-control"
                                    id="last_name"
                                    name="last_name"
-                                   value="{{ modal_form_create.form.last_name|default('') }}"
+                                   value="{{ modal_form_create.form.last_name|default("") }}"
                                    required>
                         </div>
                     </div>
@@ -365,43 +382,52 @@
                                class="form-control"
                                id="email"
                                name="email"
-                               value="{{ modal_form_create.form.email|default('') }}"
+                               value="{{ modal_form_create.form.email|default("") }}"
                                required>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Rollen (Mehrfachauswahl) *</label>
-                            <br>
-                            {% for role in roles %}
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           name="roles[]"
-                                           value="{{ role.id }}"
-                                           id="role_add_{{ role.id }}"
-                                           {% if role.id in modal_form_create.form.roles|default([]) %}checked{% endif %}>
-                                    <label class="form-check-label" for="role_add_{{ role.id }}">{{ role.name }}</label>
-                                </div>
+                            <p class="form-label mb-1">Rollen *</p>
+                            {% set _create_roles_touched = modal_form_create.form.roles|default([]) is not empty %}
+                            {# Die Grundrolle steht offen, alles mit zusätzlichen Rechten hinter #}
+                            {# "Weitere Rollen". Vorher stand die mächtigste Rolle als erstes #}
+                            {# Kästchen oben links, gleich gewichtet wie die einfache. #}
+                            {% set _basic_roles = roles|filter(r => r.id in default_role_ids|default([])) %}
+                            {% set _further_roles = _basic_roles is empty ? roles : roles|filter(r => r.id not in default_role_ids|default([])) %}
+                            {% set _further_open = _basic_roles is empty or modal_form_create.form.roles|default([])|filter(id => id not in default_role_ids|default([])) is not empty %}
+                            {% for role in _basic_roles %}
+                                {{ _self.create_role_choice(role, _create_roles_touched ? role.id in modal_form_create.form.roles : true) }}
                             {% endfor %}
+                            {% if _further_roles is not empty %}
+                                <details class="further-roles"{% if _further_open %} open{% endif %}>
+                                    <summary>Weitere Rollen</summary>
+                                    <div class="form-text mt-1 mb-2">Weitere Rollen geben zusätzliche Rechte in der App.</div>
+                                    {% for role in _further_roles %}
+                                        {{ _self.create_role_choice(role, _create_roles_touched and role.id in modal_form_create.form.roles) }}
+                                    {% endfor %}
+                                </details>
+                            {% endif %}
                         </div>
-                        <div class="col-md-6 mb-3 border-start">
-                            <label class="form-label">Stimmengruppen (Mehrfachauswahl)</label>
-                            <br>
+                        <div class="col-md-6 mb-3">
+                            <p class="form-label mb-1">Stimmgruppen</p>
                             {% for group in voice_groups %}
-                                <div class="mb-2 p-2 border rounded bg-light">
+                                {% set _group_checked = group.id in modal_form_create.form.voice_groups|default([]) %}
+                                <div class="voice-group-choice">
                                     <div class="form-check">
                                         <input class="form-check-input vg-checkbox"
                                                type="checkbox"
                                                name="voice_groups[]"
                                                value="{{ group.id }}"
                                                id="vg_add_{{ group.id }}"
-                                               {% if group.id in modal_form_create.form.voice_groups|default([]) %}checked{% endif %}>
-                                        <label class="form-check-label fw-bold" for="vg_add_{{ group.id }}">{{ group.name }}</label>
+                                               {% if _group_checked %}checked{% endif %}>
+                                        <label class="form-check-label" for="vg_add_{{ group.id }}">{{ group.name }}</label>
                                     </div>
-                                    <div class="mt-1 ps-4 collapse-sv{% if group.id not in modal_form_create.form.voice_groups|default([]) %} d-none{% endif %}">
-                                        <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]" aria-label="Teilstimme für {{ group.name }}">
-                                            <option value="">(Keine Teilstimme)</option>
+                                    <div class="voice-group-choice__sub collapse-sv{% if not _group_checked %} d-none{% endif %}">
+                                        <select class="form-select form-select-sm"
+                                                name="sub_voices[{{ group.id }}]"
+                                                aria-label="Unterstimme für {{ group.name }}">
+                                            <option value="">Keine Unterstimme</option>
                                             {% for sv in sub_voices %}
                                                 {% if sv.voice_group_id == group.id %}
                                                     <option value="{{ sv.id }}"
@@ -417,19 +443,58 @@
                         </div>
                     </div>
 
+                    {# Gleich ins laufende Projekt setzen, statt anlegen, suchen und #}
+                    {# bearbeiten. Dieselbe Rechteregel wie im Controller. #}
+                    {% if session.can_edit_users or session.can_manage_project_members %}
+                        {% set _today_add = "now"|date("Y-m-d") %}
+                        {% set _running_projects = projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today_add) %}
+                        {% if _running_projects is not empty %}
+                            <div class="mt-3">
+                                <p class="form-label mb-1">Projekte</p>
+                                {# Läuft genau ein Projekt, kommt fast jede neue Person dorthin: #}
+                                {# vorangekreuzt, damit das Häkchen nicht vergessen wird. #}
+                                {% set _create_projects_touched = modal_form_create.form.projects|default([]) is not empty %}
+                                {% for p in _running_projects %}
+                                    {% set _project_checked = _create_projects_touched ? p.id in modal_form_create.form.projects : _running_projects|length == 1 %}
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="projects[]"
+                                               value="{{ p.id }}"
+                                               id="proj_add_{{ p.id }}"
+                                               {% if _project_checked %}checked{% endif %}>
+                                        <label class="form-check-label" for="proj_add_{{ p.id }}">{{ p.name }}</label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    {# Einladen nur mit Mitgliederverwaltung, wie im Controller. Ohne #}
+                    {# das Recht gibt es nur das Speichern, und das ist dann die Hauptaktion. #}
+                    {% if session.can_manage_users %}
+                        <p class="form-text mt-3 mb-0">
+                            Mit der Einladung bekommt die Person einen Link, um ihr Passwort festzulegen.
+                            Senden lässt sie sich auch später noch.
+                        </p>
+                    {% endif %}
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer user-create-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit"
-                            class="btn btn-primary"
-                            name="submit_action"
-                            value="save">Speichern</button>
-                    <button type="submit"
-                            class="btn btn-outline-primary"
-                            name="submit_action"
-                            value="save_and_invite">
-                        <i class="bi bi-envelope-fill me-1"></i>Speichern und Einladungs-E-Mail senden
-                    </button>
+                    {% if session.can_manage_users %}
+                        <button type="submit"
+                                class="btn btn-outline-secondary"
+                                name="submit_action"
+                                value="save">Nur speichern</button>
+                        <button type="submit"
+                                class="btn btn-primary"
+                                name="submit_action"
+                                value="save_and_invite">Speichern und einladen</button>
+                    {% else %}
+                        <button type="submit"
+                                class="btn btn-primary"
+                                name="submit_action"
+                                value="save">Speichern</button>
+                    {% endif %}
                 </div>
             </form>
         </div>
@@ -442,7 +507,7 @@
         <div class="modal fade"
              id="editUserModal"
              data-edit-form-url-template="/users/__ID__/edit-form"
-             data-open-edit-user-id="{{ open_edit_user_id|default('') }}"
+             data-open-edit-user-id="{{ open_edit_user_id|default("") }}"
              tabindex="-1"
              aria-labelledby="editUserModalLabel"
              aria-hidden="true">
@@ -460,45 +525,21 @@
         </div>
     {% endif %}
 
-    {% if can_manage_project_members or can_edit_users %}
-        {% for user in users %}
-            <div class="modal fade"
-                 id="userProjectsModal{{ user.id }}"
-                 tabindex="-1"
-                 aria-labelledby="userProjectsModalLabel{{ user.id }}"
-                 aria-hidden="true">
-                <div class="modal-dialog modal-dialog-scrollable">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="userProjectsModalLabel{{ user.id }}">
-                                Projekte von {{ user.first_name }} {{ user.last_name }}
-                            </h5>
-                            <button type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Schließen"></button>
-                        </div>
-                        <div class="modal-body">
-                            {% if user.project_participations|length > 0 %}
-                                <ul class="list-group list-group-flush">
-                                    {% for participation in user.project_participations %}
-                                        <li class="list-group-item">
-                                            <span>{{ participation.name }}</span>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <p class="text-muted mb-0">Keine Projektteilnahmen vorhanden.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-    {% endif %}
-
 {% endblock content %}
 
 {% block scripts %}
-    <script src="/js/users.js?v=20260804-filtered-bulk-select"></script>
+    <script src="/js/users-bulk-confirm.js?v=20261017"></script>
+    <script src="/js/users.js?v=20261017-confirm-preview"></script>
 {% endblock scripts %}
+
+{% macro create_role_choice(role, checked) %}
+    <div class="form-check form-check-inline">
+        <input class="form-check-input"
+               type="checkbox"
+               name="roles[]"
+               value="{{ role.id }}"
+               id="role_add_{{ role.id }}"
+               {% if checked %}checked{% endif %}>
+        <label class="form-check-label" for="role_add_{{ role.id }}">{{ role.name }}</label>
+    </div>
+{% endmacro %}

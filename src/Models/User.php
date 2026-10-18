@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class User extends Model
@@ -84,7 +85,62 @@ class User extends Model
      */
     protected $casts = [
         'is_active' => 'boolean',
+        'last_login_at' => 'datetime',
+        'invitation_sent_at' => 'datetime',
     ];
+
+    /**
+     * Ab hier werden Anmeldungen erfasst (Migration 20261017120000). Davor sagt
+     * ein leeres last_login_at nichts.
+     */
+    public const ACTIVITY_TRACKED_SINCE = '2026-10-17 00:00:00';
+
+    /**
+     * Ob eine Einladung nachweislich noch offen ist: verschickt nach Beginn der
+     * Erfassung und seither keine Anmeldung. Ältere Einladungen gelten nie als
+     * offen - für sie fehlt der Vergleich, und "offen" wäre geraten.
+     */
+    public function invitationPending(): bool
+    {
+        $sentAt = $this->invitation_sent_at;
+        if ($sentAt === null || $sentAt->lt(Carbon::parse(self::ACTIVITY_TRACKED_SINCE))) {
+            return false;
+        }
+
+        $lastLogin = $this->last_login_at;
+
+        return $lastLogin === null || $lastLogin->lt($sentAt);
+    }
+
+    /**
+     * Ob die Person die App nachweislich nutzt: angemeldet nach der letzten
+     * Einladung (oder ganz ohne Einladung). Eine Sammel-Einladung überspringt
+     * sie - ein neuer Link zum Passwortsetzen wäre für sie nur verwirrend.
+     */
+    public function usesApp(): bool
+    {
+        $lastLogin = $this->last_login_at;
+        if ($lastLogin === null) {
+            return false;
+        }
+
+        $sentAt = $this->invitation_sent_at;
+
+        return $sentAt === null || $lastLogin->gte($sentAt);
+    }
+
+    /**
+     * Hält eine neue Anmeldung fest - per Passwort oder über "angemeldet
+     * bleiben".
+     *
+     * Als gezielte Abfrage statt über `save()`: Das Modell in der Hand des
+     * Aufrufers kann Eingaben tragen, die mit der Anmeldung nichts zu tun haben,
+     * und `save()` schriebe sie unbemerkt mit.
+     */
+    public static function recordLogin(int $userId): void
+    {
+        self::query()->whereKey($userId)->update(['last_login_at' => Carbon::now()]);
+    }
 
     public function roles()
     {

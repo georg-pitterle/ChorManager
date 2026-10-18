@@ -7,13 +7,17 @@
       class="modal-content"
       autocomplete="off">
     <div class="modal-header">
-        <h5 class="modal-title" id="editUserModalLabel">
-            {{ can_edit_profile ? "Mitglied bearbeiten" : "Projektzuordnung bearbeiten" }}
-        </h5>
+        <h2 class="modal-title h5" id="editUserModalLabel">
+            {% if can_edit_profile %}
+                {{ user|person_name }} bearbeiten
+            {% else %}
+                Projektzuordnung: {{ user|person_name }}
+            {% endif %}
+        </h2>
         <button type="button"
                 class="btn-close"
                 data-bs-dismiss="modal"
-                aria-label="Close"></button>
+                aria-label="Schließen"></button>
     </div>
     <div class="modal-body">
         {% if edit_state.message|default(null) %}
@@ -22,7 +26,7 @@
                 <button type="button"
                         class="btn-close"
                         data-bs-dismiss="alert"
-                        aria-label="Close"></button>
+                        aria-label="Schließen"></button>
             </div>
         {% endif %}
         {% if can_edit_profile %}
@@ -57,39 +61,38 @@
                        id="partials-user-edit-form-email">
                 {% if not can_edit_email %}
                     <div class="form-text">
-                        Die E-Mail-Adresse kann nur von der Mitgliederverwaltung geändert werden.
+                        Die E-Mail-Adresse ändert nur, wer das Recht „Mitglieder editieren erlauben“ hat.
                     </div>
                 {% endif %}
             </div>
             <hr class="my-4">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Rollen (Mehrfachauswahl) *</label>
-                    <br>
-                    {% for role in roles %}
-                        {% set has_role = false %}
-                        {% for ur in user.roles %}
-                            {% if ur.id == role.id %}
-                                {% set has_role = true %}
-                            {% endif %}
-                        {% endfor %}
-                        {% set form_has_role = role.id in edit_form.roles|default([]) %}
-                        {% set _roles_touched = edit_form.roles|default([]) is not empty %}
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input"
-                                   type="checkbox"
-                                   name="roles[]"
-                                   value="{{ role.id }}"
-                                   id="role_{{ user.id }}_{{ role.id }}"
-                                   {% if _roles_touched ? form_has_role : has_role %}checked{% endif %}>
-                            <label class="form-check-label"
-                                   for="role_{{ user.id }}_{{ role.id }}">{{ role.name }}</label>
-                        </div>
+                    <p class="form-label mb-1">Rollen *</p>
+                    {% set _roles_touched = edit_form.roles|default([]) is not empty %}
+                    {% set _user_role_ids = user.roles|map(r => r.id) %}
+                    {% set _checked_role_ids = _roles_touched ? edit_form.roles : _user_role_ids %}
+                    {# Wie beim Anlegen: die Grundrolle offen, alles mit zusätzlichen #}
+                    {# Rechten hinter "Weitere Rollen" - aufgeklappt, sobald das Mitglied #}
+                    {# eine davon hat. #}
+                    {% set _basic_roles = roles|filter(r => r.id in default_role_ids|default([])) %}
+                    {% set _further_roles = _basic_roles is empty ? roles : roles|filter(r => r.id not in default_role_ids|default([])) %}
+                    {% set _further_open = _basic_roles is empty or _further_roles|filter(r => r.id in _checked_role_ids) is not empty %}
+                    {% for role in _basic_roles %}
+                        {{ _self.role_choice(role, user, role.id in _checked_role_ids) }}
                     {% endfor %}
+                    {% if _further_roles is not empty %}
+                        <details class="further-roles"{% if _further_open %} open{% endif %}>
+                            <summary>Weitere Rollen</summary>
+                            <div class="form-text mt-1 mb-2">Weitere Rollen geben zusätzliche Rechte in der App.</div>
+                            {% for role in _further_roles %}
+                                {{ _self.role_choice(role, user, role.id in _checked_role_ids) }}
+                            {% endfor %}
+                        </details>
+                    {% endif %}
                 </div>
-                <div class="col-md-6 mb-3 border-start">
-                    <label class="form-label">Stimmengruppen</label>
-                    <br>
+                <div class="col-md-6 mb-3">
+                    <p class="form-label mb-1">Stimmgruppen</p>
                     {% for group in voice_groups %}
                         {% set has_group = group.id in user.voice_group_ids %}
                         {% set current_subvoice = user.voice_group_pivots[group.id]|default(null) %}
@@ -97,7 +100,7 @@
                         {% set form_subvoice = edit_form.sub_voices[group.id]|default(null) %}
                         {% set _groups_touched = edit_form.voice_groups|default([]) is not empty %}
                         {% set _group_checked = _groups_touched ? form_has_group : has_group %}
-                        <div class="mb-2 p-2 border rounded bg-light">
+                        <div class="voice-group-choice">
                             <div class="form-check">
                                 <input class="form-check-input vg-checkbox"
                                        type="checkbox"
@@ -105,12 +108,12 @@
                                        value="{{ group.id }}"
                                        id="vg_{{ user.id }}_{{ group.id }}"
                                        {% if _group_checked %}checked{% endif %}>
-                                <label class="form-check-label fw-bold"
+                                <label class="form-check-label"
                                        for="vg_{{ user.id }}_{{ group.id }}">{{ group.name }}</label>
                             </div>
-                            <div class="mt-1 ps-4 collapse-sv{% if not _group_checked %} d-none{% endif %}">
-                                <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]" aria-label="Teilstimme für {{ group.name }}">
-                                    <option value="">(Keine Teilstimme)</option>
+                            <div class="voice-group-choice__sub collapse-sv{% if not _group_checked %} d-none{% endif %}">
+                                <select class="form-select form-select-sm" name="sub_voices[{{ group.id }}]" aria-label="Unterstimme für {{ group.name }}">
+                                    <option value="">Keine Unterstimme</option>
                                     {% for sv in sub_voices %}
                                         {% if sv.voice_group_id == group.id %}
                                             {% set _sv_current = current_subvoice == sv.id %}
@@ -130,45 +133,88 @@
             </div>
         {% else %}
             <div class="alert alert-info mb-0" role="alert">
-                <strong>{{ user|person_name }}</strong> – Sie dürfen hier ausschließlich die
-                Projektzuordnung ändern. Name, E-Mail-Adresse, Rollen und Stimmgruppen bleiben
-                unverändert.
+                Bei <strong>{{ user|person_name }}</strong> kannst du hier nur die Projektzuordnung
+                ändern. Name, E-Mail-Adresse, Rollen und Stimmgruppen bleiben, wie sie sind.
             </div>
         {% endif %}
         {% if (can_manage_project_members or can_edit_users) and projects|length > 0 %}
+            {% set _today = "now"|date("Y-m-d") %}
+            {% set _past_projects = projects|filter(p => p.end_date and p.end_date|date("Y-m-d") < _today) %}
+            {% set _current_projects = projects|filter(p => p not in _past_projects) %}
+            {% set _projects_touched = edit_form.projects|default([]) is not empty %}
             <hr class="my-4">
             <div class="mb-3">
-                <label class="form-label">Projekte</label>
-                <div class="form-text mb-2">Mitglied diesen Projekten zuordnen:</div>
+                <p class="form-label mb-1">Projekte</p>
                 <div class="d-flex flex-wrap gap-2">
-                    {% for p in projects %}
-                        {% set in_project = p.id in user.project_ids %}
-                        {% set form_in_project = p.id in edit_form.projects|default([]) %}
-                        {% set _projects_touched = edit_form.projects|default([]) is not empty %}
-                        <div class="form-check">
-                            <input class="form-check-input"
-                                   type="checkbox"
-                                   name="projects[]"
-                                   value="{{ p.id }}"
-                                   id="proj_{{ user.id }}_{{ p.id }}"
-                                   {% if _projects_touched ? form_in_project : in_project %}checked{% endif %}>
-                            <label class="form-check-label" for="proj_{{ user.id }}_{{ p.id }}">{{ p.name }}</label>
-                        </div>
+                    {% for p in _current_projects %}
+                        {{ _self.project_choice(p, user, edit_form, _projects_touched) }}
                     {% endfor %}
                 </div>
+                {# Jede Saison kommt ein Projekt dazu. Abgelaufene bleiben im Formular #}
+                {# und werden mitgeschickt, stehen aber eingeklappt. #}
+                {% if _past_projects is not empty %}
+                    <details class="past-projects mt-2">
+                        <summary>Frühere Projekte ({{ _past_projects|length }})</summary>
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            {% for p in _past_projects %}
+                                {{ _self.project_choice(p, user, edit_form, _projects_touched) }}
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
             </div>
+        {% endif %}
+        {% if can_invite %}
+            <details class="small text-muted">
+                <summary>Kontoaktivität</summary>
+                <dl class="account-activity mb-0 mt-2">
+                    <dt class="fw-normal">Letzte Anmeldung</dt>
+                    <dd class="mb-0">
+                        {{ user.last_login_at ? user.last_login_at|date("d.m.Y, H:i") : "nicht erfasst" }}
+                    </dd>
+                    <dt class="fw-normal">Einladung gesendet</dt>
+                    <dd class="mb-0">
+                        {{ user.invitation_sent_at ? user.invitation_sent_at|date("d.m.Y, H:i") : "nicht erfasst" }}
+                    </dd>
+                </dl>
+                {# Hier statt im Dialogfuß: Dort stand der Knopf direkt neben #}
+                {# "Abbrechen" und verschickte bei einem Fehlgriff sofort eine Mail. #}
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary mt-2 js-invite-btn"
+                        data-invite-url="/users/{{ user.id }}/invite"
+                        data-invite-confirm="{{ user.invitation_sent_at ? "Einladung erneut an " ~ user|person_name ~ " senden? Der Link vom " ~ user.invitation_sent_at|date("d.m.Y") ~ " verliert seine Gültigkeit." }}">
+                    {{ user.invitation_sent_at ? "Einladung erneut senden" : "Einladung senden" }}
+                </button>
+            </details>
         {% endif %}
     </div>
     <div class="modal-footer">
-        {% if can_invite %}
-            <button type="button"
-                    class="btn btn-outline-secondary me-auto js-invite-btn"
-                    data-invite-url="/users/{{ user.id }}/invite"
-                    title="Einladungs-E-Mail senden">
-                <i class="bi bi-envelope-fill me-1"></i>Einladungs-E-Mail
-            </button>
-        {% endif %}
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
         <button type="submit" class="btn btn-primary">Änderungen speichern</button>
     </div>
 </form>
+
+{% macro project_choice(p, user, edit_form, touched) %}
+    {% set _checked = touched ? p.id in edit_form.projects|default([]) : p.id in user.project_ids %}
+    <div class="form-check">
+        <input class="form-check-input"
+               type="checkbox"
+               name="projects[]"
+               value="{{ p.id }}"
+               id="proj_{{ user.id }}_{{ p.id }}"
+               {% if _checked %}checked{% endif %}>
+        <label class="form-check-label" for="proj_{{ user.id }}_{{ p.id }}">{{ p.name }}</label>
+    </div>
+{% endmacro %}
+
+{% macro role_choice(role, user, checked) %}
+    <div class="form-check form-check-inline">
+        <input class="form-check-input"
+               type="checkbox"
+               name="roles[]"
+               value="{{ role.id }}"
+               id="role_{{ user.id }}_{{ role.id }}"
+               {% if checked %}checked{% endif %}>
+        <label class="form-check-label" for="role_{{ user.id }}_{{ role.id }}">{{ role.name }}</label>
+    </div>
+{% endmacro %}

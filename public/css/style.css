@@ -883,6 +883,12 @@ body.app-shell {
     white-space: nowrap;
 }
 
+/* Passt der Chorname nicht ganz neben Logo und Symbole, steht nur das Logo da -
+   statt "Chor-Manag…". Ob er passt, misst topbar-brand.js. */
+.app-topbar__brand-name.is-overflowing {
+    display: none;
+}
+
 .navbar-dark .navbar-brand:hover,
 .navbar-dark .navbar-brand:focus {
     color: color-mix(in srgb, var(--theme-primary, #E8A817) 85%, #ffffff);
@@ -1040,7 +1046,6 @@ html.nav-open-administration [data-nav-section="administration"] .app-sidebar__i
         flex-direction: column;
         width: var(--app-sidebar-width);
         background: var(--app-sidebar-bg) !important;
-        transition: width 0.15s ease;
     }
 
     /* min-height: 0 lässt den Body innerhalb der festen Leistenhöhe scrollen - sonst wüchse
@@ -1058,7 +1063,6 @@ html.nav-open-administration [data-nav-section="administration"] .app-sidebar__i
     .app-shell--with-sidebar .app-main {
         width: auto;
         margin-left: var(--app-sidebar-width);
-        transition: margin-left 0.15s ease;
     }
 
     /* Symbolleiste: nur Icons, Abschnittsüberschriften werden zu Trennlinien. Weil es
@@ -1096,8 +1100,6 @@ html.nav-open-administration [data-nav-section="administration"] .app-sidebar__i
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .app-sidebar.offcanvas-lg,
-    .app-shell--with-sidebar .app-main,
     .app-sidebar__chevron {
         transition: none;
     }
@@ -1280,7 +1282,8 @@ html.nav-open-administration [data-nav-section="administration"] .app-sidebar__i
     position: absolute;
     top: -0.4rem;
     right: -0.6rem;
-    font-size: 0.625rem;
+    /* 11 px: Untergrenze für lesbare Bedienschrift; 10 px war darunter. */
+    font-size: 0.6875rem;
     line-height: 1;
     padding: 0.2em 0.4em;
 }
@@ -4479,4 +4482,397 @@ a:hover {
 
 .amount-cell {
     font-variant-numeric: tabular-nums;
+}
+
+/* =====================================================================
+   Mitgliederliste
+   Kritik vom Oktober 2026 (24/40): Vor dem ersten Mitglied standen ein zweiter
+   Titel und ein dauerhaft ausgegrauter roter Knopf, am Handy war jede Karte
+   rund 428 px hoch. Jetzt erscheinen die Sammelaktionen erst mit der Auswahl,
+   und eine Karte braucht vier kurze Zeilen.
+   ===================================================================== */
+/* Die Leiste läuft beim Scrollen mit und bleibt unter der Topbar stehen: Wer
+   weit unten ankreuzt, sieht Zähler und Aktionen trotzdem. "overflow: clip"
+   statt "hidden" am Rahmen schneidet die runden Ecken genauso ab, macht ihn
+   aber nicht zum Scroll-Container - sonst klebte die Leiste an ihm statt am
+   Fenster. */
+.users-table-shell {
+    overflow: clip;
+}
+
+.user-selection-bar {
+    position: sticky;
+    top: var(--app-topbar-height, 3.75rem);
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--theme-border);
+    /* Deckend, weil die Zeilen darunter durchscrollen: Weiß mit einem Hauch
+       Vereinsfarbe. */
+    background: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-surface, #fff));
+}
+
+.user-selection-bar__summary {
+    font-weight: 600;
+}
+
+.user-selection-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-selection-bar__actions form {
+    margin: 0;
+}
+
+/* Gesperrtes Archivieren: der Grund steht lesbar im geöffneten Menü. */
+.user-archive-hint {
+    max-width: 17rem;
+    color: var(--theme-text-muted);
+    font-size: 0.85rem;
+    white-space: normal;
+}
+
+/* Stimmgruppen im Dialog: eine flache Liste, die Unterstimme eingerückt
+   darunter. Vorher stand jede Gruppe in einem eigenen Kasten im Dialog. */
+.voice-group-choice + .voice-group-choice {
+    margin-top: 0.25rem;
+}
+
+.voice-group-choice__sub {
+    max-width: 16rem;
+    margin: 0.25rem 0 0.5rem;
+    padding-left: 1.5rem;
+}
+
+/* Karten am Telefon: Name und Auswahl oben, Stimme und Rolle darunter, die
+   Adresse gedämpft, Projekte und Aktionen in der letzten Zeile. */
+[data-table-engine="true"][data-active-view="cards"] .users-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 1.75rem;
+    grid-template-areas:
+        "name name select"
+        "voice voice voice"
+        "email email email"
+        "projects actions actions";
+    gap: 0.2rem 0.75rem;
+    padding: 0.65rem 0.75rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table tbody td {
+    display: block;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    text-align: left !important;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table tbody td::before {
+    content: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-name {
+    grid-area: name;
+    font-size: 1.05rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-select {
+    grid-area: select;
+    justify-self: end;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-select input {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-voice {
+    grid-area: voice;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-email {
+    grid-area: email;
+    color: var(--theme-text-muted);
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-projects {
+    grid-area: projects;
+    align-self: center;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-actions {
+    grid-area: actions;
+    justify-self: end;
+    margin-top: 0.35rem;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table tbody td[colspan] {
+    grid-column: 1 / -1;
+    text-align: center !important;
+}
+
+/* "Einladung offen" unter dem Namen: leise, aber in der Zeile, damit man den
+   Filter nicht kennen muss, um zu sehen, wer die Einladung noch nicht
+   angenommen hat. */
+.user-status {
+    display: inline;
+    color: var(--theme-text-muted);
+    font-size: 0.8rem;
+}
+
+/* Anlegen-Dialog am Telefon: Die Hauptaktion steht oben über die volle Breite,
+   die beiden Nebenknöpfe teilen sich die Zeile darunter - statt eines
+   Umbruchs, der die Hauptaktion allein unten rechts stehen ließ. */
+@media (max-width: 575.98px) {
+    .user-create-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+
+    .user-create-footer > .btn {
+        margin: 0;
+    }
+
+    .user-create-footer > .btn-primary {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+}
+
+/* Auswahlleiste am Telefon: Zähler und "Auswahl aufheben" in einer Zeile, die
+   beiden Aktionen teilen sich die Zeile darunter. */
+@media (max-width: 575.98px) {
+    .user-selection-bar__summary {
+        flex: 1 1 100%;
+    }
+
+    .user-selection-bar__actions {
+        flex: 1 1 100%;
+    }
+
+    .user-selection-bar__actions form {
+        flex: 1 1 0;
+    }
+
+    .user-selection-bar__actions .btn {
+        width: 100%;
+    }
+}
+
+/* Kontoaktivität: Wert direkt neben der Beschriftung statt 300 px entfernt
+   in einem halbierten Raster. */
+.account-activity {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.15rem 1rem;
+}
+
+/* Weitere Rollen in den Mitglieder-Dialogen: einen bewussten Klick entfernt. */
+.further-roles > summary {
+    margin-top: 0.35rem;
+    color: var(--theme-text-muted);
+}
+
+/* Besondere Rollen und Einladungsstand in einer Zeile unter dem Namen. */
+.user-meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.15rem;
+}
+
+/* Projektname in der Zeile: eine Zeile, notfalls gekürzt - der Dialog nennt alle. */
+.users-table .user-cell-projects .btn {
+    display: inline-block;
+    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-projects .btn {
+    max-width: 12rem;
+}
+
+/* Der Name ist ein Link, aber kein Dauer-Unterstrich: Sonst standen je Zeile
+   zwei unterstrichene Links nebeneinander. Beim Zeigen erscheint er. */
+.users-table .user-cell-name > a {
+    text-decoration: none;
+}
+
+.users-table .user-cell-name > a:hover,
+.users-table .user-cell-name > a:focus-visible {
+    text-decoration: underline;
+}
+
+/* Aktiver Umschalter und offenes Menü in der Tabellenleiste: zart in der
+   Vereinsfarbe getönt statt Bootstraps gefülltem Grau, das das System verbietet. */
+.table-toolbar .btn-outline-secondary.active,
+.table-toolbar .btn-outline-secondary.show,
+.table-toolbar .btn-outline-secondary[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--theme-primary) 16%, var(--theme-surface, #fff));
+    border-color: var(--theme-text-muted);
+    color: var(--theme-text);
+}
+
+/* Gruppierte Mitgliederliste: Gruppen als ruhige Abschnitte in der Tabellenfläche,
+   nicht als umrandete Karten in der Karte. */
+.users-group-accordion {
+    margin: 0 !important;
+    --bs-accordion-border-width: 0;
+    --bs-accordion-border-radius: 0;
+    --bs-accordion-inner-border-radius: 0;
+    --bs-accordion-btn-focus-box-shadow: none;
+    --bs-accordion-active-bg: var(--theme-surface-muted);
+    --bs-accordion-active-color: var(--theme-text);
+}
+
+.users-group-accordion .accordion-item {
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.users-group-accordion .accordion-button {
+    font-weight: 600;
+}
+
+.users-group-accordion .accordion .accordion-button {
+    padding-left: 2rem;
+    font-weight: 500;
+}
+
+/* Angekreuzte Zeile: die ganze Zeile bzw. Karte zeigt die Auswahl, nicht nur das
+   kleine Kästchen in der Ecke. */
+.users-table tbody tr:has(.user-row-select:checked) {
+    --bs-table-bg-state: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-surface, #fff));
+    background: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-surface, #fff));
+}
+
+/* Rollen sind Schlagworte, kein Ergebnis: nicht fett (Bold-Is-A-Result). */
+.user-meta .badge {
+    font-weight: 500;
+}
+
+/* Gruppierte Ansicht: Innerhalb einer Stimmgruppe sagt die Stimme-Spalte nur,
+   was die Überschrift schon sagt. */
+.users-group-accordion .user-cell-voice,
+.users-group-accordion th[data-sort-key="voice"] {
+    display: none;
+}
+
+/* Gruppierte Ansicht am Telefon: dieselben Karten wie in der Liste. Die Gruppen
+   kopieren die Tabelle; deren Breite entschied die Engine im Gruppenmodus nicht
+   mehr, und die Tabelle lief seitlich aus dem Bild. */
+@media (max-width: 575.98px) {
+    .users-group-accordion .users-table thead {
+        display: none;
+    }
+
+    .users-group-accordion .users-table,
+    .users-group-accordion .users-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .users-group-accordion .users-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto 1.75rem;
+        grid-template-areas:
+            "name name select"
+            "email email email"
+            "projects actions actions";
+        gap: 0.2rem 0.75rem;
+        margin: 0.75rem;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--theme-border);
+        border-radius: var(--app-radius, 0.375rem);
+        background: var(--theme-surface, #fff);
+    }
+
+    .users-group-accordion .users-table tbody td {
+        display: block;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        text-align: left !important;
+        box-shadow: none;
+    }
+
+    .users-group-accordion .users-table tbody td.user-cell-voice {
+        display: none;
+    }
+
+    .users-group-accordion .users-table .user-cell-name {
+        grid-area: name;
+        font-size: 1.05rem;
+    }
+
+    .users-group-accordion .users-table .user-cell-select {
+        grid-area: select;
+        justify-self: end;
+    }
+
+    .users-group-accordion .users-table .user-cell-email {
+        grid-area: email;
+        color: var(--theme-text-muted);
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
+    }
+
+    .users-group-accordion .users-table .user-cell-projects {
+        grid-area: projects;
+        align-self: center;
+    }
+
+    .users-group-accordion .users-table .user-cell-actions {
+        grid-area: actions;
+        justify-self: end;
+    }
+
+    /* Filter am Telefon: ein ruhiges Zweierraster mit voll breiten Auswahlfeldern
+       statt vier unterschiedlich breiter Paare untereinander. */
+    .users-table-shell [data-table-plugin-slot].is-open > div {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .users-table-shell [data-table-plugin-slot].is-open > div > label {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.2rem !important;
+    }
+}
+
+/* Auf der Karte steht das Projekt nicht unter einem Spaltenkopf - "dabei" allein
+   hieße nichts. */
+[data-table-engine="true"][data-active-view="cards"] .users-table .user-cell-projects::before {
+    content: "Projekt: ";
+    display: inline;
+    color: var(--theme-text-muted);
+    font-weight: 400;
+}
+
+@media (max-width: 575.98px) {
+    .users-group-accordion .users-table .user-cell-projects::before {
+        content: "Projekt: ";
+        color: var(--theme-text-muted);
+    }
+}
+
+/* Angekreuzte Zeile behält ihre Tönung auch unter Hover und Streifen: Bootstrap
+   setzt beide an den Zellen, deshalb muss die Auswahl dort ansetzen. */
+.users-table tbody tr:has(.user-row-select:checked) > * {
+    --bs-table-bg-state: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-surface, #fff)) !important;
 }

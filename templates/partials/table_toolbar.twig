@@ -1,31 +1,39 @@
+{# Eine Arbeitszeile: vorn, was die Liste eingrenzt (Suche, Filter), rechts der #}
+{# Zähler. Alles, was nur die Darstellung ändert - Sortierung, Karten oder #}
+{# Tabelle, Gruppierung, Seitengröße, Zurücksetzen - steht im Menü "Ansicht". #}
+{# Vorher waren das neun lose Knöpfe auf drei bis vier Zeilen. #}
 <div class="table-toolbar">
-    <div class="d-flex gap-2 align-items-center flex-wrap" data-table-controls>
+    <div class="table-toolbar__main" data-table-controls>
         <input type="search"
-               class="form-control form-control-sm"
+               class="form-control form-control-sm table-toolbar__search"
                data-table-search
-               placeholder="Suche..."
+               placeholder="Suchen …"
                aria-label="Tabellensuche">
         <button type="button"
                 class="btn btn-sm btn-outline-secondary d-md-none"
                 data-table-filter-toggle
                 aria-expanded="false"
                 hidden>Filter</button>
-        {# Seitenfilter, die der Server auswertet, stehen mit im Werkzeugkasten statt
-           in einer eigenen Karte darüber - eine Leiste für alles, was die Liste eingrenzt. #}
-        <div class="d-flex gap-2 align-items-center" data-table-plugin-slot>
-            {%- if toolbar_filter_template is defined -%}
-                {{ include(toolbar_filter_template) }}
-            {%- endif -%}
-        </div>
-        <div class="dropdown">
+        <div class="dropdown" data-table-view-toggle>
             <button type="button"
                     class="btn btn-sm btn-outline-secondary dropdown-toggle"
                     data-bs-toggle="dropdown"
                     data-bs-auto-close="outside"
-                    data-table-sort-toggle
-                    disabled>Sortierung</button>
-            <div class="dropdown-menu dropdown-menu-end table-sort-panel"
-                 data-table-sort-panel>
+                    aria-expanded="false">Ansicht</button>
+            <div class="dropdown-menu dropdown-menu-end table-sort-panel table-view-menu" data-table-sort-panel>
+                <p class="group-label mb-2">Darstellung</p>
+                <div class="table-view-menu__modes mb-3">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-table-mode="auto">Auto</button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-table-view="cards">Karten</button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-table-view="table">Tabelle</button>
+                </div>
+                <p class="group-label mb-2">Sortierung</p>
                 <p class="table-sort-panel-empty text-muted mb-2"
                    data-table-sort-empty>Keine aktive Sortierung.</p>
                 <div class="table-sort-panel-list mb-2" data-table-sort-current></div>
@@ -35,70 +43,64 @@
                     <div class="table-sort-panel-list" data-table-sort-available></div>
                 </div>
                 <button type="button"
-                        class="btn btn-sm btn-outline-danger w-100 mt-3"
+                        class="btn btn-sm btn-outline-secondary w-100 mt-2"
                         data-table-sort-clear
                         disabled>Sortierung zurücksetzen</button>
+                <label class="table-view-menu__page-size mt-3">
+                    <span class="group-label">Pro Seite</span>
+                    <select class="form-select form-select-sm"
+                            data-table-page-size
+                            disabled>
+                        <option value="25">25 pro Seite</option>
+                        <option value="50">50 pro Seite</option>
+                        <option value="100" selected>100 pro Seite</option>
+                        <option value="200">200 pro Seite</option>
+                    </select>
+                </label>
+                <div class="dropdown-divider my-3"></div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary w-100"
+                        data-table-reset
+                        title="Suche, Filter, Sortierung und Ansicht zurücksetzen"
+                        disabled>Zurücksetzen</button>
             </div>
-        </div>
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-table-reset
-                title="Suche, Filter, Sortierung und Ansicht zurücksetzen"
-                disabled>Zurücksetzen</button>
-    </div>
-    <div class="d-flex gap-2 align-items-center flex-wrap table-toolbar__status">
-        <span class="small text-muted"
-              data-table-result-count
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"></span>
-        <button type="button"
-                class="btn btn-link btn-sm p-0"
-                data-table-filter-clear
-                hidden>Filter zurücksetzen</button>
-        <div class="d-flex gap-2 align-items-center flex-wrap"
-             data-table-pagination>
-            <button type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    data-table-page-prev
-                    aria-label="Vorherige Seite"
-                    disabled>‹</button>
-            <span class="small text-muted"
-                  data-table-page-label
+        </div>{# /Ansicht #}
+        {# Darstellungsschalter einer Seite, etwa "Nach Stimme gruppieren": sichtbar #}
+        {# neben dem Menü statt eine Ebene tiefer darin. #}
+        <div class="table-toolbar__view-slot" data-table-view-slot></div>
+        <p class="table-toolbar__status small text-muted mb-0 ms-auto">
+            <span data-table-result-count
                   role="status"
                   aria-live="polite"
-                  aria-atomic="true">Seite 1 / 1</span>
+                  aria-atomic="true"></span>
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    data-table-page-next
-                    aria-label="Nächste Seite"
-                    disabled>›</button>
-            <select class="form-select form-select-sm"
-                    data-table-page-size
-                    aria-label="Seitengröße"
-                    disabled>
-                <option value="25">25 pro Seite</option>
-                <option value="50">50 pro Seite</option>
-                <option value="100" selected>100 pro Seite</option>
-                <option value="200">200 pro Seite</option>
-            </select>
-        </div>
+                    class="btn btn-link btn-sm p-0 align-baseline"
+                    data-table-filter-clear
+                    hidden>Filter zurücksetzen</button>
+        </p>
     </div>
-    <div class="dropdown ms-auto" data-table-view-toggle>
+    {# Seitenfilter, die der Server auswertet, stehen mit im Werkzeugkasten statt #}
+    {# in einer eigenen Karte darüber - eine Leiste für alles, was die Liste eingrenzt. #}
+    <div class="table-toolbar__filters" data-table-plugin-slot>
+        {%- if toolbar_filter_template is defined -%}
+            {{ include(toolbar_filter_template) }}
+        {%- endif -%}
+    </div>
+    <div class="table-toolbar__pager" data-table-pagination>
         <button type="button"
-                class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                data-bs-toggle="dropdown"
-                aria-expanded="false">Ansicht</button>
-        <div class="dropdown-menu dropdown-menu-end">
-            <button type="button"
-                    class="dropdown-item"
-                    data-table-mode="auto">Auto</button>
-            <button type="button"
-                    class="dropdown-item"
-                    data-table-view="cards">Karten</button>
-            <button type="button"
-                    class="dropdown-item"
-                    data-table-view="table">Tabelle</button>
-        </div>
+                class="btn btn-sm btn-outline-secondary"
+                data-table-page-prev
+                aria-label="Vorherige Seite"
+                disabled>‹</button>
+        <span class="small text-muted"
+              data-table-page-label
+              role="status"
+              aria-live="polite"
+              aria-atomic="true">Seite 1 / 1</span>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-table-page-next
+                aria-label="Nächste Seite"
+                disabled>›</button>
     </div>
 </div>

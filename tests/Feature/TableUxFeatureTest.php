@@ -241,17 +241,18 @@ class TableUxFeatureTest extends TestCase
         }
     }
 
-    public function testUsersManageTableUsesProjectCountSortAndModalTrigger(): void
+    public function testUsersManageTableSortsByRunningProjects(): void
     {
         $usersTemplate = file_get_contents(dirname(__DIR__) . '/../templates/users/manage.twig');
 
         $this->assertIsString($usersTemplate);
+        // Die Spalte zeigt "dabei" / "nicht dabei" fürs laufende Projekt; sortiert
+        // wird nach der Zahl der laufenden Projekte, nicht nach allen Saisonen.
         $this->assertStringContainsString('data-sort-key="project_count"', $usersTemplate);
         $this->assertStringContainsString('data-sort-type="number"', $usersTemplate);
-        $this->assertStringContainsString('data-sort-initial-dir="desc">Projekte</th>', $usersTemplate);
-        $this->assertStringContainsString('data-sort-project_count="{{ user.project_count }}"', $usersTemplate);
-        $this->assertStringContainsString('data-bs-target="#userProjectsModal{{ user.id }}"', $usersTemplate);
-        $this->assertStringContainsString('Keine Projektteilnahmen vorhanden.', $usersTemplate);
+        $this->assertStringContainsString('data-sort-initial-dir="desc">Laufendes Projekt</th>', $usersTemplate);
+        $this->assertStringContainsString('data-sort-project_count="{{ _current_projects|length }}"', $usersTemplate);
+        $this->assertStringNotContainsString('userProjectsModal', $usersTemplate);
     }
 
     public function testTableEngineSupportsPerColumnInitialSortDirection(): void
